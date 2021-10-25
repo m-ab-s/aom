@@ -35,18 +35,13 @@ static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
 #endif  // !CONFIG_NEW_INTER_MODES
   }
 
-#if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME *ref_frames_nrs = mbmi->ref_frame_nrs;
-  const int8_t ref_frame_type_nrs = av1_ref_frame_type(ref_frames_nrs);
-#else
   const MV_REFERENCE_FRAME *ref_frames = mbmi->ref_frame;
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frames);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   const CANDIDATE_MV *curr_ref_mv_stack = mbmi_ext_frame->ref_mv_stack;
 
 #if CONFIG_NEW_REF_SIGNALING
-  if (ref_frames_nrs[1] != INTRA_FRAME_NRS && ref_frames_nrs[1] != INVALID_IDX)
+  if (ref_frames[1] != INTRA_FRAME_NRS && ref_frames[1] != INVALID_IDX)
 #else
   if (ref_frames[1] > INTRA_FRAME)
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -59,11 +54,7 @@ static AOM_INLINE int_mv get_ref_mv_for_mv_stats(
   assert(ref_idx == 0);
   return ref_mv_idx < mbmi_ext_frame->ref_mv_count
              ? curr_ref_mv_stack[ref_mv_idx].this_mv
-#if CONFIG_NEW_REF_SIGNALING
-             : mbmi_ext_frame->global_mvs[ref_frame_type_nrs];
-#else
              : mbmi_ext_frame->global_mvs[ref_frame_type];
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 static AOM_INLINE int get_symbol_cost(const aom_cdf_prob *cdf, int symbol) {

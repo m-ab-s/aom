@@ -1259,12 +1259,10 @@ static int check_skip_mode_enabled(AV1_COMP *const cpi) {
   if (cpi->all_one_sided_refs && cpi->oxcf.gf_cfg.lag_in_frames > 0) return 0;
 
 #if CONFIG_NEW_REF_SIGNALING
-  const int ref_frame_nrs[2] = {
-    cm->current_frame.skip_mode_info.ref_frame_idx_0,
-    cm->current_frame.skip_mode_info.ref_frame_idx_1
-  };
-  if (!(cpi->common.ref_frame_flags & (1 << ref_frame_nrs[0])) ||
-      !(cpi->common.ref_frame_flags & (1 << ref_frame_nrs[1])))
+  const int ref_frame[2] = { cm->current_frame.skip_mode_info.ref_frame_idx_0,
+                             cm->current_frame.skip_mode_info.ref_frame_idx_1 };
+  if (!(cpi->common.ref_frame_flags & (1 << ref_frame[0])) ||
+      !(cpi->common.ref_frame_flags & (1 << ref_frame[1])))
     return 0;
 #else
   static const int flag_list[REF_FRAMES] = { 0,

@@ -44,20 +44,11 @@ static INLINE int is_comp_rd_match(const AV1_COMP *const cpi,
   const MACROBLOCKD *const xd = &x->e_mbd;
   // Match MV and reference indices
   for (int i = 0; i < 2; ++i) {
-#if CONFIG_NEW_REF_SIGNALING
-    if ((st->ref_frames_nrs[i] != mi->ref_frame_nrs[i]) ||
-#else
     if ((st->ref_frames[i] != mi->ref_frame[i]) ||
-#endif  // CONFIG_NEW_REF_SIGNALING
         (st->mv[i].as_int != mi->mv[i].as_int)) {
       return 0;
     }
-#if CONFIG_NEW_REF_SIGNALING
-    const WarpedMotionParams *const wm =
-        &xd->global_motion[mi->ref_frame_nrs[i]];
-#else
     const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[i]];
-#endif  // CONFIG_NEW_REF_SIGNALING
     if (is_global_mv_block(mi, wm->wmtype) != st->is_global[i]) return 0;
   }
 
@@ -573,11 +564,7 @@ static int handle_smooth_inter_intra_mode(
           cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred, tmp_buf,
           best_interintra_mode, &best_interintra_rd, cur_mode, bsize);
     }
-#if CONFIG_NEW_REF_SIGNALING
-    args->inter_intra_mode[mbmi->ref_frame_nrs[0]] = *best_interintra_mode;
-#else
     args->inter_intra_mode[mbmi->ref_frame[0]] = *best_interintra_mode;
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
   assert(IMPLIES(!cpi->oxcf.comp_type_cfg.enable_smooth_interintra ||
                      cpi->sf.inter_sf.disable_smooth_interintra,
@@ -664,11 +651,7 @@ static int handle_wedge_inter_intra_mode(
             cpi, mbmi, xd, x, interintra_mode_cost, orig_dst, intrapred,
             tmp_buf, best_interintra_mode, best_rd, cur_mode, bsize);
       }
-#if CONFIG_NEW_REF_SIGNALING
-      args->inter_intra_mode[mbmi->ref_frame_nrs[0]] = *best_interintra_mode;
-#else
       args->inter_intra_mode[mbmi->ref_frame[0]] = *best_interintra_mode;
-#endif  // CONFIG_NEW_REF_SIGNALING
       mbmi->interintra_mode = *best_interintra_mode;
 
       // Recompute prediction if required
@@ -710,7 +693,7 @@ static int handle_wedge_inter_intra_mode(
       // Set ref_frame[1] to NONE_FRAME temporarily so that the intra
       // predictor is not calculated again in av1_enc_build_inter_predictor().
 #if CONFIG_NEW_REF_SIGNALING
-      mbmi->ref_frame_nrs[1] = INVALID_IDX;
+      mbmi->ref_frame[1] = INVALID_IDX;
 #else
       mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -719,7 +702,7 @@ static int handle_wedge_inter_intra_mode(
       av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
                                     AOM_PLANE_Y, AOM_PLANE_Y);
 #if CONFIG_NEW_REF_SIGNALING
-      mbmi->ref_frame_nrs[1] = INTRA_FRAME_NRS;
+      mbmi->ref_frame[1] = INTRA_FRAME_NRS;
 #else
       mbmi->ref_frame[1] = INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -777,7 +760,7 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
 
   // Single reference inter prediction
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[1] = INVALID_IDX;
+  mbmi->ref_frame[1] = INVALID_IDX;
 #else
   mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -790,14 +773,12 @@ int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
   // Restore the buffers for intra prediction
   restore_dst_buf(xd, *orig_dst, num_planes);
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[1] = INTRA_FRAME_NRS;
-  INTERINTRA_MODE best_interintra_mode =
-      args->inter_intra_mode[mbmi->ref_frame_nrs[0]];
+  mbmi->ref_frame[1] = INTRA_FRAME_NRS;
 #else
   mbmi->ref_frame[1] = INTRA_FRAME;
+#endif  // CONFIG_NEW_REF_SIGNALING
   INTERINTRA_MODE best_interintra_mode =
       args->inter_intra_mode[mbmi->ref_frame[0]];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Compute smooth_interintra
   int64_t best_interintra_rd_nowedge = INT64_MAX;
@@ -1068,12 +1049,7 @@ static INLINE void save_comp_rd_search_stat(
     memcpy(rd_stats->model_dist, comp_model_dist, sizeof(rd_stats->model_dist));
     memcpy(rd_stats->comp_rs2, comp_rs2, sizeof(rd_stats->comp_rs2));
     memcpy(rd_stats->mv, cur_mv, sizeof(rd_stats->mv));
-#if CONFIG_NEW_REF_SIGNALING
-    memcpy(rd_stats->ref_frames_nrs, mbmi->ref_frame_nrs,
-           sizeof(rd_stats->ref_frames_nrs));
-#else
     memcpy(rd_stats->ref_frames, mbmi->ref_frame, sizeof(rd_stats->ref_frames));
-#endif  // CONFIG_NEW_REF_SIGNALING
     rd_stats->mode = mbmi->mode;
 #if CONFIG_REMOVE_DUAL_FILTER
     rd_stats->interp_fltr = mbmi->interp_fltr;
@@ -1083,13 +1059,8 @@ static INLINE void save_comp_rd_search_stat(
     rd_stats->ref_mv_idx = mbmi->ref_mv_idx;
     const MACROBLOCKD *const xd = &x->e_mbd;
     for (int i = 0; i < 2; ++i) {
-#if CONFIG_NEW_REF_SIGNALING
-      const WarpedMotionParams *const wm =
-          &xd->global_motion[mbmi->ref_frame_nrs[i]];
-#else
       const WarpedMotionParams *const wm =
           &xd->global_motion[mbmi->ref_frame[i]];
-#endif  // CONFIG_NEW_REF_SIGNALING
       rd_stats->is_global[i] = is_global_mv_block(mbmi, wm->wmtype);
     }
     memcpy(&rd_stats->interinter_comp, &mbmi->interinter_comp,
@@ -1491,7 +1462,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         comp_model_dist[comp_type] = est_dist[comp_type];
 #if CONFIG_NEW_REF_SIGNALING
         sse_y[comp_type] =
-            x->pred_sse[COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame_nrs[0])];
+            x->pred_sse[COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame[0])];
 #else
         sse_y[comp_type] = x->pred_sse[xd->mi[0]->ref_frame[0]];
 #endif  // CONFIG_NEW_REF_SIGNALING

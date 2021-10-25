@@ -313,36 +313,6 @@ void av1_set_frame_refs(AV1_COMMON *const cm, int *remapped_ref_idx,
                         int lst_map_idx, int gld_map_idx);
 #endif  // !CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_NEW_REF_SIGNALING
-static INLINE void av1_collect_neighbors_ref_counts_nrs(
-    const AV1_COMMON *const cm, MACROBLOCKD *const xd) {
-  (void)cm;
-  av1_zero(xd->neighbors_ref_counts_nrs);
-
-  uint8_t *const ref_counts = xd->neighbors_ref_counts_nrs;
-
-  const MB_MODE_INFO *const above_mbmi = xd->above_mbmi;
-  const MB_MODE_INFO *const left_mbmi = xd->left_mbmi;
-  const int above_in_image = xd->up_available;
-  const int left_in_image = xd->left_available;
-
-  // Above neighbor
-  if (above_in_image && is_inter_block(above_mbmi)) {
-    ref_counts[above_mbmi->ref_frame_nrs[0]]++;
-    if (has_second_ref(above_mbmi)) {
-      ref_counts[above_mbmi->ref_frame_nrs[1]]++;
-    }
-  }
-
-  // Left neighbor
-  if (left_in_image && is_inter_block(left_mbmi)) {
-    ref_counts[left_mbmi->ref_frame_nrs[0]]++;
-    if (has_second_ref(left_mbmi)) {
-      ref_counts[left_mbmi->ref_frame_nrs[1]]++;
-    }
-  }
-}
-#else
 static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
   av1_zero(xd->neighbors_ref_counts);
 
@@ -369,7 +339,6 @@ static INLINE void av1_collect_neighbors_ref_counts(MACROBLOCKD *const xd) {
     }
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 void av1_copy_frame_mvs(const AV1_COMMON *const cm,
                         const MB_MODE_INFO *const mi, int mi_row, int mi_col,
@@ -378,15 +347,6 @@ void av1_copy_frame_mvs(const AV1_COMMON *const cm,
 // The global_mvs output parameter points to an array of REF_FRAMES elements.
 // The caller may pass a null global_mvs if it does not need the global_mvs
 // output.
-#if CONFIG_NEW_REF_SIGNALING
-void av1_find_mv_refs_nrs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
-                          MB_MODE_INFO *mi, MV_REFERENCE_FRAME ref_frame_nrs,
-                          uint8_t ref_mv_count[MODE_CTX_REF_FRAMES],
-                          CANDIDATE_MV ref_mv_stack[][MAX_REF_MV_STACK_SIZE],
-                          uint16_t ref_mv_weight[][MAX_REF_MV_STACK_SIZE],
-                          int_mv mv_ref_list[][MAX_MV_REF_CANDIDATES],
-                          int_mv *global_mvs, int16_t *mode_context);
-#else
 void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                       MB_MODE_INFO *mi, MV_REFERENCE_FRAME ref_frame,
                       uint8_t ref_mv_count[MODE_CTX_REF_FRAMES],
@@ -394,7 +354,6 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                       uint16_t ref_mv_weight[][MAX_REF_MV_STACK_SIZE],
                       int_mv mv_ref_list[][MAX_MV_REF_CANDIDATES],
                       int_mv *global_mvs, int16_t *mode_context);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 // check a list of motion vectors by sad score using a number rows of pixels
 // above and a number cols of pixels in the left to select the one with best

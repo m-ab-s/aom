@@ -103,8 +103,8 @@ static int get_unmapped_ref(RefScoreData *scores, int n_bufs) {
 }
 
 #define JOINT_DIST_QINDEX_ORDERING 1
-void av1_get_ref_frames_nrs(AV1_COMMON *cm, int cur_frame_disp,
-                            RefFrameMapPair *ref_frame_map_pairs) {
+void av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
+                        RefFrameMapPair *ref_frame_map_pairs) {
   RefScoreData scores[REF_FRAMES_NRS];
   memset(scores, 0, REF_FRAMES_NRS * sizeof(*scores));
   for (int i = 0; i < REF_FRAMES_NRS; i++) scores[i].score = INT_MAX;
@@ -382,21 +382,11 @@ void av1_get_ref_frames(AV1_COMMON *const cm, int cur_frame_disp,
 // Returns a context number for the given MB prediction signal
 static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
                                         const MACROBLOCKD *xd, int dir,
-#if CONFIG_NEW_REF_SIGNALING
-                                        MV_REFERENCE_FRAME ref_frame_nrs
-#else
-                                        MV_REFERENCE_FRAME ref_frame
-#endif  // CONFIG_NEW_REF_SIGNALING
-) {
+                                        MV_REFERENCE_FRAME ref_frame) {
   (void)xd;
 
-#if CONFIG_NEW_REF_SIGNALING
-  if (ref_mbmi->ref_frame_nrs[0] != ref_frame_nrs &&
-      ref_mbmi->ref_frame_nrs[1] != ref_frame_nrs) {
-#else
   if (ref_mbmi->ref_frame[0] != ref_frame &&
       ref_mbmi->ref_frame[1] != ref_frame) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     return SWITCHABLE_FILTERS;
   }
 #if CONFIG_REMOVE_DUAL_FILTER
@@ -410,15 +400,14 @@ static InterpFilter get_ref_filter_type(const MB_MODE_INFO *ref_mbmi,
 int av1_get_pred_context_switchable_interp(const MACROBLOCKD *xd, int dir) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
 #if CONFIG_NEW_REF_SIGNALING
-  const int ctx_offset = (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS &&
-                          mbmi->ref_frame_nrs[1] != INVALID_IDX) *
+  const int ctx_offset = (mbmi->ref_frame[1] != INTRA_FRAME_NRS &&
+                          mbmi->ref_frame[1] != INVALID_IDX) *
                          INTER_FILTER_COMP_OFFSET;
-  const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame_nrs[0];
 #else
   const int ctx_offset =
       (mbmi->ref_frame[1] > INTRA_FRAME) * INTER_FILTER_COMP_OFFSET;
-  const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[0];
 #endif  // CONFIG_NEW_REF_SIGNALING
+  const MV_REFERENCE_FRAME ref_frame = mbmi->ref_frame[0];
   assert(dir == 0 || dir == 1);
   // Note:
   // The mode info data structure has a one element border above and to the
@@ -549,44 +538,25 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
   // The prediction flags in these dummy entries are initialized to 0.
   if (has_above && has_left) {  // both edges available
     if (!has_second_ref(above_mbmi) && !has_second_ref(left_mbmi))
-    // neither edge uses comp pred (0/1)
-#if CONFIG_NEW_REF_SIGNALING
-      ctx = IS_BACKWARD_REF_FRAME(above_mbmi->ref_frame_nrs[0]) ^
-            IS_BACKWARD_REF_FRAME(left_mbmi->ref_frame_nrs[0]);
-#else
+      // neither edge uses comp pred (0/1)
       ctx = IS_BACKWARD_REF_FRAME(above_mbmi->ref_frame[0]) ^
             IS_BACKWARD_REF_FRAME(left_mbmi->ref_frame[0]);
-#endif  // CONFIG_NEW_REF_SIGNALING
     else if (!has_second_ref(above_mbmi))
-    // one of two edges uses comp pred (2/3)
-#if CONFIG_NEW_REF_SIGNALING
-      ctx = 2 + (IS_BACKWARD_REF_FRAME(above_mbmi->ref_frame_nrs[0]) ||
-                 !is_inter_block(above_mbmi));
-#else
+      // one of two edges uses comp pred (2/3)
       ctx = 2 + (IS_BACKWARD_REF_FRAME(above_mbmi->ref_frame[0]) ||
                  !is_inter_block(above_mbmi));
-#endif  // CONFIG_NEW_REF_SIGNALING
     else if (!has_second_ref(left_mbmi))
-    // one of two edges uses comp pred (2/3)
-#if CONFIG_NEW_REF_SIGNALING
-      ctx = 2 + (IS_BACKWARD_REF_FRAME(left_mbmi->ref_frame_nrs[0]) ||
-                 !is_inter_block(left_mbmi));
-#else
+      // one of two edges uses comp pred (2/3)
       ctx = 2 + (IS_BACKWARD_REF_FRAME(left_mbmi->ref_frame[0]) ||
                  !is_inter_block(left_mbmi));
-#endif    // CONFIG_NEW_REF_SIGNALING
     else  // both edges use comp pred (4)
       ctx = 4;
   } else if (has_above || has_left) {  // one edge available
     const MB_MODE_INFO *edge_mbmi = has_above ? above_mbmi : left_mbmi;
 
     if (!has_second_ref(edge_mbmi))
-    // edge does not use comp pred (0/1)
-#if CONFIG_NEW_REF_SIGNALING
-      ctx = IS_BACKWARD_REF_FRAME(edge_mbmi->ref_frame_nrs[0]);
-#else
+      // edge does not use comp pred (0/1)
       ctx = IS_BACKWARD_REF_FRAME(edge_mbmi->ref_frame[0]);
-#endif  // CONFIG_NEW_REF_SIGNALING
     else
       // edge uses comp pred (3)
       ctx = 3;
@@ -601,7 +571,7 @@ int av1_get_reference_mode_context(const AV1_COMMON *cm,
 int av1_get_ref_pred_context_nrs(const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref,
                                  int n_total_refs) {
   assert((ref + 1) < n_total_refs);
-  const uint8_t *const ref_counts = &xd->neighbors_ref_counts_nrs[0];
+  const uint8_t *const ref_counts = &xd->neighbors_ref_counts[0];
   const int this_ref_count = ref_counts[ref];
   int next_refs_count = 0;
 

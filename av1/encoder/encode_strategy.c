@@ -1394,7 +1394,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     }
 
 #if CONFIG_NEW_REF_SIGNALING
-    av1_get_ref_frames_nrs(&cpi->common, cur_frame_disp, ref_frame_map_pairs);
+    av1_get_ref_frames(&cpi->common, cur_frame_disp, ref_frame_map_pairs);
 #else
     const RefCntBuffer *ref_frames[INTER_REFS_PER_FRAME];
     const YV12_BUFFER_CONFIG *ref_frame_buf[INTER_REFS_PER_FRAME];

@@ -772,8 +772,8 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
-  mi->ref_frame_nrs[0] = last_frame;
-  mi->ref_frame_nrs[1] = INVALID_IDX;
+  mi->ref_frame[0] = last_frame;
+  mi->ref_frame[1] = INVALID_IDX;
 #else
   mi->ref_frame[0] = LAST_FRAME;
   mi->ref_frame[1] = NONE_FRAME;
@@ -803,7 +803,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
                          get_ref_scale_factors(cm, golden_frame), num_planes,
                          NULL);
-    mi->ref_frame_nrs[0] = golden_frame;
+    mi->ref_frame[0] = golden_frame;
     mi->mv[0].as_int = 0;
     *y_sad = *y_sad_g;
     *ref_frame_partition = golden_frame;
@@ -832,11 +832,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_NEW_REF_SIGNALING
-  set_ref_ptrs_nrs(cm, xd, mi->ref_frame_nrs[0], mi->ref_frame_nrs[1]);
-#else
   set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING
   av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
                                 cm->seq_params.sb_size, AOM_PLANE_Y,
                                 AOM_PLANE_Y);

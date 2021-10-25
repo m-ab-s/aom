@@ -709,7 +709,7 @@ static AOM_INLINE void write_single_ref_nrs(
     const MACROBLOCKD *xd, const NewRefFramesData *const new_ref_frame_data,
     aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-  MV_REFERENCE_FRAME ref = mbmi->ref_frame_nrs[0];
+  MV_REFERENCE_FRAME ref = mbmi->ref_frame[0];
   const int n_refs = new_ref_frame_data->n_total_refs;
   assert(ref < n_refs);
   for (int i = 0; i < n_refs - 1; i++) {
@@ -724,8 +724,8 @@ static AOM_INLINE void write_compound_ref_nrs(
     const MACROBLOCKD *xd, const NewRefFramesData *const new_ref_frame_data,
     aom_writer *w) {
   const MB_MODE_INFO *const mbmi = xd->mi[0];
-  MV_REFERENCE_FRAME ref0 = mbmi->ref_frame_nrs[0];
-  MV_REFERENCE_FRAME ref1 = mbmi->ref_frame_nrs[1];
+  MV_REFERENCE_FRAME ref0 = mbmi->ref_frame[0];
+  MV_REFERENCE_FRAME ref1 = mbmi->ref_frame[1];
   const int n_refs = new_ref_frame_data->n_total_refs;
   assert(n_refs >= 2);
   assert(ref0 < ref1);
@@ -757,7 +757,7 @@ static AOM_INLINE void write_ref_frames(const AV1_COMMON *cm,
 #if CONFIG_NEW_REF_SIGNALING
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
       segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-    assert(mbmi->ref_frame_nrs[0] == get_closest_pastcur_ref_index(cm));
+    assert(mbmi->ref_frame[0] == get_closest_pastcur_ref_index(cm));
 #else
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
     assert(!is_compound);
@@ -1412,13 +1412,8 @@ static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
     ref_mv_idx += 1;
 #endif  // !CONFIG_NEW_INTER_MODES
   }
-  return get_ref_mv_from_stack(ref_idx,
-#if CONFIG_NEW_REF_SIGNALING
-                               mbmi->ref_frame_nrs,
-#else
-                               mbmi->ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
-                               ref_mv_idx, x->mbmi_ext_frame);
+  return get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, ref_mv_idx,
+                               x->mbmi_ext_frame);
 }
 
 static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
@@ -1461,21 +1456,12 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
   } else {
     int16_t mode_ctx;
 
-#if CONFIG_NEW_REF_SIGNALING
-    av1_collect_neighbors_ref_counts_nrs(cm, xd);
-#else
     av1_collect_neighbors_ref_counts(xd);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
     write_ref_frames(cm, xd, w);
 
     mode_ctx =
-#if CONFIG_NEW_REF_SIGNALING
-        mode_context_analyzer(mbmi_ext_frame->mode_context,
-                              mbmi->ref_frame_nrs);
-#else
         mode_context_analyzer(mbmi_ext_frame->mode_context, mbmi->ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
     // If segment skip is not enabled code the mode.
     if (!segfeature_active(seg, segment_id, SEG_LVL_SKIP)) {
@@ -1543,7 +1529,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
         cpi->common.seq_params.enable_interintra_compound &&
         is_interintra_allowed(mbmi)) {
 #if CONFIG_NEW_REF_SIGNALING
-      const int interintra = mbmi->ref_frame_nrs[1] == INTRA_FRAME_NRS;
+      const int interintra = mbmi->ref_frame[1] == INTRA_FRAME_NRS;
 #else
       const int interintra = mbmi->ref_frame[1] == INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1565,7 +1551,7 @@ static AOM_INLINE void pack_inter_mode_mvs(AV1_COMP *cpi, aom_writer *w) {
     }
 
 #if CONFIG_NEW_REF_SIGNALING
-    if (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS)
+    if (mbmi->ref_frame[1] != INTRA_FRAME_NRS)
       write_motion_mode(cm, xd, mbmi, w);
 #else
     if (mbmi->ref_frame[1] != INTRA_FRAME) write_motion_mode(cm, xd, mbmi, w);
@@ -1751,12 +1737,7 @@ static AOM_INLINE void enc_dump_logs(
       const int16_t mode_ctx =
           is_comp_ref ? 0
                       : mode_context_analyzer(mbmi_ext_frame->mode_context,
-#if CONFIG_NEW_REF_SIGNALING
-                                              mbmi->ref_frame_nrs
-#else
-                                              mbmi->ref_frame
-#endif  // CONFIG_NEW_REF_SIGNALING
-                        );
+                                              mbmi->ref_frame);
 
       const int16_t newmv_ctx = mode_ctx & NEWMV_CTX_MASK;
       int16_t zeromv_ctx = -1;
@@ -1776,14 +1757,9 @@ static AOM_INLINE void enc_dump_logs(
           "newmv_ctx=%d, zeromv_ctx=%d, refmv_ctx=%d, tx_size=%d\n",
           cm->current_frame.frame_number, mi_row, mi_col, mbmi->skip_mode,
           mbmi->mode, bsize, cm->show_frame, mv[0].as_mv.row, mv[0].as_mv.col,
-          mv[1].as_mv.row, mv[1].as_mv.col,
-#if CONFIG_NEW_REF_SIGNALING
-          mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1],
-#else
-          mbmi->ref_frame[0], mbmi->ref_frame[1],
-#endif  // CONFIG_NEW_REF_SIGNALING
-          mbmi->motion_mode, mode_ctx, newmv_ctx, zeromv_ctx, refmv_ctx,
-          mbmi->tx_size);
+          mv[1].as_mv.row, mv[1].as_mv.col, mbmi->ref_frame[0],
+          mbmi->ref_frame[1], mbmi->motion_mode, mode_ctx, newmv_ctx,
+          zeromv_ctx, refmv_ctx, mbmi->tx_size);
     }
   }
 }
@@ -1800,11 +1776,7 @@ static AOM_INLINE void write_mbmi_b(AV1_COMP *cpi, aom_writer *w) {
     // has_subpel_mv_component needs the ref frame buffers set up to look
     // up if they are scaled. has_subpel_mv_component is in turn needed by
     // write_switchable_interp_filter, which is called by pack_inter_mode_mvs.
-#if CONFIG_NEW_REF_SIGNALING
-    set_ref_ptrs_nrs(cm, xd, m->ref_frame_nrs[0], m->ref_frame_nrs[1]);
-#else
     set_ref_ptrs(cm, xd, m->ref_frame[0], m->ref_frame[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if ENC_MISMATCH_DEBUG
     enc_dump_logs(cm, &cpi->mbmi_ext_info, xd->mi_row, xd->mi_col);

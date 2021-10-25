@@ -31,11 +31,7 @@ typedef struct {
   int_interpfilters filters;
 #endif  // CONFIG_REMOVE_DUAL_FILTER
   int_mv mv[2];
-#if CONFIG_NEW_REF_SIGNALING
-  int8_t ref_frames_nrs[2];
-#else
   int8_t ref_frames[2];
-#endif  // CONFIG_NEW_REF_SIGNALING
   COMPOUND_TYPE comp_type;
   int compound_idx;
   int64_t rd;

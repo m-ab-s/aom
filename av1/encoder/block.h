@@ -352,13 +352,8 @@ typedef struct {
   int comp_rs2[COMPOUND_TYPES];
   //! Motion vector for each predictor.
   int_mv mv[2];
-#if CONFIG_NEW_REF_SIGNALING
-  //! Ref frame nrs for each predictor.
-  MV_REFERENCE_FRAME ref_frames_nrs[2];
-#else
   //! Ref frame for each predictor.
   MV_REFERENCE_FRAME ref_frames[2];
-#endif  // CONFIG_NEW_REF_SIGNALING
   //! Current prediction mode.
   PREDICTION_MODE mode;
   //! Current interpolation filter.

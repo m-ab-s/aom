@@ -3072,25 +3072,21 @@ static INLINE int get_stats_buf_size(int num_lap_buffer, int num_lag_buffer) {
 
 // TODO(zoeliu): To set up cpi->oxcf.gf_cfg.enable_auto_brf
 
+static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
+                                MV_REFERENCE_FRAME ref0,
+                                MV_REFERENCE_FRAME ref1) {
 #if CONFIG_NEW_REF_SIGNALING
-static INLINE void set_ref_ptrs_nrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                    MV_REFERENCE_FRAME ref0,
-                                    MV_REFERENCE_FRAME ref1) {
   xd->block_ref_scale_factors[0] = get_ref_scale_factors_const(
       cm, ref0 < INTER_REFS_PER_FRAME_NRS ? ref0 : 0);
   xd->block_ref_scale_factors[1] = get_ref_scale_factors_const(
       cm, ref1 < INTER_REFS_PER_FRAME_NRS ? ref1 : 0);
-}
 #else
-static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
-                                MV_REFERENCE_FRAME ref0,
-                                MV_REFERENCE_FRAME ref1) {
   xd->block_ref_scale_factors[0] =
       get_ref_scale_factors_const(cm, ref0 >= LAST_FRAME ? ref0 : 1);
   xd->block_ref_scale_factors[1] =
       get_ref_scale_factors_const(cm, ref1 >= LAST_FRAME ? ref1 : 1);
-}
 #endif  // CONFIG_NEW_REF_SIGNALING
+}
 
 static INLINE int get_chessboard_index(int frame_index) {
   return frame_index & 0x1;

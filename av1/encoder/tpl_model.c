@@ -281,8 +281,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
   // Intra prediction search
 #if CONFIG_NEW_REF_SIGNALING
-  // TODO(sarahparker) Delete this once the new TPL model is applied
-  xd->mi[0]->ref_frame_nrs[0] = INTRA_FRAME_NRS;
+  xd->mi[0]->ref_frame[0] = INTRA_FRAME_NRS;
 #else
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -327,8 +326,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
   // Motion compensated prediction
 #if CONFIG_NEW_REF_SIGNALING
-  // TODO(sarahparker) Delete this once the new TPL model is applied
-  xd->mi[0]->ref_frame_nrs[0] = INTRA_FRAME_NRS;
+  xd->mi[0]->ref_frame[0] = INTRA_FRAME_NRS;
 #else
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -464,7 +462,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
       if (best_inter_cost < best_intra_cost) {
         best_mode = NEWMV;
 #if CONFIG_NEW_REF_SIGNALING
-        xd->mi[0]->ref_frame_nrs[0] = best_rf_idx;
+        xd->mi[0]->ref_frame[0] = best_rf_idx;
 #else
         xd->mi[0]->ref_frame[0] = best_rf_idx + LAST_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1075,11 +1073,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-#if CONFIG_NEW_REF_SIGNALING
-    av1_get_ref_frames_nrs(cm, true_disp, ref_frame_map_pairs);
-#else
     av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
-#endif  // CONFIG_NEW_REF_SIGNALING
     int refresh_mask =
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type,
                                     gf_index, true_disp, ref_frame_map_pairs);
@@ -1125,7 +1119,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     init_ref_map_pair(
         cm, ref_frame_map_pairs,
         cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
-    av1_get_ref_frames_nrs(cm, true_disp, ref_frame_map_pairs);
+    av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
 #endif  // CONFIG_NEW_REF_SIGNALING
     return;
   }
@@ -1176,11 +1170,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     const int true_disp =
         (int)(tpl_frame->frame_display_index) -
         (gf_group->subgop_cfg != NULL && frame_params.show_frame);
-#if CONFIG_NEW_REF_SIGNALING
-    av1_get_ref_frames_nrs(cm, true_disp, ref_frame_map_pairs);
-#else
     av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
-#endif  // CONFIG_NEW_REF_SIGNALING
     // TODO(sarahparker) av1_get_refresh_frame_flags()
     // will execute default behavior even when
     // subgop cfg is enabled. This should be addressed if we ever remove the
@@ -1234,11 +1224,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   init_ref_map_pair(
       cm, ref_frame_map_pairs,
       cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
-#if CONFIG_NEW_REF_SIGNALING
-  av1_get_ref_frames_nrs(cm, true_disp, ref_frame_map_pairs);
-#else
   av1_get_ref_frames(cm, true_disp, ref_frame_map_pairs);
-#endif  // CONFIG_NEW_REF_SIGNALING
 }
 
 void av1_init_tpl_stats(TplParams *const tpl_data) {

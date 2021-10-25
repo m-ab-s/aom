@@ -74,9 +74,6 @@ void av1_get_ref_frames(AV1_COMMON *const cm, int cur_frame_disp,
                         RefFrameMapPair *ref_frame_map_pairs);
 
 #if CONFIG_NEW_REF_SIGNALING
-void av1_get_ref_frames_nrs(AV1_COMMON *const cm, int cur_frame_disp,
-                            RefFrameMapPair *ref_frame_map_pairs);
-
 // Find the reference that is furthest in the future
 static INLINE int get_furthest_future_ref_index(const AV1_COMMON *const cm) {
   int index = INVALID_IDX;
@@ -331,15 +328,10 @@ static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
   (void)cm;
   MB_MODE_INFO *mbmi = xd->mi[0];
 #if CONFIG_NEW_REF_SIGNALING
-  const RefCntBuffer *const bck_buf =
-      get_ref_frame_buf(cm, mbmi->ref_frame_nrs[0]);
-  const RefCntBuffer *const fwd_buf =
-      get_ref_frame_buf(cm, mbmi->ref_frame_nrs[1]);
   MV_REFERENCE_FRAME altref_frame = get_furthest_future_ref_index(cm);
-#else
+#endif  // CONFIG_NEW_REF_SIGNALING
   const RefCntBuffer *const bck_buf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
   const RefCntBuffer *const fwd_buf = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING
   int bck_frame_index = 0, fwd_frame_index = 0;
   int cur_frame_index = cm->cur_frame->order_hint;
 
@@ -359,7 +351,7 @@ static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
   if (above_mi) {
     if (has_second_ref(above_mi)) above_ctx = above_mi->comp_group_idx;
 #if CONFIG_NEW_REF_SIGNALING
-    else if (above_mi->ref_frame_nrs[0] == altref_frame)
+    else if (above_mi->ref_frame[0] == altref_frame)
 #else
     else if (above_mi->ref_frame[0] == ALTREF_FRAME)
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -368,7 +360,7 @@ static INLINE int get_comp_group_idx_context(const AV1_COMMON *cm,
   if (left_mi) {
     if (has_second_ref(left_mi)) left_ctx = left_mi->comp_group_idx;
 #if CONFIG_NEW_REF_SIGNALING
-    else if (left_mi->ref_frame_nrs[0] == altref_frame)
+    else if (left_mi->ref_frame[0] == altref_frame)
 #else
     else if (left_mi->ref_frame[0] == ALTREF_FRAME)
 #endif  // CONFIG_NEW_REF_SIGNALING

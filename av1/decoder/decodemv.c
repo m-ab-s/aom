@@ -225,11 +225,7 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
                          FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
                          MB_MODE_INFO *mbmi, aom_reader *r) {
   MACROBLOCKD *const xd = &dcb->xd;
-#if CONFIG_NEW_REF_SIGNALING
-  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
-#else
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->ref_mv_idx = 0;
   assert(!mbmi->skip_mode);
   const int range = av1_drl_range(dcb->ref_mv_count[ref_frame_type],
@@ -247,11 +243,7 @@ static void read_drl_idx(int max_drl_bits, const int16_t mode_ctx,
 static void read_drl_idx(FRAME_CONTEXT *ec_ctx, DecoderCodingBlock *dcb,
                          MB_MODE_INFO *mbmi, aom_reader *r) {
   MACROBLOCKD *const xd = &dcb->xd;
-#if CONFIG_NEW_REF_SIGNALING
-  uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame_nrs);
-#else
   uint8_t ref_frame_type = av1_ref_frame_type(mbmi->ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   mbmi->ref_mv_idx = 0;
   if (mbmi->mode == NEWMV || mbmi->mode == NEW_NEWMV) {
     for (int idx = 0; idx < MAX_DRL_BITS; ++idx) {
@@ -819,16 +811,16 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     // TODO(kslu): Rework av1_find_mv_refs_nrs to avoid having this big array
     // ref_mvs
     int_mv ref_mvs[INTRA_FRAME_NRS + 1][MAX_MV_REF_CANDIDATES];
-    av1_find_mv_refs_nrs(cm, xd, mbmi, INTRA_FRAME_NRS, dcb->ref_mv_count,
-                         xd->ref_mv_stack, xd->weight, ref_mvs,
-                         /*global_mvs=*/NULL, inter_mode_ctx);
+    av1_find_mv_refs(cm, xd, mbmi, INTRA_FRAME_NRS, dcb->ref_mv_count,
+                     xd->ref_mv_stack, xd->weight, ref_mvs,
+                     /*global_mvs=*/NULL, inter_mode_ctx);
     av1_find_best_ref_mvs(ref_mvs[INTRA_FRAME_NRS], &nearestmv, &nearmv,
                           cm->features.fr_mv_precision);
 #else
     int_mv ref_mvs[INTRA_FRAME + 1][MAX_MV_REF_CANDIDATES];
     av1_find_mv_refs(cm, xd, mbmi, INTRA_FRAME, dcb->ref_mv_count,
-                     xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
-                     inter_mode_ctx);
+                     xd->ref_mv_stack, xd->weight, ref_mvs,
+                     /*global_mvs=*/NULL, inter_mode_ctx);
     av1_find_best_ref_mvs(ref_mvs[INTRA_FRAME], &nearestmv, &nearmv,
                           cm->features.fr_mv_precision);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -926,8 +918,8 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
   mbmi->current_qindex = xd->current_base_qindex;
 
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
-  mbmi->ref_frame_nrs[1] = INVALID_IDX;
+  mbmi->ref_frame[0] = INTRA_FRAME_NRS;
+  mbmi->ref_frame[1] = INVALID_IDX;
 #else
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
@@ -1108,80 +1100,68 @@ static COMP_REFERENCE_TYPE read_comp_reference_type(const MACROBLOCKD *xd,
 }
 #endif  // !CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_NEW_REF_SIGNALING
-static void set_ref_frames_for_skip_mode_nrs(
-    AV1_COMMON *const cm, MV_REFERENCE_FRAME ref_frame_nrs[2]) {
-  ref_frame_nrs[0] = cm->current_frame.skip_mode_info.ref_frame_idx_0;
-  ref_frame_nrs[1] = cm->current_frame.skip_mode_info.ref_frame_idx_1;
-}
-#else
 static void set_ref_frames_for_skip_mode(AV1_COMMON *const cm,
                                          MV_REFERENCE_FRAME ref_frame[2]) {
+#if CONFIG_NEW_REF_SIGNALING
+  ref_frame[0] = cm->current_frame.skip_mode_info.ref_frame_idx_0;
+  ref_frame[1] = cm->current_frame.skip_mode_info.ref_frame_idx_1;
+#else
   ref_frame[0] = LAST_FRAME + cm->current_frame.skip_mode_info.ref_frame_idx_0;
   ref_frame[1] = LAST_FRAME + cm->current_frame.skip_mode_info.ref_frame_idx_1;
-}
 #endif  // CONFIG_NEW_REF_SIGNALING
+}
 
 #if CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE void read_single_ref_nrs(
-    MACROBLOCKD *const xd, MV_REFERENCE_FRAME ref_frame_nrs[2],
+    MACROBLOCKD *const xd, MV_REFERENCE_FRAME ref_frame[2],
     const NewRefFramesData *const new_ref_frame_data, aom_reader *r) {
   const int n_refs = new_ref_frame_data->n_total_refs;
   for (int i = 0; i < n_refs - 1; i++) {
     const int bit = aom_read_symbol(
         r, av1_get_pred_cdf_single_ref_nrs(xd, i, n_refs), 2, ACCT_STR);
     if (bit) {
-      ref_frame_nrs[0] = i;
+      ref_frame[0] = i;
       return;
     }
   }
-  ref_frame_nrs[0] = n_refs - 1;
+  ref_frame[0] = n_refs - 1;
 }
 
 static AOM_INLINE void read_compound_ref_nrs(
-    const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref_frame_nrs[2],
+    const MACROBLOCKD *xd, MV_REFERENCE_FRAME ref_frame[2],
     const NewRefFramesData *const new_ref_frame_data, aom_reader *r) {
   const int n_refs = new_ref_frame_data->n_total_refs;
   assert(n_refs >= 2);
   int n_bits = 0;
   for (int i = 0; i < n_refs + n_bits - 2 && n_bits < 2; i++) {
     const int bit_type = av1_get_compound_ref_bit_type(
-        n_bits, new_ref_frame_data, ref_frame_nrs[0], i);
+        n_bits, new_ref_frame_data, ref_frame[0], i);
     const int bit = aom_read_symbol(
         r, av1_get_pred_cdf_compound_ref_nrs(xd, i, n_bits, bit_type, n_refs),
         2, ACCT_STR);
     if (bit) {
-      ref_frame_nrs[n_bits++] = i;
+      ref_frame[n_bits++] = i;
     }
   }
-  if (n_bits < 2) ref_frame_nrs[1] = n_refs - 1;
-  if (n_bits < 1) ref_frame_nrs[0] = n_refs - 2;
+  if (n_bits < 2) ref_frame[1] = n_refs - 1;
+  if (n_bits < 1) ref_frame[0] = n_refs - 2;
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 // Read the referncence frame
 static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             aom_reader *r, int segment_id,
-#if CONFIG_NEW_REF_SIGNALING
-                            MV_REFERENCE_FRAME ref_frame_nrs[2]
-#else
-                            MV_REFERENCE_FRAME ref_frame[2]
-#endif  // CONFIG_NEW_REF_SIGNALING
-) {
+                            MV_REFERENCE_FRAME ref_frame[2]) {
   if (xd->mi[0]->skip_mode) {
-#if CONFIG_NEW_REF_SIGNALING
-    set_ref_frames_for_skip_mode_nrs(cm, ref_frame_nrs);
-#else
     set_ref_frames_for_skip_mode(cm, ref_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
     return;
   }
 
 #if CONFIG_NEW_REF_SIGNALING
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) ||
       segfeature_active(&cm->seg, segment_id, SEG_LVL_GLOBALMV)) {
-    ref_frame_nrs[0] = get_closest_pastcur_ref_index(cm);
-    ref_frame_nrs[1] = INVALID_IDX;
+    ref_frame[0] = get_closest_pastcur_ref_index(cm);
+    ref_frame[1] = INVALID_IDX;
 #else
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_REF_FRAME)) {
     ref_frame[0] = (MV_REFERENCE_FRAME)get_segdata(&cm->seg, segment_id,
@@ -1196,7 +1176,7 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
     const REFERENCE_MODE mode = read_block_reference_mode(cm, xd, r);
     if (mode == COMPOUND_REFERENCE) {
 #if CONFIG_NEW_REF_SIGNALING
-      read_compound_ref_nrs(xd, ref_frame_nrs, &cm->new_ref_frame_data, r);
+      read_compound_ref_nrs(xd, ref_frame, &cm->new_ref_frame_data, r);
 #else
       const COMP_REFERENCE_TYPE comp_ref_type = read_comp_reference_type(xd, r);
 
@@ -1249,8 +1229,8 @@ static void read_ref_frames(AV1_COMMON *const cm, MACROBLOCKD *const xd,
 #endif  // CONFIG_NEW_REF_SIGNALING
     } else if (mode == SINGLE_REFERENCE) {
 #if CONFIG_NEW_REF_SIGNALING
-      read_single_ref_nrs(xd, ref_frame_nrs, &cm->new_ref_frame_data, r);
-      ref_frame_nrs[1] = INVALID_IDX;
+      read_single_ref_nrs(xd, ref_frame, &cm->new_ref_frame_data, r);
+      ref_frame[1] = INVALID_IDX;
 #else
       const int bit0 = READ_REF_BIT(single_ref_p1);
       if (bit0) {
@@ -1332,8 +1312,8 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
   const int use_angle_delta = av1_use_angle_delta(bsize);
 
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[0] = INTRA_FRAME_NRS;
-  mbmi->ref_frame_nrs[1] = INVALID_IDX;
+  mbmi->ref_frame[0] = INTRA_FRAME_NRS;
+  mbmi->ref_frame[1] = INVALID_IDX;
 #else
   mbmi->ref_frame[0] = INTRA_FRAME;
   mbmi->ref_frame[1] = NONE_FRAME;
@@ -1409,15 +1389,10 @@ static INLINE int is_mv_valid(const MV *mv) {
 
 static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                             PREDICTION_MODE mode,
-#if CONFIG_NEW_REF_SIGNALING
-                            MV_REFERENCE_FRAME ref_frame_nrs[2],
-#else
-                            MV_REFERENCE_FRAME ref_frame[2],
-#endif  // CONFIG_NEW_REF_SIGNALING
-                            int_mv mv[2], int_mv ref_mv[2],
-                            int_mv nearest_mv[2], int_mv near_mv[2],
-                            int is_compound, MvSubpelPrecision precision,
-                            aom_reader *r) {
+                            MV_REFERENCE_FRAME ref_frame[2], int_mv mv[2],
+                            int_mv ref_mv[2], int_mv nearest_mv[2],
+                            int_mv near_mv[2], int is_compound,
+                            MvSubpelPrecision precision, aom_reader *r) {
 #if CONFIG_NEW_INTER_MODES
   (void)nearest_mv;
 #endif  // CONFIG_NEW_INTER_MODES
@@ -1445,18 +1420,10 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
       break;
     }
     case GLOBALMV: {
-#if CONFIG_NEW_REF_SIGNALING
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      mv[0].as_int = gm_get_motion_vector(&cm->global_motion[ref_frame_nrs[0]],
-                                          features->fr_mv_precision, bsize,
-                                          xd->mi_col, xd->mi_row)
-                         .as_int;
-#else
       mv[0].as_int = gm_get_motion_vector(&cm->global_motion[ref_frame[0]],
                                           features->fr_mv_precision, bsize,
                                           xd->mi_col, xd->mi_row)
                          .as_int;
-#endif  // CONFIG_NEW_REF_SIGNALING
       break;
     }
     case NEW_NEWMV:
@@ -1533,17 +1500,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
 #endif  // CONFIG_OPTFLOW_REFINEMENT
     {
       assert(is_compound);
-#if CONFIG_NEW_REF_SIGNALING
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      mv[0].as_int = gm_get_motion_vector(&cm->global_motion[ref_frame_nrs[0]],
-                                          features->fr_mv_precision, bsize,
-                                          xd->mi_col, xd->mi_row)
-                         .as_int;
-      mv[1].as_int = gm_get_motion_vector(&cm->global_motion[ref_frame_nrs[1]],
-                                          features->fr_mv_precision, bsize,
-                                          xd->mi_col, xd->mi_row)
-                         .as_int;
-#else
       mv[0].as_int = gm_get_motion_vector(&cm->global_motion[ref_frame[0]],
                                           features->fr_mv_precision, bsize,
                                           xd->mi_col, xd->mi_row)
@@ -1552,7 +1508,6 @@ static INLINE int assign_mv(AV1_COMMON *cm, MACROBLOCKD *xd,
                                           features->fr_mv_precision, bsize,
                                           xd->mi_col, xd->mi_row)
                          .as_int;
-#endif  // CONFIG_NEW_REF_SIGNALING
       break;
     }
     default: { return 0; }
@@ -1610,14 +1565,9 @@ static void dec_dump_logs(AV1_COMMON *cm, MB_MODE_INFO *const mbmi, int mi_row,
         "newmv_ctx=%d, zeromv_ctx=%d, refmv_ctx=%d, tx_size=%d\n",
         cm->current_frame.frame_number, mi_row, mi_col, mbmi->skip_mode,
         mbmi->mode, mbmi->sb_type, cm->show_frame, mv[0].as_mv.row,
-        mv[0].as_mv.col, mv[1].as_mv.row, mv[1].as_mv.col,
-#if CONFIG_NEW_REF_SIGNALING
-        mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1],
-#else
-        mbmi->ref_frame[0], mbmi->ref_frame[1],
-#endif  // CONFIG_NEW_REF_SIGNALING
-        mbmi->motion_mode, mode_ctx, newmv_ctx, zeromv_ctx, refmv_ctx,
-        mbmi->tx_size);
+        mv[0].as_mv.col, mv[1].as_mv.row, mv[1].as_mv.col, mbmi->ref_frame[0],
+        mbmi->ref_frame[1], mbmi->motion_mode, mode_ctx, newmv_ctx, zeromv_ctx,
+        refmv_ctx, mbmi->tx_size);
   }
 }
 #endif  // DEC_MISMATCH_DEBUG
@@ -1642,31 +1592,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   mbmi->palette_mode_info.palette_size[0] = 0;
   mbmi->palette_mode_info.palette_size[1] = 0;
 
-#if CONFIG_NEW_REF_SIGNALING
-  av1_collect_neighbors_ref_counts_nrs(cm, xd);
-#else
   av1_collect_neighbors_ref_counts(xd);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
-  read_ref_frames(cm, xd, r, mbmi->segment_id,
-#if CONFIG_NEW_REF_SIGNALING
-                  mbmi->ref_frame_nrs
-#else
-                  mbmi->ref_frame
-#endif  // CONFIG_NEW_REF_SIGNALING
-  );
+  read_ref_frames(cm, xd, r, mbmi->segment_id, mbmi->ref_frame);
   const int is_compound = has_second_ref(mbmi);
 
-#if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME ref_frame_nrs = av1_ref_frame_type(mbmi->ref_frame_nrs);
-  av1_find_mv_refs_nrs(cm, xd, mbmi, ref_frame_nrs, dcb->ref_mv_count,
-                       xd->ref_mv_stack, xd->weight, ref_mvs,
-                       /*global_mvs=*/NULL, inter_mode_ctx);
-#else
   const MV_REFERENCE_FRAME ref_frame = av1_ref_frame_type(mbmi->ref_frame);
   av1_find_mv_refs(cm, xd, mbmi, ref_frame, dcb->ref_mv_count, xd->ref_mv_stack,
                    xd->weight, ref_mvs, /*global_mvs=*/NULL, inter_mode_ctx);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   mbmi->ref_mv_idx = 0;
 
@@ -1683,13 +1616,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_GLOBALMV)) {
       mbmi->mode = GLOBALMV;
     } else {
-      const int16_t mode_ctx = av1_mode_context_analyzer(inter_mode_ctx,
-#if CONFIG_NEW_REF_SIGNALING
-                                                         mbmi->ref_frame_nrs
-#else
-                                                         mbmi->ref_frame
-#endif  // CONFIG_NEW_REF_SIGNALING
-      );
+      const int16_t mode_ctx =
+          av1_mode_context_analyzer(inter_mode_ctx, mbmi->ref_frame);
       if (is_compound)
         mbmi->mode = read_inter_compound_mode(xd, r, mode_ctx);
       else
@@ -1700,13 +1628,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
         read_drl_idx(
 #if CONFIG_NEW_INTER_MODES
             cm->features.max_drl_bits,
-            av1_mode_context_pristine(inter_mode_ctx,
-#if CONFIG_NEW_REF_SIGNALING
-                                      mbmi->ref_frame_nrs
-#else
-                                      mbmi->ref_frame
-#endif  // CONFIG_NEW_REF_SIGNALING
-                                      ),
+            av1_mode_context_pristine(inter_mode_ctx, mbmi->ref_frame),
 #endif  // CONFIG_NEW_INTER_MODES
             ec_ctx, dcb, mbmi, r);
     }
@@ -1716,25 +1638,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   if (is_compound != is_inter_compound_mode(mbmi->mode)) {
     aom_internal_error(xd->error_info, AOM_CODEC_CORRUPT_FRAME,
                        "Prediction mode %d invalid with ref frame %d %d",
-                       mbmi->mode,
-#if CONFIG_NEW_REF_SIGNALING
-                       mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1]
-#else
-                       mbmi->ref_frame[0], mbmi->ref_frame[1]
-#endif  // CONFIG_NEW_REF_SIGNALING
-    );
+                       mbmi->mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
   }
 
   // Note: the ref_mvs are constructed at frame level precision, but we may
   // additionally down scale the precision later during assign_mv call.
   if (!is_compound && mbmi->mode != GLOBALMV) {
-#if CONFIG_NEW_REF_SIGNALING
-    av1_find_best_ref_mvs(ref_mvs[mbmi->ref_frame_nrs[0]], &nearestmv[0],
-                          &nearmv[0], fr_mv_precision);
-#else
     av1_find_best_ref_mvs(ref_mvs[mbmi->ref_frame[0]], &nearestmv[0],
                           &nearmv[0], fr_mv_precision);
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   if (is_compound && mbmi->mode != GLOBAL_GLOBALMV) {
@@ -1743,39 +1654,22 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #else
     int ref_mv_idx = mbmi->ref_mv_idx + 1;
 #endif  // CONFIG_NEW_INTER_MODES
-#if CONFIG_NEW_REF_SIGNALING
-    nearestmv[0] = xd->ref_mv_stack[ref_frame_nrs][0].this_mv;
-    nearestmv[1] = xd->ref_mv_stack[ref_frame_nrs][0].comp_mv;
-    nearmv[0] = xd->ref_mv_stack[ref_frame_nrs][ref_mv_idx].this_mv;
-    nearmv[1] = xd->ref_mv_stack[ref_frame_nrs][ref_mv_idx].comp_mv;
-#else
     nearestmv[0] = xd->ref_mv_stack[ref_frame][0].this_mv;
     nearestmv[1] = xd->ref_mv_stack[ref_frame][0].comp_mv;
     nearmv[0] = xd->ref_mv_stack[ref_frame][ref_mv_idx].this_mv;
     nearmv[1] = xd->ref_mv_stack[ref_frame][ref_mv_idx].comp_mv;
-#endif  // CONFIG_NEW_REF_SIGNALING
     lower_mv_precision(&nearestmv[0].as_mv, fr_mv_precision);
     lower_mv_precision(&nearestmv[1].as_mv, fr_mv_precision);
     lower_mv_precision(&nearmv[0].as_mv, fr_mv_precision);
     lower_mv_precision(&nearmv[1].as_mv, fr_mv_precision);
 #if CONFIG_NEW_INTER_MODES
   } else if (mbmi->mode == NEARMV) {
-#if CONFIG_NEW_REF_SIGNALING
-    nearmv[0] =
-        xd->ref_mv_stack[mbmi->ref_frame_nrs[0]][mbmi->ref_mv_idx].this_mv;
-#else
     nearmv[0] = xd->ref_mv_stack[mbmi->ref_frame[0]][mbmi->ref_mv_idx].this_mv;
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
 #else
   } else if (mbmi->ref_mv_idx > 0 && mbmi->mode == NEARMV) {
-#if CONFIG_NEW_REF_SIGNALING
-    nearmv[0] =
-        xd->ref_mv_stack[mbmi->ref_frame_nrs[0]][1 + mbmi->ref_mv_idx].this_mv;
-#else
     nearmv[0] =
         xd->ref_mv_stack[mbmi->ref_frame[0]][1 + mbmi->ref_mv_idx].this_mv;
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
 #endif  // CONFIG_NEW_INTER_MODES
 
@@ -1792,27 +1686,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // !CONFIG_NEW_INTER_MODES
     // TODO(jingning, yunqing): Do we need a lower_mv_precision() call here?
     if (compound_ref0_mode(mbmi->mode) == NEWMV)
-#if CONFIG_NEW_REF_SIGNALING
-      ref_mv[0] = xd->ref_mv_stack[ref_frame_nrs][ref_mv_idx].this_mv;
-#else
       ref_mv[0] = xd->ref_mv_stack[ref_frame][ref_mv_idx].this_mv;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
     if (compound_ref1_mode(mbmi->mode) == NEWMV)
-#if CONFIG_NEW_REF_SIGNALING
-      ref_mv[1] = xd->ref_mv_stack[ref_frame_nrs][ref_mv_idx].comp_mv;
-#else
       ref_mv[1] = xd->ref_mv_stack[ref_frame][ref_mv_idx].comp_mv;
-#endif  // CONFIG_NEW_REF_SIGNALING
   } else {
     if (mbmi->mode == NEWMV) {
-#if CONFIG_NEW_REF_SIGNALING
-      if (dcb->ref_mv_count[ref_frame_nrs] > 1)
-        ref_mv[0] = xd->ref_mv_stack[ref_frame_nrs][mbmi->ref_mv_idx].this_mv;
-#else
       if (dcb->ref_mv_count[ref_frame] > 1)
         ref_mv[0] = xd->ref_mv_stack[ref_frame][mbmi->ref_mv_idx].this_mv;
-#endif  // CONFIG_NEW_REF_SIGNALING
     }
   }
 #if CONFIG_NEW_INTER_MODES
@@ -1825,14 +1706,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 #endif  // CONFIG_NEW_INTER_MODES
 
   const int mv_corrupted_flag =
-      !assign_mv(cm, xd, mbmi->mode,
-#if CONFIG_NEW_REF_SIGNALING
-                 mbmi->ref_frame_nrs,
-#else
-                 mbmi->ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
-                 mbmi->mv, ref_mv, nearestmv, nearmv, is_compound,
-                 mbmi->pb_mv_precision, r);
+      !assign_mv(cm, xd, mbmi->mode, mbmi->ref_frame, mbmi->mv, ref_mv,
+                 nearestmv, nearmv, is_compound, mbmi->pb_mv_precision, r);
   aom_merge_corrupted_flag(&dcb->corrupted, mv_corrupted_flag);
 
   mbmi->use_wedge_interintra = 0;
@@ -1842,7 +1717,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
     const int interintra =
         aom_read_symbol(r, ec_ctx->interintra_cdf[bsize_group], 2, ACCT_STR);
 #if CONFIG_NEW_REF_SIGNALING
-    assert(mbmi->ref_frame_nrs[1] == INVALID_IDX);
+    assert(mbmi->ref_frame[1] == INVALID_IDX);
 #else
     assert(mbmi->ref_frame[1] == NONE_FRAME);
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1850,7 +1725,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
       const INTERINTRA_MODE interintra_mode =
           read_interintra_mode(xd, r, bsize_group);
 #if CONFIG_NEW_REF_SIGNALING
-      mbmi->ref_frame_nrs[1] = INTRA_FRAME_NRS;
+      mbmi->ref_frame[1] = INTRA_FRAME_NRS;
 #else
       mbmi->ref_frame[1] = INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1870,13 +1745,8 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   }
 
   for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME frame = mbmi->ref_frame_nrs[ref];
-    xd->block_ref_scale_factors[ref] = get_ref_scale_factors_const(cm, frame);
-#else
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
     xd->block_ref_scale_factors[ref] = get_ref_scale_factors_const(cm, frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
@@ -1888,7 +1758,7 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
   av1_count_overlappable_neighbors(cm, xd);
 
 #if CONFIG_NEW_REF_SIGNALING
-  if (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS)
+  if (mbmi->ref_frame[1] != INTRA_FRAME_NRS)
 #else
   if (mbmi->ref_frame[1] != INTRA_FRAME)
 #endif  // CONFIG_NEW_REF_SIGNALING

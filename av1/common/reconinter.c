@@ -141,13 +141,6 @@ void av1_init_warp_params(InterPredParams *inter_pred_params,
 #if CONFIG_EXT_ROTATION
   if (mi->motion_mode == SIMPLE_TRANSLATION && mi->rot_flag) {
     if (globalmv_rotation_allowed(xd)) {
-#if CONFIG_NEW_REF_SIGNALING
-      // TODO(sarahparker) Temporary assert, see aomedia:3060
-      assert(is_same_wm_params(&xd->global_motion[mi->ref_frame_nrs[0]],
-                              &xd->global_motion[mi->ref_frame[0]])
-      memcpy(&mi->wm_params, &xd->global_motion[mi->ref_frame_nrs[0]],
-             sizeof(WarpedMotionParams));
-#endif  // CONFIG_NEW_REF_SIGNALING
       memcpy(&mi->wm_params, &xd->global_motion[mi->ref_frame[0]],
              sizeof(WarpedMotionParams));
     } else if (simple_translation_rotation_allowed(mi)) {
@@ -168,13 +161,8 @@ void av1_init_warp_params(InterPredParams *inter_pred_params,
 #if CONFIG_EXT_ROTATION
                      xd,
 #endif  // CONFIG_EXT_ROTATION
-                     warp_types,
-#if CONFIG_NEW_REF_SIGNALING
-                     &xd->global_motion[mi->ref_frame_nrs[ref]],
-#else
-                     &xd->global_motion[mi->ref_frame[ref]],
-#endif  // CONFIG_NEW_REF_SIGNALING
-                     0, inter_pred_params->scale_factors,
+                     warp_types, &xd->global_motion[mi->ref_frame[ref]], 0,
+                     inter_pred_params->scale_factors,
                      &inter_pred_params->warp_params))
     inter_pred_params->mode = WARP_PRED;
 }
@@ -706,12 +694,7 @@ int av1_compute_subpel_gradients_highbd(
   uint8_t *pred_dst = CONVERT_TO_BYTEPTR(pred_dst16);
   // Compute distance between the current frame and reference
   const int cur_frame_index = cm->cur_frame->order_hint;
-#if CONFIG_NEW_REF_SIGNALING
-  const RefCntBuffer *const ref_buf =
-      get_ref_frame_buf(cm, mi->ref_frame_nrs[ref]);
-#else
   const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, mi->ref_frame[ref]);
-#endif  // CONFIG_NEW_REF_SIGNALING
   assert(ref_buf != NULL);
   const int ref_index = ref_buf->order_hint;
   // Find the distance in display order between the current frame and each
@@ -729,12 +712,7 @@ int av1_compute_subpel_gradients_highbd(
   uint8_t *tmp_buf2_8 = CONVERT_TO_BYTEPTR(tmp_buf2);
 
   int is_global[2] = { 0, 0 };
-#if CONFIG_NEW_REF_SIGNALING
-  const WarpedMotionParams *const wm =
-      &xd->global_motion[mi->ref_frame_nrs[ref]];
-#else
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
-#endif  // CONFIG_NEW_REF_SIGNALING
   is_global[ref] = is_global_mv_block(mi, wm->wmtype);
   const WarpTypesAllowed warp_types = { is_global[ref],
                                         mi->motion_mode == WARPED_CAUSAL };
@@ -850,12 +828,7 @@ int av1_compute_subpel_gradients_lowbd(
 
   // Compute distance between the current frame and reference
   const int cur_frame_index = cm->cur_frame->order_hint;
-#if CONFIG_NEW_REF_SIGNALING
-  const RefCntBuffer *const ref_buf =
-      get_ref_frame_buf(cm, mi->ref_frame_nrs[ref]);
-#else
   const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, mi->ref_frame[ref]);
-#endif  // CONFIG_NEW_REF_SIGNALING
   assert(ref_buf != NULL);
   const int ref_index = ref_buf->order_hint;
   // Find the distance in display order between the current frame and each
@@ -871,12 +844,7 @@ int av1_compute_subpel_gradients_lowbd(
   uint8_t tmp_buf2[MAX_SB_SIZE * MAX_SB_SIZE] = { 0 };
 
   int is_global[2] = { 0, 0 };
-#if CONFIG_NEW_REF_SIGNALING
-  const WarpedMotionParams *const wm =
-      &xd->global_motion[mi->ref_frame_nrs[ref]];
-#else
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
-#endif  // CONFIG_NEW_REF_SIGNALING
   is_global[ref] = is_global_mv_block(mi, wm->wmtype);
   const WarpTypesAllowed warp_types = { is_global[ref],
                                         mi->motion_mode == WARPED_CAUSAL };
@@ -1461,15 +1429,8 @@ void av1_dist_wtd_comp_weight_assign(const AV1_COMMON *cm,
     return;
   }
 
-#if CONFIG_NEW_REF_SIGNALING
-  const RefCntBuffer *const bck_buf =
-      get_ref_frame_buf(cm, mbmi->ref_frame_nrs[0]);
-  const RefCntBuffer *const fwd_buf =
-      get_ref_frame_buf(cm, mbmi->ref_frame_nrs[1]);
-#else
   const RefCntBuffer *const bck_buf = get_ref_frame_buf(cm, mbmi->ref_frame[0]);
   const RefCntBuffer *const fwd_buf = get_ref_frame_buf(cm, mbmi->ref_frame[1]);
-#endif  // CONFIG_NEW_REF_SIGNALING
   const int cur_frame_index = cm->cur_frame->order_hint;
   int bck_frame_index = 0, fwd_frame_index = 0;
 
@@ -1581,17 +1542,10 @@ static void build_inter_predictors_sub8x8(
       struct buf_2d *const dst_buf = &pd->dst;
       uint8_t *dst = dst_buf->buf + dst_buf->stride * y + x;
       int ref = 0;
-#if CONFIG_NEW_REF_SIGNALING
-      const RefCntBuffer *ref_buf =
-          get_ref_frame_buf(cm, this_mbmi->ref_frame_nrs[ref]);
-      const struct scale_factors *ref_scale_factors =
-          get_ref_scale_factors_const(cm, this_mbmi->ref_frame_nrs[ref]);
-#else
       const RefCntBuffer *ref_buf =
           get_ref_frame_buf(cm, this_mbmi->ref_frame[ref]);
       const struct scale_factors *ref_scale_factors =
           get_ref_scale_factors_const(cm, this_mbmi->ref_frame[ref]);
-#endif  // CONFIG_NEW_REF_SIGNALING
       const struct scale_factors *const sf = ref_scale_factors;
       const struct buf_2d pre_buf = {
         NULL,
@@ -1639,12 +1593,7 @@ static void build_inter_predictors_8x8_and_bigger(
 
   int is_global[2] = { 0, 0 };
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
-#if CONFIG_NEW_REF_SIGNALING
-    const WarpedMotionParams *const wm =
-        &xd->global_motion[mi->ref_frame_nrs[ref]];
-#else
     const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
-#endif  // CONFIG_NEW_REF_SIGNALING
     is_global[ref] = is_global_mv_block(mi, wm->wmtype);
   }
 
@@ -1882,7 +1831,7 @@ int av1_skip_u4x4_pred_in_obmc(BLOCK_SIZE bsize,
 
 void av1_modify_neighbor_predictor_for_obmc(MB_MODE_INFO *mbmi) {
 #if CONFIG_NEW_REF_SIGNALING
-  mbmi->ref_frame_nrs[1] = INVALID_IDX;
+  mbmi->ref_frame[1] = INVALID_IDX;
 #else
   mbmi->ref_frame[1] = NONE_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2031,17 +1980,10 @@ void av1_setup_build_prediction_by_above_pred(
   const int num_refs = 1 + has_second_ref(above_mbmi);
 
   for (int ref = 0; ref < num_refs; ++ref) {
-#if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME frame = above_mbmi->ref_frame_nrs[ref];
-    const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
-    const struct scale_factors *const sf =
-        get_ref_scale_factors_const(ctxt->cm, frame);
-#else
     const MV_REFERENCE_FRAME frame = above_mbmi->ref_frame[ref];
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(ctxt->cm, frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
     xd->block_ref_scale_factors[ref] = sf;
     if ((!av1_is_valid_scale(sf)))
       aom_internal_error(xd->error_info, AOM_CODEC_UNSUP_BITSTREAM,
@@ -2075,17 +2017,10 @@ void av1_setup_build_prediction_by_left_pred(MACROBLOCKD *xd, int rel_mi_row,
   const int num_refs = 1 + has_second_ref(left_mbmi);
 
   for (int ref = 0; ref < num_refs; ++ref) {
-#if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME frame = left_mbmi->ref_frame_nrs[ref];
-    const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
-    const struct scale_factors *const ref_scale_factors =
-        get_ref_scale_factors_const(ctxt->cm, frame);
-#else
     const MV_REFERENCE_FRAME frame = left_mbmi->ref_frame[ref];
     const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
     const struct scale_factors *const ref_scale_factors =
         get_ref_scale_factors_const(ctxt->cm, frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
     xd->block_ref_scale_factors[ref] = ref_scale_factors;
     if ((!av1_is_valid_scale(ref_scale_factors)))

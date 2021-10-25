@@ -357,7 +357,7 @@ static int firstpass_intra_prediction(
   xd->left_available = (mb_col != 0);
   xd->mi[0]->sb_type = bsize;
 #if CONFIG_NEW_REF_SIGNALING
-  xd->mi[0]->ref_frame_nrs[0] = INTRA_FRAME_NRS;
+  xd->mi[0]->ref_frame[0] = INTRA_FRAME_NRS;
 #else
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -689,8 +689,8 @@ static int firstpass_inter_prediction(
     xd->mi[0]->mv[0].as_mv = best_mv;
     xd->mi[0]->tx_size = TX_4X4;
 #if CONFIG_NEW_REF_SIGNALING
-    xd->mi[0]->ref_frame_nrs[0] = get_closest_pastcur_ref_index(cm);
-    xd->mi[0]->ref_frame_nrs[1] = INVALID_IDX;
+    xd->mi[0]->ref_frame[0] = get_closest_pastcur_ref_index(cm);
+    xd->mi[0]->ref_frame[1] = INVALID_IDX;
 #else
     xd->mi[0]->ref_frame[0] = LAST_FRAME;
     xd->mi[0]->ref_frame[1] = NONE_FRAME;

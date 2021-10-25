@@ -23,11 +23,7 @@ static INLINE int is_interp_filter_good_match(
   int i;
 
   for (i = 0; i < 1 + is_comp; ++i) {
-#if CONFIG_NEW_REF_SIGNALING
-    if (st->ref_frames_nrs[i] != mi->ref_frame_nrs[i]) return INT_MAX;
-#else
     if (st->ref_frames[i] != mi->ref_frame[i]) return INT_MAX;
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
 
   if (skip_level == 1 && is_comp) {
@@ -55,11 +51,7 @@ static INLINE int save_interp_filter_search_stat(
       mbmi->interp_filters,
 #endif  // CONFIG_REMOVE_DUAL_FILTER
       { mbmi->mv[0], mbmi->mv[1] },
-#if CONFIG_NEW_REF_SIGNALING
-      { mbmi->ref_frame_nrs[0], mbmi->ref_frame_nrs[1] },
-#else
       { mbmi->ref_frame[0], mbmi->ref_frame[1] },
-#endif  // CONFIG_NEW_REF_SIGNALING
       mbmi->interinter_comp.type,
       mbmi->compound_idx,
       rd,
@@ -626,13 +618,8 @@ static INLINE void calc_interp_skip_pred_flag(MACROBLOCK *const x,
   const int is_compound = has_second_ref(mbmi);
   assert(is_intrabc_block(mbmi) == 0);
   for (int ref = 0; ref < 1 + is_compound; ++ref) {
-#if CONFIG_NEW_REF_SIGNALING
-    const struct scale_factors *const sf =
-        get_ref_scale_factors_const(cm, mbmi->ref_frame_nrs[ref]);
-#else
     const struct scale_factors *const sf =
         get_ref_scale_factors_const(cm, mbmi->ref_frame[ref]);
-#endif  // CONFIG_NEW_REF_SIGNALING
     // TODO(any): Refine skip flag calculation considering scaling
     if (av1_is_scaled(sf)) {
       *skip_hor = 0;
@@ -728,7 +715,7 @@ int64_t av1_interpolation_filter_search(
   const int need_search =
       av1_is_interp_needed(xd) && !cpi->sf.rt_sf.skip_interp_filter_search;
 #if CONFIG_NEW_REF_SIGNALING
-  const int ref_frame = COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame_nrs[0]);
+  const int ref_frame = COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame[0]);
 #else
   const int ref_frame = xd->mi[0]->ref_frame[0];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -809,11 +796,7 @@ int64_t av1_interpolation_filter_search(
     if (has_second_ref(mbmi)) {
 #endif  // CONFIG_OPTFLOW_REFINEMENT
       const int ref_mv_idx = mbmi->ref_mv_idx;
-#if CONFIG_NEW_REF_SIGNALING
-      MV_REFERENCE_FRAME *refs = mbmi->ref_frame_nrs;
-#else
       MV_REFERENCE_FRAME *refs = mbmi->ref_frame;
-#endif  // CONFIG_NEW_REF_SIGNALING
       const int mode0 = compound_ref0_mode(mbmi->mode);
       const int mode1 = compound_ref1_mode(mbmi->mode);
       const int64_t mrd = AOMMIN(args->modelled_rd[mode0][ref_mv_idx][refs[0]],

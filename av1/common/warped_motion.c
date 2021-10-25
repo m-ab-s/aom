@@ -1108,13 +1108,8 @@ int globalmv_rotation_allowed(const MACROBLOCKD *xd) {
   MB_MODE_INFO *mbmi = xd->mi[0];
   if (mbmi->motion_mode != SIMPLE_TRANSLATION) return 0;
   if (mbmi->mode != GLOBALMV) return 0;
-#if CONFIG_NEW_REF_SIGNALING
-  if (xd->global_motion[mbmi->ref_frame_nrs[0]].invalid) return 0;
-  if (xd->global_motion[mbmi->ref_frame_nrs[0]].wmtype == IDENTITY) return 0;
-#else
   if (xd->global_motion[mbmi->ref_frame[0]].invalid) return 0;
   if (xd->global_motion[mbmi->ref_frame[0]].wmtype == IDENTITY) return 0;
-#endif  // CONFIG_NEW_REF_SIGNALING
   // smaller blocks don't benefit from EXT_ROTATION
   if (mbmi->sb_type < BLOCK_8X8 || mbmi->sb_type == BLOCK_4X16 ||
       mbmi->sb_type == BLOCK_16X4)

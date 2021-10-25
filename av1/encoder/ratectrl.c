@@ -2821,7 +2821,7 @@ void av1_compute_frame_low_motion(AV1_COMP *const cpi) {
   for (int mi_row = 0; mi_row < rows; mi_row++) {
     for (int mi_col = 0; mi_col < cols; mi_col++) {
 #if CONFIG_NEW_REF_SIGNALING
-      if (mi[0]->ref_frame_nrs[0] == get_closest_pastcur_ref_index(cm) &&
+      if (mi[0]->ref_frame[0] == get_closest_pastcur_ref_index(cm) &&
 #else
       if (mi[0]->ref_frame[0] == LAST_FRAME &&
 #endif  // CONFIG_NEW_REF_SIGNALING

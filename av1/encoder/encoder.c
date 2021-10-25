@@ -2044,7 +2044,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
                                     cm->width, cm->height);
 
 #if CONFIG_NEW_REF_SIGNALING
-  set_ref_ptrs_nrs(cm, xd, 0, 0);
+  set_ref_ptrs(cm, xd, 0, 0);
 #else
   set_ref_ptrs(cm, xd, LAST_FRAME, LAST_FRAME);
 #endif  // CONFIG_NEW_REF_SIGNALING

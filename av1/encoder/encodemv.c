@@ -330,13 +330,8 @@ int_mv av1_get_ref_mv(const MACROBLOCK *x, int ref_idx) {
     ref_mv_idx += 1;
 #endif  // !CONFIG_NEW_INTER_MODES
   }
-  return av1_get_ref_mv_from_stack(ref_idx,
-#if CONFIG_NEW_REF_SIGNALING
-                                   mbmi->ref_frame_nrs,
-#else
-                                   mbmi->ref_frame,
-#endif  // CONFIG_NEW_REF_SIGNALING
-                                   ref_mv_idx, x->mbmi_ext);
+  return av1_get_ref_mv_from_stack(ref_idx, mbmi->ref_frame, ref_mv_idx,
+                                   x->mbmi_ext);
 }
 
 #if CONFIG_NEW_INTER_MODES

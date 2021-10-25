@@ -74,9 +74,9 @@ uint8_t av1_get_filter_level(const AV1_COMMON *cm,
                              int plane, const MB_MODE_INFO *mbmi) {
   const int segment_id = mbmi->segment_id;
 #if CONFIG_NEW_REF_SIGNALING
-  const int ref_frame_nrs_index = mbmi->ref_frame_nrs[0] == INTRA_FRAME_NRS
-                                      ? INTRA_FRAME_INDEX_NRS
-                                      : mbmi->ref_frame_nrs[0];
+  const int ref_frame_index = mbmi->ref_frame[0] == INTRA_FRAME_NRS
+                                  ? INTRA_FRAME_INDEX_NRS
+                                  : mbmi->ref_frame[0];
 #endif  // CONFIG_NEW_REF_SIGNALING
   if (cm->delta_q_info.delta_lf_present_flag) {
     int8_t delta_lf;
@@ -104,9 +104,9 @@ uint8_t av1_get_filter_level(const AV1_COMMON *cm,
     if (cm->lf.mode_ref_delta_enabled) {
       const int scale = 1 << (lvl_seg >> 5);
 #if CONFIG_NEW_REF_SIGNALING
-      lvl_seg += cm->lf.ref_deltas[ref_frame_nrs_index] * scale;
-      if (mbmi->ref_frame_nrs[0] != INTRA_FRAME_NRS &&
-          mbmi->ref_frame_nrs[0] != INVALID_IDX)
+      lvl_seg += cm->lf.ref_deltas[ref_frame_index] * scale;
+      if (mbmi->ref_frame[0] != INTRA_FRAME_NRS &&
+          mbmi->ref_frame[0] != INVALID_IDX)
 #else
       lvl_seg += cm->lf.ref_deltas[mbmi->ref_frame[0]] * scale;
       if (mbmi->ref_frame[0] > INTRA_FRAME)
@@ -117,7 +117,7 @@ uint8_t av1_get_filter_level(const AV1_COMMON *cm,
     return lvl_seg;
   } else {
 #if CONFIG_NEW_REF_SIGNALING
-    return lfi_n->lvl[plane][segment_id][dir_idx][ref_frame_nrs_index]
+    return lfi_n->lvl[plane][segment_id][dir_idx][ref_frame_index]
                      [mode_lf_lut[mbmi->mode]];
 #else
     return lfi_n->lvl[plane][segment_id][dir_idx][mbmi->ref_frame[0]]

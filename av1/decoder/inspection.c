@@ -83,10 +83,6 @@ int ifd_inspect(insp_frame_data *fd, void *decoder, int skip_not_transform) {
       // Reference Frames
       mi->ref_frame[0] = mbmi->ref_frame[0];
       mi->ref_frame[1] = mbmi->ref_frame[1];
-#if CONFIG_NEW_REF_SIGNALING
-      mi->ref_frame_nrs[0] = mbmi->ref_frame_nrs[0];
-      mi->ref_frame_nrs[1] = mbmi->ref_frame_nrs[1];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
       // Prediction Mode
       mi->mode = mbmi->mode;

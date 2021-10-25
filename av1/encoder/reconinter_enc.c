@@ -205,17 +205,10 @@ static void setup_address_for_obmc(MACROBLOCKD *xd, int mi_row_offset,
                      pd->subsampling_y, NULL);
   }
 
-#if CONFIG_NEW_REF_SIGNALING
-  const MV_REFERENCE_FRAME frame = ref_mbmi->ref_frame_nrs[0];
-  const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
-  const struct scale_factors *const sf =
-      get_ref_scale_factors_const(ctxt->cm, frame);
-#else
   const MV_REFERENCE_FRAME frame = ref_mbmi->ref_frame[0];
   const RefCntBuffer *const ref_buf = get_ref_frame_buf(ctxt->cm, frame);
   const struct scale_factors *const sf =
       get_ref_scale_factors_const(ctxt->cm, frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   xd->block_ref_scale_factors[0] = sf;
   if ((!av1_is_valid_scale(sf)))
@@ -344,12 +337,7 @@ void av1_build_inter_predictors_for_planes_single_buf(MACROBLOCKD *xd,
   const int mi_x = mi_col * MI_SIZE;
   const int mi_y = mi_row * MI_SIZE;
   WarpTypesAllowed warp_types;
-#if CONFIG_NEW_REF_SIGNALING
-  const WarpedMotionParams *const wm =
-      &xd->global_motion[mi->ref_frame_nrs[ref]];
-#else
   const WarpedMotionParams *const wm = &xd->global_motion[mi->ref_frame[ref]];
-#endif  // CONFIG_NEW_REF_SIGNALING
   warp_types.global_warp_allowed = is_global_mv_block(mi, wm->wmtype);
   warp_types.local_warp_allowed = mi->motion_mode == WARPED_CAUSAL;
   assert(mi->sb_type < BLOCK_SIZES_ALL);

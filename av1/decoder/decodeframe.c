@@ -911,26 +911,19 @@ static AOM_INLINE void predict_inter_block(AV1_COMMON *const cm,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   for (int ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#if CONFIG_NEW_REF_SIGNALING
-    const MV_REFERENCE_FRAME frame = mbmi->ref_frame_nrs[ref];
-    if (frame == INTRA_FRAME_NRS) {
-      assert(is_intrabc_block(mbmi));
-      assert(ref == 0);
-    } else {
-      const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, frame);
-      const struct scale_factors *ref_scale_factors =
-          get_ref_scale_factors_const(cm, frame);
-#else
     const MV_REFERENCE_FRAME frame = mbmi->ref_frame[ref];
+#if CONFIG_NEW_REF_SIGNALING
+    if (frame == INTRA_FRAME_NRS) {
+#else
     if (frame < LAST_FRAME) {
-      assert(is_intrabc_block(mbmi));
       assert(frame == INTRA_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
+      assert(is_intrabc_block(mbmi));
       assert(ref == 0);
     } else {
       const RefCntBuffer *ref_buf = get_ref_frame_buf(cm, frame);
       const struct scale_factors *ref_scale_factors =
           get_ref_scale_factors_const(cm, frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
       xd->block_ref_scale_factors[ref] = ref_scale_factors;
       av1_setup_pre_planes(xd, ref, &ref_buf->buf, mi_row, mi_col,
                            ref_scale_factors, num_planes,
@@ -5411,8 +5404,8 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       // initialize without pyramid levels
       init_ref_map_pair(cm, ref_frame_map_pairs,
                         current_frame->frame_type == KEY_FRAME);
-      av1_get_ref_frames_nrs(cm, current_frame->display_order_hint,
-                             ref_frame_map_pairs);
+      av1_get_ref_frames(cm, current_frame->display_order_hint,
+                         ref_frame_map_pairs);
 #else
       int frame_refs_short_signaling = 0;
       // Frame refs short signaling is off when error resilient mode is on.

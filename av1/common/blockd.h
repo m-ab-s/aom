@@ -341,11 +341,7 @@ typedef struct MB_MODE_INFO {
   int8_t rotation;
 #endif  // CONFIG_EXT_ROTATION
   PARTITION_TYPE partition;
-#if CONFIG_NEW_REF_SIGNALING
-  MV_REFERENCE_FRAME ref_frame_nrs[2];
-#else
   MV_REFERENCE_FRAME ref_frame[2];
-#endif  // CONFIG_NEW_REF_SIGNALING
   FILTER_INTRA_MODE_INFO filter_intra_mode_info;
   int8_t skip_txfm;
   uint8_t inter_tx_size[INTER_TX_SIZE_BUF_LEN];
@@ -433,7 +429,7 @@ static INLINE PREDICTION_MODE get_uv_mode(UV_PREDICTION_MODE mode) {
 
 static INLINE int is_inter_block(const MB_MODE_INFO *mbmi) {
 #if CONFIG_NEW_REF_SIGNALING
-  return is_intrabc_block(mbmi) || mbmi->ref_frame_nrs[0] != INTRA_FRAME_NRS;
+  return is_intrabc_block(mbmi) || mbmi->ref_frame[0] != INTRA_FRAME_NRS;
 #else
   return is_intrabc_block(mbmi) || mbmi->ref_frame[0] > INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -465,8 +461,8 @@ static INLINE PARTITION_TYPE_REC get_symbol_from_partition_rec_block(
 
 static INLINE int has_second_ref(const MB_MODE_INFO *mbmi) {
 #if CONFIG_NEW_REF_SIGNALING
-  return (mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS) &&
-         (mbmi->ref_frame_nrs[1] != INVALID_IDX);
+  return (mbmi->ref_frame[1] != INTRA_FRAME_NRS) &&
+         (mbmi->ref_frame[1] != INVALID_IDX);
 #else
   return mbmi->ref_frame[1] > INTRA_FRAME;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1301,19 +1297,15 @@ typedef struct macroblockd {
    */
   bool is_first_horizontal_rect;
 
-#if CONFIG_NEW_REF_SIGNALING
   /*!
    * Counts of each nrs ref frame in the above and left neighboring blocks.
    * NOTE: Take into account both single and comp references.
    */
-  uint8_t neighbors_ref_counts_nrs[INTER_REFS_PER_FRAME_NRS];
-#endif  // CONFIG_NEW_REF_SIGNALING
-
-  /*!
-   * Counts of each reference frame in the above and left neighboring blocks.
-   * NOTE: Take into account both single and comp references.
-   */
+#if CONFIG_NEW_REF_SIGNALING
+  uint8_t neighbors_ref_counts[INTER_REFS_PER_FRAME_NRS];
+#else
   uint8_t neighbors_ref_counts[REF_FRAMES];
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Current CDFs of all the symbols for the current tile.
@@ -1874,9 +1866,9 @@ void av1_mark_block_as_not_coded(MACROBLOCKD *xd, int mi_row, int mi_col,
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
 static INLINE int is_interintra_mode(const MB_MODE_INFO *mbmi) {
 #if CONFIG_NEW_REF_SIGNALING
-  return (mbmi->ref_frame_nrs[0] != INTRA_FRAME_NRS &&
-          mbmi->ref_frame_nrs[0] != INVALID_IDX &&
-          mbmi->ref_frame_nrs[1] == INTRA_FRAME_NRS);
+  return (mbmi->ref_frame[0] != INTRA_FRAME_NRS &&
+          mbmi->ref_frame[0] != INVALID_IDX &&
+          mbmi->ref_frame[1] == INTRA_FRAME_NRS);
 #else
   return (mbmi->ref_frame[0] > INTRA_FRAME &&
           mbmi->ref_frame[1] == INTRA_FRAME);
@@ -1904,11 +1896,7 @@ static INLINE int is_interintra_allowed_ref(const MV_REFERENCE_FRAME rf[2]) {
 
 static INLINE int is_interintra_allowed(const MB_MODE_INFO *mbmi) {
   return is_interintra_allowed_bsize(mbmi->sb_type) &&
-#if CONFIG_NEW_REF_SIGNALING
-         is_interintra_allowed_ref(mbmi->ref_frame_nrs) &&
-#else
          is_interintra_allowed_ref(mbmi->ref_frame) &&
-#endif  // CONFIG_NEW_REF_SIGNALING
          is_interintra_allowed_mode(mbmi->mode);
 }
 
@@ -1925,10 +1913,9 @@ static INLINE int is_interintra_allowed_bsize_group(int group) {
 
 static INLINE int is_interintra_pred(const MB_MODE_INFO *mbmi) {
 #if CONFIG_NEW_REF_SIGNALING
-  return mbmi->ref_frame_nrs[0] != INTRA_FRAME_NRS &&
-         mbmi->ref_frame_nrs[0] != INVALID_IDX &&
-         mbmi->ref_frame_nrs[1] == INTRA_FRAME_NRS &&
-         is_interintra_allowed(mbmi);
+  return mbmi->ref_frame[0] != INTRA_FRAME_NRS &&
+         mbmi->ref_frame[0] != INVALID_IDX &&
+         mbmi->ref_frame[1] == INTRA_FRAME_NRS && is_interintra_allowed(mbmi);
 #else
   return mbmi->ref_frame[0] > INTRA_FRAME &&
          mbmi->ref_frame[1] == INTRA_FRAME && is_interintra_allowed(mbmi);
@@ -1983,17 +1970,13 @@ static INLINE MOTION_MODE
 motion_mode_allowed(const WarpedMotionParams *gm_params, const MACROBLOCKD *xd,
                     const MB_MODE_INFO *mbmi, int allow_warped_motion) {
   if (xd->cur_frame_force_integer_mv == 0) {
-#if CONFIG_NEW_REF_SIGNALING
-    const TransformationType gm_type = gm_params[mbmi->ref_frame_nrs[0]].wmtype;
-#else
     const TransformationType gm_type = gm_params[mbmi->ref_frame[0]].wmtype;
-#endif  // CONFIG_NEW_REF_SIGNALING
     if (is_global_mv_block(mbmi, gm_type)) return SIMPLE_TRANSLATION;
   }
   if (is_motion_variation_allowed_bsize(mbmi->sb_type, xd->mi_row,
                                         xd->mi_col) &&
 #if CONFIG_NEW_REF_SIGNALING
-      is_inter_mode(mbmi->mode) && mbmi->ref_frame_nrs[1] != INTRA_FRAME_NRS &&
+      is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME_NRS &&
 #else
       is_inter_mode(mbmi->mode) && mbmi->ref_frame[1] != INTRA_FRAME &&
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2104,12 +2087,7 @@ static INLINE int is_nontrans_global_motion(const MACROBLOCKD *xd,
 
   // Now check if all global motion is non translational
   for (ref = 0; ref < 1 + has_second_ref(mbmi); ++ref) {
-#if CONFIG_NEW_REF_SIGNALING
-    if (xd->global_motion[mbmi->ref_frame_nrs[ref]].wmtype == TRANSLATION)
-      return 0;
-#else
     if (xd->global_motion[mbmi->ref_frame[ref]].wmtype == TRANSLATION) return 0;
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
   return 1;
 }
