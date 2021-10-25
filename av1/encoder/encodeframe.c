@@ -1152,40 +1152,22 @@ static AOM_INLINE void encode_tiles(AV1_COMP *cpi) {
 }
 
 // Set the relative distance of a reference frame w.r.t. current frame
-#if CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE void set_rel_frame_dist(
     const AV1_COMMON *const cm, RefFrameDistanceInfo *const ref_frame_dist_info,
     const int ref_frame_flags) {
   MV_REFERENCE_FRAME ref_frame;
   int min_past_dist = INT32_MAX, min_future_dist = INT32_MAX;
+#if CONFIG_NEW_REF_SIGNALING
   ref_frame_dist_info->nearest_past_ref = INVALID_IDX;
   ref_frame_dist_info->nearest_future_ref = INVALID_IDX;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
     ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
     if (ref_frame_flags & (1 << ref_frame)) {
       int dist = av1_encoder_get_relative_dist(
-          cm->cur_frame->ref_display_order_hint_nrs[ref_frame],
+          cm->cur_frame->ref_display_order_hint[ref_frame],
           cm->current_frame.display_order_hint);
       ref_frame_dist_info->ref_relative_dist[ref_frame] = dist;
-      // Get the nearest ref_frame in the past
-      if (abs(dist) < min_past_dist && dist < 0) {
-        ref_frame_dist_info->nearest_past_ref = ref_frame;
-        min_past_dist = abs(dist);
-      }
-      // Get the nearest ref_frame in the future
-      if (dist < min_future_dist && dist > 0) {
-        ref_frame_dist_info->nearest_future_ref = ref_frame;
-        min_future_dist = dist;
-      }
-    }
-  }
-}
 #else
-static AOM_INLINE void set_rel_frame_dist(
-    const AV1_COMMON *const cm, RefFrameDistanceInfo *const ref_frame_dist_info,
-    const int ref_frame_flags) {
-  MV_REFERENCE_FRAME ref_frame;
-  int min_past_dist = INT32_MAX, min_future_dist = INT32_MAX;
   ref_frame_dist_info->nearest_past_ref = NONE_FRAME;
   ref_frame_dist_info->nearest_future_ref = NONE_FRAME;
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
@@ -1195,6 +1177,7 @@ static AOM_INLINE void set_rel_frame_dist(
           cm->cur_frame->ref_display_order_hint[ref_frame - LAST_FRAME],
           cm->current_frame.display_order_hint);
       ref_frame_dist_info->ref_relative_dist[ref_frame - LAST_FRAME] = dist;
+#endif  // CONFIG_NEW_REF_SIGNALING
       // Get the nearest ref_frame in the past
       if (abs(dist) < min_past_dist && dist < 0) {
         ref_frame_dist_info->nearest_past_ref = ref_frame;
@@ -1208,7 +1191,6 @@ static AOM_INLINE void set_rel_frame_dist(
     }
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 static INLINE int refs_are_one_sided(const AV1_COMMON *cm) {
   assert(!frame_is_intra_only(cm));

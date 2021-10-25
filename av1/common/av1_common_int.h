@@ -147,8 +147,8 @@ typedef struct RefCntBuffer {
   int ref_count;
 
 #if CONFIG_NEW_REF_SIGNALING
-  int ref_order_hints_nrs[INTER_REFS_PER_FRAME_NRS];
-  int ref_display_order_hint_nrs[INTER_REFS_PER_FRAME_NRS];
+  int ref_order_hints[INTER_REFS_PER_FRAME_NRS];
+  int ref_display_order_hint[INTER_REFS_PER_FRAME_NRS];
 #else
   unsigned int ref_order_hints[INTER_REFS_PER_FRAME];
   unsigned int ref_display_order_hint[INTER_REFS_PER_FRAME];

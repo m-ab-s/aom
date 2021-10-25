@@ -1242,12 +1242,12 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
        ++ref_frame_nrs) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame_nrs);
     if (buf != NULL && ref_frame_nrs < cm->new_ref_frame_data.n_total_refs) {
-      cm->cur_frame->ref_order_hints_nrs[ref_frame_nrs] = buf->order_hint;
-      cm->cur_frame->ref_display_order_hint_nrs[ref_frame_nrs] =
+      cm->cur_frame->ref_order_hints[ref_frame_nrs] = buf->order_hint;
+      cm->cur_frame->ref_display_order_hint[ref_frame_nrs] =
           buf->display_order_hint;
     } else {
-      cm->cur_frame->ref_order_hints_nrs[ref_frame_nrs] = -1;
-      cm->cur_frame->ref_display_order_hint_nrs[ref_frame_nrs] = -1;
+      cm->cur_frame->ref_order_hints[ref_frame_nrs] = -1;
+      cm->cur_frame->ref_display_order_hint[ref_frame_nrs] = -1;
     }
   }
 #else
@@ -1368,7 +1368,7 @@ static int motion_field_projection(AV1_COMMON *cm,
       &cm->seq_params.order_hint_info, start_frame_order_hint, cur_order_hint);
 
 #if CONFIG_NEW_REF_SIGNALING
-  const int *const ref_order_hints = &start_frame_buf->ref_order_hints_nrs[0];
+  const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
   int valid_ref = 0;
   for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME_NRS; ++rf) {
     if (ref_order_hints[rf] != -1) {
@@ -1445,8 +1445,8 @@ static INLINE int is_ref_overlay_nrs(const AV1_COMMON *const cm, int ref) {
   if (buf == NULL) return -1;
   const int ref_order_hint = buf->order_hint;
   for (int r = 0; r < INTER_REFS_PER_FRAME_NRS; ++r) {
-    if (buf->ref_order_hints_nrs[r] == -1) continue;
-    const int ref_ref_order_hint = buf->ref_order_hints_nrs[r];
+    if (buf->ref_order_hints[r] == -1) continue;
+    const int ref_ref_order_hint = buf->ref_order_hints[r];
     if (get_relative_dist(order_hint_info, ref_order_hint,
                           ref_ref_order_hint) == 0)
       return 1;

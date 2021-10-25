@@ -5016,11 +5016,7 @@ static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
       continue;
     }
     frame_bufs[i].order_hint = 0;
-#if CONFIG_NEW_REF_SIGNALING
-    av1_zero(frame_bufs[i].ref_order_hints_nrs);
-#else
     av1_zero(frame_bufs[i].ref_order_hints);
-#endif  // CONFIG_NEW_REF_SIGNALING
   }
   av1_zero_unused_internal_frame_buffers(&cm->buffer_pool->int_frame_buffers);
   unlock_buffer_pool(cm->buffer_pool);
