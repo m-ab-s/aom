@@ -177,7 +177,7 @@ static AOM_INLINE void model_rd_for_sb(
   // we need to divide by 8 before sending to modeling function.
   int plane;
 #if CONFIG_NEW_REF_SIGNALING
-  const int ref = xd->mi[0]->ref_frame_nrs[0];
+  const int ref = COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame_nrs[0]);
 #else
   const int ref = xd->mi[0]->ref_frame[0];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -232,7 +232,7 @@ static AOM_INLINE void model_rd_for_sb_with_curvfit(
   // Hence quantizer step is also 8 times. To get effective quantizer
   // we need to divide by 8 before sending to modeling function.
 #if CONFIG_NEW_REF_SIGNALING
-  const int ref = xd->mi[0]->ref_frame_nrs[0];
+  const int ref = COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame_nrs[0]);
 #else
   const int ref = xd->mi[0]->ref_frame[0];
 #endif  // CONFIG_NEW_REF_SIGNALING

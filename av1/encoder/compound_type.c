@@ -1490,7 +1490,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         comp_model_rate[comp_type] = est_rate[comp_type];
         comp_model_dist[comp_type] = est_dist[comp_type];
 #if CONFIG_NEW_REF_SIGNALING
-        sse_y[comp_type] = x->pred_sse[xd->mi[0]->ref_frame_nrs[0]];
+        sse_y[comp_type] =
+            x->pred_sse[COMPACT_INDEX0_NRS(xd->mi[0]->ref_frame_nrs[0])];
 #else
         sse_y[comp_type] = x->pred_sse[xd->mi[0]->ref_frame[0]];
 #endif  // CONFIG_NEW_REF_SIGNALING

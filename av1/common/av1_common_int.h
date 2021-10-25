@@ -92,6 +92,14 @@ extern "C" {
 #define TXCOEFF_TIMER 0
 #define TXCOEFF_COST_TIMER 0
 
+#if CONFIG_NEW_REF_SIGNALING
+#define COMPACT_INDEX0_NRS(r) \
+  (((r) == INTRA_FRAME_NRS) ? INTRA_FRAME_INDEX_NRS : (r))
+
+#define COMPACT_INDEX1_NRS(r) \
+  (((r) == INTRA_FRAME_NRS || (r) == INVALID_IDX) ? INTRA_FRAME_INDEX_NRS : (r))
+#endif  // CONFIG_NEW_REF_SIGNALING
+
 /*!\cond */
 
 enum {

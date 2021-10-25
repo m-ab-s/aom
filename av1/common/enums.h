@@ -757,7 +757,7 @@ enum {
 #define INTER_REFS_PER_FRAME_NRS 7
 #define REF_FRAMES_NRS (INTER_REFS_PER_FRAME_NRS + 1)
 #define MODE_CTX_REF_FRAMES \
-  (INTER_REFS_PER_FRAME_NRS * (INTER_REFS_PER_FRAME_NRS + 1) / 2)
+  (INTER_REFS_PER_FRAME_NRS * (INTER_REFS_PER_FRAME_NRS + 1) / 2 + 1)
 #define INTRA_FRAME_NRS \
   (INTER_REFS_PER_FRAME_NRS * (INTER_REFS_PER_FRAME_NRS + 1) / 2)
 // Used for indexing into arrays that contain reference data for

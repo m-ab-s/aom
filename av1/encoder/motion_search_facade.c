@@ -296,7 +296,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     av1_set_fractional_mv(fractional_ms_list);
     int dis; /* TODO: use dis in distortion calculation later. */
 #if CONFIG_NEW_REF_SIGNALING
-    const int ref_pred = ref_nrs;
+    const int ref_pred = COMPACT_INDEX0_NRS(ref_nrs);
 #else
     const int ref_pred = ref;
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -860,7 +860,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv, &not_used,
 #if CONFIG_NEW_REF_SIGNALING
-        &x->pred_sse[ref],
+        &x->pred_sse[COMPACT_INDEX0_NRS(ref)],
 #else
         &x->pred_sse[ref],
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1017,7 +1017,7 @@ int_mv av1_simple_motion_search_ext(AV1_COMP *const cpi,
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &best_mv.as_mv, &not_used,
 #if CONFIG_NEW_REF_SIGNALING
-        &x->pred_sse[ref],
+        &x->pred_sse[COMPACT_INDEX0_NRS(ref)],
 #else
         &x->pred_sse[ref],
 #endif  // CONFIG_NEW_REF_SIGNALING

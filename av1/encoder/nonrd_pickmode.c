@@ -277,7 +277,7 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &tmp_mv->as_mv, &dis,
 #if CONFIG_NEW_REF_SIGNALING
-        &x->pred_sse[ref_nrs],
+        &x->pred_sse[COMPACT_INDEX0_NRS(ref_nrs)],
 #else
         &x->pred_sse[ref],
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -354,6 +354,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
         &x->mbmi_ext->ref_mv_stack[ref_frame][0].this_mv.as_mv);
 
 #if CONFIG_NEW_REF_SIGNALING
+    assert(last_frame >= 0);
     if (tmp_sad > x->pred_mv_sad[last_frame]) return -1;
 #else
     if (tmp_sad > x->pred_mv_sad[LAST_FRAME]) return -1;
@@ -374,14 +375,14 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
                                       max_mv_precision, cost_list);
     MV start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
-    cpi->mv_search_params.find_fractional_mv_step(xd, cm, &ms_params, start_mv,
-                                                  &best_mv.as_mv, &dis,
+    cpi->mv_search_params.find_fractional_mv_step(
+        xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis,
 #if CONFIG_NEW_REF_SIGNALING
-                                                  &x->pred_sse[ref_frame],
+        &x->pred_sse[COMPACT_INDEX0_NRS(ref_frame)],
 #else
-                                                  &x->pred_sse[ref_frame],
+        &x->pred_sse[ref_frame],
 #endif  // CONFIG_NEW_REF_SIGNALING
-                                                  NULL);
+        NULL);
     frame_mv[NEWMV][ref_frame].as_int = best_mv.as_int;
   } else if (!combined_motion_search(cpi, x, bsize, mi_row, mi_col,
                                      &frame_mv[NEWMV][ref_frame], rate_mv,
@@ -446,12 +447,11 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
  */
 #endif  // CONFIG_NEW_REF_SIGNALING
 static INLINE void find_predictors(
-    AV1_COMP *cpi, MACROBLOCK *x,
+    AV1_COMP *cpi, MACROBLOCK *x, MV_REFERENCE_FRAME ref_frame,
 #if CONFIG_NEW_REF_SIGNALING
-    MV_REFERENCE_FRAME ref_frame,
     int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES_NRS],
 #else
-    MV_REFERENCE_FRAME ref_frame, int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
+    int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
 #endif  // CONFIG_NEW_REF_SIGNALING
     TileDataEnc *tile_data, struct buf_2d yv12_mb[8][MAX_MB_PLANE],
     BLOCK_SIZE bsize, int force_skip_low_temp_var) {
@@ -462,6 +462,9 @@ static INLINE void find_predictors(
   const int num_planes = av1_num_planes(cm);
   (void)tile_data;
 
+#if CONFIG_NEW_REF_SIGNALING
+  assert(ref_frame != INTRA_FRAME_NRS);
+#endif  // CONFIG_NEW_REF_SIGNALING
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, ref_frame);
   x->pred_mv_sad[ref_frame] = INT_MAX;
   frame_mv[NEWMV][ref_frame].as_int = INVALID_MV;
@@ -1043,7 +1046,11 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
     dist = INT_MAX;
   }
   rd_stats->sse = sse;
+#if CONFIG_NEW_REF_SIGNALING
+  x->pred_sse[COMPACT_INDEX0_NRS(ref)] = (unsigned int)AOMMIN(sse, UINT_MAX);
+#else
   x->pred_sse[ref] = (unsigned int)AOMMIN(sse, UINT_MAX);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   assert(rate >= 0);
 
@@ -2464,6 +2471,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if CONFIG_NEW_REF_SIGNALING
   const MV_REFERENCE_FRAME last_frame = get_closest_pastcur_ref_index(cm);
   const MV_REFERENCE_FRAME golden_frame = get_best_past_ref_index(cm);
+  assert(last_frame >= 0);
   thresh_sad_pred = ((int64_t)x->pred_mv_sad[last_frame]) << 1;
 #else
   thresh_sad_pred = ((int64_t)x->pred_mv_sad[LAST_FRAME]) << 1;
