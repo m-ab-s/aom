@@ -818,22 +818,26 @@ static void read_intrabc_info(AV1_COMMON *const cm, DecoderCodingBlock *dcb,
     av1_set_mbmi_mv_precision(mbmi, MV_SUBPEL_NONE);
 
     int16_t inter_mode_ctx[MODE_CTX_REF_FRAMES];
-    int_mv ref_mvs[INTRA_FRAME + 1][MAX_MV_REF_CANDIDATES];
+    int_mv nearestmv, nearmv;
 
 #if CONFIG_NEW_REF_SIGNALING
+    // TODO(kslu): Rework av1_find_mv_refs_nrs to avoid having this big array
+    // ref_mvs
+    int_mv ref_mvs[INTRA_FRAME_NRS + 1][MAX_MV_REF_CANDIDATES];
     av1_find_mv_refs_nrs(cm, xd, mbmi, INTRA_FRAME_NRS, dcb->ref_mv_count,
                          xd->ref_mv_stack, xd->weight, ref_mvs,
                          /*global_mvs=*/NULL, inter_mode_ctx);
+    av1_find_best_ref_mvs(ref_mvs[INTRA_FRAME_NRS], &nearestmv, &nearmv,
+                          cm->features.fr_mv_precision);
 #else
+    int_mv ref_mvs[INTRA_FRAME + 1][MAX_MV_REF_CANDIDATES];
     av1_find_mv_refs(cm, xd, mbmi, INTRA_FRAME, dcb->ref_mv_count,
                      xd->ref_mv_stack, xd->weight, ref_mvs, /*global_mvs=*/NULL,
                      inter_mode_ctx);
-#endif  // CONFIG_NEW_REF_SIGNALING
-
-    int_mv nearestmv, nearmv;
-
     av1_find_best_ref_mvs(ref_mvs[INTRA_FRAME], &nearestmv, &nearmv,
                           cm->features.fr_mv_precision);
+#endif  // CONFIG_NEW_REF_SIGNALING
+
     assert(cm->features.fr_mv_precision == MV_SUBPEL_NONE &&
            mbmi->max_mv_precision == MV_SUBPEL_NONE);
     int_mv dv_ref = nearestmv.as_int == 0 ? nearmv : nearestmv;
