@@ -1882,12 +1882,7 @@ static void init_ref_frame_bufs(AV1_COMP *cpi) {
   BufferPool *const pool = cm->buffer_pool;
   cm->cur_frame = NULL;
 
-#if CONFIG_NEW_REF_SIGNALING
-  for (i = 0; i < REF_FRAMES_NRS; ++i)
-#else
-  for (i = 0; i < REF_FRAMES; ++i)
-#endif  // CONFIG_NEW_REF_SIGNALING
-    cm->ref_frame_map[i] = NULL;
+  for (i = 0; i < REF_FRAMES; ++i) cm->ref_frame_map[i] = NULL;
 
   for (i = 0; i < FRAME_BUFFERS; ++i) {
     pool->frame_bufs[i].ref_count = 0;
@@ -3277,16 +3272,13 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
   cm->show_existing_frame = frame_params->show_existing_frame;
   cpi->existing_fb_idx_to_show = frame_params->existing_fb_idx_to_show;
 
-#if CONFIG_NEW_REF_SIGNALING
-  memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
-         REF_FRAMES_NRS * sizeof(*cm->remapped_ref_idx));
-#else
   memcpy(cm->remapped_ref_idx, frame_params->remapped_ref_idx,
          REF_FRAMES * sizeof(*cm->remapped_ref_idx));
 
+#if !CONFIG_NEW_REF_SIGNALING
   memcpy(&cpi->refresh_frame, &frame_params->refresh_frame,
          sizeof(cpi->refresh_frame));
-#endif  // CONFIG_NEW_REF_SIGNALING
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
   if (current_frame->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) {
     current_frame->key_frame_number += current_frame->frame_number;

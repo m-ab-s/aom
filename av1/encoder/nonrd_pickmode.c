@@ -434,15 +434,13 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
  * \c frame_mv array
  */
 #endif  // CONFIG_NEW_REF_SIGNALING
-static INLINE void find_predictors(
-    AV1_COMP *cpi, MACROBLOCK *x, MV_REFERENCE_FRAME ref_frame,
-#if CONFIG_NEW_REF_SIGNALING
-    int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES_NRS],
-#else
-    int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
-#endif  // CONFIG_NEW_REF_SIGNALING
-    TileDataEnc *tile_data, struct buf_2d yv12_mb[8][MAX_MB_PLANE],
-    BLOCK_SIZE bsize, int force_skip_low_temp_var) {
+static INLINE void find_predictors(AV1_COMP *cpi, MACROBLOCK *x,
+                                   MV_REFERENCE_FRAME ref_frame,
+                                   int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
+                                   TileDataEnc *tile_data,
+                                   struct buf_2d yv12_mb[8][MAX_MB_PLANE],
+                                   BLOCK_SIZE bsize,
+                                   int force_skip_low_temp_var) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -596,12 +594,7 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
 
 static void estimate_comp_ref_frame_costs(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, const ModeCosts *mode_costs,
-    int segment_id,
-#if CONFIG_NEW_REF_SIGNALING
-    unsigned int (*ref_costs_comp)[REF_FRAMES_NRS]) {
-#else
-    unsigned int (*ref_costs_comp)[REF_FRAMES]) {
-#endif  // CONFIG_NEW_REF_SIGNALING
+    int segment_id, unsigned int (*ref_costs_comp)[REF_FRAMES]) {
 #if CONFIG_NEW_REF_SIGNALING
   (void)segment_id;
   const int seg_ref_active = 0;
@@ -618,8 +611,8 @@ static void estimate_comp_ref_frame_costs(
     int intra_inter_ctx = av1_get_intra_inter_context(xd);
     unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
     if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
-      for (int i = 0; i < REF_FRAMES_NRS; i++)
-        for (int j = 0; j < REF_FRAMES_NRS; j++) ref_costs_comp[i][j] = INT_MAX;
+      for (int i = 0; i < REF_FRAMES; i++)
+        for (int j = 0; j < REF_FRAMES; j++) ref_costs_comp[i][j] = INT_MAX;
 
       const int n_refs = cm->new_ref_frame_data.n_total_refs;
       for (int i = 0; i < n_refs - 1; i++) {
@@ -645,8 +638,8 @@ static void estimate_comp_ref_frame_costs(
         }
       }
     } else {
-      for (int ref0 = 0; ref0 < REF_FRAMES_NRS; ++ref0) {
-        for (int ref1 = ref0 + 1; ref1 < REF_FRAMES_NRS; ++ref1)
+      for (int ref0 = 0; ref0 < REF_FRAMES; ++ref0) {
+        for (int ref1 = ref0 + 1; ref1 < REF_FRAMES; ++ref1)
           ref_costs_comp[ref0][ref1] = 512;
       }
     }
@@ -2314,30 +2307,18 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   static mode_search_stat ms_stat;
 #endif
   MV_REFERENCE_FRAME ref_frame;
-#if CONFIG_NEW_REF_SIGNALING
-  int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES_NRS];
-  uint8_t mode_checked[MB_MODE_COUNT][REF_FRAMES_NRS];
-  struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE];
-#else
   int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES];
   uint8_t mode_checked[MB_MODE_COUNT][REF_FRAMES];
   struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
-#endif  // CONFIG_NEW_REF_SIGNALING
   RD_STATS this_rdc, best_rdc;
   const unsigned char segment_id = mi->segment_id;
   const int *const rd_threshes = cpi->rd.threshes[segment_id][bsize];
   const int *const rd_thresh_freq_fact = x->thresh_freq_fact[bsize];
   const InterpFilter filter_ref = cm->features.interp_filter;
   int best_early_term = 0;
-#if CONFIG_NEW_REF_SIGNALING
-  unsigned int ref_costs_single[REF_FRAMES_NRS];
-  unsigned int ref_costs_comp[REF_FRAMES_NRS][REF_FRAMES_NRS];
-  int use_ref_frame_mask[REF_FRAMES_NRS] = { 0 };
-#else
   unsigned int ref_costs_single[REF_FRAMES],
       ref_costs_comp[REF_FRAMES][REF_FRAMES];
   int use_ref_frame_mask[REF_FRAMES] = { 0 };
-#endif  // CONFIG_NEW_REF_SIGNALING
   int force_skip_low_temp_var = 0;
   unsigned int sse_zeromv_norm = UINT_MAX;
   int num_inter_modes = RT_INTER_MODES;

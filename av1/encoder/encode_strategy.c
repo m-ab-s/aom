@@ -498,11 +498,7 @@ static void update_fb_of_context_type(
       // If more than one frame is refreshed, it doesn't matter which one we
       // pick so pick the first.  LST sometimes doesn't refresh any: this is ok
 
-#if CONFIG_NEW_REF_SIGNALING
-      for (int i = 0; i < REF_FRAMES_NRS; i++) {
-#else
       for (int i = 0; i < REF_FRAMES; i++) {
-#endif  // CONFIG_NEW_REF_SIGNALING
         if (cm->current_frame.refresh_frame_flags & (1 << i)) {
           fb_of_context_type[current_frame_ref_type] = i;
           break;
@@ -762,11 +758,7 @@ static void dump_ref_frame_images(AV1_COMP *cpi) {
 int av1_get_refresh_ref_frame_map(int refresh_frame_flags) {
   int ref_map_index = INVALID_IDX;
 
-#if CONFIG_NEW_REF_SIGNALING
-  for (ref_map_index = 0; ref_map_index < REF_FRAMES_NRS; ++ref_map_index)
-#else
   for (ref_map_index = 0; ref_map_index < REF_FRAMES; ++ref_map_index)
-#endif  // CONFIG_NEW_REF_SIGNALING
     if ((refresh_frame_flags >> ref_map_index) & 1) break;
 
   return ref_map_index;
@@ -868,64 +860,10 @@ static int get_refresh_frame_flags_subgop_cfg(
   return 1 << refresh_idx;
 }
 
-#if CONFIG_NEW_REF_SIGNALING
-int av1_get_refresh_frame_flags(
-    const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
-    FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
-    RefFrameMapPair ref_frame_map_pairs[REF_FRAMES_NRS]) {
-  const SVC *const svc = &cpi->svc;
-  // Switch frames and shown key-frames overwrite all reference slots
-  if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
-      frame_params->frame_type == S_FRAME)
-    return 0xFF;
-
-  // show_existing_frames don't actually send refresh_frame_flags so set the
-  // flags to 0 to keep things consistent.
-  if (frame_params->show_existing_frame &&
-      (!frame_params->error_resilient_mode ||
-       frame_params->frame_type == KEY_FRAME)) {
-    return 0;
-  }
-
-  if (is_frame_droppable(svc)) return 0;
-
-  int refresh_mask = 0;
-
-  // Search for the open slot to store the current frame.
-  int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs);
-
-  if (use_subgop_cfg(&cpi->gf_group, gf_index)) {
-    return get_refresh_frame_flags_subgop_cfg(cpi, gf_index, cur_disp_order,
-                                              ref_frame_map_pairs, refresh_mask,
-                                              free_fb_index);
-  }
-
-  // No refresh necessary for these frame types
-  if (frame_update_type == OVERLAY_UPDATE ||
-      frame_update_type == KFFLT_OVERLAY_UPDATE ||
-      frame_update_type == INTNL_OVERLAY_UPDATE)
-    return refresh_mask;
-
-  // If there is an open slot, refresh that one instead of replacing a reference
-  if (free_fb_index != INVALID_IDX) {
-    refresh_mask = 1 << free_fb_index;
-    return refresh_mask;
-  }
-
-  const int update_arf = frame_update_type == ARF_UPDATE;
-  const int refresh_idx =
-      get_refresh_idx(update_arf, -1, cur_disp_order, ref_frame_map_pairs);
-  return 1 << refresh_idx;
-}
-#else
 int av1_get_refresh_frame_flags(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
     RefFrameMapPair ref_frame_map_pairs[REF_FRAMES]) {
-  const AV1_COMMON *const cm = &cpi->common;
-  const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
-      &cpi->ext_flags.refresh_frame;
-
   const SVC *const svc = &cpi->svc;
   // Switch frames and shown key-frames overwrite all reference slots
   if ((frame_params->frame_type == KEY_FRAME && !cpi->no_show_fwd_kf) ||
@@ -940,9 +878,13 @@ int av1_get_refresh_frame_flags(
     return 0;
   }
 
-  if (is_frame_droppable(svc, ext_refresh_frame_flags)) return 0;
-
   int refresh_mask = 0;
+#if CONFIG_NEW_REF_SIGNALING
+  if (is_frame_droppable(svc)) return 0;
+#else
+  const AV1_COMMON *const cm = &cpi->common;
+  const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
+      &cpi->ext_flags.refresh_frame;
 
   if (ext_refresh_frame_flags->update_pending) {
     if (svc->external_ref_frame_config) {
@@ -988,6 +930,7 @@ int av1_get_refresh_frame_flags(
     }
     return refresh_mask;
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   // Search for the open slot to store the current frame.
   int free_fb_index = get_free_ref_map_index(ref_frame_map_pairs);
@@ -1015,7 +958,6 @@ int av1_get_refresh_frame_flags(
       get_refresh_idx(update_arf, -1, cur_disp_order, ref_frame_map_pairs);
   return 1 << refresh_idx;
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if !CONFIG_REALTIME_ONLY
 void setup_mi(AV1_COMP *const cpi, YV12_BUFFER_CONFIG *src) {
@@ -1441,11 +1383,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     frame_params.existing_fb_idx_to_show = INVALID_IDX;
     // Find the frame buffer to show based on display order
     if (frame_params.show_existing_frame) {
-#if CONFIG_NEW_REF_SIGNALING
-      for (int frame = 0; frame < REF_FRAMES_NRS; frame++) {
-#else
       for (int frame = 0; frame < REF_FRAMES; frame++) {
-#endif  // CONFIG_NEW_REF_SIGNALING
         const RefCntBuffer *const buf = cm->ref_frame_map[frame];
         if (buf == NULL) continue;
         const int frame_order = (int)buf->display_order_hint;
@@ -1463,13 +1401,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
   // frame_params->remapped_ref_idx here and they will be used when encoding
   // this frame.  If frame_params->remapped_ref_idx is setup independently of
   // cm->remapped_ref_idx then update_ref_frame_map() will have no effect.
-#if CONFIG_NEW_REF_SIGNALING
-  memcpy(frame_params.remapped_ref_idx, cm->remapped_ref_idx,
-         REF_FRAMES_NRS * sizeof(*frame_params.remapped_ref_idx));
-#else
   memcpy(frame_params.remapped_ref_idx, cm->remapped_ref_idx,
          REF_FRAMES * sizeof(*frame_params.remapped_ref_idx));
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   cpi->td.mb.delta_qindex = 0;
 

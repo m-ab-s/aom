@@ -2282,13 +2282,7 @@ typedef struct AV1_COMP {
    * choose our primary reference frame (which is the most recent reference
    * frame of the same type as the current frame).
    */
-  int fb_of_context_type[
-#if CONFIG_NEW_REF_SIGNALING
-      REF_FRAMES_NRS
-#else
-      REF_FRAMES
-#endif  // CONFIG_NEW_REF_SIGNALING
-  ];
+  int fb_of_context_type[REF_FRAMES];
 
   /*!
    * Flags signalled by the external interface at frame level.

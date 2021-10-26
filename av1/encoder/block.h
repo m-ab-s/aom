@@ -1162,24 +1162,11 @@ typedef struct macroblock {
    *
    * This is used to measure how viable a reference frame is.
    */
-#if CONFIG_NEW_REF_SIGNALING
-  int pred_mv_sad[REF_FRAMES_NRS];
-#else
   int pred_mv_sad[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   //! The minimum of \ref pred_mv_sad.
   int best_pred_mv_sad;
 
-#if CONFIG_NEW_REF_SIGNALING
-  /*! \brief Disables certain ref frame pruning based on tpl.
-   *
-   * Determines whether a given ref frame is "good" based on data from the TPL
-   * model. If so, this stops selective_ref frame from pruning the given ref
-   * frame at block level.
-   */
-  uint8_t tpl_keep_ref_frame[REF_FRAMES_NRS];
-#else
   /*! \brief Disables certain ref frame pruning based on tpl.
    *
    * Determines whether a given ref frame is "good" based on data from the TPL
@@ -1187,7 +1174,6 @@ typedef struct macroblock {
    * frame at block level.
    */
   uint8_t tpl_keep_ref_frame[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*! \brief Reference frames picked by the square subblocks in a superblock.
    *
@@ -1321,11 +1307,7 @@ typedef struct macroblock {
    * This context is defined as the \f$l_\inf\f$ norm of the best ref_mvs for
    * each frame.
    */
-#if CONFIG_NEW_REF_SIGNALING
-  unsigned int max_mv_context[REF_FRAMES_NRS];
-#else
   unsigned int max_mv_context[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*! \brief Limit for the range of motion vectors.
    *
@@ -1368,11 +1350,7 @@ typedef struct macroblock {
   //! Variance of the source frame.
   unsigned int source_variance;
   //! SSE of the current predictor.
-#if CONFIG_NEW_REF_SIGNALING
-  unsigned int pred_sse[REF_FRAMES_NRS];
-#else
   unsigned int pred_sse[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_EXT_RECUR_PARTITIONS
   //! Simple motion search buffers.
   SimpleMotionDataBufs *sms_bufs;

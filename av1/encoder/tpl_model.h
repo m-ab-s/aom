@@ -78,11 +78,7 @@ typedef struct AV1TplRowMultiThreadInfo {
 #define MAX_TPL_FRAME_IDX (2 * MAX_LAG_BUFFERS)
 // The first REF_FRAMES + 1 buffers are reserved.
 // tpl_data->tpl_frame starts after REF_FRAMES + 1
-#if CONFIG_NEW_REF_SIGNALING
-#define MAX_LENGTH_TPL_FRAME_STATS (MAX_TPL_FRAME_IDX + REF_FRAMES_NRS + 1)
-#else
 #define MAX_LENGTH_TPL_FRAME_STATS (MAX_TPL_FRAME_IDX + REF_FRAMES + 1)
-#endif  // CONFIG_NEW_REF_SIGNALING
 #define MAX_TPL_EXTEND (MAX_LAG_BUFFERS - MAX_GF_INTERVAL)
 #define TPL_DEP_COST_SCALE_LOG2 4
 
@@ -109,11 +105,7 @@ typedef struct TplDepFrame {
   TplDepStats *tpl_stats_ptr;
   const YV12_BUFFER_CONFIG *gf_picture;
   YV12_BUFFER_CONFIG *rec_picture;
-#if CONFIG_NEW_REF_SIGNALING
-  int ref_map_index[REF_FRAMES_NRS];
-#else
   int ref_map_index[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
   int stride;
   int width;
   int height;

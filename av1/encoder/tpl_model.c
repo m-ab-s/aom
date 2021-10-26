@@ -972,11 +972,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   AV1_COMMON *cm = &cpi->common;
   int cur_frame_idx = gf_group->index;
   *pframe_qindex = 0;
-#if CONFIG_NEW_REF_SIGNALING
-  RefFrameMapPair ref_frame_map_pairs[REF_FRAMES_NRS];
-#else
   RefFrameMapPair ref_frame_map_pairs[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
   init_ref_map_pair(
       cm, ref_frame_map_pairs,
       cpi->gf_group.update_type[cpi->gf_group.index] == KEY_FRAME);
@@ -984,17 +980,9 @@ static AOM_INLINE void init_gop_frames_for_tpl(
   EncodeFrameParams frame_params = *init_frame_params;
   TplParams *const tpl_data = &cpi->tpl_data;
 
-#if CONFIG_NEW_REF_SIGNALING
-  int ref_picture_map[REF_FRAMES_NRS];
-#else
   int ref_picture_map[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_NEW_REF_SIGNALING
-  for (int i = 0; i < REF_FRAMES_NRS; ++i) {
-#else
   for (int i = 0; i < REF_FRAMES; ++i) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     if (frame_params.frame_type == KEY_FRAME || gop_eval) {
       tpl_data->tpl_frame[-i - 1].gf_picture = NULL;
       tpl_data->tpl_frame[-1 - 1].rec_picture = NULL;
@@ -1079,11 +1067,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
                                     gf_index, true_disp, ref_frame_map_pairs);
 
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
-#if CONFIG_NEW_REF_SIGNALING
-    if (refresh_frame_map_index < REF_FRAMES_NRS) {
-#else
     if (refresh_frame_map_index < REF_FRAMES) {
-#endif  // CONFIG_NEW_REF_SIGNALING
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =
@@ -1179,11 +1163,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
         av1_get_refresh_frame_flags(cpi, &frame_params, frame_update_type, -1,
                                     true_disp, ref_frame_map_pairs);
     int refresh_frame_map_index = av1_get_refresh_ref_frame_map(refresh_mask);
-#if CONFIG_NEW_REF_SIGNALING
-    if (refresh_frame_map_index < REF_FRAMES_NRS) {
-#else
     if (refresh_frame_map_index < REF_FRAMES) {
-#endif  // CONFIG_NEW_REF_SIGNALING
       ref_frame_map_pairs[refresh_frame_map_index].disp_order =
           AOMMAX(0, true_disp);
       ref_frame_map_pairs[refresh_frame_map_index].pyr_level =

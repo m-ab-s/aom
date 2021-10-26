@@ -190,11 +190,7 @@ typedef struct RefCntBuffer {
   int interp_filter_selected[SWITCHABLE];
 
   // Inter frame reference frame delta for loop filter
-#if CONFIG_NEW_REF_SIGNALING
-  int8_t ref_deltas[REF_FRAMES_NRS];
-#else
   int8_t ref_deltas[REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   // 0 = ZERO_MV, MV
   int8_t mode_deltas[MAX_MODE_LF_DELTAS];
@@ -980,7 +976,7 @@ typedef struct AV1Common {
    * Note: INTRA_FRAME always refers to the current frame, so there's no need to
    * have a remapped index for the same.
    */
-  int remapped_ref_idx[REF_FRAMES_NRS];
+  int remapped_ref_idx[REF_FRAMES];
 #else
   /*!
    * For encoder, we have a two-level mapping from reference frame type to the
@@ -1362,7 +1358,7 @@ static INLINE int frame_is_sframe(const AV1_COMMON *cm) {
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE int get_ref_frame_map_idx(const AV1_COMMON *const cm,
                                         const int ref_frame) {
-  return (ref_frame >= 0 && ref_frame < REF_FRAMES_NRS)
+  return (ref_frame >= 0 && ref_frame < REF_FRAMES)
              ? cm->remapped_ref_idx[ref_frame]
              : INVALID_IDX;
 }

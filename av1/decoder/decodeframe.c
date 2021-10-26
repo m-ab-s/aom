@@ -2176,11 +2176,7 @@ static AOM_INLINE void setup_loopfilter(AV1_COMMON *cm,
   if (lf->mode_ref_delta_enabled) {
     lf->mode_ref_delta_update = aom_rb_read_bit(rb);
     if (lf->mode_ref_delta_update) {
-#if CONFIG_NEW_REF_SIGNALING
-      for (int i = 0; i < REF_FRAMES_NRS; i++)
-#else
       for (int i = 0; i < REF_FRAMES; i++)
-#endif  // CONFIG_NEW_REF_SIGNALING
         if (aom_rb_read_bit(rb))
           lf->ref_deltas[i] = aom_rb_read_inv_signed_literal(rb, 6);
 

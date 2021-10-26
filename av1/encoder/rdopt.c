@@ -995,11 +995,7 @@ static INLINE PREDICTION_MODE get_single_mode(PREDICTION_MODE this_mode,
 static AOM_INLINE void estimate_ref_frame_costs(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, const ModeCosts *mode_costs,
     int segment_id, unsigned int *ref_costs_single,
-#if CONFIG_NEW_REF_SIGNALING
-    unsigned int (*ref_costs_comp)[REF_FRAMES_NRS]) {
-#else
     unsigned int (*ref_costs_comp)[REF_FRAMES]) {
-#endif  // CONFIG_NEW_REF_SIGNALING
 #if CONFIG_NEW_REF_SIGNALING
   (void)segment_id;
   int seg_ref_active = 0;
@@ -1010,15 +1006,9 @@ static AOM_INLINE void estimate_ref_frame_costs(
   if (seg_ref_active) {
     memset(ref_costs_single, 0, REF_FRAMES * sizeof(*ref_costs_single));
     int ref_frame;
-#if CONFIG_NEW_REF_SIGNALING
-    for (ref_frame = 0; ref_frame < REF_FRAMES_NRS; ++ref_frame)
-      memset(ref_costs_comp[ref_frame], 0,
-             REF_FRAMES_NRS * sizeof((*ref_costs_comp)[0]));
-#else
     for (ref_frame = 0; ref_frame < REF_FRAMES; ++ref_frame)
       memset(ref_costs_comp[ref_frame], 0,
              REF_FRAMES * sizeof((*ref_costs_comp)[0]));
-#endif  // CONFIG_NEW_REF_SIGNALING
   } else {
 #if CONFIG_NEW_REF_SIGNALING
     int intra_inter_ctx = av1_get_intra_inter_context(xd);
@@ -1096,8 +1086,8 @@ static AOM_INLINE void estimate_ref_frame_costs(
 
 #if CONFIG_NEW_REF_SIGNALING
     if (cm->current_frame.reference_mode != SINGLE_REFERENCE) {
-      for (int i = 0; i < REF_FRAMES_NRS; i++)
-        for (int j = 0; j < REF_FRAMES_NRS; j++) ref_costs_comp[i][j] = INT_MAX;
+      for (int i = 0; i < REF_FRAMES; i++)
+        for (int j = 0; j < REF_FRAMES; j++) ref_costs_comp[i][j] = INT_MAX;
 
       for (int i = 0; i < n_refs - 1; i++) {
         int prev_cost = base_cost;
@@ -1158,8 +1148,8 @@ static AOM_INLINE void estimate_ref_frame_costs(
       }
 #endif  // NDEBUG
     } else {
-      for (int ref0 = 0; ref0 < REF_FRAMES_NRS; ++ref0) {
-        for (int ref1 = ref0 + 1; ref1 < REF_FRAMES_NRS; ++ref1) {
+      for (int ref0 = 0; ref0 < REF_FRAMES; ++ref0) {
+        for (int ref1 = ref0 + 1; ref1 < REF_FRAMES; ++ref1) {
           ref_costs_comp[ref0][ref1] = 512;
           ref_costs_comp[ref1][ref0] = 512;
         }
@@ -1288,13 +1278,7 @@ static AOM_INLINE void store_coding_context(
 
 static AOM_INLINE void setup_buffer_ref_mvs_inter(
     const AV1_COMP *const cpi, MACROBLOCK *x, MV_REFERENCE_FRAME ref_frame,
-    BLOCK_SIZE block_size,
-#if CONFIG_NEW_REF_SIGNALING
-    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE]
-#else
-    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]
-#endif  // CONFIG_NEW_REF_SIGNALING
-) {
+    BLOCK_SIZE block_size, struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]) {
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   const YV12_BUFFER_CONFIG *scaled_ref_frame =
@@ -4092,12 +4076,7 @@ static AOM_INLINE void calc_target_weighted_pred(
 static AOM_INLINE void rd_pick_skip_mode(
     RD_STATS *rd_cost, InterModeSearchState *search_state,
     const AV1_COMP *const cpi, MACROBLOCK *const x, BLOCK_SIZE bsize,
-#if CONFIG_NEW_REF_SIGNALING
-    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE]
-#else
-    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]
-#endif  // CONFIG_NEW_REF_SIGNALING
-) {
+    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE]) {
   const AV1_COMMON *const cm = &cpi->common;
   const SkipModeInfo *const skip_mode_info = &cm->current_frame.skip_mode_info;
   const int num_planes = av1_num_planes(cm);
@@ -4318,12 +4297,8 @@ static AOM_INLINE MB_MODE_INFO *get_winner_mode_stats(
 static AOM_INLINE void refine_winner_mode_tx(
     const AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost, BLOCK_SIZE bsize,
     PICK_MODE_CONTEXT *ctx, MB_MODE_INFO *best_mbmode,
-#if CONFIG_NEW_REF_SIGNALING
-    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE],
-#else
-    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE],
-#endif  // CONFIG_NEW_REF_SIGNALING
-    int best_rate_y, int best_rate_uv, int *best_skip2, int winner_mode_count) {
+    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE], int best_rate_y,
+    int best_rate_uv, int *best_skip2, int winner_mode_count) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
@@ -4442,23 +4417,6 @@ static AOM_INLINE void refine_winner_mode_tx(
   }
 }
 
-#if CONFIG_NEW_REF_SIGNALING
-// TODO(debargha, sarahparker): Keeping the same type name since
-// REF_FRAMES_NRS and REF_FRAMES are the same. Needs to be cleaned up later.
-/*!\cond */
-typedef struct {
-  // Mask for each reference frame, specifying which prediction modes to NOT try
-  // during search.
-  uint32_t pred_modes[REF_FRAMES_NRS];
-  // If ref_combo[i][j + 1] is true, do NOT try prediction using combination of
-  // reference frames (i, j).
-  // NOTE: Indexing for the references has the order the INTER references
-  // followed by INTRA. Indexing with 'j + 1' for the 2nd reference is due to
-  // the fact that 2nd reference can be -1 (INVALID_IDX).
-  bool ref_combo[REF_FRAMES_NRS][REF_FRAMES_NRS + 1];
-} mode_skip_mask_t;
-/*!\endcond */
-#else
 /*!\cond */
 typedef struct {
   // Mask for each reference frame, specifying which prediction modes to NOT try
@@ -4466,20 +4424,20 @@ typedef struct {
   uint32_t pred_modes[REF_FRAMES];
   // If ref_combo[i][j + 1] is true, do NOT try prediction using combination of
   // reference frames (i, j).
-  // Note: indexing with 'j + 1' is due to the fact that 2nd reference can be -1
-  // (NONE_FRAME).
+  // Indexing with 'j + 1' for the 2nd reference is due to the fact that 2nd
+  // reference can be -1 (INVALID_IDX).
+  // NOTE: In CONFIG_NEW_REF_SIGNALING, indexing for the references has the
+  // order the INTER references followed by INTRA.
   bool ref_combo[REF_FRAMES][REF_FRAMES + 1];
 } mode_skip_mask_t;
 /*!\endcond */
-#endif  // !CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
 // Update 'ref_combo' mask to disable given 'ref' in single and compound modes.
 static AOM_INLINE void disable_reference(
-    MV_REFERENCE_FRAME ref,
-    bool ref_combo[REF_FRAMES_NRS][REF_FRAMES_NRS + 1]) {
+    MV_REFERENCE_FRAME ref, bool ref_combo[REF_FRAMES][REF_FRAMES + 1]) {
   ref = (ref == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS : ref);
-  for (MV_REFERENCE_FRAME ref2 = INVALID_IDX; ref2 < REF_FRAMES_NRS; ++ref2) {
+  for (MV_REFERENCE_FRAME ref2 = INVALID_IDX; ref2 < REF_FRAMES; ++ref2) {
     ref_combo[ref][ref2 + 1] = true;
   }
 }
@@ -4510,9 +4468,8 @@ static const MV_REFERENCE_FRAME real_time_ref_combos[][2] = {
   { INTRA_FRAME_NRS, INVALID_IDX },
 };
 
-static void set_mask_combo_bit_nrs(
-    bool ref_combo[REF_FRAMES_NRS][REF_FRAMES_NRS + 1],
-    const MV_REFERENCE_FRAME *refs, bool val) {
+static void set_mask_combo_bit_nrs(bool ref_combo[REF_FRAMES][REF_FRAMES + 1],
+                                   const MV_REFERENCE_FRAME *refs, bool val) {
   const MV_REFERENCE_FRAME r0 =
       (refs[0] == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS : refs[0]);
   const MV_REFERENCE_FRAME r1 =
@@ -4521,7 +4478,7 @@ static void set_mask_combo_bit_nrs(
 }
 
 static bool get_mask_combo_bit_nrs(
-    const bool ref_combo[REF_FRAMES_NRS][REF_FRAMES_NRS + 1],
+    const bool ref_combo[REF_FRAMES][REF_FRAMES + 1],
     const MV_REFERENCE_FRAME *refs) {
   const MV_REFERENCE_FRAME r0 =
       (refs[0] == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS : refs[0]);
@@ -4580,11 +4537,7 @@ static AOM_INLINE void default_skip_mask(mode_skip_mask_t *mask,
     memset(mask->pred_modes, 0, sizeof(mask->pred_modes));
     // All references disabled first.
     bool *mask_ref_combo = &mask->ref_combo[0][0];
-#if CONFIG_NEW_REF_SIGNALING
-    for (int k = 0; k < REF_FRAMES_NRS * (REF_FRAMES_NRS + 1); k++)
-#else
     for (int k = 0; k < REF_FRAMES * (REF_FRAMES + 1); k++)
-#endif  // CONFIG_NEW_REF_SIGNALING
       mask_ref_combo[k] = true;
 
     const MV_REFERENCE_FRAME(*ref_set_combos)[2];
@@ -4913,12 +4866,7 @@ static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
 static AOM_INLINE void set_params_rd_pick_inter_mode(
     const AV1_COMP *cpi, MACROBLOCK *x, HandleInterModeArgs *args,
     BLOCK_SIZE bsize, mode_skip_mask_t *mode_skip_mask, int skip_ref_frame_mask,
-    unsigned int *ref_costs_single,
-#if CONFIG_NEW_REF_SIGNALING
-    unsigned int (*ref_costs_comp)[REF_FRAMES_NRS],
-#else
-    unsigned int (*ref_costs_comp)[REF_FRAMES],
-#endif  // CONFIG_NEW_REF_SIGNALING
+    unsigned int *ref_costs_single, unsigned int (*ref_costs_comp)[REF_FRAMES],
     struct buf_2d (*yv12_mb)[MAX_MB_PLANE]) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -6048,11 +5996,7 @@ static AOM_INLINE void evaluate_motion_mode_for_winner_candidates(
     const AV1_COMP *const cpi, MACROBLOCK *const x, RD_STATS *const rd_cost,
     HandleInterModeArgs *const args, TileDataEnc *const tile_data,
     PICK_MODE_CONTEXT *const ctx,
-#if CONFIG_NEW_REF_SIGNALING
-    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE],
-#else
     struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE],
-#endif  // CONFIG_NEW_REF_SIGNALING
     const motion_mode_best_st_candidate *const best_motion_mode_cands,
     int do_tx_search, const BLOCK_SIZE bsize, int64_t *const best_est_rd,
     InterModeSearchState *const search_state) {
@@ -6322,13 +6266,9 @@ static void record_best_compound(REFERENCE_MODE reference_mode,
 static void tx_search_best_inter_candidates(
     AV1_COMP *cpi, TileDataEnc *tile_data, MACROBLOCK *x,
     int64_t best_rd_so_far, BLOCK_SIZE bsize,
-#if CONFIG_NEW_REF_SIGNALING
-    struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE],
-#else
-    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE],
-#endif  // CONFIG_NEW_REF_SIGNALING
-    int mi_row, int mi_col, InterModeSearchState *search_state,
-    RD_STATS *rd_cost, PICK_MODE_CONTEXT *ctx) {
+    struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE], int mi_row, int mi_col,
+    InterModeSearchState *search_state, RD_STATS *rd_cost,
+    PICK_MODE_CONTEXT *ctx) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
@@ -6533,11 +6473,7 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   for (i = 0; i < MAX_WINNER_MOTION_MODES; ++i)
     best_motion_mode_cands.motion_mode_cand[i].rd_cost = INT64_MAX;
 
-#if CONFIG_NEW_REF_SIGNALING
-  for (i = 0; i < REF_FRAMES_NRS; ++i) x->pred_sse[i] = INT_MAX;
-#else
   for (i = 0; i < REF_FRAMES; ++i) x->pred_sse[i] = INT_MAX;
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   av1_invalid_rd_stats(rd_cost);
 
@@ -6560,15 +6496,9 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
   const int skip_ref_frame_mask =
       picked_ref_frames_mask ? ~picked_ref_frames_mask : 0;
   mode_skip_mask_t mode_skip_mask;
-#if CONFIG_NEW_REF_SIGNALING
-  struct buf_2d yv12_mb[REF_FRAMES_NRS][MAX_MB_PLANE];
-  unsigned int ref_costs_single[REF_FRAMES_NRS];
-  unsigned int ref_costs_comp[REF_FRAMES_NRS][REF_FRAMES_NRS];
-#else
   struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
   unsigned int ref_costs_single[REF_FRAMES];
   unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
   // init params, set frame modes, speed features
   set_params_rd_pick_inter_mode(cpi, x, &args, bsize, &mode_skip_mask,
                                 skip_ref_frame_mask, ref_costs_single,
@@ -7223,13 +7153,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   const int comp_pred = 0;
   int i;
   int64_t best_pred_diff[REFERENCE_MODES];
-#if CONFIG_NEW_REF_SIGNALING
-  unsigned int ref_costs_single[REF_FRAMES_NRS];
-  unsigned int ref_costs_comp[REF_FRAMES_NRS][REF_FRAMES_NRS];
-#else
   unsigned int ref_costs_single[REF_FRAMES];
   unsigned int ref_costs_comp[REF_FRAMES][REF_FRAMES];
-#endif  // CONFIG_NEW_REF_SIGNALING
   const ModeCosts *mode_costs = &x->mode_costs;
   const int *comp_inter_cost =
       mode_costs->comp_inter_cost[av1_get_reference_mode_context(cm, xd)];
@@ -7245,11 +7170,10 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
   estimate_ref_frame_costs(cm, xd, mode_costs, segment_id, ref_costs_single,
                            ref_costs_comp);
 
-#if CONFIG_NEW_REF_SIGNALING
-  for (i = 0; i < REF_FRAMES_NRS; ++i) x->pred_sse[i] = INT_MAX;
-  for (i = 0; i < REF_FRAMES_NRS; ++i) x->pred_mv_sad[i] = INT_MAX;
-#else
   for (i = 0; i < REF_FRAMES; ++i) x->pred_sse[i] = INT_MAX;
+#if CONFIG_NEW_REF_SIGNALING
+  for (i = 0; i < REF_FRAMES; ++i) x->pred_mv_sad[i] = INT_MAX;
+#else
   for (i = LAST_FRAME; i < REF_FRAMES; ++i) x->pred_mv_sad[i] = INT_MAX;
 #endif  // CONFIG_NEW_REF_SIGNALING
 

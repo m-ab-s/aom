@@ -105,15 +105,15 @@ static int get_unmapped_ref(RefScoreData *scores, int n_bufs) {
 #define JOINT_DIST_QINDEX_ORDERING 1
 void av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
                         RefFrameMapPair *ref_frame_map_pairs) {
-  RefScoreData scores[REF_FRAMES_NRS];
-  memset(scores, 0, REF_FRAMES_NRS * sizeof(*scores));
-  for (int i = 0; i < REF_FRAMES_NRS; i++) scores[i].score = INT_MAX;
-  for (int i = 0; i < REF_FRAMES_NRS; i++) {
+  RefScoreData scores[REF_FRAMES];
+  memset(scores, 0, REF_FRAMES * sizeof(*scores));
+  for (int i = 0; i < REF_FRAMES; i++) scores[i].score = INT_MAX;
+  for (int i = 0; i < REF_FRAMES; i++) {
     cm->remapped_ref_idx[i] = INVALID_IDX;
   }
   int n_ranked = 0;
   // Compute a score for each reference buffer
-  for (int i = 0; i < REF_FRAMES_NRS; i++) {
+  for (int i = 0; i < REF_FRAMES; i++) {
     // Get reference frame buffer
     RefFrameMapPair cur_ref = ref_frame_map_pairs[i];
     if (cur_ref.disp_order == -1) continue;
@@ -175,7 +175,7 @@ void av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   cm->new_ref_frame_data.n_cur_refs = n_cur;
 
   // Fill any slots that are empty (should only happen for the first 7 frames)
-  for (int i = 0; i < REF_FRAMES_NRS; i++) {
+  for (int i = 0; i < REF_FRAMES; i++) {
     if (cm->remapped_ref_idx[i] == INVALID_IDX) cm->remapped_ref_idx[i] = 0;
   }
 }
