@@ -73,20 +73,6 @@ static INLINE int find_valid_col_offset(const TileInfo *const tile, int mi_col,
                tile->mi_col_end - mi_col - 1);
 }
 
-static INLINE int8_t get_uni_comp_ref_idx(const MV_REFERENCE_FRAME *const rf) {
-  // Single ref pred
-  if (rf[1] <= INTRA_FRAME) return -1;
-
-  // Bi-directional comp ref pred
-  if ((rf[0] < BWDREF_FRAME) && (rf[1] >= BWDREF_FRAME)) return -1;
-
-  for (int8_t ref_idx = 0; ref_idx < TOTAL_UNIDIR_COMP_REFS; ++ref_idx) {
-    if (rf[0] == comp_ref0(ref_idx) && rf[1] == comp_ref1(ref_idx))
-      return ref_idx;
-  }
-  return -1;
-}
-
 #if CONFIG_NEW_REF_SIGNALING
 // Converts a pair of distinct indices (rf) each in [0, n-1],
 // to an combined index in [0, n*(n-1)/2].
@@ -177,6 +163,20 @@ static MV_REFERENCE_FRAME ref_frame_map[TOTAL_COMP_REFS][2] = {
 };
 // clang-format on
 
+static INLINE int8_t get_uni_comp_ref_idx(const MV_REFERENCE_FRAME *const rf) {
+  // Single ref pred
+  if (rf[1] <= INTRA_FRAME) return -1;
+
+  // Bi-directional comp ref pred
+  if ((rf[0] < BWDREF_FRAME) && (rf[1] >= BWDREF_FRAME)) return -1;
+
+  for (int8_t ref_idx = 0; ref_idx < TOTAL_UNIDIR_COMP_REFS; ++ref_idx) {
+    if (rf[0] == comp_ref0(ref_idx) && rf[1] == comp_ref1(ref_idx))
+      return ref_idx;
+  }
+  return -1;
+}
+
 static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
   if (rf[1] > INTRA_FRAME) {
     const int8_t uni_comp_ref_idx = get_uni_comp_ref_idx(rf);
@@ -203,7 +203,6 @@ static INLINE void av1_set_ref_frame(MV_REFERENCE_FRAME *rf,
     rf[1] = NONE_FRAME;
   }
 }
-
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 static uint16_t compound_mode_ctx_map[3][COMP_NEWMV_CTXS] = {
@@ -456,86 +455,6 @@ static INLINE int av1_get_column_bank_index(const AV1_COMMON *cm, int mi_col) {
 void av1_update_ref_mv_bank(const AV1_COMMON *const cm, MACROBLOCKD *const xd,
                             const MB_MODE_INFO *const mbmi);
 #endif  // CONFIG_REF_MV_BANK
-
-#if CONFIG_NEW_REF_SIGNALING
-// Temporary function to skip compound combinations that aren't
-// represented in av1_mode_defs. This will be needed until the bitstream
-// syntax is changed to support these combinations.
-static AOM_INLINE int skip_compound_search(int ref1, int ref2) {
-  assert(ref1 >= 0);
-  // Single reference case
-  if (ref2 <= INTRA_FRAME) return 0;
-  const int ind1 = ref1 - LAST_FRAME;
-  const int ind2 = ref2 - LAST_FRAME;
-
-  const int skip_comp[REF_FRAMES][REF_FRAMES] = {
-    {
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-    },
-    {
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-    },
-    {
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-    },
-    {
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-    },
-    {
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-    },
-    {
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-    },
-    {
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-    },
-  };
-  return skip_comp[ind1][ind2];
-}
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 #ifdef __cplusplus
 }  // extern "C"

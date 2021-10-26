@@ -3175,6 +3175,7 @@ static const uint8_t av1_ref_frame_flag_list[REF_FRAMES] = { 0,
                                                              AOM_ALT2_FLAG,
                                                              AOM_ALT_FLAG };
 
+#if !CONFIG_NEW_REF_SIGNALING
 // When more than 'max_allowed_refs' are available, we reduce the number of
 // reference frames one at a time based on this order.
 static const MV_REFERENCE_FRAME disable_order[] = {
@@ -3183,6 +3184,7 @@ static const MV_REFERENCE_FRAME disable_order[] = {
   ALTREF2_FRAME,
   GOLDEN_FRAME,
 };
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 static INLINE int get_max_allowed_ref_frames(
     int selective_ref_frame, unsigned int max_reference_frames) {
@@ -3198,33 +3200,6 @@ static INLINE int get_max_allowed_ref_frames(
 #endif  // CONFIG_NEW_REF_SIGNALING
 }
 
-static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
-                                      const YV12_BUFFER_CONFIG **ref_frames,
-                                      const int ext_ref_frame_flags) {
-  // cpi->ext_flags.ref_frame_flags allows certain reference types to be
-  // disabled by the external interface.  These are set by
-  // av1_apply_encoding_flags(). Start with what the external interface allows,
-  // then suppress any reference types which we have found to be duplicates.
-  int flags = ext_ref_frame_flags;
-
-  for (int i = 1; i < INTER_REFS_PER_FRAME; ++i) {
-    const YV12_BUFFER_CONFIG *const this_ref = ref_frames[i];
-    // If this_ref has appeared before, mark the corresponding ref frame as
-    // invalid. For nonrd mode, only disable GOLDEN_FRAME if it's the same
-    // as LAST_FRAME or ALTREF_FRAME (if ALTREF is being used in nonrd).
-    int index = (sf->rt_sf.use_nonrd_pick_mode &&
-                 ref_frame_priority_order[i] == GOLDEN_FRAME)
-                    ? (1 + sf->rt_sf.use_nonrd_altref_frame)
-                    : i;
-    for (int j = 0; j < index; ++j) {
-      if (this_ref == ref_frames[j]) {
-        flags &= ~(1 << (ref_frame_priority_order[i] - 1));
-        break;
-      }
-    }
-  }
-  return flags;
-}
 #if CONFIG_NEW_REF_SIGNALING
 // Enforce the number of references for each arbitrary frame based on user
 // options and speed.
@@ -3290,6 +3265,34 @@ static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
     --total_valid_refs;
   }
   assert(total_valid_refs <= max_allowed_refs);
+}
+
+static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
+                                      const YV12_BUFFER_CONFIG **ref_frames,
+                                      const int ext_ref_frame_flags) {
+  // cpi->ext_flags.ref_frame_flags allows certain reference types to be
+  // disabled by the external interface.  These are set by
+  // av1_apply_encoding_flags(). Start with what the external interface allows,
+  // then suppress any reference types which we have found to be duplicates.
+  int flags = ext_ref_frame_flags;
+
+  for (int i = 1; i < INTER_REFS_PER_FRAME; ++i) {
+    const YV12_BUFFER_CONFIG *const this_ref = ref_frames[i];
+    // If this_ref has appeared before, mark the corresponding ref frame as
+    // invalid. For nonrd mode, only disable GOLDEN_FRAME if it's the same
+    // as LAST_FRAME or ALTREF_FRAME (if ALTREF is being used in nonrd).
+    int index = (sf->rt_sf.use_nonrd_pick_mode &&
+                 ref_frame_priority_order[i] == GOLDEN_FRAME)
+                    ? (1 + sf->rt_sf.use_nonrd_altref_frame)
+                    : i;
+    for (int j = 0; j < index; ++j) {
+      if (this_ref == ref_frames[j]) {
+        flags &= ~(1 << (ref_frame_priority_order[i] - 1));
+        break;
+      }
+    }
+  }
+  return flags;
 }
 #endif  // CONFIG_NEW_REF_SIGNALING
 

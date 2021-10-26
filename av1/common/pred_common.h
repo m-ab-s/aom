@@ -26,11 +26,13 @@ typedef struct {
   int base_qindex;
 } RefFrameMapPair;
 
+#if !CONFIG_NEW_REF_SIGNALING
 static const MV_REFERENCE_FRAME
     ref_frame_priority_order[INTER_REFS_PER_FRAME] = {
       LAST_FRAME,    ALTREF_FRAME, BWDREF_FRAME, GOLDEN_FRAME,
       ALTREF2_FRAME, LAST2_FRAME,  LAST3_FRAME,
     };
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 static INLINE void init_ref_map_pair(
     AV1_COMMON *cm, RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],

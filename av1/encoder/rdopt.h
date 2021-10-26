@@ -244,26 +244,6 @@ static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
          USABLE_REF_MV_STACK_SIZE * sizeof(xd->ref_mv_stack[0][0]));
 }
 
-// This function prunes the mode if either of the reference frame falls in the
-// pruning list
-static INLINE int prune_ref(const MV_REFERENCE_FRAME *const ref_frame,
-                            const unsigned int *const ref_display_order_hint,
-                            const unsigned int frame_display_order_hint,
-                            const int *ref_frame_list) {
-  for (int i = 0; i < 2; i++) {
-    if (ref_frame_list[i] == NONE_FRAME) continue;
-
-    if (ref_frame[0] == ref_frame_list[i] ||
-        ref_frame[1] == ref_frame_list[i]) {
-      if (av1_encoder_get_relative_dist(
-              ref_display_order_hint[ref_frame_list[i] - LAST_FRAME],
-              frame_display_order_hint) < 0)
-        return 1;
-    }
-  }
-  return 0;
-}
-
 #if CONFIG_NEW_REF_SIGNALING
 static INLINE int prune_ref_by_selective_ref_frame_nrs(
     const AV1_COMP *const cpi, const MACROBLOCK *const x,
@@ -350,6 +330,26 @@ static INLINE int prune_ref_by_selective_ref_frame_nrs(
   return 0;
 }
 #else
+// This function prunes the mode if either of the reference frame falls in the
+// pruning list
+static INLINE int prune_ref(const MV_REFERENCE_FRAME *const ref_frame,
+                            const unsigned int *const ref_display_order_hint,
+                            const unsigned int frame_display_order_hint,
+                            const int *ref_frame_list) {
+  for (int i = 0; i < 2; i++) {
+    if (ref_frame_list[i] == NONE_FRAME) continue;
+
+    if (ref_frame[0] == ref_frame_list[i] ||
+        ref_frame[1] == ref_frame_list[i]) {
+      if (av1_encoder_get_relative_dist(
+              ref_display_order_hint[ref_frame_list[i] - LAST_FRAME],
+              frame_display_order_hint) < 0)
+        return 1;
+    }
+  }
+  return 0;
+}
+
 static INLINE int prune_ref_by_selective_ref_frame(
     const AV1_COMP *const cpi, const MACROBLOCK *const x,
     const MV_REFERENCE_FRAME *const ref_frame,
@@ -392,7 +392,6 @@ static INLINE int prune_ref_by_selective_ref_frame(
 
   return 0;
 }
-
 #endif  // CONFIG_NEW_REF_SIGNALING
 
 // This function will copy the best reference mode information from

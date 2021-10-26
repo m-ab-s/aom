@@ -35,6 +35,7 @@ typedef struct {
   MV_REFERENCE_FRAME ref_frame[2];
 } MODE_DEFINITION;
 
+#if !CONFIG_NEW_REF_SIGNALING
 // This array defines the mapping from the enums in THR_MODES to the actual
 // prediction modes and refrence frames
 #if CONFIG_NEW_INTER_MODES
@@ -488,29 +489,6 @@ static const MODE_DEFINITION av1_mode_defs[MAX_MODES] = {
 };
 #endif  // CONFIG_NEW_INTER_MODES
 
-static AOM_INLINE void restore_dst_buf(MACROBLOCKD *xd, const BUFFER_SET dst,
-                                       const int num_planes) {
-  for (int i = 0; i < num_planes; i++) {
-    xd->plane[i].dst.buf = dst.plane[i];
-    xd->plane[i].dst.stride = dst.stride[i];
-  }
-}
-
-/* clang-format on */
-// Calculate rd threshold based on ref best rd and relevant scaling factors
-static AOM_INLINE int64_t get_rd_thresh_from_best_rd(int64_t ref_best_rd,
-                                                     int mul_factor,
-                                                     int div_factor) {
-  int64_t rd_thresh = ref_best_rd;
-  if (div_factor != 0) {
-    rd_thresh = ref_best_rd < (div_factor * (INT64_MAX / mul_factor))
-                    ? ((ref_best_rd / div_factor) * mul_factor)
-                    : INT64_MAX;
-  }
-  return rd_thresh;
-}
-
-#if !CONFIG_NEW_REF_SIGNALING
 static AOM_INLINE THR_MODES
 get_prediction_mode_idx(PREDICTION_MODE this_mode, MV_REFERENCE_FRAME ref_frame,
                         MV_REFERENCE_FRAME second_ref_frame) {
@@ -536,6 +514,28 @@ get_prediction_mode_idx(PREDICTION_MODE this_mode, MV_REFERENCE_FRAME ref_frame,
   return THR_INVALID;
 }
 #endif  // !CONFIG_NEW_REF_SIGNALING
+
+static AOM_INLINE void restore_dst_buf(MACROBLOCKD *xd, const BUFFER_SET dst,
+                                       const int num_planes) {
+  for (int i = 0; i < num_planes; i++) {
+    xd->plane[i].dst.buf = dst.plane[i];
+    xd->plane[i].dst.stride = dst.stride[i];
+  }
+}
+
+/* clang-format on */
+// Calculate rd threshold based on ref best rd and relevant scaling factors
+static AOM_INLINE int64_t get_rd_thresh_from_best_rd(int64_t ref_best_rd,
+                                                     int mul_factor,
+                                                     int div_factor) {
+  int64_t rd_thresh = ref_best_rd;
+  if (div_factor != 0) {
+    rd_thresh = ref_best_rd < (div_factor * (INT64_MAX / mul_factor))
+                    ? ((ref_best_rd / div_factor) * mul_factor)
+                    : INT64_MAX;
+  }
+  return rd_thresh;
+}
 
 static AOM_INLINE int inter_mode_data_block_idx(BLOCK_SIZE bsize) {
   if (bsize == BLOCK_4X4 || bsize == BLOCK_4X8 || bsize == BLOCK_8X4 ||

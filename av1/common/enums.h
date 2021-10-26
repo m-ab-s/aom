@@ -723,6 +723,7 @@ enum {
 #endif  // CONFIG_NEW_TX_PARTITION
 typedef uint8_t TXFM_CONTEXT;
 
+#if !CONFIG_NEW_REF_SIGNALING
 // An enum for single reference types (and some derived values).
 enum {
   NONE_FRAME = -1,
@@ -752,6 +753,7 @@ enum {
 
   SINGLE_REFS = FWD_REFS + BWD_REFS,
 };
+#endif  // !CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
 #define INTER_REFS_PER_FRAME 7
