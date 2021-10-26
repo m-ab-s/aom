@@ -1158,8 +1158,8 @@ static AOM_INLINE void set_rel_frame_dist(
     const int ref_frame_flags) {
   MV_REFERENCE_FRAME ref_frame;
   int min_past_dist = INT32_MAX, min_future_dist = INT32_MAX;
-  ref_frame_dist_info->nearest_past_ref = NONE_FRAME;
-  ref_frame_dist_info->nearest_future_ref = NONE_FRAME;
+  ref_frame_dist_info->nearest_past_ref = INVALID_IDX;
+  ref_frame_dist_info->nearest_future_ref = INVALID_IDX;
   for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
     ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
     if (ref_frame_flags & (1 << ref_frame)) {

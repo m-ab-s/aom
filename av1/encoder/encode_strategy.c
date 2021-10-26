@@ -314,7 +314,11 @@ static int choose_primary_ref_frame(
   // Note(yunqing): In other cases, primary_ref_frame is chosen based on
   // cpi->gf_group.layer_depth[cpi->gf_group.index], which also controls
   // frame bit allocation.
+#if CONFIG_NEW_REF_SIGNALING
+  if (cm->tiles.large_scale) return 0;
+#else
   if (cm->tiles.large_scale) return (LAST_FRAME - LAST_FRAME);
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   if (cpi->use_svc) return av1_svc_primary_ref_frame(cpi);
 
