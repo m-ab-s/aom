@@ -364,13 +364,13 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
 
 #if CONFIG_NEW_REF_SIGNALING
   // Mask to indicate whether or not each ref is allowed by the GOP config
-  int ref_frame_used[INTER_REFS_PER_FRAME_NRS] = { 0 };
+  int ref_frame_used[INTER_REFS_PER_FRAME] = { 0 };
   // Structures to hash each reference frame based on its pyramid level. This
   // will allow us to match the pyramid levels specified in the cfg to the best
   // reference frame index.
   int n_references[MAX_ARF_LAYERS + 1] = { 0 };
-  int references[MAX_ARF_LAYERS + 1][INTER_REFS_PER_FRAME_NRS] = { { 0 } };
-  int disp_orders[MAX_ARF_LAYERS + 1][INTER_REFS_PER_FRAME_NRS] = { { 0 } };
+  int references[MAX_ARF_LAYERS + 1][INTER_REFS_PER_FRAME] = { { 0 } };
+  int disp_orders[MAX_ARF_LAYERS + 1][INTER_REFS_PER_FRAME] = { { 0 } };
 #else
   // Mask to indicate whether or not each ref is allowed by the GOP config
   int ref_frame_used[REF_FRAMES] = { 0 };
@@ -385,7 +385,7 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
   int frame_level = -1;
   // Loop over each reference frame and hash it based on its pyramid level
 #if CONFIG_NEW_REF_SIGNALING
-  for (int frame = 0; frame < INTER_REFS_PER_FRAME_NRS; frame++) {
+  for (int frame = 0; frame < INTER_REFS_PER_FRAME; frame++) {
 #else
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     const int frame = ref_frame_priority_order[i];
@@ -453,7 +453,7 @@ static void get_gop_cfg_enabled_refs(AV1_COMP *const cpi, int *ref_frame_flags,
 
   // Avoid using references that were not specified by the cfg
 #if CONFIG_NEW_REF_SIGNALING
-  for (int frame = 0; frame < INTER_REFS_PER_FRAME_NRS; frame++)
+  for (int frame = 0; frame < INTER_REFS_PER_FRAME; frame++)
     if (!ref_frame_used[frame]) *ref_frame_flags &= ~(1 << (frame));
 #else
   for (int frame = LAST_FRAME; frame <= ALTREF_FRAME; frame++)
@@ -1327,11 +1327,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       av1_get_ref_frames(cm, cur_frame_disp, ref_frame_map_pairs);
 #endif  // !CONFIG_NEW_REF_SIGNALING
     } else if (cpi->svc.external_ref_frame_config) {
-#if CONFIG_NEW_REF_SIGNALING
-      for (unsigned int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++)
-#else
       for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++)
-#endif  // CONFIG_NEW_REF_SIGNALING
         cm->remapped_ref_idx[i] = cpi->svc.ref_idx[i];
     }
 

@@ -521,7 +521,7 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
     ref_costs_single[INTRA_FRAME_INDEX_NRS] =
         mode_costs->intra_inter_cost[intra_inter_ctx][0];
     unsigned int base_cost = mode_costs->intra_inter_cost[intra_inter_ctx][1];
-    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
       ref_costs_single[i] = base_cost;
 
     const int n_refs = cm->new_ref_frame_data.n_total_refs;
@@ -532,7 +532,7 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
         ref_costs_single[i] += mode_costs->single_ref_cost[ctx][j][bit];
       }
     }
-    for (int i = n_refs; i < INTER_REFS_PER_FRAME_NRS; i++)
+    for (int i = n_refs; i < INTER_REFS_PER_FRAME; i++)
       ref_costs_single[i] = INT_MAX;
 #else
     int intra_inter_ctx = av1_get_intra_inter_context(xd);

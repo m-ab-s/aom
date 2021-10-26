@@ -135,21 +135,21 @@ static INLINE int8_t av1_ref_frame_type(const MV_REFERENCE_FRAME *const rf) {
     return rf[0];
   } else {
     // compound ref
-    assert(rf[0] < INTER_REFS_PER_FRAME_NRS);
-    assert(rf[1] < INTER_REFS_PER_FRAME_NRS);
-    return single2comb(INTER_REFS_PER_FRAME_NRS, rf) + INTER_REFS_PER_FRAME_NRS;
+    assert(rf[0] < INTER_REFS_PER_FRAME);
+    assert(rf[1] < INTER_REFS_PER_FRAME);
+    return single2comb(INTER_REFS_PER_FRAME, rf) + INTER_REFS_PER_FRAME;
   }
 }
 
 static INLINE void av1_set_ref_frame(MV_REFERENCE_FRAME *rf,
                                      MV_REFERENCE_FRAME ref_frame_type) {
   if (ref_frame_type == INTRA_FRAME_NRS ||
-      ref_frame_type < INTER_REFS_PER_FRAME_NRS) {
+      ref_frame_type < INTER_REFS_PER_FRAME) {
     rf[0] = ref_frame_type;
     rf[1] = INVALID_IDX;
   } else {
-    comb2single(INTER_REFS_PER_FRAME_NRS,
-                ref_frame_type - INTER_REFS_PER_FRAME_NRS, rf);
+    comb2single(INTER_REFS_PER_FRAME, ref_frame_type - INTER_REFS_PER_FRAME,
+                rf);
   }
   return;
 }

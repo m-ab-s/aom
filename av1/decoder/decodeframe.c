@@ -2465,7 +2465,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
   int found = 0;
   int has_valid_ref_frame = 0;
 #if CONFIG_NEW_REF_SIGNALING
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
 #else
   for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2511,7 +2511,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
 #if CONFIG_NEW_REF_SIGNALING
   // Check to make sure at least one of frames that this frame references
   // has valid dimensions.
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
     has_valid_ref_frame |=
         valid_ref_frame_size(ref_frame->buf.y_crop_width,
@@ -2520,7 +2520,7 @@ static AOM_INLINE void setup_frame_size_with_refs(
   if (!has_valid_ref_frame)
     aom_internal_error(&cm->error, AOM_CODEC_CORRUPT_FRAME,
                        "Referenced frame has invalid size");
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     const RefCntBuffer *const ref_frame = get_ref_frame_buf(cm, i);
     if (!valid_ref_frame_img_fmt(
             ref_frame->buf.bit_depth, ref_frame->buf.subsampling_x,
@@ -4355,11 +4355,7 @@ void av1_read_film_grain_params(AV1_COMMON *cm,
     // film_grain_params_ref_idx is equal to ref_frame_idx[ j ] for some value
     // of j in the range 0 to REFS_PER_FRAME - 1.
     int found = 0;
-#if CONFIG_NEW_REF_SIGNALING
-    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
-#else
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
-#endif  // CONFIG_NEW_REF_SIGNALING
       if (film_grain_params_ref_idx == cm->remapped_ref_idx[i]) {
         found = 1;
         break;
@@ -4893,7 +4889,7 @@ static AOM_INLINE void read_global_motion(AV1_COMMON *cm,
   }
 #if CONFIG_NEW_REF_SIGNALING
   memcpy(cm->cur_frame->global_motion, cm->global_motion,
-         INTER_REFS_PER_FRAME_NRS * sizeof(WarpedMotionParams));
+         INTER_REFS_PER_FRAME * sizeof(WarpedMotionParams));
 #else
   memcpy(cm->cur_frame->global_motion, cm->global_motion,
          REF_FRAMES * sizeof(WarpedMotionParams));
@@ -4934,11 +4930,7 @@ static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
 
   cm->current_frame.refresh_frame_flags = (1 << REF_FRAMES) - 1;
 
-#if CONFIG_NEW_REF_SIGNALING
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
-#else
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
-#endif  // CONFIG_NEW_REF_SIGNALING
     cm->remapped_ref_idx[i] = INVALID_IDX;
 
   if (pbi->need_resync) {
@@ -5279,11 +5271,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       current_frame->refresh_frame_flags = (1 << REF_FRAMES) - 1;
     }
 
-#if CONFIG_NEW_REF_SIGNALING
-    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i)
-#else
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i)
-#endif  // CONFIG_NEW_REF_SIGNALING
       cm->remapped_ref_idx[i] = INVALID_IDX;
 
     if (pbi->need_resync) {
@@ -5434,11 +5422,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
       }
 #endif  // CONFIG_NEW_REF_SIGNALING
 
-#if CONFIG_NEW_REF_SIGNALING
-      for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
-#else
       for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-#endif  // CONFIG_NEW_REF_SIGNALING
         int ref = 0;
 #if CONFIG_NEW_REF_SIGNALING
         if (seq_params->order_hint_info.enable_order_hint) {
@@ -5537,7 +5521,7 @@ static int read_uncompressed_header(AV1Decoder *pbi,
         features->allow_ref_frame_mvs = 0;
 
 #if CONFIG_NEW_REF_SIGNALING
-      for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+      for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
         const RefCntBuffer *const ref_buf = get_ref_frame_buf(cm, i);
         if (!ref_buf) continue;
         struct scale_factors *const ref_scale_factors =
@@ -5798,7 +5782,7 @@ uint32_t av1_decode_frame_headers_and_setup(AV1Decoder *pbi,
 #endif
 
 #if CONFIG_NEW_REF_SIGNALING
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+  for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
 #else
   for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {
 #endif  // CONFIG_NEW_REF_SIGNALING

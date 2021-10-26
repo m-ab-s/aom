@@ -357,7 +357,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
 
   TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
   const int tpl_stride = tpl_frame->stride;
-  int64_t inter_cost[INTER_REFS_PER_FRAME_NRS] = { 0 };
+  int64_t inter_cost[INTER_REFS_PER_FRAME] = { 0 };
   const int step = 1 << block_mis_log2;
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
 
@@ -377,11 +377,11 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
     for (int col = mi_col_sr; col < mi_col_end_sr; col += col_step_sr) {
       const TplDepStats *this_stats =
           &tpl_stats[av1_tpl_ptr_pos(row, col, tpl_stride, block_mis_log2)];
-      int64_t tpl_pred_error[INTER_REFS_PER_FRAME_NRS] = { 0 };
+      int64_t tpl_pred_error[INTER_REFS_PER_FRAME] = { 0 };
       // Find the winner ref frame idx for the current block
       int64_t best_inter_cost = this_stats->pred_error[0];
       int best_rf_idx = 0;
-      for (int idx = 1; idx < INTER_REFS_PER_FRAME_NRS; ++idx) {
+      for (int idx = 1; idx < INTER_REFS_PER_FRAME; ++idx) {
         if ((this_stats->pred_error[idx] < best_inter_cost) &&
             (this_stats->pred_error[idx] != 0)) {
           best_inter_cost = this_stats->pred_error[idx];
@@ -393,13 +393,13 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
       tpl_pred_error[best_rf_idx] =
           this_stats->pred_error[best_rf_idx] - this_stats->pred_error[0];
 
-      for (int rf_idx = 1; rf_idx < INTER_REFS_PER_FRAME_NRS; ++rf_idx)
+      for (int rf_idx = 1; rf_idx < INTER_REFS_PER_FRAME; ++rf_idx)
         inter_cost[rf_idx] += tpl_pred_error[rf_idx];
     }
   }
 
-  int rank_index[INTER_REFS_PER_FRAME_NRS - 1];
-  for (int idx = 0; idx < INTER_REFS_PER_FRAME_NRS - 1; ++idx) {
+  int rank_index[INTER_REFS_PER_FRAME - 1];
+  for (int idx = 0; idx < INTER_REFS_PER_FRAME - 1; ++idx) {
     rank_index[idx] = idx + 1;
     for (int i = idx; i > 0; --i) {
       if (inter_cost[rank_index[i - 1]] > inter_cost[rank_index[i]]) {
@@ -414,7 +414,7 @@ static void init_ref_frame_space(AV1_COMP *cpi, ThreadData *td, int mi_row,
   x->tpl_keep_ref_frame[0] = 1;
 
   int cutoff_ref = 0;
-  for (int idx = 0; idx < INTER_REFS_PER_FRAME_NRS - 1; ++idx) {
+  for (int idx = 0; idx < INTER_REFS_PER_FRAME - 1; ++idx) {
     x->tpl_keep_ref_frame[rank_index[idx]] = 1;
     if (idx > 2) {
       if (!cutoff_ref) {
@@ -1160,7 +1160,7 @@ static AOM_INLINE void set_rel_frame_dist(
 #if CONFIG_NEW_REF_SIGNALING
   ref_frame_dist_info->nearest_past_ref = INVALID_IDX;
   ref_frame_dist_info->nearest_future_ref = INVALID_IDX;
-  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     ref_frame_dist_info->ref_relative_dist[ref_frame] = 0;
     if (ref_frame_flags & (1 << ref_frame)) {
       int dist = av1_encoder_get_relative_dist(

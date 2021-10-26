@@ -139,10 +139,10 @@ typedef struct frame_contexts {
   aom_cdf_prob palette_uv_mode_cdf[PALETTE_UV_MODE_CONTEXTS][CDF_SIZE(2)];
   aom_cdf_prob comp_inter_cdf[COMP_INTER_CONTEXTS][CDF_SIZE(2)];
 #if CONFIG_NEW_REF_SIGNALING
-  aom_cdf_prob single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1]
+  aom_cdf_prob single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1]
                              [CDF_SIZE(2)];
   aom_cdf_prob compound_ref_cdf[REF_CONTEXTS][COMPREF_BIT_TYPES]
-                               [INTER_REFS_PER_FRAME_NRS - 2][CDF_SIZE(2)];
+                               [INTER_REFS_PER_FRAME - 2][CDF_SIZE(2)];
 #else
   aom_cdf_prob single_ref_cdf[REF_CONTEXTS][SINGLE_REFS - 1][CDF_SIZE(2)];
   aom_cdf_prob comp_ref_type_cdf[COMP_REF_TYPE_CONTEXTS][CDF_SIZE(2)];

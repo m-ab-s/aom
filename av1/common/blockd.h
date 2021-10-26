@@ -1302,7 +1302,7 @@ typedef struct macroblockd {
    * NOTE: Take into account both single and comp references.
    */
 #if CONFIG_NEW_REF_SIGNALING
-  uint8_t neighbors_ref_counts[INTER_REFS_PER_FRAME_NRS];
+  uint8_t neighbors_ref_counts[INTER_REFS_PER_FRAME];
 #else
   uint8_t neighbors_ref_counts[REF_FRAMES];
 #endif  // CONFIG_NEW_REF_SIGNALING

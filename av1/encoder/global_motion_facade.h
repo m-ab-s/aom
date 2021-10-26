@@ -21,7 +21,7 @@ struct AV1_COMP;
 void av1_compute_gm_for_valid_ref_frames(
     AV1_COMP *cpi,
 #if CONFIG_NEW_REF_SIGNALING
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
+    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
 #else
     YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
 #endif  // CONFIG_NEW_REF_SIGNALING

@@ -84,7 +84,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     // block for the given reference.
 #if CONFIG_NEW_REF_SIGNALING
     const MV_REFERENCE_FRAME rfn =
-        (ref == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME_NRS : ref);
+        (ref == INTRA_FRAME_NRS ? INTER_REFS_PER_FRAME : ref);
     step_param = (av1_init_search_range(x->max_mv_context[rfn]) +
                   mv_search_params->mv_step_param) /
                  2;

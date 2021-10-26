@@ -339,11 +339,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
 
   best_mv.as_int = INVALID_MV;
 
-#if CONFIG_NEW_REF_SIGNALING
-  for (rf_idx = 0; rf_idx < INTER_REFS_PER_FRAME_NRS; ++rf_idx) {
-#else
   for (rf_idx = 0; rf_idx < INTER_REFS_PER_FRAME; ++rf_idx) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     if (tpl_data->ref_frame[rf_idx] == NULL ||
         tpl_data->src_ref_frame[rf_idx] == NULL) {
       tpl_stats->mv[rf_idx].as_int = INVALID_MV;
@@ -755,11 +751,7 @@ static AOM_INLINE void tpl_model_store(TplDepStats *tpl_stats_ptr, int mi_row,
 
 // Reset the ref and source frame pointers of tpl_data.
 static AOM_INLINE void tpl_reset_src_ref_frames(TplParams *tpl_data) {
-#if CONFIG_NEW_REF_SIGNALING
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
-#else
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     tpl_data->ref_frame[i] = NULL;
     tpl_data->src_ref_frame[i] = NULL;
   }
@@ -797,12 +789,10 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
 
   xd->cur_buf = this_frame;
 
-#if CONFIG_NEW_REF_SIGNALING
-  for (idx = 0; idx < INTER_REFS_PER_FRAME_NRS; ++idx) {
-#else
+#if !CONFIG_NEW_REF_SIGNALING
   uint32_t ref_frame_display_indices[INTER_REFS_PER_FRAME];
+#endif  // !CONFIG_NEW_REF_SIGNALING
   for (idx = 0; idx < INTER_REFS_PER_FRAME; ++idx) {
-#endif  // CONFIG_NEW_REF_SIGNALING
     TplDepFrame *tpl_ref_frame =
         &tpl_data->tpl_frame[tpl_frame->ref_map_index[idx]];
     tpl_data->ref_frame[idx] = tpl_ref_frame->rec_picture;
@@ -843,12 +833,11 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   // length, as there are fewer reference frames and the reference frames
   // differ from the frames considered during RD search.
   if (ref_pruning_enabled && (frame_idx < gop_length)) {
+    for (idx = 0; idx < INTER_REFS_PER_FRAME; ++idx) {
 #if CONFIG_NEW_REF_SIGNALING
-    for (idx = 0; idx < INTER_REFS_PER_FRAME_NRS; ++idx) {
       const MV_REFERENCE_FRAME refs[2] = { idx, INVALID_IDX };
       if (prune_ref_by_selective_ref_frame_nrs(cpi, NULL, refs)) {
 #else
-    for (idx = 0; idx < INTER_REFS_PER_FRAME; ++idx) {
       const MV_REFERENCE_FRAME refs[2] = { idx + 1, NONE_FRAME };
       if (prune_ref_by_selective_ref_frame(cpi, NULL, refs,
                                            ref_frame_display_indices)) {
@@ -1076,7 +1065,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     }
 
 #if CONFIG_NEW_REF_SIGNALING
-    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       if (cm->remapped_ref_idx[i] != -1) {
         tpl_frame->ref_map_index[i] = ref_picture_map[cm->remapped_ref_idx[i]];
       } else {
@@ -1172,7 +1161,7 @@ static AOM_INLINE void init_gop_frames_for_tpl(
     }
 
 #if CONFIG_NEW_REF_SIGNALING
-    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       if (cm->remapped_ref_idx[i] != -1) {
         tpl_frame->ref_map_index[i] = ref_picture_map[cm->remapped_ref_idx[i]];
       } else {

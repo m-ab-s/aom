@@ -59,7 +59,7 @@ static int is_in_ref_score(RefScoreData *map, int disp_order, int score,
 }
 
 static int get_unmapped_ref(RefScoreData *scores, int n_bufs) {
-  if (n_bufs < INTER_REFS_PER_FRAME_NRS) return INVALID_IDX;
+  if (n_bufs < INTER_REFS_PER_FRAME) return INVALID_IDX;
 
   int min_q = INT_MAX;
   int max_q = INT_MIN;
@@ -139,7 +139,7 @@ void av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
     scores[n_ranked].base_qindex = ref_base_qindex;
     n_ranked++;
   }
-  if (n_ranked > INTER_REFS_PER_FRAME_NRS) {
+  if (n_ranked > INTER_REFS_PER_FRAME) {
     const int unmapped_idx = get_unmapped_ref(scores, n_ranked);
     if (unmapped_idx != INVALID_IDX) scores[unmapped_idx].score = INT_MAX;
   }
@@ -148,8 +148,7 @@ void av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
   qsort(scores, n_ranked, sizeof(scores[0]), compare_score_data_asc);
 
   // Fill in NewRefFramesData struct according to computed mapping
-  cm->new_ref_frame_data.n_total_refs =
-      AOMMIN(n_ranked, INTER_REFS_PER_FRAME_NRS);
+  cm->new_ref_frame_data.n_total_refs = AOMMIN(n_ranked, INTER_REFS_PER_FRAME);
   int n_future = 0;
   int n_past = 0;
   int n_cur = 0;
@@ -167,7 +166,7 @@ void av1_get_ref_frames(AV1_COMMON *cm, int cur_frame_disp,
       n_cur++;
     }
   }
-  if (n_ranked > INTER_REFS_PER_FRAME_NRS)
+  if (n_ranked > INTER_REFS_PER_FRAME)
     cm->remapped_ref_idx[n_ranked - 1] = scores[n_ranked - 1].index;
 
   cm->new_ref_frame_data.n_past_refs = n_past;

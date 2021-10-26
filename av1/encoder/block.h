@@ -69,14 +69,8 @@ typedef struct {
   int64_t tpl_inter_cost[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB];
   //! TPL's estimate of tpl cost for each tpl block.
   int64_t tpl_intra_cost[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB];
-#if CONFIG_NEW_REF_SIGNALING
-  //! Motion vectors found by TPL model for each tpl block.
-  int_mv tpl_mv[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB]
-               [INTER_REFS_PER_FRAME_NRS];
-#else
   //! Motion vectors found by TPL model for each tpl block.
   int_mv tpl_mv[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB][INTER_REFS_PER_FRAME];
-#endif  // CONFIG_NEW_REF_SIGNALING
   //! TPL's stride for the arrays in this struct.
   int tpl_stride;
   /**@}*/
@@ -227,7 +221,7 @@ typedef struct {
   uint8_t ref_mv_count[MODE_CTX_REF_FRAMES];
 #if CONFIG_NEW_REF_SIGNALING
   //! Global mvs in new ref framework
-  int_mv global_mvs[INTER_REFS_PER_FRAME_NRS];
+  int_mv global_mvs[INTER_REFS_PER_FRAME];
 #else
   //! Global mvs
   int_mv global_mvs[REF_FRAMES];
@@ -251,7 +245,7 @@ typedef struct {
   uint8_t ref_mv_count;
 #if CONFIG_NEW_REF_SIGNALING
   //! \copydoc MB_MODE_INFO_EXT::global_mvs
-  int_mv global_mvs[INTER_REFS_PER_FRAME_NRS];
+  int_mv global_mvs[INTER_REFS_PER_FRAME];
 #else
   // TODO(Ravi/Remya): Reduce the buffer size of global_mvs
   //! \copydoc MB_MODE_INFO_EXT::global_mvs
@@ -798,10 +792,10 @@ typedef struct {
   /**@{*/
 #if CONFIG_NEW_REF_SIGNALING
   //! single_ref_cost
-  int single_ref_cost[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1][2];
+  int single_ref_cost[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1][2];
   //! compound_ref_cost
   int compound_ref_cost[REF_CONTEXTS][COMPREF_BIT_TYPES]
-                       [INTER_REFS_PER_FRAME_NRS - 2][2];
+                       [INTER_REFS_PER_FRAME - 2][2];
 #else
   //! single_ref_cost
   int single_ref_cost[REF_CONTEXTS][SINGLE_REFS - 1][2];

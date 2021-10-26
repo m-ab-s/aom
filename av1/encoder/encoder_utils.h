@@ -117,7 +117,7 @@ static AOM_INLINE void enc_setup_mi(CommonModeInfoParams *mi_params) {
 static AOM_INLINE void init_buffer_indices(
     ForceIntegerMVInfo *const force_intpel_info, int *const remapped_ref_idx) {
 #if CONFIG_NEW_REF_SIGNALING
-  for (int fb_idx = 0; fb_idx < INTER_REFS_PER_FRAME_NRS; ++fb_idx)
+  for (int fb_idx = 0; fb_idx < INTER_REFS_PER_FRAME; ++fb_idx)
 #else
   for (int fb_idx = 0; fb_idx < REF_FRAMES; ++fb_idx)
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -874,7 +874,7 @@ static AOM_INLINE void set_size_independent_vars(AV1_COMP *cpi) {
   int i;
   AV1_COMMON *const cm = &cpi->common;
 #if CONFIG_NEW_REF_SIGNALING
-  for (i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+  for (i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     cm->global_motion[i] = default_warp_params;
   }
 #else

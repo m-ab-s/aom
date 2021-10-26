@@ -806,7 +806,7 @@ static const aom_cdf_prob default_comp_inter_cdf[COMP_INTER_CONTEXTS][CDF_SIZE(
             { AOM_CDF2(2901) } };
 #if CONFIG_NEW_REF_SIGNALING
 static const aom_cdf_prob
-    default_single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1]
+    default_single_ref_cdf[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1]
                           [CDF_SIZE(2)] = { { { AOM_CDF2(16384) },
                                               { AOM_CDF2(16384) },
                                               { AOM_CDF2(16384) },
@@ -827,7 +827,7 @@ static const aom_cdf_prob
                                               { AOM_CDF2(16384) } } };
 static const aom_cdf_prob
     default_compound_ref_cdf[REF_CONTEXTS][COMPREF_BIT_TYPES]
-                            [INTER_REFS_PER_FRAME_NRS - 2][CDF_SIZE(2)] = {
+                            [INTER_REFS_PER_FRAME - 2][CDF_SIZE(2)] = {
                               { { { AOM_CDF2(16384) },
                                   { AOM_CDF2(16384) },
                                   { AOM_CDF2(16384) },
@@ -1624,7 +1624,7 @@ void av1_setup_frame_contexts(AV1_COMMON *cm) {
   // but could do with fuller testing
   if (cm->tiles.large_scale) {
 #if CONFIG_NEW_REF_SIGNALING
-    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
 #else
     for (int i = LAST_FRAME; i <= ALTREF_FRAME; ++i) {

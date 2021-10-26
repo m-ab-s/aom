@@ -29,7 +29,7 @@ static AOM_INLINE void accumulate_rd_opt(ThreadData *td, ThreadData *td_t) {
     td->rd_counts.comp_pred_diff[i] += td_t->rd_counts.comp_pred_diff[i];
 
 #if CONFIG_NEW_REF_SIGNALING
-  for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; i++)
+  for (int i = 0; i < INTER_REFS_PER_FRAME; i++)
 #else
   for (int i = 0; i < REF_FRAMES; i++)
 #endif  // CONFIG_NEW_REF_SIGNALING

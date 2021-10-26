@@ -2012,18 +2012,10 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   init_motion_estimation(cpi);
 
 #if CONFIG_NEW_REF_SIGNALING
-  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
-    RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
-    if (buf != NULL) {
-      struct scale_factors *sf = get_ref_scale_factors(cm, ref_frame);
-      av1_setup_scale_factors_for_frame(sf, buf->buf.y_crop_width,
-                                        buf->buf.y_crop_height, cm->width,
-                                        cm->height);
-      if (av1_is_scaled(sf)) aom_extend_frame_borders(&buf->buf, num_planes);
-    }
-  }
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
 #else
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+#endif  // CONFIG_NEW_REF_SIGNALING
     RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf != NULL) {
       struct scale_factors *sf = get_ref_scale_factors(cm, ref_frame);
@@ -2033,7 +2025,6 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
       if (av1_is_scaled(sf)) aom_extend_frame_borders(&buf->buf, num_planes);
     }
   }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   av1_setup_scale_factors_for_frame(&cm->sf_identity, cm->width, cm->height,
                                     cm->width, cm->height);

@@ -1164,9 +1164,9 @@ typedef struct FRAME_COUNTS {
   unsigned int intra_inter[INTRA_INTER_CONTEXTS][2];
   unsigned int comp_inter[COMP_INTER_CONTEXTS][2];
 #if CONFIG_NEW_REF_SIGNALING
-  unsigned int single_ref[REF_CONTEXTS][INTER_REFS_PER_FRAME_NRS - 1][2];
+  unsigned int single_ref[REF_CONTEXTS][INTER_REFS_PER_FRAME - 1][2];
   unsigned int comp_ref[REF_CONTEXTS][COMPREF_BIT_TYPES]
-                       [INTER_REFS_PER_FRAME_NRS - 2][2];
+                       [INTER_REFS_PER_FRAME - 2][2];
 #else
   unsigned int comp_ref_type[COMP_REF_TYPE_CONTEXTS][2];
   unsigned int uni_comp_ref[UNI_COMP_REF_CONTEXTS][UNIDIR_COMP_REFS - 1][2];
@@ -1417,7 +1417,7 @@ typedef struct RD_COUNTS {
   int64_t comp_pred_diff[REFERENCE_MODES];
   // Stores number of 4x4 blocks using global motion per reference frame.
 #if CONFIG_NEW_REF_SIGNALING
-  int global_motion_used[INTER_REFS_PER_FRAME_NRS];
+  int global_motion_used[INTER_REFS_PER_FRAME];
 #else
   int global_motion_used[REF_FRAMES];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1742,7 +1742,7 @@ typedef struct {
    * motion for the ith reference frame.
    */
 #if CONFIG_NEW_REF_SIGNALING
-  int params_cost[INTER_REFS_PER_FRAME_NRS];
+  int params_cost[INTER_REFS_PER_FRAME];
 #else
   int params_cost[REF_FRAMES];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1758,7 +1758,7 @@ typedef struct {
    * reference frame type.
    */
 #if CONFIG_NEW_REF_SIGNALING
-  YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS];
+  YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME];
 #else
   YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1776,7 +1776,7 @@ typedef struct {
    * direction 'i' and its temporal distance from the source frame.
    */
 #if CONFIG_NEW_REF_SIGNALING
-  FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME_NRS];
+  FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME];
 #else
   FrameDistPair reference_frames[MAX_DIRECTIONS][REF_FRAMES - 1];
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -2258,11 +2258,7 @@ typedef struct AV1_COMP {
    * Pointer to the buffer holding the scaled reference frames.
    * scaled_ref_buf[i] holds the scaled reference frame of type i.
    */
-#if CONFIG_NEW_REF_SIGNALING
-  RefCntBuffer *scaled_ref_buf[INTER_REFS_PER_FRAME_NRS];
-#else
   RefCntBuffer *scaled_ref_buf[INTER_REFS_PER_FRAME];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Pointer to the buffer holding the last show frame.
@@ -2971,12 +2967,12 @@ static INLINE const YV12_BUFFER_CONFIG *get_ref_frame_yv12_buf(
 static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
                                        const RefCntBuffer *const frame_buf) {
   MV_REFERENCE_FRAME ref_frame;
-  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf == NULL) continue;
     if (frame_buf == buf) break;
   }
-  return (ref_frame < INTER_REFS_PER_FRAME_NRS);
+  return (ref_frame < INTER_REFS_PER_FRAME);
 }
 #else
 static INLINE int enc_is_ref_frame_buf(const AV1_COMMON *const cm,
@@ -3070,10 +3066,10 @@ static INLINE void set_ref_ptrs(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                 MV_REFERENCE_FRAME ref0,
                                 MV_REFERENCE_FRAME ref1) {
 #if CONFIG_NEW_REF_SIGNALING
-  xd->block_ref_scale_factors[0] = get_ref_scale_factors_const(
-      cm, ref0 < INTER_REFS_PER_FRAME_NRS ? ref0 : 0);
-  xd->block_ref_scale_factors[1] = get_ref_scale_factors_const(
-      cm, ref1 < INTER_REFS_PER_FRAME_NRS ? ref1 : 0);
+  xd->block_ref_scale_factors[0] =
+      get_ref_scale_factors_const(cm, ref0 < INTER_REFS_PER_FRAME ? ref0 : 0);
+  xd->block_ref_scale_factors[1] =
+      get_ref_scale_factors_const(cm, ref1 < INTER_REFS_PER_FRAME ? ref1 : 0);
 #else
   xd->block_ref_scale_factors[0] =
       get_ref_scale_factors_const(cm, ref0 >= LAST_FRAME ? ref0 : 1);
@@ -3188,24 +3184,19 @@ static const MV_REFERENCE_FRAME disable_order[] = {
   GOLDEN_FRAME,
 };
 
+static INLINE int get_max_allowed_ref_frames(
+    int selective_ref_frame, unsigned int max_reference_frames) {
 #if CONFIG_NEW_REF_SIGNALING
-static INLINE int get_max_allowed_ref_frames(
-    int selective_ref_frame, unsigned int max_reference_frames) {
-  return INTER_REFS_PER_FRAME_NRS;
-  const unsigned int max_allowed_refs_for_given_speed =
-      (selective_ref_frame >= 3) ? INTER_REFS_PER_FRAME_NRS - 1
-                                 : INTER_REFS_PER_FRAME_NRS;
-  return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
-}
+  (void)selective_ref_frame;
+  (void)max_reference_frames;
+  return INTER_REFS_PER_FRAME;
 #else
-static INLINE int get_max_allowed_ref_frames(
-    int selective_ref_frame, unsigned int max_reference_frames) {
   const unsigned int max_allowed_refs_for_given_speed =
       (selective_ref_frame >= 3) ? INTER_REFS_PER_FRAME - 1
                                  : INTER_REFS_PER_FRAME;
   return AOMMIN(max_allowed_refs_for_given_speed, max_reference_frames);
-}
 #endif  // CONFIG_NEW_REF_SIGNALING
+}
 
 static INLINE int get_ref_frame_flags(const SPEED_FEATURES *const sf,
                                       const YV12_BUFFER_CONFIG **ref_frames,
@@ -3242,7 +3233,7 @@ static AOM_INLINE void enforce_max_ref_frames(AV1_COMP *cpi,
   MV_REFERENCE_FRAME ref_frame;
   int total_valid_refs = 0;
 
-  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     if (*ref_frame_flags & (1 << ref_frame)) {
       total_valid_refs++;
     }

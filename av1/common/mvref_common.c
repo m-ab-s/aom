@@ -1059,7 +1059,7 @@ void av1_find_mv_refs(const AV1_COMMON *cm, const MACROBLOCKD *xd,
     const BLOCK_SIZE bsize = mi->sb_type;
     const int fr_mv_precision = cm->features.fr_mv_precision;
 #if CONFIG_NEW_REF_SIGNALING
-    if (ref_frame < INTER_REFS_PER_FRAME_NRS) {
+    if (ref_frame < INTER_REFS_PER_FRAME) {
 #else
     if (ref_frame < REF_FRAMES) {
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -1101,7 +1101,7 @@ void av1_setup_frame_buf_refs(AV1_COMMON *cm) {
 
   MV_REFERENCE_FRAME ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
-  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
     const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf != NULL && ref_frame < cm->new_ref_frame_data.n_total_refs) {
       cm->cur_frame->ref_order_hints[ref_frame] = buf->order_hint;
@@ -1211,16 +1211,13 @@ static int motion_field_projection(AV1_COMMON *cm,
                                    int overwrite) {
   TPL_MV_REF *tpl_mvs_base = cm->tpl_mvs;
 #if CONFIG_NEW_REF_SIGNALING
-  int ref_offset[INTER_REFS_PER_FRAME_NRS] = { 0 };
-
-  const RefCntBuffer *const start_frame_buf =
-      get_ref_frame_buf(cm, start_frame);
+  int ref_offset[INTER_REFS_PER_FRAME] = { 0 };
 #else
   int ref_offset[REF_FRAMES] = { 0 };
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   const RefCntBuffer *const start_frame_buf =
       get_ref_frame_buf(cm, start_frame);
-#endif  // CONFIG_NEW_REF_SIGNALING
   if (!is_ref_motion_field_eligible(cm, start_frame_buf)) return 0;
 
   const int start_frame_order_hint = start_frame_buf->order_hint;
@@ -1231,7 +1228,7 @@ static int motion_field_projection(AV1_COMMON *cm,
 #if CONFIG_NEW_REF_SIGNALING
   const int *const ref_order_hints = &start_frame_buf->ref_order_hints[0];
   int valid_ref = 0;
-  for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME_NRS; ++rf) {
+  for (MV_REFERENCE_FRAME rf = 0; rf < INTER_REFS_PER_FRAME; ++rf) {
     if (ref_order_hints[rf] != -1) {
       ref_offset[rf] =
           get_relative_dist(&cm->seq_params.order_hint_info,
@@ -1305,7 +1302,7 @@ static INLINE int is_ref_overlay_nrs(const AV1_COMMON *const cm, int ref) {
   const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref);
   if (buf == NULL) return -1;
   const int ref_order_hint = buf->order_hint;
-  for (int r = 0; r < INTER_REFS_PER_FRAME_NRS; ++r) {
+  for (int r = 0; r < INTER_REFS_PER_FRAME; ++r) {
     if (buf->ref_order_hints[r] == -1) continue;
     const int ref_ref_order_hint = buf->ref_order_hints[r];
     if (get_relative_dist(order_hint_info, ref_order_hint,
@@ -1831,7 +1828,7 @@ void av1_setup_skip_mode_allowed(AV1_COMMON *cm) {
     // Identify the second nearest forward reference.
     ref_order_hints[1] = -1;
 #if CONFIG_NEW_REF_SIGNALING
-    for (int i = 0; i < INTER_REFS_PER_FRAME_NRS; ++i) {
+    for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, i);
 #else
     for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {

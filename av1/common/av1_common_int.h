@@ -147,8 +147,8 @@ typedef struct RefCntBuffer {
   int ref_count;
 
 #if CONFIG_NEW_REF_SIGNALING
-  int ref_order_hints[INTER_REFS_PER_FRAME_NRS];
-  int ref_display_order_hint[INTER_REFS_PER_FRAME_NRS];
+  int ref_order_hints[INTER_REFS_PER_FRAME];
+  int ref_display_order_hint[INTER_REFS_PER_FRAME];
 #else
   unsigned int ref_order_hints[INTER_REFS_PER_FRAME];
   unsigned int ref_display_order_hint[INTER_REFS_PER_FRAME];
@@ -174,7 +174,7 @@ typedef struct RefCntBuffer {
   int width;
   int height;
 #if CONFIG_NEW_REF_SIGNALING
-  WarpedMotionParams global_motion[INTER_REFS_PER_FRAME_NRS];
+  WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
 #else
   WarpedMotionParams global_motion[REF_FRAMES];
 #endif                 // CONFIG_NEW_REF_SIGNALING
@@ -819,7 +819,7 @@ typedef struct {
    * reference in the future, and positive value indicates reference in
    * the past from the current frame
    */
-  int ref_frame_distance[INTER_REFS_PER_FRAME_NRS];
+  int ref_frame_distance[INTER_REFS_PER_FRAME];
   /*!
    * Total number of reference buffers available to the current frame.
    */
@@ -828,7 +828,7 @@ typedef struct {
    * Contains the indices of the frames in ref_frame_map that are future
    * references.
    */
-  int future_refs[INTER_REFS_PER_FRAME_NRS];
+  int future_refs[INTER_REFS_PER_FRAME];
   /*!
    * Number of future references.
    */
@@ -837,7 +837,7 @@ typedef struct {
    * Contains the indices of the frames in ref_frame_map that are past
    * references.
    */
-  int past_refs[INTER_REFS_PER_FRAME_NRS];
+  int past_refs[INTER_REFS_PER_FRAME];
   /*!
    * Number of past references.
    */
@@ -846,7 +846,7 @@ typedef struct {
    * Contains the indices of the frames in ref_frame_map with same order hint
    * as current frame. -1 if unset.
    */
-  int cur_refs[INTER_REFS_PER_FRAME_NRS];
+  int cur_refs[INTER_REFS_PER_FRAME];
   /*!
    * Number of references with the same order hint.
    */
@@ -960,15 +960,15 @@ typedef struct AV1Common {
    * For encoder, we have a two-level mapping from reference frame type to the
    * corresponding buffer in the buffer pool:
    * * 'remapped_ref_idx[i - 1]' maps reference type 'i' (range: 0 ...
-   * INTER_REFS_PER_FRAME_NRS - 1) to a remapped index 'j' in the same range.
+   * INTER_REFS_PER_FRAME - 1) to a remapped index 'j' in the same range.
    * * Later, 'cm->ref_frame_map[j]' maps the remapped index 'j' to a pointer to
    * the reference counted buffer structure RefCntBuffer, taken from the buffer
    * pool cm->buffer_pool->frame_bufs.
    *
-   *      0,               ...,      INTER_REFS_PER_FRAME_NRS - 1
+   *      0,               ...,            INTER_REFS_PER_FRAME - 1
    *      |                                           |
    *      v                                           v
-   * remapped_ref_idx[0],  ...,  remapped_ref_idx[INTER_REFS_PER_FRAME_NRS - 1]
+   * remapped_ref_idx[0],  ...,     remapped_ref_idx[INTER_REFS_PER_FRAME- 1]
    *      |                                           |
    *      v                                           v
    * ref_frame_map[],      ...,                ref_frame_map[]
@@ -1122,7 +1122,7 @@ typedef struct AV1Common {
    * Global motion parameters for each reference frame in new ref signaling
    * experiment.
    */
-  WarpedMotionParams global_motion[INTER_REFS_PER_FRAME_NRS];
+  WarpedMotionParams global_motion[INTER_REFS_PER_FRAME];
 #else
   /*!
    * Global motion parameters for each reference frame.
@@ -1191,13 +1191,13 @@ typedef struct AV1Common {
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and
    * current frame is positive; and 0 otherwise.
    */
-  int ref_frame_sign_bias_nrs[INTER_REFS_PER_FRAME_NRS];
+  int ref_frame_sign_bias_nrs[INTER_REFS_PER_FRAME];
   /*!
    * ref_frame_side[k] is 1 if relative distance between reference 'k' and
    * current frame is positive, -1 if relative distance is 0; and 0 otherwise.
    * TODO(jingning): This can be combined with sign_bias later.
    */
-  int8_t ref_frame_side[INTER_REFS_PER_FRAME_NRS];
+  int8_t ref_frame_side[INTER_REFS_PER_FRAME];
 #else
   /*!
    * ref_frame_sign_bias[k] is 1 if relative distance between reference 'k' and

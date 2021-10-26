@@ -89,7 +89,7 @@ static AOM_INLINE int64_t calc_erroradv_threshold(int64_t ref_frame_error) {
 static AOM_INLINE void compute_global_motion_for_ref_frame(
     AV1_COMP *cpi,
 #if CONFIG_NEW_REF_SIGNALING
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
+    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
 #else
     YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -231,7 +231,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 void av1_compute_gm_for_valid_ref_frames(
     AV1_COMP *cpi,
 #if CONFIG_NEW_REF_SIGNALING
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
+    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
 #else
     YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -286,8 +286,8 @@ void av1_compute_gm_for_valid_ref_frames(
 static AOM_INLINE void compute_global_motion_for_references(
     AV1_COMP *cpi,
 #if CONFIG_NEW_REF_SIGNALING
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
-    FrameDistPair reference_frame[INTER_REFS_PER_FRAME_NRS],
+    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
+    FrameDistPair reference_frame[INTER_REFS_PER_FRAME],
 #else
     YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
     FrameDistPair reference_frame[REF_FRAMES - 1],
@@ -358,10 +358,8 @@ static AOM_INLINE int skip_gm_frame_nrs(AV1_COMMON *const cm, int refrank) {
 static int do_gm_search_logic_nrs(SPEED_FEATURES *const sf, int refrank) {
   switch (sf->gm_sf.gm_search_type) {
     case GM_FULL_SEARCH: return 1;
-    case GM_REDUCED_REF_SEARCH_LEV2:
-      return refrank < INTER_REFS_PER_FRAME_NRS - 2;
-    case GM_REDUCED_REF_SEARCH_LEV3:
-      return refrank < INTER_REFS_PER_FRAME_NRS - 4;
+    case GM_REDUCED_REF_SEARCH_LEV2: return refrank < INTER_REFS_PER_FRAME - 2;
+    case GM_REDUCED_REF_SEARCH_LEV3: return refrank < INTER_REFS_PER_FRAME - 4;
     case GM_DISABLE_SEARCH: return 0;
     default: assert(0);
   }
@@ -404,8 +402,8 @@ static int do_gm_search_logic(SPEED_FEATURES *const sf, int frame) {
 static AOM_INLINE void update_valid_ref_frames_for_gm(
     AV1_COMP *cpi,
 #if CONFIG_NEW_REF_SIGNALING
-    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME_NRS],
-    FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME_NRS],
+    YV12_BUFFER_CONFIG *ref_buf[INTER_REFS_PER_FRAME],
+    FrameDistPair reference_frames[MAX_DIRECTIONS][INTER_REFS_PER_FRAME],
 #else
     YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES],
     FrameDistPair reference_frames[MAX_DIRECTIONS][REF_FRAMES - 1],
@@ -531,7 +529,7 @@ static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
 #if CONFIG_NEW_REF_SIGNALING
   memset(gm_info->reference_frames, -1,
          sizeof(gm_info->reference_frames[0][0]) * MAX_DIRECTIONS *
-             (INTER_REFS_PER_FRAME_NRS));
+             (INTER_REFS_PER_FRAME));
 #else
   memset(gm_info->reference_frames, -1,
          sizeof(gm_info->reference_frames[0][0]) * MAX_DIRECTIONS *

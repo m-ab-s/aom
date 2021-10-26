@@ -2852,7 +2852,7 @@ static AOM_INLINE void write_frame_size_with_refs(
 
   MV_REFERENCE_FRAME ref_frame;
 #if CONFIG_NEW_REF_SIGNALING
-  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ++ref_frame) {
+  for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ++ref_frame) {
 #else
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
 #endif  // CONFIG_NEW_REF_SIGNALING
@@ -3026,7 +3026,7 @@ static AOM_INLINE void write_film_grain_params(
   if (!pars->update_parameters) {
     int ref_frame, ref_idx;
 #if CONFIG_NEW_REF_SIGNALING
-    for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME_NRS; ref_frame++) {
+    for (ref_frame = 0; ref_frame < INTER_REFS_PER_FRAME; ref_frame++) {
       ref_idx = get_ref_frame_map_idx(cm, ref_frame);
 #else
     for (ref_frame = LAST_FRAME; ref_frame < REF_FRAMES; ref_frame++) {

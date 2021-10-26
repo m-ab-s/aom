@@ -91,11 +91,7 @@ typedef struct TplDepStats {
   int64_t recrf_rate;
   int64_t mc_dep_rate;
   int64_t mc_dep_dist;
-#if CONFIG_NEW_REF_SIGNALING
-  int_mv mv[INTER_REFS_PER_FRAME_NRS];
-#else
   int_mv mv[INTER_REFS_PER_FRAME];
-#endif  // CONFIG_NEW_REF_SIGNALING
   int ref_frame_index;
   int64_t pred_error[INTER_REFS_PER_FRAME];
 } TplDepStats;
@@ -165,21 +161,6 @@ typedef struct TplParams {
    */
   int frame_idx;
 
-#if CONFIG_NEW_REF_SIGNALING
-  /*!
-   * Array of pointers to the frame buffers holding the source frame.
-   * src_ref_frame[i] stores the pointer to the source frame of the ith
-   * reference frame type.
-   */
-  const YV12_BUFFER_CONFIG *src_ref_frame[INTER_REFS_PER_FRAME_NRS];
-
-  /*!
-   * Array of pointers to the frame buffers holding the tpl reconstructed frame.
-   * ref_frame[i] stores the pointer to the tpl reconstructed frame of the ith
-   * reference frame type.
-   */
-  const YV12_BUFFER_CONFIG *ref_frame[INTER_REFS_PER_FRAME_NRS];
-#else
   /*!
    * Array of pointers to the frame buffers holding the source frame.
    * src_ref_frame[i] stores the pointer to the source frame of the ith
@@ -193,7 +174,6 @@ typedef struct TplParams {
    * reference frame type.
    */
   const YV12_BUFFER_CONFIG *ref_frame[INTER_REFS_PER_FRAME];
-#endif  // CONFIG_NEW_REF_SIGNALING
 
   /*!
    * Parameters related to synchronization for top-right dependency in row based
