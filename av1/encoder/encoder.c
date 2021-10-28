@@ -3744,7 +3744,6 @@ static int svc_set_references_external_ref_frame_config(AV1_COMP *cpi) {
   return ref;
 }
 
-#if CONFIG_NEW_REF_SIGNALING
 void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
   // TODO(yunqingwang): For what references to use, external encoding flags
   // should be consistent with internal reference frame selection. Need to
@@ -3756,6 +3755,8 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
   ext_flags->ref_frame_flags = AOM_REFFRAME_ALL;
   ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &ext_flags->refresh_frame;
+
+#if CONFIG_NEW_REF_SIGNALING
   if (cpi->svc.external_ref_frame_config) {
     int ref = svc_set_references_external_ref_frame_config(cpi);
     av1_use_as_reference(&ext_flags->ref_frame_flags, ref);
@@ -3766,33 +3767,7 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
                                               &cpi->svc);
   else
     ext_refresh_frame_flags->update_pending = 0;
-
-  ext_flags->use_ref_frame_mvs = cpi->oxcf.tool_cfg.enable_ref_frame_mvs &
-                                 ((flags & AOM_EFLAG_NO_REF_FRAME_MVS) == 0);
-  ext_flags->use_error_resilient = cpi->oxcf.tool_cfg.error_resilient_mode |
-                                   ((flags & AOM_EFLAG_ERROR_RESILIENT) != 0);
-  ext_flags->use_s_frame =
-      cpi->oxcf.kf_cfg.enable_sframe | ((flags & AOM_EFLAG_SET_S_FRAME) != 0);
-  ext_flags->use_primary_ref_none =
-      (flags & AOM_EFLAG_SET_PRIMARY_REF_NONE) != 0;
-
-  if (flags & AOM_EFLAG_NO_UPD_ENTROPY) {
-    update_entropy(&ext_flags->refresh_frame_context,
-                   &ext_flags->refresh_frame_context_pending, 0);
-  }
-}
 #else
-void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
-  // TODO(yunqingwang): For what references to use, external encoding flags
-  // should be consistent with internal reference frame selection. Need to
-  // ensure that there is not conflict between the two. In AV1 encoder, the
-  // priority rank for 7 reference frames are: LAST, ALTREF, LAST2, LAST3,
-  // GOLDEN, BWDREF, ALTREF2.
-
-  ExternalFlags *const ext_flags = &cpi->ext_flags;
-  ext_flags->ref_frame_flags = AOM_REFFRAME_ALL;
-  ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
-      &ext_flags->refresh_frame;
   if (flags &
       (AOM_EFLAG_NO_REF_LAST | AOM_EFLAG_NO_REF_LAST2 | AOM_EFLAG_NO_REF_LAST3 |
        AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF | AOM_EFLAG_NO_REF_BWD |
@@ -3850,6 +3825,7 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
     else
       ext_refresh_frame_flags->update_pending = 0;
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
   ext_flags->use_ref_frame_mvs = cpi->oxcf.tool_cfg.enable_ref_frame_mvs &
                                  ((flags & AOM_EFLAG_NO_REF_FRAME_MVS) == 0);
@@ -3865,7 +3841,6 @@ void av1_apply_encoding_flags(AV1_COMP *cpi, aom_enc_frame_flags_t flags) {
                    &ext_flags->refresh_frame_context_pending, 0);
   }
 }
-#endif  // CONFIG_NEW_REF_SIGNALING
 
 aom_fixed_buf_t *av1_get_global_headers(AV1_COMP *cpi) {
   if (!cpi) return NULL;
