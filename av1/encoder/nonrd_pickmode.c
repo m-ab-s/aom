@@ -2199,6 +2199,9 @@ static AOM_INLINE int is_filter_search_enabled(const AV1_COMP *cpi, int mi_row,
 
 static AOM_INLINE int skip_mode_by_threshold(
     PREDICTION_MODE mode, MV_REFERENCE_FRAME ref_frame, int_mv mv,
+#if CONFIG_NEW_REF_SIGNALING
+    const AV1_COMMON *const cm,
+#endif  // CONFIG_NEW_REF_SIGNALING
     int frames_since_golden, const int *const rd_threshes,
     const int *const rd_thresh_freq_fact, int64_t best_cost, int best_skip) {
   int skip_this_mode = 0;
@@ -2212,11 +2215,20 @@ static AOM_INLINE int skip_mode_by_threshold(
 
   // Increase mode_rd_thresh value for non-LAST for improved encoding
   // speed
+#if CONFIG_NEW_REF_SIGNALING
+  if (ref_frame != get_closest_pastcur_ref_index(cm)) {
+    mode_rd_thresh = mode_rd_thresh << 1;
+    if (ref_frame == cm->new_ref_frame_data.past_refs[0] &&
+        frames_since_golden > 4)
+      mode_rd_thresh = mode_rd_thresh << 1;
+  }
+#else
   if (ref_frame != LAST_FRAME) {
     mode_rd_thresh = mode_rd_thresh << 1;
     if (ref_frame == GOLDEN_FRAME && frames_since_golden > 4)
       mode_rd_thresh = mode_rd_thresh << 1;
   }
+#endif  // CONFIG_NEW_REF_SIGNALING
 
 #if CONFIG_NEW_REF_SIGNALING
   if (rd_less_than_thresh(best_cost, mode_rd_thresh, rd_thresh_freq_fact[mode]))
@@ -2232,12 +2244,21 @@ static AOM_INLINE int skip_mode_by_threshold(
 static AOM_INLINE int skip_mode_by_low_temp(PREDICTION_MODE mode,
                                             MV_REFERENCE_FRAME ref_frame,
                                             BLOCK_SIZE bsize,
+#if CONFIG_NEW_REF_SIGNALING
+                                            const AV1_COMMON *const cm,
+#endif  // CONFIG_NEW_REF_SIGNALING
                                             int content_state_sb, int_mv mv,
                                             int force_skip_low_temp_var) {
   // Skip non-zeromv mode search for non-LAST frame if force_skip_low_temp_var
   // is set. If nearestmv for golden frame is 0, zeromv mode will be skipped
   // later.
-  if (force_skip_low_temp_var && ref_frame != LAST_FRAME && mv.as_int != 0) {
+  if (force_skip_low_temp_var &&
+#if CONFIG_NEW_REF_SIGNALING
+      ref_frame != get_closest_pastcur_ref_index(cm) &&
+#else
+      ref_frame != LAST_FRAME &&
+#endif  // CONFIG_NEW_REF_SIGNALING
+      mv.as_int != 0) {
     return 1;
   }
 
@@ -2504,7 +2525,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                                          sse_zeromv_norm))
       continue;
 
-    if (skip_mode_by_low_temp(this_mode, ref_frame, bsize, x->content_state_sb,
+    if (skip_mode_by_low_temp(this_mode, ref_frame, bsize,
+#if CONFIG_NEW_REF_SIGNALING
+                              cm,
+#endif  // CONFIG_NEW_REF_SIGNALING
+                              x->content_state_sb,
                               frame_mv[this_mode][ref_frame],
                               force_skip_low_temp_var))
       continue;
@@ -2530,6 +2555,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     if (skip_mode_by_threshold(
             this_mode, ref_frame, frame_mv[this_mode][ref_frame],
+#if CONFIG_NEW_REF_SIGNALING
+            cm,
+#endif  // CONFIG_NEW_REF_SIGNALING
             cpi->rc.frames_since_golden, rd_threshes, rd_thresh_freq_fact,
             best_rdc.rdcost, best_pickmode.best_mode_skip_txfm))
       continue;
