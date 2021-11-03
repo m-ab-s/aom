@@ -275,9 +275,9 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
   set_mode_info_offsets(&cpi->common.mi_params, &cpi->mbmi_ext_info, x, xd,
                         mi_row, mi_col);
   set_mi_row_col(xd, &xd->tile, mi_row, mi_height, mi_col, mi_width,
-                 cm->mi_params.mi_rows, cm->mi_params.mi_cols);
-  set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize],
-               av1_num_planes(cm));
+                 cm->mi_params.mi_rows, cm->mi_params.mi_cols, NULL);
+  set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize], av1_num_planes(cm),
+               NULL);
 #if CONFIG_SDP
   xd->mi[0]->sb_type[xd->tree_type == CHROMA_PART] = bsize;
 #else
@@ -782,6 +782,12 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   tpl_data->frame_idx = frame_idx;
   tpl_reset_src_ref_frames(tpl_data);
   av1_tile_init(&xd->tile, cm, 0, 0);
+
+  // TODO(any): The tiles are not being set correctly by av1_tile_init above as
+  // it always assumes the first tile is used. We set the tile size here as a
+  // hack.
+  xd->tile.mi_row_end = cm->mi_params.mi_rows;
+  xd->tile.mi_col_end = cm->mi_params.mi_cols;
 
   // Setup scaling factor
   av1_setup_scale_factors_for_frame(

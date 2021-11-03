@@ -337,10 +337,14 @@ static AOM_INLINE void add_ref_mv_candidate(
 }
 
 static AOM_INLINE void scan_row_mbmi(
-    const AV1_COMMON *cm, const MACROBLOCKD *xd, int mi_col,
-    const MV_REFERENCE_FRAME rf[2], int row_offset, CANDIDATE_MV *ref_mv_stack,
-    uint16_t *ref_mv_weight, uint8_t *refmv_count, uint8_t *ref_match_count,
-    uint8_t *newmv_count, int_mv *gm_mv_candidates, int max_row_offset,
+    const AV1_COMMON *cm, const MACROBLOCKD *xd,
+#if CONFIG_EXT_RECUR_PARTITIONS
+    int mi_row,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+    int mi_col, const MV_REFERENCE_FRAME rf[2], int row_offset,
+    CANDIDATE_MV *ref_mv_stack, uint16_t *ref_mv_weight, uint8_t *refmv_count,
+    uint8_t *ref_match_count, uint8_t *newmv_count, int_mv *gm_mv_candidates,
+    int max_row_offset,
 #if CONFIG_SMVP_IMPROVEMENT
     int add_more_mvs, SINGLE_MV_CANDIDATE *single_mv, uint8_t *single_mv_count,
     CANDIDATE_MV *derived_mv_stack, uint16_t *derived_mv_weight,
@@ -363,6 +367,24 @@ static AOM_INLINE void scan_row_mbmi(
   const int plane_type = (xd->tree_type == CHROMA_PART);
 #endif
   for (int i = 0; i < end_mi;) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+    const int mask_row = mi_row & (sb_mi_size - 1);
+    const int mask_col = mi_col & (sb_mi_size - 1);
+    const int ref_mask_row = mask_row + row_offset;
+    const int ref_mask_col = mask_col + col_offset + i;
+    if (ref_mask_row >= 0) {
+      if (ref_mask_col >= sb_mi_size) break;
+
+      const int ref_offset =
+          ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
+#if CONFIG_SDP
+      if (!xd->is_mi_coded[0][ref_offset]) break;
+#else
+      if (!xd->is_mi_coded[ref_offset]) break;
+#endif  // CONFIG_SDP
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const MB_MODE_INFO *const candidate = candidate_mi0[col_offset + i];
 #if CONFIG_SDP
     const int candidate_bsize = candidate->sb_type[plane_type];
@@ -401,6 +423,9 @@ static AOM_INLINE void scan_row_mbmi(
 
 static AOM_INLINE void scan_col_mbmi(
     const AV1_COMMON *cm, const MACROBLOCKD *xd, int mi_row,
+#if CONFIG_EXT_RECUR_PARTITIONS
+    int mi_col,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const MV_REFERENCE_FRAME rf[2], int col_offset, CANDIDATE_MV *ref_mv_stack,
     uint16_t *ref_mv_weight, uint8_t *refmv_count, uint8_t *ref_match_count,
     uint8_t *newmv_count, int_mv *gm_mv_candidates, int max_col_offset,
@@ -423,6 +448,23 @@ static AOM_INLINE void scan_col_mbmi(
   const int use_step_16 = (xd->height >= 16);
 
   for (i = 0; i < end_mi;) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+    const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+    const int mask_row = mi_row & (sb_mi_size - 1);
+    const int mask_col = mi_col & (sb_mi_size - 1);
+    const int ref_mask_row = mask_row + row_offset + i;
+    const int ref_mask_col = mask_col + col_offset;
+    if (ref_mask_col >= 0) {
+      if (ref_mask_row >= sb_mi_size) break;
+      const int ref_offset =
+          ref_mask_row * xd->is_mi_coded_stride + ref_mask_col;
+#if CONFIG_SDP
+      if (!xd->is_mi_coded[0][ref_offset]) break;
+#else
+      if (!xd->is_mi_coded[ref_offset]) break;
+#endif  // CONFIG_SDP
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     const MB_MODE_INFO *const candidate =
         xd->mi[(row_offset + i) * xd->mi_stride + col_offset];
 #if CONFIG_SDP
@@ -494,6 +536,44 @@ static AOM_INLINE void scan_blk_mbmi(
   }  // Analyze a single 8x8 block motion information.
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+                         int mi_row, int mi_col, int n4_w) {
+  const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
+  const int mask_row = mi_row & (sb_mi_size - 1);
+  const int mask_col = mi_col & (sb_mi_size - 1);
+
+  if (n4_w > mi_size_wide[BLOCK_64X64]) return 0;
+
+  const int tr_mask_row = mask_row - 1;
+  const int tr_mask_col = mask_col + n4_w;
+  int has_tr;
+
+  if (tr_mask_row < 0) {
+    // The top-right block is in a superblock above the current sb row. If it is
+    // in the current tile or a previously coded one, it has been coded.
+    // Otherwise later the tile boundary checker will figure out whether it is
+    // available.
+    has_tr = 1;
+  } else if (tr_mask_col >= sb_mi_size) {
+    // The top-right block is in the superblock on the right side, therefore it
+    // is not coded yet.
+    has_tr = 0;
+  } else {
+    // For a general case, we use is_mi_coded array for the current superblock
+    // to figure out the availability.
+    const int tr_offset = tr_mask_row * xd->is_mi_coded_stride + tr_mask_col;
+
+#if CONFIG_SDP
+    has_tr = xd->is_mi_coded[av1_get_sdp_idx(xd->tree_type)][tr_offset];
+#else
+    has_tr = xd->is_mi_coded[tr_offset];
+#endif  // CONFIG_SDP
+  }
+
+  return has_tr;
+}
+#else
 static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                          int mi_row, int mi_col, int bs) {
   const int sb_mi_size = mi_size_wide[cm->seq_params.sb_size];
@@ -545,6 +625,7 @@ static int has_top_right(const AV1_COMMON *cm, const MACROBLOCKD *xd,
 
   return has_tr;
 }
+#endif
 
 static int check_sb_border(const int mi_row, const int mi_col,
                            const int row_offset, const int col_offset) {
@@ -719,8 +800,12 @@ static AOM_INLINE void setup_ref_mv_list(
     uint16_t ref_mv_weight[MAX_REF_MV_STACK_SIZE],
     int_mv mv_ref_list[MAX_MV_REF_CANDIDATES], int_mv *gm_mv_candidates,
     int mi_row, int mi_col, int16_t *mode_context) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int has_tr = has_top_right(cm, xd, mi_row, mi_col, xd->width);
+#else
   const int bs = AOMMAX(xd->width, xd->height);
   const int has_tr = has_top_right(cm, xd, mi_row, mi_col, bs);
+#endif
   MV_REFERENCE_FRAME rf[2];
 
   const TileInfo *const tile = &xd->tile;
@@ -775,8 +860,12 @@ static AOM_INLINE void setup_ref_mv_list(
 
   // Scan the first above row mode info. row_offset = -1;
   if (abs(max_row_offset) >= 1)
-    scan_row_mbmi(cm, xd, mi_col, rf, -1, ref_mv_stack, ref_mv_weight,
-                  refmv_count, &row_match_count, &newmv_count, gm_mv_candidates,
+    scan_row_mbmi(cm, xd,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                  mi_row,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                  mi_col, rf, -1, ref_mv_stack, ref_mv_weight, refmv_count,
+                  &row_match_count, &newmv_count, gm_mv_candidates,
                   max_row_offset,
 #if CONFIG_SMVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
@@ -786,8 +875,12 @@ static AOM_INLINE void setup_ref_mv_list(
 
   // Scan the first left column mode info. col_offset = -1;
   if (abs(max_col_offset) >= 1)
-    scan_col_mbmi(cm, xd, mi_row, rf, -1, ref_mv_stack, ref_mv_weight,
-                  refmv_count, &col_match_count, &newmv_count, gm_mv_candidates,
+    scan_col_mbmi(cm, xd, mi_row,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                  mi_col,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                  rf, -1, ref_mv_stack, ref_mv_weight, refmv_count,
+                  &col_match_count, &newmv_count, gm_mv_candidates,
                   max_col_offset,
 #if CONFIG_SMVP_IMPROVEMENT
                   1, single_mv, &single_mv_count, derived_mv_stack,
@@ -875,11 +968,15 @@ static AOM_INLINE void setup_ref_mv_list(
     const int col_offset = -(idx << 1) + 1 + col_adj;
     if (abs(col_offset) <= abs(max_col_offset) &&
         abs(col_offset) > processed_cols) {
-      scan_col_mbmi(cm, xd, mi_row, rf, col_offset, ref_mv_stack, ref_mv_weight,
-                    refmv_count, &col_match_count, &dummy_newmv_count,
-                    gm_mv_candidates, max_col_offset, 0, single_mv,
-                    &single_mv_count, derived_mv_stack, derived_mv_weight,
-                    &derived_mv_count, &processed_cols);
+      scan_col_mbmi(cm, xd, mi_row,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                    mi_col,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                    rf, col_offset, ref_mv_stack, ref_mv_weight, refmv_count,
+                    &col_match_count, &dummy_newmv_count, gm_mv_candidates,
+                    max_col_offset, 0, single_mv, &single_mv_count,
+                    derived_mv_stack, derived_mv_weight, &derived_mv_count,
+                    &processed_cols);
     }
   }
 #else
@@ -889,15 +986,23 @@ static AOM_INLINE void setup_ref_mv_list(
 
     if (abs(row_offset) <= abs(max_row_offset) &&
         abs(row_offset) > processed_rows)
-      scan_row_mbmi(cm, xd, mi_col, rf, row_offset, ref_mv_stack, ref_mv_weight,
+      scan_row_mbmi(cm, xd,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                    mi_row,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                    mi_col, rf, row_offset, ref_mv_stack, ref_mv_weight,
                     refmv_count, &row_match_count, &dummy_newmv_count,
                     gm_mv_candidates, max_row_offset, &processed_rows);
 
     if (abs(col_offset) <= abs(max_col_offset) &&
         abs(col_offset) > processed_cols)
-      scan_col_mbmi(cm, xd, mi_row, rf, col_offset, ref_mv_stack, ref_mv_weight,
-                    refmv_count, &col_match_count, &dummy_newmv_count,
-                    gm_mv_candidates, max_col_offset, &processed_cols);
+      scan_col_mbmi(cm, xd, mi_row,
+#if CONFIG_EXT_RECUR_PARTITIONS
+                    mi_col,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+                    rf, col_offset, ref_mv_stack, ref_mv_weight, refmv_count,
+                    &col_match_count, &dummy_newmv_count, gm_mv_candidates,
+                    max_col_offset, &processed_cols);
   }
 #endif  // CONFIG_SMVP_IMPROVEMENT
 
@@ -1815,8 +1920,12 @@ uint8_t av1_findSamples(const AV1_COMMON *cm, MACROBLOCKD *xd, int *pts,
   assert(np <= LEAST_SQUARES_SAMPLES_MAX);
 
   // Top-right block
-  if (do_tr &&
-      has_top_right(cm, xd, mi_row, mi_col, AOMMAX(xd->width, xd->height))) {
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (do_tr && has_top_right(cm, xd, mi_row, mi_col, xd->width)) {
+#else
+  const int bs = AOMMAX(xd->width, xd->height);
+  if (do_tr && has_top_right(cm, xd, mi_row, mi_col, bs)) {
+#endif
     const POSITION trb_pos = { -1, xd->width };
     const TileInfo *const tile = &xd->tile;
     if (is_inside(tile, mi_col, mi_row, &trb_pos)) {

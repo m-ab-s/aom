@@ -33,7 +33,8 @@ struct ThreadData;
 
 void av1_setup_src_planes(struct macroblock *x,
                           const struct yv12_buffer_config *src, int mi_row,
-                          int mi_col, const int num_planes, BLOCK_SIZE bsize);
+                          int mi_col, const int num_planes,
+                          const CHROMA_REF_INFO *chr_ref_info);
 
 void av1_encode_frame(struct AV1_COMP *cpi);
 
@@ -43,6 +44,9 @@ void av1_encode_tile(struct AV1_COMP *cpi, struct ThreadData *td, int tile_row,
                      int tile_col);
 void av1_encode_sb_row(struct AV1_COMP *cpi, struct ThreadData *td,
                        int tile_row, int tile_col, int mi_row);
+void av1_enc_set_offsets(const struct AV1_COMP *cpi, const TileInfo *const tile,
+                         struct macroblock *const x, int mi_row, int mi_col,
+                         BLOCK_SIZE bsize, CHROMA_REF_INFO *chr_ref_info);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

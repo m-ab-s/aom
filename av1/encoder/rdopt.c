@@ -755,10 +755,15 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x,
     if (plane && !xd->is_chroma_ref) break;
     const struct macroblock_plane *const p = &x->plane[plane];
     const struct macroblockd_plane *const pd = &xd->plane[plane];
-#if CONFIG_SDP
+#if CONFIG_SDP && CONFIG_EXT_RECUR_PARTITIONS
+    const BLOCK_SIZE bs = get_mb_plane_block_size(
+        xd, mbmi, plane, pd->subsampling_x, pd->subsampling_y);
+#elif CONFIG_SDP
     const BLOCK_SIZE bs = get_plane_block_size(
         mbmi->sb_type[plane > 0], pd->subsampling_x, pd->subsampling_y);
 #else
+    // TODO(chiyotsai, yuec): This appears to be wrong when EXT_RECUR_PARTITIONS
+    // is on?
     const BLOCK_SIZE bs = get_plane_block_size(mbmi->sb_type, pd->subsampling_x,
                                                pd->subsampling_y);
 #endif
@@ -3983,7 +3988,7 @@ static AOM_INLINE void refine_winner_mode_tx(
       }
 
       if (num_planes > 1) {
-        av1_txfm_uvrd(cpi, x, &rd_stats_uv, bsize, INT64_MAX);
+        av1_txfm_uvrd(cpi, x, &rd_stats_uv, INT64_MAX);
       } else {
         av1_init_rd_stats(&rd_stats_uv);
       }
@@ -4242,6 +4247,37 @@ static AOM_INLINE int prune_ref_frame(const AV1_COMP *cpi, const MACROBLOCK *x,
   return 0;
 }
 
+static AOM_INLINE int is_ref_frame_used_by_compound_ref(
+    int ref_frame, int skip_ref_frame_mask) {
+  for (int r = ALTREF_FRAME + 1; r < MODE_CTX_REF_FRAMES; ++r) {
+    if (!(skip_ref_frame_mask & (1 << r))) {
+      const MV_REFERENCE_FRAME *rf = ref_frame_map[r - REF_FRAMES];
+      if (rf[0] == ref_frame || rf[1] == ref_frame) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+#if CONFIG_EXT_RECUR_PARTITIONS
+static AOM_INLINE int is_ref_frame_used_in_cache(MV_REFERENCE_FRAME ref_frame,
+                                                 const MB_MODE_INFO *mi_cache) {
+  if (!mi_cache) {
+    return 0;
+  }
+
+  if (ref_frame < REF_FRAMES) {
+    return (ref_frame == mi_cache->ref_frame[0] ||
+            ref_frame == mi_cache->ref_frame[1]);
+  }
+
+  // if we are here, then the current mode is compound.
+  MV_REFERENCE_FRAME cached_ref_type = av1_ref_frame_type(mi_cache->ref_frame);
+  return ref_frame == cached_ref_type;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // Please add/modify parameter setting in this function, making it consistent
 // and easy to read and maintain.
 static AOM_INLINE void set_params_rd_pick_inter_mode(
@@ -4271,18 +4307,14 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
     if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) {
       if (mbmi->partition != PARTITION_NONE &&
           mbmi->partition != PARTITION_SPLIT) {
-        if (skip_ref_frame_mask & (1 << ref_frame)) {
-          int skip = 1;
-          for (int r = ALTREF_FRAME + 1; r < MODE_CTX_REF_FRAMES; ++r) {
-            if (!(skip_ref_frame_mask & (1 << r))) {
-              const MV_REFERENCE_FRAME *rf = ref_frame_map[r - REF_FRAMES];
-              if (rf[0] == ref_frame || rf[1] == ref_frame) {
-                skip = 0;
-                break;
-              }
-            }
-          }
-          if (skip) continue;
+        if (skip_ref_frame_mask & (1 << ref_frame) &&
+            !is_ref_frame_used_by_compound_ref(ref_frame, skip_ref_frame_mask)
+#if CONFIG_EXT_RECUR_PARTITIONS
+            && !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+                 is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache))
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        ) {
+          continue;
         }
       }
       assert(get_ref_frame_yv12_buf(cm, ref_frame) != NULL);
@@ -4308,7 +4340,12 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
 
       if (mbmi->partition != PARTITION_NONE &&
           mbmi->partition != PARTITION_SPLIT) {
-        if (skip_ref_frame_mask & (1 << ref_frame)) {
+        if (skip_ref_frame_mask & (1 << ref_frame)
+#if CONFIG_EXT_RECUR_PARTITIONS
+            && !(should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+                 is_ref_frame_used_in_cache(ref_frame, x->inter_mode_cache))
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        ) {
           continue;
         }
       }
@@ -4332,7 +4369,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
   if (cpi->oxcf.motion_mode_cfg.enable_obmc && !cpi->sf.inter_sf.disable_obmc &&
       !prune_obmc) {
     if (check_num_overlappable_neighbors(mbmi) &&
-        is_motion_variation_allowed_bsize(bsize)) {
+        is_motion_variation_allowed_bsize(bsize, mi_row, mi_col)) {
       int dst_width1[MAX_MB_PLANE] = { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE };
       int dst_width2[MAX_MB_PLANE] = { MAX_SB_SIZE >> 1, MAX_SB_SIZE >> 1,
                                        MAX_SB_SIZE >> 1 };
@@ -4346,8 +4383,8 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
                                          dst_width2, dst_height2,
                                          args->left_pred_stride);
       const int num_planes = av1_num_planes(cm);
-      av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row,
-                           mi_col, 0, num_planes);
+      av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, mi_row, mi_col, 0,
+                           num_planes, &mbmi->chroma_ref_info);
       calc_target_weighted_pred(
           cm, x, xd, args->above_pred_buf[0], args->above_pred_stride[0],
           args->left_pred_buf[0], args->left_pred_stride[0]);
@@ -4523,6 +4560,84 @@ static int fetch_picked_ref_frames_mask(const MACROBLOCK *const x,
   return picked_ref_frames_mask;
 }
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+static INLINE int is_mode_intra(PREDICTION_MODE mode) {
+  return mode < INTRA_MODE_END;
+}
+
+// Reuse the prediction mode in cache.
+// Returns 0 if no pruning is done, 1 if we are skipping the current mod
+// completely, 2 if we skip compound only, but still try single motion modes
+static INLINE int skip_inter_mode_with_cached_mode(
+    const MACROBLOCK *x, PREDICTION_MODE mode,
+    const MV_REFERENCE_FRAME *ref_frame) {
+  const MB_MODE_INFO *cached_mi = x->inter_mode_cache;
+
+  // If there is no cache, then no pruning is possible.
+  if (!cached_mi) {
+    return 0;
+  }
+
+  const PREDICTION_MODE cached_mode = cached_mi->mode;
+  const MV_REFERENCE_FRAME *cached_frame = cached_mi->ref_frame;
+  const int cached_mode_is_single = cached_frame[1] <= INTRA_FRAME;
+
+  // If the cached mode is intra, then we just need to match the mode.
+  if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+      is_mode_intra(cached_mode) && mode != cached_mode) {
+    return 1;
+  }
+
+  // Returns 0 here if we are not reusing inter_modes
+  if (!should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) ||
+      !cached_mi) {
+    return 0;
+  }
+
+  // If the cached mode is single inter mode, then we match the mode and
+  // reference frame.
+  if (cached_mode_is_single) {
+    if (mode != cached_mode || ref_frame[0] != cached_frame[0]) {
+      return 1;
+    }
+  } else {
+    // If the cached mode is compound, then we need to consider several cases.
+    const int mode_is_single = ref_frame[1] <= INTRA_FRAME;
+    if (mode_is_single) {
+      // If the mode is single, we know the modes can't match. But we might
+      // still want to search it if compound mode depends on the current mode.
+      int skip_motion_mode_only = 0;
+#if CONFIG_NEW_INTER_MODES
+      if (cached_mode == NEW_NEARMV) {
+#else
+      if (cached_mode == NEW_NEARMV || cached_mode == NEW_NEARESTMV) {
+#endif
+        skip_motion_mode_only = (ref_frame[0] == cached_frame[0]);
+#if CONFIG_NEW_INTER_MODES
+      } else if (cached_mode == NEAR_NEWMV) {
+#else
+      } else if (cached_mode == NEAR_NEWMV || cached_mode == NEAREST_NEWMV) {
+#endif
+        skip_motion_mode_only = (ref_frame[0] == cached_frame[1]);
+      } else if (cached_mode == NEW_NEWMV) {
+        skip_motion_mode_only = (ref_frame[0] == cached_frame[0] ||
+                                 ref_frame[0] == cached_frame[1]);
+      }
+
+      return 1 + skip_motion_mode_only;
+    } else {
+      // If both modes are compound, then everything must match.
+      if (mode != cached_mode || ref_frame[0] != cached_frame[0] ||
+          ref_frame[1] != cached_frame[1]) {
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
 // Case 1: return 0, means don't skip this mode
 // Case 2: return 1, means skip this mode completely
 // Case 3: return 2, means skip compound only, but still try single motion modes
@@ -4546,6 +4661,13 @@ static int inter_mode_search_order_independent_skip(
   if (skip_repeated_mv(cm, x, mode, ref_frame, search_state)) {
     return 1;
   }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const int cached_skip_ret =
+      skip_inter_mode_with_cached_mode(x, mode, ref_frame);
+  if (cached_skip_ret > 0) {
+    return cached_skip_ret;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   const MB_MODE_INFO *const mbmi = x->e_mbd.mi[0];
   // If no valid mode has been found so far in PARTITION_NONE when finding a
@@ -4576,6 +4698,18 @@ static int inter_mode_search_order_independent_skip(
         }
       }
     }
+#if CONFIG_EXT_RECUR_PARTITIONS
+    // If we are reusing the prediction from cache, and the current frame is
+    // required by the cache, then we cannot prune it.
+    if (should_reuse_mode(x, REUSE_INTER_MODE_IN_INTERFRAME_FLAG) &&
+        is_ref_frame_used_in_cache(ref_type, x->inter_mode_cache)) {
+      skip_ref = 0;
+      // If the cache only needs the current reference type for compound
+      // prediction, then we can skip motion mode search.
+      skip_motion_mode = (ref_type <= ALTREF_FRAME &&
+                          x->inter_mode_cache->ref_frame[1] > INTRA_FRAME);
+    }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
     if (skip_ref) return 1;
   }
 
@@ -5899,17 +6033,26 @@ void av1_rd_pick_inter_mode_sb(struct AV1_COMP *cpi,
 
   // Only try palette mode when the best mode so far is an intra mode.
 #if CONFIG_SDP
-  const int try_palette =
-      cpi->oxcf.tool_cfg.enable_palette &&
-      av1_allow_palette(features->allow_screen_content_tools,
-                        mbmi->sb_type[PLANE_TYPE_Y]) &&
-      !is_inter_mode(search_state.best_mbmode.mode);
+  int try_palette = cpi->oxcf.tool_cfg.enable_palette &&
+                    av1_allow_palette(features->allow_screen_content_tools,
+                                      mbmi->sb_type[PLANE_TYPE_Y]) &&
+                    !is_inter_mode(search_state.best_mbmode.mode) &&
+                    rd_cost->rate < INT_MAX;
 #else
-  const int try_palette =
+  int try_palette =
       cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(features->allow_screen_content_tools, mbmi->sb_type) &&
-      !is_inter_mode(search_state.best_mbmode.mode);
+      !is_inter_mode(search_state.best_mbmode.mode) && rd_cost->rate < INT_MAX;
 #endif
+#if CONFIG_EXT_RECUR_PARTITIONS
+  const MB_MODE_INFO *cached_mode = x->inter_mode_cache;
+  if (should_reuse_mode(x, REUSE_INTRA_MODE_IN_INTERFRAME_FLAG) &&
+      cached_mode &&
+      !(cached_mode->mode == DC_PRED &&
+        cached_mode->palette_mode_info.palette_size[0] > 0)) {
+    try_palette = 0;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   RD_STATS this_rd_cost;
   int this_skippable = 0;
   if (try_palette) {
@@ -6110,7 +6253,8 @@ void av1_rd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi,
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   av1_count_overlappable_neighbors(cm, xd);
-  if (is_motion_variation_allowed_bsize(bsize) && !has_second_ref(mbmi)) {
+  if (is_motion_variation_allowed_bsize(bsize, mi_row, mi_col) &&
+      !has_second_ref(mbmi)) {
     int pts[SAMPLES_ARRAY_SIZE], pts_inref[SAMPLES_ARRAY_SIZE];
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
     // Select the samples according to motion vector difference

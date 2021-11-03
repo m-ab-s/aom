@@ -280,7 +280,7 @@ void av1_dist_wtd_convolve_2d_copy_sse2(const uint8_t *src, int src_stride,
           const __m128i res_8 =
               _mm_packus_epi16(round_result_lo, round_result_hi);
 
-          _mm_store_si128((__m128i *)(&dst0[j]), res_8);
+          _mm_storeu_si128((__m128i *)(&dst0[j]), res_8);
         } else {
           _mm_store_si128((__m128i *)(&dst[j]), res_unsigned_lo);
           _mm_store_si128((__m128i *)(&dst[j + 8]), res_unsigned_hi);

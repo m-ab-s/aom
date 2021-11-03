@@ -386,11 +386,15 @@ static struct av1_extracfg default_extra_cfg = {
   0,                            // film_grain_table_filename
   0,                            // motion_vector_unit_test
   1,                            // CDF update mode
-  0,                            // disable ML based partition speed up features
-  1,                            // enable rectangular partitions
-  1,                            // enable ab shape partitions
-  1,                            // enable 1:4 and 4:1 partitions
-  0,                            // disable ml based transform speed features
+#if CONFIG_EXT_RECUR_PARTITIONS
+  1,  // disable ML based partition speed up features
+#else
+  0,  // disable ML based partition speed up features
+#endif
+  1,  // enable rectangular partitions
+  1,  // enable ab shape partitions
+  1,  // enable 1:4 and 4:1 partitions
+  0,  // disable ml based transform speed features
 #if CONFIG_SDP
   1,    // enable semi-decoupled partitioning
 #endif  // CONFIG_SDP
@@ -1364,6 +1368,10 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
 #if CONFIG_SDP
   part_cfg->enable_sdp = extra_cfg->enable_sdp;
 #endif
+#if CONFIG_EXT_RECUR_PARTITIONS
+  part_cfg->disable_ml_partition_speed_features =
+      extra_cfg->disable_ml_partition_speed_features;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   part_cfg->min_partition_size = extra_cfg->min_partition_size;
   part_cfg->max_partition_size = extra_cfg->max_partition_size;
 
@@ -3976,7 +3984,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = { {
     0,                           // use_fixed_qp_offsets
     { -1, -1, -1, -1, -1, -1 },  // fixed_qp_offsets
     {
-        0, 128, 128, 4, 1, 1, 1, 0, 0,
+        0, 128, 128, 4, 1, 1, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS
+        1,
+#else   // CONFIG_EXT_RECUR_PARTITIONS
+        0,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+        0,
 #if CONFIG_SDP
         1,
 #endif  // CONFIG_SDP

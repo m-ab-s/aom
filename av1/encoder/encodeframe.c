@@ -198,7 +198,7 @@ static BLOCK_SIZE get_rd_var_based_fixed_partition(AV1_COMP *cpi, MACROBLOCK *x,
 
 void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
                           int mi_row, int mi_col, const int num_planes,
-                          BLOCK_SIZE bsize) {
+                          const CHROMA_REF_INFO *chr_ref_info) {
   // Set current frame pointer.
   x->e_mbd.cur_buf = src;
 
@@ -206,10 +206,10 @@ void av1_setup_src_planes(MACROBLOCK *x, const YV12_BUFFER_CONFIG *src,
   // the static analysis warnings.
   for (int i = 0; i < AOMMIN(num_planes, MAX_MB_PLANE); i++) {
     const int is_uv = i > 0;
-    setup_pred_plane(
-        &x->plane[i].src, bsize, src->buffers[i], src->crop_widths[is_uv],
-        src->crop_heights[is_uv], src->strides[is_uv], mi_row, mi_col, NULL,
-        x->e_mbd.plane[i].subsampling_x, x->e_mbd.plane[i].subsampling_y);
+    setup_pred_plane(&x->plane[i].src, src->buffers[i], src->crop_widths[is_uv],
+                     src->crop_heights[is_uv], src->strides[is_uv], mi_row,
+                     mi_col, NULL, x->e_mbd.plane[i].subsampling_x,
+                     x->e_mbd.plane[i].subsampling_y, chr_ref_info);
   }
 }
 
@@ -240,7 +240,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
 
   const BLOCK_SIZE sb_size = cm->seq_params.sb_size;
   // Delta-q modulation based on variance
-  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, sb_size);
+  av1_setup_src_planes(x, cpi->source, mi_row, mi_col, num_planes, NULL);
 
   int current_qindex = cm->quant_params.base_qindex;
   if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL) {
@@ -287,7 +287,7 @@ static AOM_INLINE void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
   assert(current_qindex > 0);
 
   x->delta_qindex = current_qindex - cm->quant_params.base_qindex;
-  av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+  av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
   xd->mi[0]->current_qindex = current_qindex;
   av1_init_plane_quantizers(cpi, x, xd->mi[0]->segment_id);
 
@@ -483,6 +483,16 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   reset_hash_records(&x->txfm_search_info, cpi->sf.tx_sf.use_inter_txb_hash);
   av1_zero(x->picked_ref_frames_mask);
   av1_invalid_rd_stats(rd_cost);
+#if CONFIG_EXT_RECUR_PARTITIONS
+  av1_init_sms_data_bufs(x->sms_bufs);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_SDP
+  if (x->e_mbd.tree_type == CHROMA_PART) {
+    assert(is_bsize_square(x->sb_enc.min_partition_size));
+    x->sb_enc.min_partition_size =
+        AOMMAX(x->sb_enc.min_partition_size, BLOCK_8X8);
+  }
+#endif  // CONFIG_SDP
 }
 
 /*!\brief Encode a superblock (RD-search-based)
@@ -507,6 +517,11 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   int64_t dummy_dist;
   RD_STATS dummy_rdc;
   SIMPLE_MOTION_DATA_TREE *const sms_root = td->sms_root;
+  const int ss_x = cm->seq_params.subsampling_x;
+  const int ss_y = cm->seq_params.subsampling_y;
+  (void)tile_info;
+  (void)num_planes;
+  (void)mi;
 
 #if CONFIG_SDP
   const int total_loop_num =
@@ -514,58 +529,110 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
        cm->seq_params.enable_sdp)
           ? 2
           : 1;
+#endif  // CONFIG_SDP
+#if CONFIG_SDP || CONFIG_EXT_RECUR_PARTITIONS
   MACROBLOCKD *const xd = &x->e_mbd;
-#endif
+#endif  // CONFIG_SDP || CONFIG_EXT_RECUR_PARTITIONS
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  x->sms_bufs = td->sms_bufs;
+  x->reuse_inter_mode_cache_type = cpi->sf.inter_sf.reuse_erp_mode_flag;
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row, mi_col,
                     1);
 
   // Encode the superblock
   if (sf->part_sf.partition_search_type == FIXED_PARTITION || seg_skip) {
     // partition search by adjusting a fixed-size partition
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
     const BLOCK_SIZE bsize =
         seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
 #if CONFIG_SDP
     for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+      const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
       xd->tree_type =
           (total_loop_num == 1 ? SHARED_PART
                                : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
 #endif
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_SDP
+      av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+      av1_build_partition_tree_fixed_partitioning(
+          cm, mi_row, mi_col, bsize,
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
+#else
+      av1_reset_ptree_in_sbi(xd->sbi);
+      av1_build_partition_tree_fixed_partitioning(cm, mi_row, mi_col, bsize,
+                                                  xd->sbi->ptree_root);
+#endif  // CONFIG_SDP
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
       av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                           &dummy_rate, &dummy_dist, 1, pc_root);
+                           &dummy_rate, &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_SDP
+                           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#elif CONFIG_EXT_RECUR_PARTITIONS
+                         xd->sbi->ptree_root,
+#else   // !CONFIG_EXT_RECUR_PARTITIONS
+                         NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_SDP
+                           pc_root);
       av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
 #if CONFIG_SDP
+      x->sb_enc.min_partition_size = min_partition_size;
     }
     xd->tree_type = SHARED_PART;
 #endif
   } else if (cpi->partition_search_skippable_frame) {
     // partition search by adjusting a fixed-size partition for which the size
     // is determined by the source variance
-    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
+    av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size, NULL);
     const BLOCK_SIZE bsize =
         get_rd_var_based_fixed_partition(cpi, x, mi_row, mi_col);
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
 #if CONFIG_SDP
     for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+      const BLOCK_SIZE min_partition_size = x->sb_enc.min_partition_size;
       xd->tree_type =
           (total_loop_num == 1 ? SHARED_PART
                                : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
       init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                         mi_col, 1);
 #endif
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+      PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+          mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+#if CONFIG_EXT_RECUR_PARTITIONS
+#if CONFIG_SDP
+      av1_reset_ptree_in_sbi(xd->sbi, xd->tree_type);
+      av1_build_partition_tree_fixed_partitioning(
+          cm, mi_row, mi_col, bsize,
+          xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)]);
+#else
+      av1_reset_ptree_in_sbi(xd->sbi);
+      av1_build_partition_tree_fixed_partitioning(cm, mi_row, mi_col, bsize,
+                                                  xd->sbi->ptree_root);
+#endif  // CONFIG_SDP
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
       av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                           &dummy_rate, &dummy_dist, 1, pc_root);
+                           &dummy_rate, &dummy_dist, 1,
+#if CONFIG_EXT_RECUR_PARTITIONS && CONFIG_SDP
+                           xd->sbi->ptree_root[av1_get_sdp_idx(xd->tree_type)],
+#elif CONFIG_EXT_RECUR_PARTITIONS
+                         xd->sbi->ptree_root,
+#else   // !CONFIG_EXT_RECUR_PARTITIONS
+                         NULL,
+#endif  // CONFIG_EXT_RECUR_PARTITIONS && CONFIG_SDP
+                           pc_root);
       av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0);
 #if CONFIG_SDP
+      x->sb_enc.min_partition_size = min_partition_size;
     }
     xd->tree_type = SHARED_PART;
-#endif
+#endif  // CONFIG_SDP
   } else {
     // The most exhaustive recursive partition search
     SuperBlockEnc *sb_enc = &x->sb_enc;
@@ -592,17 +659,24 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     if (num_passes == 1) {
 #if CONFIG_SDP
       for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+        const BLOCK_SIZE min_partition_size = sb_enc->min_partition_size;
         xd->tree_type =
             (total_loop_num == 1 ? SHARED_PART
                                  : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
         init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                           mi_col, 1);
 #endif
-        PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
-        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                              &dummy_rdc, dummy_rdc, pc_root, sms_root, NULL,
-                              SB_SINGLE_PASS, NULL);
+        PC_TREE *const pc_root = av1_alloc_pc_tree_node(
+            mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+        av1_rd_pick_partition(
+            cpi, td, tile_data, tp, mi_row, mi_col, sb_size, &dummy_rdc,
+            dummy_rdc, pc_root,
+#if CONFIG_SDP && CONFIG_EXT_RECUR_PARTITIONS
+            xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL, NULL,
+#endif  // CONFIG_SDP && CONFIG_EXT_RECUR_PARTITIONS
+            sms_root, NULL, SB_SINGLE_PASS, NULL);
 #if CONFIG_SDP
+        sb_enc->min_partition_size = min_partition_size;
       }
       xd->tree_type = SHARED_PART;
 #endif
@@ -612,17 +686,24 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       av1_backup_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
 #if CONFIG_SDP
       for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+        const BLOCK_SIZE min_partition_size = sb_enc->min_partition_size;
         xd->tree_type =
             (total_loop_num == 1 ? SHARED_PART
                                  : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
         init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                           mi_col, 1);
 #endif
-        PC_TREE *const pc_root_p0 = av1_alloc_pc_tree_node(sb_size);
-        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                              &dummy_rdc, dummy_rdc, pc_root_p0, sms_root, NULL,
-                              SB_DRY_PASS, NULL);
+        PC_TREE *const pc_root_p0 = av1_alloc_pc_tree_node(
+            mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+        av1_rd_pick_partition(
+            cpi, td, tile_data, tp, mi_row, mi_col, sb_size, &dummy_rdc,
+            dummy_rdc, pc_root_p0,
+#if CONFIG_SDP && CONFIG_EXT_RECUR_PARTITIONS
+            xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL, NULL,
+#endif  // CONFIG_SDP && CONFIG_EXT_RECUR_PARTITIONS
+            sms_root, NULL, SB_DRY_PASS, NULL);
 #if CONFIG_SDP
+        sb_enc->min_partition_size = min_partition_size;
       }
       xd->tree_type = SHARED_PART;
 #endif
@@ -636,17 +717,25 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       av1_restore_sb_state(&sb_fp_stats, cpi, td, tile_data, mi_row, mi_col);
 #if CONFIG_SDP
       for (int loop_idx = 0; loop_idx < total_loop_num; loop_idx++) {
+        const BLOCK_SIZE min_partition_size = sb_enc->min_partition_size;
         xd->tree_type =
             (total_loop_num == 1 ? SHARED_PART
                                  : (loop_idx == 0 ? LUMA_PART : CHROMA_PART));
         init_encode_rd_sb(cpi, td, tile_data, sms_root, &dummy_rdc, mi_row,
                           mi_col, 1);
 #endif
-        PC_TREE *const pc_root_p1 = av1_alloc_pc_tree_node(sb_size);
-        av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                              &dummy_rdc, dummy_rdc, pc_root_p1, sms_root, NULL,
-                              SB_WET_PASS, NULL);
+
+        PC_TREE *const pc_root_p1 = av1_alloc_pc_tree_node(
+            mi_row, mi_col, sb_size, NULL, PARTITION_NONE, 0, 1, ss_x, ss_y);
+        av1_rd_pick_partition(
+            cpi, td, tile_data, tp, mi_row, mi_col, sb_size, &dummy_rdc,
+            dummy_rdc, pc_root_p1,
+#if CONFIG_SDP && CONFIG_EXT_RECUR_PARTITIONS
+            xd->tree_type == CHROMA_PART ? xd->sbi->ptree_root[0] : NULL, NULL,
+#endif  // CONFIG_SDP && CONFIG_EXT_RECUR_PARTITIONS
+            sms_root, NULL, SB_WET_PASS, NULL);
 #if CONFIG_SDP
+        sb_enc->min_partition_size = min_partition_size;
       }
       xd->tree_type = SHARED_PART;
 #endif
@@ -713,7 +802,9 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
        mi_col < tile_info->mi_col_end; mi_col += mib_size, sb_col_in_tile++) {
     (*(enc_row_mt->sync_read_ptr))(row_mt_sync, sb_row, sb_col_in_tile);
+    av1_reset_is_mi_coded_map(xd, cm->seq_params.mib_size);
 
+    av1_set_sb_info(cm, xd, mi_row, mi_col);
     if (tile_data->allow_update_cdf && row_mt_enabled &&
         (tile_info->mi_row_start != mi_row)) {
       if ((tile_info->mi_col_start == mi_col)) {
@@ -778,8 +869,7 @@ static AOM_INLINE void init_encode_frame_mb_context(AV1_COMP *cpi) {
   MACROBLOCKD *const xd = &x->e_mbd;
 
   // Copy data over into macro block data structures.
-  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes,
-                       cm->seq_params.sb_size);
+  av1_setup_src_planes(x, cpi->source, 0, 0, num_planes, NULL);
 
   av1_setup_block_planes(xd, cm->seq_params.subsampling_x,
                          cm->seq_params.subsampling_y, num_planes);

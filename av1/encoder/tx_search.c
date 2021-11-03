@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "av1/common/blockd.h"
 #include "av1/common/cfl.h"
 #include "av1/common/reconintra.h"
 #include "av1/encoder/block.h"
@@ -907,8 +908,13 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x) {
   for (int plane = 0; plane < num_planes; ++plane) {
     const struct macroblock_plane *const p = &x->plane[plane];
     const struct macroblockd_plane *const pd = &xd->plane[plane];
+#if CONFIG_EXT_RECUR_PARTITIONS || CONFIG_SDP
+    const BLOCK_SIZE bs = get_mb_plane_block_size(
+        xd, mbmi, plane, pd->subsampling_x, pd->subsampling_y);
+#else
     const BLOCK_SIZE bs = get_plane_block_size(mbmi->sb_type, pd->subsampling_x,
                                                pd->subsampling_y);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS || CONFIG_SDP
     unsigned int sse;
 
     if (x->skip_chroma_rd && plane) continue;
@@ -1337,7 +1343,12 @@ static INLINE int is_intra_hash_match(const AV1_COMP *cpi, MACROBLOCK *x,
          tx_size_wide[tx_size] == tx_size_high[tx_size]);
 #else
   assert(cpi->sf.tx_sf.use_intra_txb_hash &&
+#if CONFIG_SDP
+         frame_is_intra_only(&cpi->common) &&
+         !is_inter_block(xd->mi[0], xd->tree_type) &&
+#else
          frame_is_intra_only(&cpi->common) && !is_inter_block(xd->mi[0]) &&
+#endif
          plane == 0 && tx_size_wide[tx_size] == tx_size_high[tx_size]);
 #endif
   const uint32_t intra_hash =
@@ -2421,6 +2432,11 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       // Therefore transform domain distortion is not valid for these
       // transform sizes.
       (txsize_sqr_up_map[tx_size] != TX_64X64) &&
+#if CONFIG_IST
+      // Use pixel domain distortion for IST
+      // TODO(any): Make IST compatible with tx domain distortion
+      !cm->seq_params.enable_ist &&
+#endif
       // Use pixel domain distortion for DC only blocks
       !dc_only_blk;
   // Flag to indicate if an extra calculation of distortion in the pixel domain
@@ -3482,7 +3498,7 @@ static AOM_INLINE void block_rd_txfm(int plane, int block, int blk_row,
   if (plane == AOM_PLANE_Y && xd->cfl.store_y) {
 #endif
     assert(!is_inter || plane_bsize < BLOCK_8X8);
-    cfl_store_tx(xd, blk_row, blk_col, tx_size, plane_bsize);
+    cfl_store_tx(xd, blk_row, blk_col, tx_size);
   }
 
 #if CONFIG_RD_DEBUG
@@ -4086,7 +4102,7 @@ void av1_pick_uniform_tx_size_type_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
 }
 
 int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
-                  BLOCK_SIZE bsize, int64_t ref_best_rd) {
+                  int64_t ref_best_rd) {
   av1_init_rd_stats(rd_stats);
   if (ref_best_rd < 0) return 0;
   if (!x->e_mbd.is_chroma_ref) return 1;
@@ -4100,8 +4116,13 @@ int av1_txfm_uvrd(const AV1_COMP *const cpi, MACROBLOCK *x, RD_STATS *rd_stats,
   const int is_inter = is_inter_block(mbmi);
 #endif
   int64_t this_rd = 0, skip_txfm_rd = 0;
-  const BLOCK_SIZE plane_bsize =
-      get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
+#if CONFIG_SDP || CONFIG_EXT_RECUR_PARTITIONS
+  const BLOCK_SIZE plane_bsize = get_mb_plane_block_size(
+      xd, mbmi, AOM_PLANE_U, pd->subsampling_x, pd->subsampling_y);
+#else
+  const BLOCK_SIZE plane_bsize = get_plane_block_size(
+      mbmi->chroma_ref_info.bsize_base, pd->subsampling_x, pd->subsampling_y);
+#endif  // CONFIG_SDP || CONFIG_EXT_RECUR_PARTITIONS
 
   if (is_inter) {
     for (int plane = 1; plane < MAX_MB_PLANE; ++plane)
@@ -4273,7 +4294,7 @@ int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                             AOMMIN(non_skip_txfm_rdcosty, skip_txfm_rdcosty));
     }
     const int is_cost_valid_uv =
-        av1_txfm_uvrd(cpi, x, rd_stats_uv, bsize, ref_best_chroma_rd);
+        av1_txfm_uvrd(cpi, x, rd_stats_uv, ref_best_chroma_rd);
     if (!is_cost_valid_uv) return 0;
     av1_merge_rd_stats(rd_stats, rd_stats_uv);
   }

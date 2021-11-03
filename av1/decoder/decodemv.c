@@ -38,10 +38,11 @@ static PREDICTION_MODE read_intra_mode(aom_reader *r, aom_cdf_prob *cdf) {
 
 static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
 #if CONFIG_SDP
-  const int skip_txfm = xd->mi[0]->skip_txfm[xd->tree_type == CHROMA_PART];
+  assert(xd->tree_type != CHROMA_PART);
+  const int skip_txfm = xd->mi[0]->skip_txfm[0];
 #else
   const int skip_txfm = xd->mi[0]->skip_txfm;
-#endif
+#endif  // CONFIG_SDP
   if (cm->features.coded_lossless) return;
   if (cm->features.allow_intrabc) {
     assert(cm->cdef_info.cdef_bits == 0);
@@ -68,6 +69,27 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
   const int index = (cm->seq_params.sb_size == BLOCK_128X128)
                         ? cdef_unit_col_in_sb + 2 * cdef_unit_row_in_sb
                         : 0;
+#if CONFIG_EXT_RECUR_PARTITIONS
+  int second_index = index;
+  const int current_grid_idx =
+      get_mi_grid_idx(&cm->mi_params, xd->mi_row, xd->mi_col);
+  const MB_MODE_INFO *const current_mbmi =
+      cm->mi_params.mi_grid_base[current_grid_idx];
+#if CONFIG_SDP
+  const BLOCK_SIZE current_bsize = current_mbmi->sb_type[0];
+#else
+  const BLOCK_SIZE current_bsize = current_mbmi->sb_type;
+#endif  // CONFIG_SDP
+  const int mi_row_end = xd->mi_row + mi_size_high[current_bsize] - 1;
+  const int mi_col_end = xd->mi_col + mi_size_wide[current_bsize] - 1;
+  if (cm->seq_params.sb_size == BLOCK_128X128 &&
+      block_size_wide[current_bsize] != 128 &&
+      block_size_high[current_bsize] != 128) {
+    const int second_cdef_unit_row_in_sb = ((mi_row_end & index_mask) != 0);
+    const int second_cdef_unit_col_in_sb = ((mi_col_end & index_mask) != 0);
+    second_index = second_cdef_unit_col_in_sb + 2 * second_cdef_unit_row_in_sb;
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 
   // Read CDEF strength from the first non-skip coding block in this CDEF unit.
   if (!xd->cdef_transmitted[index] && !skip_txfm) {
@@ -83,6 +105,42 @@ static void read_cdef(AV1_COMMON *cm, aom_reader *r, MACROBLOCKD *const xd) {
         aom_read_literal(r, cm->cdef_info.cdef_bits, ACCT_STR);
     xd->cdef_transmitted[index] = true;
   }
+#if CONFIG_EXT_RECUR_PARTITIONS
+  if (!xd->cdef_transmitted[second_index] && !skip_txfm) {
+    // CDEF strength for this CDEF unit needs to be read into the MB_MODE_INFO
+    // of the 1st block in this CDEF unit.
+    const int first_block_mask = ~(cdef_size - 1);
+    CommonModeInfoParams *const mi_params = &cm->mi_params;
+    const int grid_idx =
+        get_mi_grid_idx(mi_params, mi_row_end & first_block_mask,
+                        mi_col_end & first_block_mask);
+#if CONFIG_SDP
+    assert(IMPLIES(!mi_params->mi_grid_base[grid_idx],
+                   xd->tree_type == LUMA_PART));
+    if (!mi_params->mi_grid_base[grid_idx]) {
+      const int mi_alloc_idx =
+          get_alloc_mi_idx(mi_params, mi_row_end & first_block_mask,
+                           mi_col_end & first_block_mask);
+      mi_params->mi_grid_base[grid_idx] = &mi_params->mi_alloc[mi_alloc_idx];
+    }
+#endif
+    MB_MODE_INFO *const mbmi = mi_params->mi_grid_base[grid_idx];
+    mbmi->cdef_strength =
+        aom_read_literal(r, cm->cdef_info.cdef_bits, ACCT_STR);
+    xd->cdef_transmitted[second_index] = true;
+#if CONFIG_SDP
+    for (int x = 0; x < mi_size_wide[current_bsize]; x++) {
+      for (int y = 0; y < mi_size_high[current_bsize]; y++) {
+        const int mi_x = xd->mi_col + x;
+        const int mi_y = xd->mi_row + y;
+        const int idx = get_alloc_mi_idx(mi_params, mi_y, mi_x);
+        if (mi_y < mi_params->mi_rows && mi_x < mi_params->mi_cols)
+          mi_params->mi_alloc[idx].cdef_strength = mbmi->cdef_strength;
+      }
+    }
+#endif  // CONFIG_SDP
+  }
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
 }
 
 #if CONFIG_CCSO
@@ -1919,12 +1977,14 @@ static void read_inter_block_mode_info(AV1Decoder *const pbi,
 
   mbmi->motion_mode = SIMPLE_TRANSLATION;
 #if CONFIG_SDP
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y]) &&
+  if (is_motion_variation_allowed_bsize(mbmi->sb_type[PLANE_TYPE_Y], xd->mi_row,
+                                        xd->mi_col) &&
       !mbmi->skip_mode && !has_second_ref(mbmi)) {
 #else
-  if (is_motion_variation_allowed_bsize(mbmi->sb_type) && !mbmi->skip_mode &&
-      !has_second_ref(mbmi)) {
-#endif
+  if (is_motion_variation_allowed_bsize(mbmi->sb_type, xd->mi_row,
+                                        xd->mi_col) &&
+      !mbmi->skip_mode && !has_second_ref(mbmi)) {
+#endif  // CONFIG_SDP
     mbmi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
   }
   av1_count_overlappable_neighbors(cm, xd);

@@ -210,7 +210,7 @@ SECTION .text
 .x_zero_y_zero_loop:
 %if %1 == 16
   movu                 m0, [srcq]
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
 %if %2 == 1 ; avg
   pavgb                m0, [secq]
   punpckhbw            m3, m1, m5
@@ -286,7 +286,7 @@ SECTION .text
 %if %1 == 16
   movu                 m0, [srcq]
   movu                 m4, [srcq+src_strideq]
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
   pavgb                m0, m4
   punpckhbw            m3, m1, m5
 %if %2 == 1 ; avg
@@ -389,7 +389,7 @@ SECTION .text
 %if %1 == 16
   movu                 m0, [srcq]
   movu                 m4, [srcq+src_strideq]
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
 %if cpuflag(ssse3)
   punpckhbw            m2, m0, m4
   punpcklbw            m0, m4
@@ -507,7 +507,7 @@ SECTION .text
 %if %1 == 16
   movu                 m0, [srcq]
   movu                 m4, [srcq+1]
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
   pavgb                m0, m4
   punpckhbw            m3, m1, m5
 %if %2 == 1 ; avg
@@ -586,7 +586,7 @@ SECTION .text
 .x_half_y_half_loop:
   movu                 m4, [srcq]
   movu                 m3, [srcq+1]
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
   pavgb                m4, m3
   punpckhbw            m3, m1, m5
   pavgb                m0, m4
@@ -716,7 +716,7 @@ SECTION .text
 .x_half_y_other_loop:
   movu                 m4, [srcq]
   movu                 m2, [srcq+1]
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
   pavgb                m4, m2
 %if cpuflag(ssse3)
   punpckhbw            m2, m0, m4
@@ -870,7 +870,7 @@ SECTION .text
 %if %1 == 16
   movu                 m0, [srcq]
   movu                 m4, [srcq+1]
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
 %if cpuflag(ssse3)
   punpckhbw            m2, m0, m4
   punpcklbw            m0, m4
@@ -1040,7 +1040,7 @@ SECTION .text
   movu                 m4, [srcq]
   movu                 m3, [srcq+1]
 %if cpuflag(ssse3)
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
   punpckhbw            m2, m4, m3
   punpcklbw            m4, m3
   pmaddubsw            m2, filter_x_a
@@ -1066,7 +1066,7 @@ SECTION .text
   paddw                m2, filter_rnd
   paddw                m4, m3
   paddw                m2, m1
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
   psraw                m4, 4
   psraw                m2, 4
   punpckhbw            m3, m1, m5
@@ -1257,7 +1257,7 @@ SECTION .text
 %if cpuflag(ssse3)
   movu                 m4, [srcq]
   movu                 m3, [srcq+1]
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
   punpckhbw            m2, m4, m3
   punpcklbw            m4, m3
   pmaddubsw            m2, filter_x_a
@@ -1303,7 +1303,7 @@ SECTION .text
   pmullw               m0, filter_y_a
   pmullw               m3, filter_y_b
   paddw                m2, m1
-  mova                 m1, [dstq]
+  movu                 m1, [dstq]
   paddw                m0, filter_rnd
   psraw                m2, 4
   paddw                m0, m3

@@ -210,7 +210,7 @@ SECTION .text
 %macro PROCESS_16x2x4 9
   ; 1st 16 px
   HANDLE_FIRST_OFFSET   %7, %2
-  mova                  m0, [srcq + first_offset]
+  movu                  m0, [srcq + first_offset]
   HANDLE_SECOND_OFFSET  %7, %8, %4
 %if %1 == 1
   movu                  m4, [ref1q+%3]
@@ -256,7 +256,7 @@ SECTION .text
 %endif ; %1 == 1
 
   ; 2nd 16 px
-  mova                  m0, [srcq + second_offset]
+  movu                  m0, [srcq + second_offset]
   movu                  m1, [ref1q+%5]
   movu                  m2, [ref2q+%5]
 

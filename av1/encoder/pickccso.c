@@ -448,8 +448,8 @@ void ccso_search(AV1_COMMON *cm, MACROBLOCKD *xd, int rdmult,
   int64_t rdmult_temp = (int64_t)rdmult * (int64_t)rdmult_weight;
   if (rdmult_temp < INT_MAX) rdmult = (int)rdmult_temp;
   const int num_planes = av1_num_planes(cm);
-  av1_setup_dst_planes(xd->plane, cm->seq_params.sb_size, &cm->cur_frame->buf,
-                       0, 0, 0, num_planes);
+  av1_setup_dst_planes(xd->plane, &cm->cur_frame->buf, 0, 0, 0, num_planes,
+                       NULL);
   ccso_stride = xd->plane[0].dst.width;
   ccso_stride_ext = xd->plane[0].dst.width + (CCSO_PADDING_SIZE << 1);
   derive_ccso_filter(cm, AOM_PLANE_U, xd, org_uv[AOM_PLANE_U - 1], ext_rec_y,

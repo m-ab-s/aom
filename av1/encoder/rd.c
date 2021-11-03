@@ -114,6 +114,12 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                              fc->partition_cdf[i], NULL);
 #endif
 
+#if CONFIG_EXT_RECUR_PARTITIONS
+  for (i = 0; i < PARTITION_CONTEXTS_REC; ++i)
+    av1_cost_tokens_from_cdf(mode_costs->partition_rec_cost[i],
+                             fc->partition_rec_cdf[i], NULL);
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
+
   if (cm->current_frame.skip_mode_info.skip_mode_flag) {
     for (i = 0; i < SKIP_MODE_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->skip_mode_cost[i],
@@ -1269,19 +1275,11 @@ void av1_setup_pred_block(const MACROBLOCKD *xd,
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   for (int i = 0; i < num_planes; ++i) {
-#if CONFIG_SDP
-    setup_pred_plane(dst + i, xd->mi[0]->sb_type[i > 0 ? 1 : 0], dst[i].buf,
-                     i ? src->uv_crop_width : src->y_crop_width,
-                     i ? src->uv_crop_height : src->y_crop_height,
-                     dst[i].stride, mi_row, mi_col, i ? scale_uv : scale,
-                     xd->plane[i].subsampling_x, xd->plane[i].subsampling_y);
-#else
-    setup_pred_plane(dst + i, xd->mi[0]->sb_type, dst[i].buf,
-                     i ? src->uv_crop_width : src->y_crop_width,
-                     i ? src->uv_crop_height : src->y_crop_height,
-                     dst[i].stride, mi_row, mi_col, i ? scale_uv : scale,
-                     xd->plane[i].subsampling_x, xd->plane[i].subsampling_y);
-#endif
+    setup_pred_plane(
+        dst + i, dst[i].buf, i ? src->uv_crop_width : src->y_crop_width,
+        i ? src->uv_crop_height : src->y_crop_height, dst[i].stride, mi_row,
+        mi_col, i ? scale_uv : scale, xd->plane[i].subsampling_x,
+        xd->plane[i].subsampling_y, &xd->mi[0]->chroma_ref_info);
   }
 }
 

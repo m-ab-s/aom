@@ -161,7 +161,11 @@ typedef struct frame_contexts {
                             [CDF_SIZE(EXT_PARTITION_TYPES)];
 #else
   aom_cdf_prob partition_cdf[PARTITION_CONTEXTS][CDF_SIZE(EXT_PARTITION_TYPES)];
-#endif
+#endif  // CONFIG_SDP
+#if CONFIG_EXT_RECUR_PARTITIONS
+  aom_cdf_prob partition_rec_cdf[PARTITION_CONTEXTS_REC]
+                                [CDF_SIZE(PARTITION_TYPES_REC)];
+#endif  // CONFIG_EXT_RECUR_PARTITIONS
   aom_cdf_prob switchable_interp_cdf[SWITCHABLE_FILTER_CONTEXTS]
                                     [CDF_SIZE(SWITCHABLE_FILTERS)];
   /* kf_y_cdf is discarded after use, so does not require persistent storage.
