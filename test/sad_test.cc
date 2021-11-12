@@ -481,42 +481,6 @@ class SADSkipx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
   }
 };
 
-#if !CONFIG_REALTIME_ONLY
-class SADx4AvgTest : public ::testing::WithParamInterface<SadMxNx4AvgParam>,
-                     public SADTestBase {
- public:
-  SADx4AvgTest() : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
-
- protected:
-  void SADs(unsigned int *results) {
-    const uint8_t *references[] = { GetReference(0), GetReference(1),
-                                    GetReference(2), GetReference(3) };
-
-    API_REGISTER_STATE_CHECK(GET_PARAM(2)(source_data_, source_stride_,
-                                          references, reference_stride_,
-                                          second_pred_, results));
-  }
-
-  void CheckSADs() {
-    unsigned int reference_sad, exp_sad[4];
-
-    SADs(exp_sad);
-    for (int block = 0; block < 4; ++block) {
-      reference_sad = ReferenceSADavg(block);
-
-      EXPECT_EQ(reference_sad, exp_sad[block]) << "block " << block;
-    }
-  }
-
-  void SADForSpeedTest(unsigned int *results,
-                       const uint8_t *const *references) {
-    GET_PARAM(2)
-    (source_data_, source_stride_, references, reference_stride_, second_pred_,
-     results);
-  }
-};
-#endif  // !CONFIG_REALTIME_ONLY
-
 class SADTest : public ::testing::WithParamInterface<SadMxNParam>,
                 public SADTestBase {
  public:
@@ -1172,69 +1136,6 @@ TEST_P(SADSkipx4Test, DISABLED_Speed) {
 }
 
 using std::make_tuple;
-
-#if !CONFIG_REALTIME_ONLY
-TEST_P(SADx4AvgTest, DISABLED_Speed) {
-  int tmp_stride = reference_stride_;
-  reference_stride_ >>= 1;
-  FillRandom(source_data_, source_stride_);
-  FillRandom(GetReference(0), reference_stride_);
-  FillRandom(GetReference(1), reference_stride_);
-  FillRandom(GetReference(2), reference_stride_);
-  FillRandom(GetReference(3), reference_stride_);
-  FillRandom(second_pred_, width_);
-  SpeedSAD();
-  reference_stride_ = tmp_stride;
-}
-
-TEST_P(SADx4AvgTest, MaxRef) {
-  FillConstant(source_data_, source_stride_, 0);
-  FillConstant(GetReference(0), reference_stride_, mask_);
-  FillConstant(GetReference(1), reference_stride_, mask_);
-  FillConstant(GetReference(2), reference_stride_, mask_);
-  FillConstant(GetReference(3), reference_stride_, mask_);
-  FillConstant(second_pred_, width_, 0);
-  CheckSADs();
-}
-
-TEST_P(SADx4AvgTest, MaxSrc) {
-  FillConstant(source_data_, source_stride_, mask_);
-  FillConstant(GetReference(0), reference_stride_, 0);
-  FillConstant(GetReference(1), reference_stride_, 0);
-  FillConstant(GetReference(2), reference_stride_, 0);
-  FillConstant(GetReference(3), reference_stride_, 0);
-  FillConstant(second_pred_, width_, 0);
-  CheckSADs();
-}
-
-TEST_P(SADx4AvgTest, ShortRef) {
-  int tmp_stride = reference_stride_;
-  reference_stride_ >>= 1;
-  FillRandom(source_data_, source_stride_);
-  FillRandom(GetReference(0), reference_stride_);
-  FillRandom(GetReference(1), reference_stride_);
-  FillRandom(GetReference(2), reference_stride_);
-  FillRandom(GetReference(3), reference_stride_);
-  FillRandom(second_pred_, width_);
-  CheckSADs();
-  reference_stride_ = tmp_stride;
-}
-
-TEST_P(SADx4AvgTest, UnalignedRef) {
-  // The reference frame, but not the source frame, may be unaligned for
-  // certain types of searches.
-  int tmp_stride = reference_stride_;
-  reference_stride_ -= 1;
-  FillRandom(source_data_, source_stride_);
-  FillRandom(GetReference(0), reference_stride_);
-  FillRandom(GetReference(1), reference_stride_);
-  FillRandom(GetReference(2), reference_stride_);
-  FillRandom(GetReference(3), reference_stride_);
-  FillRandom(second_pred_, width_);
-  CheckSADs();
-  reference_stride_ = tmp_stride;
-}
-#endif  // !CONFIG_REALTIME_ONLY
 
 //------------------------------------------------------------------------------
 // C functions
@@ -1913,34 +1814,6 @@ const SadMxNx4Param skip_x4d_c_tests[] = {
 INSTANTIATE_TEST_SUITE_P(C, SADSkipx4Test,
                          ::testing::ValuesIn(skip_x4d_c_tests));
 
-#if !CONFIG_REALTIME_ONLY
-const SadMxNx4AvgParam x4d_avg_c_tests[] = {
-  make_tuple(128, 128, &aom_sad128x128x4d_avg_c, -1),
-  make_tuple(128, 64, &aom_sad128x64x4d_avg_c, -1),
-  make_tuple(64, 128, &aom_sad64x128x4d_avg_c, -1),
-  make_tuple(64, 64, &aom_sad64x64x4d_avg_c, -1),
-  make_tuple(64, 32, &aom_sad64x32x4d_avg_c, -1),
-  make_tuple(32, 64, &aom_sad32x64x4d_avg_c, -1),
-  make_tuple(32, 32, &aom_sad32x32x4d_avg_c, -1),
-  make_tuple(32, 16, &aom_sad32x16x4d_avg_c, -1),
-  make_tuple(16, 32, &aom_sad16x32x4d_avg_c, -1),
-  make_tuple(16, 16, &aom_sad16x16x4d_avg_c, -1),
-  make_tuple(16, 8, &aom_sad16x8x4d_avg_c, -1),
-  make_tuple(8, 16, &aom_sad8x16x4d_avg_c, -1),
-  make_tuple(8, 8, &aom_sad8x8x4d_avg_c, -1),
-  make_tuple(8, 4, &aom_sad8x4x4d_avg_c, -1),
-  make_tuple(4, 8, &aom_sad4x8x4d_avg_c, -1),
-  make_tuple(4, 4, &aom_sad4x4x4d_avg_c, -1),
-  make_tuple(64, 16, &aom_sad64x16x4d_avg_c, -1),
-  make_tuple(16, 64, &aom_sad16x64x4d_avg_c, -1),
-  make_tuple(32, 8, &aom_sad32x8x4d_avg_c, -1),
-  make_tuple(8, 32, &aom_sad8x32x4d_avg_c, -1),
-  make_tuple(16, 4, &aom_sad16x4x4d_avg_c, -1),
-  make_tuple(4, 16, &aom_sad4x16x4d_avg_c, -1),
-};
-INSTANTIATE_TEST_SUITE_P(C, SADx4AvgTest, ::testing::ValuesIn(x4d_avg_c_tests));
-#endif  // !CONFIG_REALTIME_ONLY
-
 //------------------------------------------------------------------------------
 // ARM functions
 #if HAVE_NEON
@@ -2528,35 +2401,6 @@ const SadSkipMxNx4Param skip_x4d_sse2_tests[] = {
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, SADSkipx4Test,
                          ::testing::ValuesIn(skip_x4d_sse2_tests));
-
-#if !CONFIG_REALTIME_ONLY
-const SadMxNx4AvgParam x4d_avg_sse2_tests[] = {
-  make_tuple(128, 128, &aom_sad128x128x4d_avg_sse2, -1),
-  make_tuple(128, 64, &aom_sad128x64x4d_avg_sse2, -1),
-  make_tuple(64, 128, &aom_sad64x128x4d_avg_sse2, -1),
-  make_tuple(64, 64, &aom_sad64x64x4d_avg_sse2, -1),
-  make_tuple(64, 32, &aom_sad64x32x4d_avg_sse2, -1),
-  make_tuple(32, 64, &aom_sad32x64x4d_avg_sse2, -1),
-  make_tuple(32, 32, &aom_sad32x32x4d_avg_sse2, -1),
-  make_tuple(32, 16, &aom_sad32x16x4d_avg_sse2, -1),
-  make_tuple(16, 32, &aom_sad16x32x4d_avg_sse2, -1),
-  make_tuple(16, 16, &aom_sad16x16x4d_avg_sse2, -1),
-  make_tuple(16, 8, &aom_sad16x8x4d_avg_sse2, -1),
-  make_tuple(8, 16, &aom_sad8x16x4d_avg_sse2, -1),
-  make_tuple(8, 8, &aom_sad8x8x4d_avg_sse2, -1),
-  make_tuple(8, 4, &aom_sad8x4x4d_avg_sse2, -1),
-  make_tuple(4, 8, &aom_sad4x8x4d_avg_sse2, -1),
-  make_tuple(4, 4, &aom_sad4x4x4d_avg_sse2, -1),
-  make_tuple(64, 16, &aom_sad64x16x4d_avg_sse2, -1),
-  make_tuple(16, 64, &aom_sad16x64x4d_avg_sse2, -1),
-  make_tuple(32, 8, &aom_sad32x8x4d_avg_sse2, -1),
-  make_tuple(8, 32, &aom_sad8x32x4d_avg_sse2, -1),
-  make_tuple(16, 4, &aom_sad16x4x4d_avg_sse2, -1),
-  make_tuple(4, 16, &aom_sad4x16x4d_avg_sse2, -1),
-};
-INSTANTIATE_TEST_SUITE_P(SSE2, SADx4AvgTest,
-                         ::testing::ValuesIn(x4d_avg_sse2_tests));
-#endif  // !CONFIG_REALTIME_ONLY
 
 const DistWtdSadMxNAvgParam dist_wtd_avg_sse2_tests[] = {
   make_tuple(128, 128, &aom_dist_wtd_sad128x128_avg_sse2, -1),

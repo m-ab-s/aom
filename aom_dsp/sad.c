@@ -94,15 +94,6 @@ static INLINE unsigned int sad(const uint8_t *a, int a_stride, const uint8_t *b,
           aom_sad##m##x##n##_c(src, src_stride, ref_array[i], ref_stride);    \
     }                                                                         \
   }                                                                           \
-  void aom_sad##m##x##n##x4d_avg_c(                                           \
-      const uint8_t *src, int src_stride, const uint8_t *const ref_array[4],  \
-      int ref_stride, const uint8_t *second_pred, uint32_t sad_array[4]) {    \
-    int i;                                                                    \
-    for (i = 0; i < 4; ++i) {                                                 \
-      sad_array[i] = aom_sad##m##x##n##_avg_c(src, src_stride, ref_array[i],  \
-                                              ref_stride, second_pred);       \
-    }                                                                         \
-  }                                                                           \
   void aom_sad_skip_##m##x##n##x4d_c(const uint8_t *src, int src_stride,      \
                                      const uint8_t *const ref_array[4],       \
                                      int ref_stride, uint32_t sad_array[4]) { \

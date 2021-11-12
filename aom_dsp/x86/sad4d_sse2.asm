@@ -235,6 +235,7 @@ SECTION .text
 ;   2: Height
 ;   3: If 0, then normal sad, else avg
 ;   4: If 0, then normal sad, else skip rows
+;   TODO(jzern): remove the remnants of avg and merge %3 & %4
 %macro SADNXN4D 2-4 0,0
 
 %define spill_src_stride 0
@@ -276,7 +277,8 @@ cglobal sad_skip_%1x%2x4d, 4, 7, 8, src, src_stride, ref1, ref_stride, ref2, \
                                     ref3, ref4
 %endif
 %endif
-%elif %3 == 0  ; normal sad
+%else ; normal sad
+ASSERT %3 == 0
 %if ARCH_X86_64
 %if use_ref_offset
 cglobal sad%1x%2x4d, 5, 10, 8, src, src_stride, ref1, ref_stride, res, ref2, \
@@ -299,34 +301,6 @@ cglobal sad%1x%2x4d, 4, 7, 8, src, cnt, ref1, ref_stride, ref2, ref3, ref4
 %else
 cglobal sad%1x%2x4d, 4, 7, 8, src, src_stride, ref1, ref_stride, ref2, ref3, \
                               ref4
-%endif
-%endif
-%else ; avg
-%if ARCH_X86_64
-%if use_ref_offset
-cglobal sad%1x%2x4d_avg, 6, 11, 8, src, src_stride, ref1, ref_stride, \
-                                   second_pred, res, ref2, ref3, ref4, cnt, \
-                                   ref_offset
-%elif use_loop
-cglobal sad%1x%2x4d_avg, 6, 10, 8, src, src_stride, ref1, ref_stride, \
-                                   second_pred, res, ref2, ref3, ref4, cnt
-%else
-cglobal sad%1x%2x4d_avg, 6, 9, 8, src, src_stride, ref1, ref_stride, \
-                                   second_pred, res, ref2, ref3, ref4
-%endif
-%else
-%if use_ref_offset
-cglobal sad%1x%2x4d_avg, 5, 7, 8, src, ref4, ref1, ref_offset, second_pred, ref2, ref3
-  %define spill_src_stride 1
-  %define spill_ref_stride 1
-  %define spill_cnt 1
-%elif use_loop
-cglobal sad%1x%2x4d_avg, 5, 7, 8, src, ref4, ref1, ref_stride, second_pred, ref2, ref3
-  %define spill_src_stride 1
-  %define spill_cnt 1
-%else
-cglobal sad%1x%2x4d_avg, 5, 7, 8, src, ref4, ref1, ref_stride, second_pred, ref2, ref3
-  %define spill_src_stride 1
 %endif
 %endif
 %endif
@@ -421,9 +395,6 @@ cglobal sad%1x%2x4d_avg, 5, 7, 8, src, ref4, ref1, ref_stride, second_pred, ref2
 %if %3 == 0
   %define resultq r4
   %define resultmp r4mp
-%else
-  %define resultq r5
-  %define resultmp r5mp
 %endif
 
 ; Undo modifications on parameters on the stack
@@ -491,30 +462,6 @@ SADNXN4D   8,  32
 SADNXN4D  32,   8
 SADNXN4D  16,  64
 SADNXN4D  64,  16
-%endif
-%if CONFIG_REALTIME_ONLY==0
-SADNXN4D 128, 128, 1
-SADNXN4D 128,  64, 1
-SADNXN4D  64, 128, 1
-SADNXN4D  64,  64, 1
-SADNXN4D  64,  32, 1
-SADNXN4D  32,  64, 1
-SADNXN4D  32,  32, 1
-SADNXN4D  32,  16, 1
-SADNXN4D  16,  32, 1
-SADNXN4D  16,  16, 1
-SADNXN4D  16,   8, 1
-SADNXN4D   8,  16, 1
-SADNXN4D   8,   8, 1
-SADNXN4D   8,   4, 1
-SADNXN4D   4,   8, 1
-SADNXN4D   4,   4, 1
-SADNXN4D   4,  16, 1
-SADNXN4D  16,   4, 1
-SADNXN4D   8,  32, 1
-SADNXN4D  32,   8, 1
-SADNXN4D  16,  64, 1
-SADNXN4D  64,  16, 1
 %endif
 SADNXN4D 128, 128, 0, 1
 SADNXN4D 128,  64, 0, 1
