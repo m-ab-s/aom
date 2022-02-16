@@ -571,7 +571,7 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
                gf_group->max_layer_depth) {
       int this_height = gf_group->layer_depth[cpi->gf_frame_index];
       int arf_q = cpi->ppi->p_rc.arf_q;
-      while (this_height > 1) {
+      while (this_height > gf_group->min_layer_depth) {
         arf_q = (arf_q + cpi->oxcf.rc_cfg.cq_level + 1) / 2;
         --this_height;
       }

@@ -352,6 +352,7 @@ typedef struct GF_GROUP {
   int layer_depth[MAX_STATIC_GF_GROUP_LENGTH];
   int arf_boost[MAX_STATIC_GF_GROUP_LENGTH];
   int max_layer_depth;
+  int min_layer_depth;
   int max_layer_depth_allowed;
   // This is currently only populated for AOM_Q mode
   int q_val[MAX_STATIC_GF_GROUP_LENGTH];
