@@ -593,7 +593,6 @@ static int construct_multi_layer_gf_structure(
     gf_group->frame_type[frame_index] = KEY_FRAME;
     gf_group->refbuf_state[frame_index] = REFBUF_RESET;
     gf_group->max_layer_depth = 0;
-    gf_group->min_layer_depth = 0;
 #if CONFIG_FRAME_PARALLEL_ENCODE
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
     gf_group->display_idx[frame_index] = cur_disp_index;
@@ -610,7 +609,6 @@ static int construct_multi_layer_gf_structure(
       gf_group->frame_type[frame_index] = INTER_FRAME;
       gf_group->refbuf_state[frame_index] = REFBUF_UPDATE;
       gf_group->max_layer_depth = 0;
-      gf_group->min_layer_depth = 0;
 #if CONFIG_FRAME_PARALLEL_ENCODE
 #if CONFIG_FRAME_PARALLEL_ENCODE_2
       gf_group->display_idx[frame_index] = cur_disp_index;
