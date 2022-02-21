@@ -24,8 +24,6 @@
 
 namespace {
 
-const int kVideoNameParam = 1;
-
 struct ExternalFrameBuffer {
   uint8_t *data;
   size_t size;
@@ -398,6 +396,8 @@ class ExternalFrameBufferNonRefTest : public ExternalFrameBufferTest {
 #endif  // CONFIG_WEBM_IO
 
 #if !CONFIG_REALTIME_ONLY
+const int kVideoNameParam = 1;
+
 // This test runs through the set of test vectors, and decodes them.
 // Libaom will call into the application to allocate a frame buffer when
 // needed. The md5 checksums are computed for each frame in the video file.
