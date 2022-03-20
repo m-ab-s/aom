@@ -49,8 +49,7 @@
  4. For x86 targets, [yasm](http://yasm.tortall.net/), which is preferred, or a
     recent version of [nasm](http://www.nasm.us/).
  5. Building the documentation requires [doxygen](http://doxygen.org).
- 6. Building the unit tests requires [Python](https://www.python.org/).
- 7. Emscripten builds require the portable
+ 6. Emscripten builds require the portable
    [EMSDK](https://kripken.github.io/emscripten-site/index.html).
 
 ### Get the code
