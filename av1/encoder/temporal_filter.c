@@ -172,7 +172,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
     error = cpi->mv_search_params.find_fractional_mv_step(
         &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv, &best_mv.as_mv,
         &distortion, &sse, NULL);
-    block_mse = DIVIDE_AND_ROUND(error, mb_pels);
+    block_mse = DIVIDE_AND_ROUND(sse, mb_pels);
     block_mv = best_mv.as_mv;
     *ref_mv = best_mv.as_mv;
     // On 4 sub-blocks.
@@ -213,7 +213,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
         error = cpi->mv_search_params.find_fractional_mv_step(
             &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv,
             &best_mv.as_mv, &distortion, &sse, NULL);
-        subblock_mses[subblock_idx] = DIVIDE_AND_ROUND(error, subblock_pels);
+        subblock_mses[subblock_idx] = DIVIDE_AND_ROUND(sse, subblock_pels);
         subblock_mvs[subblock_idx] = best_mv.as_mv;
         ++subblock_idx;
       }
