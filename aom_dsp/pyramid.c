@@ -253,8 +253,8 @@ static INLINE void fill_border(uint8_t *img_buf, const int width,
 static INLINE void fill_pyramid(const YV12_BUFFER_CONFIG *frm, int bit_depth,
                                 ImagePyramid *frm_pyr) {
   int n_levels = frm_pyr->n_levels;
-  const int frm_width = frm->y_width;
-  const int frm_height = frm->y_height;
+  const int frm_width = frm->y_crop_width;
+  const int frm_height = frm->y_crop_height;
   const int frm_stride = frm->y_stride;
   assert((frm_width >> n_levels) >= 0);
   assert((frm_height >> n_levels) >= 0);

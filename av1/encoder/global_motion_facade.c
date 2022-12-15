@@ -90,8 +90,8 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   int i;
-  int src_width = cpi->source->y_width;
-  int src_height = cpi->source->y_height;
+  int src_width = cpi->source->y_crop_width;
+  int src_height = cpi->source->y_crop_height;
   int src_stride = cpi->source->y_stride;
   // clang-format off
   static const double kIdentityParams[MAX_PARAMDIM - 1] = {
@@ -160,8 +160,8 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
         const int64_t warp_error = av1_refine_integerized_param(
             &tmp_wm_params, tmp_wm_params.wmtype, is_cur_buf_hbd(xd), xd->bd,
-            ref_buf[frame]->y_buffer, ref_buf[frame]->y_width,
-            ref_buf[frame]->y_height, ref_buf[frame]->y_stride,
+            ref_buf[frame]->y_buffer, ref_buf[frame]->y_crop_width,
+            ref_buf[frame]->y_crop_height, ref_buf[frame]->y_stride,
             cpi->source->y_buffer, src_width, src_height, src_stride,
             GM_REFINEMENT_COUNT, best_warp_error, segment_map, segment_map_w,
             erroradv_threshold);
@@ -411,9 +411,9 @@ static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
   YV12_BUFFER_CONFIG *source = cpi->source;
 
   gm_info->segment_map_w =
-      (source->y_width + WARP_ERROR_BLOCK) >> WARP_ERROR_BLOCK_LOG;
+      (source->y_crop_width + WARP_ERROR_BLOCK - 1) >> WARP_ERROR_BLOCK_LOG;
   gm_info->segment_map_h =
-      (source->y_height + WARP_ERROR_BLOCK) >> WARP_ERROR_BLOCK_LOG;
+      (source->y_crop_height + WARP_ERROR_BLOCK - 1) >> WARP_ERROR_BLOCK_LOG;
 
   memset(gm_info->reference_frames, -1,
          sizeof(gm_info->reference_frames[0][0]) * MAX_DIRECTIONS *
