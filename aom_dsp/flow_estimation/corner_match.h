@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <memory.h>
 
+#include "aom_dsp/flow_estimation/corner_detect.h"
 #include "aom_dsp/flow_estimation/flow_estimation.h"
 #include "aom_scale/yv12config.h"
 
@@ -32,16 +33,17 @@ typedef struct {
   int rx, ry;
 } Correspondence;
 
-int aom_determine_correspondence(const unsigned char *src, int *src_corners,
-                                 int num_src_corners, const unsigned char *ref,
-                                 int *ref_corners, int num_ref_corners,
+int aom_determine_correspondence(const unsigned char *src,
+                                 const int *src_corners, int num_src_corners,
+                                 const unsigned char *ref,
+                                 const int *ref_corners, int num_ref_corners,
                                  int width, int height, int src_stride,
                                  int ref_stride, int *correspondence_pts);
 
 int av1_compute_global_motion_feature_based(
-    TransformationType type, ImagePyramid *src_pyramid, int *src_corners,
-    int num_src_corners, ImagePyramid *ref_pyramid, int *num_inliers_by_motion,
-    MotionModel *params_by_motion, int num_motions);
+    TransformationType type, YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
+    int bit_depth, int *num_inliers_by_motion, MotionModel *params_by_motion,
+    int num_motions);
 
 #ifdef __cplusplus
 }

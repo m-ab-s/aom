@@ -59,7 +59,7 @@ static INLINE int valid_point(int x, int y, int width, int height) {
          (y < (height - PATCH_SIZE - PATCH_CENTER));
 }
 
-static int determine_disflow_correspondence(int *frm_corners,
+static int determine_disflow_correspondence(const int *frm_corners,
                                             int num_frm_corners, double *flow_u,
                                             double *flow_v, int width,
                                             int height, int stride,
@@ -540,21 +540,27 @@ static bool compute_flow_field(FlowPyramid *frm_pyr, FlowPyramid *ref_pyr,
 }
 
 int av1_compute_global_motion_disflow_based(
-    TransformationType type, ImagePyramid *frm_pyramid, int *frm_corners,
-    int num_frm_corners, ImagePyramid *ref_pyramid, int *num_inliers_by_motion,
-    MotionModel *params_by_motion, int num_motions) {
+    TransformationType type, YV12_BUFFER_CONFIG *frm, YV12_BUFFER_CONFIG *ref,
+    int bit_depth, int *num_inliers_by_motion, MotionModel *params_by_motion,
+    int num_motions) {
   const int pad_size = AOMMAX(PATCH_SIZE, MIN_PAD);
   int num_correspondences;
   double *correspondences;
   RansacFuncDouble ransac = av1_get_ransac_double_prec_type(type);
+  ImagePyramid *frm_pyramid = frm->y_pyramid;
+  CornerList *frm_corners = frm->corners;
+  ImagePyramid *ref_pyramid = ref->y_pyramid;
 
-  assert(aom_is_pyramid_valid(frm_pyramid));
+  // Precompute information we will need about each frame
+  aom_compute_pyramid(frm, bit_depth, frm_pyramid);
+  av1_compute_corner_list(frm_pyramid, frm_corners);
+  aom_compute_pyramid(ref, bit_depth, ref_pyramid);
+
   const uint8_t *frm_buffer = frm_pyramid->layers[0].buffer;
   const int frm_width = frm_pyramid->layers[0].width;
   const int frm_height = frm_pyramid->layers[0].height;
   const int frm_stride = frm_pyramid->layers[0].stride;
 
-  assert(aom_is_pyramid_valid(ref_pyramid));
   const uint8_t *ref_buffer = ref_pyramid->layers[0].buffer;
   const int ref_width = ref_pyramid->layers[0].width;
   const int ref_height = ref_pyramid->layers[0].height;
@@ -607,11 +613,12 @@ int av1_compute_global_motion_disflow_based(
   if (!compute_flow_field(frm_pyr, ref_pyr, flow_u, flow_v)) goto Error;
 
   // find correspondences between the two images using the flow field
-  correspondences = aom_malloc(num_frm_corners * 4 * sizeof(*correspondences));
+  correspondences =
+      aom_malloc(frm_corners->num_corners * 4 * sizeof(*correspondences));
   if (!correspondences) goto Error;
   num_correspondences = determine_disflow_correspondence(
-      frm_corners, num_frm_corners, flow_u, flow_v, frm_width, frm_height,
-      frm_pyr->strides[0], correspondences);
+      frm_corners->corners, frm_corners->num_corners, flow_u, flow_v, frm_width,
+      frm_height, frm_pyr->strides[0], correspondences);
   ransac(correspondences, num_correspondences, num_inliers_by_motion,
          params_by_motion, num_motions);
 

@@ -20,6 +20,7 @@
 #include "config/aom_config.h"
 
 #include "aom_dsp/aom_dsp_common.h"
+#include "aom_dsp/flow_estimation/corner_detect.h"
 #include "aom_ports/mem.h"
 #include "aom_scale/aom_scale.h"
 #include "av1/common/common.h"

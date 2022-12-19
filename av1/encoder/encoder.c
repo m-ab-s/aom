@@ -27,6 +27,7 @@
 #include "aom_dsp/noise_util.h"
 #include "aom_dsp/noise_model.h"
 #endif
+#include "aom_dsp/flow_estimation/corner_detect.h"
 #include "aom_dsp/psnr.h"
 #if CONFIG_INTERNAL_STATS
 #include "aom_dsp/ssim.h"
@@ -2726,7 +2727,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       cpi->sf.interp_sf.adaptive_interp_filter_search)
     cpi->interp_search_flags.interp_filter_search_mask =
         av1_setup_interp_filter_search_mask(cpi);
-  aom_invalidate_pyramid(cpi->source->y_pyramid);
 
   av1_setup_frame_size(cpi);
 
@@ -3784,6 +3784,15 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     assert(cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 1);
     features->disable_cdf_update = 1;
   }
+
+#if !CONFIG_REALTIME_ONLY
+  if (cpi->oxcf.tool_cfg.enable_global_motion && !frame_is_intra_only(cm)) {
+    // Flush any stale global motion information, which may be left over
+    // from a previous frame
+    aom_invalidate_pyramid(cpi->source->y_pyramid);
+    av1_invalidate_corner_list(cpi->source->corners);
+  }
+#endif  // !CONFIG_REALTIME_ONLY
 
   int largest_tile_id = 0;
   if (av1_superres_in_recode_allowed(cpi)) {

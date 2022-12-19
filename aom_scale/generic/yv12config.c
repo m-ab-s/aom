@@ -13,6 +13,7 @@
 
 #include "aom/internal/aom_image_internal.h"
 #include "aom_dsp/pyramid.h"
+#include "aom_dsp/flow_estimation/corner_detect.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
@@ -35,6 +36,9 @@ int aom_free_frame_buffer(YV12_BUFFER_CONFIG *ybf) {
 #if CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
     if (ybf->y_pyramid) {
       aom_free_pyramid(ybf->y_pyramid);
+    }
+    if (ybf->corners) {
+      av1_free_corner_list(ybf->corners);
     }
 #endif  // CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
     aom_remove_metadata_from_frame_buffer(ybf);
@@ -79,6 +83,7 @@ static int realloc_frame_buffer_aligned(
     if (num_pyramid_levels > 0) {
       alloc_size += aom_get_pyramid_alloc_size(
           aligned_width, aligned_height, num_pyramid_levels, use_highbitdepth);
+      alloc_size += av1_get_corner_list_size();
     }
 #endif  // CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
     // The decoder may allocate REF_FRAMES frame buffers in the frame buffer
@@ -181,9 +186,14 @@ static int realloc_frame_buffer_aligned(
       aom_free_pyramid(ybf->y_pyramid);
       ybf->y_pyramid = NULL;
     }
+    if (ybf->corners) {
+      av1_free_corner_list(ybf->corners);
+      ybf->corners = NULL;
+    }
     if (num_pyramid_levels > 0) {
       ybf->y_pyramid = aom_alloc_pyramid(aligned_width, aligned_height,
                                          num_pyramid_levels, use_highbitdepth);
+      ybf->corners = av1_alloc_corner_list();
     }
 #endif  // CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
 

@@ -34,6 +34,7 @@ extern "C" {
 
 #if CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
 struct image_pyramid;
+struct corner_list;
 #endif  // CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
 
 /*!\endcond */
@@ -98,6 +99,7 @@ typedef struct yv12_buffer_config {
 #if CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
   // 8-bit downsampling pyramid for the Y plane
   struct image_pyramid *y_pyramid;
+  struct corner_list *corners;
 #endif  // CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
 
   uint8_t *buffer_alloc;

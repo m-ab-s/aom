@@ -11,27 +11,27 @@
 
 #include <assert.h>
 
+#include "aom_dsp/flow_estimation/corner_detect.h"
 #include "aom_dsp/flow_estimation/corner_match.h"
 #include "aom_dsp/flow_estimation/disflow.h"
 #include "aom_dsp/flow_estimation/flow_estimation.h"
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
 
-int aom_compute_global_motion(TransformationType type,
-                              ImagePyramid *src_pyramid, int *src_corners,
-                              int num_src_corners, ImagePyramid *ref_pyramid,
+int aom_compute_global_motion(TransformationType type, YV12_BUFFER_CONFIG *src,
+                              YV12_BUFFER_CONFIG *ref, int bit_depth,
                               GlobalMotionEstimationType gm_estimation_type,
                               int *num_inliers_by_motion,
                               MotionModel *params_by_motion, int num_motions) {
   switch (gm_estimation_type) {
     case GLOBAL_MOTION_FEATURE_BASED:
       return av1_compute_global_motion_feature_based(
-          type, src_pyramid, src_corners, num_src_corners, ref_pyramid,
-          num_inliers_by_motion, params_by_motion, num_motions);
+          type, src, ref, bit_depth, num_inliers_by_motion, params_by_motion,
+          num_motions);
     case GLOBAL_MOTION_DISFLOW_BASED:
       return av1_compute_global_motion_disflow_based(
-          type, src_pyramid, src_corners, num_src_corners, ref_pyramid,
-          num_inliers_by_motion, params_by_motion, num_motions);
+          type, src, ref, bit_depth, num_inliers_by_motion, params_by_motion,
+          num_motions);
     default: assert(0 && "Unknown global motion estimation type");
   }
   return 0;
