@@ -199,7 +199,7 @@ int aom_determine_correspondence(const unsigned char *src,
   return num_correspondences;
 }
 
-int av1_compute_global_motion_feature_based(
+int av1_compute_global_motion_feature_match(
     TransformationType type, YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
     int bit_depth, MotionModel *motion_models, int num_motion_models) {
   int i;

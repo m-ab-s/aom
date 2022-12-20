@@ -20,6 +20,8 @@
 #include "aom/aom_encoder.h"
 #include "aom/internal/aom_codec_internal.h"
 
+#include "aom_dsp/flow_estimation/flow_estimation.h"
+
 #include "av1/av1_iface_common.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encoder.h"
@@ -194,6 +196,7 @@ struct av1_extracfg {
   int strict_level_conformance;
   int kf_max_pyr_height;
   int sb_qp_sweep;
+  GlobalMotionMethod global_motion_method;
 };
 
 #if CONFIG_REALTIME_ONLY
@@ -338,25 +341,26 @@ static const struct av1_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-  },               // target_seq_level_idx
-  0,               // tier_mask
-  0,               // min_cr
-  COST_UPD_OFF,    // coeff_cost_upd_freq
-  COST_UPD_OFF,    // mode_cost_upd_freq
-  COST_UPD_OFF,    // mv_cost_upd_freq
-  COST_UPD_OFF,    // dv_cost_upd_freq
-  0,               // ext_tile_debug
-  0,               // sb_multipass_unit_test
-  -1,              // passes
-  -1,              // fwd_kf_dist
-  LOOPFILTER_ALL,  // loopfilter_control
-  0,               // skip_postproc_filtering
-  NULL,            // two_pass_output
-  NULL,            // second_pass_log
-  0,               // auto_intra_tools_off
-  0,               // strict_level_conformance
-  -1,              // kf_max_pyr_height
-  0,               // sb_qp_sweep
+  },                                   // target_seq_level_idx
+  0,                                   // tier_mask
+  0,                                   // min_cr
+  COST_UPD_OFF,                        // coeff_cost_upd_freq
+  COST_UPD_OFF,                        // mode_cost_upd_freq
+  COST_UPD_OFF,                        // mv_cost_upd_freq
+  COST_UPD_OFF,                        // dv_cost_upd_freq
+  0,                                   // ext_tile_debug
+  0,                                   // sb_multipass_unit_test
+  -1,                                  // passes
+  -1,                                  // fwd_kf_dist
+  LOOPFILTER_ALL,                      // loopfilter_control
+  0,                                   // skip_postproc_filtering
+  NULL,                                // two_pass_output
+  NULL,                                // second_pass_log
+  0,                                   // auto_intra_tools_off
+  0,                                   // strict_level_conformance
+  -1,                                  // kf_max_pyr_height
+  0,                                   // sb_qp_sweep
+  GLOBAL_MOTION_METHOD_FEATURE_MATCH,  // global_motion_method
 };
 #else
 static const struct av1_extracfg default_extra_cfg = {
@@ -487,25 +491,26 @@ static const struct av1_extracfg default_extra_cfg = {
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
       SEQ_LEVEL_MAX, SEQ_LEVEL_MAX,
-  },               // target_seq_level_idx
-  0,               // tier_mask
-  0,               // min_cr
-  COST_UPD_SB,     // coeff_cost_upd_freq
-  COST_UPD_SB,     // mode_cost_upd_freq
-  COST_UPD_SB,     // mv_cost_upd_freq
-  COST_UPD_SB,     // dv_cost_upd_freq
-  0,               // ext_tile_debug
-  0,               // sb_multipass_unit_test
-  -1,              // passes
-  -1,              // fwd_kf_dist
-  LOOPFILTER_ALL,  // loopfilter_control
-  0,               // skip_postproc_filtering
-  NULL,            // two_pass_output
-  NULL,            // second_pass_log
-  0,               // auto_intra_tools_off
-  0,               // strict_level_conformance
-  -1,              // kf_max_pyr_height
-  0,               // sb_qp_sweep
+  },                                   // target_seq_level_idx
+  0,                                   // tier_mask
+  0,                                   // min_cr
+  COST_UPD_SB,                         // coeff_cost_upd_freq
+  COST_UPD_SB,                         // mode_cost_upd_freq
+  COST_UPD_SB,                         // mv_cost_upd_freq
+  COST_UPD_SB,                         // dv_cost_upd_freq
+  0,                                   // ext_tile_debug
+  0,                                   // sb_multipass_unit_test
+  -1,                                  // passes
+  -1,                                  // fwd_kf_dist
+  LOOPFILTER_ALL,                      // loopfilter_control
+  0,                                   // skip_postproc_filtering
+  NULL,                                // two_pass_output
+  NULL,                                // second_pass_log
+  0,                                   // auto_intra_tools_off
+  0,                                   // strict_level_conformance
+  -1,                                  // kf_max_pyr_height
+  0,                                   // sb_qp_sweep
+  GLOBAL_MOTION_METHOD_FEATURE_MATCH,  // global_motion_method
 };
 #endif
 
@@ -862,6 +867,8 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_BOOL(extra_cfg, auto_intra_tools_off);
   RANGE_CHECK_BOOL(extra_cfg, strict_level_conformance);
   RANGE_CHECK_BOOL(extra_cfg, sb_qp_sweep);
+  RANGE_CHECK(extra_cfg, global_motion_method,
+              GLOBAL_MOTION_METHOD_FEATURE_MATCH, GLOBAL_MOTION_METHOD_LAST);
 
   RANGE_CHECK(extra_cfg, kf_max_pyr_height, -1, 5);
   if (extra_cfg->kf_max_pyr_height != -1 &&
@@ -1459,6 +1466,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->kf_max_pyr_height = extra_cfg->kf_max_pyr_height;
 
   oxcf->sb_qp_sweep = extra_cfg->sb_qp_sweep;
+
+  oxcf->global_motion_method = extra_cfg->global_motion_method;
 
   return AOM_CODEC_OK;
 }
@@ -4023,6 +4032,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     ctx->cfg.tile_height_count = arg_parse_list_helper(
         &arg, ctx->cfg.tile_heights, MAX_TILE_HEIGHTS, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.global_motion_method,
+                              argv, err_string)) {
+    extra_cfg.global_motion_method = arg_parse_enum_helper(&arg, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",

@@ -89,9 +89,11 @@ typedef struct {
   int stride;
 } FlowField;
 
-int av1_compute_global_motion_disflow_based(
-    TransformationType type, YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
-    int bit_depth, MotionModel *motion_models, int num_motion_models);
+int av1_compute_global_motion_disflow(TransformationType type,
+                                      YV12_BUFFER_CONFIG *src,
+                                      YV12_BUFFER_CONFIG *ref, int bit_depth,
+                                      MotionModel *motion_models,
+                                      int num_motion_models);
 
 #ifdef __cplusplus
 }

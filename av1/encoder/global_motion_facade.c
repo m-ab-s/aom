@@ -102,18 +102,8 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   assert(ref_buf[frame] != NULL);
   TransformationType model;
   int bit_depth = cpi->common.seq_params->bit_depth;
+  GlobalMotionMethod global_motion_method = cpi->oxcf.global_motion_method;
 
-  // TODO(sarahparker, debargha): Explore do_adaptive_gm_estimation = 1
-  const int do_adaptive_gm_estimation = 0;
-
-  const int ref_frame_dist = get_relative_dist(
-      &cm->seq_params->order_hint_info, cm->current_frame.order_hint,
-      cm->cur_frame->ref_order_hints[frame - LAST_FRAME]);
-  const GlobalMotionEstimationType gm_estimation_type =
-      cm->seq_params->order_hint_info.enable_order_hint &&
-              abs(ref_frame_dist) <= 2 && do_adaptive_gm_estimation
-          ? GLOBAL_MOTION_DISFLOW_BASED
-          : GLOBAL_MOTION_FEATURE_BASED;
   for (model = ROTZOOM; model < GLOBAL_TRANS_TYPES_ENC; ++model) {
     int64_t best_warp_error = INT64_MAX;
     // Initially set all params to identity.
@@ -124,7 +114,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
     }
 
     aom_compute_global_motion(model, cpi->source, ref_buf[frame], bit_depth,
-                              gm_estimation_type, motion_models,
+                              global_motion_method, motion_models,
                               RANSAC_NUM_MOTIONS);
     int64_t ref_frame_error = 0;
     for (i = 0; i < RANSAC_NUM_MOTIONS; ++i) {
