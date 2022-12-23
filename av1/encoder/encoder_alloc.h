@@ -311,6 +311,14 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cpi->mb_weber_stats);
   cpi->mb_weber_stats = NULL;
 
+  if (cpi->oxcf.enable_rate_guide_deltaq) {
+    aom_free(cpi->prep_rate_estimates);
+    cpi->prep_rate_estimates = NULL;
+
+    aom_free(cpi->ext_rate_distribution);
+    cpi->ext_rate_distribution = NULL;
+  }
+
   aom_free(cpi->mb_delta_q);
   cpi->mb_delta_q = NULL;
 }

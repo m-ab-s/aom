@@ -35,11 +35,29 @@ void av1_init_mb_wiener_var_buffer(AV1_COMP *cpi) {
   // "compute_num_ai_workers()".
   cpi->weber_bsize = BLOCK_8X8;
 
-  if (cpi->mb_weber_stats) return;
+  if (cpi->oxcf.enable_rate_guide_deltaq) {
+    if (cpi->mb_weber_stats && cpi->prep_rate_estimates &&
+        cpi->ext_rate_distribution)
+      return;
+  } else {
+    if (cpi->mb_weber_stats) return;
+  }
 
   CHECK_MEM_ERROR(cm, cpi->mb_weber_stats,
                   aom_calloc(cpi->frame_info.mi_rows * cpi->frame_info.mi_cols,
                              sizeof(*cpi->mb_weber_stats)));
+
+  if (cpi->oxcf.enable_rate_guide_deltaq) {
+    CHECK_MEM_ERROR(
+        cm, cpi->prep_rate_estimates,
+        aom_calloc(cpi->frame_info.mi_rows * cpi->frame_info.mi_cols,
+                   sizeof(*cpi->prep_rate_estimates)));
+
+    CHECK_MEM_ERROR(
+        cm, cpi->ext_rate_distribution,
+        aom_calloc(cpi->frame_info.mi_rows * cpi->frame_info.mi_cols,
+                   sizeof(*cpi->ext_rate_distribution)));
+  }
 }
 
 static int64_t get_satd(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
@@ -197,6 +215,20 @@ static int get_var_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   return sb_wiener_var;
 }
 
+static int rate_estimator(const tran_low_t *qcoeff, int eob, TX_SIZE tx_size) {
+  const SCAN_ORDER *const scan_order = &av1_scan_orders[tx_size][DCT_DCT];
+
+  assert((1 << num_pels_log2_lookup[txsize_to_bsize[tx_size]]) >= eob);
+  int rate_cost = 1;
+
+  for (int idx = 0; idx < eob; ++idx) {
+    int abs_level = abs(qcoeff[scan_order->scan[idx]]);
+    rate_cost += (int)(log(abs_level + 1.0) / log(2.0)) + 1 + (abs_level > 0);
+  }
+
+  return (rate_cost << AV1_PROB_COST_SHIFT);
+}
+
 void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, const int mi_row,
                                 int16_t *src_diff, tran_low_t *coeff,
                                 tran_low_t *qcoeff, tran_low_t *dqcoeff,
@@ -299,6 +331,13 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, const int mi_row,
     av1_quantize_fp_facade(coeff, pix_num, p, qcoeff, dqcoeff, &eob, scan_order,
                            &quant_param);
 #endif  // CONFIG_AV1_HIGHBITDEPTH
+
+    if (cpi->oxcf.enable_rate_guide_deltaq) {
+      const int rate_cost = rate_estimator(qcoeff, eob, tx_size);
+      cpi->prep_rate_estimates[(mi_row / mb_step) * cpi->frame_info.mi_cols +
+                               (mi_col / mb_step)] = rate_cost;
+    }
+
     av1_inverse_transform_block(xd, dqcoeff, 0, DCT_DCT, tx_size, dst_buffer,
                                 dst_buffer_stride, eob, 0);
     WeberStats *weber_stats =
@@ -440,6 +479,54 @@ static void automatic_intra_tools_off(AV1_COMP *cpi,
   }
 }
 
+static void ext_rate_guided_quantization(AV1_COMP *cpi) {
+  // Calculation uses 8x8.
+  const int mb_step = mi_size_wide[cpi->weber_bsize];
+  // Accumuate to 16x16
+  const int block_step = mi_size_wide[BLOCK_16X16];
+
+  const char *filename = cpi->oxcf.rate_distribution_info;
+  FILE *pfile = fopen(filename, "r");
+  if (pfile == NULL) {
+    printf("Can't open file %s. Default deltaq-mode=3 will be used.\n",
+           filename);
+    fclose(pfile);
+    return;
+  }
+
+  double ext_rate_sum = 0.0;
+  for (int row = 0; row < cpi->frame_info.mi_rows; row += block_step) {
+    for (int col = 0; col < cpi->frame_info.mi_cols; col += block_step) {
+      float val;
+      fscanf(pfile, "%f", &val);
+      ext_rate_sum += val;
+      cpi->ext_rate_distribution[(row / mb_step) * cpi->frame_info.mi_cols +
+                                 (col / mb_step)] = val;
+    }
+  }
+  fclose(pfile);
+
+  int uniform_rate_sum = 0;
+  for (int row = 0; row < cpi->frame_info.mi_rows; row += block_step) {
+    for (int col = 0; col < cpi->frame_info.mi_cols; col += block_step) {
+      int rate_sum = 0;
+      for (int r = 0; r < block_step; r += mb_step) {
+        for (int c = 0; c < block_step; c += mb_step) {
+          const int mi_row = row + r;
+          const int mi_col = col + c;
+          rate_sum += cpi->prep_rate_estimates[(mi_row / mb_step) *
+                                                   cpi->frame_info.mi_cols +
+                                               (mi_col / mb_step)];
+        }
+      }
+      uniform_rate_sum += rate_sum;
+    }
+  }
+
+  const double scale = uniform_rate_sum / ext_rate_sum;
+  cpi->ext_rate_scale = scale;
+}
+
 void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = cm->seq_params;
@@ -472,6 +559,9 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
 
   // Determine whether to turn off several intra coding tools.
   automatic_intra_tools_off(cpi, sum_rec_distortion, sum_est_rate);
+
+  // Read external rate distribution and use it to guide delta quantization
+  if (cpi->oxcf.enable_rate_guide_deltaq) ext_rate_guided_quantization(cpi);
 
   const BLOCK_SIZE norm_block_size = cm->seq_params->sb_size;
   cpi->norm_wiener_variance = estimate_wiener_var_norm(cpi, norm_block_size);
@@ -515,8 +605,67 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   aom_free_frame_buffer(&cm->cur_frame->buf);
 }
 
+static int get_rate_guided_quantizer(AV1_COMP *const cpi, BLOCK_SIZE bsize,
+                                     int mi_row, int mi_col) {
+  // Calculation uses 8x8.
+  const int mb_step = mi_size_wide[cpi->weber_bsize];
+  // Accumuate to 16x16
+  const int block_step = mi_size_wide[BLOCK_16X16];
+  double sb_rate_hific = 0.0;
+  double sb_rate_uniform = 0.0;
+  for (int row = mi_row; row < mi_row + mi_size_wide[bsize];
+       row += block_step) {
+    for (int col = mi_col; col < mi_col + mi_size_high[bsize];
+         col += block_step) {
+      sb_rate_hific +=
+          cpi->ext_rate_distribution[(row / mb_step) * cpi->frame_info.mi_cols +
+                                     (col / mb_step)];
+
+      for (int r = 0; r < block_step; r += mb_step) {
+        for (int c = 0; c < block_step; c += mb_step) {
+          const int this_row = row + r;
+          const int this_col = col + c;
+          sb_rate_uniform +=
+              cpi->prep_rate_estimates[(this_row / mb_step) *
+                                           cpi->frame_info.mi_cols +
+                                       (this_col / mb_step)];
+        }
+      }
+    }
+  }
+  sb_rate_hific *= cpi->ext_rate_scale;
+
+  const double weight = 1.0;
+  const double rate_diff =
+      weight * (sb_rate_hific - sb_rate_uniform) / sb_rate_uniform;
+  double scale = pow(2, rate_diff);
+
+  scale = scale * scale;
+  double min_max_scale = AOMMAX(1.0, get_max_scale(cpi, bsize, mi_row, mi_col));
+  scale = 1.0 / AOMMIN(1.0 / scale, min_max_scale);
+
+  AV1_COMMON *const cm = &cpi->common;
+  const int base_qindex = cm->quant_params.base_qindex;
+  int offset =
+      av1_get_deltaq_offset(cm->seq_params->bit_depth, base_qindex, scale);
+  const DeltaQInfo *const delta_q_info = &cm->delta_q_info;
+  const int max_offset = delta_q_info->delta_q_res * 10;
+  offset = AOMMIN(offset, max_offset - 1);
+  offset = AOMMAX(offset, -max_offset + 1);
+  int qindex = cm->quant_params.base_qindex + offset;
+  qindex = AOMMIN(qindex, MAXQ);
+  qindex = AOMMAX(qindex, MINQ);
+  if (base_qindex > MINQ) qindex = AOMMAX(qindex, MINQ + 1);
+
+  return qindex;
+}
+
 int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
                               int mi_col) {
+  if (cpi->oxcf.enable_rate_guide_deltaq) {
+    return get_rate_guided_quantizer(cpi, bsize, mi_row, mi_col);
+  }
+
   AV1_COMMON *const cm = &cpi->common;
   const int base_qindex = cm->quant_params.base_qindex;
   int sb_wiener_var = get_var_perceptual_ai(cpi, bsize, mi_row, mi_col);

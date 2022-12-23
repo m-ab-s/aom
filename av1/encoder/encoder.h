@@ -1071,6 +1071,15 @@ typedef struct AV1EncoderConfig {
   // CONFIG_PARTITION_SEARCH_ORDER.
   const char *partition_info_path;
 
+  // The flag that indicates whether we use an external rate distribution to
+  // guide adaptive quantization. It requires --deltaq-mode=3. The rate
+  // distribution map file name is stored in |rate_distribution_info|.
+  unsigned int enable_rate_guide_deltaq;
+
+  // The input file of rate distribution information used in all intra mode
+  // to determine delta quantization.
+  const char *rate_distribution_info;
+
   // Exit the encoder when it fails to encode to a given level.
   int strict_level_conformance;
 
@@ -3366,6 +3375,23 @@ typedef struct AV1_COMP {
    * Buffer to store MB variance after Wiener filter.
    */
   WeberStats *mb_weber_stats;
+
+  /*!
+   * Buffer to store rate cost estimates for each macro block (8x8) in the
+   * preprocessing stage used in allintra mode.
+   */
+  int *prep_rate_estimates;
+
+  /*!
+   * Buffer to store rate cost estimates for each 16x16 block read
+   * from an external file, used in allintra mode.
+   */
+  double *ext_rate_distribution;
+
+  /*!
+   * The scale that equals sum_rate_uniform_quantizer / sum_ext_rate.
+   */
+  double ext_rate_scale;
 
   /*!
    * Buffer to store MB variance after Wiener filter.

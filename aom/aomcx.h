@@ -1484,6 +1484,18 @@ enum aome_enc_control_id {
    */
   AV1E_SET_QUANTIZER_ONE_PASS = 159,
 
+  /*!\brief Codec control to enable the rate distribution guided delta
+   * quantization in all intra mode. It requires --deltaq-mode=3, also
+   * an input file which contains rate distribution for each 16x16 block,
+   * passed in by --rate-distribution-info=rate_distribution.csv.
+   */
+  AV1E_ENABLE_RATE_GUIDE_DELTAQ = 160,
+
+  /*!\brief Codec control to set the input file for rate distribution used
+   * in all intra mode. It requires --enable-rate-guide-deltaq=1.
+   */
+  AV1E_SET_RATE_DISTRIBUTION_INFO = 161,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -2059,6 +2071,12 @@ AOM_CTRL_USE_TYPE(AV1E_SET_DV_COST_UPD_FREQ, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_PARTITION_INFO_PATH, const char *)
 #define AOM_CTRL_AV1E_SET_PARTITION_INFO_PATH
+
+AOM_CTRL_USE_TYPE(AV1E_ENABLE_RATE_GUIDE_DELTAQ, unsigned int)
+#define AOM_CTRL_AV1E_ENABLE_RATE_GUIDE_DELTAQ
+
+AOM_CTRL_USE_TYPE(AV1E_SET_RATE_DISTRIBUTION_INFO, const char *)
+#define AOM_CTRL_AV1E_SET_RATE_DISTRIBUTION_INFO
 
 AOM_CTRL_USE_TYPE(AV1E_SET_EXTERNAL_PARTITION, aom_ext_part_funcs_t *)
 #define AOM_CTRL_AV1E_SET_EXTERNAL_PARTITION

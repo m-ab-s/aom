@@ -501,6 +501,16 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 #endif
   .partition_info_path = ARG_DEF(NULL, "partition-info-path", 1,
                                  "Partition information read and write path"),
+  .enable_rate_guide_deltaq =
+      ARG_DEF(NULL, "enable-rate-guide-deltaq", 1,
+              "Enable rate guide deltaq (1), by default off (0)."
+              "It requires --deltaq-mode=3."
+              "If turned on, it requires to read an input file "
+              "by --rate-distribution-info"),
+  .rate_distribution_info =
+      ARG_DEF(NULL, "rate-distribution-info", 1,
+              "Rate distribution information input."
+              "It requires --enable-rate-guide-deltaq=1."),
   .film_grain_test = ARG_DEF(
       NULL, "film-grain-test", 1,
       "Film grain test vectors (0: none (default), 1: test-1  2: test-2, "
