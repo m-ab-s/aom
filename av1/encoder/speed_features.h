@@ -1517,8 +1517,8 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Bit mask to enable or disable intra modes for each prediction block size
   // separately, for nonrd_pickmode.  Currently, the sf is not respected when
-  // 'force_intra_check' is true in 'estimate_intra_mode()' function. Also, H
-  // and V pred modes allowed through this sf can be further pruned when
+  // 'force_intra_check' is true in 'av1_estimate_intra_mode()' function. Also,
+  // H and V pred modes allowed through this sf can be further pruned when
   //'prune_hv_pred_modes_using_src_sad' sf is true.
   int intra_y_mode_bsize_mask_nrd[BLOCK_SIZES];
 
