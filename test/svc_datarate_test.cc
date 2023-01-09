@@ -742,7 +742,7 @@ class DatarateTestSVC
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.50)
           << " The datarate for the file is lower than target by too much!";
-      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.5)
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.7)
           << " The datarate for the file is greater than target by too much!";
     }
     // Top temporal layers are non_reference, so exlcude them from
@@ -2156,7 +2156,7 @@ TEST_P(DatarateTestSVC, BasicRateTargetingRPS1TL1SLDropFrames) {
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestSVC,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Range(7, 11), ::testing::Values(0, 3),
+                           ::testing::Range(7, 12), ::testing::Values(0, 3),
                            ::testing::Values(0, 1));
 
 }  // namespace

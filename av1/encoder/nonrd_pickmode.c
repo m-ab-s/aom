@@ -4269,6 +4269,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       x->source_variance > 0 && !x->force_zeromv_skip_for_blk &&
       (cpi->rc.high_source_sad || x->source_variance > 500);
 
+  if (rt_sf->prune_palette_nonrd && bsize > BLOCK_16X16) try_palette = 0;
+
   // Perform screen content mode evaluation for non-rd
   handle_screen_content_mode_nonrd(cpi, x, &search_state, this_mode_pred, ctx,
                                    tmp_buffer, &orig_dst, skip_idtx_palette,

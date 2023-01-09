@@ -1523,9 +1523,13 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Skips mode checks more aggressively in nonRD mode
   int nonrd_aggressive_skip;
 
-  // Skip cdef on 64x64 blocks when NEWMV or INTRA is not picked or color
-  // sensitivity is off. When color sensitivity is on for a superblock, all
-  // 64x64 blocks within will not skip.
+  // Skip cdef on 64x64 blocks/
+  // 0: disabled
+  // 1: skip when NEWMV or INTRA is not picked or color sensitivity is off.
+  // When color sensitivity is on for a superblock, all 64x64 blocks within
+  // will not skip.
+  // 2: more aggressive mode where skip is done for all frames where
+  // rc->high_source_sad = 0 (non slide-changes), and color sensitivity off.
   int skip_cdef_sb;
 
   // Forces larger partition blocks in variance based partitioning for intra
@@ -1594,8 +1598,15 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // already set.
   int prune_idtx_nonrd;
 
+  // Prune the use of paletter mode in nonrd pickmode.
+  int prune_palette_nonrd;
+
   // Skip loopfilter, for static content after slide change
   // or key frame, once quality has ramped up.
+  // 0: disabled
+  // 1: skip only after quality is ramped up.
+  // 2: aggrssive mode, where skip is done for all frames that
+  // where rc->high_source_sad = 0 (no slide-changes).
   int skip_lf_screen;
 
   // For nonrd: early exit out of variance partition that sets the

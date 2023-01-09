@@ -1447,8 +1447,15 @@ static AOM_INLINE bool set_force_zeromv_skip_for_sb(
   const int block_height = mi_size_high[cm->seq_params->sb_size];
   const unsigned int thresh_exit_part_y =
       cpi->zeromv_skip_thresh_exit_part[bsize];
-  const unsigned int thresh_exit_part_uv =
+  unsigned int thresh_exit_part_uv =
       CALC_CHROMA_THRESH_FOR_ZEROMV_SKIP(thresh_exit_part_y);
+  // Be more aggressive in UV threshold if source_sad >= VeryLowSad
+  // to suppreess visual artifact caused by the speed feature:
+  // set_zeromv_skip_based_on_source_sad = 2. For now only for
+  // part_early_exit_zeromv = 1.
+  if (x->content_state_sb.source_sad_nonrd >= kVeryLowSad &&
+      cpi->sf.rt_sf.part_early_exit_zeromv == 1)
+    thresh_exit_part_uv = thresh_exit_part_uv >> 3;
   if (mi_col + block_width <= tile->mi_col_end &&
       mi_row + block_height <= tile->mi_row_end && y_sad < thresh_exit_part_y &&
       uv_sad[0] < thresh_exit_part_uv && uv_sad[1] < thresh_exit_part_uv) {
