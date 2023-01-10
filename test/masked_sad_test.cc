@@ -187,13 +187,30 @@ void MaskedSADTestBase::runMaskedSADTest(int run_times) {
   int msk_stride = MAX_SB_SIZE;
   const int iters = run_times == 1 ? number_of_iterations : 1;
   for (int i = 0; i < iters; ++i) {
+    if (run_times == 1 && i == 0) {
+      // The maximum accumulator value occurs when src=0 and
+      // ref/second_pref=255 (or vice-versa, since we take the absolute
+      // difference). Check this case explicitly to ensure we do not overflow
+      // during accumulation.
+      for (int j = 0; j < MAX_SB_SIZE * MAX_SB_SIZE; j++) {
+        src_ptr[j] = 0;
+        ref_ptr[j] = 255;
+        (ref_ptr + kBlockSize)[j] = 255;
+        (ref_ptr + 2 * kBlockSize)[j] = 255;
+        (ref_ptr + 3 * kBlockSize)[j] = 255;
+        second_pred_ptr[j] = 255;
+      }
+    } else {
+      for (int j = 0; j < MAX_SB_SIZE * MAX_SB_SIZE; j++) {
+        src_ptr[j] = rnd.Rand8();
+        ref_ptr[j] = rnd.Rand8();
+        (ref_ptr + kBlockSize)[j] = rnd.Rand8();
+        (ref_ptr + 2 * kBlockSize)[j] = rnd.Rand8();
+        (ref_ptr + 3 * kBlockSize)[j] = rnd.Rand8();
+        second_pred_ptr[j] = rnd.Rand8();
+      }
+    }
     for (int j = 0; j < MAX_SB_SIZE * MAX_SB_SIZE; j++) {
-      src_ptr[j] = rnd.Rand8();
-      ref_ptr[j] = rnd.Rand8();
-      (ref_ptr + kBlockSize)[j] = rnd.Rand8();
-      (ref_ptr + 2 * kBlockSize)[j] = rnd.Rand8();
-      (ref_ptr + 3 * kBlockSize)[j] = rnd.Rand8();
-      second_pred_ptr[j] = rnd.Rand8();
       msk_ptr[j] = ((rnd.Rand8() & 0x7f) > 64) ? rnd.Rand8() & 0x3f : 64;
       assert(msk_ptr[j] <= 64);
     }
