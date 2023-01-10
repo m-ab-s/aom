@@ -313,6 +313,7 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
   if (cr->sb_index >= sbs_in_frame) cr->sb_index = 0;
   assert(cr->sb_index < sbs_in_frame);
   i = cr->sb_index;
+  cr->last_sb_index = cr->sb_index;
   cr->target_num_seg_blocks = 0;
   do {
     int sum_map = 0;
@@ -552,6 +553,7 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     av1_disable_segmentation(&cm->seg);
     if (cm->current_frame.frame_type == KEY_FRAME || scene_change_detected) {
       cr->sb_index = 0;
+      cr->last_sb_index = 0;
       cr->counter_encode_maxq_scene_change = 0;
     }
     return;
@@ -632,6 +634,7 @@ void av1_cyclic_refresh_reset_resize(AV1_COMP *const cpi) {
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   memset(cr->map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
   cr->sb_index = 0;
+  cr->last_sb_index = 0;
   cpi->refresh_frame.golden_frame = true;
   cr->apply_cyclic_refresh = 0;
   cr->counter_encode_maxq_scene_change = 0;
