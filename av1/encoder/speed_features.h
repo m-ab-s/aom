@@ -442,6 +442,13 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * 1: estimate bits more accurately based on the frame complexity.
    */
   int accurate_bit_estimate;
+
+  /*!
+   * Decide the approach for weight calculation during temporal filtering.
+   * 0: Calculate weight using exp()
+   * 1: Calculate weight using a lookup table that approximates exp().
+   */
+  int weight_calc_level_in_tf;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!

@@ -121,4 +121,19 @@ static INLINE void multiply_mat(const double *m1, const double *m2, double *res,
   }
 }
 
+static AOM_INLINE float approx_exp(float y) {
+#define A ((1 << 23) / 0.69314718056f)  // (1 << 23) / ln(2)
+#define B \
+  127  // Offset for the exponent according to IEEE floating point standard.
+#define C 60801  // Magic number controls the accuracy of approximation
+  union {
+    float as_float;
+    int32_t as_int32;
+  } container;
+  container.as_int32 = ((int32_t)(y * A)) + ((B << 23) - C);
+  return container.as_float;
+#undef A
+#undef B
+#undef C
+}
 #endif  // AOM_AOM_DSP_MATHUTILS_H_
