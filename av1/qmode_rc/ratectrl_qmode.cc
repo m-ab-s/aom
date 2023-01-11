@@ -1481,15 +1481,15 @@ static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
             const TplUnitDepStats &alt_unit_dep_stats =
                 frame_dep_stats.alt_unit_stats[unit_row][unit_col];
             cum_inter_cost += unit_dep_stats.inter_cost;
-            cum_rdcost_diff += (unit_dep_stats.propagation_cost -
-                                alt_unit_dep_stats.propagation_cost);
+            cum_rdcost_diff += std::max(unit_dep_stats.propagation_cost -
+                                            alt_unit_dep_stats.propagation_cost,
+                                        0.0);
           }
         }
       }
     }
-    frame_importance = cum_inter_cost > 0
-                           ? (cum_rdcost_diff + cum_inter_cost) / cum_inter_cost
-                           : -1.0;
+    cum_inter_cost = std::max(cum_inter_cost, 1.0);
+    frame_importance = (cum_rdcost_diff + cum_inter_cost) / cum_inter_cost;
   }
 
   // Calculate delta_q offset for each superblock.
@@ -1509,26 +1509,28 @@ static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
              ++unit_col) {
           const TplUnitDepStats &unit_dep_stats =
               frame_dep_stats.unit_stats[unit_row][unit_col];
-          mc_dep_cost += unit_dep_stats.propagation_cost;
 
           if (use_twopass_data) {
-            intra_cost += unit_dep_stats.inter_cost;
             const TplUnitDepStats &alt_unit_dep_stats =
                 frame_dep_stats.alt_unit_stats[unit_row][unit_col];
-            mc_dep_cost -= alt_unit_dep_stats.propagation_cost;
+            mc_dep_cost += std::max(unit_dep_stats.propagation_cost -
+                                        alt_unit_dep_stats.propagation_cost,
+                                    0.0);
+            intra_cost += unit_dep_stats.inter_cost;
           } else {
+            mc_dep_cost += unit_dep_stats.propagation_cost;
             intra_cost += unit_dep_stats.intra_cost;
           }
         }
       }
+      intra_cost = std::max(intra_cost, 1.0);
 
       double beta = 1.0;
-      if (frame_importance > 0 && mc_dep_cost > 0 && intra_cost > 0) {
-        const double r0 = 1 / frame_importance;
-        const double rk = intra_cost / (mc_dep_cost + intra_cost);
-        beta = r0 / rk;
-        assert(beta > 0.0);
-      }
+      const double r0 = 1 / frame_importance;
+      const double rk = intra_cost / (mc_dep_cost + intra_cost);
+      beta = r0 / rk;
+      assert(beta > 0.0);
+
       int offset = av1_get_deltaq_offset(AOM_BITS_8, base_qindex, beta);
       offset = std::min(offset, delta_q_res * 9 - 1);
       offset = std::max(offset, -delta_q_res * 9 + 1);
