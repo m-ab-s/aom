@@ -28,6 +28,7 @@
 #define MINPTS_MULTIPLIER 5
 
 #define INLIER_THRESHOLD 1.25
+#define INLIER_THRESHOLD_SQUARED (INLIER_THRESHOLD * INLIER_THRESHOLD)
 #define MIN_TRIALS 20
 
 // Flag to enable functions for finding TRANSLATION type models.
@@ -234,7 +235,7 @@ static bool get_rand_indices(int npoints, int minpts, int *indices,
 
 typedef struct {
   int num_inliers;
-  double variance;
+  double sse;  // Sum of squared errors of inliers
   int *inlier_indices;
 } RANSAC_MOTION;
 
@@ -245,8 +246,8 @@ static int compare_motions(const void *arg_a, const void *arg_b) {
 
   if (motion_a->num_inliers > motion_b->num_inliers) return -1;
   if (motion_a->num_inliers < motion_b->num_inliers) return 1;
-  if (motion_a->variance < motion_b->variance) return -1;
-  if (motion_a->variance > motion_b->variance) return 1;
+  if (motion_a->sse < motion_b->sse) return -1;
+  if (motion_a->sse > motion_b->sse) return 1;
   return 0;
 }
 
@@ -264,11 +265,11 @@ static void copy_points_at_indices(double *dest, const double *src,
   }
 }
 
-static const double kInfiniteVariance = 1e12;
+static const double kInfinity = 1e12;
 
 static void clear_motion(RANSAC_MOTION *motion, int num_points) {
   motion->num_inliers = 0;
-  motion->variance = kInfiniteVariance;
+  motion->sse = kInfinity;
   memset(motion->inlier_indices, 0,
          sizeof(*motion->inlier_indices) * num_points);
 }
@@ -340,9 +341,6 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
   }
 
   while (MIN_TRIALS > trial_count) {
-    double sum_distance = 0.0;
-    double sum_distance_squared = 0.0;
-
     clear_motion(&current_motion, npoints);
 
     int degenerate = 1;
@@ -374,36 +372,31 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
     model_info->project_points(params_this_motion, corners1, image1_coord,
                                npoints, 2, 2);
 
+    double sse = 0.0;
     for (i = 0; i < npoints; ++i) {
       double dx = image1_coord[i * 2] - corners2[i * 2];
       double dy = image1_coord[i * 2 + 1] - corners2[i * 2 + 1];
-      double distance = sqrt(dx * dx + dy * dy);
+      double squared_error = dx * dx + dy * dy;
 
-      if (distance < INLIER_THRESHOLD) {
+      if (squared_error < INLIER_THRESHOLD_SQUARED) {
         current_motion.inlier_indices[current_motion.num_inliers++] = i;
-        sum_distance += distance;
-        sum_distance_squared += distance * distance;
+        sse += squared_error;
       }
     }
 
     if (current_motion.num_inliers >= worst_kept_motion->num_inliers &&
         current_motion.num_inliers > 1) {
-      double mean_distance;
-      mean_distance = sum_distance / ((double)current_motion.num_inliers);
-      current_motion.variance =
-          sum_distance_squared / ((double)current_motion.num_inliers - 1.0) -
-          mean_distance * mean_distance * ((double)current_motion.num_inliers) /
-              ((double)current_motion.num_inliers - 1.0);
+      current_motion.sse = sse;
       if (is_better_motion(&current_motion, worst_kept_motion)) {
         // This motion is better than the worst currently kept motion. Remember
-        // the inlier points and variance. The parameters for each kept motion
+        // the inlier points and sse. The parameters for each kept motion
         // will be recomputed later using only the inliers.
         worst_kept_motion->num_inliers = current_motion.num_inliers;
-        worst_kept_motion->variance = current_motion.variance;
+        worst_kept_motion->sse = current_motion.sse;
         memcpy(worst_kept_motion->inlier_indices, current_motion.inlier_indices,
                sizeof(*current_motion.inlier_indices) * npoints);
         assert(npoints > 0);
-        // Determine the new worst kept motion and its num_inliers and variance.
+        // Determine the new worst kept motion and its num_inliers and sse.
         for (i = 0; i < num_desired_motions; ++i) {
           if (is_better_motion(worst_kept_motion, &motions[i])) {
             worst_kept_motion = &motions[i];
