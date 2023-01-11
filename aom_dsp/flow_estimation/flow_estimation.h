@@ -49,11 +49,16 @@ typedef struct {
   int num_inliers;
 } MotionModel;
 
+typedef struct {
+  double x, y;
+  double rx, ry;
+} Correspondence;
+
 int aom_compute_global_motion(TransformationType type, YV12_BUFFER_CONFIG *src,
                               YV12_BUFFER_CONFIG *ref, int bit_depth,
                               GlobalMotionEstimationType gm_estimation_type,
-                              int *num_inliers_by_motion,
-                              MotionModel *params_by_motion, int num_motions);
+                              MotionModel *motion_models,
+                              int num_motion_models);
 
 #ifdef __cplusplus
 }

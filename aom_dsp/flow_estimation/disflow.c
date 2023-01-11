@@ -63,17 +63,17 @@ static int determine_disflow_correspondence(const int *frm_corners,
                                             int num_frm_corners, double *flow_u,
                                             double *flow_v, int width,
                                             int height, int stride,
-                                            double *correspondences) {
+                                            Correspondence *correspondences) {
   int num_correspondences = 0;
   int x, y;
   for (int i = 0; i < num_frm_corners; ++i) {
     x = frm_corners[2 * i];
     y = frm_corners[2 * i + 1];
     if (valid_point(x, y, width, height)) {
-      correspondences[4 * num_correspondences] = x;
-      correspondences[4 * num_correspondences + 1] = y;
-      correspondences[4 * num_correspondences + 2] = x + flow_u[y * stride + x];
-      correspondences[4 * num_correspondences + 3] = y + flow_v[y * stride + x];
+      correspondences[num_correspondences].x = x;
+      correspondences[num_correspondences].y = y;
+      correspondences[num_correspondences].rx = x + flow_u[y * stride + x];
+      correspondences[num_correspondences].ry = y + flow_v[y * stride + x];
       num_correspondences++;
     }
   }
@@ -541,12 +541,10 @@ static bool compute_flow_field(FlowPyramid *frm_pyr, FlowPyramid *ref_pyr,
 
 int av1_compute_global_motion_disflow_based(
     TransformationType type, YV12_BUFFER_CONFIG *frm, YV12_BUFFER_CONFIG *ref,
-    int bit_depth, int *num_inliers_by_motion, MotionModel *params_by_motion,
-    int num_motions) {
+    int bit_depth, MotionModel *motion_models, int num_motion_models) {
   const int pad_size = AOMMAX(PATCH_SIZE, MIN_PAD);
   int num_correspondences;
-  double *correspondences;
-  RansacFuncDouble ransac = av1_get_ransac_double_prec_type(type);
+  Correspondence *correspondences;
   ImagePyramid *frm_pyramid = frm->y_pyramid;
   CornerList *frm_corners = frm->corners;
   ImagePyramid *ref_pyramid = ref->y_pyramid;
@@ -613,25 +611,25 @@ int av1_compute_global_motion_disflow_based(
   if (!compute_flow_field(frm_pyr, ref_pyr, flow_u, flow_v)) goto Error;
 
   // find correspondences between the two images using the flow field
-  correspondences =
-      aom_malloc(frm_corners->num_corners * 4 * sizeof(*correspondences));
+  correspondences = (Correspondence *)aom_malloc(frm_corners->num_corners *
+                                                 sizeof(*correspondences));
   if (!correspondences) goto Error;
   num_correspondences = determine_disflow_correspondence(
       frm_corners->corners, frm_corners->num_corners, flow_u, flow_v, frm_width,
       frm_height, frm_pyr->strides[0], correspondences);
-  ransac(correspondences, num_correspondences, num_inliers_by_motion,
-         params_by_motion, num_motions);
+  ransac(correspondences, num_correspondences, type, motion_models,
+         num_motion_models);
 
   // Set num_inliers = 0 for motions with too few inliers so they are ignored.
-  for (int i = 0; i < num_motions; ++i) {
-    if (num_inliers_by_motion[i] < MIN_INLIER_PROB * num_correspondences) {
-      num_inliers_by_motion[i] = 0;
+  for (int i = 0; i < num_motion_models; ++i) {
+    if (motion_models[i].num_inliers < MIN_INLIER_PROB * num_correspondences) {
+      motion_models[i].num_inliers = 0;
     }
   }
 
   // Return true if any one of the motions has inliers.
-  for (int i = 0; i < num_motions; ++i) {
-    if (num_inliers_by_motion[i] > 0) {
+  for (int i = 0; i < num_motion_models; ++i) {
+    if (motion_models[i].num_inliers > 0) {
       ret = 1;
       break;
     }

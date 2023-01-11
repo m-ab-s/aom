@@ -2220,7 +2220,7 @@ static AOM_INLINE void switch_direction(AV1_COMP *cpi, int *frame_idx,
 static AOM_INLINE void init_gm_thread_data(
     const GlobalMotionInfo *gm_info, GlobalMotionThreadData *thread_data) {
   for (int m = 0; m < RANSAC_NUM_MOTIONS; m++) {
-    MotionModel motion_params = thread_data->params_by_motion[m];
+    MotionModel motion_params = thread_data->motion_models[m];
     av1_zero(motion_params.params);
     motion_params.num_inliers = 0;
   }
@@ -2277,7 +2277,7 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 
     // Compute global motion for the given ref_buf_idx.
     av1_compute_gm_for_valid_ref_frames(
-        cpi, gm_info->ref_buf, ref_buf_idx, gm_thread_data->params_by_motion,
+        cpi, gm_info->ref_buf, ref_buf_idx, gm_thread_data->motion_models,
         gm_thread_data->segment_map, gm_info->segment_map_w,
         gm_info->segment_map_h);
 
@@ -2357,7 +2357,7 @@ void av1_gm_dealloc(AV1GlobalMotionSync *gm_sync_data) {
       aom_free(thread_data->segment_map);
 
       for (int m = 0; m < RANSAC_NUM_MOTIONS; m++)
-        aom_free(thread_data->params_by_motion[m].inliers);
+        aom_free(thread_data->motion_models[m].inliers);
     }
     aom_free(gm_sync_data->thread_data);
   }
@@ -2386,8 +2386,8 @@ static AOM_INLINE void gm_alloc(AV1_COMP *cpi, int num_workers) {
 
     for (int m = 0; m < RANSAC_NUM_MOTIONS; m++) {
       CHECK_MEM_ERROR(
-          cm, thread_data->params_by_motion[m].inliers,
-          aom_malloc(sizeof(*thread_data->params_by_motion[m].inliers) * 2 *
+          cm, thread_data->motion_models[m].inliers,
+          aom_malloc(sizeof(*thread_data->motion_models[m].inliers) * 2 *
                      MAX_CORNERS));
     }
   }
