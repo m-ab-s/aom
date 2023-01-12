@@ -1596,6 +1596,12 @@ static int full_pixel_exhaustive(const FULLPEL_MV start_mv,
   int range = mesh_patterns[0].range;
   int baseline_interval_divisor;
 
+  // TODO(chiyotsai@google.com): Currently exhaustive search calls single ref
+  // version of sad and variance function. We still need to check the
+  // performance when compound ref exhaustive search is enabled.
+  assert(!ms_params->ms_buffers.second_pred &&
+         "Mesh search does not support compound mode!");
+
   *best_mv = start_mv;
 
   // Trap illegal values for interval and range for this function.
@@ -1793,7 +1799,8 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
 
   // Should we allow a follow on exhaustive search?
   if (!run_mesh_search &&
-      ((search_method == NSTEP) || (search_method == NSTEP_8PT))) {
+      ((search_method == NSTEP) || (search_method == NSTEP_8PT)) &&
+      !ms_params->ms_buffers.second_pred) {
     int exhaustive_thr = ms_params->force_mesh_thresh;
     exhaustive_thr >>=
         10 - (mi_size_wide_log2[bsize] + mi_size_high_log2[bsize]);
