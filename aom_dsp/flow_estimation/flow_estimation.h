@@ -49,11 +49,21 @@ typedef struct {
   int num_inliers;
 } MotionModel;
 
+// Data structure to store a single correspondence point during global
+// motion search.
+//
+// A correspondence (x, y) -> (rx, ry) means that point (x, y) in the
+// source frame corresponds to point (rx, ry) in the ref frame.
 typedef struct {
   double x, y;
   double rx, ry;
 } Correspondence;
 
+// Compute a global motion model between the given source and ref frames.
+//
+// As is standard for video codecs, the resulting model maps from (x, y)
+// coordinates in `src` to the corresponding points in `ref`, regardless
+// of the temporal order of the two frames.
 int aom_compute_global_motion(TransformationType type, YV12_BUFFER_CONFIG *src,
                               YV12_BUFFER_CONFIG *ref, int bit_depth,
                               GlobalMotionEstimationType gm_estimation_type,

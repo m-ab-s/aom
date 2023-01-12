@@ -18,6 +18,11 @@
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
 
+// Compute a global motion model between the given source and ref frames.
+//
+// As is standard for video codecs, the resulting model maps from (x, y)
+// coordinates in `src` to the corresponding points in `ref`, regardless
+// of the temporal order of the two frames.
 int aom_compute_global_motion(TransformationType type, YV12_BUFFER_CONFIG *src,
                               YV12_BUFFER_CONFIG *ref, int bit_depth,
                               GlobalMotionEstimationType gm_estimation_type,
