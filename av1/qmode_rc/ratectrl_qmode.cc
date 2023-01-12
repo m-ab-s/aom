@@ -1876,10 +1876,12 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
     const GopStruct &gop_struct, const FirstpassInfo &firstpass_info,
     const std::vector<LookaheadStats> &lookahead_stats,
     const RefFrameTable &ref_frame_table_snapshot_init) {
+  const int frame_count = static_cast<int>(gop_struct.gop_frame_list.size());
+  GopEncodeInfo gop_encode_info;
+
   const std::vector<RefFrameTable> ref_frame_table_list = GetRefFrameTableList(
       gop_struct, lookahead_stats, ref_frame_table_snapshot_init);
-  GopEncodeInfo gop_encode_info;
-  gop_encode_info.final_snapshot = ref_frame_table_list.back();
+  gop_encode_info.final_snapshot = ref_frame_table_list[frame_count];
 
   const int stats_size = static_cast<int>(firstpass_info.stats_list.size());
   const FirstpassInfo analyzed_fp_info =
@@ -1898,7 +1900,6 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
   }
 
   GopFrame arf_frame = GopFrameInvalid();
-  const int frame_count = static_cast<int>(gop_struct.gop_frame_list.size());
 
   const int base_offset = av1_get_deltaq_offset(
       AOM_BITS_8, rc_param_.base_q_index, gop_struct.base_q_ratio);
@@ -1954,18 +1955,22 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
     const TplGopStats &tpl_gop_stats,
     const std::vector<LookaheadStats> &lookahead_stats,
     const RefFrameTable &ref_frame_table_snapshot_init) {
-  const std::vector<RefFrameTable> ref_frame_table_list = GetRefFrameTableList(
-      gop_struct, lookahead_stats, ref_frame_table_snapshot_init);
+  assert(tpl_gop_stats.frame_stats_list.size() ==
+         gop_struct.gop_frame_list.size());
+  const int frame_count =
+      static_cast<int>(tpl_gop_stats.frame_stats_list.size());
 
   GopEncodeInfo gop_encode_info;
-  gop_encode_info.final_snapshot = ref_frame_table_list.back();
+
+  const std::vector<RefFrameTable> ref_frame_table_list = GetRefFrameTableList(
+      gop_struct, lookahead_stats, ref_frame_table_snapshot_init);
+  gop_encode_info.final_snapshot = ref_frame_table_list[frame_count];
+
   StatusOr<TplGopDepStats> gop_dep_stats = ComputeTplGopDepStats(
       tpl_gop_stats, lookahead_stats, ref_frame_table_list);
   if (!gop_dep_stats.ok()) {
     return gop_dep_stats.status();
   }
-  const int frame_count =
-      static_cast<int>(tpl_gop_stats.frame_stats_list.size());
 
   const int stats_size = static_cast<int>(firstpass_info.stats_list.size());
 
