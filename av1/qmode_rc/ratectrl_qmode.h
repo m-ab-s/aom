@@ -73,7 +73,7 @@ TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
                                         int min_block_size, bool has_alt_stats);
 
 TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
-                                        int unit_count);
+                                        int unit_count, bool rate_dist_present);
 
 Status FillTplUnitDepStats(TplFrameDepStats &frame_dep_stats,
                            const TplFrameStats &frame_stats,

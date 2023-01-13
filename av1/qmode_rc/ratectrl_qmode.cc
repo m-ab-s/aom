@@ -961,10 +961,18 @@ TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
 }
 
 TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
-                                        int unit_count) {
+                                        int unit_count,
+                                        bool rate_dist_present) {
   TplUnitDepStats dep_stats = {};
-  dep_stats.intra_cost = block_stats.intra_cost * 1.0 / unit_count;
-  dep_stats.inter_cost = block_stats.inter_cost * 1.0 / unit_count;
+  if (rate_dist_present) {
+    dep_stats.intra_cost = block_stats.intra_pred_err;
+    dep_stats.inter_cost = block_stats.inter_pred_err;
+  } else {
+    dep_stats.intra_cost = block_stats.intra_cost;
+    dep_stats.inter_cost = block_stats.inter_cost;
+  }
+  dep_stats.intra_cost *= 1.0 / unit_count;
+  dep_stats.inter_cost *= 1.0 / unit_count;
   // In rare case, inter_cost may be greater than intra_cost.
   // If so, we need to modify inter_cost such that inter_cost <= intra_cost
   // because it is required by GetPropagationFraction()
@@ -1062,8 +1070,8 @@ Status FillTplUnitDepStats(
     const int block_unit_cols = std::min(block_stats.width / min_block_size,
                                          unit_cols - block_unit_col);
     const int unit_count = block_unit_rows * block_unit_cols;
-    TplUnitDepStats this_unit_stats =
-        TplBlockStatsToDepStats(block_stats, unit_count);
+    TplUnitDepStats this_unit_stats = TplBlockStatsToDepStats(
+        block_stats, unit_count, frame_stats.rate_dist_present);
     for (int r = 0; r < block_unit_rows; r++) {
       for (int c = 0; c < block_unit_cols; c++) {
         unit_stats[block_unit_row + r][block_unit_col + c] = this_unit_stats;

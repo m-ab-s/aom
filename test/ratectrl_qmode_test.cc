@@ -437,8 +437,26 @@ TEST_F(RateControlQModeTest, TplBlockStatsToDepStats) {
   const int unit_count = 2;
   TplBlockStats block_stats =
       CreateToyTplBlockStats(8, 4, 0, 0, intra_cost, inter_cost);
-  TplUnitDepStats unit_stats = TplBlockStatsToDepStats(block_stats, unit_count);
+  TplUnitDepStats unit_stats = TplBlockStatsToDepStats(
+      block_stats, unit_count, /*rate_dist_present=*/false);
   double expected_intra_cost = intra_cost * 1.0 / unit_count;
+  EXPECT_NEAR(unit_stats.intra_cost, expected_intra_cost, kErrorEpsilon);
+  // When inter_cost >= intra_cost in block_stats, in unit_stats,
+  // the inter_cost will be modified so that it's upper-bounded by intra_cost.
+  EXPECT_LE(unit_stats.inter_cost, unit_stats.intra_cost);
+}
+
+TEST_F(RateControlQModeTest, TplBlockStatsToDepStatsUsingPredErr) {
+  const int intra_cost = 100;
+  const int inter_cost = 120;
+  const int unit_count = 2;
+  TplBlockStats block_stats =
+      CreateToyTplBlockStats(8, 4, 0, 0, intra_cost, inter_cost);
+  block_stats.intra_pred_err = 40;
+  block_stats.inter_pred_err = 50;
+  TplUnitDepStats unit_stats = TplBlockStatsToDepStats(
+      block_stats, unit_count, /*rate_dist_present=*/true);
+  double expected_intra_cost = block_stats.intra_pred_err * 1.0 / unit_count;
   EXPECT_NEAR(unit_stats.intra_cost, expected_intra_cost, kErrorEpsilon);
   // When inter_cost >= intra_cost in block_stats, in unit_stats,
   // the inter_cost will be modified so that it's upper-bounded by intra_cost.
