@@ -1323,15 +1323,26 @@ void TplFrameDepStatsPropagate(int coding_idx,
                   ref_unit_col * unit_size, unit_size);
               const double overlap_ratio =
                   overlap_area * 1.0 / (unit_size * unit_size);
+              const double propagation_fraction_power = 0.3;
+              // We apply propagation_fraction with power of 0.3 to improve
+              // propagation rate. The power coefficient is tuned from empirical
+              // practice due to the fact that the inter/intra cost is RD cost
+              // not prediction error which is used in the original design. This
+              // action will increase the propagation_fraction when the
+              // difference between intra_cost and inter_cost are reasonably big
+              // but not enough for propagation.
+              // TODO(angiebird): Check this part again when we use prediction
+              // error for inter/intra cost.
               const double propagation_fraction =
-                  GetPropagationFraction(unit_dep_stats);
+                  std::pow(GetPropagationFraction(unit_dep_stats),
+                           propagation_fraction_power);
               const double propagation_ratio =
-                  1.0 / ref_frame_count * overlap_ratio * propagation_fraction;
+                  1.0 / ref_frame_count * overlap_ratio;
               TplUnitDepStats &ref_unit_stats =
                   ref_frame_dep_stats.unit_stats[ref_unit_row][ref_unit_col];
               ref_unit_stats.propagation_cost +=
-                  (unit_dep_stats.intra_cost +
-                   unit_dep_stats.propagation_cost) *
+                  (unit_dep_stats.intra_cost - unit_dep_stats.inter_cost +
+                   unit_dep_stats.propagation_cost * propagation_fraction) *
                   propagation_ratio;
             }
           }
