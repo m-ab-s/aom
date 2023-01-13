@@ -620,8 +620,8 @@ TEST_F(RateControlQModeTest, ComputeTplGopDepStats) {
 
     ref_frame_table_list.push_back(CreateToyRefFrameTable(i));
   }
-  const StatusOr<TplGopDepStats> gop_dep_stats =
-      ComputeTplGopDepStats(tpl_gop_stats, {}, ref_frame_table_list);
+  const StatusOr<TplGopDepStats> gop_dep_stats = ComputeTplGopDepStats(
+      gop_struct, tpl_gop_stats, {}, ref_frame_table_list);
   ASSERT_THAT(gop_dep_stats.status(), IsOkStatus());
 
   double expected_sum = 0;
