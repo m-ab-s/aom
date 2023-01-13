@@ -9,7 +9,6 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include "av1/encoder/rd.h"
 #include "av1/qmode_rc/ratectrl_qmode.h"
 
 #include <algorithm>
@@ -24,6 +23,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "av1/encoder/rd.h"
 #include "av1/qmode_rc/ducky_encode.h"
 #include "av1/qmode_rc/reference_manager.h"
 #include "test/mock_ratectrl_qmode.h"
