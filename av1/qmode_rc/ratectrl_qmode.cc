@@ -965,14 +965,12 @@ TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
                                         bool rate_dist_present) {
   TplUnitDepStats dep_stats = {};
   if (rate_dist_present) {
-    dep_stats.intra_cost = block_stats.intra_pred_err;
-    dep_stats.inter_cost = block_stats.inter_pred_err;
+    dep_stats.intra_cost = block_stats.intra_pred_err * 1.0 / unit_count;
+    dep_stats.inter_cost = block_stats.inter_pred_err * 1.0 / unit_count;
   } else {
-    dep_stats.intra_cost = block_stats.intra_cost;
-    dep_stats.inter_cost = block_stats.inter_cost;
+    dep_stats.intra_cost = block_stats.intra_cost * 1.0 / unit_count;
+    dep_stats.inter_cost = block_stats.inter_cost * 1.0 / unit_count;
   }
-  dep_stats.intra_cost *= 1.0 / unit_count;
-  dep_stats.inter_cost *= 1.0 / unit_count;
   // In rare case, inter_cost may be greater than intra_cost.
   // If so, we need to modify inter_cost such that inter_cost <= intra_cost
   // because it is required by GetPropagationFraction()
