@@ -103,6 +103,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   TransformationType model;
   int bit_depth = cpi->common.seq_params->bit_depth;
   GlobalMotionMethod global_motion_method = cpi->oxcf.global_motion_method;
+  int num_refinements = cpi->sf.gm_sf.num_refinement_steps;
 
   for (model = ROTZOOM; model < GLOBAL_TRANS_TYPES_ENC; ++model) {
     int64_t best_warp_error = INT64_MAX;
@@ -151,7 +152,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
             ref_buf[frame]->y_buffer, ref_buf[frame]->y_crop_width,
             ref_buf[frame]->y_crop_height, ref_buf[frame]->y_stride,
             cpi->source->y_buffer, src_width, src_height, src_stride,
-            GM_REFINEMENT_COUNT, best_warp_error, segment_map, segment_map_w,
+            num_refinements, best_warp_error, segment_map, segment_map_w,
             erroradv_threshold);
 
         // av1_refine_integerized_param() can return a TRANSLATION type model

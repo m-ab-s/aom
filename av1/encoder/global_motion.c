@@ -225,8 +225,8 @@ int64_t av1_warp_error(WarpedMotionParams *wm, int use_hbd, int bd,
 }
 
 // Factors used to calculate the thresholds for av1_warp_error
-static double thresh_factors[GM_REFINEMENT_COUNT] = { 1.25, 1.20, 1.15, 1.10,
-                                                      1.05 };
+static double thresh_factors[GM_MAX_REFINEMENT_STEPS] = { 1.25, 1.20, 1.15,
+                                                          1.10, 1.05 };
 
 static INLINE int64_t calc_approx_erroradv_threshold(
     double scaling_factor, int64_t erroradv_threshold) {
@@ -259,6 +259,12 @@ int64_t av1_refine_integerized_param(
                      dst + border * d_stride + border, border, border,
                      d_width - 2 * border, d_height - 2 * border, d_stride, 0,
                      0, best_frame_error, segment_map, segment_map_stride);
+
+  if (n_refinements == 0) {
+    wm->wmtype = get_wmtype(wm);
+    return best_error;
+  }
+
   best_error = AOMMIN(best_error, best_frame_error);
   step = 1 << (n_refinements - 1);
   for (i = 0; i < n_refinements; i++, step >>= 1) {

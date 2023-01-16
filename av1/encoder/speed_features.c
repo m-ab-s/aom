@@ -1000,6 +1000,7 @@ static void set_good_speed_features_framesize_independent(
     sf->fp_sf.skip_motion_search_threshold = 25;
 
     sf->gm_sf.disable_gm_search_based_on_stats = 1;
+    sf->gm_sf.num_refinement_steps = 2;
 
     sf->part_sf.reuse_best_prediction_for_part_ab =
         !frame_is_intra_only(&cpi->common);
@@ -1056,8 +1057,8 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 3) {
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
 
-    sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
     sf->gm_sf.prune_zero_mv_with_sse = 1;
+    sf->gm_sf.num_refinement_steps = 0;
 
     sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg =
@@ -1129,9 +1130,9 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 4) {
-    sf->gm_sf.prune_zero_mv_with_sse = 2;
-
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+
+    sf->gm_sf.prune_zero_mv_with_sse = 2;
 
     sf->part_sf.simple_motion_search_prune_agg =
         allow_screen_content_tools ? SIMPLE_AGG_LVL0 : SIMPLE_AGG_LVL2;
@@ -1186,6 +1187,8 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.weight_calc_level_in_tf = 1;
 
     sf->fp_sf.reduce_mv_step_param = 4;
+
+    sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
 
     sf->part_sf.simple_motion_search_prune_agg =
         allow_screen_content_tools ? SIMPLE_AGG_LVL0 : SIMPLE_AGG_LVL3;
@@ -1854,6 +1857,7 @@ static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
   gm_sf->prune_ref_frame_for_gm_search = 0;
   gm_sf->prune_zero_mv_with_sse = 0;
   gm_sf->disable_gm_search_based_on_stats = 0;
+  gm_sf->num_refinement_steps = GM_MAX_REFINEMENT_STEPS;
 }
 
 static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
