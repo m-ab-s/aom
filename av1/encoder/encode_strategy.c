@@ -786,6 +786,8 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
             tf_buf, &frame_diff, q_index, cm->seq_params->bit_depth);
         if (show_existing_alt_ref) {
           cpi->common.showable_frame |= 1;
+        } else {
+          cpi->common.showable_frame = 0;
         }
       }
       if (gf_group->frame_type[cpi->gf_frame_index] != KEY_FRAME) {
