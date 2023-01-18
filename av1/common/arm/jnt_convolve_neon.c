@@ -1163,9 +1163,9 @@ void av1_dist_wtd_convolve_2d_neon(const uint8_t *src, int src_stride,
   const int y_filter_taps = get_filter_tap(filter_params_y, subpel_y_qn);
   const int clamped_y_taps = y_filter_taps < 6 ? 6 : y_filter_taps;
 
-  const int im_h = h + clamped_y_taps - 1;
+  const int im_h = h + filter_params_y->taps - 1;
   const int im_stride = MAX_SB_SIZE;
-  const int vert_offset = clamped_y_taps / 2 - 1;
+  const int vert_offset = filter_params_y->taps / 2 - 1;
   const int horiz_offset = filter_params_x->taps / 2 - 1;
   const int round_0 = conv_params->round_0 - 1;
   const uint8_t *src_ptr = src - vert_offset * src_stride - horiz_offset;
@@ -1182,9 +1182,10 @@ void av1_dist_wtd_convolve_2d_neon(const uint8_t *src, int src_stride,
   dist_wtd_convolve_2d_horiz_neon(src_ptr, src_stride, im_block, im_stride,
                                   x_filter, im_h, w, round_0);
 
-  if (clamped_y_taps <= 6) {
-    dist_wtd_convolve_2d_vert_6tap_neon(im_block, im_stride, dst8, dst8_stride,
-                                        conv_params, y_filter, h, w);
+  if (clamped_y_taps == 6) {
+    dist_wtd_convolve_2d_vert_6tap_neon(im_block + im_stride, im_stride, dst8,
+                                        dst8_stride, conv_params, y_filter, h,
+                                        w);
   } else {
     dist_wtd_convolve_2d_vert_8tap_neon(im_block, im_stride, dst8, dst8_stride,
                                         conv_params, y_filter, h, w);
