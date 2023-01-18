@@ -1121,7 +1121,7 @@ static void fix_interp_filter(InterpFilter *const interp_filter,
       // Only one filter is used. So set the filter at frame level
       for (int i = 0; i < SWITCHABLE_FILTERS; ++i) {
         if (count[i]) {
-          if (i == EIGHTTAP_REGULAR) *interp_filter = i;
+          *interp_filter = i;
           break;
         }
       }
@@ -1171,7 +1171,8 @@ void av1_finalize_encoded_frame(AV1_COMP *const cpi) {
     }
   }
 
-  fix_interp_filter(&cm->features.interp_filter, cpi->td.counts);
+  if (!frame_is_intra_only(cm))
+    fix_interp_filter(&cm->features.interp_filter, cpi->td.counts);
 }
 
 int av1_is_integer_mv(const YV12_BUFFER_CONFIG *cur_picture,

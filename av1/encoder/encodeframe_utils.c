@@ -193,6 +193,9 @@ static AOM_INLINE void update_filter_type_count(FRAME_COUNTS *counts,
   for (dir = 0; dir < 2; ++dir) {
     const int ctx = av1_get_pred_context_switchable_interp(xd, dir);
     InterpFilter filter = av1_extract_interp_filter(mbmi->interp_filters, dir);
+
+    // Only allow the 3 valid SWITCHABLE_FILTERS.
+    assert(filter < SWITCHABLE_FILTERS);
     ++counts->switchable_interp[ctx][filter];
   }
 }
@@ -369,9 +372,12 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   }
 #endif
   if (!frame_is_intra_only(cm)) {
-    if (cm->features.interp_filter == SWITCHABLE &&
-        mi_addr->motion_mode != WARPED_CAUSAL &&
-        !is_nontrans_global_motion(xd, xd->mi[0])) {
+    if (is_inter_block(mi) && cm->features.interp_filter == SWITCHABLE) {
+      // When the frame interp filter is SWITCHABLE, several cases that always
+      // use the default type (EIGHTTAP_REGULAR) are described in
+      // av1_is_interp_needed(). Here, we should keep the counts for all
+      // applicable blocks, so the frame filter resetting decision in
+      // fix_interp_filter() is made correctly.
       update_filter_type_count(td->counts, xd, mi_addr);
     }
   }
