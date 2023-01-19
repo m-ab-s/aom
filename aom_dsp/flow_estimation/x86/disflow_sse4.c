@@ -15,6 +15,7 @@
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/flow_estimation/disflow.h"
+#include "aom_dsp/x86/synonyms.h"
 
 #include "config/aom_dsp_rtcd.h"
 
@@ -101,10 +102,8 @@ static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *frm,
   // We split the kernel into two vectors with kernel indices:
   // 0, 1, 0, 1, 0, 1, 0, 1, and
   // 2, 3, 2, 3, 2, 3, 2, 3
-  __m128i h_kernel_01 =
-      _mm_set1_epi32((h_kernel[0] & 0xFFFF) | (h_kernel[1] << 16));
-  __m128i h_kernel_23 =
-      _mm_set1_epi32((h_kernel[2] & 0xFFFF) | (h_kernel[3] << 16));
+  __m128i h_kernel_01 = xx_set2_epi16(h_kernel[0], h_kernel[1]);
+  __m128i h_kernel_23 = xx_set2_epi16(h_kernel[2], h_kernel[3]);
 
   __m128i round_const_h = _mm_set1_epi32(1 << (DISFLOW_INTERP_BITS - 6 - 1));
 
@@ -197,10 +196,8 @@ static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *frm,
   const int round_bits = DISFLOW_INTERP_BITS + 6 - DISFLOW_DERIV_SCALE_LOG2;
   __m128i round_const_v = _mm_set1_epi32(1 << (round_bits - 1));
 
-  __m128i v_kernel_01 =
-      _mm_set1_epi32((v_kernel[0] & 0xFFFF) | (v_kernel[1] << 16));
-  __m128i v_kernel_23 =
-      _mm_set1_epi32((v_kernel[2] & 0xFFFF) | (v_kernel[3] << 16));
+  __m128i v_kernel_01 = xx_set2_epi16(v_kernel[0], v_kernel[1]);
+  __m128i v_kernel_23 = xx_set2_epi16(v_kernel[2], v_kernel[3]);
 
   for (int i = 0; i < DISFLOW_PATCH_SIZE; ++i) {
     int16_t *tmp_row = &tmp[i * DISFLOW_PATCH_SIZE];
