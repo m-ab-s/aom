@@ -997,7 +997,7 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
 
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       cpi->rc.high_source_sad)
-    shift = 5;
+    shift = 7;
 
   MB_MODE_INFO *mi = xd->mi[0];
   const AV1_COMMON *const cm = &cpi->common;
