@@ -1,4 +1,4 @@
-2023-01-12 v3.6.0
+2023-01-20 v3.6.0
   This release includes compression efficiency and perceptual quality
   improvements, speedup and memory optimizations, and some new features.
   This release is ABI compatible with the last release.
@@ -17,6 +17,7 @@
     * Make SVC work for screen content.
     * Rate control improvements to reduce frame-size spikes for screen
       content coding.
+    * RISC-V architecture support with gcc toolchain.
 
   - Compression Efficiency Improvements
     * 0.7% - 2.2% RTC encoding BDrate gains for real time speed 8 to 10.
@@ -50,9 +51,17 @@
   - Bug Fixes
     * Added a workaround for an AV1 specification bug which makes
       TRANSLATION type global motion models unusable.
+    * Fixed AddressSanitizer global-buffer-overflow errors in
+      av1/encoder/arm/neon/av1_fwd_txfm2d_neon.c.
+    * Fixed AddressSanitizer heap-buffer-overflow error in
+      av1_wiener_convolve_add_src_neon().
     * chromium:1393384 Avoid scene detection on spatial resize.
     * aomedia:3308 Remove color artifacts under high motion.
+    * aomedia:3310 Avoid out of memory failures with Visual Studio 2017
+      and 2019 for Win32 x86 builds.
     * aomedia:3346 Make SVC work properly for screen content.
+    * aomedia:3365 Work around what seems like a Visual Studio 2022
+      compiler optimization bug.
 
 2022-08-31 v3.5.0
   This release is ABI compatible with the last one, including speedup and memory
