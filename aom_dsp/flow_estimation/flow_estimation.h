@@ -22,7 +22,6 @@ extern "C" {
 #endif
 
 #define MAX_PARAMDIM 9
-#define MAX_CORNERS 4096
 #define MIN_INLIER_PROB 0.1
 
 /* clang-format off */
