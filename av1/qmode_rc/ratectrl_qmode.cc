@@ -1907,13 +1907,6 @@ double GetAccumulatedScore(const FirstpassInfo &firstpass_info, int this_index,
   return score;
 }
 
-int AdjustStaticQp(double avg_correlation, double score, int q_index) {
-  if (avg_correlation < 0.99) return q_index;
-  const double factor = q_index * score / 400 + 1.0;
-
-  return static_cast<int>(q_index / factor);
-}
-
 StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
     const GopStruct &gop_struct, const FirstpassInfo &firstpass_info,
     const std::vector<LookaheadStats> &lookahead_stats,
