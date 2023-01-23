@@ -767,6 +767,10 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
     ERROR("Current pass is larger than total number of passes.");
   }
 
+  if (cfg->g_profile == (unsigned int)PROFILE_1 && cfg->monochrome) {
+    ERROR("Monochrome is not supported in profile 1");
+  }
+
   if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
       cfg->g_bit_depth > AOM_BITS_10) {
     ERROR("Codec bit-depth 12 not supported in profile < 2");
