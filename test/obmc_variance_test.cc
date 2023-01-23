@@ -127,8 +127,9 @@ TEST_P(ObmcVarianceTest, DISABLED_Speed) {
   const int elapsed_time_simd =
       static_cast<int>(aom_usec_timer_elapsed(&test_timer));
 
-  printf("c_time=%d \t simd_time=%d \t gain=%d \n", elapsed_time_c,
-         elapsed_time_simd, (elapsed_time_c / elapsed_time_simd));
+  printf("c_time=%d \t simd_time=%d \t gain=%f \n", elapsed_time_c,
+         elapsed_time_simd,
+         static_cast<double>(elapsed_time_c) / elapsed_time_simd);
 }
 
 #if HAVE_SSE4_1
