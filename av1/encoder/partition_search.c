@@ -2539,6 +2539,7 @@ static void try_merge(AV1_COMP *const cpi, ThreadData *td,
   MACROBLOCK *const x = &td->mb;
   MACROBLOCKD *const xd = &x->e_mbd;
   const ModeCosts *mode_costs = &x->mode_costs;
+  const int num_planes = av1_num_planes(cm);
   // Only square blocks from 8x8 to 128x128 are supported
   assert(bsize >= BLOCK_8X8 && bsize <= BLOCK_128X128);
   const int bs = mi_size_wide[bsize];
@@ -2548,7 +2549,7 @@ static void try_merge(AV1_COMP *const cpi, ThreadData *td,
   RD_STATS split_rdc, none_rdc;
   av1_invalid_rd_stats(&split_rdc);
   av1_invalid_rd_stats(&none_rdc);
-  av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
+  av1_save_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
   xd->above_txfm_context =
       cm->above_contexts.txfm[tile_info->tile_row] + mi_col;
   xd->left_txfm_context =
@@ -2563,7 +2564,7 @@ static void try_merge(AV1_COMP *const cpi, ThreadData *td,
                       pc_tree->none);
   none_rdc.rate += mode_costs->partition_cost[pl][PARTITION_NONE];
   none_rdc.rdcost = RDCOST(x->rdmult, none_rdc.rate, none_rdc.dist);
-  av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
+  av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
 
   if (cpi->sf.rt_sf.nonrd_check_partition_merge_mode < 2 ||
       none_rdc.skip_txfm != 1 || pc_tree->none->mic.mode == NEWMV) {
@@ -2609,7 +2610,7 @@ static void try_merge(AV1_COMP *const cpi, ThreadData *td,
                          1, subsize, PARTITION_NONE, pc_tree->split[i]->none,
                          NULL);
       }
-      av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, 3);
+      av1_restore_context(x, &x_ctx, mi_row, mi_col, bsize, num_planes);
       split_rdc.rdcost = RDCOST(x->rdmult, split_rdc.rate, split_rdc.dist);
     }
   }
