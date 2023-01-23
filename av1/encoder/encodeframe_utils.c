@@ -31,8 +31,19 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
   const int num_brows = (mi_size_high[bsize] + num_mi_h - 1) / num_mi_h;
   int row, col;
   double num_of_mi = 0.0;
-  double geom_mean_of_scale = 0.0;
+  double geom_mean_of_scale = 1.0;
 
+  // To avoid overflow of 'geom_mean_of_scale', bsize_base must be at least
+  // BLOCK_8X8.
+  //
+  // For bsize=BLOCK_128X128 and bsize_base=BLOCK_8X8, the loop below would
+  // iterate 256 times. Considering the maximum value of
+  // cpi->ssim_rdmult_scaling_factors (see av1_set_mb_ssim_rdmult_scaling()),
+  // geom_mean_of_scale can go up to 4.8323^256, which is within DBL_MAX
+  // (maximum value a double data type can hold). If bsize_base is modified to
+  // BLOCK_4X4 (minimum possible block size), geom_mean_of_scale can go up
+  // to 4.8323^1024 and exceed DBL_MAX, resulting in data overflow.
+  assert(bsize_base >= BLOCK_8X8);
   assert(cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIM);
 
   for (row = mi_row / num_mi_w;
@@ -41,11 +52,11 @@ void av1_set_ssim_rdmult(const AV1_COMP *const cpi, int *errorperbit,
          col < num_cols && col < mi_col / num_mi_h + num_bcols; ++col) {
       const int index = row * num_cols + col;
       assert(cpi->ssim_rdmult_scaling_factors[index] != 0.0);
-      geom_mean_of_scale += log(cpi->ssim_rdmult_scaling_factors[index]);
+      geom_mean_of_scale *= cpi->ssim_rdmult_scaling_factors[index];
       num_of_mi += 1.0;
     }
   }
-  geom_mean_of_scale = exp(geom_mean_of_scale / num_of_mi);
+  geom_mean_of_scale = pow(geom_mean_of_scale, (1.0 / num_of_mi));
 
   *rdmult = (int)((double)(*rdmult) * geom_mean_of_scale + 0.5);
   *rdmult = AOMMAX(*rdmult, 0);
