@@ -738,7 +738,11 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     }
     const int mi_row = xd->mi_row;
     const int mi_col = xd->mi_col;
-    av1_setup_pre_planes(xd, ref_idx, scaled_ref_frame, mi_row, mi_col, NULL,
+    // The index below needs to be 0 instead of ref_idx since we assume the
+    // 0th slot to be used for subsequent searches. Note that the ref_idx
+    // reference buffer has been copied to the 0th slot in the code above.
+    // Now we need to swap the reference frame for the 0th slot.
+    av1_setup_pre_planes(xd, 0, scaled_ref_frame, mi_row, mi_col, NULL,
                          num_planes);
   }
 
@@ -767,9 +771,9 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                   &best_mv.as_fullmv, NULL);
 
   if (scaled_ref_frame) {
-    // Swap back the original buffers for subpel motion search.
+    // Swap back the original buffers for subpel motion search for the 0th slot.
     for (int i = 0; i < num_planes; i++) {
-      xd->plane[i].pre[ref_idx] = backup_yv12[i];
+      xd->plane[i].pre[0] = backup_yv12[i];
     }
   }
 
