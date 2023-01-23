@@ -648,6 +648,9 @@ static void init_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   resize_pending_params->width = 0;
   resize_pending_params->height = 0;
 
+  // Setup identity scale factor
+  av1_setup_scale_factors_for_frame(&cm->sf_identity, 1, 1, 1, 1);
+
   init_buffer_indices(&cpi->force_intpel_info, cm->remapped_ref_idx);
 
   av1_noise_estimate_init(&cpi->noise_estimate, cm->width, cm->height);
