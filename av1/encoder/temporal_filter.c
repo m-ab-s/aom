@@ -110,9 +110,6 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   // Parameters used for motion search.
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   SUBPEL_MOTION_SEARCH_PARAMS ms_params;
-  const SEARCH_METHODS search_method = NSTEP;
-  const search_site_config *search_site_cfg = av1_get_search_site_config(
-      mb->search_site_cfg_buf, &cpi->mv_search_params, search_method, y_stride);
   const int step_param = av1_init_search_range(
       AOMMAX(frame_to_filter->y_crop_width, frame_to_filter->y_crop_height));
   const SUBPEL_SEARCH_TYPE subpel_search_type = USE_8_TAPS;
@@ -132,6 +129,11 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   mb->plane[0].src.stride = y_stride;
   mbd->plane[0].pre[0].buf = ref_frame->y_buffer + y_offset;
   mbd->plane[0].pre[0].stride = y_stride;
+
+  const SEARCH_METHODS search_method = NSTEP;
+  const search_site_config *search_site_cfg =
+      av1_get_search_site_config(cpi, mb, search_method);
+
   // Unused intermediate results for motion search.
   unsigned int sse, error;
   int distortion;

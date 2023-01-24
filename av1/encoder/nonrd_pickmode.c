@@ -252,10 +252,8 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     center_mv = tmp_mv->as_mv;
 
   const SEARCH_METHODS search_method = sf->mv_sf.search_method;
-  const MotionVectorSearchParams *mv_search_params = &cpi->mv_search_params;
-  const int ref_stride = xd->plane[AOM_PLANE_Y].pre[0].stride;
-  const search_site_config *src_search_sites = av1_get_search_site_config(
-      x->search_site_cfg_buf, mv_search_params, search_method, ref_stride);
+  const search_site_config *src_search_sites =
+      av1_get_search_site_config(cpi, x, search_method);
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
                                      src_search_sites,

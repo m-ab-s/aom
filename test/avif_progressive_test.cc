@@ -103,9 +103,7 @@ TEST(AVIFProgressiveTest, QualityChange) {
 
 // This test emulates how libavif calls libaom functions to encode a
 // progressive AVIF image in libavif's ProgressiveTest.DimensionChange test.
-// TODO(https://crbug.com/aomedia/3348): Fix the assertion failure at
-// av1/encoder/mcomp.c:1760 and enable this test.
-TEST(AVIFProgressiveTest, DISABLED_DimensionChange) {
+TEST(AVIFProgressiveTest, DimensionChange) {
   constexpr int kWidth = 256;
   constexpr int kHeight = 256;
   // Dummy buffer of neutral gray samples.

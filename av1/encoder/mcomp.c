@@ -94,11 +94,10 @@ void av1_init_obmc_buffer(OBMCBuffer *obmc_buffer) {
 
 void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
-    const MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
+    MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv,
     const search_site_config search_sites[NUM_DISTINCT_SEARCH_METHODS],
     int fine_search_interval) {
   const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
-  const int sf_blk_search_method = mv_sf->use_bsize_dependent_search_method;
 
   // High level params
   ms_params->bsize = bsize;
@@ -107,14 +106,25 @@ void av1_make_default_fullpel_ms_params(
   init_ms_buffers(&ms_params->ms_buffers, x);
 
   SEARCH_METHODS search_method = mv_sf->search_method;
+  const int sf_blk_search_method = mv_sf->use_bsize_dependent_search_method;
   const int min_dim = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);
-  if (sf_blk_search_method >= 2) {
-    const int qband = x->qindex >> (QINDEX_BITS - 2);
-    if (min_dim >= 16 && x->content_state_sb.source_sad_nonrd <= kMedSad &&
-        qband < 3)
-      search_method = get_faster_search_method(search_method);
-  } else if (sf_blk_search_method >= 1 && min_dim >= 32) {
+  const int qband = x->qindex >> (QINDEX_BITS - 2);
+  const bool use_faster_search_method =
+      (sf_blk_search_method == 1 && min_dim >= 32) ||
+      (sf_blk_search_method >= 2 && min_dim >= 16 &&
+       x->content_state_sb.source_sad_nonrd <= kMedSad && qband < 3);
+
+  if (use_faster_search_method) {
     search_method = get_faster_search_method(search_method);
+
+    // We might need to update the search site config since search_method
+    // is changed here.
+    const int ref_stride = ms_params->ms_buffers.ref->stride;
+    if (ref_stride != search_sites[search_method].stride) {
+      av1_refresh_search_site_config(x->search_site_cfg_buf, search_method,
+                                     ref_stride);
+      search_sites = x->search_site_cfg_buf;
+    }
   }
 
   av1_set_mv_search_method(ms_params, search_sites, search_method);
