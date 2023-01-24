@@ -1647,7 +1647,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->winner_mode_sf.winner_mode_ifs = 1;
 
   sf->rt_sf.check_intra_pred_nonrd = 1;
-  sf->rt_sf.estimate_motion_for_var_based_partition = 1;
+  sf->rt_sf.estimate_motion_for_var_based_partition = 2;
   sf->rt_sf.hybrid_intra_pickmode = 1;
   sf->rt_sf.use_comp_ref_nonrd = 0;
   sf->rt_sf.ref_frame_comp_nonrd[0] = 0;
@@ -1772,7 +1772,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
 
   if (speed >= 8) {
     sf->rt_sf.sse_early_term_inter_search = EARLY_TERM_IDX_2;
-    sf->rt_sf.estimate_motion_for_var_based_partition = 2;
     sf->intra_sf.intra_pruning_with_hog = 1;
     sf->rt_sf.short_circuit_low_temp_var = 1;
     sf->rt_sf.use_nonrd_altref_frame = 0;
