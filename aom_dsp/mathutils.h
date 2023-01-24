@@ -87,6 +87,12 @@ static INLINE void least_squares_init(double *mat, double *y, int n) {
   memset(y, 0, n * sizeof(double));
 }
 
+// Round the given positive value to nearest integer
+static AOM_FORCE_INLINE int iroundpf(float x) {
+  assert(x >= 0.0);
+  return (int)(x + 0.5f);
+}
+
 static INLINE void least_squares_accumulate(double *mat, double *y,
                                             const double *a, double b, int n) {
   for (int i = 0; i < n; i++) {

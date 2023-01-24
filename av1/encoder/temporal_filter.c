@@ -699,8 +699,9 @@ void av1_apply_temporal_filter_c(
         if (tf_wgt_calc_lvl == 0) {
           weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
         } else {
-          weight =
-              (int)(approx_exp((float)-scaled_error) * TF_WEIGHT_SCALE + 0.5f);
+          const float fweight =
+              approx_exp((float)-scaled_error) * TF_WEIGHT_SCALE;
+          weight = iroundpf(fweight);
         }
 
         const int idx = plane_offset + pred_idx;  // Index with plane shift.

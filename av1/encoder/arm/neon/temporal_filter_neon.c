@@ -180,8 +180,9 @@ static void apply_temporal_filter(
         double scaled_error =
             combined_error * d_factor[subblock_idx] * decay_factor;
         scaled_error = AOMMIN(scaled_error, 7);
-        const int weight =
-            (int)(approx_exp((float)-scaled_error) * TF_WEIGHT_SCALE + 0.5f);
+        const float fweight =
+            approx_exp((float)-scaled_error) * TF_WEIGHT_SCALE;
+        const int weight = iroundpf(fweight);
         accumulator[k] += weight * pixel_value;
         count[k] += weight;
       }
@@ -335,8 +336,9 @@ static void apply_temporal_filter(
         double scaled_error =
             combined_error * d_factor[subblock_idx] * decay_factor;
         scaled_error = AOMMIN(scaled_error, 7);
-        const int weight =
-            (int)(approx_exp((float)-scaled_error) * TF_WEIGHT_SCALE + 0.5f);
+        const float fweight =
+            approx_exp((float)-scaled_error) * TF_WEIGHT_SCALE;
+        const int weight = iroundpf(fweight);
         accumulator[k] += weight * pixel_value;
         count[k] += weight;
       }
