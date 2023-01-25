@@ -92,6 +92,7 @@ class DatarateTestSVC
     screen_mode_ = 0;
     rps_mode_ = 0;
     rps_recovery_frame_ = 0;
+    user_define_frame_qp_ = 0;
   }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -193,6 +194,11 @@ class DatarateTestSVC
     }
     layer_frame_cnt_++;
     DatarateTest::PreEncodeFrameHook(video, encoder);
+
+    if (user_define_frame_qp_) {
+      frame_qp_ = rnd_.PseudoUniform(63);
+      encoder->Control(AV1E_SET_QUANTIZER_ONE_PASS, frame_qp_);
+    }
   }
 
   virtual void PostEncodeFrameHook(::libaom_test::Encoder *encoder) {
@@ -200,6 +206,14 @@ class DatarateTestSVC
     encoder->Control(AV1E_GET_NUM_OPERATING_POINTS, &num_operating_points);
     ASSERT_EQ(num_operating_points,
               number_temporal_layers_ * number_spatial_layers_);
+
+    if (user_define_frame_qp_) {
+      if (current_video_frame_ >= static_cast<unsigned int>(total_frame_))
+        return;
+      int qp;
+      encoder->Control(AOME_GET_LAST_QUANTIZER_64, &qp);
+      ASSERT_EQ(qp, frame_qp_);
+    }
   }
 
   virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
@@ -635,6 +649,71 @@ class DatarateTestSVC
     // encoder side, but is always applied on decoder.
     // This means 150 = #frames(300) - #TL2_frames(150).
     EXPECT_EQ((int)GetMismatchFrames(), 150);
+  }
+
+  virtual void SetFrameQpSVC3TL1SLTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 1;
+
+    user_define_frame_qp_ = 1;
+    total_frame_ = 300;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    const int bitrate_array[2] = { 200, 550 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    number_temporal_layers_ = 3;
+    target_layer_bitrate_[0] = 50 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[1] = 70 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[2] = cfg_.rc_target_bitrate;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  }
+
+  virtual void SetFrameQpSVC3TL3SLTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+
+    user_define_frame_qp_ = 1;
+    total_frame_ = 300;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    const int bitrate_array[2] = { 600, 1200 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    number_temporal_layers_ = 3;
+    number_spatial_layers_ = 3;
+    // SL0
+    const int bitrate_sl0 = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[0] = 50 * bitrate_sl0 / 100;
+    target_layer_bitrate_[1] = 70 * bitrate_sl0 / 100;
+    target_layer_bitrate_[2] = bitrate_sl0;
+    // SL1
+    const int bitrate_sl1 = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[3] = 50 * bitrate_sl1 / 100;
+    target_layer_bitrate_[4] = 70 * bitrate_sl1 / 100;
+    target_layer_bitrate_[5] = bitrate_sl1;
+    // SL2
+    const int bitrate_sl2 = 4 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[6] = 50 * bitrate_sl2 / 100;
+    target_layer_bitrate_[7] = 70 * bitrate_sl2 / 100;
+    target_layer_bitrate_[8] = bitrate_sl2;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
 
   virtual void BasicRateTargetingSVC3TL1SLScreenTest() {
@@ -1861,12 +1940,21 @@ class DatarateTestSVC
   int screen_mode_;
   int rps_mode_;
   int rps_recovery_frame_;
+
+  int user_define_frame_qp_;
+  int frame_qp_;
+  int total_frame_;
+  libaom_test::ACMRandom rnd_;
 };
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SL) {
   BasicRateTargetingSVC3TL1SLTest();
 }
+
+TEST_P(DatarateTestSVC, SetFrameQpSVC3TL1SL) { SetFrameQpSVC3TL1SLTest(); }
+
+TEST_P(DatarateTestSVC, SetFrameQpSVC3TL3SL) { SetFrameQpSVC3TL3SLTest(); }
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial
 // for screen mode.

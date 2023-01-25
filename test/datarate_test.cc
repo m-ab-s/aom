@@ -12,6 +12,7 @@
 #include "config/aom_config.h"
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+#include "test/acm_random.h"
 #include "test/codec_factory.h"
 #include "test/datarate_test.h"
 #include "test/encode_test_driver.h"
@@ -524,6 +525,68 @@ TEST_P(DatarateTestSpeedChangeRealtime, ChangingSpeedTest) {
   ChangingSpeedTest();
 }
 
+class DatarateTestSetFrameQpRealtime
+    : public DatarateTest,
+      public ::testing::TestWithParam<const libaom_test::AV1CodecFactory *> {
+ public:
+  DatarateTestSetFrameQpRealtime() : DatarateTest(GetParam()), frame_(0) {}
+
+ protected:
+  virtual ~DatarateTestSetFrameQpRealtime() {}
+
+  virtual void SetUp() {
+    InitializeConfig(libaom_test::kRealTime);
+    ResetModel();
+  }
+
+  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                                  ::libaom_test::Encoder *encoder) {
+    set_cpu_used_ = 7;
+    DatarateTest::PreEncodeFrameHook(video, encoder);
+    frame_qp_ = rnd_.PseudoUniform(63);
+    encoder->Control(AV1E_SET_QUANTIZER_ONE_PASS, frame_qp_);
+    frame_++;
+  }
+
+  virtual void PostEncodeFrameHook(::libaom_test::Encoder *encoder) {
+    if (frame_ >= total_frames_) return;
+    int qp = 0;
+    encoder->Control(AOME_GET_LAST_QUANTIZER_64, &qp);
+    ASSERT_EQ(qp, frame_qp_);
+  }
+
+ protected:
+  int total_frames_;
+
+ private:
+  int frame_qp_;
+  int frame_;
+  libaom_test::ACMRandom rnd_;
+};
+
+TEST_P(DatarateTestSetFrameQpRealtime, SetFrameQpOnePass) {
+  cfg_.rc_buf_initial_sz = 500;
+  cfg_.rc_buf_optimal_sz = 500;
+  cfg_.rc_buf_sz = 1000;
+  cfg_.rc_undershoot_pct = 20;
+  cfg_.rc_undershoot_pct = 20;
+  cfg_.rc_min_quantizer = 0;
+  cfg_.rc_max_quantizer = 50;
+  cfg_.rc_end_usage = AOM_CBR;
+  cfg_.rc_target_bitrate = 200;
+  cfg_.g_lag_in_frames = 0;
+  cfg_.g_error_resilient = 1;
+  cfg_.kf_max_dist = 9999;
+  cfg_.rc_dropframe_thresh = 0;
+
+  total_frames_ = 100;
+  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+                                       30, 1, 0, 100);
+
+  ResetModel();
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestLarge,
                            ::testing::Values(::libaom_test::kRealTime),
                            ::testing::Range(5, 7), ::testing::Values(0, 3),
@@ -545,6 +608,11 @@ AV1_INSTANTIATE_TEST_SUITE(DatarateTestFrameDropRealtime,
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestSpeedChangeRealtime,
                            ::testing::Values(::libaom_test::kRealTime),
                            ::testing::Values(0, 3));
+
+INSTANTIATE_TEST_SUITE_P(
+    AV1, DatarateTestSetFrameQpRealtime,
+    ::testing::Values(
+        static_cast<const libaom_test::CodecFactory *>(&libaom_test::kAV1)));
 
 }  // namespace
 }  // namespace datarate_test

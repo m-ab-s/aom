@@ -1478,6 +1478,12 @@ enum aome_enc_control_id {
    */
   AV1E_ENABLE_SB_QP_SWEEP = 158,
 
+  /*!\brief Codec control to set quantizer for the next frame.
+   *
+   * This will turn off cyclic refresh. Only applicable to 1-pass.
+   */
+  AV1E_SET_QUANTIZER_ONE_PASS = 159,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -2101,6 +2107,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_SKIP_POSTPROC_FILTERING, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_ENABLE_SB_QP_SWEEP, unsigned int)
 #define AOM_CTRL_AV1E_ENABLE_SB_QP_SWEEP
+
+AOM_CTRL_USE_TYPE(AV1E_SET_QUANTIZER_ONE_PASS, int)
+#define AOM_CTRL_AV1E_SET_QUANTIZER_ONE_PASS
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

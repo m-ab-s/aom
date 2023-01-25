@@ -139,6 +139,10 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
       lrc->rtc_external_ratectrl = rc->rtc_external_ratectrl;
       lrc->worst_quality = av1_quantizer_to_qindex(lc->max_q);
       lrc->best_quality = av1_quantizer_to_qindex(lc->min_q);
+      if (rc->use_external_qp_one_pass) {
+        lrc->worst_quality = rc->worst_quality;
+        lrc->best_quality = rc->best_quality;
+      }
       // Reset the cyclic refresh parameters, if needed (map is NULL),
       // or number of spatial layers has changed.
       // Cyclic refresh is only applied on base temporal layer.

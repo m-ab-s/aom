@@ -426,6 +426,7 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
   rc->resize_count = 0;
   rc->rtc_external_ratectrl = 0;
   rc->frame_level_fast_extra_bits = 0;
+  rc->use_external_qp_one_pass = 0;
 }
 
 int av1_rc_drop_frame(AV1_COMP *cpi) {

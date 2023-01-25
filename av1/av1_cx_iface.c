@@ -2154,6 +2154,9 @@ static aom_codec_err_t ctrl_set_aq_mode(aom_codec_alg_priv_t *ctx,
                                         va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.aq_mode = CAST(AV1E_SET_AQ_MODE, args);
+
+  // Skip AQ mode if using fixed QP for current frame.
+  if (ctx->ppi->cpi->rc.use_external_qp_one_pass) extra_cfg.aq_mode = 0;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -2497,6 +2500,21 @@ static aom_codec_err_t ctrl_set_rtc_external_rc(aom_codec_alg_priv_t *ctx,
   ctx->ppi->cpi->rc.rtc_external_ratectrl =
       CAST(AV1E_SET_RTC_EXTERNAL_RC, args);
   return AOM_CODEC_OK;
+}
+
+static aom_codec_err_t ctrl_set_quantizer_one_pass(aom_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  const int qp = CAST(AV1E_SET_QUANTIZER_ONE_PASS, args);
+
+  if (qp < 0 || qp > 63) return AOM_CODEC_INVALID_PARAM;
+
+  aom_codec_enc_cfg_t *cfg = &ctx->cfg;
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  cfg->rc_min_quantizer = cfg->rc_max_quantizer = qp;
+  extra_cfg.aq_mode = 0;
+  ctx->ppi->cpi->rc.use_external_qp_one_pass = 1;
+
+  return update_extra_cfg(ctx, &extra_cfg);
 }
 
 #if !CONFIG_REALTIME_ONLY
@@ -4228,6 +4246,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_SKIP_POSTPROC_FILTERING, ctrl_set_skip_postproc_filtering },
   { AV1E_SET_AUTO_INTRA_TOOLS_OFF, ctrl_set_auto_intra_tools_off },
   { AV1E_SET_RTC_EXTERNAL_RC, ctrl_set_rtc_external_rc },
+  { AV1E_SET_QUANTIZER_ONE_PASS, ctrl_set_quantizer_one_pass },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

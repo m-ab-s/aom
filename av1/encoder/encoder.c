@@ -4732,6 +4732,9 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   }
 #endif
 
+  // Reset the flag to 0 afer encoding.
+  cpi->rc.use_external_qp_one_pass = 0;
+
   if (result == -1) {
     cm->error->setjmp = 0;
     // Returning -1 indicates no frame encoded; more input is required
