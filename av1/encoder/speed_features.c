@@ -1183,8 +1183,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 5) {
-    // TODO(Ranjit): Enable the optimization for highbd encoding mode
-    sf->hl_sf.weight_calc_level_in_tf = use_hbd ? 0 : 1;
+    sf->hl_sf.weight_calc_level_in_tf = 1;
 
     sf->fp_sf.reduce_mv_step_param = 4;
 

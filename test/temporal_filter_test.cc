@@ -316,7 +316,7 @@ typedef void (*HBDTemporalFilterFunc)(
     const BLOCK_SIZE block_size, const int mb_row, const int mb_col,
     const int num_planes, const double *noise_level, const MV *subblock_mvs,
     const int *subblock_mses, const int q_factor, const int filter_strenght,
-    const uint8_t *pred, uint32_t *accum, uint16_t *count);
+    int tf_wgt_calc_lvl, const uint8_t *pred, uint32_t *accum, uint16_t *count);
 typedef libaom_test::FuncParam<HBDTemporalFilterFunc>
     HBDTemporalFilterFuncParam;
 
@@ -328,6 +328,7 @@ class HBDTemporalFilterTest
   virtual ~HBDTemporalFilterTest() {}
   virtual void SetUp() {
     params_ = GET_PARAM(0);
+    tf_wgt_calc_lvl_ = GET_PARAM(1);
     rnd_.Reset(ACMRandom::DeterministicSeed());
     src1_ = reinterpret_cast<uint16_t *>(
         aom_memalign(16, sizeof(uint16_t) * MAX_MB_PLANE * BH * BW));
@@ -389,6 +390,7 @@ class HBDTemporalFilterTest
 
  protected:
   HBDTemporalFilterFuncParam params_;
+  int tf_wgt_calc_lvl_;
   uint16_t *src1_;
   uint16_t *src2_;
   ACMRandom rnd_;
@@ -477,20 +479,20 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int run_times, int BD,
 
     params_.ref_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
                      num_planes, sigma, subblock_mvs, subblock_mses, q_factor,
-                     filter_strength, CONVERT_TO_BYTEPTR(src2_),
-                     accumulator_ref, count_ref);
+                     filter_strength, tf_wgt_calc_lvl_,
+                     CONVERT_TO_BYTEPTR(src2_), accumulator_ref, count_ref);
     params_.tst_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
                      num_planes, sigma, subblock_mvs, subblock_mses, q_factor,
-                     filter_strength, CONVERT_TO_BYTEPTR(src2_),
-                     accumulator_mod, count_mod);
+                     filter_strength, tf_wgt_calc_lvl_,
+                     CONVERT_TO_BYTEPTR(src2_), accumulator_mod, count_mod);
 
     if (run_times > 1) {
       aom_usec_timer_start(&ref_timer);
       for (int j = 0; j < run_times; j++) {
         params_.ref_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
                          num_planes, sigma, subblock_mvs, subblock_mses,
-                         q_factor, filter_strength, CONVERT_TO_BYTEPTR(src2_),
-                         accumulator_ref, count_ref);
+                         q_factor, filter_strength, tf_wgt_calc_lvl_,
+                         CONVERT_TO_BYTEPTR(src2_), accumulator_ref, count_ref);
       }
       aom_usec_timer_mark(&ref_timer);
       const int elapsed_time_c =
@@ -500,8 +502,8 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int run_times, int BD,
       for (int j = 0; j < run_times; j++) {
         params_.tst_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
                          num_planes, sigma, subblock_mvs, subblock_mses,
-                         q_factor, filter_strength, CONVERT_TO_BYTEPTR(src2_),
-                         accumulator_mod, count_mod);
+                         q_factor, filter_strength, tf_wgt_calc_lvl_,
+                         CONVERT_TO_BYTEPTR(src2_), accumulator_mod, count_mod);
       }
       aom_usec_timer_mark(&test_timer);
       const int elapsed_time_simd =
@@ -558,7 +560,7 @@ HBDTemporalFilterFuncParam HBDtemporal_filter_test_sse2[] = {
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, HBDTemporalFilterTest,
                          Combine(ValuesIn(HBDtemporal_filter_test_sse2),
-                                 Range(64, 65, 4)));
+                                 Values(0, 1)));
 #endif  // HAVE_SSE2
 #if HAVE_AVX2
 HBDTemporalFilterFuncParam HBDtemporal_filter_test_avx2[] = {
@@ -567,7 +569,7 @@ HBDTemporalFilterFuncParam HBDtemporal_filter_test_avx2[] = {
 };
 INSTANTIATE_TEST_SUITE_P(AVX2, HBDTemporalFilterTest,
                          Combine(ValuesIn(HBDtemporal_filter_test_avx2),
-                                 Range(64, 65, 4)));
+                                 Values(0, 1)));
 #endif  // HAVE_AVX2
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace
