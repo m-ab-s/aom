@@ -9,13 +9,13 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <cstddef>
 #include <vector>
 
 #include "aom/aomcx.h"
 #include "aom/aom_codec.h"
 #include "aom/aom_encoder.h"
 #include "aom/aom_image.h"
-#include "config/aom_config.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace {
@@ -54,18 +54,16 @@ TEST(AVIFProgressiveTest, QualityChange) {
             aom_codec_control(&enc, AOME_SET_NUMBER_SPATIAL_LAYERS, 2));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 6));
   EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE));
+  EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIM));
 
   // First frame (layer 0)
   EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_control(&enc, AOME_SET_SPATIAL_LAYER_ID, 0));
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img, 0, 1, 0));
-  const aom_codec_cx_pkt_t *pkt;
-  aom_codec_iter_t iter;
-  iter = nullptr;
-  pkt = aom_codec_get_cx_data(&enc, &iter);
+  aom_codec_iter_t iter = nullptr;
+  const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter);
   EXPECT_NE(pkt, nullptr);
   EXPECT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
   // pkt->data.frame.flags is 0x1f0011.
@@ -81,8 +79,6 @@ TEST(AVIFProgressiveTest, QualityChange) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AV1E_SET_LOSSLESS, 1));
   EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_control(&enc, AOME_SET_SPATIAL_LAYER_ID, 1));
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE));
   aom_enc_frame_flags_t encode_flags =
       AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF | AOM_EFLAG_NO_REF_BWD |
       AOM_EFLAG_NO_REF_ARF2 | AOM_EFLAG_NO_UPD_GF | AOM_EFLAG_NO_UPD_ARF;
@@ -142,6 +138,8 @@ TEST(AVIFProgressiveTest, DISABLED_DimensionChange) {
             aom_codec_control(&enc, AOME_SET_NUMBER_SPATIAL_LAYERS, 2));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 6));
   EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE));
+  EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIM));
 
   // First frame (layer 0)
@@ -150,13 +148,9 @@ TEST(AVIFProgressiveTest, DISABLED_DimensionChange) {
   aom_scaling_mode_t scaling_mode = { AOME_ONETWO, AOME_ONETWO };
   EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_control(&enc, AOME_SET_SCALEMODE, &scaling_mode));
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img, 0, 1, 0));
-  const aom_codec_cx_pkt_t *pkt;
-  aom_codec_iter_t iter;
-  iter = nullptr;
-  pkt = aom_codec_get_cx_data(&enc, &iter);
+  aom_codec_iter_t iter = nullptr;
+  const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter);
   EXPECT_NE(pkt, nullptr);
   EXPECT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
   // pkt->data.frame.flags is 0x1f0011.
@@ -167,8 +161,6 @@ TEST(AVIFProgressiveTest, DISABLED_DimensionChange) {
   // Second frame (layer 1)
   EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_control(&enc, AOME_SET_SPATIAL_LAYER_ID, 1));
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE));
   aom_enc_frame_flags_t encode_flags =
       AOM_EFLAG_NO_REF_GF | AOM_EFLAG_NO_REF_ARF | AOM_EFLAG_NO_REF_BWD |
       AOM_EFLAG_NO_REF_ARF2 | AOM_EFLAG_NO_UPD_GF | AOM_EFLAG_NO_UPD_ARF;
