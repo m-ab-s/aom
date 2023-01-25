@@ -236,11 +236,8 @@ static AOM_INLINE void compute_global_motion_for_references(
                                         segment_map_h);
     // If global motion w.r.t. current ref frame is
     // INVALID/TRANSLATION/IDENTITY, skip the evaluation of global motion w.r.t
-    // the remaining ref frames in that direction. The below exit is disabled
-    // when ref frame distance w.r.t. current frame is zero. E.g.:
-    // source_alt_ref_frame w.r.t. ARF frames.
+    // the remaining ref frames in that direction.
     if (cpi->sf.gm_sf.prune_ref_frame_for_gm_search &&
-        reference_frame[frame].distance != 0 &&
         cm->global_motion[ref_frame].wmtype != ROTZOOM)
       break;
   }
@@ -344,7 +341,13 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
       // Populate past and future ref frames.
       // reference_frames[0][] indicates past direction and
       // reference_frames[1][] indicates future direction.
-      if (relative_frame_dist <= 0) {
+      if (relative_frame_dist == 0) {
+        // Skip global motion estimation for frames at the same nominal instant.
+        // This will generally be either a "real" frame coded against a
+        // temporal filtered version, or a higher spatial layer coded against
+        // a lower spatial layer. In either case, the optimal motion model will
+        // be IDENTITY, so we don't need to search explicitly.
+      } else if (relative_frame_dist < 0) {
         reference_frames[0][*num_past_ref_frames].distance =
             abs(relative_frame_dist);
         reference_frames[0][*num_past_ref_frames].frame = frame;

@@ -2248,7 +2248,6 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 
   while (1) {
     int ref_buf_idx = -1;
-    int ref_frame_idx = -1;
 
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(gm_mt_mutex_);
@@ -2261,11 +2260,6 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
       // to other direction and get the next job, if available.
       switch_direction(cpi, &ref_buf_idx, &cur_dir);
     }
-
-    // 'ref_frame_idx' holds the index of the current reference frame type in
-    // gm_info->reference_frames. job_info->next_frame_to_process will be
-    // incremented in get_next_gm_job() and hence subtracting by 1.
-    ref_frame_idx = job_info->next_frame_to_process[cur_dir] - 1;
 
 #if CONFIG_MULTITHREAD
     pthread_mutex_unlock(gm_mt_mutex_);
@@ -2284,14 +2278,10 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(gm_mt_mutex_);
 #endif
-    assert(ref_frame_idx != -1);
     // If global motion w.r.t. current ref frame is
     // INVALID/TRANSLATION/IDENTITY, skip the evaluation of global motion w.r.t
-    // the remaining ref frames in that direction. The below exit is disabled
-    // when ref frame distance w.r.t. current frame is zero. E.g.:
-    // source_alt_ref_frame w.r.t. ARF frames.
+    // the remaining ref frames in that direction.
     if (cpi->sf.gm_sf.prune_ref_frame_for_gm_search &&
-        gm_info->reference_frames[cur_dir][ref_frame_idx].distance != 0 &&
         cpi->common.global_motion[ref_buf_idx].wmtype != ROTZOOM)
       job_info->early_exit[cur_dir] = 1;
 
