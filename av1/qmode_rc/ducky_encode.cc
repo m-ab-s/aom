@@ -528,10 +528,10 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct,
           if (tpl_stats_ptr->ref_frame_index[i] >= 0) {
             block_stats.ref_frame_index[i] =
                 ref_frame_index_mapping[tpl_stats_ptr->ref_frame_index[i] + 1];
-            block_stats.mv[i] = {
-              tpl_stats_ptr->mv[tpl_stats_ptr->ref_frame_index[i]].as_mv.row,
-              tpl_stats_ptr->mv[tpl_stats_ptr->ref_frame_index[i]].as_mv.col, 3
-            };
+            const auto &mv =
+                tpl_stats_ptr->mv[tpl_stats_ptr->ref_frame_index[i]].as_mv;
+            block_stats.mv[i] = { GET_MV_RAWPEL(mv.row), GET_MV_RAWPEL(mv.col),
+                                  0 };
           }
         }
         tpl_frame_stats.block_stats_list.push_back(block_stats);
