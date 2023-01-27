@@ -1364,6 +1364,17 @@ static void block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   this_rdc->rate += (eob_cost << AV1_PROB_COST_SHIFT);
 }
 
+static INLINE void init_estimate_block_intra_args(
+    struct estimate_block_intra_args *args, AV1_COMP *cpi, MACROBLOCK *x) {
+  args->cpi = cpi;
+  args->x = x;
+  args->mode = DC_PRED;
+  args->skippable = 1;
+  args->rdc = 0;
+  args->best_sad = UINT_MAX;
+  args->prune_mode_based_on_sad = false;
+}
+
 static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE pred_mode,
                              MV_REFERENCE_FRAME ref_frame0,
                              MV_REFERENCE_FRAME ref_frame1,
@@ -1631,12 +1642,33 @@ static void estimate_block_intra(int plane, int block, int row, int col,
   uint8_t *const dst_buf_base = pd->dst.buf;
   const int64_t src_stride = p->src.stride;
   const int64_t dst_stride = pd->dst.stride;
-  RD_STATS this_rdc;
 
   (void)block;
-  (void)plane_bsize;
 
   av1_predict_intra_block_facade(cm, xd, plane, col, row, tx_size);
+
+  if (args->prune_mode_based_on_sad) {
+    unsigned int this_sad = cpi->ppi->fn_ptr[plane_bsize].sdf(
+        p->src.buf, p->src.stride, pd->dst.buf, pd->dst.stride);
+    const unsigned int sad_threshold =
+        args->best_sad != UINT_MAX ? args->best_sad + (args->best_sad >> 4)
+                                   : UINT_MAX;
+    // Skip the evaluation of current mode if its SAD is more than a threshold.
+    if (this_sad > sad_threshold) {
+      // For the current mode, set rate and distortion to maximum possible
+      // values and return.
+      // Note: args->rdc->rate is checked in av1_nonrd_pick_intra_mode() to skip
+      // the evaluation of the current mode.
+      args->rdc->rate = INT_MAX;
+      args->rdc->dist = INT64_MAX;
+      return;
+    }
+    if (this_sad < args->best_sad) {
+      args->best_sad = this_sad;
+    }
+  }
+
+  RD_STATS this_rdc;
   av1_invalid_rd_stats(&this_rdc);
 
   p->src.buf = &src_buf_base[4 * (row * src_stride + col)];
@@ -1651,6 +1683,7 @@ static void estimate_block_intra(int plane, int block, int row, int col,
 
   p->src.buf = src_buf_base;
   pd->dst.buf = dst_buf_base;
+  assert(args->rdc->rate != INT_MAX && args->rdc->dist != INT64_MAX);
   args->rdc->rate += this_rdc.rate;
   args->rdc->dist += this_rdc.dist;
 }
@@ -2238,11 +2271,19 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
   RD_STATS this_rdc, best_rdc;
-  struct estimate_block_intra_args args = { cpi, x, DC_PRED, 1, 0 };
+  struct estimate_block_intra_args args;
+  init_estimate_block_intra_args(&args, cpi, x);
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
-  const TX_SIZE intra_tx_size =
+  mi->tx_size =
       AOMMIN(max_txsize_lookup[bsize],
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]);
+  const BLOCK_SIZE tx_bsize = txsize_to_bsize[mi->tx_size];
+
+  // If the current block size is the same as the transform block size, enable
+  // mode pruning based on the best SAD so far.
+  if (cpi->sf.rt_sf.prune_intra_mode_using_best_sad_so_far && bsize == tx_bsize)
+    args.prune_mode_based_on_sad = true;
+
   int *bmode_costs;
   PREDICTION_MODE best_mode = DC_PRED;
   const MB_MODE_INFO *above_mi = xd->above_mbmi;
@@ -2293,10 +2334,12 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     args.mode = this_mode;
     args.skippable = 1;
     args.rdc = &this_rdc;
-    mi->tx_size = intra_tx_size;
     mi->mode = this_mode;
     av1_foreach_transformed_block_in_plane(xd, bsize, AOM_PLANE_Y,
                                            estimate_block_intra, &args);
+
+    if (this_rdc.rate == INT_MAX) continue;
+
     const int skip_ctx = av1_get_skip_txfm_context(xd);
     if (args.skippable) {
       this_rdc.rate = x->mode_costs.skip_txfm_cost[skip_ctx][1];
@@ -2616,7 +2659,8 @@ static void estimate_intra_mode(
                                : inter_mode_thresh;
   if (known_rd > best_rdc->rdcost) return;
 
-  struct estimate_block_intra_args args = { cpi, x, DC_PRED, 1, 0 };
+  struct estimate_block_intra_args args;
+  init_estimate_block_intra_args(&args, cpi, x);
   TX_SIZE intra_tx_size = AOMMIN(
       AOMMIN(max_txsize_lookup[bsize],
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]),

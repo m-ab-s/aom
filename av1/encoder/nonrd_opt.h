@@ -70,6 +70,8 @@ struct estimate_block_intra_args {
   PREDICTION_MODE mode;
   int skippable;
   RD_STATS *rdc;
+  unsigned int best_sad;
+  bool prune_mode_based_on_sad;
 };
 /*!\endcond */
 

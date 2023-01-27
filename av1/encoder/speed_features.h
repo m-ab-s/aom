@@ -1672,6 +1672,15 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // -0.06%.
   bool enable_intra_mode_pruning_using_neighbors;
 
+  // Prune intra mode evaluations in nonrd path based on best sad so far.
+  //
+  // For allintra encode, this speed feature reduces instruction count by 3.05%
+  // for speed 9 with coding performance change less than 0.24%.
+  // For AVIF image encode, this speed feature reduces encode time by 1.87% for
+  // speed 9 on a typical image dataset with coding performance change less than
+  // 0.16%.
+  bool prune_intra_mode_using_best_sad_so_far;
+
   // If compound is enabled, and the current block size is \geq BLOCK_16X16,
   // limit the compound modes to GLOBAL_GLOBALMV. This does not apply to the
   // base layer of svc.
