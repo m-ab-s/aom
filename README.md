@@ -217,7 +217,7 @@ compiler documentation to determine which, if any, are available.
 ### Microsoft Visual Studio builds {#microsoft-visual-studio-builds}
 
 Building the AV1 codec library in Microsoft Visual Studio is supported. Visual
-Studio 2017 (15.0) or later is required. The following example demonstrates
+Studio 2019 (16.0) or later is required. The following example demonstrates
 generating projects and a solution for the Microsoft IDE:
 
 ~~~
@@ -230,14 +230,6 @@ generating projects and a solution for the Microsoft IDE:
 
     # To build with Visual Studio 2019 for the 32-bit x86 target:
     $ cmake path/to/aom -G "Visual Studio 16 2019" -A Win32
-    $ cmake --build .
-
-    # To build with Visual Studio 2017 for the x64 target:
-    $ cmake path/to/aom -G "Visual Studio 15 2017" -T host=x64 -A x64
-    $ cmake --build .
-
-    # To build with Visual Studio 2017 for the 32-bit x86 target:
-    $ cmake path/to/aom -G "Visual Studio 15 2017" -T host=x64
     $ cmake --build .
 ~~~
 
