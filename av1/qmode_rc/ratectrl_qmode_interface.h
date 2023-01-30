@@ -24,11 +24,8 @@ namespace aom {
 constexpr int kBlockRefCount = 2;
 
 struct MotionVector {
-  int row;  // subpel row
-  int col;  // subpel col
-  // TODO(b/241589513): Move this to TplFrameStats; it's wasteful to code it
-  // separately for each block.
-  int subpel_bits;  // number of fractional bits used by row/col
+  int16_t row;  // row offset in pixels
+  int16_t col;  // column offset in pixels
 };
 
 enum class TplPassCount {

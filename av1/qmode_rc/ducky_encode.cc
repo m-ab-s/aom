@@ -530,8 +530,8 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct,
                 ref_frame_index_mapping[tpl_stats_ptr->ref_frame_index[i] + 1];
             const auto &mv =
                 tpl_stats_ptr->mv[tpl_stats_ptr->ref_frame_index[i]].as_mv;
-            block_stats.mv[i] = { GET_MV_RAWPEL(mv.row), GET_MV_RAWPEL(mv.col),
-                                  0 };
+            block_stats.mv[i] = { static_cast<int16_t>(GET_MV_RAWPEL(mv.row)),
+                                  static_cast<int16_t>(GET_MV_RAWPEL(mv.col)) };
           }
         }
         tpl_frame_stats.block_stats_list.push_back(block_stats);

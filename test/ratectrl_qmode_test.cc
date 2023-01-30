@@ -370,8 +370,8 @@ static RefFrameTable CreateToyRefFrameTable(int frame_count) {
   return ref_frame_table;
 }
 
-static MotionVector CreateFullpelMv(int row, int col) {
-  return { row, col, 0 };
+static MotionVector CreateFullpelMv(int16_t row, int16_t col) {
+  return { row, col };
 }
 
 double TplFrameStatsAccumulateIntraCost(const TplFrameStats &frame_stats) {
@@ -546,13 +546,13 @@ TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateCompoundZeroMotion) {
 TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
   // cur frame with coding_idx 1 use ref frame with coding_idx 0
   const std::array<int, kBlockRefCount> ref_frame_index = { 0, -1 };
-  const int min_block_size = 8;
+  const int16_t min_block_size = 8;
   TplFrameStats frame_stats =
       CreateToyTplFrameStatsWithDiffSizes(min_block_size, min_block_size * 2);
   AugmentTplFrameStatsWithRefFrames(&frame_stats, ref_frame_index);
 
-  const int mv_row = min_block_size / 2;
-  const int mv_col = min_block_size / 4;
+  const int16_t mv_row = min_block_size / 2;
+  const int16_t mv_col = min_block_size / 4;
   const double r_ratio = 1.0 / 2;
   const double c_ratio = 1.0 / 4;
   std::array<MotionVector, kBlockRefCount> mv;
