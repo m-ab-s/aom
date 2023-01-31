@@ -105,7 +105,7 @@ static INLINE void fwd_txfm2d_c(const int16_t *input, int32_t *output,
     }
   }
 
-  int32_t row_buffer[MAX_TX_SIZE];
+  DECLARE_ALIGNED(16, int32_t, row_buffer[MAX_TX_SIZE]);
 
   // Rows
   for (r = 0; r < txfm_size_row; ++r) {
