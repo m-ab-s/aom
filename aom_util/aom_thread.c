@@ -62,9 +62,8 @@ static THREADFN thread_loop(void *ptr) {
     pthread_setname_np(pthread_self(), thread_name);
   }
 #endif
-  int done = 0;
-  while (!done) {
-    pthread_mutex_lock(&worker->impl_->mutex_);
+  pthread_mutex_lock(&worker->impl_->mutex_);
+  for (;;) {
     while (worker->status_ == OK) {  // wait in idling mode
       pthread_cond_wait(&worker->impl_->condition_, &worker->impl_->mutex_);
     }
@@ -81,11 +80,12 @@ static THREADFN thread_loop(void *ptr) {
       worker->status_ = OK;
       // signal to the main thread that we're done (for sync())
       pthread_cond_signal(&worker->impl_->condition_);
-    } else if (worker->status_ == NOT_OK) {  // finish the worker
-      done = 1;
+    } else {
+      assert(worker->status_ == NOT_OK);  // finish the worker
+      break;
     }
-    pthread_mutex_unlock(&worker->impl_->mutex_);
   }
+  pthread_mutex_unlock(&worker->impl_->mutex_);
   return THREAD_RETURN(NULL);  // Thread is finished
 }
 
