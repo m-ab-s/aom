@@ -229,7 +229,8 @@ static int rate_estimator(const tran_low_t *qcoeff, int eob, TX_SIZE tx_size) {
   return (rate_cost << AV1_PROB_COST_SHIFT);
 }
 
-void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, const int mi_row,
+void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, MACROBLOCK *x,
+                                MACROBLOCKD *xd, const int mi_row,
                                 int16_t *src_diff, tran_low_t *coeff,
                                 tran_low_t *qcoeff, tran_low_t *dqcoeff,
                                 double *sum_rec_distortion,
@@ -237,9 +238,6 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, const int mi_row,
   AV1_COMMON *const cm = &cpi->common;
   uint8_t *buffer = cpi->source->y_buffer;
   int buf_stride = cpi->source->y_stride;
-  ThreadData *td = &cpi->td;
-  MACROBLOCK *x = &td->mb;
-  MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO mbmi;
   memset(&mbmi, 0, sizeof(mbmi));
   MB_MODE_INFO *mbmi_ptr = &mbmi;
@@ -250,8 +248,6 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, const int mi_row,
   const int coeff_count = block_size * block_size;
   const int mb_step = mi_size_wide[bsize];
   const BitDepthInfo bd_info = get_bit_depth_info(xd);
-  cm->quant_params.base_qindex = cpi->oxcf.rc_cfg.cq_level;
-  av1_frame_init_quantizer(cpi);
   const AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
   // We allocate cpi->tile_data (of size 1) when we call this function in
   // multithreaded mode, so cpi->tile_data may be a null pointer when we call
@@ -412,10 +408,14 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, const int mi_row,
       ++mt_unit_col;
     }
   }
+  // Set the pointer to null since mbmi is only allocated inside this function.
+  xd->mi = NULL;
 }
 
 static void calc_mb_wiener_var(AV1_COMP *const cpi, double *sum_rec_distortion,
                                double *sum_est_rate) {
+  MACROBLOCK *x = &cpi->td.mb;
+  MACROBLOCKD *xd = &x->e_mbd;
   const BLOCK_SIZE bsize = cpi->weber_bsize;
   const int mb_step = mi_size_wide[bsize];
   DECLARE_ALIGNED(32, int16_t, src_diff[32 * 32]);
@@ -423,8 +423,8 @@ static void calc_mb_wiener_var(AV1_COMP *const cpi, double *sum_rec_distortion,
   DECLARE_ALIGNED(32, tran_low_t, qcoeff[32 * 32]);
   DECLARE_ALIGNED(32, tran_low_t, dqcoeff[32 * 32]);
   for (int mi_row = 0; mi_row < cpi->frame_info.mi_rows; mi_row += mb_step) {
-    av1_calc_mb_wiener_var_row(cpi, mi_row, src_diff, coeff, qcoeff, dqcoeff,
-                               sum_rec_distortion, sum_est_rate);
+    av1_calc_mb_wiener_var_row(cpi, x, xd, mi_row, src_diff, coeff, qcoeff,
+                               dqcoeff, sum_rec_distortion, sum_est_rate);
   }
 }
 
@@ -538,6 +538,17 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   cpi->norm_wiener_variance = 0;
+
+  MACROBLOCK *x = &cpi->td.mb;
+  MACROBLOCKD *xd = &x->e_mbd;
+  // xd->mi needs to be setup since it is used in av1_frame_init_quantizer.
+  MB_MODE_INFO mbmi;
+  memset(&mbmi, 0, sizeof(mbmi));
+  MB_MODE_INFO *mbmi_ptr = &mbmi;
+  xd->mi = &mbmi_ptr;
+  cm->quant_params.base_qindex = cpi->oxcf.rc_cfg.cq_level;
+  av1_frame_init_quantizer(cpi);
+
   double sum_rec_distortion = 0.0;
   double sum_est_rate = 0.0;
 
@@ -602,6 +613,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
     cpi->norm_wiener_variance = AOMMAX(1, cpi->norm_wiener_variance);
   }
 
+  // Set the pointer to null since mbmi is only allocated inside this function.
+  xd->mi = NULL;
   aom_free_frame_buffer(&cm->cur_frame->buf);
 }
 
