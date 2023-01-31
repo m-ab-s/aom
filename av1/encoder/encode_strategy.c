@@ -1680,11 +1680,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   // For SVC: keep track of the (unscaled) source corresponding to the
   // refresh of LAST reference (base temporal layer- TL0). Copy only for the
-  // top spatial enhancement layer only so all spatial layers of the next
+  // top spatial enhancement layer so all spatial layers of the next
   // superframe have last_source to be aligned with previous TL0 superframe.
+  // Avoid cases where resolution changes for unscaled source (top spatial
+  // layer).
   if (cpi->ppi->use_svc &&
       cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1 &&
-      cpi->svc.temporal_layer_id == 0) {
+      cpi->svc.temporal_layer_id == 0 &&
+      cpi->unscaled_source->y_width == cpi->svc.source_last_TL0.y_width &&
+      cpi->unscaled_source->y_height == cpi->svc.source_last_TL0.y_height) {
     aom_yv12_copy_y(cpi->unscaled_source, &cpi->svc.source_last_TL0);
     aom_yv12_copy_u(cpi->unscaled_source, &cpi->svc.source_last_TL0);
     aom_yv12_copy_v(cpi->unscaled_source, &cpi->svc.source_last_TL0);

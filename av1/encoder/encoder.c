@@ -2491,7 +2491,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
   av1_set_size_dependent_vars(cpi, &q, &bottom_index, &top_index);
   av1_set_mv_search_params(cpi);
 
-  if (cm->current_frame.frame_number == 0 && cpi->ppi->use_svc) {
+  if (cm->current_frame.frame_number == 0 && cpi->ppi->use_svc &&
+      cpi->svc.temporal_layer_id == 0) {
     const SequenceHeader *seq_params = cm->seq_params;
     if (aom_alloc_frame_buffer(
             &cpi->svc.source_last_TL0, cpi->oxcf.frm_dim_cfg.width,
