@@ -76,29 +76,12 @@ static INLINE void av1_round_shift_array_32_neon(int32x4_t *input,
   }
 }
 
-static INLINE void av1_round_shift_rect_array_32_neon(int32x4_t *input,
-                                                      int32x4_t *output,
-                                                      const int size,
-                                                      const int bit,
-                                                      const int val) {
-  const int32x4_t sqrt2 = vdupq_n_s32(val);
-  const int32x4_t v_bit = vdupq_n_s32(-bit);
-  const int32x4_t rnding = vdupq_n_s32(1 << (bit - 1));
-  const int32x4_t rnding2 = vdupq_n_s32(1 << (NewSqrt2Bits - 1));
-  int i;
-  if (bit > 0) {
-    for (i = 0; i < size; i++) {
-      int32x4_t vradd = vshlq_s32(input[i], rnding);
-      const int32x4_t r0 = vshlq_s32(vradd, v_bit);
-      const int32x4_t r1 = vmlaq_s32(rnding2, sqrt2, r0);
-      output[i] = vshrq_n_s32(r1, NewSqrt2Bits);
-    }
-  } else {
-    for (i = 0; i < size; i++) {
-      const int32x4_t r0 = vshlq_s32(input[i], v_bit);
-      const int32x4_t r1 = vmlaq_s32(rnding2, sqrt2, r0);
-      output[i] = vshrq_n_s32(r1, NewSqrt2Bits);
-    }
+static INLINE void round_shift_rect_array_32_neon(int32x4_t *input,
+                                                  int32x4_t *output,
+                                                  const int size) {
+  for (int i = 0; i < size; i++) {
+    const int32x4_t r0 = vmulq_n_s32(input[i], NewInvSqrt2);
+    output[i] = vrshrq_n_s32(r0, NewSqrt2Bits);
   }
 }
 
@@ -4841,7 +4824,7 @@ void av1_inv_txfm2d_add_4x8_neon(const tran_low_t *input, uint16_t *output,
   int32x4_t buf0[8];
   load_buffer_32bit_input(input, input_stride, buf0, txfm_size_col);
   load_buffer_32bit_input(input + 4, input_stride, buf0 + 4, txfm_size_col);
-  av1_round_shift_rect_array_32_neon(buf0, buf0, txfm_size_row, 0, NewInvSqrt2);
+  round_shift_rect_array_32_neon(buf0, buf0, txfm_size_row);
   row_txfm(buf0, buf0, INV_COS_BIT, 0, bd, -shift[0]);
   row_txfm(buf0 + 4, buf0 + 4, INV_COS_BIT, 0, bd, -shift[0]);
 
@@ -4893,7 +4876,7 @@ void av1_inv_txfm2d_add_8x4_neon(const int32_t *input, uint16_t *output,
   const int32_t *input_row = input;
   load_buffer_32bit_input(input_row, 4, buf0, txfm_size_col);
 
-  av1_round_shift_rect_array_32_neon(buf0, buf0, txfm_size_col, 0, NewInvSqrt2);
+  round_shift_rect_array_32_neon(buf0, buf0, txfm_size_col);
   row_txfm(buf0, buf0, INV_COS_BIT, 0, bd, -shift[0]);
 
   int32x4_t *buf1_ptr;
@@ -5310,8 +5293,7 @@ static void inv_txfm2d_add_h_identity_neon(const int32_t *input,
     int32x4_t buf0[16];
     load_buffer_32bit_input(input + i * 4, input_stride, buf0, buf_size_w);
     if (rect_type == 1 || rect_type == -1) {
-      av1_round_shift_rect_array_32_neon(buf0, buf0, buf_size_w, 0,
-                                         NewInvSqrt2);
+      round_shift_rect_array_32_neon(buf0, buf0, buf_size_w);
     }
     row_txfm(buf0, buf0, INV_COS_BIT, 0, bd, -shift[0]);
 
@@ -5374,8 +5356,7 @@ static void inv_txfm2d_add_v_identity_neon(const int32_t *input,
     load_buffer_32bit_input(input + i * 4, input_stride, buf0,
                             buf_size_nonzero_w);
     if (rect_type == 1 || rect_type == -1) {
-      av1_round_shift_rect_array_32_neon(buf0, buf0, buf_size_nonzero_w, 0,
-                                         NewInvSqrt2);
+      round_shift_rect_array_32_neon(buf0, buf0, buf_size_nonzero_w);
     }
     row_txfm(buf0, buf0, INV_COS_BIT, 0, bd, -shift[0]);
 
@@ -5437,8 +5418,7 @@ static void inv_txfm2d_add_idtx_neon(const int32_t *input, uint16_t *output,
     int32x4_t buf0[32];
     load_buffer_32bit_input(input + i * 4, input_stride, buf0, buf_size_w);
     if (rect_type == 1 || rect_type == -1) {
-      av1_round_shift_rect_array_32_neon(buf0, buf0, buf_size_w, 0,
-                                         NewInvSqrt2);
+      round_shift_rect_array_32_neon(buf0, buf0, buf_size_w);
     }
     row_txfm(buf0, buf0, INV_COS_BIT, 0, bd, -shift[0]);
 
@@ -5504,8 +5484,7 @@ void inv_txfm2d_add_no_identity_neon(const int32_t *input, uint16_t *output,
     load_buffer_32bit_input(input + i * 4, input_stride, buf0,
                             buf_size_nonzero_w);
     if (rect_type == 1 || rect_type == -1) {
-      av1_round_shift_rect_array_32_neon(buf0, buf0, buf_size_nonzero_w, 0,
-                                         NewInvSqrt2);
+      round_shift_rect_array_32_neon(buf0, buf0, buf_size_nonzero_w);
     }
     row_txfm(buf0, buf0, INV_COS_BIT, 0, bd, -shift[0]);
 
@@ -5589,8 +5568,7 @@ void highbd_inv_txfm2d_add_no_identity_neon(const int32_t *input,
                     buf0_cur[0], buf0_cur[1], buf0_cur[2], buf0_cur[3]);
     }
     if (rect_type == 1 || rect_type == -1) {
-      av1_round_shift_rect_array_32_neon(
-          buf0, buf0, buf_size_nonzero_w_div8 << 3, 0, NewInvSqrt2);
+      round_shift_rect_array_32_neon(buf0, buf0, buf_size_nonzero_w_div8 << 3);
     }
     row_txfm(buf0, buf0, INV_COS_BIT, 0, bd, -shift[0]);
 
