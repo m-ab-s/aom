@@ -1482,7 +1482,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 10) {
       if (cm->width * cm->height > 1920 * 1080)
         sf->part_sf.disable_8x8_part_based_on_qidx = 1;
-      sf->rt_sf.set_zeromv_skip_based_on_source_sad = 2;
       sf->rt_sf.screen_content_cdef_filter_qindex_thresh = 80;
       sf->rt_sf.part_early_exit_zeromv = 1;
       sf->rt_sf.nonrd_aggressive_skip = 1;
