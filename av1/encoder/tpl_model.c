@@ -9,8 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include <stdint.h>
+#include <assert.h>
 #include <float.h>
+#include <stdint.h>
 
 #include "av1/encoder/thirdpass.h"
 #include "config/aom_config.h"
@@ -1314,6 +1315,10 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
 
   // Initialize x->mbmi_ext when compound predictions are enabled.
   if (cpi->sf.tpl_sf.allow_compound_pred) av1_zero(x->mbmi_ext);
+
+  // Set the pointer to null since mbmi is only allocated inside this function.
+  assert(xd->mi == &mbmi_ptr);
+  xd->mi = NULL;
 }
 
 // This function stores the motion estimation dependencies of all the blocks in
