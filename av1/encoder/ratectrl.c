@@ -1033,20 +1033,11 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
   ambient_qp = (cm->current_frame.frame_number < num_frames_weight_key)
                    ? AOMMIN(p_rc->avg_frame_qindex[INTER_FRAME], avg_qindex_key)
                    : p_rc->avg_frame_qindex[INTER_FRAME];
-
+  active_worst_quality = AOMMIN(rc->worst_quality, ambient_qp * 5 / 4);
   if (p_rc->buffer_level > p_rc->optimal_buffer_level) {
     // Adjust down.
-    int max_adjustment_down;  // Maximum adjustment down for Q
-
-    if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ && !cpi->ppi->use_svc &&
-        (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN)) {
-      active_worst_quality = AOMMIN(rc->worst_quality, ambient_qp);
-      max_adjustment_down = AOMMIN(4, active_worst_quality / 16);
-    } else {
-      active_worst_quality = AOMMIN(rc->worst_quality, ambient_qp * 5 / 4);
-      max_adjustment_down = active_worst_quality / 3;
-    }
-
+    // Maximum limit for down adjustment, ~30%.
+    int max_adjustment_down = active_worst_quality / 3;
     if (max_adjustment_down) {
       buff_lvl_step =
           ((p_rc->maximum_buffer_size - p_rc->optimal_buffer_level) /
@@ -1058,7 +1049,6 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
     }
   } else if (p_rc->buffer_level > critical_level) {
     // Adjust up from ambient Q.
-    active_worst_quality = AOMMIN(rc->worst_quality, ambient_qp);
     if (critical_level) {
       buff_lvl_step = (p_rc->optimal_buffer_level - critical_level);
       if (buff_lvl_step) {
@@ -1066,7 +1056,7 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
                            (p_rc->optimal_buffer_level - p_rc->buffer_level) /
                            buff_lvl_step);
       }
-      active_worst_quality += adjustment;
+      active_worst_quality = ambient_qp + adjustment;
     }
   } else {
     // Set to worst_quality if buffer is below critical level.
