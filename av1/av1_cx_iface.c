@@ -238,7 +238,7 @@ static const struct av1_extracfg default_extra_cfg = {
   "/usr/local/share/model/vmaf_v0.6.1.json",  // VMAF model path
   ".",                                        // partition info path
   0,                                          // enable rate guide deltaq
-  "./rate_map.csv",                           // rate distribution input
+  "./rate_map.txt",                           // rate distribution input
   AOM_DIST_METRIC_PSNR,                       // dist_metric
   10,                                         // cq_level
   0,                                          // rc_max_intra_bitrate_pct
@@ -390,7 +390,7 @@ static const struct av1_extracfg default_extra_cfg = {
   "/usr/local/share/model/vmaf_v0.6.1.json",  // VMAF model path
   ".",                                        // partition info path
   0,                                          // enable rate guide deltaq
-  "./rate_map.csv",                           // rate distribution input
+  "./rate_map.txt",                           // rate distribution input
   AOM_DIST_METRIC_PSNR,                       // dist_metric
   10,                                         // cq_level
   0,                                          // rc_max_intra_bitrate_pct

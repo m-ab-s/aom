@@ -1487,14 +1487,26 @@ enum aome_enc_control_id {
   AV1E_SET_QUANTIZER_ONE_PASS = 159,
 
   /*!\brief Codec control to enable the rate distribution guided delta
-   * quantization in all intra mode. It requires --deltaq-mode=3, also
-   * an input file which contains rate distribution for each 16x16 block,
-   * passed in by --rate-distribution-info=rate_distribution.csv.
+   * quantization in all intra mode, unsigned int parameter
+   *
+   * - 0 = disable (default)
+   * - 1 = enable
+   *
+   * \attention This feature requires --deltaq-mode=3, also an input file
+   *            which contains rate distribution for each 16x16 block,
+   *            passed in by --rate-distribution-info=rate_distribution.txt.
    */
   AV1E_ENABLE_RATE_GUIDE_DELTAQ = 160,
 
   /*!\brief Codec control to set the input file for rate distribution used
-   * in all intra mode. It requires --enable-rate-guide-deltaq=1.
+   * in all intra mode, const char * parameter
+   * The input should be the name of a text file, which
+   * contains (rows x cols) float values separated by space.
+   * Each float value represent the number of bits for each 16x16 block.
+   * rows = (frame_height + 15) / 16
+   * cols = (frame_width + 15) / 16
+   *
+   * \attention This feature requires --enable-rate-guide-deltaq=1.
    */
   AV1E_SET_RATE_DISTRIBUTION_INFO = 161,
 

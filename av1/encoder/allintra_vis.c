@@ -484,8 +484,8 @@ static void automatic_intra_tools_off(AV1_COMP *cpi,
 static void ext_rate_guided_quantization(AV1_COMP *cpi) {
   // Calculation uses 8x8.
   const int mb_step = mi_size_wide[cpi->weber_bsize];
-  // Accumuate to 16x16
-  const int block_step = mi_size_wide[BLOCK_16X16];
+  // Accumuate to 16x16, step size is in the unit of mi.
+  const int block_step = 4;
 
   const char *filename = cpi->oxcf.rate_distribution_info;
   FILE *pfile = fopen(filename, "r");
