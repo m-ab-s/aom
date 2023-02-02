@@ -63,24 +63,6 @@ struct RateControlParam {
   int tpl_pass_index = 0;
 };
 
-struct TplBlockStats {
-  int16_t height;      // Pixel height.
-  int16_t width;       // Pixel width.
-  int16_t row;         // Pixel row of the top left corner.
-  int16_t col;         // Pixel col of the top left corner.
-  int64_t intra_cost;  // Rd cost of the best intra mode.
-  int64_t inter_cost;  // Rd cost of the best inter mode.
-
-  // Valid only if TplFrameStats::rate_dist_present is true:
-  int64_t recrf_rate;      // Bits when using recon as reference.
-  int64_t recrf_dist;      // Distortion when using recon as reference.
-  int64_t intra_pred_err;  // Prediction residual of the intra mode.
-  int64_t inter_pred_err;  // Prediction residual of the inter mode.
-
-  std::array<MotionVector, kBlockRefCount> mv;
-  std::array<int, kBlockRefCount> ref_frame_index;
-};
-
 // gop frame type used for facilitate setting up GopFrame
 // TODO(angiebird): Define names for forward key frame and
 // key frame with overlay
@@ -279,6 +261,24 @@ using RefFrameTable = std::vector<GopFrame>;
 struct GopEncodeInfo {
   std::vector<FrameEncodeParameters> param_list;
   RefFrameTable final_snapshot;  // RefFrameTable snapshot after coding this GOP
+};
+
+struct TplBlockStats {
+  int16_t height;      // Pixel height.
+  int16_t width;       // Pixel width.
+  int16_t row;         // Pixel row of the top left corner.
+  int16_t col;         // Pixel col of the top left corner.
+  int64_t intra_cost;  // Rd cost of the best intra mode.
+  int64_t inter_cost;  // Rd cost of the best inter mode.
+
+  // Valid only if TplFrameStats::rate_dist_present is true:
+  int64_t recrf_rate;      // Bits when using recon as reference.
+  int64_t recrf_dist;      // Distortion when using recon as reference.
+  int64_t intra_pred_err;  // Prediction residual of the intra mode.
+  int64_t inter_pred_err;  // Prediction residual of the inter mode.
+
+  std::array<MotionVector, kBlockRefCount> mv;
+  std::array<int, kBlockRefCount> ref_frame_index;
 };
 
 struct TplFrameStats {
