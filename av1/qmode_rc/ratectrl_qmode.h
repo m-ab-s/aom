@@ -60,8 +60,9 @@ GopFrame GopFrameBasic(int global_coding_idx_offset,
                        GopFrameType gop_frame_type);
 
 GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
-                       bool has_key_frame, int global_coding_idx_offset,
-                       int global_order_idx_offset);
+                       bool has_key_frame, bool has_arf_frame,
+                       bool use_prev_arf, int global_coding_idx_offset,
+                       int global_order_idx_offset, double base_q_ratio);
 
 // Creates a TplFrameDepStats containing an 2D array of default-initialized
 // TplUnitDepStats, with dimensions of

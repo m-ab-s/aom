@@ -246,12 +246,16 @@ class RateControlQModeTest : public ::testing::Test {
 TEST_F(RateControlQModeTest, ConstructGopARF) {
   int show_frame_count = 16;
   const bool has_key_frame = false;
+  const bool has_arf_frame = true;
+  const bool use_prev_arf = true;
+  const double base_q_ratio = 1.0;
   const int global_coding_idx_offset = 5;
   const int global_order_idx_offset = 20;
   RefFrameManager ref_frame_manager(kRefFrameTableSize, 7);
   GopStruct gop_struct =
       ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
-                   global_coding_idx_offset, global_order_idx_offset);
+                   has_arf_frame, use_prev_arf, global_coding_idx_offset,
+                   global_order_idx_offset, base_q_ratio);
   EXPECT_EQ(gop_struct.show_frame_count, show_frame_count);
   TestGopDisplayOrder(gop_struct);
   TestGopGlobalOrderIdx(gop_struct, global_order_idx_offset);
@@ -265,12 +269,16 @@ TEST_F(RateControlQModeTest, ConstructGopARF) {
 TEST_F(RateControlQModeTest, ConstructGopKey) {
   const int show_frame_count = 16;
   const bool has_key_frame = true;
+  const bool has_arf_frame = true;
+  const bool use_prev_arf = false;
+  const double base_q_ratio = 1.0;
   const int global_coding_idx_offset = 10;
   const int global_order_idx_offset = 8;
   RefFrameManager ref_frame_manager(kRefFrameTableSize, 7);
   GopStruct gop_struct =
       ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
-                   global_coding_idx_offset, global_order_idx_offset);
+                   has_arf_frame, use_prev_arf, global_coding_idx_offset,
+                   global_order_idx_offset, base_q_ratio);
   EXPECT_EQ(gop_struct.show_frame_count, show_frame_count);
   TestGopDisplayOrder(gop_struct);
   TestGopGlobalOrderIdx(gop_struct, global_order_idx_offset);
@@ -284,12 +292,16 @@ TEST_F(RateControlQModeTest, ConstructGopKey) {
 TEST_F(RateControlQModeTest, ConstructShortGop) {
   int show_frame_count = 2;
   const bool has_key_frame = false;
+  const bool has_arf_frame = false;
+  const bool use_prev_arf = true;
+  const double base_q_ratio = 1.0;
   const int global_coding_idx_offset = 5;
   const int global_order_idx_offset = 20;
   RefFrameManager ref_frame_manager(kRefFrameTableSize, 7);
   GopStruct gop_struct =
       ConstructGop(&ref_frame_manager, show_frame_count, has_key_frame,
-                   global_coding_idx_offset, global_order_idx_offset);
+                   has_arf_frame, use_prev_arf, global_coding_idx_offset,
+                   global_order_idx_offset, base_q_ratio);
   EXPECT_EQ(gop_struct.show_frame_count, show_frame_count);
   TestGopDisplayOrder(gop_struct);
   TestGopGlobalOrderIdx(gop_struct, global_order_idx_offset);
