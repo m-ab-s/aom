@@ -3714,17 +3714,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
 
   if (oxcf->rc_cfg.mode == AOM_Q)
     rc->active_worst_quality = oxcf->rc_cfg.cq_level;
-  FIRSTPASS_STATS this_frame;
-  av1_zero(this_frame);
-  // call above fn
-  if (is_stat_consumption_stage(cpi)) {
-    if (cpi->gf_frame_index < gf_group->size || rc->frames_to_key == 0) {
-      process_first_pass_stats(cpi, &this_frame);
-      update_total_stats = 1;
-    }
-  } else {
-    rc->active_worst_quality = oxcf->rc_cfg.cq_level;
-  }
 
   if (cpi->gf_frame_index == gf_group->size) {
     if (cpi->ppi->lap_enabled && cpi->ppi->p_rc.enable_scenecut_detection) {
@@ -3735,6 +3724,18 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       if (frames_to_key != -1)
         rc->frames_to_key = AOMMIN(rc->frames_to_key, frames_to_key);
     }
+  }
+
+  FIRSTPASS_STATS this_frame;
+  av1_zero(this_frame);
+  // call above fn
+  if (is_stat_consumption_stage(cpi)) {
+    if (cpi->gf_frame_index < gf_group->size || rc->frames_to_key == 0) {
+      process_first_pass_stats(cpi, &this_frame);
+      update_total_stats = 1;
+    }
+  } else {
+    rc->active_worst_quality = oxcf->rc_cfg.cq_level;
   }
 
   // Keyframe and section processing.
