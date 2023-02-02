@@ -9,6 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <assert.h>
+
 #include "config/aom_config.h"
 
 #if CONFIG_TFLITE
@@ -488,9 +490,7 @@ static void ext_rate_guided_quantization(AV1_COMP *cpi) {
   const char *filename = cpi->oxcf.rate_distribution_info;
   FILE *pfile = fopen(filename, "r");
   if (pfile == NULL) {
-    printf("Can't open file %s. Default deltaq-mode=3 will be used.\n",
-           filename);
-    fclose(pfile);
+    assert(pfile != NULL);
     return;
   }
 
@@ -498,7 +498,12 @@ static void ext_rate_guided_quantization(AV1_COMP *cpi) {
   for (int row = 0; row < cpi->frame_info.mi_rows; row += block_step) {
     for (int col = 0; col < cpi->frame_info.mi_cols; col += block_step) {
       float val;
-      fscanf(pfile, "%f", &val);
+      const int fields_converted = fscanf(pfile, "%f", &val);
+      if (fields_converted != 1) {
+        assert(fields_converted == 1);
+        fclose(pfile);
+        return;
+      }
       ext_rate_sum += val;
       cpi->ext_rate_distribution[(row / mb_step) * cpi->frame_info.mi_cols +
                                  (col / mb_step)] = val;
