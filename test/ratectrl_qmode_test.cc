@@ -475,84 +475,71 @@ TEST_F(RateControlQModeTest, TplBlockStatsToDepStatsUsingPredErr) {
   EXPECT_LE(unit_stats.inter_cost, unit_stats.intra_cost);
 }
 
-TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateSingleZeroMotion) {
-  // cur frame with coding_idx 1 use ref frame with coding_idx 0
-  const std::array<int, kBlockRefCount> ref_frame_index = { 0, -1 };
-  TplFrameStats frame_stats = CreateToyTplFrameStatsWithDiffSizes(8, 16);
-  AugmentTplFrameStatsWithRefFrames(&frame_stats, ref_frame_index);
+struct ZeroMotionPropagationTestParams {
+  std::string name;
+  // Indices of reference frames to be used by the "current" frame.
+  std::vector<int> refs_for_frame;
+  // Value of TplBlockStats::ref_frame_index for blocks of the current frame.
+  std::array<int, kBlockRefCount> refs_for_blocks;
+  // Expected fraction of intra cost attributable to each reference frame.
+  // Must have the same number of elements as refs_for_frame.
+  std::vector<double> expected_fraction;
+};
 
-  TplGopDepStats gop_dep_stats;
-  const int frame_count = 2;
-  // ref frame with coding_idx 0
-  TplFrameDepStats frame_dep_stats0 =
-      CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
-                             frame_stats.min_block_size, false);
-  gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats0);
-
-  // cur frame with coding_idx 1
-  const StatusOr<TplFrameDepStats> frame_dep_stats1 =
-      CreateTplFrameDepStatsWithoutPropagation(frame_stats);
-  ASSERT_THAT(frame_dep_stats1.status(), IsOkStatus());
-  gop_dep_stats.frame_dep_stats_list.push_back(std::move(*frame_dep_stats1));
-
-  const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
-  TplFrameDepStatsPropagate(/*coding_idx=*/1, ref_frame_table, &gop_dep_stats);
-
-  // cur frame with coding_idx 1
-  const double expected_propagation_sum =
-      TplFrameStatsAccumulateIntraCost(frame_stats);
-
-  // ref frame with coding_idx 0
-  const double propagation_sum =
-      TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[0]);
-
-  // The propagation_sum between coding_idx 0 and coding_idx 1 should be equal
-  // because every block in cur frame has zero motion, use ref frame with
-  // coding_idx 0 for prediction, and ref frame itself is empty.
-  EXPECT_NEAR(propagation_sum, expected_propagation_sum, kErrorEpsilon);
+std::vector<ZeroMotionPropagationTestParams>
+CreateZeroMotionPropagationTestParams() {
+  return {
+    { "single", { 0 }, { 0, -1 }, { 1 } },
+    { "compound", { 0, 1 }, { 0, 1 }, { 0.5, 0.5 } },
+  };
 }
 
-TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateCompoundZeroMotion) {
-  // cur frame with coding_idx 2 use two ref frames with coding_idx 0 and 1
-  const std::array<int, kBlockRefCount> ref_frame_index = { 0, 1 };
+class ZeroMotionPropagationTest
+    : public ::testing::TestWithParam<ZeroMotionPropagationTestParams> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    , ZeroMotionPropagationTest,
+    ::testing::ValuesIn(CreateZeroMotionPropagationTestParams()),
+    [](const ::testing::TestParamInfo<ZeroMotionPropagationTestParams> &info) {
+      return info.param.name;
+    });
+
+TEST_P(ZeroMotionPropagationTest, ZeroMotionPropagationTest) {
   TplFrameStats frame_stats = CreateToyTplFrameStatsWithDiffSizes(8, 16);
-  AugmentTplFrameStatsWithRefFrames(&frame_stats, ref_frame_index);
 
   TplGopDepStats gop_dep_stats;
-  const int frame_count = 3;
-  // ref frame with coding_idx 0
-  const TplFrameDepStats frame_dep_stats0 =
-      CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
-                             frame_stats.min_block_size, false);
-  gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats0);
+  const int num_ref_frames = static_cast<int>(GetParam().refs_for_frame.size());
+  ASSERT_EQ(static_cast<int>(GetParam().expected_fraction.size()),
+            num_ref_frames);
 
-  // ref frame with coding_idx 1
-  const TplFrameDepStats frame_dep_stats1 =
-      CreateTplFrameDepStats(frame_stats.frame_height, frame_stats.frame_width,
-                             frame_stats.min_block_size, false);
-  gop_dep_stats.frame_dep_stats_list.push_back(frame_dep_stats1);
+  // Create stats for reference frames.
+  for (int i = 0; i < num_ref_frames; ++i) {
+    gop_dep_stats.frame_dep_stats_list.push_back(CreateTplFrameDepStats(
+        frame_stats.frame_height, frame_stats.frame_width,
+        frame_stats.min_block_size, false));
+  }
 
-  // cur frame with coding_idx 2
-  const StatusOr<TplFrameDepStats> frame_dep_stats2 =
+  // Create stats for current frame.
+  AugmentTplFrameStatsWithRefFrames(&frame_stats, GetParam().refs_for_blocks);
+  const StatusOr<TplFrameDepStats> cur_frame_dep_stats =
       CreateTplFrameDepStatsWithoutPropagation(frame_stats);
-  ASSERT_THAT(frame_dep_stats2.status(), IsOkStatus());
-  gop_dep_stats.frame_dep_stats_list.push_back(std::move(*frame_dep_stats2));
+  ASSERT_THAT(cur_frame_dep_stats.status(), IsOkStatus());
+  gop_dep_stats.frame_dep_stats_list.push_back(std::move(*cur_frame_dep_stats));
 
-  const RefFrameTable ref_frame_table = CreateToyRefFrameTable(frame_count);
-  TplFrameDepStatsPropagate(/*coding_idx=*/2, ref_frame_table, &gop_dep_stats);
+  const RefFrameTable ref_frame_table =
+      CreateToyRefFrameTable(num_ref_frames + 1);
+  TplFrameDepStatsPropagate(/*coding_idx=*/num_ref_frames, ref_frame_table,
+                            &gop_dep_stats);
 
-  // cur frame with coding_idx 1
-  const double expected_ref_sum = TplFrameStatsAccumulateIntraCost(frame_stats);
+  const double intra_cost = TplFrameStatsAccumulateIntraCost(frame_stats);
 
-  // ref frame with coding_idx 0
-  const double cost_sum0 =
-      TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[0]);
-  EXPECT_NEAR(cost_sum0, expected_ref_sum * 0.5, kErrorEpsilon);
-
-  // ref frame with coding_idx 1
-  const double cost_sum1 =
-      TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[1]);
-  EXPECT_NEAR(cost_sum1, expected_ref_sum * 0.5, kErrorEpsilon);
+  for (int i = 0; i < num_ref_frames; ++i) {
+    EXPECT_NEAR(
+        TplFrameDepStatsAccumulate(gop_dep_stats.frame_dep_stats_list[i]),
+        std::max(intra_cost * GetParam().expected_fraction[i], 1.0),
+        kErrorEpsilon)
+        << "on frame " << i;
+  }
 }
 
 TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
