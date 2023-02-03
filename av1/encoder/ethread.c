@@ -2406,64 +2406,16 @@ void av1_global_motion_estimation_mt(AV1_COMP *cpi) {
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-// Allocate memory for row synchronization
-static void wiener_var_sync_mem_alloc(
-    AV1EncRowMultiThreadSync *const row_mt_sync, AV1_COMMON *const cm,
-    const int rows) {
-#if CONFIG_MULTITHREAD
-  int i;
-
-  CHECK_MEM_ERROR(cm, row_mt_sync->mutex_,
-                  aom_malloc(sizeof(*row_mt_sync->mutex_) * rows));
-  if (row_mt_sync->mutex_) {
-    for (i = 0; i < rows; ++i) {
-      pthread_mutex_init(&row_mt_sync->mutex_[i], NULL);
-    }
+static AOM_INLINE int get_next_job_allintra(
+    AV1EncRowMultiThreadSync *const row_mt_sync, const int mi_row_end,
+    int *current_mi_row, int mib_size) {
+  if (row_mt_sync->next_mi_row < mi_row_end) {
+    *current_mi_row = row_mt_sync->next_mi_row;
+    row_mt_sync->num_threads_working++;
+    row_mt_sync->next_mi_row += mib_size;
+    return 1;
   }
-
-  CHECK_MEM_ERROR(cm, row_mt_sync->cond_,
-                  aom_malloc(sizeof(*row_mt_sync->cond_) * rows));
-  if (row_mt_sync->cond_) {
-    for (i = 0; i < rows; ++i) {
-      pthread_cond_init(&row_mt_sync->cond_[i], NULL);
-    }
-  }
-#endif  // CONFIG_MULTITHREAD
-
-  CHECK_MEM_ERROR(cm, row_mt_sync->num_finished_cols,
-                  aom_malloc(sizeof(*row_mt_sync->num_finished_cols) * rows));
-
-  row_mt_sync->rows = rows;
-  // Set up nsync.
-  row_mt_sync->sync_range = 1;
-}
-
-// Deallocate row based multi-threading synchronization related mutex and data
-static void wiener_var_sync_mem_dealloc(AV1EncRowMultiThreadSync *row_mt_sync) {
-  if (row_mt_sync != NULL) {
-#if CONFIG_MULTITHREAD
-    int i;
-
-    if (row_mt_sync->mutex_ != NULL) {
-      for (i = 0; i < row_mt_sync->rows; ++i) {
-        pthread_mutex_destroy(&row_mt_sync->mutex_[i]);
-      }
-      aom_free(row_mt_sync->mutex_);
-    }
-    if (row_mt_sync->cond_ != NULL) {
-      for (i = 0; i < row_mt_sync->rows; ++i) {
-        pthread_cond_destroy(&row_mt_sync->cond_[i]);
-      }
-      aom_free(row_mt_sync->cond_);
-    }
-#endif  // CONFIG_MULTITHREAD
-    aom_free(row_mt_sync->num_finished_cols);
-
-    // clear the structure as the source of this call may be dynamic change
-    // in tiles in which case this call will be followed by an _alloc()
-    // which may fail.
-    av1_zero(*row_mt_sync);
-  }
+  return 0;
 }
 
 static AOM_INLINE void prepare_wiener_var_workers(AV1_COMP *const cpi,
@@ -2504,7 +2456,8 @@ static int cal_mb_wiener_var_hook(void *arg1, void *unused) {
   MACROBLOCKD *xd = &x->e_mbd;
   const BLOCK_SIZE bsize = cpi->weber_bsize;
   const int mb_step = mi_size_wide[bsize];
-  AV1EncRowMultiThreadSync *const row_mt_sync = &cpi->tile_data[0].row_mt_sync;
+  AV1EncRowMultiThreadSync *const intra_row_mt_sync =
+      &cpi->ppi->intra_row_mt_sync;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
   (void)enc_row_mt;
 #if CONFIG_MULTITHREAD
@@ -2522,7 +2475,9 @@ static int cal_mb_wiener_var_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(enc_row_mt_mutex_);
 #endif
-    has_jobs = get_next_job(&cpi->tile_data[0], &current_mi_row, mb_step);
+    has_jobs =
+        get_next_job_allintra(intra_row_mt_sync, cpi->common.mi_params.mi_rows,
+                              &current_mi_row, mb_step);
 #if CONFIG_MULTITHREAD
     pthread_mutex_unlock(enc_row_mt_mutex_);
 #endif
@@ -2534,7 +2489,7 @@ static int cal_mb_wiener_var_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(enc_row_mt_mutex_);
 #endif
-    row_mt_sync->num_threads_working--;
+    intra_row_mt_sync->num_threads_working--;
 #if CONFIG_MULTITHREAD
     pthread_mutex_unlock(enc_row_mt_mutex_);
 #endif
@@ -2555,31 +2510,24 @@ void av1_calc_mb_wiener_var_mt(AV1_COMP *cpi, int num_workers,
   (void)sum_est_rate;
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
-  const int tile_cols = 1;
-  const int tile_rows = 1;
-  if (cpi->tile_data != NULL) aom_free(cpi->tile_data);
-  CHECK_MEM_ERROR(
-      cm, cpi->tile_data,
-      aom_memalign(32, tile_cols * tile_rows * sizeof(*cpi->tile_data)));
-  cpi->allocated_tiles = tile_cols * tile_rows;
-  cpi->tile_data->tile_info.mi_row_end = cm->mi_params.mi_rows;
-  AV1EncRowMultiThreadSync *const row_mt_sync = &cpi->tile_data[0].row_mt_sync;
+  AV1EncRowMultiThreadSync *const intra_row_mt_sync =
+      &cpi->ppi->intra_row_mt_sync;
 
   // TODO(chengchen): the memory usage could be improved.
   const int mi_rows = cm->mi_params.mi_rows;
-  wiener_var_sync_mem_alloc(row_mt_sync, cm, mi_rows);
+  row_mt_sync_mem_alloc(intra_row_mt_sync, cm, mi_rows);
 
-  row_mt_sync->intrabc_extra_top_right_sb_delay = 0;
-  row_mt_sync->num_threads_working = num_workers;
-  row_mt_sync->next_mi_row = 0;
-  memset(row_mt_sync->num_finished_cols, -1,
-         sizeof(*row_mt_sync->num_finished_cols) * num_workers);
+  intra_row_mt_sync->intrabc_extra_top_right_sb_delay = 0;
+  intra_row_mt_sync->num_threads_working = num_workers;
+  intra_row_mt_sync->next_mi_row = 0;
+  memset(intra_row_mt_sync->num_finished_cols, -1,
+         sizeof(*intra_row_mt_sync->num_finished_cols) * num_workers);
 
   prepare_wiener_var_workers(cpi, cal_mb_wiener_var_hook, num_workers);
   launch_workers(mt_info, num_workers);
   sync_enc_workers(mt_info, cm, num_workers);
 
-  wiener_var_sync_mem_dealloc(row_mt_sync);
+  row_mt_sync_mem_dealloc(intra_row_mt_sync);
 }
 
 // Compare and order tiles based on absolute sum of tx coeffs.
