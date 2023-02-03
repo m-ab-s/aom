@@ -1617,6 +1617,8 @@ static int denoise_and_model_realloc_if_necessary(
   return 1;
 }
 
+// TODO(aomedia:3151): Handle a monochrome image (sd->u_buffer and sd->v_buffer
+// are null pointers) correctly.
 int aom_denoise_and_model_run(struct aom_denoise_and_model_t *ctx,
                               YV12_BUFFER_CONFIG *sd,
                               aom_film_grain_t *film_grain, int apply_denoise) {

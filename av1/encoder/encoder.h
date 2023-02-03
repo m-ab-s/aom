@@ -3617,11 +3617,11 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
  * \ingroup high_level_algo
  * This function receives the raw frame data from input.
  *
- * \param[in]    cpi            Top-level encoder structure
- * \param[in]    frame_flags    Flags to decide how to encoding the frame
- * \param[in]    sd             Contain raw frame data
- * \param[in]    time_stamp     Time stamp of the frame
- * \param[in]    end_time_stamp End time stamp
+ * \param[in]     cpi            Top-level encoder structure
+ * \param[in]     frame_flags    Flags to decide how to encoding the frame
+ * \param[in,out] sd             Contain raw frame data
+ * \param[in]     time_stamp     Time stamp of the frame
+ * \param[in]     end_time_stamp End time stamp
  *
  * \return Returns a value to indicate if the frame data is received
  * successfully.

@@ -1024,6 +1024,10 @@ aom_fixed_buf_t *aom_codec_get_global_headers(aom_codec_ctx_t *ctx);
  * \param[in]    img       Image data to encode, NULL to flush.
  *                         Encoding sample values outside the range
  *                         [0..(1<<img->bit_depth)-1] is undefined behavior.
+ *                         Note: Although img is declared as a const pointer,
+ *                         if AV1E_SET_DENOISE_NOISE_LEVEL is set to a nonzero
+ *                         value aom_codec_encode() modifies (denoises) the
+ *                         samples in img->planes[i] .
  * \param[in]    pts       Presentation time stamp, in timebase units. If img
  *                         is NULL, pts is ignored.
  * \param[in]    duration  Duration to show frame, in timebase units. If img
