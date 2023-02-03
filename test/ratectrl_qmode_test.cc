@@ -1207,9 +1207,3 @@ TEST_F(RateControlQModeTest, TestKMeans) {
 }
 
 }  // namespace aom
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  std::srand(0);
-  return RUN_ALL_TESTS();
-}

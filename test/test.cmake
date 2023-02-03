@@ -356,25 +356,23 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 if(CONFIG_AV1_ENCODER AND ENABLE_TESTS)
-  list(APPEND AOM_RC_INTERFACE_SOURCES
-              "${AOM_ROOT}/test/encode_test_driver.cc"
-              "${AOM_ROOT}/test/encode_test_driver.h"
-              "${AOM_ROOT}/test/decode_test_driver.cc"
-              "${AOM_ROOT}/test/decode_test_driver.h"
-              "${AOM_ROOT}/test/codec_factory.h"
-              "${AOM_ROOT}/test/test_aom_rc_interface.cc"
-              "${AOM_ROOT}/test/ratectrl_rtc_test.cc"
-              "${AOM_ROOT}/common/y4minput.c"
-              "${AOM_ROOT}/common/y4minput.h"
-              "${AOM_ROOT}/test/y4m_video_source.h"
-              "${AOM_ROOT}/test/yuv_video_source.h")
-
-  list(APPEND AV1_RC_QMODE_SOURCES "${AOM_ROOT}/test/mock_ratectrl_qmode.h"
-              "${AOM_ROOT}/test/ratectrl_qmode_test.cc"
-              "${AOM_ROOT}/test/ducky_encode_test.cc"
-              "${AOM_ROOT}/common/y4minput.c" "${AOM_ROOT}/common/y4minput.h"
+  list(APPEND AOM_RC_TEST_SOURCES
               "${AOM_ROOT}/common/tools_common.c"
               "${AOM_ROOT}/common/tools_common.h"
+              "${AOM_ROOT}/common/y4minput.c"
+              "${AOM_ROOT}/common/y4minput.h"
+              "${AOM_ROOT}/test/codec_factory.h"
+              "${AOM_ROOT}/test/decode_test_driver.cc"
+              "${AOM_ROOT}/test/decode_test_driver.h"
+              "${AOM_ROOT}/test/ducky_encode_test.cc"
+              "${AOM_ROOT}/test/encode_test_driver.cc"
+              "${AOM_ROOT}/test/encode_test_driver.h"
+              "${AOM_ROOT}/test/mock_ratectrl_qmode.h"
+              "${AOM_ROOT}/test/ratectrl_qmode_test.cc"
+              "${AOM_ROOT}/test/ratectrl_rtc_test.cc"
+              "${AOM_ROOT}/test/test_aom_rc.cc"
+              "${AOM_ROOT}/test/y4m_video_source.h"
+              "${AOM_ROOT}/test/yuv_video_source.h"
               "${AOM_GEN_SRC_DIR}/usage_exit.c")
 endif()
 
@@ -611,29 +609,17 @@ function(setup_aom_test_targets)
   endforeach()
 
   # Set up test for rc interface
-  if(CONFIG_AV1_RC_RTC
-     AND CONFIG_AV1_ENCODER
-     AND ENABLE_TESTS
-     AND CONFIG_WEBM_IO
-     AND NOT BUILD_SHARED_LIBS)
-    add_executable(test_aom_rc_interface ${AOM_RC_INTERFACE_SOURCES})
-    target_link_libraries(test_aom_rc_interface ${AOM_LIB_LINK_TYPE} aom
-                          aom_av1_rc aom_gtest webm)
-    set_property(TARGET test_aom_rc_interface
-                 PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
-    list(APPEND AOM_APP_TARGETS test_aom_rc_interface)
-  endif()
-
   if(CONFIG_AV1_ENCODER
      AND ENABLE_TESTS
+     AND CONFIG_WEBM_IO
      AND NOT BUILD_SHARED_LIBS
      AND NOT CONFIG_REALTIME_ONLY)
-    add_executable(test_av1_rc_qmode ${AV1_RC_QMODE_SOURCES})
-    target_link_libraries(test_av1_rc_qmode ${AOM_LIB_LINK_TYPE} aom
-                          av1_rc_qmode aom_gtest aom_gmock)
-    set_property(TARGET test_av1_rc_qmode
-                 PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
-    list(APPEND AOM_APP_TARGETS test_av1_rc_qmode)
+    add_executable(test_aom_rc ${AOM_RC_TEST_SOURCES})
+    target_link_libraries(test_aom_rc ${AOM_LIB_LINK_TYPE} aom aom_av1_rc
+                          aom_gtest aom_gmock webm)
+    set_property(TARGET test_aom_rc PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
+    list(APPEND AOM_APP_TARGETS test_aom_rc)
   endif()
+
   set(AOM_APP_TARGETS ${AOM_APP_TARGETS} PARENT_SCOPE)
 endfunction()
