@@ -321,7 +321,7 @@ static TplBlockStats CreateToyTplBlockStats(int h, int w, int r, int c,
   tpl_block_stats.col = c;
   tpl_block_stats.intra_cost = intra_cost;
   tpl_block_stats.inter_cost = inter_cost;
-  tpl_block_stats.ref_frame_index = { -1, -1 };
+  tpl_block_stats.ref_frame_index = { kNoRefFrame, kNoRefFrame };
   return tpl_block_stats;
 }
 
@@ -489,8 +489,11 @@ struct ZeroMotionPropagationTestParams {
 std::vector<ZeroMotionPropagationTestParams>
 CreateZeroMotionPropagationTestParams() {
   return {
-    { "single", { 0 }, { 0, -1 }, { 1 } },
+    { "single", { 0 }, { 0, kNoRefFrame }, { 1 } },
     { "compound", { 0, 1 }, { 0, 1 }, { 0.5, 0.5 } },
+    // When the reference frame for a block is unknown, it should arbitrarily
+    // be assumed to have used the frame's first reference frame.
+    { "unknown", { 1, 2, 0 }, { kUnknownRefFrame, kNoRefFrame }, { 0, 1, 0 } },
   };
 }
 
@@ -521,6 +524,7 @@ TEST_P(ZeroMotionPropagationTest, ZeroMotionPropagationTest) {
 
   // Create stats for current frame.
   AugmentTplFrameStatsWithRefFrames(&frame_stats, GetParam().refs_for_blocks);
+  frame_stats.ref_frame_indices = GetParam().refs_for_frame;
   const StatusOr<TplFrameDepStats> cur_frame_dep_stats =
       CreateTplFrameDepStatsWithoutPropagation(frame_stats);
   ASSERT_THAT(cur_frame_dep_stats.status(), IsOkStatus());
@@ -544,7 +548,7 @@ TEST_P(ZeroMotionPropagationTest, ZeroMotionPropagationTest) {
 
 TEST_F(RateControlQModeTest, TplFrameDepStatsPropagateSingleWithMotion) {
   // cur frame with coding_idx 1 use ref frame with coding_idx 0
-  const std::array<int, kBlockRefCount> ref_frame_index = { 0, -1 };
+  const std::array<int, kBlockRefCount> ref_frame_index = { 0, kNoRefFrame };
   const int16_t min_block_size = 8;
   TplFrameStats frame_stats =
       CreateToyTplFrameStatsWithDiffSizes(min_block_size, min_block_size * 2);
@@ -610,7 +614,8 @@ TEST_F(RateControlQModeTest, ComputeTplGopDepStats) {
   gop_struct.show_frame_count = 3;
   for (int i = 0; i < 3; i++) {
     // Use the previous frame as reference
-    const std::array<int, kBlockRefCount> ref_frame_index = { i - 1, -1 };
+    const std::array<int, kBlockRefCount> ref_frame_index = { i - 1,
+                                                              kNoRefFrame };
     int min_block_size = 8;
     TplFrameStats frame_stats =
         CreateToyTplFrameStatsWithDiffSizes(min_block_size, min_block_size * 2);
@@ -1124,7 +1129,7 @@ TEST_F(RateControlQModeTest, GetGopEncodeInfoRefFrameMissingBlockStats) {
 
   // Only frame 0 has TPL block stats.
   TplGopStats tpl_gop_stats;
-  tpl_gop_stats.frame_stats_list.assign(3, { 8, 176, 144, false, {}, {} });
+  tpl_gop_stats.frame_stats_list.assign(3, { 8, 176, 144, false, {}, {}, {} });
   tpl_gop_stats.frame_stats_list[0] = CreateToyTplFrameStatsWithDiffSizes(8, 8);
 
   AV1RateControlQMode rc;

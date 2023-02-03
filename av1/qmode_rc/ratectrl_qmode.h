@@ -42,6 +42,7 @@ struct TplFrameDepStats {
   double alt_rdcost;  // rate-distortion cost in the second tpl pass
   std::vector<std::vector<TplUnitDepStats>> unit_stats;
   std::vector<std::vector<TplUnitDepStats>> alt_unit_stats;
+  std::vector<int> ref_frame_indices;
 };
 
 struct TplGopDepStats {
@@ -75,10 +76,6 @@ TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
 
 TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
                                         int unit_count, bool rate_dist_present);
-
-Status FillTplUnitDepStats(TplFrameDepStats &frame_dep_stats,
-                           const TplFrameStats &frame_stats,
-                           const std::vector<TplBlockStats> &block_stats_list);
 
 StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats);

@@ -987,7 +987,7 @@ TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
   // In rare case, inter_cost may be greater than intra_cost.
   // If so, we need to modify inter_cost such that inter_cost <= intra_cost
   // because it is required by GetPropagationFraction()
-  if (block_stats.ref_frame_index[0] >= 0)
+  if (block_stats.ref_frame_index[0] != kNoRefFrame)
     dep_stats.inter_cost = std::min(dep_stats.intra_cost, dep_stats.inter_cost);
   else
     dep_stats.inter_cost = dep_stats.intra_cost;
@@ -1054,7 +1054,6 @@ Status ValidateTplStats(const GopStruct &gop_struct,
   }
   return { AOM_CODEC_OK, "" };
 }
-}  // namespace
 
 Status FillTplUnitDepStats(
     std::vector<std::vector<TplUnitDepStats>> &unit_stats,
@@ -1091,6 +1090,7 @@ Status FillTplUnitDepStats(
   }
   return { AOM_CODEC_OK, "" };
 }
+}  // namespace
 
 StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats) {
@@ -1101,6 +1101,7 @@ StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
   TplFrameDepStats frame_dep_stats = CreateTplFrameDepStats(
       frame_stats.frame_height, frame_stats.frame_width, min_block_size,
       !frame_stats.alternate_block_stats_list.empty());
+  frame_dep_stats.ref_frame_indices = frame_stats.ref_frame_indices;
 
   Status status = FillTplUnitDepStats(frame_dep_stats.unit_stats, frame_stats,
                                       frame_stats.block_stats_list);
@@ -1119,14 +1120,21 @@ StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
   return frame_dep_stats;
 }
 
-int GetRefCodingIdxList(const TplUnitDepStats &unit_dep_stats,
+int GetRefCodingIdxList(const TplFrameDepStats &frame_dep_stats,
+                        const TplUnitDepStats &unit_dep_stats,
                         const RefFrameTable &ref_frame_table,
                         int *ref_coding_idx_list) {
   int ref_frame_count = 0;
   for (int i = 0; i < kBlockRefCount; ++i) {
     ref_coding_idx_list[i] = -1;
     int ref_frame_index = unit_dep_stats.ref_frame_index[i];
-    if (ref_frame_index != -1) {
+    if (ref_frame_index == kUnknownRefFrame) {
+      // Preserve existing behavior for now: if the ref for the block is
+      // unknown, assume that it's the first ref for the frame.
+      assert(!frame_dep_stats.ref_frame_indices.empty());
+      ref_frame_index = frame_dep_stats.ref_frame_indices.front();
+    }
+    if (ref_frame_index != kNoRefFrame) {
       assert(ref_frame_index < static_cast<int>(ref_frame_table.size()));
       ref_coding_idx_list[i] = ref_frame_table[ref_frame_index].coding_idx;
       ref_frame_count++;
@@ -1216,8 +1224,9 @@ void TplFrameDepStatsBackTrace(int coding_idx, GopFrameType update_type,
           frame_dep_stats->alt_unit_stats[unit_row][unit_col];
 
       int ref_coding_idx_list[kBlockRefCount] = { -1, -1 };
-      int ref_frame_count = GetRefCodingIdxList(
-          alt_unit_dep_stats, ref_frame_table, ref_coding_idx_list);
+      int ref_frame_count =
+          GetRefCodingIdxList(*frame_dep_stats, alt_unit_dep_stats,
+                              ref_frame_table, ref_coding_idx_list);
       if (ref_frame_count == 0) continue;
       MotionVector base_mv[2] = { alt_unit_dep_stats.mv[0],
                                   alt_unit_dep_stats.mv[1] };
@@ -1291,8 +1300,9 @@ void TplFrameDepStatsPropagate(int coding_idx,
       TplUnitDepStats &unit_dep_stats =
           frame_dep_stats->unit_stats[unit_row][unit_col];
       int ref_coding_idx_list[kBlockRefCount] = { -1, -1 };
-      int ref_frame_count = GetRefCodingIdxList(unit_dep_stats, ref_frame_table,
-                                                ref_coding_idx_list);
+      int ref_frame_count =
+          GetRefCodingIdxList(*frame_dep_stats, unit_dep_stats, ref_frame_table,
+                              ref_coding_idx_list);
       if (ref_frame_count == 0) continue;
       for (int i = 0; i < kBlockRefCount; ++i) {
         if (ref_coding_idx_list[i] == -1) continue;
