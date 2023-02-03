@@ -564,7 +564,9 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   enc_row_mt->sync_read_ptr = av1_row_mt_sync_read_dummy;
   enc_row_mt->sync_write_ptr = av1_row_mt_sync_write_dummy;
   // Calculate differential contrast for each block for the entire image.
-  if (num_workers > 1) {
+  // TODO(aomedia:3376): Remove " && 0" when there are no data races in
+  // av1_calc_mb_wiener_var_mt(). See also bug aomedia:3380.
+  if (num_workers > 1 && 0) {
     enc_row_mt->sync_read_ptr = av1_row_mt_sync_read;
     enc_row_mt->sync_write_ptr = av1_row_mt_sync_write;
     av1_calc_mb_wiener_var_mt(cpi, num_workers, &sum_rec_distortion,
