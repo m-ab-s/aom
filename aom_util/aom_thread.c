@@ -79,11 +79,11 @@ static THREADFN thread_loop(void *ptr) {
       pthread_mutex_lock(&worker->impl_->mutex_);
       assert(worker->status_ == WORK);
       worker->status_ = OK;
+      // signal to the main thread that we're done (for sync())
+      pthread_cond_signal(&worker->impl_->condition_);
     } else if (worker->status_ == NOT_OK) {  // finish the worker
       done = 1;
     }
-    // signal to the main thread that we're done (for sync())
-    pthread_cond_signal(&worker->impl_->condition_);
     pthread_mutex_unlock(&worker->impl_->mutex_);
   }
   return THREAD_RETURN(NULL);  // Thread is finished
