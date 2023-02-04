@@ -33,18 +33,22 @@ TEST(AVIFProgressiveTest, QualityChange) {
   aom_image_t img;
   EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I444, kWidth, kHeight, 1,
                                buffer.data()));
+  img.cp = AOM_CICP_CP_UNSPECIFIED;
+  img.tc = AOM_CICP_TC_UNSPECIFIED;
+  img.mc = AOM_CICP_MC_UNSPECIFIED;
+  img.range = AOM_CR_FULL_RANGE;
 
   aom_codec_iface_t *iface = aom_codec_av1_cx();
   aom_codec_enc_cfg_t cfg;
-  const unsigned int usage = AOM_USAGE_GOOD_QUALITY;
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, usage));
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
+  cfg.g_profile = 1;
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
-  cfg.rc_end_usage = AOM_Q;
-  cfg.g_profile = 1;
   cfg.g_bit_depth = AOM_BITS_8;
   cfg.g_input_bit_depth = 8;
   cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_Q;
   cfg.rc_min_quantizer = 50;
   cfg.rc_max_quantizer = 50;
   aom_codec_ctx_t enc;
@@ -114,18 +118,22 @@ TEST(AVIFProgressiveTest, DimensionChange) {
   aom_image_t img;
   EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I444, kWidth, kHeight, 1,
                                buffer.data()));
+  img.cp = AOM_CICP_CP_UNSPECIFIED;
+  img.tc = AOM_CICP_TC_UNSPECIFIED;
+  img.mc = AOM_CICP_MC_UNSPECIFIED;
+  img.range = AOM_CR_FULL_RANGE;
 
   aom_codec_iface_t *iface = aom_codec_av1_cx();
   aom_codec_enc_cfg_t cfg;
-  const unsigned int usage = AOM_USAGE_GOOD_QUALITY;
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, usage));
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
+  cfg.g_profile = 1;
   cfg.g_w = kWidth;
   cfg.g_h = kHeight;
-  cfg.rc_end_usage = AOM_Q;
-  cfg.g_profile = 1;
   cfg.g_bit_depth = AOM_BITS_8;
   cfg.g_input_bit_depth = 8;
   cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_Q;
   cfg.rc_min_quantizer = 0;
   cfg.rc_max_quantizer = 0;
   aom_codec_ctx_t enc;
