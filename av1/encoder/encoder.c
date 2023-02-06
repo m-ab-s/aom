@@ -76,6 +76,7 @@
 #include "av1/encoder/rc_utils.h"
 #include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt.h"
+#include "av1/encoder/saliency_map.h"
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/superres_scale.h"
@@ -1386,6 +1387,10 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
 
   cpi->refresh_frame.alt_ref_frame = false;
 
+  CHECK_MEM_ERROR(
+      cm, cpi->saliency_map,
+      (double *)aom_calloc((cm->height) * (cm->width), sizeof(double)));
+
 #if CONFIG_SPEED_STATS
   cpi->tx_search_count = 0;
 #endif  // CONFIG_SPEED_STATS
@@ -1669,6 +1674,7 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 
   aom_free(cm->error);
   aom_free(cpi->td.tctx);
+  aom_free(cpi->saliency_map);
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *const enc_row_mt_mutex_ = mt_info->enc_row_mt.mutex_;
@@ -3712,6 +3718,10 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   if (oxcf->tune_cfg.tuning == AOM_TUNE_SSIM) {
     av1_set_mb_ssim_rdmult_scaling(cpi);
+  }
+
+  if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_SALIENCY_MAP) {
+    set_saliency_map(cpi);
   }
 
 #if CONFIG_TUNE_VMAF

@@ -3480,6 +3480,11 @@ typedef struct AV1_COMP {
    *  This is currently only used for global motion
    */
   int image_pyramid_levels;
+
+  /*!
+   * Pixel level saliency map for each frame.
+   */
+  double *saliency_map;
 } AV1_COMP;
 
 /*!
