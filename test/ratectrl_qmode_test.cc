@@ -16,8 +16,10 @@
 #include <cerrno>
 #include <cstring>
 #include <fstream>
+#include <istream>
 #include <memory>
 #include <numeric>
+#include <ostream>
 #include <random>
 #include <string>
 #include <unordered_set>
@@ -485,6 +487,11 @@ struct ZeroMotionPropagationTestParams {
   // Must have the same number of elements as refs_for_frame.
   std::vector<double> expected_fraction;
 };
+
+std::ostream &operator<<(std::ostream &os,
+                         const ZeroMotionPropagationTestParams &params) {
+  return os << "ZeroMotionPropagationTestParams { name:" << params.name << " }";
+}
 
 std::vector<ZeroMotionPropagationTestParams>
 CreateZeroMotionPropagationTestParams() {
