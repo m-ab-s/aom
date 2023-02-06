@@ -1478,7 +1478,9 @@ enum aome_enc_control_id {
    */
   AV1E_ENABLE_SB_QP_SWEEP = 158,
 
-  /*!\brief Codec control to set quantizer for the next frame.
+  /*!\brief Codec control to set quantizer for the next frame, int parameter.
+   *
+   * - Valid range [0, 63]
    *
    * This will turn off cyclic refresh. Only applicable to 1-pass.
    */
