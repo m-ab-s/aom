@@ -65,6 +65,21 @@ static INLINE unsigned int horizontal_add_u32x4(const uint32x4_t a) {
 #endif
 }
 
+static INLINE uint32x4_t horizontal_add_4d_u32x4(const uint32x4_t sum[4]) {
+#if defined(__aarch64__)
+  uint32x4_t res01 = vpaddq_u32(sum[0], sum[1]);
+  uint32x4_t res23 = vpaddq_u32(sum[2], sum[3]);
+  return vpaddq_u32(res01, res23);
+#else
+  uint32x4_t res = vdupq_n_u32(0);
+  res = vsetq_lane_u32(horizontal_add_u32x4(sum[0]), res, 0);
+  res = vsetq_lane_u32(horizontal_add_u32x4(sum[1]), res, 1);
+  res = vsetq_lane_u32(horizontal_add_u32x4(sum[2]), res, 2);
+  res = vsetq_lane_u32(horizontal_add_u32x4(sum[3]), res, 3);
+  return res;
+#endif
+}
+
 static INLINE uint32_t horizontal_long_add_u16x8(const uint16x8_t vec_lo,
                                                  const uint16x8_t vec_hi) {
 #if defined(__aarch64__)

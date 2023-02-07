@@ -18,7 +18,7 @@
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/sum_neon.h"
 
-#if defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#if defined(__ARM_FEATURE_DOTPROD)
 
 static INLINE void sad16_neon(uint8x16_t src, uint8x16_t ref,
                               uint32x4_t *const sad_sum) {
@@ -33,6 +33,7 @@ static INLINE void sad128xhx4d_neon(const uint8_t *src, int src_stride,
                            vdupq_n_u32(0) };
   uint32x4_t sum_hi[4] = { vdupq_n_u32(0), vdupq_n_u32(0), vdupq_n_u32(0),
                            vdupq_n_u32(0) };
+  uint32x4_t sum[4];
 
   int i = 0;
   do {
@@ -87,11 +88,12 @@ static INLINE void sad128xhx4d_neon(const uint8_t *src, int src_stride,
     i++;
   } while (i < h);
 
-  uint32x4_t res0 = vpaddq_u32(vaddq_u32(sum_lo[0], sum_hi[0]),
-                               vaddq_u32(sum_lo[1], sum_hi[1]));
-  uint32x4_t res1 = vpaddq_u32(vaddq_u32(sum_lo[2], sum_hi[2]),
-                               vaddq_u32(sum_lo[3], sum_hi[3]));
-  vst1q_u32(res, vpaddq_u32(res0, res1));
+  sum[0] = vaddq_u32(sum_lo[0], sum_hi[0]);
+  sum[1] = vaddq_u32(sum_lo[1], sum_hi[1]);
+  sum[2] = vaddq_u32(sum_lo[2], sum_hi[2]);
+  sum[3] = vaddq_u32(sum_lo[3], sum_hi[3]);
+
+  vst1q_u32(res, horizontal_add_4d_u32x4(sum));
 }
 
 static INLINE void sad64xhx4d_neon(const uint8_t *src, int src_stride,
@@ -101,6 +103,7 @@ static INLINE void sad64xhx4d_neon(const uint8_t *src, int src_stride,
                            vdupq_n_u32(0) };
   uint32x4_t sum_hi[4] = { vdupq_n_u32(0), vdupq_n_u32(0), vdupq_n_u32(0),
                            vdupq_n_u32(0) };
+  uint32x4_t sum[4];
 
   int i = 0;
   do {
@@ -131,11 +134,12 @@ static INLINE void sad64xhx4d_neon(const uint8_t *src, int src_stride,
     i++;
   } while (i < h);
 
-  uint32x4_t res0 = vpaddq_u32(vaddq_u32(sum_lo[0], sum_hi[0]),
-                               vaddq_u32(sum_lo[1], sum_hi[1]));
-  uint32x4_t res1 = vpaddq_u32(vaddq_u32(sum_lo[2], sum_hi[2]),
-                               vaddq_u32(sum_lo[3], sum_hi[3]));
-  vst1q_u32(res, vpaddq_u32(res0, res1));
+  sum[0] = vaddq_u32(sum_lo[0], sum_hi[0]);
+  sum[1] = vaddq_u32(sum_lo[1], sum_hi[1]);
+  sum[2] = vaddq_u32(sum_lo[2], sum_hi[2]);
+  sum[3] = vaddq_u32(sum_lo[3], sum_hi[3]);
+
+  vst1q_u32(res, horizontal_add_4d_u32x4(sum));
 }
 
 static INLINE void sad32xhx4d_neon(const uint8_t *src, int src_stride,
@@ -145,6 +149,7 @@ static INLINE void sad32xhx4d_neon(const uint8_t *src, int src_stride,
                            vdupq_n_u32(0) };
   uint32x4_t sum_hi[4] = { vdupq_n_u32(0), vdupq_n_u32(0), vdupq_n_u32(0),
                            vdupq_n_u32(0) };
+  uint32x4_t sum[4];
 
   int i = 0;
   do {
@@ -163,11 +168,12 @@ static INLINE void sad32xhx4d_neon(const uint8_t *src, int src_stride,
     i++;
   } while (i < h);
 
-  uint32x4_t res0 = vpaddq_u32(vaddq_u32(sum_lo[0], sum_hi[0]),
-                               vaddq_u32(sum_lo[1], sum_hi[1]));
-  uint32x4_t res1 = vpaddq_u32(vaddq_u32(sum_lo[2], sum_hi[2]),
-                               vaddq_u32(sum_lo[3], sum_hi[3]));
-  vst1q_u32(res, vpaddq_u32(res0, res1));
+  sum[0] = vaddq_u32(sum_lo[0], sum_hi[0]);
+  sum[1] = vaddq_u32(sum_lo[1], sum_hi[1]);
+  sum[2] = vaddq_u32(sum_lo[2], sum_hi[2]);
+  sum[3] = vaddq_u32(sum_lo[3], sum_hi[3]);
+
+  vst1q_u32(res, horizontal_add_4d_u32x4(sum));
 }
 
 static INLINE void sad16xhx4d_neon(const uint8_t *src, int src_stride,
@@ -187,12 +193,10 @@ static INLINE void sad16xhx4d_neon(const uint8_t *src, int src_stride,
     i++;
   } while (i < h);
 
-  uint32x4_t res0 = vpaddq_u32(sum[0], sum[1]);
-  uint32x4_t res1 = vpaddq_u32(sum[2], sum[3]);
-  vst1q_u32(res, vpaddq_u32(res0, res1));
+  vst1q_u32(res, horizontal_add_4d_u32x4(sum));
 }
 
-#else  // !(defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD))
+#else  // !(defined(__ARM_FEATURE_DOTPROD))
 
 static INLINE void sad16_neon(uint8x16_t src, uint8x16_t ref,
                               uint16x8_t *const sad_sum) {
@@ -378,7 +382,7 @@ static INLINE void sad16xhx4d_neon(const uint8_t *src, int src_stride,
   res[3] = horizontal_add_u16x8(sum[3]);
 }
 
-#endif  // defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#endif  // defined(__ARM_FEATURE_DOTPROD)
 
 static INLINE void sad8_neon(uint8x8_t src, uint8x8_t ref,
                              uint16x8_t *const sad_sum) {
