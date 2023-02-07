@@ -633,10 +633,10 @@ static void set_layer_pattern(
         ref_frame_config->reference[SVC_LAST_FRAME] = 1;
       } else {
         // Pattern of 2 references (ALTREF and GOLDEN) trailing
-        // LAST by 4 and 8 frame, with some switching logic to
-        // sometimes only predict from longer-term reference.
-        // This is simple example to test RPS (reference picture selection)
-        // as method to handle network packet loss.
+        // LAST by 4 and 8 frames, with some switching logic to
+        // sometimes only predict from the longer-term reference
+        //(golden here). This is simple example to test RPS
+        // (reference picture selection).
         int last_idx = 0;
         int last_idx_refresh = 0;
         int gld_idx = 0;
@@ -670,17 +670,20 @@ static void set_layer_pattern(
         ref_frame_config->reference[SVC_LAST_FRAME] = 1;
         ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
         ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
-        // Switch to only ALTREF for frames 200 to 250.
-        if (superframe_cnt >= 200 && superframe_cnt < 250) {
-          ref_frame_config->reference[SVC_LAST_FRAME] = 0;
-          ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
-          ref_frame_config->reference[SVC_GOLDEN_FRAME] = 0;
-        }
-        // Switch to only GOLDEN for frames 400 to 450.
-        if (superframe_cnt >= 400 && superframe_cnt < 450) {
+        // Switch to only GOLDEN every 300 frames.
+        if (superframe_cnt % 200 == 0 && superframe_cnt > 0) {
           ref_frame_config->reference[SVC_LAST_FRAME] = 0;
           ref_frame_config->reference[SVC_ALTREF_FRAME] = 0;
           ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+          // Test if the long-term is LAST instead, this is just a renaming
+          // but its tests if encoder behaves the same, whether its
+          // LAST or GOLDEN.
+          if (superframe_cnt % 400 == 0 && superframe_cnt > 0) {
+            ref_frame_config->ref_idx[SVC_LAST_FRAME] = gld_idx;
+            ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+            ref_frame_config->reference[SVC_ALTREF_FRAME] = 0;
+            ref_frame_config->reference[SVC_GOLDEN_FRAME] = 0;
+          }
         }
       }
       break;

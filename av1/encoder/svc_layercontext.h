@@ -99,8 +99,6 @@ typedef struct SVC {
   /*!\cond */
   double base_framerate;
   unsigned int current_superframe;
-  unsigned int buffer_time_index[REF_FRAMES];
-  unsigned char buffer_spatial_layer[REF_FRAMES];
   int skip_mvsearch_last;
   int skip_mvsearch_gf;
   int skip_mvsearch_altref;
@@ -290,6 +288,11 @@ void av1_svc_set_last_source(struct AV1_COMP *const cpi,
                              struct EncodeFrameInput *frame_input,
                              YV12_BUFFER_CONFIG *prev_source);
 
+void av1_svc_update_buffer_slot_refreshed(struct AV1_COMP *const cpi);
+
+int av1_svc_get_min_ref_dist(const struct AV1_COMP *cpi);
+
+void av1_svc_set_reference_was_previous(struct AV1_COMP *cpi);
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -1782,7 +1782,7 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
       x->content_state_sb.source_sad_nonrd < kHighSad) {
     const int buffslot_golden =
         cpi->ppi->rtc_ref.ref_idx[GOLDEN_FRAME - LAST_FRAME];
-    if (cpi->svc.buffer_time_index[buffslot_golden] ==
+    if (cpi->ppi->rtc_ref.buffer_time_index[buffslot_golden] ==
         cpi->svc.current_superframe)
       use_golden_ref_frame = 1;
   }

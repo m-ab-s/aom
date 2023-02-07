@@ -406,7 +406,8 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
                    cr->counter_encode_maxq_scene_change);
 
   // Cases to reset the cyclic refresh adjustment parameters.
-  if (frame_is_intra_only(cm) || scene_change_detected) {
+  if (frame_is_intra_only(cm) || scene_change_detected ||
+      cpi->ppi->rtc_ref.bias_recovery_frame) {
     // Reset adaptive elements for intra only frames and scene changes.
     cr->percent_refresh_adjustment = 5;
     cr->rate_ratio_qdelta_adjustment = 0.25;
@@ -433,7 +434,8 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
       (frames_since_scene_change > 20 &&
        p_rc->avg_frame_qindex[INTER_FRAME] > qp_max_thresh) ||
       (rc->avg_frame_low_motion && rc->avg_frame_low_motion < 30 &&
-       frames_since_scene_change > 40)) {
+       frames_since_scene_change > 40) ||
+      cpi->ppi->rtc_ref.bias_recovery_frame) {
     cr->apply_cyclic_refresh = 0;
     return;
   }
@@ -556,7 +558,8 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
     unsigned char *const seg_map = cpi->enc_seg.map;
     memset(seg_map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
     av1_disable_segmentation(&cm->seg);
-    if (cm->current_frame.frame_type == KEY_FRAME || scene_change_detected) {
+    if (frame_is_intra_only(cm) || scene_change_detected ||
+        cpi->ppi->rtc_ref.bias_recovery_frame) {
       cr->sb_index = 0;
       cr->last_sb_index = 0;
       cr->counter_encode_maxq_scene_change = 0;

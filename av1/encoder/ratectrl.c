@@ -564,6 +564,11 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
   if (!cpi->ppi->use_svc && cm->prev_frame &&
       (width * height > 1.5 * cm->prev_frame->width * cm->prev_frame->height))
     q = (q + active_worst_quality) >> 1;
+  // For singler layer RPS: Bias Q based on distance of closest reference.
+  if (cpi->ppi->rtc_ref.bias_recovery_frame) {
+    const int min_dist = av1_svc_get_min_ref_dist(cpi);
+    q = q - AOMMIN(min_dist, 20);
+  }
   return AOMMAX(AOMMIN(q, cpi->rc.worst_quality), cpi->rc.best_quality);
 }
 
@@ -3244,6 +3249,25 @@ static INLINE int set_key_frame(AV1_COMP *cpi, unsigned int frame_flags) {
   return 0;
 }
 
+// Set to true if this frame is a recovery frame, for 1 layer RPS,
+// and whether we should apply some boost (QP, adjust speed features, etc).
+// Recovery frame here means frame whose closest reference suddenly
+// switched from previous frame to one much further away.
+// TODO(marpan): Consider adding on/off flag to SVC_REF_FRAME_CONFIG to
+// allow more control for applications.
+static bool set_flag_rps_bias_recovery_frame(const AV1_COMP *const cpi) {
+  if (cpi->ppi->rtc_ref.set_ref_frame_config &&
+      cpi->svc.number_temporal_layers == 1 &&
+      cpi->svc.number_spatial_layers == 1 &&
+      cpi->ppi->rtc_ref.reference_was_previous_frame) {
+    int min_dist = av1_svc_get_min_ref_dist(cpi);
+    // Only consider boost for this frame if its closest reference is further
+    // than x frames away, using x = 4 for now.
+    if (min_dist != INT_MAX && min_dist > 4) return true;
+  }
+  return false;
+}
+
 void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
                                 const EncodeFrameInput *frame_input,
                                 unsigned int frame_flags) {
@@ -3262,6 +3286,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
     av1_update_temporal_layer_framerate(cpi);
     av1_restore_layer_context(cpi);
   }
+  cpi->ppi->rtc_ref.bias_recovery_frame = set_flag_rps_bias_recovery_frame(cpi);
   // Set frame type.
   if (set_key_frame(cpi, frame_flags)) {
     *frame_type = KEY_FRAME;

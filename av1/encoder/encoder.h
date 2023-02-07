@@ -2436,6 +2436,23 @@ typedef struct RTC_REF {
   int non_reference_frame;
   int ref_frame_comp[3];
   int gld_idx_1layer;
+  /*!
+   * Frame number of the last frame that refreshed the buffer slot.
+   */
+  unsigned int buffer_time_index[REF_FRAMES];
+  /*!
+   * Saptial layer id of the last frame that refreshed the buffer slot.
+   */
+  unsigned char buffer_spatial_layer[REF_FRAMES];
+  /*!
+   * Flag to indicate whether closest reference was the previous frame.
+   */
+  bool reference_was_previous_frame;
+  /*!
+   * Flag to indicate this frame is based on longer term reference only,
+   * for recovery from past loss, and it should be biased for improved coding.
+   */
+  bool bias_recovery_frame;
 } RTC_REF;
 /*!\endcond */
 

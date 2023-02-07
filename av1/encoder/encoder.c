@@ -4634,6 +4634,11 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
     av1_pop_third_pass_info(cpi->third_pass_ctx);
   }
 
+  if (ppi->rtc_ref.set_ref_frame_config) {
+    av1_svc_update_buffer_slot_refreshed(cpi);
+    av1_svc_set_reference_was_previous(cpi);
+  }
+
   if (ppi->use_svc) av1_save_layer_context(cpi);
 
   // Note *size = 0 indicates a dropped frame for which psnr is not calculated

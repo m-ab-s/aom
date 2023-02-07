@@ -1459,6 +1459,14 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (sf->rt_sf.estimate_motion_for_var_based_partition == 2)
       sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     if (speed >= 9) sf->rt_sf.estimate_motion_for_var_based_partition = 0;
+
+    // For single layers RPS: bias/adjustment for recovery frame.
+    if (cpi->ppi->rtc_ref.bias_recovery_frame) {
+      sf->mv_sf.search_method = NSTEP;
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
+      sf->rt_sf.fullpel_search_step_param = 8;
+      sf->rt_sf.nonrd_aggressive_skip = 0;
+    }
   }
   // Screen settings.
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
