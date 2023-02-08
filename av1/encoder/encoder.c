@@ -861,6 +861,14 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   rc->worst_quality = rc_cfg->worst_allowed_q;
   rc->best_quality = rc_cfg->best_allowed_q;
 
+  // If lossless has been requested make sure average Q accumulators are reset.
+  if (is_lossless_requested(&cpi->oxcf.rc_cfg)) {
+    int i;
+    for (i = 0; i < FRAME_TYPES; ++i) {
+      p_rc->avg_frame_qindex[i] = 0;
+    }
+  }
+
   features->interp_filter =
       oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
   features->switchable_motion_mode = is_switchable_motion_mode_allowed(
