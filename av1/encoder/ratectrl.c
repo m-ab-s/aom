@@ -1223,7 +1223,7 @@ static int rc_pick_q_and_bounds_no_stats_cbr(const AV1_COMP *cpi, int width,
   if (current_frame->frame_type != KEY_FRAME && !cpi->ppi->use_svc &&
       current_frame->frame_number >= 10 && current_frame->frame_number <= 15) {
     q = AOMMIN(p_rc->last_kf_qindex + 108, AOMMAX(5, q - 9));
-    q = AOMMAX(q, rc->best_quality);
+    q = AOMMIN(rc->worst_quality, AOMMAX(q, rc->best_quality));
   }
 
   assert(*top_index <= rc->worst_quality && *top_index >= rc->best_quality);
