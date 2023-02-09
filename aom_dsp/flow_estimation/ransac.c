@@ -116,7 +116,6 @@ static bool find_rotzoom(int np, const double *pts1, const double *pts2,
   const int n = 4;    // Size of least-squares problem
   double mat[4 * 4];  // Accumulator for A'A
   double y[4];        // Accumulator for A'b
-  double x[4];        // Output vector
   double a[4];        // Single row of A
   double b;           // Single element of b
 
@@ -127,85 +126,87 @@ static bool find_rotzoom(int np, const double *pts1, const double *pts2,
     double sx = *(pts1++);
     double sy = *(pts1++);
 
-    a[0] = sx;
-    a[1] = sy;
-    a[2] = 1;
-    a[3] = 0;
+    a[0] = 1;
+    a[1] = 0;
+    a[2] = sx;
+    a[3] = sy;
     b = dx;
     least_squares_accumulate(mat, y, a, b, n);
 
-    a[0] = sy;
-    a[1] = -sx;
-    a[2] = 0;
-    a[3] = 1;
+    a[0] = 0;
+    a[1] = 1;
+    a[2] = sy;
+    a[3] = -sx;
     b = dy;
     least_squares_accumulate(mat, y, a, b, n);
   }
 
-  if (!least_squares_solve(mat, y, x, n)) {
+  // Fill in params[0] .. params[3] with output model
+  if (!least_squares_solve(mat, y, params, n)) {
     return false;
   }
 
-  // Rearrange least squares result to form output model
-  params[0] = x[2];
-  params[1] = x[3];
-  params[2] = x[0];
-  params[3] = x[1];
+  // Fill in remaining parameters
   params[4] = -params[3];
   params[5] = params[2];
 
   return true;
 }
 
-// TODO(rachelbarker): As the x and y equations are decoupled in find_affine(),
-// the least-squares problem can be split this into two 3-dimensional problems,
-// which should be faster to solve.
 static bool find_affine(int np, const double *pts1, const double *pts2,
                         double *params) {
-  const int n = 6;    // Size of least-squares problem
-  double mat[6 * 6];  // Accumulator for A'A
-  double y[6];        // Accumulator for A'b
-  double x[6];        // Output vector
-  double a[6];        // Single row of A
-  double b;           // Single element of b
+  // Note: The least squares problem for affine models is 6-dimensional,
+  // but it splits into two independent 3-dimensional subproblems.
+  // Solving these two subproblems separately and recombining at the end
+  // results in less total computation than solving the 6-dimensional
+  // problem directly.
+  //
+  // The two subproblems correspond to all the parameters which contribute
+  // to the x output of the model, and all the parameters which contribute
+  // to the y output, respectively.
 
-  least_squares_init(mat, y, n);
+  const int n = 3;       // Size of each least-squares problem
+  double mat[2][3 * 3];  // Accumulator for A'A
+  double y[2][3];        // Accumulator for A'b
+  double x[2][3];        // Output vector
+  double a[2][3];        // Single row of A
+  double b[2];           // Single element of b
+
+  least_squares_init(mat[0], y[0], n);
+  least_squares_init(mat[1], y[1], n);
   for (int i = 0; i < np; ++i) {
     double dx = *(pts2++);
     double dy = *(pts2++);
     double sx = *(pts1++);
     double sy = *(pts1++);
 
-    a[0] = sx;
-    a[1] = sy;
-    a[2] = 0;
-    a[3] = 0;
-    a[4] = 1;
-    a[5] = 0;
-    b = dx;
-    least_squares_accumulate(mat, y, a, b, n);
+    a[0][0] = 1;
+    a[0][1] = sx;
+    a[0][2] = sy;
+    b[0] = dx;
+    least_squares_accumulate(mat[0], y[0], a[0], b[0], n);
 
-    a[0] = 0;
-    a[1] = 0;
-    a[2] = sx;
-    a[3] = sy;
-    a[4] = 0;
-    a[5] = 1;
-    b = dy;
-    least_squares_accumulate(mat, y, a, b, n);
+    a[1][0] = 1;
+    a[1][1] = sx;
+    a[1][2] = sy;
+    b[1] = dy;
+    least_squares_accumulate(mat[1], y[1], a[1], b[1], n);
   }
 
-  if (!least_squares_solve(mat, y, x, n)) {
+  if (!least_squares_solve(mat[0], y[0], x[0], n)) {
+    return false;
+  }
+  if (!least_squares_solve(mat[1], y[1], x[1], n)) {
     return false;
   }
 
   // Rearrange least squares result to form output model
-  params[0] = mat[4];
-  params[1] = mat[5];
-  params[2] = mat[0];
-  params[3] = mat[1];
-  params[4] = mat[2];
-  params[5] = mat[3];
+  params[0] = x[0][0];
+  params[1] = x[1][0];
+  params[2] = x[0][1];
+  params[3] = x[0][2];
+  params[4] = x[1][1];
+  params[5] = x[1][2];
 
   return true;
 }
