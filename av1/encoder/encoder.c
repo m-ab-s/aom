@@ -354,7 +354,7 @@ void av1_update_frame_size(AV1_COMP *cpi) {
   if (!cpi->ppi->seq_params_locked)
     set_sb_size(cm->seq_params,
                 av1_select_sb_size(&cpi->oxcf, cm->width, cm->height,
-                                   cpi->svc.number_spatial_layers));
+                                   cpi->ppi->number_spatial_layers));
 
   set_tile_info(cm, &cpi->oxcf.tile_cfg);
 }
