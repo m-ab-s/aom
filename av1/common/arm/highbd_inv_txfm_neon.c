@@ -177,42 +177,25 @@ static INLINE void round_shift_4x4(int32x4_t *in, int shift) {
   }
 }
 
-static void round_shift_8x8(int32x4_t *in, int shift, const int32x4_t *rnding) {
-  if (shift != 0) {
-    const int32x4_t v_shift = vdupq_n_s32(-shift);
-    int32x4_t vradd = vaddq_s32(in[0], *rnding);
-    in[0] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[1], *rnding);
-    in[1] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[2], *rnding);
-    in[2] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[3], *rnding);
-    in[3] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[4], *rnding);
-    in[4] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[5], *rnding);
-    in[5] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[6], *rnding);
-    in[6] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[7], *rnding);
-    in[7] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[8], *rnding);
-    in[8] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[9], *rnding);
-    in[9] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[10], *rnding);
-    in[10] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[11], *rnding);
-    in[11] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[12], *rnding);
-    in[12] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[13], *rnding);
-    in[13] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[14], *rnding);
-    in[14] = vshlq_s32(vradd, v_shift);
-    vradd = vaddq_s32(in[15], *rnding);
-    in[15] = vshlq_s32(vradd, v_shift);
-  }
+static void round_shift_8x8(int32x4_t *in, int shift) {
+  assert(shift != 0);
+  const int32x4_t v_shift = vdupq_n_s32(-shift);
+  in[0] = vrshlq_s32(in[0], v_shift);
+  in[1] = vrshlq_s32(in[1], v_shift);
+  in[2] = vrshlq_s32(in[2], v_shift);
+  in[3] = vrshlq_s32(in[3], v_shift);
+  in[4] = vrshlq_s32(in[4], v_shift);
+  in[5] = vrshlq_s32(in[5], v_shift);
+  in[6] = vrshlq_s32(in[6], v_shift);
+  in[7] = vrshlq_s32(in[7], v_shift);
+  in[8] = vrshlq_s32(in[8], v_shift);
+  in[9] = vrshlq_s32(in[9], v_shift);
+  in[10] = vrshlq_s32(in[10], v_shift);
+  in[11] = vrshlq_s32(in[11], v_shift);
+  in[12] = vrshlq_s32(in[12], v_shift);
+  in[13] = vrshlq_s32(in[13], v_shift);
+  in[14] = vrshlq_s32(in[14], v_shift);
+  in[15] = vrshlq_s32(in[15], v_shift);
 }
 
 static void highbd_clamp_s32_neon(int32x4_t *in, int32x4_t *out,
@@ -1087,11 +1070,10 @@ static void idct8x8_neon(int32x4_t *in, int32x4_t *out, int bit, int do_cols,
   }
 
   if (!do_cols) {
-    const int32x4_t rnding_shift = vdupq_n_s32(1 << (out_shift - 1));
     const int log_range_out = AOMMAX(16, bd + 6);
     const int32x4_t clamp_lo_out = vdupq_n_s32(-(1 << (log_range_out - 1)));
     const int32x4_t clamp_hi_out = vdupq_n_s32((1 << (log_range_out - 1)) - 1);
-    round_shift_8x8(out, out_shift, &rnding_shift);
+    round_shift_8x8(out, out_shift);
     highbd_clamp_s32_neon(out, out, &clamp_lo_out, &clamp_hi_out, 16);
   }
 }
@@ -1402,8 +1384,7 @@ static void write_buffer_8x8(int32x4_t *in, uint16_t *output, int stride,
                              int fliplr, int flipud, int shift, int bd) {
   uint16x8_t u0, u1, u2, u3, u4, u5, u6, u7;
   uint16x8_t v0, v1, v2, v3, v4, v5, v6, v7;
-  const int32x4_t rnding = vdupq_n_s32(1 << (shift - 1));
-  round_shift_8x8(in, shift, &rnding);
+  round_shift_8x8(in, shift);
 
   v0 = vld1q_u16(output + 0 * stride);
   v1 = vld1q_u16(output + 1 * stride);
@@ -1998,11 +1979,10 @@ static void idct16x16_low8_neon(int32x4_t *in, int32x4_t *out, int bit,
   addsub_neon(u[7], u[8], out + 7, out + 8, &clamp_lo, &clamp_hi);
 
   if (!do_cols) {
-    const int32x4_t rnding_shift = vdupq_n_s32(1 << (out_shift - 1));
     const int log_range_out = AOMMAX(16, bd + 6);
     const int32x4_t clamp_lo_out = vdupq_n_s32(-(1 << (log_range_out - 1)));
     const int32x4_t clamp_hi_out = vdupq_n_s32((1 << (log_range_out - 1)) - 1);
-    round_shift_8x8(out, out_shift, &rnding_shift);
+    round_shift_8x8(out, out_shift);
     highbd_clamp_s32_neon(out, out, &clamp_lo_out, &clamp_hi_out, 16);
   }
 }
@@ -2539,12 +2519,11 @@ static void idct16x16_neon(int32x4_t *in, int32x4_t *out, int bit, int do_cols,
     addsub_neon(v[7], v[8], out + 7, out + 8, &clamp_lo, &clamp_hi);
 
     if (!do_cols) {
-      const int32x4_t rnding_shift = vdupq_n_s32(1 << (out_shift - 1));
       const int log_range_out = AOMMAX(16, bd + 6);
       const int32x4_t clamp_lo_out = vdupq_n_s32(-(1 << (log_range_out - 1)));
       const int32x4_t clamp_hi_out =
           vdupq_n_s32((1 << (log_range_out - 1)) - 1);
-      round_shift_8x8(out, out_shift, &rnding_shift);
+      round_shift_8x8(out, out_shift);
       highbd_clamp_s32_neon(out, out, &clamp_lo_out, &clamp_hi_out, 16);
     }
   }
@@ -2857,11 +2836,10 @@ static void iidentity16_neon(int32x4_t *in, int32x4_t *out, int bit,
   }
 
   if (!do_cols) {
-    const int32x4_t rnding_shift = vdupq_n_s32(1 << (out_shift - 1));
     const int log_range = AOMMAX(16, bd + 6);
     const int32x4_t clamp_lo = vdupq_n_s32(-(1 << (log_range - 1)));
     const int32x4_t clamp_hi = vdupq_n_s32((1 << (log_range - 1)) - 1);
-    round_shift_8x8(out, out_shift, &rnding_shift);
+    round_shift_8x8(out, out_shift);
     highbd_clamp_s32_neon(out, out, &clamp_lo, &clamp_hi, 16);
   }
 }
@@ -4696,12 +4674,11 @@ static void idct32x32_neon(int32x4_t *in, int32x4_t *out, int bit, int do_cols,
   addsub_neon(bf0[15], bf0[16], out + 15, out + 16, &clamp_lo, &clamp_hi);
 
   if (!do_cols) {
-    const int32x4_t rnding_shift = vdupq_n_s32(1 << (out_shift - 1));
     const int log_range_out = AOMMAX(16, bd + 6);
     const int32x4_t clamp_lo_out = vdupq_n_s32(-(1 << (log_range_out - 1)));
     const int32x4_t clamp_hi_out = vdupq_n_s32((1 << (log_range_out - 1)) - 1);
-    round_shift_8x8(out, out_shift, &rnding_shift);
-    round_shift_8x8(out + 16, out_shift, &rnding_shift);
+    round_shift_8x8(out, out_shift);
+    round_shift_8x8(out + 16, out_shift);
     highbd_clamp_s32_neon(out, out, &clamp_lo_out, &clamp_hi_out, 32);
   }
 }
@@ -4729,12 +4706,11 @@ static void iidentity32_neon(int32x4_t *in, int32x4_t *out, int bit,
   }
 
   if (!do_cols) {
-    const int32x4_t rnding_shift = vdupq_n_s32(1 << (out_shift - 1));
     const int log_range_out = AOMMAX(16, bd + 6);
     const int32x4_t clamp_lo_out = vdupq_n_s32(-(1 << (log_range_out - 1)));
     const int32x4_t clamp_hi_out = vdupq_n_s32((1 << (log_range_out - 1)) - 1);
-    round_shift_8x8(out, out_shift, &rnding_shift);
-    round_shift_8x8(out + 16, out_shift, &rnding_shift);
+    round_shift_8x8(out, out_shift);
+    round_shift_8x8(out + 16, out_shift);
     highbd_clamp_s32_neon(out, out, &clamp_lo_out, &clamp_hi_out, 32);
   }
 }
