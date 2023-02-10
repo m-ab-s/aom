@@ -3484,7 +3484,7 @@ typedef struct AV1_COMP {
   /*!
    * Pixel level saliency map for each frame.
    */
-  double *saliency_map;
+  uint8_t *saliency_map;
 } AV1_COMP;
 
 /*!

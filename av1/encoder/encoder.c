@@ -1397,8 +1397,8 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
 
   if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_SALIENCY_MAP) {
     CHECK_MEM_ERROR(cm, cpi->saliency_map,
-                    (double *)aom_calloc((cm->height) * (cm->width),
-                                         sizeof(*cpi->saliency_map)));
+                    (uint8_t *)aom_calloc(cm->height * cm->width,
+                                          sizeof(*cpi->saliency_map)));
   }
 
 #if CONFIG_SPEED_STATS
@@ -3730,7 +3730,9 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     av1_set_mb_ssim_rdmult_scaling(cpi);
   } else if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_SALIENCY_MAP &&
              !(cpi->source->flags & YV12_FLAG_HIGHBITDEPTH)) {
-    av1_set_saliency_map(cpi);
+    if (av1_set_saliency_map(cpi) == 0) {
+      return AOM_CODEC_MEM_ERROR;
+    }
   }
 #if CONFIG_TUNE_VMAF
   else if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||

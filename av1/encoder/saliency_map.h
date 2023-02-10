@@ -18,6 +18,6 @@ typedef struct saliency_feature_map {
   int width;
 } saliency_feature_map;
 
-void av1_set_saliency_map(AV1_COMP *cpi);
+int av1_set_saliency_map(AV1_COMP *cpi);
 
 #endif  // AOM_AV1_ENCODER_SALIENCY_MAP_H_
