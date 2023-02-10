@@ -461,6 +461,17 @@ static INLINE void compute_flow_matrix(const int16_t *dx, int dx_stride,
   __m128i partial_sum_1 = _mm_hadd_epi32(acc[1], acc[3]);
   __m128i result = _mm_hadd_epi32(partial_sum_0, partial_sum_1);
 
+  // Apply regularization
+  // We follow the standard regularization method of adding `k * I` before
+  // inverting. This ensures that the matrix will be invertible.
+  //
+  // Setting the regularization strength k to 1 seems to work well here, as
+  // typical values coming from the other equations are very large (1e5 to
+  // 1e6, with an upper limit of around 6e7, at the time of writing).
+  // It also preserves the property that all matrix values are whole numbers,
+  // which is convenient for integerized SIMD implementation.
+  result = _mm_add_epi32(result, _mm_set_epi32(1, 0, 0, 1));
+
 #if CHECK_RESULTS
   int tmp[4] = { 0 };
 
@@ -472,6 +483,10 @@ static INLINE void compute_flow_matrix(const int16_t *dx, int dx_stride,
       tmp[3] += dy[i * dy_stride + j] * dy[i * dy_stride + j];
     }
   }
+
+  // Apply regularization
+  tmp[0] += 1;
+  tmp[3] += 1;
 
   tmp[2] = tmp[1];
 
@@ -487,21 +502,20 @@ static INLINE void compute_flow_matrix(const int16_t *dx, int dx_stride,
 }
 
 // Try to invert the matrix M
-// Returns a success indication:
-// true => M was successfully inverted into M_inv
-// false => M is degenerate (or too close to it), and could not be inverted
-static INLINE bool invert_2x2(const double *M, double *M_inv) {
+// Note: Due to the nature of how a least-squares matrix is constructed, all of
+// the eigenvalues will be >= 0, and therefore det M >= 0 as well.
+// The regularization term `+ k * I` further ensures that det M >= k^2.
+// As mentioned in compute_flow_matrix(), here we use k = 1, so det M >= 1.
+// So we don't have to worry about non-invertible matrices here.
+static INLINE void invert_2x2(const double *M, double *M_inv) {
   double det = (M[0] * M[3]) - (M[1] * M[2]);
-  if (fabs(det) < 1e-5) {
-    return false;
-  }
+  assert(det >= 1);
   const double det_inv = 1 / det;
 
   M_inv[0] = M[3] * det_inv;
   M_inv[1] = -M[1] * det_inv;
   M_inv[2] = -M[2] * det_inv;
   M_inv[3] = M[0] * det_inv;
-  return true;
 }
 
 void aom_compute_flow_at_point_sse4_1(const uint8_t *frm, const uint8_t *ref,
@@ -522,11 +536,7 @@ void aom_compute_flow_at_point_sse4_1(const uint8_t *frm, const uint8_t *ref,
   sobel_filter_y(frm_patch, stride, dy, DISFLOW_PATCH_SIZE);
 
   compute_flow_matrix(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M);
-  bool valid = invert_2x2(M, M_inv);
-  if (!valid) {
-    // Unable to refine this point at this level
-    return;
-  }
+  invert_2x2(M, M_inv);
 
   for (int itr = 0; itr < DISFLOW_MAX_ITR; itr++) {
     compute_flow_error(ref, frm, width, height, stride, x, y, *u, *v, dt);
