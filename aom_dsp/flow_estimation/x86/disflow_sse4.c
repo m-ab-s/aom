@@ -10,6 +10,7 @@
  * aomedia.org/license/patent-license/.
  */
 
+#include <assert.h>
 #include <math.h>
 #include <smmintrin.h>
 
@@ -485,25 +486,22 @@ static INLINE void compute_hessian(const int16_t *dx, int dx_stride,
   _mm_storeu_pd(M + 2, _mm_cvtepi32_pd(_mm_srli_si128(result, 8)));
 }
 
-static INLINE void invert_2x2(const double *M, double *M_inv) {
-  double M_0 = M[0];
-  double M_3 = M[3];
-  double det = (M_0 * M_3) - (M[1] * M[2]);
-  if (det < 1e-5) {
-    // Handle singular matrix
-    // TODO(sarahparker) compare results using pseudo inverse instead
-    M_0 += 1e-10;
-    M_3 += 1e-10;
-    det = (M_0 * M_3) - (M[1] * M[2]);
+// Try to invert the matrix M
+// Returns a success indication:
+// true => M was successfully inverted into M_inv
+// false => M is degenerate (or too close to it), and could not be inverted
+static INLINE bool invert_2x2(const double *M, double *M_inv) {
+  double det = (M[0] * M[3]) - (M[1] * M[2]);
+  if (fabs(det) < 1e-5) {
+    return false;
   }
   const double det_inv = 1 / det;
 
-  // TODO(rachelbarker): Is using regularized values
-  // or original values better here?
-  M_inv[0] = M_3 * det_inv;
+  M_inv[0] = M[3] * det_inv;
   M_inv[1] = -M[1] * det_inv;
   M_inv[2] = -M[2] * det_inv;
-  M_inv[3] = M_0 * det_inv;
+  M_inv[3] = M[0] * det_inv;
+  return true;
 }
 
 void aom_compute_flow_at_point_sse4_1(const uint8_t *frm, const uint8_t *ref,
@@ -524,7 +522,11 @@ void aom_compute_flow_at_point_sse4_1(const uint8_t *frm, const uint8_t *ref,
   sobel_filter_y(frm_patch, stride, dy, DISFLOW_PATCH_SIZE);
 
   compute_hessian(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M);
-  invert_2x2(M, M_inv);
+  bool valid = invert_2x2(M, M_inv);
+  if (!valid) {
+    // Unable to refine this point at this level
+    return;
+  }
 
   for (int itr = 0; itr < DISFLOW_MAX_ITR; itr++) {
     compute_flow_error(ref, frm, width, height, stride, x, y, *u, *v, dt);

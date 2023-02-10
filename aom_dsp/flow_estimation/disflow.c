@@ -12,6 +12,9 @@
 // Dense Inverse Search flow algorithm
 // Paper: https://arxiv.org/abs/1603.03590
 
+#include <assert.h>
+#include <math.h>
+
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/flow_estimation/corner_detect.h"
 #include "aom_dsp/flow_estimation/disflow.h"
@@ -26,8 +29,6 @@
 // replacing av1_upscale_plane_double_prec().
 // Then we can avoid needing to include code from av1/
 #include "av1/common/resize.h"
-
-#include <assert.h>
 
 // Amount to downsample the flow field by.
 // eg. DOWNSAMPLE_SHIFT = 2 (DOWNSAMPLE_FACTOR == 4) means we calculate
@@ -339,25 +340,22 @@ static INLINE void compute_flow_vector(const int16_t *dx, int dx_stride,
   }
 }
 
-static INLINE void invert_2x2(const double *M, double *M_inv) {
-  double M_0 = M[0];
-  double M_3 = M[3];
-  double det = (M_0 * M_3) - (M[1] * M[2]);
-  if (det < 1e-5) {
-    // Handle singular matrix
-    // TODO(sarahparker) compare results using pseudo inverse instead
-    M_0 += 1e-10;
-    M_3 += 1e-10;
-    det = (M_0 * M_3) - (M[1] * M[2]);
+// Try to invert the matrix M
+// Returns a success indication:
+// true => M was successfully inverted into M_inv
+// false => M is degenerate (or too close to it), and could not be inverted
+static INLINE bool invert_2x2(const double *M, double *M_inv) {
+  double det = (M[0] * M[3]) - (M[1] * M[2]);
+  if (fabs(det) < 1e-5) {
+    return false;
   }
   const double det_inv = 1 / det;
 
-  // TODO(rachelbarker): Is using regularized values
-  // or original values better here?
-  M_inv[0] = M_3 * det_inv;
+  M_inv[0] = M[3] * det_inv;
   M_inv[1] = -M[1] * det_inv;
   M_inv[2] = -M[2] * det_inv;
-  M_inv[3] = M_0 * det_inv;
+  M_inv[3] = M[0] * det_inv;
+  return true;
 }
 
 void aom_compute_flow_at_point_c(const uint8_t *src, const uint8_t *ref, int x,
@@ -378,7 +376,11 @@ void aom_compute_flow_at_point_c(const uint8_t *src, const uint8_t *ref, int x,
   sobel_filter(src_patch, stride, dy, DISFLOW_PATCH_SIZE, 0);
 
   compute_hessian(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M);
-  invert_2x2(M, M_inv);
+  bool valid = invert_2x2(M, M_inv);
+  if (!valid) {
+    // Unable to refine this point at this level
+    return;
+  }
 
   for (int itr = 0; itr < DISFLOW_MAX_ITR; itr++) {
     compute_flow_error(ref, src, width, height, stride, x, y, *u, *v, dt);
