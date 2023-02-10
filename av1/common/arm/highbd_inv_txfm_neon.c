@@ -5247,8 +5247,10 @@ static void inv_txfm2d_add_h_identity_neon(const int32_t *input,
   const int fun_idx = lowbd_txfm_all_1d_zeros_idx[eoby];
   const transform_1d_neon row_txfm =
       highbd_txfm_all_1d_zeros_w8_arr[txw_idx][hitx_1d_tab[tx_type]][0];
+  assert(row_txfm != NULL);
   const transform_1d_neon col_txfm =
       highbd_txfm_all_1d_zeros_w8_arr[txh_idx][vitx_1d_tab[tx_type]][fun_idx];
+  assert(col_txfm != NULL);
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
 
@@ -5309,8 +5311,10 @@ static void inv_txfm2d_add_v_identity_neon(const int32_t *input,
   const int fun_idx = lowbd_txfm_all_1d_zeros_idx[eobx];
   const transform_1d_neon row_txfm =
       highbd_txfm_all_1d_zeros_w8_arr[txw_idx][hitx_1d_tab[tx_type]][fun_idx];
+  assert(row_txfm != NULL);
   const transform_1d_neon col_txfm =
       highbd_txfm_all_1d_zeros_w8_arr[txh_idx][vitx_1d_tab[tx_type]][0];
+  assert(col_txfm != NULL);
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
 
@@ -5375,8 +5379,10 @@ static void inv_txfm2d_add_idtx_neon(const int32_t *input, uint16_t *output,
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
   const transform_1d_neon row_txfm =
       highbd_txfm_all_1d_zeros_w8_arr[txw_idx][hitx_1d_tab[tx_type]][0];
+  assert(row_txfm != NULL);
   const transform_1d_neon col_txfm =
       highbd_txfm_all_1d_zeros_w8_arr[txh_idx][vitx_1d_tab[tx_type]][0];
+  assert(col_txfm != NULL);
   for (int i = 0; i < (row_max >> 2); ++i) {
     int32x4_t buf0[32];
     load_buffer_32bit_input(input + i * 4, input_stride, buf0, buf_size_w);
