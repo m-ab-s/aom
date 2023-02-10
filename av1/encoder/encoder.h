@@ -1556,36 +1556,6 @@ typedef struct {
 } AV1EncRowMultiThreadInfo;
 
 /*!
- * \brief Encoder data related to multi-threading for allintra deltaq-mode=3
- */
-typedef struct {
-#if CONFIG_MULTITHREAD
-  /*!
-   * Mutex lock used while dispatching jobs.
-   */
-  pthread_mutex_t *mutex_;
-  /*!
-   *  Condition variable used to dispatch loopfilter jobs.
-   */
-  pthread_cond_t *cond_;
-#endif
-
-  /**
-   * \name Row synchronization related function pointers for all intra mode
-   */
-  /**@{*/
-  /*!
-   * Reader.
-   */
-  void (*intra_sync_read_ptr)(AV1EncRowMultiThreadSync *const, int, int);
-  /*!
-   * Writer.
-   */
-  void (*intra_sync_write_ptr)(AV1EncRowMultiThreadSync *const, int, int, int);
-  /**@}*/
-} AV1EncAllIntraMultiThreadInfo;
-
-/*!
  * \brief Max number of recodes used to track the frame probabilities.
  */
 #define NUM_RECODES_PER_FRAME 10
@@ -1703,12 +1673,6 @@ typedef struct MultiThreadInfo {
    * Encoder row multi-threading data.
    */
   AV1EncRowMultiThreadInfo enc_row_mt;
-
-  /*!
-   * Encoder multi-threading data for allintra mode in the preprocessing stage
-   * when --deltaq-mode=3.
-   */
-  AV1EncAllIntraMultiThreadInfo intra_mt;
 
   /*!
    * Tpl row multi-threading data.
@@ -2782,12 +2746,6 @@ typedef struct AV1_PRIMARY {
    * Struct for the reference structure for RTC.
    */
   RTC_REF rtc_ref;
-
-  /*!
-   * Struct for all intra mode row multi threading in the preprocess stage
-   * when --deltaq-mode=3.
-   */
-  AV1EncRowMultiThreadSync intra_row_mt_sync;
 } AV1_PRIMARY;
 
 /*!

@@ -250,9 +250,12 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, MACROBLOCK *x,
   const int coeff_count = block_size * block_size;
   const int mb_step = mi_size_wide[bsize];
   const BitDepthInfo bd_info = get_bit_depth_info(xd);
-  const AV1EncAllIntraMultiThreadInfo *const intra_mt = &cpi->mt_info.intra_mt;
-  AV1EncRowMultiThreadSync *const intra_row_mt_sync =
-      &cpi->ppi->intra_row_mt_sync;
+  const AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
+  // We allocate cpi->tile_data (of size 1) when we call this function in
+  // multithreaded mode, so cpi->tile_data may be a null pointer when we call
+  // this function in single-threaded mode.
+  AV1EncRowMultiThreadSync *const row_mt_sync =
+      cpi->tile_data ? &cpi->tile_data[0].row_mt_sync : NULL;
   const int mi_cols = cm->mi_params.mi_cols;
   const int mt_thread_id = mi_row / mb_step;
   // TODO(chengchen): test different unit step size
@@ -260,25 +263,9 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, MACROBLOCK *x,
   const int mt_unit_cols = (mi_cols + (mt_unit_step >> 1)) / mt_unit_step;
   int mt_unit_col = 0;
 
-  // We use a scratch buffer to store the prediction.
-  // Since in intra prediction the buffer's left and top (and top-right?)
-  // will be accessed, we need to allocate additional memory.
-  // Here I use an offset of 8, in case SIMD implementations require alignment.
-  // The stride is the max block size (128).
-  uint8_t *pred_buffer;
-  const int offset = 8;
-  const int dst_buffer_stride = 128;
-  const int buf_width = 128 + offset * 2;
-  const int buf_height = 128 + offset;
-  CHECK_MEM_ERROR(
-      cm, pred_buffer,
-      aom_memalign(32, buf_width * buf_height * sizeof(*pred_buffer)));
-  uint8_t *dst_buffer = pred_buffer + buf_width * offset + offset;
-
   for (int mi_col = 0; mi_col < mi_cols; mi_col += mb_step) {
     if (mi_col % mt_unit_step == 0) {
-      intra_mt->intra_sync_read_ptr(intra_row_mt_sync, mt_thread_id,
-                                    mt_unit_col);
+      enc_row_mt->sync_read_ptr(row_mt_sync, mt_thread_id, mt_unit_col);
     }
 
     PREDICTION_MODE best_mode = DC_PRED;
@@ -293,6 +280,10 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, MACROBLOCK *x,
                  av1_num_planes(cm));
     xd->mi[0]->bsize = bsize;
     xd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
+    av1_setup_dst_planes(xd->plane, bsize, &cm->cur_frame->buf, mi_row, mi_col,
+                         0, av1_num_planes(cm));
+    int dst_buffer_stride = xd->plane[0].dst.stride;
+    uint8_t *dst_buffer = xd->plane[0].dst.buf;
     uint8_t *mb_buffer =
         buffer + mi_row * MI_SIZE * buf_stride + mi_col * MI_SIZE;
     for (PREDICTION_MODE mode = INTRA_MODE_START; mode < INTRA_MODE_END;
@@ -414,14 +405,13 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, MACROBLOCK *x,
 
     if ((mi_col + mb_step) % mt_unit_step == 0 ||
         (mi_col + mb_step) >= mi_cols) {
-      intra_mt->intra_sync_write_ptr(intra_row_mt_sync, mt_thread_id,
-                                     mt_unit_col, mt_unit_cols);
+      enc_row_mt->sync_write_ptr(row_mt_sync, mt_thread_id, mt_unit_col,
+                                 mt_unit_cols);
       ++mt_unit_col;
     }
   }
   // Set the pointer to null since mbmi is only allocated inside this function.
   xd->mi = NULL;
-  aom_free(pred_buffer);
 }
 
 static void calc_mb_wiener_var(AV1_COMP *const cpi, double *sum_rec_distortion,
@@ -570,13 +560,15 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   const int num_workers =
       AOMMIN(mt_info->num_mod_workers[MOD_AI], mt_info->num_workers);
-  AV1EncAllIntraMultiThreadInfo *const intra_mt = &mt_info->intra_mt;
-  intra_mt->intra_sync_read_ptr = av1_row_mt_sync_read_dummy;
-  intra_mt->intra_sync_write_ptr = av1_row_mt_sync_write_dummy;
+  AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
+  enc_row_mt->sync_read_ptr = av1_row_mt_sync_read_dummy;
+  enc_row_mt->sync_write_ptr = av1_row_mt_sync_write_dummy;
   // Calculate differential contrast for each block for the entire image.
-  if (num_workers > 1) {
-    intra_mt->intra_sync_read_ptr = av1_row_mt_sync_read;
-    intra_mt->intra_sync_write_ptr = av1_row_mt_sync_write;
+  // TODO(aomedia:3376): Remove " && 0" when there are no data races in
+  // av1_calc_mb_wiener_var_mt(). See also bug aomedia:3380.
+  if (num_workers > 1 && 0) {
+    enc_row_mt->sync_read_ptr = av1_row_mt_sync_read;
+    enc_row_mt->sync_write_ptr = av1_row_mt_sync_write;
     av1_calc_mb_wiener_var_mt(cpi, num_workers, &sum_rec_distortion,
                               &sum_est_rate);
   } else {
