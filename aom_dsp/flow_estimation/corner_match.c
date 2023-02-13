@@ -238,14 +238,6 @@ int av1_compute_global_motion_feature_match(
   ransac(correspondences, num_correspondences, type, motion_models,
          num_motion_models);
 
-  // Set num_inliers = 0 for motions with too few inliers so they are ignored.
-  for (i = 0; i < num_motion_models; ++i) {
-    if (motion_models[i].num_inliers < MIN_INLIER_PROB * num_correspondences ||
-        num_correspondences == 0) {
-      motion_models[i].num_inliers = 0;
-    }
-  }
-
   aom_free(correspondences);
 
   // Return true if any one of the motions has inliers.

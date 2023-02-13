@@ -629,13 +629,6 @@ int av1_compute_global_motion_disflow(TransformationType type,
   aom_free(correspondences);
   free_flow_field(flow);
 
-  // Set num_inliers = 0 for motions with too few inliers so they are ignored.
-  for (int i = 0; i < num_motion_models; ++i) {
-    if (motion_models[i].num_inliers < MIN_INLIER_PROB * num_correspondences) {
-      motion_models[i].num_inliers = 0;
-    }
-  }
-
   // Return true if any one of the motions has inliers.
   for (int i = 0; i < num_motion_models; ++i) {
     if (motion_models[i].num_inliers > 0) return true;

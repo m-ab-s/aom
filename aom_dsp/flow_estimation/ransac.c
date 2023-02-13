@@ -24,12 +24,11 @@
 #include "av1/encoder/random.h"
 
 #define MAX_MINPTS 4
-#define MAX_DEGENERATE_ITER 10
 #define MINPTS_MULTIPLIER 5
 
 #define INLIER_THRESHOLD 1.25
 #define INLIER_THRESHOLD_SQUARED (INLIER_THRESHOLD * INLIER_THRESHOLD)
-#define MIN_TRIALS 20
+#define NUM_TRIALS 20
 
 // Flag to enable functions for finding TRANSLATION type models.
 //
@@ -211,12 +210,11 @@ static bool find_affine(int np, const double *pts1, const double *pts2,
   return true;
 }
 
-// Returns true on success, false if not enough points provided
-static bool get_rand_indices(int npoints, int minpts, int *indices,
+static void get_rand_indices(int npoints, int minpts, int *indices,
                              unsigned int *seed) {
   int i, j;
   int ptr = lcg_rand16(seed) % npoints;
-  if (minpts > npoints) return false;
+  assert(minpts < npoints);
   indices[0] = ptr;
   ptr = (ptr == npoints - 1 ? 0 : ptr + 1);
   i = 1;
@@ -231,7 +229,6 @@ static bool get_rand_indices(int npoints, int minpts, int *indices,
     }
     indices[i++] = ptr;
   }
-  return true;
 }
 
 typedef struct {
@@ -279,7 +276,6 @@ static void clear_motion(RANSAC_MOTION *motion, int num_points) {
 static bool ransac_internal(const Correspondence *matched_points, int npoints,
                             MotionModel *motion_models, int num_desired_motions,
                             const RansacModelInfo *model_info) {
-  int trial_count = 0;
   int i = 0;
   int minpts = model_info->minpts;
   bool ret_val = true;
@@ -341,38 +337,25 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
     corners2[2 * i + 1] = matched_points[i].ry;
   }
 
-  while (MIN_TRIALS > trial_count) {
-    clear_motion(&current_motion, npoints);
+  for (int trial_count = 0; trial_count < NUM_TRIALS; trial_count++) {
+    get_rand_indices(npoints, minpts, indices, &seed);
 
-    int degenerate = 1;
-    int num_degenerate_iter = 0;
+    copy_points_at_indices(points1, corners1, indices, minpts);
+    copy_points_at_indices(points2, corners2, indices, minpts);
 
-    while (degenerate) {
-      num_degenerate_iter++;
-      if (!get_rand_indices(npoints, minpts, indices, &seed)) {
-        ret_val = false;
-        goto finish_ransac;
-      }
-
-      copy_points_at_indices(points1, corners1, indices, minpts);
-      copy_points_at_indices(points2, corners2, indices, minpts);
-
-      degenerate = model_info->is_degenerate(points1);
-      if (num_degenerate_iter > MAX_DEGENERATE_ITER) {
-        ret_val = false;
-        goto finish_ransac;
-      }
+    if (model_info->is_degenerate(points1)) {
+      continue;
     }
 
     if (!model_info->find_transformation(minpts, points1, points2,
                                          params_this_motion)) {
-      trial_count++;
       continue;
     }
 
     model_info->project_points(params_this_motion, corners1, image1_coord,
                                npoints, 2, 2);
 
+    current_motion.num_inliers = 0;
     double sse = 0.0;
     for (i = 0; i < npoints; ++i) {
       double dx = image1_coord[i * 2] - corners2[i * 2];
@@ -385,27 +368,28 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
       }
     }
 
-    if (current_motion.num_inliers >= worst_kept_motion->num_inliers &&
-        current_motion.num_inliers > 1) {
-      current_motion.sse = sse;
-      if (is_better_motion(&current_motion, worst_kept_motion)) {
-        // This motion is better than the worst currently kept motion. Remember
-        // the inlier points and sse. The parameters for each kept motion
-        // will be recomputed later using only the inliers.
-        worst_kept_motion->num_inliers = current_motion.num_inliers;
-        worst_kept_motion->sse = current_motion.sse;
-        memcpy(worst_kept_motion->inlier_indices, current_motion.inlier_indices,
-               sizeof(*current_motion.inlier_indices) * npoints);
-        assert(npoints > 0);
-        // Determine the new worst kept motion and its num_inliers and sse.
-        for (i = 0; i < num_desired_motions; ++i) {
-          if (is_better_motion(worst_kept_motion, &motions[i])) {
-            worst_kept_motion = &motions[i];
-          }
+    if (current_motion.num_inliers < MIN_INLIER_PROB * npoints) {
+      // Reject models with too few inliers
+      continue;
+    }
+
+    current_motion.sse = sse;
+    if (is_better_motion(&current_motion, worst_kept_motion)) {
+      // This motion is better than the worst currently kept motion. Remember
+      // the inlier points and sse. The parameters for each kept motion
+      // will be recomputed later using only the inliers.
+      worst_kept_motion->num_inliers = current_motion.num_inliers;
+      worst_kept_motion->sse = current_motion.sse;
+      memcpy(worst_kept_motion->inlier_indices, current_motion.inlier_indices,
+             sizeof(*current_motion.inlier_indices) * npoints);
+      assert(npoints > 0);
+      // Determine the new worst kept motion and its num_inliers and sse.
+      for (i = 0; i < num_desired_motions; ++i) {
+        if (is_better_motion(worst_kept_motion, &motions[i])) {
+          worst_kept_motion = &motions[i];
         }
       }
     }
-    trial_count++;
   }
 
   // Sort the motions, best first.
@@ -413,8 +397,10 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
 
   // Recompute the motions using only the inliers.
   for (i = 0; i < num_desired_motions; ++i) {
-    if (motions[i].num_inliers >= minpts) {
-      int num_inliers = motions[i].num_inliers;
+    int num_inliers = motions[i].num_inliers;
+    if (num_inliers > 0) {
+      assert(num_inliers >= minpts);
+
       copy_points_at_indices(points1, corners1, motions[i].inlier_indices,
                              num_inliers);
       copy_points_at_indices(points2, corners2, motions[i].inlier_indices,
@@ -431,7 +417,7 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
         motion_models[i].inliers[2 * j + 1] = (int)rint(corr->y);
       }
     }
-    motion_models[i].num_inliers = motions[i].num_inliers;
+    motion_models[i].num_inliers = num_inliers;
   }
 
 finish_ransac:
