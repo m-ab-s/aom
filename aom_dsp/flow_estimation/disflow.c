@@ -288,25 +288,37 @@ static INLINE void sobel_filter(const uint8_t *src, int src_stride,
 }
 
 // Computes the components of the system of equations used to solve for
-// a flow vector. This includes:
-// 1.) An approximation to the Hessian. We do not compute the Hessian of the
-//     actual error function, as this involves second derivatives of the image
-//     and so is very noise-sensitive.
+// a flow vector.
 //
-//     Instead, we approximate that the error will be a quadratic function of
-//     the x and y coordinates when we are close to convergence, which leads
-//     to an approximate Hessian of the form:
+// The flow equations are a least-squares system, derived as follows:
 //
-//       M = |sum(dx * dx)  sum(dx * dy)|
-//           |sum(dx * dy)  sum(dy * dy)|
+// For each pixel in the patch, we calculate the current error `dt`,
+// and the x and y gradients `dx` and `dy` of the source patch.
+// This means that, to first order, the squared error for this pixel is
 //
-// 2.)   b = |sum(dx * dt)|
-//           |sum(dy * dt)|
+//    (dt + u * dx + v * dy)^2
 //
-// Where the sums are computed over a square window of DISFLOW_PATCH_SIZE.
-static INLINE void compute_hessian(const int16_t *dx, int dx_stride,
-                                   const int16_t *dy, int dy_stride,
-                                   double *M) {
+// where (u, v) are the incremental changes to the flow vector.
+//
+// We then want to find the values of u and v which minimize the sum
+// of the squared error across all pixels. Conveniently, this fits exactly
+// into the form of a least squares problem, with one equation
+//
+//   u * dx + v * dy = -dt
+//
+// for each pixel.
+//
+// Summing across all pixels in a square window of size DISFLOW_PATCH_SIZE,
+// and absorbing the - sign elsewhere, this results in the least squares system
+//
+//   M = |sum(dx * dx)  sum(dx * dy)|
+//       |sum(dx * dy)  sum(dy * dy)|
+//
+//   b = |sum(dx * dt)|
+//       |sum(dy * dt)|
+static INLINE void compute_flow_matrix(const int16_t *dx, int dx_stride,
+                                       const int16_t *dy, int dy_stride,
+                                       double *M) {
   int tmp[4] = { 0 };
 
   for (int i = 0; i < DISFLOW_PATCH_SIZE; i++) {
@@ -375,7 +387,7 @@ void aom_compute_flow_at_point_c(const uint8_t *src, const uint8_t *ref, int x,
   sobel_filter(src_patch, stride, dx, DISFLOW_PATCH_SIZE, 1);
   sobel_filter(src_patch, stride, dy, DISFLOW_PATCH_SIZE, 0);
 
-  compute_hessian(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M);
+  compute_flow_matrix(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M);
   bool valid = invert_2x2(M, M_inv);
   if (!valid) {
     // Unable to refine this point at this level

@@ -441,9 +441,9 @@ static INLINE void compute_flow_vector(const int16_t *dx, int dx_stride,
 #endif  // CHECK_RESULTS
 }
 
-static INLINE void compute_hessian(const int16_t *dx, int dx_stride,
-                                   const int16_t *dy, int dy_stride,
-                                   double *M) {
+static INLINE void compute_flow_matrix(const int16_t *dx, int dx_stride,
+                                       const int16_t *dy, int dy_stride,
+                                       double *M) {
   __m128i acc[4] = { 0 };
 
   for (int i = 0; i < DISFLOW_PATCH_SIZE; i++) {
@@ -521,7 +521,7 @@ void aom_compute_flow_at_point_sse4_1(const uint8_t *frm, const uint8_t *ref,
   sobel_filter_x(frm_patch, stride, dx, DISFLOW_PATCH_SIZE);
   sobel_filter_y(frm_patch, stride, dy, DISFLOW_PATCH_SIZE);
 
-  compute_hessian(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M);
+  compute_flow_matrix(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M);
   bool valid = invert_2x2(M, M_inv);
   if (!valid) {
     // Unable to refine this point at this level
