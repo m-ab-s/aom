@@ -575,7 +575,7 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
       write_temp_delimiter_ = ppi->cpi->common.show_frame;
     }
     // The rate_dist_present needs to be populated.
-    tpl_gop_stats = ObtainTplStats(gop_struct, 0);
+    tpl_gop_stats = ObtainTplStats(gop_struct, true);
     tpl_gop_stats_list.push_back(tpl_gop_stats);
   }
   EndEncode();
