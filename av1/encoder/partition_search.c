@@ -5365,6 +5365,7 @@ BEGIN_PARTITION_SEARCH:
   // partition types and intra cnn output.
   if (x->must_find_valid_partition) {
     reset_part_limitations(cpi, &part_search_state);
+    av1_prune_partitions_by_max_min_bsize(&x->sb_enc, &part_search_state);
     // Invalidate intra cnn output for key frames.
     if (frame_is_intra_only(cm) && bsize == BLOCK_64X64) {
       part_search_state.intra_part_info->quad_tree_idx = 0;
