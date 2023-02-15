@@ -36,10 +36,16 @@ struct TplUnitDepStats {
   std::array<int, kBlockRefCount> ref_frame_index;
 };
 
+enum class TplPropagationMode {
+  kRdCost,    // use rd cost for propagation
+  kPredError  // use prediction error for propagation
+};
+
 struct TplFrameDepStats {
   int unit_size;      // equivalent to min_block_size
   double rdcost;      // overall rate-distortion cost
   double alt_rdcost;  // rate-distortion cost in the second tpl pass
+  TplPropagationMode propagation_mode;
   std::vector<std::vector<TplUnitDepStats>> unit_stats;
   std::vector<std::vector<TplUnitDepStats>> alt_unit_stats;
   std::vector<int> ref_frame_indices;
@@ -75,7 +81,8 @@ TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
                                         int min_block_size, bool has_alt_stats);
 
 TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
-                                        int unit_count, bool rate_dist_present);
+                                        int unit_count,
+                                        TplPropagationMode propagation_mode);
 
 StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
     const TplFrameStats &frame_stats);

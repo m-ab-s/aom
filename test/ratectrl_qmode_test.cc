@@ -452,7 +452,7 @@ TEST_F(RateControlQModeTest, TplBlockStatsToDepStats) {
   TplBlockStats block_stats =
       CreateToyTplBlockStats(8, 4, 0, 0, intra_cost, inter_cost);
   TplUnitDepStats unit_stats = TplBlockStatsToDepStats(
-      block_stats, unit_count, /*rate_dist_present=*/false);
+      block_stats, unit_count, TplPropagationMode::kRdCost);
   double expected_intra_cost = intra_cost * 1.0 / unit_count;
   EXPECT_NEAR(unit_stats.intra_cost, expected_intra_cost, kErrorEpsilon);
   // When inter_cost >= intra_cost in block_stats, in unit_stats,
@@ -469,7 +469,7 @@ TEST_F(RateControlQModeTest, TplBlockStatsToDepStatsUsingPredErr) {
   block_stats.intra_pred_err = 40;
   block_stats.inter_pred_err = 50;
   TplUnitDepStats unit_stats = TplBlockStatsToDepStats(
-      block_stats, unit_count, /*rate_dist_present=*/true);
+      block_stats, unit_count, TplPropagationMode::kPredError);
   double expected_intra_cost = block_stats.intra_pred_err * 1.0 / unit_count;
   EXPECT_NEAR(unit_stats.intra_cost, expected_intra_cost, kErrorEpsilon);
   // When inter_cost >= intra_cost in block_stats, in unit_stats,

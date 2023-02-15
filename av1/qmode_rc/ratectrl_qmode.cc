@@ -975,9 +975,9 @@ TplFrameDepStats CreateTplFrameDepStats(int frame_height, int frame_width,
 
 TplUnitDepStats TplBlockStatsToDepStats(const TplBlockStats &block_stats,
                                         int unit_count,
-                                        bool rate_dist_present) {
+                                        TplPropagationMode propagation_mode) {
   TplUnitDepStats dep_stats = {};
-  if (rate_dist_present) {
+  if (propagation_mode == TplPropagationMode::kPredError) {
     dep_stats.intra_cost = block_stats.intra_pred_err * 1.0 / unit_count;
     dep_stats.inter_cost = block_stats.inter_pred_err * 1.0 / unit_count;
   } else {
@@ -1080,8 +1080,12 @@ Status FillTplUnitDepStats(
     const int block_unit_cols = std::min(block_stats.width / min_block_size,
                                          unit_cols - block_unit_col);
     const int unit_count = block_unit_rows * block_unit_cols;
-    TplUnitDepStats this_unit_stats = TplBlockStatsToDepStats(
-        block_stats, unit_count, frame_stats.rate_dist_present);
+    TplPropagationMode propagation_mode = TplPropagationMode::kRdCost;
+    if (frame_stats.rate_dist_present) {
+      propagation_mode = TplPropagationMode::kPredError;
+    }
+    TplUnitDepStats this_unit_stats =
+        TplBlockStatsToDepStats(block_stats, unit_count, propagation_mode);
     for (int r = 0; r < block_unit_rows; r++) {
       for (int c = 0; c < block_unit_cols; c++) {
         unit_stats[block_unit_row + r][block_unit_col + c] = this_unit_stats;
@@ -1102,6 +1106,12 @@ StatusOr<TplFrameDepStats> CreateTplFrameDepStatsWithoutPropagation(
       frame_stats.frame_height, frame_stats.frame_width, min_block_size,
       !frame_stats.alternate_block_stats_list.empty());
   frame_dep_stats.ref_frame_indices = frame_stats.ref_frame_indices;
+
+  if (frame_stats.rate_dist_present) {
+    frame_dep_stats.propagation_mode = TplPropagationMode::kPredError;
+  } else {
+    frame_dep_stats.propagation_mode = TplPropagationMode::kRdCost;
+  }
 
   Status status = FillTplUnitDepStats(frame_dep_stats.unit_stats, frame_stats,
                                       frame_stats.block_stats_list);
@@ -1331,16 +1341,18 @@ void TplFrameDepStatsPropagate(int coding_idx,
                   ref_unit_col * unit_size, unit_size);
               const double overlap_ratio =
                   overlap_area * 1.0 / (unit_size * unit_size);
-              const double propagation_fraction_power = 0.3;
-              // We apply propagation_fraction with power of 0.3 to improve
-              // propagation rate. The power coefficient is tuned from empirical
-              // practice due to the fact that the inter/intra cost is RD cost
-              // not prediction error which is used in the original design. This
-              // action will increase the propagation_fraction when the
-              // difference between intra_cost and inter_cost are reasonably big
-              // but not enough for propagation.
-              // TODO(angiebird): Check this part again when we use prediction
-              // error for inter/intra cost.
+              double propagation_fraction_power = 1.0;
+              if (frame_dep_stats->propagation_mode ==
+                  TplPropagationMode::kRdCost) {
+                // We apply propagation_fraction with power of 0.3 to improve
+                // propagation rate. The power coefficient is tuned from
+                // empirical practice due to the fact that the inter/intra cost
+                // is RD cost not prediction error which is used in the original
+                // design. This action will increase the propagation_fraction
+                // when the difference between intra_cost and inter_cost are
+                // reasonably big but not enough for propagation.
+                propagation_fraction_power = 0.3;
+              }
               const double propagation_fraction =
                   std::pow(GetPropagationFraction(unit_dep_stats),
                            propagation_fraction_power);
