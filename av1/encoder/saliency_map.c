@@ -8,8 +8,9 @@
  * Media Patent License 1.0 was not distributed with this source code in the
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
-#include <string.h>
 #include <assert.h>
+#include <string.h>
+
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encoder_utils.h"
 #include "av1/encoder/firstpass.h"
@@ -226,9 +227,9 @@ static INLINE int upscale_map(const double *input, int in_level, int out_level,
 
     assert(level > 0);
 
-    int h_upscale = height[level - 1];
-    int w_upscale = width[level - 1];
-    int s_upscale = width[level - 1];
+    const int h_upscale = height[level - 1];
+    const int w_upscale = width[level - 1];
+    const int s_upscale = width[level - 1];
 
     double *upscale = aom_malloc(h_upscale * w_upscale * sizeof(*upscale));
 
@@ -240,7 +241,6 @@ static INLINE int upscale_map(const double *input, int in_level, int out_level,
       for (int j = 0; j < w_upscale; ++j) {
         const int ii = clamp((i >> 1), 0, cur_height - 1);
         const int jj = clamp((j >> 1), 0, cur_width - 1);
-
         upscale[j + i * s_upscale] = (double)original[jj + ii * cur_stride];
       }
     }
@@ -261,26 +261,8 @@ static int center_surround_diff(const double *input[9], int height[9],
     int cur_height = height[k];
     int cur_width = width[k];
 
-    output[j]->buf =
-        (double *)aom_malloc(cur_height * cur_width * sizeof(*output[j]->buf));
-    output[j + 1]->buf = (double *)aom_malloc(cur_height * cur_width *
-                                              sizeof(*output[j + 1]->buf));
-
-    if (!output[j]->buf || !output[j + 1]->buf) {
-      for (int l = 0; l <= j + 1; ++l) {
-        aom_free(output[l]->buf);
-      }
-      return 0;
-    }
-
-    output[j]->height = output[j + 1]->height = cur_height;
-    output[j]->width = output[j + 1]->width = cur_width;
-
     if (upscale_map(input[k + 3], k + 3, k, height, width, output[j]->buf) ==
         0) {
-      for (int l = 0; l <= j + 1; ++l) {
-        aom_free(output[l]->buf);
-      }
       return 0;
     }
 
@@ -294,9 +276,6 @@ static int center_surround_diff(const double *input[9], int height[9],
 
     if (upscale_map(input[k + 4], k + 4, k, height, width,
                     output[j + 1]->buf) == 0) {
-      for (int l = 0; l <= j + 1; ++l) {
-        aom_free(output[l]->buf);
-      }
       return 0;
     }
 
@@ -325,26 +304,8 @@ static int center_surround_diff_rgb(const double *input_1[9],
     int cur_height = height[k];
     int cur_width = width[k];
 
-    output[j]->buf =
-        (double *)aom_malloc(cur_height * cur_width * sizeof(*output[j]->buf));
-    output[j + 1]->buf = (double *)aom_malloc(cur_height * cur_width *
-                                              sizeof(*output[j + 1]->buf));
-
-    if (!output[j]->buf || !output[j + 1]->buf) {
-      for (int l = 0; l <= j + 1; ++l) {
-        aom_free(output[l]->buf);
-      }
-      return 0;
-    }
-
-    output[j]->height = output[j + 1]->height = cur_height;
-    output[j]->width = output[j + 1]->width = cur_width;
-
     if (upscale_map(input_2[k + 3], k + 3, k, height, width, output[j]->buf) ==
         0) {
-      for (int l = 0; l <= j + 1; ++l) {
-        aom_free(output[l]->buf);
-      }
       return 0;
     }
 
@@ -358,9 +319,6 @@ static int center_surround_diff_rgb(const double *input_1[9],
 
     if (upscale_map(input_2[k + 4], k + 4, k, height, width,
                     output[j + 1]->buf) == 0) {
-      for (int l = 0; l <= j + 1; ++l) {
-        aom_free(output[l]->buf);
-      }
       return 0;
     }
 
@@ -380,28 +338,21 @@ static int center_surround_diff_rgb(const double *input_1[9],
 // This function is to generate Gaussian pyramid images with indexes from 0 to
 // 8, and construct the feature maps from calculating the center-surround
 // differences.
-static int gaussian_pyramid(const double *src, int width, int height,
+static int gaussian_pyramid(const double *src, int width[9], int height[9],
                             saliency_feature_map *dst[6]) {
   double *gaussian_map[9];  // scale = 9
-  int pyr_width[9];
-  int pyr_height[9];
-
   gaussian_map[0] =
-      (double *)aom_malloc(width * height * sizeof(*gaussian_map[0]));
-
+      (double *)aom_malloc(width[0] * height[0] * sizeof(*gaussian_map[0]));
   if (!gaussian_map[0]) {
     return 0;
   }
 
-  memcpy(gaussian_map[0], src, width * height * sizeof(double));
-
-  pyr_width[0] = width;
-  pyr_height[0] = height;
+  memcpy(gaussian_map[0], src, width[0] * height[0] * sizeof(double));
 
   for (int i = 1; i < 9; ++i) {
-    int stride = pyr_width[i - 1];
-    int new_width = pyr_width[i - 1] / 2;
-    int new_height = pyr_height[i - 1] / 2;
+    int stride = width[i - 1];
+    int new_width = width[i];
+    int new_height = height[i];
 
     gaussian_map[i] =
         (double *)aom_malloc(new_width * new_height * sizeof(*gaussian_map[i]));
@@ -415,15 +366,12 @@ static int gaussian_pyramid(const double *src, int width, int height,
 
     memset(gaussian_map[i], 0, new_width * new_height * sizeof(double));
 
-    decimate_map(gaussian_map[i - 1], pyr_height[i - 1], pyr_width[i - 1],
-                 stride, gaussian_map[i]);
-
-    pyr_width[i] = new_width;
-    pyr_height[i] = new_height;
+    decimate_map(gaussian_map[i - 1], height[i - 1], width[i - 1], stride,
+                 gaussian_map[i]);
   }
 
-  if (center_surround_diff((const double **)gaussian_map, pyr_height, pyr_width,
-                           dst) == 0) {
+  if (center_surround_diff((const double **)gaussian_map, height, width, dst) ==
+      0) {
     for (int l = 0; l < 9; ++l) {
       aom_free(gaussian_map[l]);
     }
@@ -436,34 +384,29 @@ static int gaussian_pyramid(const double *src, int width, int height,
   return 1;
 }
 
-static int gaussian_pyramid_rgb(double *src_1, double *src_2, int width,
-                                int height, saliency_feature_map *dst[6]) {
+static int gaussian_pyramid_rgb(double *src_1, double *src_2, int width[9],
+                                int height[9], saliency_feature_map *dst[6]) {
   double *gaussian_map[2][9];  // scale = 9
-  int pyr_width[9];
-  int pyr_height[9];
   double *src[2];
 
   src[0] = src_1;
   src[1] = src_2;
 
   for (int k = 0; k < 2; ++k) {
-    gaussian_map[k][0] =
-        (double *)aom_malloc(width * height * sizeof(*gaussian_map[k][0]));
+    gaussian_map[k][0] = (double *)aom_malloc(width[0] * height[0] *
+                                              sizeof(*gaussian_map[k][0]));
     if (!gaussian_map[k][0]) {
       for (int l = 0; l < k; ++l) {
         aom_free(gaussian_map[l][0]);
       }
       return 0;
     }
-    memcpy(gaussian_map[k][0], src[k], width * height * sizeof(double));
-
-    pyr_width[0] = width;
-    pyr_height[0] = height;
+    memcpy(gaussian_map[k][0], src[k], width[0] * height[0] * sizeof(double));
 
     for (int i = 1; i < 9; ++i) {
-      int stride = pyr_width[i - 1];
-      int new_width = pyr_width[i - 1] / 2;
-      int new_height = pyr_height[i - 1] / 2;
+      int stride = width[i - 1];
+      int new_width = width[i];
+      int new_height = height[i];
 
       gaussian_map[k][i] = (double *)aom_malloc(new_width * new_height *
                                                 sizeof(*gaussian_map[k][i]));
@@ -474,17 +417,14 @@ static int gaussian_pyramid_rgb(double *src_1, double *src_2, int width,
         return 0;
       }
       memset(gaussian_map[k][i], 0, new_width * new_height * sizeof(double));
-      decimate_map(gaussian_map[k][i - 1], pyr_height[i - 1], pyr_width[i - 1],
-                   stride, gaussian_map[k][i]);
-
-      pyr_width[i] = new_width;
-      pyr_height[i] = new_height;
+      decimate_map(gaussian_map[k][i - 1], height[i - 1], width[i - 1], stride,
+                   gaussian_map[k][i]);
     }
   }
 
   if (center_surround_diff_rgb((const double **)gaussian_map[0],
-                               (const double **)gaussian_map[1], pyr_height,
-                               pyr_width, dst) == 0) {
+                               (const double **)gaussian_map[1], height, width,
+                               dst) == 0) {
     for (int l = 0; l < 2; ++l) {
       for (int i = 0; i < 9; ++i) {
         aom_free(gaussian_map[l][i]);
@@ -493,14 +433,16 @@ static int gaussian_pyramid_rgb(double *src_1, double *src_2, int width,
     return 0;
   }
 
-  for (int i = 0; i < 9; ++i) {
-    aom_free(gaussian_map[0][i]);
-    aom_free(gaussian_map[1][i]);
+  for (int l = 0; l < 2; ++l) {
+    for (int i = 0; i < 9; ++i) {
+      aom_free(gaussian_map[l][i]);
+    }
   }
   return 1;
 }
 
-static int get_feature_map_intensity(double *intensity, int width, int height,
+static int get_feature_map_intensity(double *intensity, int width[9],
+                                     int height[9],
                                      saliency_feature_map *i_map[6]) {
   if (gaussian_pyramid(intensity, width, height, i_map) == 0) {
     return 0;
@@ -508,13 +450,13 @@ static int get_feature_map_intensity(double *intensity, int width, int height,
   return 1;
 }
 
-static int get_feature_map_rgb(double *cr, double *cg, double *cb, int width,
-                               int height, saliency_feature_map *rg_map[6],
+static int get_feature_map_rgb(double *cr, double *cg, double *cb, int width[9],
+                               int height[9], saliency_feature_map *rg_map[6],
                                saliency_feature_map *by_map[6]) {
-  double *rg_mat = aom_malloc(height * width * sizeof(*rg_mat));
-  double *by_mat = aom_malloc(height * width * sizeof(*by_mat));
-  double *gr_mat = aom_malloc(height * width * sizeof(*gr_mat));
-  double *yb_mat = aom_malloc(height * width * sizeof(*yb_mat));
+  double *rg_mat = aom_malloc(height[0] * width[0] * sizeof(*rg_mat));
+  double *by_mat = aom_malloc(height[0] * width[0] * sizeof(*by_mat));
+  double *gr_mat = aom_malloc(height[0] * width[0] * sizeof(*gr_mat));
+  double *yb_mat = aom_malloc(height[0] * width[0] * sizeof(*yb_mat));
 
   if (!rg_mat || !by_mat || !gr_mat || !yb_mat) {
     aom_free(rg_mat);
@@ -525,33 +467,27 @@ static int get_feature_map_rgb(double *cr, double *cg, double *cb, int width,
   }
 
   double r, g, b, y;
-  for (int i = 0; i < height; ++i) {
-    for (int j = 0; j < width; ++j) {
-      r = AOMMAX(
-          0, cr[i * width + j] - (cg[i * width + j] + cb[i * width + j]) / 2);
-      g = AOMMAX(
-          0, cg[i * width + j] - (cr[i * width + j] + cb[i * width + j]) / 2);
-      b = AOMMAX(
-          0, cb[i * width + j] - (cr[i * width + j] + cg[i * width + j]) / 2);
-      y = AOMMAX(0, (cr[i * width + j] + cg[i * width + j]) / 2 -
-                        fabs(cr[i * width + j] - cg[i * width + j]) / 2 -
-                        cb[i * width + j]);
+  for (int i = 0; i < height[0]; ++i) {
+    for (int j = 0; j < width[0]; ++j) {
+      r = AOMMAX(0, cr[i * width[0] + j] -
+                        (cg[i * width[0] + j] + cb[i * width[0] + j]) / 2);
+      g = AOMMAX(0, cg[i * width[0] + j] -
+                        (cr[i * width[0] + j] + cb[i * width[0] + j]) / 2);
+      b = AOMMAX(0, cb[i * width[0] + j] -
+                        (cr[i * width[0] + j] + cg[i * width[0] + j]) / 2);
+      y = AOMMAX(0, (cr[i * width[0] + j] + cg[i * width[0] + j]) / 2 -
+                        fabs(cr[i * width[0] + j] - cg[i * width[0] + j]) / 2 -
+                        cb[i * width[0] + j]);
 
-      rg_mat[i * width + j] = r - g;
-      by_mat[i * width + j] = b - y;
-      gr_mat[i * width + j] = g - r;
-      yb_mat[i * width + j] = y - b;
+      rg_mat[i * width[0] + j] = r - g;
+      by_mat[i * width[0] + j] = b - y;
+      gr_mat[i * width[0] + j] = g - r;
+      yb_mat[i * width[0] + j] = y - b;
     }
   }
 
-  if (gaussian_pyramid_rgb(rg_mat, gr_mat, width, height, rg_map) == 0) {
-    aom_free(rg_mat);
-    aom_free(by_mat);
-    aom_free(gr_mat);
-    aom_free(yb_mat);
-    return 0;
-  }
-  if (gaussian_pyramid_rgb(by_mat, yb_mat, width, height, by_map) == 0) {
+  if (gaussian_pyramid_rgb(rg_mat, gr_mat, width, height, rg_map) == 0 ||
+      gaussian_pyramid_rgb(by_mat, yb_mat, width, height, by_map) == 0) {
     aom_free(rg_mat);
     aom_free(by_mat);
     aom_free(gr_mat);
@@ -569,7 +505,7 @@ static int get_feature_map_rgb(double *cr, double *cg, double *cb, int width,
 static INLINE void filter2d(const double *input, const double kernel[9][9],
                             int width, int height, double *output) {
   const int window_size = 9;
-  double img_section[81];
+  double map_section[81];
   for (int y = 0; y <= height - 1; ++y) {
     for (int x = 0; x <= width - 1; ++x) {
       int i = 0;
@@ -577,7 +513,7 @@ static INLINE void filter2d(const double *input, const double kernel[9][9],
         for (int xx = x - window_size / 2; xx <= x + window_size / 2; ++xx) {
           int yvalue = clamp(yy, 0, height - 1);
           int xvalue = clamp(xx, 0, width - 1);
-          img_section[i++] = input[yvalue * width + xvalue];
+          map_section[i++] = input[yvalue * width + xvalue];
         }
       }
 
@@ -585,34 +521,29 @@ static INLINE void filter2d(const double *input, const double kernel[9][9],
       for (int k = 0; k < window_size; ++k) {
         for (int l = 0; l < window_size; ++l) {
           output[y * width + x] +=
-              kernel[k][l] * img_section[k * window_size + l];
+              kernel[k][l] * map_section[k * window_size + l];
         }
       }
     }
   }
 }
 
-static int get_feature_map_orientation(const double *intensity, int width,
-                                       int height,
+static int get_feature_map_orientation(const double *intensity, int width[9],
+                                       int height[9],
                                        saliency_feature_map *dst[24]) {
   double *gaussian_map[9];
-  int pyr_width[9];
-  int pyr_height[9];
 
   gaussian_map[0] =
-      (double *)aom_malloc(width * height * sizeof(*gaussian_map[0]));
+      (double *)aom_malloc(width[0] * height[0] * sizeof(*gaussian_map[0]));
   if (!gaussian_map[0]) {
     return 0;
   }
-  memcpy(gaussian_map[0], intensity, width * height * sizeof(double));
-
-  pyr_width[0] = width;
-  pyr_height[0] = height;
+  memcpy(gaussian_map[0], intensity, width[0] * height[0] * sizeof(double));
 
   for (int i = 1; i < 9; ++i) {
-    int stride = pyr_width[i - 1];
-    int new_width = pyr_width[i - 1] / 2;
-    int new_height = pyr_height[i - 1] / 2;
+    int stride = width[i - 1];
+    int new_width = width[i];
+    int new_height = height[i];
 
     gaussian_map[i] =
         (double *)aom_malloc(new_width * new_height * sizeof(*gaussian_map[i]));
@@ -623,18 +554,15 @@ static int get_feature_map_orientation(const double *intensity, int width,
       return 0;
     }
     memset(gaussian_map[i], 0, new_width * new_height * sizeof(double));
-    decimate_map(gaussian_map[i - 1], pyr_height[i - 1], pyr_width[i - 1],
-                 stride, gaussian_map[i]);
-
-    pyr_width[i] = new_width;
-    pyr_height[i] = new_height;
+    decimate_map(gaussian_map[i - 1], height[i - 1], width[i - 1], stride,
+                 gaussian_map[i]);
   }
 
   double *tempGaborOutput[4][9];  //[angle: 0, 45, 90, 135 degree][filter_size]
 
   for (int i = 2; i < 9; ++i) {
-    const int cur_height = pyr_height[i];
-    const int cur_width = pyr_width[i];
+    const int cur_height = height[i];
+    const int cur_width = width[i];
     for (int j = 0; j < 4; ++j) {
       tempGaborOutput[j][i] = (double *)aom_malloc(
           cur_height * cur_width * sizeof(*tempGaborOutput[j][i]));
@@ -663,40 +591,16 @@ static int get_feature_map_orientation(const double *intensity, int width,
 
   for (int i = 0; i < 6; ++i) {
     for (int j = 0; j < 4; ++j) {
-      tmp[j][i] = (saliency_feature_map *)aom_malloc(sizeof(*tmp[j][i]));
-      if (!tmp[j][i]) {
-        for (int l = 0; l < 9; ++l) {
-          aom_free(gaussian_map[l]);
-        }
-        for (int h = 0; h < 4; ++h) {
-          for (int g = 2; g < 9; ++g) {
-            aom_free(tempGaborOutput[h][g]);
-          }
-        }
-        for (int w = 0; w < 4; ++w) {
-          for (int u = 0; u < 6; ++u) {
-            aom_free(tmp[w][u]);
-          }
-        }
-        return 0;
-      }
+      tmp[j][i] = dst[j * 6 + i];
     }
   }
 
   for (int j = 0; j < 4; ++j) {
-    if (center_surround_diff((const double **)tempGaborOutput[j], pyr_height,
-                             pyr_width, tmp[j]) == 0) {
-      for (int l = 0; l < 9; ++l) {
-        aom_free(gaussian_map[l]);
-      }
+    if (center_surround_diff((const double **)tempGaborOutput[j], height, width,
+                             tmp[j]) == 0) {
       for (int h = 0; h < 4; ++h) {
         for (int g = 2; g < 9; ++g) {
           aom_free(tempGaborOutput[h][g]);
-        }
-      }
-      for (int w = 0; w < 4; ++w) {
-        for (int u = 0; u < 6; ++u) {
-          aom_free(tmp[w][u]);
         }
       }
       return 0;
@@ -707,13 +611,6 @@ static int get_feature_map_orientation(const double *intensity, int width,
     for (int j = 0; j < 4; ++j) {
       aom_free(tempGaborOutput[j][i]);
     }
-  }
-
-  for (int i = 0; i < 6; ++i) {
-    dst[i] = tmp[0][i];
-    dst[i + 6] = tmp[1][i];
-    dst[i + 12] = tmp[2][i];
-    dst[i + 18] = tmp[3][i];
   }
 
   return 1;
@@ -768,229 +665,101 @@ static INLINE double average_local_max(const saliency_feature_map *input,
 }
 
 // Linear normalization the values in the map to [0,1].
-static saliency_feature_map *minmax_normalize(saliency_feature_map *input) {
+static void minmax_normalize(saliency_feature_map *input) {
   double max_value, min_value;
-
   find_min_max(input, &max_value, &min_value);
-
-  saliency_feature_map *result =
-      (saliency_feature_map *)aom_malloc(sizeof(*result));
-  if (!result) {
-    return NULL;
-  }
-  result->buf =
-      (double *)aom_malloc(input->width * input->height * sizeof(*result->buf));
-  if (!result->buf) {
-    aom_free(result);
-    return NULL;
-  }
-  result->height = input->height;
-  result->width = input->width;
-  memset(result->buf, 0, input->width * input->height * sizeof(double));
 
   for (int i = 0; i < input->height; ++i) {
     for (int j = 0; j < input->width; ++j) {
       if (max_value != min_value) {
-        result->buf[i * input->width + j] =
+        input->buf[i * input->width + j] =
             input->buf[i * input->width + j] / (max_value - min_value) +
             min_value / (min_value - max_value);
       } else {
-        result->buf[i * input->width + j] =
-            input->buf[i * input->width + j] - min_value;
+        input->buf[i * input->width + j] -= min_value;
       }
     }
   }
-
-  return result;
 }
 
 // This function is to promote meaningful “activation spots” in the map and
 // ignores homogeneous areas.
-static saliency_feature_map *nomalization_operator(saliency_feature_map *input,
-                                                   int stepsize,
-                                                   bool free_input) {
-  saliency_feature_map *result =
-      (saliency_feature_map *)aom_malloc(sizeof(*result));
-
-  if (!result) {
-    if (free_input) {
-      aom_free(input->buf);
-      aom_free(input);
-    }
-    return NULL;
-  }
-
-  result->buf =
-      (double *)aom_malloc(input->width * input->height * sizeof(*result->buf));
-  if (!result->buf) {
-    aom_free(result);
-    if (free_input) {
-      aom_free(input->buf);
-      aom_free(input);
-    }
-    return NULL;
-  }
-  result->height = input->height;
-  result->width = input->width;
-
-  saliency_feature_map *temp_result = minmax_normalize(input);
-  if (temp_result == NULL) {
-    aom_free(result->buf);
-    aom_free(result);
-    if (free_input) {
-      aom_free(input->buf);
-      aom_free(input);
-    }
-    return NULL;
-  }
-  double lmaxmean = average_local_max(temp_result, stepsize);
+static int nomalization_operator(saliency_feature_map *input, int stepsize) {
+  minmax_normalize(input);
+  double lmaxmean = average_local_max(input, stepsize);
   if (lmaxmean < 0) {
-    aom_free(result->buf);
-    aom_free(result);
-    aom_free(temp_result->buf);
-    aom_free(temp_result);
-    if (free_input) {
-      aom_free(input->buf);
-      aom_free(input);
-    }
-    return NULL;
+    return 0;
   }
   double normCoeff = (1 - lmaxmean) * (1 - lmaxmean);
 
   for (int i = 0; i < input->height; ++i) {
     for (int j = 0; j < input->width; ++j) {
-      result->buf[i * input->width + j] =
-          temp_result->buf[i * input->width + j] * normCoeff;
+      input->buf[i * input->width + j] *= normCoeff;
     }
   }
 
-  aom_free(temp_result->buf);
-  aom_free(temp_result);
-
-  if (free_input) {
-    aom_free(input->buf);
-    aom_free(input);
-  }
-
-  return result;
+  return 1;
 }
 
 // Normalize the values in feature maps to [0,1], and then upscale all maps to
 // the original frame size.
-static int normalize_fm(saliency_feature_map *input[6], int width, int height,
-                        int num_fm, saliency_feature_map *output[6]) {
-  int pyr_height[9];
-  int pyr_width[9];
-
-  pyr_height[0] = height;
-  pyr_width[0] = width;
-
-  for (int i = 1; i < 9; ++i) {
-    int new_width = pyr_width[i - 1] / 2;
-    int new_height = pyr_height[i - 1] / 2;
-
-    pyr_width[i] = new_width;
-    pyr_height[i] = new_height;
-  }
-
-  double *tmp = aom_malloc(width * height * sizeof(*tmp));
-  if (!tmp) {
-    return 0;
-  }
-
+static int normalize_fm(saliency_feature_map *input[6], int width[9],
+                        int height[9], int num_fm,
+                        saliency_feature_map *output[6]) {
   // Feature maps (FM) are generated by function "center_surround_diff()". The
   // difference is between a fine scale c and a coarser scale s, where c \in {2,
   // 3, 4}, and s = c + delta, where delta \in {3, 4}, and the FM size is scale
   // c. Specifically, i=0: c=2 and s=5, i=1: c=2 and s=6, i=2: c=3 and s=6, i=3:
   // c=3 and s=7, i=4: c=4 and s=7, i=5: c=4 and s=8.
   for (int i = 0; i < num_fm; ++i) {
-    // Normalization
-    saliency_feature_map *normalizedmatrix =
-        nomalization_operator(input[i], 8, false);
-    if (normalizedmatrix == NULL) {
-      aom_free(tmp);
-      return 0;
-    }
-    output[i]->buf =
-        (double *)aom_malloc(width * height * sizeof(*output[i]->buf));
-    if (!output[i]->buf) {
-      aom_free(tmp);
-      aom_free(normalizedmatrix->buf);
-      aom_free(normalizedmatrix);
-      for (int l = 0; l < i; ++l) {
-        aom_free(output[l]->buf);
-      }
-      return 0;
-    }
-    output[i]->height = height;
-    output[i]->width = width;
-    // Upscale FM to original frame size
-    if (upscale_map(normalizedmatrix->buf, (i / 2) + 2, 0, pyr_height,
-                    pyr_width, tmp) == 0) {
-      aom_free(tmp);
-      aom_free(normalizedmatrix->buf);
-      aom_free(normalizedmatrix);
-      for (int l = 0; l <= i; ++l) {
-        aom_free(output[l]->buf);
-      }
+    if (nomalization_operator(input[i], 8) == 0) {
       return 0;
     }
 
-    memcpy(output[i]->buf, (double *)tmp, width * height * sizeof(double));
-    aom_free(normalizedmatrix->buf);
-    aom_free(normalizedmatrix);
+    // Upscale FM to original frame size
+    if (upscale_map(input[i]->buf, (i / 2) + 2, 0, height, width,
+                    output[i]->buf) == 0) {
+      return 0;
+    }
   }
-  aom_free(tmp);
   return 1;
 }
 
 // Combine feature maps with the same category (intensity, color, or
 // orientation) into one conspicuity map.
-static saliency_feature_map *normalized_map(saliency_feature_map *input[6],
-                                            int width, int height) {
+static int normalized_map(saliency_feature_map *input[6], int width[9],
+                          int height[9], saliency_feature_map *output) {
   int num_fm = 6;
 
   saliency_feature_map *n_input[6];
   for (int i = 0; i < 6; ++i) {
     n_input[i] = (saliency_feature_map *)aom_malloc(sizeof(*n_input[i]));
     if (!n_input[i]) {
-      for (int l = 0; l < i; ++l) {
-        aom_free(n_input[l]);
-      }
-      return NULL;
+      return 0;
     }
-  }
-  if (normalize_fm(input, width, height, num_fm, n_input) == 0) {
-    for (int l = 0; l < 6; ++l) {
-      aom_free(n_input[l]);
+    n_input[i]->buf =
+        (double *)aom_malloc(width[0] * height[0] * sizeof(*n_input[i]->buf));
+    if (!n_input[i]->buf) {
+      aom_free(n_input[i]);
+      return 0;
     }
-    return NULL;
+    n_input[i]->height = height[0];
+    n_input[i]->width = width[0];
   }
 
-  saliency_feature_map *output = aom_malloc(sizeof(*output));
-  if (!output) {
-    for (int l = 0; l < 6; ++l) {
-      aom_free(n_input[l]);
+  if (normalize_fm(input, width, height, num_fm, n_input) == 0) {
+    for (int i = 0; i < num_fm; ++i) {
+      aom_free(n_input[i]->buf);
+      aom_free(n_input[i]);
     }
-    return NULL;
+    return 0;
   }
-  output->buf = (double *)aom_malloc(width * height * sizeof(*output->buf));
-  if (!output->buf) {
-    for (int l = 0; l < 6; ++l) {
-      aom_free(n_input[l]);
-    }
-    aom_free(output);
-    return NULL;
-  }
-  output->height = height;
-  output->width = width;
-  memset(output->buf, 0, width * height * sizeof(double));
 
   // Add up all normalized feature maps with the same category into one map.
-  for (int r = 0; r < height; ++r) {
-    for (int c = 0; c < width; ++c) {
-      for (int i = 0; i < num_fm; ++i) {
-        output->buf[r * width + c] += n_input[i]->buf[r * width + c];
+  for (int i = 0; i < num_fm; ++i) {
+    for (int r = 0; r < height[0]; ++r) {
+      for (int c = 0; c < width[0]; ++c) {
+        output->buf[r * width[0] + c] += n_input[i]->buf[r * width[0] + c];
       }
     }
   }
@@ -1000,61 +769,66 @@ static saliency_feature_map *normalized_map(saliency_feature_map *input[6],
     aom_free(n_input[i]);
   }
 
-  return nomalization_operator(output, 8, true);
+  nomalization_operator(output, 8);
+  return 1;
 }
 
-static saliency_feature_map *normalized_map_rgb(saliency_feature_map *rg_map[6],
-                                                saliency_feature_map *by_map[6],
-                                                int width, int height) {
-  saliency_feature_map *color_cm_rg = normalized_map(rg_map, width, height);
-  saliency_feature_map *color_cm_by = normalized_map(by_map, width, height);
-  if (!color_cm_rg || !color_cm_by) {
-    aom_free(color_cm_rg);
-    aom_free(color_cm_by);
-    return NULL;
+static int normalized_map_rgb(saliency_feature_map *rg_map[6],
+                              saliency_feature_map *by_map[6], int width[9],
+                              int height[9], saliency_feature_map *output) {
+  saliency_feature_map *color_cm[2];  // 0: color_cm_rg, 1: color_cm_by
+  for (int i = 0; i < 2; ++i) {
+    color_cm[i] = aom_malloc(sizeof(*color_cm[i]));
+    if (!color_cm[i]) {
+      return 0;
+    }
+    color_cm[i]->buf =
+        (double *)aom_malloc(width[0] * height[0] * sizeof(*color_cm[i]->buf));
+    if (!color_cm[i]->buf) {
+      for (int l = 0; l < i; ++l) {
+        aom_free(color_cm[l]->buf);
+      }
+      aom_free(color_cm[i]);
+      return 0;
+    }
+
+    color_cm[i]->width = width[0];
+    color_cm[i]->height = height[0];
+    memset(color_cm[i]->buf, 0,
+           width[0] * height[0] * sizeof(*color_cm[i]->buf));
   }
 
-  saliency_feature_map *color_cm = aom_malloc(sizeof(*color_cm));
-  if (!color_cm) {
-    aom_free(color_cm_rg->buf);
-    aom_free(color_cm_by->buf);
-    aom_free(color_cm_rg);
-    aom_free(color_cm_by);
-    return NULL;
+  if (normalized_map(rg_map, width, height, color_cm[0]) == 0 ||
+      normalized_map(by_map, width, height, color_cm[1]) == 0) {
+    for (int i = 0; i < 2; ++i) {
+      aom_free(color_cm[i]->buf);
+      aom_free(color_cm[i]);
+    }
+    return 0;
   }
-  color_cm->buf = (double *)aom_malloc(width * height * sizeof(*color_cm->buf));
-  if (!color_cm->buf) {
-    aom_free(color_cm_rg->buf);
-    aom_free(color_cm_by->buf);
-    aom_free(color_cm_rg);
-    aom_free(color_cm_by);
-    aom_free(color_cm);
-    return NULL;
-  }
-  color_cm->height = height;
-  color_cm->width = width;
 
-  for (int r = 0; r < height; ++r) {
-    for (int c = 0; c < width; ++c) {
-      color_cm->buf[r * width + c] =
-          color_cm_rg->buf[r * width + c] + color_cm_by->buf[r * width + c];
+  for (int r = 0; r < height[0]; ++r) {
+    for (int c = 0; c < width[0]; ++c) {
+      output->buf[r * width[0] + c] = color_cm[0]->buf[r * width[0] + c] +
+                                      color_cm[1]->buf[r * width[0] + c];
     }
   }
 
-  aom_free(color_cm_rg->buf);
-  aom_free(color_cm_by->buf);
-  aom_free(color_cm_rg);
-  aom_free(color_cm_by);
+  for (int i = 0; i < 2; ++i) {
+    aom_free(color_cm[i]->buf);
+    aom_free(color_cm[i]);
+  }
 
-  return nomalization_operator(color_cm, 8, true);
+  nomalization_operator(output, 8);
+  return 1;
 }
 
-static saliency_feature_map *normalized_map_orientation(
-    saliency_feature_map *orientation_map[24], int width, int height) {
+static int normalized_map_orientation(saliency_feature_map *orientation_map[24],
+                                      int width[9], int height[9],
+                                      saliency_feature_map *output) {
   int num_fms_per_angle = 6;
 
   saliency_feature_map *ofm[4][6];
-
   for (int i = 0; i < num_fms_per_angle; ++i) {
     for (int j = 0; j < 4; ++j) {
       ofm[j][i] = orientation_map[j * num_fms_per_angle + i];
@@ -1062,53 +836,38 @@ static saliency_feature_map *normalized_map_orientation(
   }
 
   // extract conspicuity map for each angle
-  saliency_feature_map *nofm[4];
-  for (int j = 0; j < 4; ++j) {
-    nofm[j] = normalized_map(ofm[j], width, height);
-    if (nofm[j] == NULL) {
-      for (int l = 0; l < j; ++l) {
-        aom_free(nofm[l]->buf);
-        aom_free(nofm[l]);
-      }
-      return NULL;
-    }
-    nofm[j]->height = height;
-    nofm[j]->width = width;
+  saliency_feature_map *nofm = aom_malloc(sizeof(*nofm));
+  if (!nofm) {
+    return 0;
   }
-
-  saliency_feature_map *orientation_cm = aom_malloc(sizeof(*orientation_cm));
-  if (!orientation_cm) {
-    for (int l = 0; l < 4; ++l) {
-      aom_free(nofm[l]->buf);
-      aom_free(nofm[l]);
-    }
-    return NULL;
+  nofm->buf = (double *)aom_malloc(width[0] * height[0] * sizeof(*nofm->buf));
+  if (!nofm->buf) {
+    aom_free(nofm);
+    return 0;
   }
-  orientation_cm->buf =
-      (double *)aom_malloc(width * height * sizeof(*orientation_cm->buf));
-  if (!orientation_cm->buf) {
-    for (int l = 0; l < 4; ++l) {
-      aom_free(nofm[l]->buf);
-      aom_free(nofm[l]);
-    }
-    aom_free(orientation_cm);
-    return NULL;
-  }
-  orientation_cm->height = height;
-  orientation_cm->width = width;
-  memset(orientation_cm->buf, 0, width * height * sizeof(double));
+  nofm->height = height[0];
+  nofm->width = width[0];
 
   for (int i = 0; i < 4; ++i) {
-    for (int r = 0; r < height; ++r) {
-      for (int c = 0; c < width; ++c) {
-        orientation_cm->buf[r * width + c] += nofm[i]->buf[r * width + c];
+    memset(nofm->buf, 0, width[0] * height[0] * sizeof(*nofm->buf));
+    if (normalized_map(ofm[i], width, height, nofm) == 0) {
+      aom_free(nofm->buf);
+      aom_free(nofm);
+      return 0;
+    }
+
+    for (int r = 0; r < height[0]; ++r) {
+      for (int c = 0; c < width[0]; ++c) {
+        output->buf[r * width[0] + c] += nofm->buf[r * width[0] + c];
       }
     }
-    aom_free(nofm[i]->buf);
-    aom_free(nofm[i]);
   }
 
-  return nomalization_operator(orientation_cm, 8, true);
+  aom_free(nofm->buf);
+  aom_free(nofm);
+
+  nomalization_operator(output, 8);
+  return 1;
 }
 
 // Set pixel level saliency mask based on Itti-Koch algorithm
@@ -1117,6 +876,17 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
 
   int frm_width = cm->width;
   int frm_height = cm->height;
+
+  int pyr_height[9];
+  int pyr_width[9];
+
+  pyr_height[0] = frm_height;
+  pyr_width[0] = frm_width;
+
+  for (int i = 1; i < 9; ++i) {
+    pyr_width[i] = pyr_width[i - 1] / 2;
+    pyr_height[i] = pyr_height[i - 1] / 2;
+  }
 
   double *cr = aom_malloc(frm_width * frm_height * sizeof(*cr));
   double *cg = aom_malloc(frm_width * frm_height * sizeof(*cg));
@@ -1139,6 +909,9 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
   // intensity map
   saliency_feature_map *i_map[6];
   for (int i = 0; i < 6; ++i) {
+    int cur_height = pyr_height[(i / 2) + 2];
+    int cur_width = pyr_width[(i / 2) + 2];
+
     i_map[i] = (saliency_feature_map *)aom_malloc(sizeof(*i_map[i]));
     if (!i_map[i]) {
       aom_free(cr);
@@ -1150,9 +923,24 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
       }
       return 0;
     }
+    i_map[i]->buf =
+        (double *)aom_malloc(cur_height * cur_width * sizeof(*i_map[i]->buf));
+    if (!i_map[i]->buf) {
+      aom_free(cr);
+      aom_free(cg);
+      aom_free(cb);
+      aom_free(intensity);
+      for (int l = 0; l < i; ++l) {
+        aom_free(i_map[l]->buf);
+        aom_free(i_map[l]);
+      }
+      return 0;
+    }
+    i_map[i]->height = cur_height;
+    i_map[i]->width = cur_width;
   }
 
-  if (get_feature_map_intensity(intensity, frm_width, frm_height, i_map) == 0) {
+  if (get_feature_map_intensity(intensity, pyr_width, pyr_height, i_map) == 0) {
     aom_free(cr);
     aom_free(cg);
     aom_free(cb);
@@ -1167,6 +955,8 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
   // RGB map
   saliency_feature_map *rg_map[6], *by_map[6];
   for (int i = 0; i < 6; ++i) {
+    int cur_height = pyr_height[(i / 2) + 2];
+    int cur_width = pyr_width[(i / 2) + 2];
     rg_map[i] = (saliency_feature_map *)aom_malloc(sizeof(*rg_map[i]));
     by_map[i] = (saliency_feature_map *)aom_malloc(sizeof(*by_map[i]));
     if (!rg_map[i] || !by_map[i]) {
@@ -1182,9 +972,34 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
       }
       return 0;
     }
+    rg_map[i]->buf =
+        (double *)aom_malloc(cur_height * cur_width * sizeof(*rg_map[i]->buf));
+    by_map[i]->buf =
+        (double *)aom_malloc(cur_height * cur_width * sizeof(*by_map[i]->buf));
+    if (!by_map[i]->buf || !rg_map[i]->buf) {
+      aom_free(cr);
+      aom_free(cg);
+      aom_free(cb);
+      aom_free(intensity);
+      for (int l = 0; l < 6; ++l) {
+        aom_free(i_map[l]->buf);
+        aom_free(i_map[l]);
+      }
+      for (int l = 0; l < i; ++l) {
+        aom_free(rg_map[l]->buf);
+        aom_free(by_map[l]->buf);
+        aom_free(rg_map[l]);
+        aom_free(by_map[l]);
+      }
+      return 0;
+    }
+    rg_map[i]->height = cur_height;
+    rg_map[i]->width = cur_width;
+    by_map[i]->height = cur_height;
+    by_map[i]->width = cur_width;
   }
 
-  if (get_feature_map_rgb(cr, cg, cb, frm_width, frm_height, rg_map, by_map) ==
+  if (get_feature_map_rgb(cr, cg, cb, pyr_width, pyr_height, rg_map, by_map) ==
       0) {
     aom_free(cr);
     aom_free(cg);
@@ -1204,6 +1019,9 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
   // Orientation map
   saliency_feature_map *orientation_map[24];
   for (int i = 0; i < 24; ++i) {
+    int cur_height = pyr_height[((i % 6) / 2) + 2];
+    int cur_width = pyr_width[((i % 6) / 2) + 2];
+
     orientation_map[i] =
         (saliency_feature_map *)aom_malloc(sizeof(*orientation_map[i]));
     if (!orientation_map[i]) {
@@ -1224,8 +1042,37 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
       }
       return 0;
     }
+
+    orientation_map[i]->buf = (double *)aom_malloc(
+        cur_height * cur_width * sizeof(*orientation_map[i]->buf));
+    if (!orientation_map[i]->buf) {
+      aom_free(cr);
+      aom_free(cg);
+      aom_free(cb);
+      aom_free(intensity);
+      for (int l = 0; l < 6; ++l) {
+        aom_free(i_map[l]->buf);
+        aom_free(rg_map[l]->buf);
+        aom_free(by_map[l]->buf);
+        aom_free(i_map[l]);
+        aom_free(rg_map[l]);
+        aom_free(by_map[l]);
+      }
+
+      for (int h = 0; h < i; ++h) {
+        aom_free(orientation_map[h]->buf);
+        aom_free(orientation_map[h]->buf);
+        aom_free(orientation_map[h]);
+        aom_free(orientation_map[h]);
+      }
+      return 0;
+    }
+
+    orientation_map[i]->height = cur_height;
+    orientation_map[i]->width = cur_width;
   }
-  if (get_feature_map_orientation(intensity, frm_width, frm_height,
+
+  if (get_feature_map_orientation(intensity, pyr_width, pyr_height,
                                   orientation_map) == 0) {
     aom_free(cr);
     aom_free(cg);
@@ -1251,13 +1098,84 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
   aom_free(cb);
   aom_free(intensity);
 
+  saliency_feature_map
+      *normalized_maps[3];  // 0: intensity, 1: color, 2: orientation
+
+  for (int i = 0; i < 3; ++i) {
+    normalized_maps[i] = aom_malloc(sizeof(*normalized_maps[i]));
+    if (!normalized_maps[i]) {
+      for (int l = 0; l < 6; ++l) {
+        aom_free(i_map[l]->buf);
+        aom_free(rg_map[l]->buf);
+        aom_free(by_map[l]->buf);
+        aom_free(i_map[l]);
+        aom_free(rg_map[l]);
+        aom_free(by_map[l]);
+      }
+
+      for (int h = 0; h < 24; ++h) {
+        aom_free(orientation_map[h]->buf);
+        aom_free(orientation_map[h]);
+      }
+
+      for (int l = 0; l < i; ++l) {
+        aom_free(normalized_maps[l]);
+      }
+      return 0;
+    }
+    normalized_maps[i]->buf = (double *)aom_malloc(
+        frm_width * frm_height * sizeof(*normalized_maps[i]->buf));
+    if (!normalized_maps[i]->buf) {
+      for (int l = 0; l < 6; ++l) {
+        aom_free(i_map[l]->buf);
+        aom_free(rg_map[l]->buf);
+        aom_free(by_map[l]->buf);
+        aom_free(i_map[l]);
+        aom_free(rg_map[l]);
+        aom_free(by_map[l]);
+      }
+      for (int h = 0; h < 24; ++h) {
+        aom_free(orientation_map[h]->buf);
+        aom_free(orientation_map[h]);
+      }
+      for (int l = 0; l < i; ++l) {
+        aom_free(normalized_maps[l]->buf);
+        aom_free(normalized_maps[l]);
+      }
+      return 0;
+    }
+    normalized_maps[i]->width = frm_width;
+    normalized_maps[i]->height = frm_height;
+    memset(normalized_maps[i]->buf, 0,
+           frm_width * frm_height * sizeof(*normalized_maps[i]->buf));
+  }
+
   // Conspicuity map generation
-  saliency_feature_map *intensity_nm =
-      normalized_map(i_map, frm_width, frm_height);
-  saliency_feature_map *color_nm =
-      normalized_map_rgb(rg_map, by_map, frm_width, frm_height);
-  saliency_feature_map *orientation_nm =
-      normalized_map_orientation(orientation_map, frm_width, frm_height);
+  if (normalized_map(i_map, pyr_width, pyr_height, normalized_maps[0]) == 0 ||
+      normalized_map_rgb(rg_map, by_map, pyr_width, pyr_height,
+                         normalized_maps[1]) == 0 ||
+      normalized_map_orientation(orientation_map, pyr_width, pyr_height,
+                                 normalized_maps[2]) == 0) {
+    for (int i = 0; i < 6; ++i) {
+      aom_free(i_map[i]->buf);
+      aom_free(rg_map[i]->buf);
+      aom_free(by_map[i]->buf);
+      aom_free(i_map[i]);
+      aom_free(rg_map[i]);
+      aom_free(by_map[i]);
+    }
+
+    for (int i = 0; i < 24; ++i) {
+      aom_free(orientation_map[i]->buf);
+      aom_free(orientation_map[i]);
+    }
+
+    for (int i = 0; i < 3; ++i) {
+      aom_free(normalized_maps[i]->buf);
+      aom_free(normalized_maps[i]);
+    }
+    return 0;
+  }
 
   for (int i = 0; i < 6; ++i) {
     aom_free(i_map[i]->buf);
@@ -1277,28 +1195,20 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
   saliency_feature_map *combined_saliency_map =
       aom_malloc(sizeof(*combined_saliency_map));
   if (!combined_saliency_map) {
-    aom_free(intensity_nm->buf);
-    aom_free(intensity_nm);
-
-    aom_free(color_nm->buf);
-    aom_free(color_nm);
-
-    aom_free(orientation_nm->buf);
-    aom_free(orientation_nm);
+    for (int i = 0; i < 3; ++i) {
+      aom_free(normalized_maps[i]->buf);
+      aom_free(normalized_maps[i]);
+    }
     return 0;
   }
 
   combined_saliency_map->buf = (double *)aom_malloc(
       frm_width * frm_height * sizeof(*combined_saliency_map->buf));
   if (!combined_saliency_map->buf) {
-    aom_free(intensity_nm->buf);
-    aom_free(intensity_nm);
-
-    aom_free(color_nm->buf);
-    aom_free(color_nm);
-
-    aom_free(orientation_nm->buf);
-    aom_free(orientation_nm);
+    for (int i = 0; i < 3; ++i) {
+      aom_free(normalized_maps[i]->buf);
+      aom_free(normalized_maps[i]);
+    }
 
     aom_free(combined_saliency_map);
     return 0;
@@ -1313,14 +1223,13 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
   for (int r = 0; r < frm_height; ++r) {
     for (int c = 0; c < frm_width; ++c) {
       combined_saliency_map->buf[r * frm_width + c] =
-          (w_intensity * intensity_nm->buf[r * frm_width + c] +
-           w_color * color_nm->buf[r * frm_width + c] +
-           w_orient * orientation_nm->buf[r * frm_width + c]);
+          (w_intensity * normalized_maps[0]->buf[r * frm_width + c] +
+           w_color * normalized_maps[1]->buf[r * frm_width + c] +
+           w_orient * normalized_maps[2]->buf[r * frm_width + c]);
     }
   }
 
-  combined_saliency_map =
-      minmax_normalize(combined_saliency_map);  // Normalization
+  minmax_normalize(combined_saliency_map);  // Normalization
 
   for (int r = 0; r < frm_height; ++r) {
     for (int c = 0; c < frm_width; ++c) {
@@ -1330,14 +1239,10 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
     }
   }
 
-  aom_free(intensity_nm->buf);
-  aom_free(intensity_nm);
-
-  aom_free(color_nm->buf);
-  aom_free(color_nm);
-
-  aom_free(orientation_nm->buf);
-  aom_free(orientation_nm);
+  for (int i = 0; i < 3; ++i) {
+    aom_free(normalized_maps[i]->buf);
+    aom_free(normalized_maps[i]);
+  }
 
   aom_free(combined_saliency_map->buf);
   aom_free(combined_saliency_map);
