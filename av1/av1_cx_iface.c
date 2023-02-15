@@ -3506,6 +3506,13 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
     ctx->ppi->use_svc = 1;
     const int num_layers =
         ppi->number_spatial_layers * ppi->number_temporal_layers;
+    for (int layer = 0; layer < num_layers; ++layer) {
+      if (params->max_quantizers[layer] > 63 ||
+          params->min_quantizers[layer] < 0 ||
+          params->min_quantizers[layer] > params->max_quantizers[layer]) {
+        return AOM_CODEC_INVALID_PARAM;
+      }
+    }
     if (!av1_alloc_layer_context(cpi, num_layers)) return AOM_CODEC_MEM_ERROR;
 
     for (sl = 0; sl < ppi->number_spatial_layers; ++sl) {
