@@ -29,7 +29,7 @@ typedef struct {
   RATE_CONTROL rc;
   PRIMARY_RATE_CONTROL p_rc;
   int framerate_factor;
-  int64_t layer_target_bitrate;
+  int64_t layer_target_bitrate;  // In bits per second.
   int scaling_factor_num;
   int scaling_factor_den;
   int64_t target_bandwidth;
@@ -115,11 +115,14 @@ typedef struct SVC {
 
   /*!
    * Layer context used for rate control in CBR mode.
+   * An array. The index for spatial layer `sl` and temporal layer `tl` is
+   * sl * number_temporal_layers + tl.
    */
   LAYER_CONTEXT *layer_context;
 
   /*!
-   * Number of layers allocated for layer_context.
+   * Number of layers allocated for layer_context. If nonzero, must be greater
+   * than or equal to number_spatial_layers * number_temporal_layers.
    */
   int num_allocated_layers;
 
