@@ -308,6 +308,97 @@ INSTANTIATE_TEST_SUITE_P(NEON, TemporalFilterTest,
                                  Values(0, 1)));
 #endif  // HAVE_NEON
 
+typedef double (*EstimateNoiseFunc)(const uint8_t *src, int height, int width,
+                                    int stride, int edge_thresh);
+
+typedef std::tuple<EstimateNoiseFunc, EstimateNoiseFunc, int, int>
+    EstimateNoiseWithParam;
+
+class EstimateNoiseTest
+    : public ::testing::TestWithParam<EstimateNoiseWithParam> {
+ public:
+  virtual ~EstimateNoiseTest() {}
+  virtual void SetUp() {
+    ref_func = GET_PARAM(0);
+    tst_func = GET_PARAM(1);
+    width_ = GET_PARAM(2);
+    height_ = GET_PARAM(3);
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+    src1_ = reinterpret_cast<uint8_t *>(
+        aom_memalign(8, sizeof(uint8_t) * width_ * height_));
+    GenRandomData(width_ * height_);
+    ASSERT_NE(src1_, nullptr);
+  }
+
+  virtual void TearDown() { aom_free(src1_); }
+
+  void RunTest(int run_times) {
+    stride_ = width_;
+
+    for (int i = 0; i < run_times; i++) {
+      double ref_out = ref_func(src1_, height_, width_, stride_,
+                                NOISE_ESTIMATION_EDGE_THRESHOLD);
+
+      double tst_out = tst_func(src1_, height_, width_, stride_,
+                                NOISE_ESTIMATION_EDGE_THRESHOLD);
+
+      EXPECT_EQ(ref_out, tst_out);
+    }
+  }
+
+  void SpeedTest(int run_times) {
+    stride_ = width_;
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < run_times; i++) {
+      ref_func(src1_, height_, width_, stride_,
+               NOISE_ESTIMATION_EDGE_THRESHOLD);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < run_times; i++) {
+      tst_func(src1_, height_, width_, stride_,
+               NOISE_ESTIMATION_EDGE_THRESHOLD);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+
+    printf("(%3.2f)\n", time1 / time2);
+  }
+
+  void GenRandomData(int size) {
+    for (int ii = 0; ii < size; ii++) src1_[ii] = rnd_.Rand8();
+  }
+
+ protected:
+  EstimateNoiseFunc ref_func;
+  EstimateNoiseFunc tst_func;
+  ACMRandom rnd_;
+  uint8_t *src1_;
+  int width_;
+  int height_;
+  int stride_;
+};
+
+TEST_P(EstimateNoiseTest, RandomValues) { RunTest(1); }
+
+TEST_P(EstimateNoiseTest, DISABLED_Speed) { SpeedTest(2000); }
+
+#if HAVE_AVX2
+// Width and height for which av1_estimate_noise_from_single_plane() will be
+// tested.
+int width[] = { 3840, 1920, 1280, 800, 640, 360, 357 };
+int height[] = { 2160, 1080, 720, 600, 480, 240, 237 };
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, EstimateNoiseTest,
+    ::testing::Combine(
+        ::testing::Values(av1_estimate_noise_from_single_plane_c),
+        ::testing::Values(av1_estimate_noise_from_single_plane_avx2),
+        ::testing::ValuesIn(width), ::testing::ValuesIn(height)));
+#endif  // HAVE_AVX2
+
 #if CONFIG_AV1_HIGHBITDEPTH
 
 typedef void (*HBDTemporalFilterFunc)(

@@ -4107,10 +4107,10 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
       // No noise synthesis if source is very clean.
       // Uses a low edge threshold to focus on smooth areas.
       // Increase output noise setting a little compared to measured value.
-      cpi->oxcf.noise_level =
-          (float)(av1_estimate_noise_from_single_plane(
-                      sd, 0, cm->seq_params->bit_depth, 16) -
-                  0.1);
+      double y_noise_level = 0.0;
+      av1_estimate_noise_level(sd, &y_noise_level, AOM_PLANE_Y, AOM_PLANE_Y,
+                               cm->seq_params->bit_depth, 16);
+      cpi->oxcf.noise_level = (float)(y_noise_level - 0.1);
       cpi->oxcf.noise_level = (float)AOMMAX(0.0, cpi->oxcf.noise_level);
       if (cpi->oxcf.noise_level > 0.0) {
         cpi->oxcf.noise_level += (float)0.5;

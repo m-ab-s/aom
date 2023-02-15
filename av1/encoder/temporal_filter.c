@@ -1008,11 +1008,9 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   const YV12_BUFFER_CONFIG *to_filter_frame = &to_filter_buf->img;
   const int num_planes = av1_num_planes(&cpi->common);
   double *noise_levels = tf_ctx->noise_levels;
-  for (int plane = 0; plane < num_planes; ++plane) {
-    noise_levels[plane] = av1_estimate_noise_from_single_plane(
-        to_filter_frame, plane, cpi->common.seq_params->bit_depth,
-        NOISE_ESTIMATION_EDGE_THRESHOLD);
-  }
+  av1_estimate_noise_level(to_filter_frame, noise_levels, AOM_PLANE_Y,
+                           num_planes - 1, cpi->common.seq_params->bit_depth,
+                           NOISE_ESTIMATION_EDGE_THRESHOLD);
   // Get quantization factor.
   const int q = av1_get_q(cpi);
   // Get correlation estimates from first-pass;
@@ -1121,21 +1119,50 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
 
 /*!\cond */
 
-// A constant number, sqrt(pi / 2),  used for noise estimation.
-static const double SQRT_PI_BY_2 = 1.25331413732;
+double av1_estimate_noise_from_single_plane_c(const uint8_t *src, int height,
+                                              int width, int stride,
+                                              int edge_thresh) {
+  int64_t accum = 0;
+  int count = 0;
 
-double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
-                                            const int plane,
-                                            const int bit_depth,
-                                            const int edge_thresh) {
-  const int is_y_plane = (plane == 0);
-  const int height = frame->crop_heights[is_y_plane ? 0 : 1];
-  const int width = frame->crop_widths[is_y_plane ? 0 : 1];
-  const int stride = frame->strides[is_y_plane ? 0 : 1];
-  const uint8_t *src = frame->buffers[plane];
-  const uint16_t *src16 = CONVERT_TO_SHORTPTR(src);
-  const int is_high_bitdepth = is_frame_high_bitdepth(frame);
+  for (int i = 1; i < height - 1; ++i) {
+    for (int j = 1; j < width - 1; ++j) {
+      // Setup a small 3x3 matrix.
+      const int center_idx = i * stride + j;
+      int mat[3][3];
+      for (int ii = -1; ii <= 1; ++ii) {
+        for (int jj = -1; jj <= 1; ++jj) {
+          const int idx = center_idx + ii * stride + jj;
+          mat[ii + 1][jj + 1] = src[idx];
+        }
+      }
+      // Compute sobel gradients.
+      const int Gx = (mat[0][0] - mat[0][2]) + (mat[2][0] - mat[2][2]) +
+                     2 * (mat[1][0] - mat[1][2]);
+      const int Gy = (mat[0][0] - mat[2][0]) + (mat[0][2] - mat[2][2]) +
+                     2 * (mat[0][1] - mat[2][1]);
+      const int Ga = ROUND_POWER_OF_TWO(abs(Gx) + abs(Gy), 0);
+      // Accumulate Laplacian.
+      if (Ga < edge_thresh) {  // Only count smooth pixels.
+        const int v = 4 * mat[1][1] -
+                      2 * (mat[0][1] + mat[2][1] + mat[1][0] + mat[1][2]) +
+                      (mat[0][0] + mat[0][2] + mat[2][0] + mat[2][2]);
+        accum += ROUND_POWER_OF_TWO(abs(v), 0);
+        ++count;
+      }
+    }
+  }
 
+  // Return -1.0 (unreliable estimation) if there are too few smooth pixels.
+  return (count < 16) ? -1.0 : (double)accum / (6 * count) * SQRT_PI_BY_2;
+}
+
+#if CONFIG_AV1_HIGHBITDEPTH
+double av1_highbd_estimate_noise_from_single_plane(const uint16_t *src16,
+                                                   int height, int width,
+                                                   const int stride,
+                                                   int bit_depth,
+                                                   int edge_thresh) {
   int64_t accum = 0;
   int count = 0;
   for (int i = 1; i < height - 1; ++i) {
@@ -1146,7 +1173,7 @@ double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
       for (int ii = -1; ii <= 1; ++ii) {
         for (int jj = -1; jj <= 1; ++jj) {
           const int idx = center_idx + ii * stride + jj;
-          mat[ii + 1][jj + 1] = is_high_bitdepth ? src16[idx] : src[idx];
+          mat[ii + 1][jj + 1] = src16[idx];
         }
       }
       // Compute sobel gradients.
@@ -1168,6 +1195,35 @@ double av1_estimate_noise_from_single_plane(const YV12_BUFFER_CONFIG *frame,
 
   // Return -1.0 (unreliable estimation) if there are too few smooth pixels.
   return (count < 16) ? -1.0 : (double)accum / (6 * count) * SQRT_PI_BY_2;
+}
+#endif
+
+void av1_estimate_noise_level(const YV12_BUFFER_CONFIG *frame,
+                              double *noise_level, int plane_from, int plane_to,
+                              int bit_depth, int edge_thresh) {
+  for (int plane = plane_from; plane <= plane_to; plane++) {
+    const bool is_uv_plane = (plane != AOM_PLANE_Y);
+    const int height = frame->crop_heights[is_uv_plane];
+    const int width = frame->crop_widths[is_uv_plane];
+    const int stride = frame->strides[is_uv_plane];
+    const uint8_t *src = frame->buffers[plane];
+
+#if CONFIG_AV1_HIGHBITDEPTH
+    const uint16_t *src16 = CONVERT_TO_SHORTPTR(src);
+    const int is_high_bitdepth = is_frame_high_bitdepth(frame);
+    if (is_high_bitdepth) {
+      noise_level[plane] = av1_highbd_estimate_noise_from_single_plane(
+          src16, height, width, stride, bit_depth, edge_thresh);
+    } else {
+      noise_level[plane] = av1_estimate_noise_from_single_plane(
+          src, height, width, stride, edge_thresh);
+    }
+#else
+    (void)bit_depth;
+    noise_level[plane] = av1_estimate_noise_from_single_plane(
+        src, height, width, stride, edge_thresh);
+#endif
+  }
 }
 
 // Initializes the members of TemporalFilterCtx
