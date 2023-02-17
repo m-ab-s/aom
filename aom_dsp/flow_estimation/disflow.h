@@ -68,7 +68,7 @@ extern "C" {
 #define DISFLOW_STEP_SIZE_THRESOLD (1. / 8.)
 
 // Max number of iterations if warp convergence is not found
-#define DISFLOW_MAX_ITR 10
+#define DISFLOW_MAX_ITR 4
 
 // Internal precision of cubic interpolation filters
 // The limiting factor here is that:

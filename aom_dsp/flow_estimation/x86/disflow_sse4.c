@@ -527,8 +527,6 @@ void aom_compute_flow_at_point_sse4_1(const uint8_t *src, const uint8_t *ref,
   int16_t dt[DISFLOW_PATCH_SIZE * DISFLOW_PATCH_SIZE];
   int16_t dx[DISFLOW_PATCH_SIZE * DISFLOW_PATCH_SIZE];
   int16_t dy[DISFLOW_PATCH_SIZE * DISFLOW_PATCH_SIZE];
-  const double o_u = *u;
-  const double o_v = *v;
 
   // Compute gradients within this patch
   const uint8_t *src_patch = &src[y * stride + x];
@@ -547,17 +545,12 @@ void aom_compute_flow_at_point_sse4_1(const uint8_t *src, const uint8_t *ref,
     // at this point
     const double step_u = M_inv[0] * b[0] + M_inv[1] * b[1];
     const double step_v = M_inv[2] * b[0] + M_inv[3] * b[1];
-    *u += step_u * DISFLOW_STEP_SIZE;
-    *v += step_v * DISFLOW_STEP_SIZE;
+    *u += fclamp(step_u * DISFLOW_STEP_SIZE, -2, 2);
+    *v += fclamp(step_v * DISFLOW_STEP_SIZE, -2, 2);
 
     if (fabs(step_u) + fabs(step_v) < DISFLOW_STEP_SIZE_THRESOLD) {
       // Stop iteration when we're close to convergence
       break;
     }
-  }
-  if (fabs(*u - o_u) > DISFLOW_PATCH_SIZE ||
-      fabs(*v - o_v) > DISFLOW_PATCH_SIZE) {
-    *u = o_u;
-    *v = o_v;
   }
 }
