@@ -544,6 +544,47 @@ TplGopStats DuckyEncode::ObtainTplStats(const GopStruct gop_struct,
   return tpl_gop_stats;
 }
 
+int GetNextKeyFrameOrderIndex(const std::vector<int> &key_frame_list,
+                              int global_order_idx, int show_frame_count) {
+  const auto iter = std::upper_bound(key_frame_list.begin(),
+                                     key_frame_list.end(), global_order_idx);
+  // If there are no more key frames, return show_frame_count of the
+  // video.
+  return iter != key_frame_list.end() ? *iter : show_frame_count;
+}
+
+int GetCurKeyFrameOrderIndex(const std::vector<int> &key_frame_list,
+                             int global_order_idx) {
+  const auto iter =
+      std::lower_bound(key_frame_list.begin(), key_frame_list.end(),
+                       global_order_idx, std::greater<int>());
+  return iter != key_frame_list.end() ? *iter : 0;
+}
+
+std::vector<int> GetKeyFrameListFromGopList(const GopStructList &gop_list) {
+  std::vector<int> key_frame_list;
+  for (const aom::GopStruct &gop : gop_list) {
+    for (const auto &gop_frame : gop.gop_frame_list) {
+      if (gop_frame.is_key_frame) {
+        key_frame_list.push_back(gop_frame.global_order_idx);
+      }
+    }
+  }
+  return key_frame_list;
+}
+
+void DuckyEncode::SetRelativeKeyFrameLocation(
+    const std::vector<int> &key_frame_list, int global_order_idx,
+    int show_frame_count) {
+  int cur_key_frame_idx =
+      GetCurKeyFrameOrderIndex(key_frame_list, global_order_idx);
+  int next_key_frame_idx = GetNextKeyFrameOrderIndex(
+      key_frame_list, global_order_idx, show_frame_count);
+  AV1_PRIMARY *ppi = impl_ptr_->enc_resource.ppi;
+  ppi->cpi->rc.frames_since_key = global_order_idx - cur_key_frame_idx;
+  ppi->cpi->rc.frames_to_key = next_key_frame_idx - global_order_idx;
+}
+
 // Obtain TPL stats through ducky_encode.
 // TODO(jianj): Populate rate_dist_present flag through qmode_rc_encoder
 std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
@@ -556,6 +597,7 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
   const VideoInfo &video_info = impl_ptr_->video_info;
   write_temp_delimiter_ = true;
   AllocateBitstreamBuffer(video_info);
+  std::vector<int> key_frame_list = GetKeyFrameListFromGopList(gop_list);
 
   // Go through each gop and encode each frame in the gop
   for (size_t i = 0; i < gop_list.size(); ++i) {
@@ -565,7 +607,14 @@ std::vector<TplGopStats> DuckyEncode::ComputeTplStats(
     DuckyEncodeInfoSetGopStruct(ppi, gop_struct, gop_encode_info);
 
     aom::TplGopStats tpl_gop_stats;
-    for (auto &frame_param : gop_encode_info.param_list) {
+    for (size_t j = 0; j < gop_encode_info.param_list.size(); ++j) {
+      assert(gop_encode_info.param_list.size() ==
+             gop_struct.gop_frame_list.size());
+      const FrameEncodeParameters &frame_param = gop_encode_info.param_list[j];
+      const GopFrame &gop_frame = gop_struct.gop_frame_list[j];
+      SetRelativeKeyFrameLocation(key_frame_list, gop_frame.global_order_idx,
+                                  video_info.frame_count);
+
       // encoding frame frame_number
       aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,
                                                   aom::EncodeGopMode::kGopRcl,
@@ -592,6 +641,7 @@ std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
 
   write_temp_delimiter_ = true;
   AllocateBitstreamBuffer(video_info);
+  std::vector<int> key_frame_list = GetKeyFrameListFromGopList(gop_list);
 
   // Go through each gop and encode each frame in the gop
   for (size_t i = 0; i < gop_list.size(); ++i) {
@@ -599,7 +649,13 @@ std::vector<EncodeFrameResult> DuckyEncode::EncodeVideo(
     const aom::GopEncodeInfo &gop_encode_info = gop_encode_info_list[i];
     DuckyEncodeInfoSetGopStruct(ppi, gop_struct, gop_encode_info);
 
-    for (auto &frame_param : gop_encode_info.param_list) {
+    for (size_t j = 0; j < gop_encode_info.param_list.size(); ++j) {
+      assert(gop_encode_info.param_list.size() ==
+             gop_struct.gop_frame_list.size());
+      const FrameEncodeParameters &frame_param = gop_encode_info.param_list[j];
+      const GopFrame &gop_frame = gop_struct.gop_frame_list[j];
+      SetRelativeKeyFrameLocation(key_frame_list, gop_frame.global_order_idx,
+                                  video_info.frame_count);
       aom::EncodeFrameDecision frame_decision = { aom::EncodeFrameMode::kQindex,
                                                   aom::EncodeGopMode::kGopRcl,
                                                   frame_param };

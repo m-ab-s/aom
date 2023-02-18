@@ -98,6 +98,8 @@ class DuckyEncode {
   void InitEncoder(aom_enc_pass pass,
                    const std::vector<FIRSTPASS_STATS> *stats_list);
   void FreeEncoder();
+  void SetRelativeKeyFrameLocation(const std::vector<int> &key_frame_list,
+                                   int global_order_idx, int show_frame_count);
 
  private:
   class EncodeImpl;
