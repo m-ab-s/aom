@@ -619,8 +619,8 @@ static int get_feature_map_orientation(const double *intensity, int width[9],
 static INLINE void find_min_max(const saliency_feature_map *input,
                                 double *max_value, double *min_value) {
   assert(input && input->buf);
-  *min_value = 1;
-  *max_value = 0;
+  *min_value = INT_MAX;
+  *max_value = INT_MIN;
 
   for (int i = 0; i < input->height; ++i) {
     for (int j = 0; j < input->width; ++j) {
@@ -1229,8 +1229,6 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
     }
   }
 
-  minmax_normalize(combined_saliency_map);  // Normalization
-
   for (int r = 0; r < frm_height; ++r) {
     for (int c = 0; c < frm_width; ++c) {
       int index = r * frm_width + c;
@@ -1248,4 +1246,163 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
   aom_free(combined_saliency_map);
 
   return 1;
+}
+
+// Set superblock level saliency mask for rdmult scaling
+int setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio) {
+  AV1_COMMON *cm = &cpi->common;
+
+  saliency_feature_map *sb_saliency_map =
+      aom_malloc(sizeof(saliency_feature_map));
+
+  if (sb_saliency_map == NULL) {
+    return 0;
+  }
+
+  const int bsize = cm->seq_params->sb_size;
+  const int num_mi_w = mi_size_wide[bsize];
+  const int num_mi_h = mi_size_high[bsize];
+  const int block_width = block_size_wide[bsize];
+  const int block_height = block_size_high[bsize];
+  const int num_sb_cols = (cm->mi_params.mi_cols + num_mi_w - 1) / num_mi_w;
+  const int num_sb_rows = (cm->mi_params.mi_rows + num_mi_h - 1) / num_mi_h;
+
+  sb_saliency_map->height = num_sb_rows;
+  sb_saliency_map->width = num_sb_cols;
+  sb_saliency_map->buf = (double *)aom_malloc(num_sb_rows * num_sb_cols *
+                                              sizeof(*sb_saliency_map->buf));
+
+  if (sb_saliency_map->buf == NULL) {
+    aom_free(sb_saliency_map);
+    return 0;
+  }
+
+  for (int row = 0; row < num_sb_rows; ++row) {
+    for (int col = 0; col < num_sb_cols; ++col) {
+      const int index = row * num_sb_cols + col;
+      double total_pixel = 0;
+      double total_weight = 0;
+
+      for (int i = 0; i < block_height; i++) {
+        for (int j = 0; j < block_width; j++) {
+          if ((row * block_height + i) >= cpi->common.height ||
+              (col * block_width + j) >= cpi->common.width)
+            continue;
+          total_pixel++;
+          total_weight +=
+              cpi->saliency_map[(row * block_height + i) * cpi->common.width +
+                                col * block_width + j];
+        }
+      }
+
+      assert(total_pixel > 0);
+
+      // Caculate the superblock level saliency map from pixel level saliency
+      // map
+      sb_saliency_map->buf[index] = total_weight / total_pixel;
+
+      // Further lower the superblock saliency score for boundary superblocks.
+      if (row < 1 || row > num_sb_rows - 2 || col < 1 ||
+          col > num_sb_cols - 2) {
+        sb_saliency_map->buf[index] /= 5;
+      }
+    }
+  }
+
+  minmax_normalize(
+      sb_saliency_map);  // superblock level saliency map finalization
+
+  double log_sum, sum;
+  log_sum = 0.0;
+  sum = 0.0;
+  int block_count = 0;
+
+  // Calculate the average superblock sm_scaling_factor for a frame, to be used
+  // for clamping later.
+  for (int row = 0; row < num_sb_rows; ++row) {
+    for (int col = 0; col < num_sb_cols; ++col) {
+      const int index = row * num_sb_cols + col;
+      double saliency = sb_saliency_map->buf[index];
+
+      cpi->sm_scaling_factor[index] = 1 - saliency;
+      sum += cpi->sm_scaling_factor[index];
+      block_count++;
+    }
+  }
+  assert(block_count > 0);
+  sum /= block_count;
+
+  // Calculate the geometric mean of superblock sm_scaling_factor for a frame,
+  // to be used for normalization.
+  for (int row = 0; row < num_sb_rows; ++row) {
+    for (int col = 0; col < num_sb_cols; ++col) {
+      const int index = row * num_sb_cols + col;
+      log_sum += log(fmax(cpi->sm_scaling_factor[index], 0.001));
+      cpi->sm_scaling_factor[index] =
+          fmax(cpi->sm_scaling_factor[index], 0.8 * sum);
+    }
+  }
+
+  log_sum = exp(log_sum / block_count);
+
+  // Normalize the sm_scaling_factor by geometric mean.
+  for (int row = 0; row < num_sb_rows; ++row) {
+    for (int col = 0; col < num_sb_cols; ++col) {
+      const int index = row * num_sb_cols + col;
+      assert(log_sum > 0);
+      cpi->sm_scaling_factor[index] /= log_sum;
+
+      // Modulate the sm_scaling_factor by frame basis motion factor
+      cpi->sm_scaling_factor[index] =
+          cpi->sm_scaling_factor[index] * motion_ratio;
+    }
+  }
+
+  aom_free(sb_saliency_map->buf);
+  aom_free(sb_saliency_map);
+  return 1;
+}
+
+// Set motion_ratio that reflects the motion quantities between two consecutive
+// frames. Motion_ratio will be used to set up saliency_map based rdmult scaling
+// factor, i.e., the less the motion quantities are, the more bits will be spent
+// on this frame, and vice versa.
+double setup_motion_ratio(AV1_COMP *cpi) {
+  AV1_COMMON *cm = &cpi->common;
+  int frames_since_key =
+      cm->current_frame.display_order_hint - cpi->rc.frames_since_key;
+  const FIRSTPASS_STATS *cur_stats = av1_firstpass_info_peek(
+      &cpi->ppi->twopass.firstpass_info, frames_since_key);
+  assert(cur_stats != NULL);
+  assert(cpi->ppi->twopass.firstpass_info.total_stats.count > 0);
+
+  const double avg_intra_error =
+      exp(cpi->ppi->twopass.firstpass_info.total_stats.log_intra_error /
+          cpi->ppi->twopass.firstpass_info.total_stats.count);
+  const double avg_inter_error =
+      exp(cpi->ppi->twopass.firstpass_info.total_stats.log_coded_error /
+          cpi->ppi->twopass.firstpass_info.total_stats.count);
+
+  double inter_error = cur_stats->coded_error;
+  double error_stdev = 0;
+  const double avg_error =
+      cpi->ppi->twopass.firstpass_info.total_stats.intra_error /
+      cpi->ppi->twopass.firstpass_info.total_stats.count;
+  for (int i = 0; i < cpi->ppi->twopass.firstpass_info.total_stats.count; i++) {
+    const FIRSTPASS_STATS *stats =
+        &cpi->ppi->twopass.firstpass_info.stats_buf[i];
+    error_stdev +=
+        (stats->intra_error - avg_error) * (stats->intra_error - avg_error);
+  }
+  error_stdev =
+      sqrt(error_stdev / cpi->ppi->twopass.firstpass_info.total_stats.count);
+
+  double motion_ratio = 1;
+  if (error_stdev / fmax(avg_intra_error, 1) > 0.1) {
+    motion_ratio = inter_error / fmax(1, avg_inter_error);
+    motion_ratio = AOMMIN(motion_ratio, 1.5);
+    motion_ratio = AOMMAX(motion_ratio, 0.8);
+  }
+
+  return motion_ratio;
 }

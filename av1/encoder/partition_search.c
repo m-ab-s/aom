@@ -614,15 +614,22 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
     av1_set_ssim_rdmult(cpi, &x->errorperbit, bsize, mi_row, mi_col,
                         &x->rdmult);
   }
+#if CONFIG_SALIENCY_MAP
+  else if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_SALIENCY_MAP) {
+    av1_set_saliency_map_vmaf_rdmult(cpi, &x->errorperbit,
+                                     cm->seq_params->sb_size, mi_row, mi_col,
+                                     &x->rdmult);
+  }
+#endif
 #if CONFIG_TUNE_VMAF
-  if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN ||
-      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
+  else if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
+           cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN ||
+           cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
     av1_set_vmaf_rdmult(cpi, x, bsize, mi_row, mi_col, &x->rdmult);
   }
 #endif
 #if CONFIG_TUNE_BUTTERAUGLI
-  if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
+  else if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
     av1_set_butteraugli_rdmult(cpi, x, bsize, mi_row, mi_col, &x->rdmult);
   }
 #endif

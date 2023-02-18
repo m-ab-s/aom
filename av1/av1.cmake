@@ -221,8 +221,6 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/rdopt_utils.h"
             "${AOM_ROOT}/av1/encoder/reconinter_enc.c"
             "${AOM_ROOT}/av1/encoder/reconinter_enc.h"
-            "${AOM_ROOT}/av1/encoder/saliency_map.c"
-            "${AOM_ROOT}/av1/encoder/saliency_map.h"
             "${AOM_ROOT}/av1/encoder/segmentation.c"
             "${AOM_ROOT}/av1/encoder/segmentation.h"
             "${AOM_ROOT}/av1/encoder/sorting_network.h"
@@ -401,6 +399,11 @@ if(CONFIG_TUNE_BUTTERAUGLI)
   list(APPEND AOM_AV1_ENCODER_SOURCES
               "${AOM_ROOT}/av1/encoder/tune_butteraugli.c"
               "${AOM_ROOT}/av1/encoder/tune_butteraugli.h")
+endif()
+
+if(CONFIG_SALIENCY_MAP)
+  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/saliency_map.c"
+              "${AOM_ROOT}/av1/encoder/saliency_map.h")
 endif()
 
 if(CONFIG_OPTICAL_FLOW_API)

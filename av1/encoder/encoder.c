@@ -76,7 +76,9 @@
 #include "av1/encoder/rc_utils.h"
 #include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt.h"
+#if CONFIG_SALIENCY_MAP
 #include "av1/encoder/saliency_map.h"
+#endif
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/superres_scale.h"
@@ -1395,12 +1397,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
 
   cpi->refresh_frame.alt_ref_frame = false;
 
-  if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_SALIENCY_MAP) {
-    CHECK_MEM_ERROR(cm, cpi->saliency_map,
-                    (uint8_t *)aom_calloc(cm->height * cm->width,
-                                          sizeof(*cpi->saliency_map)));
-  }
-
 #if CONFIG_SPEED_STATS
   cpi->tx_search_count = 0;
 #endif  // CONFIG_SPEED_STATS
@@ -1524,6 +1520,23 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
     memset(&cpi->butteraugli_info.resized_source, 0,
            sizeof(cpi->butteraugli_info.resized_source));
     cpi->butteraugli_info.recon_set = false;
+  }
+#endif
+
+#if CONFIG_SALIENCY_MAP
+  {
+    CHECK_MEM_ERROR(cm, cpi->saliency_map,
+                    (uint8_t *)aom_calloc(cm->height * cm->width,
+                                          sizeof(*cpi->saliency_map)));
+    const int bsize = cm->seq_params->sb_size;
+    const int w = mi_size_wide[bsize];
+    const int h = mi_size_high[bsize];
+    const int num_cols = (cm->mi_params.mi_cols + w - 1) / w;
+    const int num_rows = (cm->mi_params.mi_rows + h - 1) / h;
+
+    CHECK_MEM_ERROR(cm, cpi->sm_scaling_factor,
+                    (double *)aom_calloc(num_rows * num_cols,
+                                         sizeof(*cpi->sm_scaling_factor)));
   }
 #endif
 
@@ -1684,7 +1697,6 @@ void av1_remove_compressor(AV1_COMP *cpi) {
 
   aom_free(cm->error);
   aom_free(cpi->td.tctx);
-  aom_free(cpi->saliency_map);
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *const enc_row_mt_mutex_ = mt_info->enc_row_mt.mutex_;
@@ -2188,7 +2200,6 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     }
 #endif
   }
-
   if (is_stat_consumption_stage(cpi)) {
     av1_set_target_rate(cpi, cm->width, cm->height);
   }
@@ -3728,12 +3739,19 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
 
   if (oxcf->tune_cfg.tuning == AOM_TUNE_SSIM) {
     av1_set_mb_ssim_rdmult_scaling(cpi);
-  } else if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_SALIENCY_MAP &&
-             !(cpi->source->flags & YV12_FLAG_HIGHBITDEPTH)) {
+  }
+#if CONFIG_SALIENCY_MAP
+  else if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_SALIENCY_MAP &&
+           !(cpi->source->flags & YV12_FLAG_HIGHBITDEPTH)) {
     if (av1_set_saliency_map(cpi) == 0) {
       return AOM_CODEC_MEM_ERROR;
     }
+    double motion_ratio = setup_motion_ratio(cpi);
+    if (setup_sm_rdmult_scaling_factor(cpi, motion_ratio) == 0) {
+      return AOM_CODEC_MEM_ERROR;
+    }
   }
+#endif
 #if CONFIG_TUNE_VMAF
   else if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
            oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN ||

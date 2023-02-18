@@ -93,6 +93,8 @@ void av1_twopass_zero_stats(FIRSTPASS_STATS *section) {
   section->intra_error = 0.0;
   section->frame_avg_wavelet_energy = 0.0;
   section->coded_error = 0.0;
+  section->log_intra_error = 0.0;
+  section->log_coded_error = 0.0;
   section->sr_coded_error = 0.0;
   section->pcnt_inter = 0.0;
   section->pcnt_motion = 0.0;
@@ -121,6 +123,8 @@ void av1_accumulate_stats(FIRSTPASS_STATS *section,
   section->frame += frame->frame;
   section->weight += frame->weight;
   section->intra_error += frame->intra_error;
+  section->log_intra_error += log(frame->intra_error);
+  section->log_coded_error += log(frame->coded_error);
   section->frame_avg_wavelet_energy += frame->frame_avg_wavelet_energy;
   section->coded_error += frame->coded_error;
   section->sr_coded_error += frame->sr_coded_error;
@@ -827,7 +831,8 @@ static void normalize_firstpass_stats(FIRSTPASS_STATS *fps,
   fps->sr_coded_error /= num_mbs_16x16;
   fps->intra_error /= num_mbs_16x16;
   fps->frame_avg_wavelet_energy /= num_mbs_16x16;
-
+  fps->log_coded_error = log(fps->coded_error);
+  fps->log_intra_error = log(fps->intra_error);
   fps->MVr /= f_h;
   fps->mvr_abs /= f_h;
   fps->MVc /= f_w;
@@ -892,6 +897,8 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   fps.is_flash = 0;
   fps.noise_var = (double)0;
   fps.cor_coeff = (double)1.0;
+  fps.log_coded_error = (double)0;
+  fps.log_intra_error = (double)0;
 
   if (stats->mv_count > 0) {
     fps.MVr = (double)stats->sum_mvr / stats->mv_count;

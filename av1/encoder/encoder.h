@@ -3481,10 +3481,17 @@ typedef struct AV1_COMP {
    */
   int image_pyramid_levels;
 
+#if CONFIG_SALIENCY_MAP
   /*!
    * Pixel level saliency map for each frame.
    */
   uint8_t *saliency_map;
+
+  /*!
+   * Superblock level rdmult scaling factor driven by saliency map.
+   */
+  double *sm_scaling_factor;
+#endif
 } AV1_COMP;
 
 /*!
