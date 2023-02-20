@@ -775,8 +775,7 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
 
   // Adjustment to delta Q and number of blocks updated in cyclic refressh
   // based on over or under shoot of target in current frame.
-  if (cyclic_refresh_active && (cpi->rc.this_frame_target > 0) &&
-      !cpi->ppi->use_svc) {
+  if (cyclic_refresh_active && (cpi->rc.this_frame_target > 0)) {
     CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
     if (correction_factor > 1.25) {
       cr->percent_refresh_adjustment =

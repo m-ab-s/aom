@@ -688,16 +688,34 @@ static void set_layer_pattern(
       // 2-temporal layer.
       //    1    3    5
       //  0    2    4
+      // Keep golden fixed at slot 3.
+      base_count = superframe_cnt >> 1;
+      ref_frame_config->ref_idx[SVC_GOLDEN_FRAME] = 3;
+      // Cyclically refresh slots 5, 6, 7, for lag alt ref.
+      lag_index = 5;
+      if (base_count > 0) {
+        lag_index = 5 + (base_count % 3);
+        if (superframe_cnt % 2 != 0) lag_index = 5 + ((base_count + 1) % 3);
+      }
+      // Set the altref slot to lag_index.
+      ref_frame_config->ref_idx[SVC_ALTREF_FRAME] = lag_index;
       if (superframe_cnt % 2 == 0) {
         layer_id->temporal_layer_id = 0;
         // Update LAST on layer 0, reference LAST.
         ref_frame_config->refresh[0] = 1;
         ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+        // Refresh lag_index slot, needed for lagging golen.
+        ref_frame_config->refresh[lag_index] = 1;
+        // Refresh GOLDEN every x base layer frames.
+        if (base_count % 16 == 0) ref_frame_config->refresh[3] = 1;
       } else {
         layer_id->temporal_layer_id = 1;
-        // No updates on layer 1, only reference LAST (TL0).
+        // No updates on layer 1, reference LAST (TL0).
         ref_frame_config->reference[SVC_LAST_FRAME] = 1;
       }
+      // Always reference golden and altref
+      ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+      ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
       break;
     case 2:
       // 3-temporal layer:
@@ -1230,7 +1248,7 @@ int main(int argc, const char **argv) {
 
   cfg.rc_end_usage = AOM_CBR;
   cfg.rc_min_quantizer = 2;
-  cfg.rc_max_quantizer = 52;
+  cfg.rc_max_quantizer = 58;
   cfg.rc_undershoot_pct = 50;
   cfg.rc_overshoot_pct = 50;
   cfg.rc_buf_initial_sz = 600;
