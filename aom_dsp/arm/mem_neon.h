@@ -654,6 +654,14 @@ static INLINE void load_unaligned_u8_4x4(const uint8_t *buf, int stride,
   *tu1 = load_unaligned_u8_4x2(buf, stride);
 }
 
+static INLINE void load_unaligned_u8_3x8(const uint8_t *buf, int stride,
+                                         uint8x8_t *tu0, uint8x8_t *tu1,
+                                         uint8x8_t *tu2) {
+  load_unaligned_u8_4x4(buf, stride, tu0, tu1);
+  buf += 4 * stride;
+  *tu2 = load_unaligned_u8_4x2(buf, stride);
+}
+
 static INLINE void load_unaligned_u8_4x8(const uint8_t *buf, int stride,
                                          uint8x8_t *tu0, uint8x8_t *tu1,
                                          uint8x8_t *tu2, uint8x8_t *tu3) {
