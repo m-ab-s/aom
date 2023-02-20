@@ -66,6 +66,14 @@ static INLINE CFL_PRED_TYPE get_cfl_pred_type(int plane) {
   return (CFL_PRED_TYPE)(plane - 1);
 }
 
+static INLINE void clear_cfl_dc_pred_cache_flags(CFL_CTX *cfl) {
+  // Clear the following flags to avoid the unintentional usage of cached dc
+  // pred data.
+  cfl->use_dc_pred_cache = 0;
+  cfl->dc_pred_is_cached[CFL_PRED_U] = 0;
+  cfl->dc_pred_is_cached[CFL_PRED_V] = 0;
+}
+
 void cfl_predict_block(MACROBLOCKD *const xd, uint8_t *dst, int dst_stride,
                        TX_SIZE tx_size, int plane);
 
