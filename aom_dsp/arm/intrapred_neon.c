@@ -3212,7 +3212,7 @@ static INLINE void paeth_4or8_x_h_neon(uint8_t *dest, ptrdiff_t stride,
                                        int width, int height) {
   const uint8x8_t top_left = vdup_n_u8(top_row[-1]);
   const uint16x8_t top_left_x2 = vdupq_n_u16(top_row[-1] + top_row[-1]);
-  uint8x8_t top;
+  uint8x8_t UNINITIALIZED_IS_SAFE(top);
   if (width == 4) {
     load_u8_4x1(top_row, &top, 0);
   } else {  // width == 8
