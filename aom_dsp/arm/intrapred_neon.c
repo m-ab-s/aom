@@ -1289,6 +1289,14 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
       }
     }
 
+    diff.val[0] =
+        vsubq_u16(vreinterpretq_u16_u8(a1_x.val[0]),
+                  vreinterpretq_u16_u8(a0_x.val[0]));  // a[x+1] - a[x]
+    a32.val[0] = vmlaq_u16(a16, vreinterpretq_u16_u8(a0_x.val[0]),
+                           v_32);  // a[x] * 32 + 16
+    res.val[0] = vmlaq_u16(a32.val[0], diff.val[0], shift.val[0]);
+    resx = vshrn_n_u16(res.val[0], 5);
+
     // y calc
     if (base_x < min_base_x) {
       DECLARE_ALIGNED(32, int16_t, base_y_c[16]);
@@ -1334,26 +1342,20 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
         shift.val[1] =
             vshrq_n_u16(vandq_u16(vreinterpretq_u16_s16(y_c128), c3f), 1);
       }
+      diff.val[1] =
+          vsubq_u16(vreinterpretq_u16_u8(a1_x.val[1]),
+                    vreinterpretq_u16_u8(a0_x.val[1]));  // a[x+1] - a[x]
+      a32.val[1] = vmlaq_u16(a16, vreinterpretq_u16_u8(a0_x.val[1]),
+                             v_32);  // a[x] * 32 + 16
+      res.val[1] = vmlaq_u16(a32.val[1], diff.val[1], shift.val[1]);
+      resy = vshrn_n_u16(res.val[1], 5);
+      uint8x8_t mask = vld1_u8(BaseMask[base_min_diff]);
+      resxy = vorr_u8(vand_u8(mask, resy), vbic_u8(resx, mask));
+      vst1_u8(dst, resxy);
+    } else {
+      vst1_u8(dst, resx);
     }
-    diff.val[0] =
-        vsubq_u16(vreinterpretq_u16_u8(a1_x.val[0]),
-                  vreinterpretq_u16_u8(a0_x.val[0]));  // a[x+1] - a[x]
-    diff.val[1] =
-        vsubq_u16(vreinterpretq_u16_u8(a1_x.val[1]),
-                  vreinterpretq_u16_u8(a0_x.val[1]));  // a[x+1] - a[x]
-    a32.val[0] = vmlaq_u16(a16, vreinterpretq_u16_u8(a0_x.val[0]),
-                           v_32);  // a[x] * 32 + 16
-    a32.val[1] = vmlaq_u16(a16, vreinterpretq_u16_u8(a0_x.val[1]),
-                           v_32);  // a[x] * 32 + 16
-    res.val[0] = vmlaq_u16(a32.val[0], diff.val[0], shift.val[0]);
-    res.val[1] = vmlaq_u16(a32.val[1], diff.val[1], shift.val[1]);
-    resx = vshrn_n_u16(res.val[0], 5);
-    resy = vshrn_n_u16(res.val[1], 5);
 
-    uint8x8_t mask = vld1_u8(BaseMask[base_min_diff]);
-
-    resxy = vorr_u8(vand_u8(mask, resy), vbic_u8(resx, mask));
-    vst1_u8(dst, resxy);
     dst += stride;
   }
 }
