@@ -1419,9 +1419,12 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->mv_sf.subpel_search_method = SUBPEL_TREE;
       sf->rt_sf.fullpel_search_step_param = 6;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
-      sf->rt_sf.nonrd_prune_ref_frame_search = 2;
+      if (cm->width * cm->height <= 352 * 288)
+        sf->rt_sf.nonrd_prune_ref_frame_search = 2;
     }
     if (speed >= 8) {
+      if (cpi->svc.number_temporal_layers > 2)
+        sf->rt_sf.disable_cdf_update_non_reference_frame = true;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 3;
       if (rtc_ref->non_reference_frame) {
         sf->rt_sf.nonrd_aggressive_skip = 1;

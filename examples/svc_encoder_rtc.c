@@ -1248,7 +1248,7 @@ int main(int argc, const char **argv) {
 
   cfg.rc_end_usage = AOM_CBR;
   cfg.rc_min_quantizer = 2;
-  cfg.rc_max_quantizer = 58;
+  cfg.rc_max_quantizer = 52;
   cfg.rc_undershoot_pct = 50;
   cfg.rc_overshoot_pct = 50;
   cfg.rc_buf_initial_sz = 600;
