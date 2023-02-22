@@ -61,7 +61,7 @@ static INLINE int get_scaled_luma_q0(int alpha_q3, int16_t pred_buf_q3) {
   return ROUND_POWER_OF_TWO_SIGNED(scaled_luma_q6, 6);
 }
 
-static INLINE CFL_PRED_TYPE get_cfl_pred_type(PLANE_TYPE plane) {
+static INLINE CFL_PRED_TYPE get_cfl_pred_type(int plane) {
   assert(plane > 0);
   return (CFL_PRED_TYPE)(plane - 1);
 }
