@@ -210,24 +210,30 @@ static bool find_affine(int np, const double *pts1, const double *pts2,
   return true;
 }
 
+// Select minpts indices from a set [0, ..., npoints - 1], without replacement
+// This is done by repeatedly sampling [0, ..., npoints - 1], and re-sampling
+// if we ever get a repeated value. This is expected to be very rare, since
+// we require that npoints >> minpts to even run RANSAC.
 static void get_rand_indices(int npoints, int minpts, int *indices,
                              unsigned int *seed) {
-  int i, j;
-  int ptr = lcg_rand16(seed) % npoints;
   assert(minpts < npoints);
-  indices[0] = ptr;
-  ptr = (ptr == npoints - 1 ? 0 : ptr + 1);
-  i = 1;
-  while (i < minpts) {
-    int index = lcg_rand16(seed) % npoints;
-    while (index) {
-      ptr = (ptr == npoints - 1 ? 0 : ptr + 1);
-      for (j = 0; j < i; ++j) {
-        if (indices[j] == ptr) break;
+  for (int i = 0; i < minpts; i++) {
+    int index;
+
+  // Inner resampling loop
+  // We have to use a goto here because C does not have a multi-level continue
+  // statement
+  resample:
+    index = (int)lcg_randint(seed, npoints);
+    for (int j = 0; j < i; j++) {
+      if (index == indices[j]) {
+        // Repeated index, resample
+        goto resample;
       }
-      if (j == i) index--;
     }
-    indices[i++] = ptr;
+
+    // New index, accept
+    indices[i] = index;
   }
 }
 
