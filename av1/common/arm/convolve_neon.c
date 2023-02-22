@@ -2311,10 +2311,10 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon(
     };
     const int8x16_t x_filter = vcombine_s8(vmovn_s16(x_filter_s16.val[0]),
                                            vmovn_s16(x_filter_s16.val[1]));
-    // This shim of +4 enables us to use non-rounding shifts - which are
-    // generally faster than rounding shifts on modern CPUs.
+    // This shim of 1 << (ROUND0_BITS - 1) enables us to use non-rounding shifts
+    // - which are generally faster than rounding shifts on modern CPUs.
     const int32x4_t horiz_const =
-        vdupq_n_s32((1 << (bd + FILTER_BITS - 1)) + 4);
+        vdupq_n_s32((1 << (bd + FILTER_BITS - 1)) + (1 << (ROUND0_BITS - 1)));
     const uint8x16x3_t permute_tbl = vld1q_u8_x3(dot_prod_permute_tbl);
 
     if (w <= 4) {
@@ -2482,9 +2482,10 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon(
     const int8x16_t x_filter = vcombine_s8(vmovn_s16(x_filter_s16.val[0]),
                                            vmovn_s16(x_filter_s16.val[1]));
 
-    // This shim of +4 enables us to use non-rounding shifts - which are
-    // generally faster than rounding shifts on modern CPUs.
-    const int32_t horiz_const = ((1 << (bd + FILTER_BITS - 1)) + 4);
+    // This shim of 1 << (ROUND0_BITS - 1) enables us to use non-rounding shifts
+    // - which are generally faster than rounding shifts on modern CPUs.
+    const int32_t horiz_const =
+        ((1 << (bd + FILTER_BITS - 1)) + (1 << (ROUND0_BITS - 1)));
     // Dot product constants.
     const int32x4_t correct_tmp =
         vaddq_s32(vpaddlq_s16(vshlq_n_s16(x_filter_s16.val[0], 7)),
@@ -2716,9 +2717,10 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon(
     const int dst_stride, int w, int h, const int16x8_t x_filter_0_7,
     const int16x4_t x_filter_8_11) {
   const int bd = 8;
-  // This shim of +4 enables us to use non-rounding shifts - which are
-  // generally faster than rounding shifts on modern CPUs.
-  const int32x4_t horiz_const = vdupq_n_s32((1 << (bd + FILTER_BITS - 1)) + 4);
+  // This shim of 1 << (ROUND0_BITS - 1) enables us to use non-rounding shifts -
+  // which are generally faster than rounding shifts on modern CPUs.
+  const int32x4_t horiz_const =
+      vdupq_n_s32((1 << (bd + FILTER_BITS - 1)) + (1 << (ROUND0_BITS - 1)));
 
 #if defined(__aarch64__)
   do {
@@ -2845,6 +2847,7 @@ static INLINE int16x8_t convolve8_horiz_8_usdot(uint8x16_t samples,
   sum[1] = vusdotq_lane_s32(sum[1], permuted_samples[2], filters, 1);
 
   /* Narrow and re-pack. */
+  // We halved the convolution filter values so -1 from the right shift.
   return vcombine_s16(vshrn_n_s32(sum[0], ROUND0_BITS - 1),
                       vshrn_n_s32(sum[1], ROUND0_BITS - 1));
 }
@@ -2863,9 +2866,11 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
   // Filter values are even, so downshift by 1 to reduce intermediate precision
   // requirements.
   const int8x8_t x_filter = vshrn_n_s16(x_filter_s16, 1);
-  // This shim of +2 enables us to use non-rounding shifts - which are
-  // generally faster than rounding shifts on modern CPUs.
-  const int32x4_t horiz_const = vdupq_n_s32((1 << (bd + FILTER_BITS - 2)) + 2);
+  // This shim of  1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
+  // shifts - which are generally faster than rounding shifts on modern CPUs.
+  // The outermost -1 is needed because we halved the filter values.
+  const int32x4_t horiz_const = vdupq_n_s32((1 << (bd + FILTER_BITS - 2)) +
+                                            (1 << ((ROUND0_BITS - 1) - 1)));
 
   if (w <= 4) {
     const uint8x16x2_t permute_tbl = vld1q_u8_x2(dot_prod_permute_tbl);
@@ -2883,6 +2888,7 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
       t2 = convolve8_4_usdot(s2, x_filter, permute_tbl, horiz_const);
       t3 = convolve8_4_usdot(s3, x_filter, permute_tbl, horiz_const);
 
+      // We halved the convolution filter values so -1 from the right shift.
       d0 = vshrn_n_s32(t0, ROUND0_BITS - 1);
       d1 = vshrn_n_s32(t1, ROUND0_BITS - 1);
       d2 = vshrn_n_s32(t2, ROUND0_BITS - 1);
@@ -2908,6 +2914,7 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
       do {
         s0 = vld1q_u8(src_ptr);
         t0 = convolve8_4_usdot(s0, x_filter, permute_tbl, horiz_const);
+        // We halved the convolution filter values so -1 from the right shift.
         d0 = vshrn_n_s32(t0, ROUND0_BITS - 1);
 
         if (w == 2) {
@@ -2995,9 +3002,11 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
   // Filter values are even, so downshift by 1 to reduce intermediate precision
   // requirements.
   const int8x8_t x_filter = vshrn_n_s16(x_filter_s16, 1);
-  // This shim of +2 enables us to use non-rounding shifts - which are
-  // generally faster than rounding shifts on modern CPUs.
-  const int32_t horiz_const = ((1 << (bd + FILTER_BITS - 2)) + 2);
+  // This shim of  1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
+  // shifts - which are generally faster than rounding shifts on modern CPUs.
+  // The outermost -1 is needed because we halved the filter values.
+  const int32_t horiz_const =
+      ((1 << (bd + FILTER_BITS - 2)) + (1 << ((ROUND0_BITS - 1) - 1)));
   // Dot product constants.
   const int16x8_t correct_tmp = vshlq_n_s16(x_filter_s16, 6);
   int32x4_t correction = vdupq_n_s32(vaddlvq_s16(correct_tmp) + horiz_const);
@@ -3019,6 +3028,7 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
       t2 = convolve8_4_sdot(s2, x_filter, correction, range_limit, permute_tbl);
       t3 = convolve8_4_sdot(s3, x_filter, correction, range_limit, permute_tbl);
 
+      // We halved the convolution filter values so -1 from the right shift.
       d0 = vshrn_n_s32(t0, ROUND0_BITS - 1);
       d1 = vshrn_n_s32(t1, ROUND0_BITS - 1);
       d2 = vshrn_n_s32(t2, ROUND0_BITS - 1);
@@ -3045,6 +3055,7 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
         s0 = vld1q_u8(src_ptr);
         t0 = convolve8_4_sdot(s0, x_filter, correction, range_limit,
                               permute_tbl);
+        // We halved the convolution filter values so -1 from the right shift.
         d0 = vshrn_n_s32(t0, ROUND0_BITS - 1);
 
         if (w == 2) {
@@ -3082,6 +3093,7 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
         d3 = convolve8_horiz_8_sdot(s3, x_filter, correction, range_limit,
                                     permute_tbl);
 
+        // We halved the convolution filter values so -1 from the right shift.
         d0 = vshrq_n_s16(d0, ROUND0_BITS - 1);
         d1 = vshrq_n_s16(d1, ROUND0_BITS - 1);
         d2 = vshrq_n_s16(d2, ROUND0_BITS - 1);
@@ -3111,6 +3123,7 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
           s0 = vld1q_u8(s);
           d0 = convolve8_8_sdot(s0, x_filter, correction, range_limit,
                                 permute_tbl, vdupq_n_s16(0));
+          // We halved the convolution filter values so -1 from the right shift.
           d0 = vshrq_n_s16(d0, ROUND0_BITS - 1);
           vst1q_s16(d, d0);
 
@@ -3148,6 +3161,7 @@ static INLINE int16x4_t convolve8_horiz_4x4_s16(
   sum = vmla_lane_s16(sum, s6, filter_hi, 2);
   sum = vmla_lane_s16(sum, s7, filter_hi, 3);
 
+  // We halved the convolution filter values so -1 from the right shift.
   return vshr_n_s16(sum, ROUND0_BITS - 1);
 }
 
@@ -3170,6 +3184,7 @@ static INLINE int16x8_t convolve8_horiz_8x8_s16(
   sum = vmlaq_lane_s16(sum, s6, filter_hi, 2);
   sum = vmlaq_lane_s16(sum, s7, filter_hi, 3);
 
+  // We halved the convolution filter values so -1 from the right shift.
   return vshrq_n_s16(sum, ROUND0_BITS - 1);
 }
 
@@ -3284,9 +3299,11 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
   const int16x8_t x_filter = vshrq_n_s16(x_filter_s16, 1);
 
   if (w <= 4) {
-    // This shim of +2 enables us to use non-rounding shifts - which are
-    // generally faster than rounding shifts on modern CPUs.
-    const int16x4_t horiz_const = vdup_n_s16((1 << (bd + FILTER_BITS - 2)) + 2);
+    // This shim of  1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
+    // shifts - which are generally faster than rounding shifts on modern CPUs.
+    // The outermost -1 is needed because we halved the filter values.
+    const int16x4_t horiz_const = vdup_n_s16((1 << (bd + FILTER_BITS - 2)) +
+                                             (1 << ((ROUND0_BITS - 1) - 1)));
 
 #if defined(__aarch64__)
     do {
@@ -3354,10 +3371,11 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
 #endif  // defined(__aarch64__)
 
   } else {
-    // This shim of +2 enables us to use non-rounding shifts - which are
-    // generally faster than rounding shifts on modern CPUs.
-    const int16x8_t horiz_const =
-        vdupq_n_s16((1 << (bd + FILTER_BITS - 2)) + 2);
+    // This shim of  1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
+    // shifts - which are generally faster than rounding shifts on modern CPUs.
+    // The outermost -1 is needed because we halved the filter values.
+    const int16x8_t horiz_const = vdupq_n_s16((1 << (bd + FILTER_BITS - 2)) +
+                                              (1 << ((ROUND0_BITS - 1) - 1)));
 
 #if defined(__aarch64__)
 
@@ -3488,6 +3506,7 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
         d2 = vaddq_s16(d2, horiz_const);
         d3 = vaddq_s16(d3, horiz_const);
 
+        // We halved the convolution filter values so -1 from the right shift.
         d0 = vshrq_n_s16(d0, ROUND0_BITS - 1);
         d1 = vshrq_n_s16(d1, ROUND0_BITS - 1);
         d2 = vshrq_n_s16(d2, ROUND0_BITS - 1);
