@@ -1416,8 +1416,8 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
          cpi->oxcf.frm_dim_cfg.width * cpi->oxcf.frm_dim_cfg.height <=
              640 * 360)) {
       sf->mv_sf.search_method = NSTEP;
-      sf->mv_sf.subpel_search_method = SUBPEL_TREE;
-      sf->rt_sf.fullpel_search_step_param = 6;
+      sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
+      sf->rt_sf.fullpel_search_step_param = 10;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
       if (cm->width * cm->height <= 352 * 288)
         sf->rt_sf.nonrd_prune_ref_frame_search = 2;
