@@ -67,8 +67,6 @@ static INLINE CFL_PRED_TYPE get_cfl_pred_type(int plane) {
 }
 
 static INLINE void clear_cfl_dc_pred_cache_flags(CFL_CTX *cfl) {
-  // Clear the following flags to avoid the unintentional usage of cached dc
-  // pred data.
   cfl->use_dc_pred_cache = 0;
   cfl->dc_pred_is_cached[CFL_PRED_U] = 0;
   cfl->dc_pred_is_cached[CFL_PRED_V] = 0;
