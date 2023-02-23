@@ -373,16 +373,6 @@ static const int8_t fidtx8_range_mult2[1] = { 2 };
 static const int8_t fidtx16_range_mult2[1] = { 3 };
 static const int8_t fidtx32_range_mult2[1] = { 4 };
 
-#if 0
-const int8_t fwd_idtx_range_row[MAX_TXWH_IDX /*txw_idx*/]
-                               [MAX_TXWH_IDX /*txh_idx*/] = { { 2, 4, 5, 0, 0 },
-                                                              { 3, 4, 5, 6, 0 },
-                                                              { 4, 5, 6, 7, 8 },
-                                                              { 0, 5, 6, 7, 8 },
-                                                              { 0, 0, 7, 8,
-                                                                9 } };
-#endif
-
 static const int8_t *fwd_txfm_range_mult2_list[TXFM_TYPES] = {
   fdct4_range_mult2,  fdct8_range_mult2,   fdct16_range_mult2,
   fdct32_range_mult2, fdct64_range_mult2,  fadst4_range_mult2,
