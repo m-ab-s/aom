@@ -538,7 +538,8 @@ typedef struct cfl_ctx {
   // Cache the DC_PRED when performing RDO, so it does not have to be recomputed
   // for every scaling parameter
   int dc_pred_is_cached[CFL_PRED_PLANES];
-  // The DC_PRED cache is disable when decoding
+  // Whether the DC_PRED cache is enabled. The DC_PRED cache is disabled when
+  // decoding.
   int use_dc_pred_cache;
   // Only cache the first row of the DC_PRED
   int16_t dc_pred_cache[CFL_PRED_PLANES][CFL_BUF_LINE];
