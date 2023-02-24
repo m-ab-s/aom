@@ -483,12 +483,17 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   }
   // Adjust some parameters for low resolutions.
   if (cm->width * cm->height <= 352 * 288) {
-    if (rc->avg_frame_bandwidth < 3000) {
-      cr->motion_thresh = 16;
+    if (cpi->svc.number_temporal_layers > 1) {
+      cr->motion_thresh = 32;
       cr->rate_boost_fac = 13;
     } else {
-      cr->max_qdelta_perc = 50;
-      cr->rate_ratio_qdelta = AOMMAX(cr->rate_ratio_qdelta, 2.0);
+      if (rc->avg_frame_bandwidth < 3000) {
+        cr->motion_thresh = 16;
+        cr->rate_boost_fac = 13;
+      } else {
+        cr->max_qdelta_perc = 50;
+        cr->rate_ratio_qdelta = AOMMAX(cr->rate_ratio_qdelta, 2.0);
+      }
     }
   }
   if (cpi->oxcf.rc_cfg.mode == AOM_VBR) {
