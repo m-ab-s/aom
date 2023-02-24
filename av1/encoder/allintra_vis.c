@@ -587,7 +587,10 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   intra_mt->intra_sync_read_ptr = av1_row_mt_sync_read_dummy;
   intra_mt->intra_sync_write_ptr = av1_row_mt_sync_write_dummy;
   // Calculate differential contrast for each block for the entire image.
-  if (num_workers > 1) {
+  // TODO(chengchen): properly accumulate the distortion and rate in
+  // av1_calc_mb_wiener_var_mt(). Until then, call calc_mb_wiener_var() if
+  // auto_intra_tools_off is true.
+  if (num_workers > 1 && !cpi->oxcf.intra_mode_cfg.auto_intra_tools_off) {
     intra_mt->intra_sync_read_ptr = av1_row_mt_sync_read;
     intra_mt->intra_sync_write_ptr = av1_row_mt_sync_write;
     av1_calc_mb_wiener_var_mt(cpi, num_workers, &sum_rec_distortion,
