@@ -127,7 +127,7 @@ int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame) {
 
 struct CodecInfo {
   // Pointer to a function of zero arguments that returns an aom_codec_iface_t.
-  aom_codec_iface_t *(*const interface)();
+  aom_codec_iface_t *(*const interface)(void);
   char *short_name;
   uint32_t fourcc;
 };
