@@ -1318,6 +1318,8 @@ typedef struct macroblock {
   uint8_t color_sensitivity_sb[MAX_MB_PLANE - 1];
   //! Color sensitivity flag for the superblock for golden reference.
   uint8_t color_sensitivity_sb_g[MAX_MB_PLANE - 1];
+  //! Color sensitivity flag for the superblock for altref reference.
+  uint8_t color_sensitivity_sb_alt[MAX_MB_PLANE - 1];
   //! Color sensitivity flag for the coding block.
   uint8_t color_sensitivity[MAX_MB_PLANE - 1];
   /**@}*/

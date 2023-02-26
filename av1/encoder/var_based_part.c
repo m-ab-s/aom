@@ -989,7 +989,8 @@ void av1_set_variance_partition_thresholds(AV1_COMP *cpi, int qindex,
 
 static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
                                     BLOCK_SIZE bsize, unsigned int y_sad,
-                                    unsigned int y_sad_g, bool is_key_frame,
+                                    unsigned int y_sad_g,
+                                    unsigned int y_sad_alt, bool is_key_frame,
                                     bool zero_motion, unsigned int *uv_sad) {
   MACROBLOCKD *xd = &x->e_mbd;
   int shift = 3;
@@ -1003,10 +1004,12 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
   const AV1_COMMON *const cm = &cpi->common;
   const YV12_BUFFER_CONFIG *yv12 = get_ref_frame_yv12_buf(cm, LAST_FRAME);
   const YV12_BUFFER_CONFIG *yv12_g = get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+  const YV12_BUFFER_CONFIG *yv12_alt = get_ref_frame_yv12_buf(cm, ALTREF_FRAME);
   const struct scale_factors *const sf =
       get_ref_scale_factors_const(cm, LAST_FRAME);
   struct buf_2d dst;
   unsigned int uv_sad_g = 0;
+  unsigned int uv_sad_alt = 0;
 
   for (int plane = AOM_PLANE_U; plane < MAX_MB_PLANE; ++plane) {
     struct macroblock_plane *p = &x->plane[plane];
@@ -1045,6 +1048,18 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
         uv_sad_g = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride, dst.buf,
                                             dst.stride);
       }
+
+      // For altref:
+      if (y_sad_alt != UINT_MAX) {
+        uint8_t *src = (plane == 1) ? yv12_alt->u_buffer : yv12_alt->v_buffer;
+        setup_pred_plane(&dst, xd->mi[0]->bsize, src, yv12_alt->uv_crop_width,
+                         yv12_alt->uv_crop_height, yv12_alt->uv_stride,
+                         xd->mi_row, xd->mi_col, sf,
+                         xd->plane[plane].subsampling_x,
+                         xd->plane[plane].subsampling_y);
+        uv_sad_alt = cpi->ppi->fn_ptr[bs].sdf(p->src.buf, p->src.stride,
+                                              dst.buf, dst.stride);
+      }
     }
 
     if (uv_sad[plane - 1] > (y_sad >> 1))
@@ -1057,6 +1072,8 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
       x->color_sensitivity_sb[COLOR_SENS_IDX(plane)] = 2;
 
     x->color_sensitivity_sb_g[COLOR_SENS_IDX(plane)] = uv_sad_g > y_sad_g / 6;
+    x->color_sensitivity_sb_alt[COLOR_SENS_IDX(plane)] =
+        uv_sad_alt > y_sad_alt / 6;
   }
 }
 
@@ -1310,7 +1327,9 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                      cpi->svc.number_spatial_layers > 1;
   int use_golden_ref = cpi->ref_frame_flags & AOM_GOLD_FLAG;
   int use_alt_ref = cpi->ppi->rtc_ref.set_ref_frame_config ||
-                    cpi->sf.rt_sf.use_nonrd_altref_frame;
+                    cpi->sf.rt_sf.use_nonrd_altref_frame ||
+                    (cpi->sf.rt_sf.use_comp_ref_nonrd &&
+                     cpi->sf.rt_sf.ref_frame_comp_nonrd[2] == 1);
   // On a resized frame (reference has different scale) only use
   // LAST as reference for partitioning for now.
   if (scaled_ref_last) {
@@ -1610,8 +1629,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   // check and set the color sensitivity of sb.
   av1_zero(uv_sad);
-  chroma_check(cpi, x, bsize, y_sad_last, y_sad_g, is_key_frame, is_zero_motion,
-               uv_sad);
+  chroma_check(cpi, x, bsize, y_sad_last, y_sad_g, y_sad_alt, is_key_frame,
+               is_zero_motion, uv_sad);
 
   x->force_zeromv_skip_for_sb = 0;
 

@@ -1134,6 +1134,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     // Reset color coding related parameters
     av1_zero(x->color_sensitivity_sb);
     av1_zero(x->color_sensitivity_sb_g);
+    av1_zero(x->color_sensitivity_sb_alt);
     av1_zero(x->color_sensitivity);
     x->content_state_sb.source_sad_nonrd = kMedSad;
     x->content_state_sb.source_sad_rd = kMedSad;
