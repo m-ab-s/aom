@@ -1881,6 +1881,8 @@ static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
         get_active_best_quality(cpi, active_worst_quality, cq_level, gf_index);
   }
 
+  if (cq_level > 0) active_best_quality = AOMMAX(1, active_best_quality);
+
   *top_index = active_worst_quality;
   *bottom_index = active_best_quality;
 
