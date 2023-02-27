@@ -2212,7 +2212,6 @@ void av1_encode_frame(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   CurrentFrame *const current_frame = &cm->current_frame;
   FeatureFlags *const features = &cm->features;
-  const int num_planes = av1_num_planes(cm);
   RD_COUNTS *const rdc = &cpi->td.rd_counts;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   // Indicates whether or not to use a default reduced set for ext-tx
@@ -2257,9 +2256,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
 #endif  // !defined(NDEBUG) && !CONFIG_REALTIME_ONLY
 
 #if CONFIG_MISMATCH_DEBUG
-  mismatch_reset_frame(num_planes);
-#else
-  (void)num_planes;
+  mismatch_reset_frame(av1_num_planes(cm));
 #endif
 
   rdc->newmv_or_intra_blocks = 0;
