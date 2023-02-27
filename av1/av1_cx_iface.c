@@ -1175,8 +1175,19 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   tool_cfg->enable_interintra_comp = extra_cfg->enable_interintra_comp;
   tool_cfg->ref_frame_mvs_present =
       extra_cfg->enable_ref_frame_mvs & extra_cfg->enable_order_hint;
-  tool_cfg->enable_global_motion =
-      extra_cfg->enable_global_motion && (cfg->g_usage != AOM_USAGE_REALTIME);
+
+  // Explicitly disable global motion in a few cases:
+  // * For realtime mode, we never search global motion, and disabling
+  //   it here prevents later code from allocating buffers we don't need
+  // * For large scale tile mode, some of the intended use cases expect
+  //   all frame headers to be identical. This breaks if global motion is
+  //   used, since global motion data is stored in the frame header.
+  //   eg, see test/lightfield_test.sh, which checks that all frame headers
+  //   are the same.
+  tool_cfg->enable_global_motion = extra_cfg->enable_global_motion &&
+                                   cfg->g_usage != AOM_USAGE_REALTIME &&
+                                   !cfg->large_scale_tile;
+
   tool_cfg->error_resilient_mode =
       cfg->g_error_resilient | extra_cfg->error_resilient_mode;
   tool_cfg->frame_parallel_decoding_mode =
