@@ -228,6 +228,9 @@ void av1_set_mv_search_range(FullMvLimits *mv_limits, const MV *mv) {
   if (mv_limits->col_max > col_max) mv_limits->col_max = col_max;
   if (mv_limits->row_min < row_min) mv_limits->row_min = row_min;
   if (mv_limits->row_max > row_max) mv_limits->row_max = row_max;
+
+  mv_limits->col_max = AOMMAX(mv_limits->col_min, mv_limits->col_max);
+  mv_limits->row_max = AOMMAX(mv_limits->row_min, mv_limits->row_max);
 }
 
 int av1_init_search_range(int size) {

@@ -358,14 +358,13 @@ static INLINE void av1_set_subpel_mv_search_range(SubpelMvLimits *subpel_limits,
                                                   const FullMvLimits *mv_limits,
                                                   const MV *ref_mv) {
   const int max_mv = GET_MV_SUBPEL(MAX_FULL_PEL_VAL);
-  const int minc =
-      AOMMAX(GET_MV_SUBPEL(mv_limits->col_min), ref_mv->col - max_mv);
-  const int maxc =
-      AOMMIN(GET_MV_SUBPEL(mv_limits->col_max), ref_mv->col + max_mv);
-  const int minr =
-      AOMMAX(GET_MV_SUBPEL(mv_limits->row_min), ref_mv->row - max_mv);
-  const int maxr =
-      AOMMIN(GET_MV_SUBPEL(mv_limits->row_max), ref_mv->row + max_mv);
+  int minc = AOMMAX(GET_MV_SUBPEL(mv_limits->col_min), ref_mv->col - max_mv);
+  int maxc = AOMMIN(GET_MV_SUBPEL(mv_limits->col_max), ref_mv->col + max_mv);
+  int minr = AOMMAX(GET_MV_SUBPEL(mv_limits->row_min), ref_mv->row - max_mv);
+  int maxr = AOMMIN(GET_MV_SUBPEL(mv_limits->row_max), ref_mv->row + max_mv);
+
+  maxc = AOMMAX(minc, maxc);
+  maxr = AOMMAX(minr, maxr);
 
   subpel_limits->col_min = AOMMAX(MV_LOW + 1, minc);
   subpel_limits->col_max = AOMMIN(MV_UPP - 1, maxc);
