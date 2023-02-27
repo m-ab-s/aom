@@ -581,7 +581,7 @@ function(setup_aom_test_targets)
     # cmake-format: off
     if (("${var}" MATCHES "_TEST_" AND NOT
          "${var}" MATCHES
-         "_DATA_\|_CMAKE_\|INTRA_PRED\|_COMPILED\|_HOSTING\|_PERF_\|CODER_")
+         "_DATA_\|_CMAKE_\|INTRA_PRED\|_COMPILED\|_HOSTING\|_PERF_\|CODER_\|_RC_")
         OR (CONFIG_AV1_ENCODER AND ENABLE_ENCODE_PERF_TESTS AND
             "${var}" MATCHES "_ENCODE_PERF_TEST_")
         OR (CONFIG_AV1_DECODER AND ENABLE_DECODE_PERF_TESTS AND
