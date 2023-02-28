@@ -1249,7 +1249,7 @@ int av1_set_saliency_map(AV1_COMP *cpi) {
 }
 
 // Set superblock level saliency mask for rdmult scaling
-int setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio) {
+int av1_setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio) {
   AV1_COMMON *cm = &cpi->common;
 
   saliency_feature_map *sb_saliency_map =
@@ -1297,7 +1297,7 @@ int setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio) {
 
       assert(total_pixel > 0);
 
-      // Caculate the superblock level saliency map from pixel level saliency
+      // Calculate the superblock level saliency map from pixel level saliency
       // map
       sb_saliency_map->buf[index] = total_weight / total_pixel;
 
@@ -1309,12 +1309,11 @@ int setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio) {
     }
   }
 
-  minmax_normalize(
-      sb_saliency_map);  // superblock level saliency map finalization
+  // superblock level saliency map finalization
+  minmax_normalize(sb_saliency_map);
 
-  double log_sum, sum;
-  log_sum = 0.0;
-  sum = 0.0;
+  double log_sum = 0.0;
+  double sum = 0.0;
   int block_count = 0;
 
   // Calculate the average superblock sm_scaling_factor for a frame, to be used
@@ -1322,7 +1321,7 @@ int setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio) {
   for (int row = 0; row < num_sb_rows; ++row) {
     for (int col = 0; col < num_sb_cols; ++col) {
       const int index = row * num_sb_cols + col;
-      double saliency = sb_saliency_map->buf[index];
+      const double saliency = sb_saliency_map->buf[index];
 
       cpi->sm_scaling_factor[index] = 1 - saliency;
       sum += cpi->sm_scaling_factor[index];
@@ -1367,7 +1366,7 @@ int setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio) {
 // frames. Motion_ratio will be used to set up saliency_map based rdmult scaling
 // factor, i.e., the less the motion quantities are, the more bits will be spent
 // on this frame, and vice versa.
-double setup_motion_ratio(AV1_COMP *cpi) {
+double av1_setup_motion_ratio(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   int frames_since_key =
       cm->current_frame.display_order_hint - cpi->rc.frames_since_key;

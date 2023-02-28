@@ -892,13 +892,13 @@ static void update_firstpass_stats(AV1_COMP *cpi,
   fps.pcnt_neutral = (double)stats->neutral_count / num_mbs;
   fps.intra_skip_pct = (double)stats->intra_skip_count / num_mbs;
   fps.inactive_zone_rows = (double)stats->image_data_start_row;
-  fps.inactive_zone_cols = (double)0;  // Placeholder: not currently supported.
+  fps.inactive_zone_cols = 0.0;  // Placeholder: not currently supported.
   fps.raw_error_stdev = raw_err_stdev;
   fps.is_flash = 0;
-  fps.noise_var = (double)0;
-  fps.cor_coeff = (double)1.0;
-  fps.log_coded_error = (double)0;
-  fps.log_intra_error = (double)0;
+  fps.noise_var = 0.0;
+  fps.cor_coeff = 1.0;
+  fps.log_coded_error = 0.0;
+  fps.log_intra_error = 0.0;
 
   if (stats->mv_count > 0) {
     fps.MVr = (double)stats->sum_mvr / stats->mv_count;

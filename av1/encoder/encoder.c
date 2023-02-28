@@ -3746,8 +3746,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     if (av1_set_saliency_map(cpi) == 0) {
       return AOM_CODEC_MEM_ERROR;
     }
-    double motion_ratio = setup_motion_ratio(cpi);
-    if (setup_sm_rdmult_scaling_factor(cpi, motion_ratio) == 0) {
+    double motion_ratio = av1_setup_motion_ratio(cpi);
+    if (av1_setup_sm_rdmult_scaling_factor(cpi, motion_ratio) == 0) {
       return AOM_CODEC_MEM_ERROR;
     }
   }

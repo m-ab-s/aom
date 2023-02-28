@@ -21,8 +21,8 @@ typedef struct saliency_feature_map {
 
 int av1_set_saliency_map(AV1_COMP *cpi);
 
-double setup_motion_ratio(AV1_COMP *cpi);
+double av1_setup_motion_ratio(AV1_COMP *cpi);
 
-int setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio);
+int av1_setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio);
 
 #endif  // AOM_AV1_ENCODER_SALIENCY_MAP_H_
