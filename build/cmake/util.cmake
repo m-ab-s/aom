@@ -100,7 +100,7 @@ set(cmake_cmdline_helpstring "No help, variable specified on the command line.")
 # already been set via the CMake command line.
 #
 # The names of variables defaulted through this macro are added to
-# $AOM_CONFIG_VARS to facilitate build logging and diagnostics.
+# $AOM_DETECT_VARS to facilitate build logging and diagnostics.
 macro(set_aom_detect_var name value helpstring)
   unset(list_index)
   list(FIND AOM_DETECT_VARS ${name} list_index)
