@@ -312,17 +312,8 @@ if(NOT MSVC AND NOT APPLE)
 endif()
 
 if(CONFIG_AV1_ENCODER AND NOT CONFIG_REALTIME_ONLY AND NOT BUILD_SHARED_LIBS)
-  list(APPEND AOM_AV1_RC_SOURCES
-              "${AOM_ROOT}/av1/ratectrl_rtc.h"
-              "${AOM_ROOT}/av1/ratectrl_rtc.cc"
-              "${AOM_ROOT}/av1/qmode_rc/ratectrl_qmode_interface.h"
-              "${AOM_ROOT}/av1/qmode_rc/ratectrl_qmode_interface.cc"
-              "${AOM_ROOT}/av1/qmode_rc/reference_manager.h"
-              "${AOM_ROOT}/av1/qmode_rc/reference_manager.cc"
-              "${AOM_ROOT}/av1/qmode_rc/ratectrl_qmode.h"
-              "${AOM_ROOT}/av1/qmode_rc/ratectrl_qmode.cc"
-              "${AOM_ROOT}/av1/qmode_rc/ducky_encode.h"
-              "${AOM_ROOT}/av1/qmode_rc/ducky_encode.cc")
+  list(APPEND AOM_AV1_RC_SOURCES "${AOM_ROOT}/av1/ratectrl_rtc.h"
+              "${AOM_ROOT}/av1/ratectrl_rtc.cc")
   add_library(aom_av1_rc ${AOM_AV1_RC_SOURCES})
   target_link_libraries(aom_av1_rc ${AOM_LIB_LINK_TYPE} aom)
   if(NOT MSVC AND NOT APPLE)
