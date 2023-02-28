@@ -994,18 +994,30 @@ void av1_get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
 #if !CONFIG_REALTIME_ONLY
   if (cpi->use_ducky_encode &&
       cpi->ducky_encode_info.frame_info.gop_mode == DUCKY_ENCODE_GOP_MODE_RCL) {
-    int valid_rf_idx = 0;
     for (int rf = LAST_FRAME; rf < REF_FRAMES; ++rf) {
       if (cpi->ppi->gf_group.ref_frame_list[gf_index][rf] != INVALID_IDX) {
         remapped_ref_idx[rf - LAST_FRAME] =
             cpi->ppi->gf_group.ref_frame_list[gf_index][rf];
+      }
+    }
+
+    int valid_rf_idx = 0;
+    int ref_frame_type_order[REF_FRAMES - LAST_FRAME] = {
+      GOLDEN_FRAME,  ALTREF_FRAME, LAST_FRAME, BWDREF_FRAME,
+      ALTREF2_FRAME, LAST2_FRAME,  LAST3_FRAME
+    };
+    for (int i = 0; i < REF_FRAMES - LAST_FRAME; i++) {
+      int rf = ref_frame_type_order[i];
+      if (remapped_ref_idx[rf - LAST_FRAME] != INVALID_IDX) {
         valid_rf_idx = remapped_ref_idx[rf - LAST_FRAME];
+        break;
       }
     }
 
     for (int i = 0; i < REF_FRAMES; ++i) {
-      if (remapped_ref_idx[i] == INVALID_IDX)
+      if (remapped_ref_idx[i] == INVALID_IDX) {
         remapped_ref_idx[i] = valid_rf_idx;
+      }
     }
 
     return;
