@@ -1528,14 +1528,17 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
     CHECK_MEM_ERROR(cm, cpi->saliency_map,
                     (uint8_t *)aom_calloc(cm->height * cm->width,
                                           sizeof(*cpi->saliency_map)));
-    const int bsize = cm->seq_params->sb_size;
-    const int w = mi_size_wide[bsize];
-    const int h = mi_size_high[bsize];
-    const int num_cols = (cm->mi_params.mi_cols + w - 1) / w;
-    const int num_rows = (cm->mi_params.mi_rows + h - 1) / h;
-
+    // Buffer initialization based on MIN_MIB_SIZE_LOG2 to insure that
+    // cpi->sm_scaling_factor buffer is allocated big enough, since we have no
+    // idea of the actual superblock size we gonna use yet.
+    const int min_mi_w_sb = (1 << MIN_MIB_SIZE_LOG2);
+    const int min_mi_h_sb = (1 << MIN_MIB_SIZE_LOG2);
+    const int max_sb_cols =
+        (cm->mi_params.mi_cols + min_mi_w_sb - 1) / min_mi_w_sb;
+    const int max_sb_rows =
+        (cm->mi_params.mi_rows + min_mi_h_sb - 1) / min_mi_h_sb;
     CHECK_MEM_ERROR(cm, cpi->sm_scaling_factor,
-                    (double *)aom_calloc(num_rows * num_cols,
+                    (double *)aom_calloc(max_sb_rows * max_sb_cols,
                                          sizeof(*cpi->sm_scaling_factor)));
   }
 #endif
