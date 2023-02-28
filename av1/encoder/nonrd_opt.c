@@ -87,6 +87,7 @@ static AOM_FORCE_INLINE void update_yrd_loop_vars_hbd(
     tran_low_t *const coeff, tran_low_t *const qcoeff,
     tran_low_t *const dqcoeff, RD_STATS *this_rdc, int *eob_cost,
     int tx_blk_id) {
+  const MACROBLOCKD *xd = &x->e_mbd;
   const int is_txfm_skip = (ncoeffs == 0);
   *skippable &= is_txfm_skip;
   x->txfm_search_info.blk_skip[tx_blk_id] = is_txfm_skip;
@@ -97,8 +98,8 @@ static AOM_FORCE_INLINE void update_yrd_loop_vars_hbd(
     this_rdc->rate += (int)abs(qcoeff[0]);
   else if (ncoeffs > 1)
     this_rdc->rate += aom_satd(qcoeff, step << 4);
-
-  this_rdc->dist += av1_block_error(coeff, dqcoeff, step << 4, &dummy) >> 2;
+  this_rdc->dist +=
+      av1_highbd_block_error(coeff, dqcoeff, step << 4, &dummy, xd->bd) >> 2;
 }
 #endif
 
