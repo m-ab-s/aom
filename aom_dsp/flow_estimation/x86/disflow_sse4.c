@@ -48,7 +48,7 @@ static INLINE void get_cubic_kernel_int(double x, int16_t *kernel) {
 }
 
 #if CHECK_RESULTS
-static INLINE int getCubicValue_int(const int *p, const int16_t *kernel) {
+static INLINE int get_cubic_value_int(const int *p, const int16_t *kernel) {
   return kernel[0] * p[0] + kernel[1] * p[1] + kernel[2] * p[2] +
          kernel[3] * p[3];
 }
@@ -185,7 +185,7 @@ static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *frm,
       // As an integer with 6 fractional bits, that is 18360, which fits
       // in an int16_t. But with 7 fractional bits it would be 36720,
       // which is too large.
-      const int c_value = ROUND_POWER_OF_TWO(getCubicValue_int(arr, h_kernel),
+      const int c_value = ROUND_POWER_OF_TWO(get_cubic_value_int(arr, h_kernel),
                                              DISFLOW_INTERP_BITS - 6);
       (void)c_value;  // Suppress warnings
       assert(tmp_row[j] == c_value);
@@ -239,7 +239,7 @@ static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *frm,
       int16_t *p = &tmp[i * DISFLOW_PATCH_SIZE + j];
       int arr[4] = { p[-DISFLOW_PATCH_SIZE], p[0], p[DISFLOW_PATCH_SIZE],
                      p[2 * DISFLOW_PATCH_SIZE] };
-      const int result = getCubicValue_int(arr, v_kernel);
+      const int result = get_cubic_value_int(arr, v_kernel);
 
       // Apply kernel and round.
       // This time, we have to round off the 6 extra bits which were kept

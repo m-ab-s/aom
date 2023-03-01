@@ -72,12 +72,13 @@ static INLINE void get_cubic_kernel_int(double x, int *kernel) {
   kernel[3] = (int)rint(kernel_dbl[3] * (1 << DISFLOW_INTERP_BITS));
 }
 
-static INLINE double getCubicValue_dbl(const double *p, const double *kernel) {
+static INLINE double get_cubic_value_dbl(const double *p,
+                                         const double *kernel) {
   return kernel[0] * p[0] + kernel[1] * p[1] + kernel[2] * p[2] +
          kernel[3] * p[3];
 }
 
-static INLINE int getCubicValue_int(const int *p, const int *kernel) {
+static INLINE int get_cubic_value_int(const int *p, const int *kernel) {
   return kernel[0] * p[0] + kernel[1] * p[1] + kernel[2] * p[2] +
          kernel[3] * p[3];
 }
@@ -88,11 +89,11 @@ static INLINE double bicubic_interp_one(const double *arr, int stride,
 
   // Horizontal convolution
   for (int i = -1; i < 3; ++i) {
-    tmp[i + 1] = getCubicValue_dbl(&arr[i * stride - 1], h_kernel);
+    tmp[i + 1] = get_cubic_value_dbl(&arr[i * stride - 1], h_kernel);
   }
 
   // Vertical convolution
-  return getCubicValue_dbl(tmp, v_kernel);
+  return get_cubic_value_dbl(tmp, v_kernel);
 }
 
 static int determine_disflow_correspondence(CornerList *corners,
@@ -210,7 +211,7 @@ static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *src,
       // in an int16_t. But with 7 fractional bits it would be 36720,
       // which is too large.
       tmp[i * DISFLOW_PATCH_SIZE + j] = ROUND_POWER_OF_TWO(
-          getCubicValue_int(arr, h_kernel), DISFLOW_INTERP_BITS - 6);
+          get_cubic_value_int(arr, h_kernel), DISFLOW_INTERP_BITS - 6);
     }
   }
 
@@ -220,7 +221,7 @@ static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *src,
       const int *p = &tmp[i * DISFLOW_PATCH_SIZE + j];
       const int arr[4] = { p[-DISFLOW_PATCH_SIZE], p[0], p[DISFLOW_PATCH_SIZE],
                            p[2 * DISFLOW_PATCH_SIZE] };
-      const int result = getCubicValue_int(arr, v_kernel);
+      const int result = get_cubic_value_int(arr, v_kernel);
 
       // Apply kernel and round.
       // This time, we have to round off the 6 extra bits which were kept
