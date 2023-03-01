@@ -361,7 +361,7 @@ static AOM_INLINE void scale_square_buf_vals(int16_t *dst, int tx_width,
 }
 
 /*!\brief Calculates RD Cost when the block uses Identity transform.
- * Note that thie function is only for low bit depth encoding, since it
+ * Note that this function is only for low bit depth encoding, since it
  * is called in real-time mode for now, which sets high bit depth to 0:
  * -DCONFIG_AV1_HIGHBITDEPTH=0
  *
