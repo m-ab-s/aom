@@ -807,7 +807,7 @@ BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
       const TileConfig *const tile_cfg = &oxcf->tile_cfg;
       const int num_tiles =
           (1 << tile_cfg->tile_columns) * (1 << tile_cfg->tile_rows);
-      // For multi-thread encode: if the number of (128x128) superbllocks
+      // For multi-thread encode: if the number of (128x128) superblocks
       // per tile is low use 64X64 superblock.
       if (oxcf->row_mt == 1 && oxcf->max_threads >= 4 &&
           oxcf->max_threads >= num_tiles && AOMMIN(width, height) > 720 &&
