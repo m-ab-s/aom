@@ -1621,7 +1621,6 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
     int16x4_t s8, s9, s10, d1, d2, d3;
     int16x8_t tt1, tt2, tt3;
     uint16x4_t res5, res6, res7;
-    uint32x2_t tu0 = vdup_n_u32(0), tu1 = vdup_n_u32(0);
     int16x8_t u0, u1;
 #else
     int16x4_t temp_0;
@@ -1660,9 +1659,7 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
       __builtin_prefetch(d + 3 * dst_stride);
       s += 7;
       do {
-        load_unaligned_u8_4x4(s, src_stride, &tu0, &tu1);
-        t0 = vreinterpret_u8_u32(tu0);
-        t1 = vreinterpret_u8_u32(tu1);
+        load_unaligned_u8_4x4(s, src_stride, &t0, &t1);
 
         transpose_u8_4x4(&t0, &t1);
         u0 = vreinterpretq_s16_u16(vmovl_u8(t0));
@@ -2066,8 +2063,10 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
   if ((w == 4) || (h == 4)) {
     int16x4_t s0, s1, s2, s3, s4, s5, s6, s7, d0;
     uint16x4_t res4;
-    uint32x2_t tu0 = vdup_n_u32(0), tu1 = vdup_n_u32(0), tu2 = vdup_n_u32(0),
-               tu3 = vdup_n_u32(0);
+    uint8x8_t tu0 = vdup_n_u8(0);
+    uint8x8_t tu1 = vdup_n_u8(0);
+    uint8x8_t tu2 = vdup_n_u8(0);
+    uint8x8_t tu3 = vdup_n_u8(0);
     int16x8_t u0, u1, u2, u3;
     uint8x8_t t0;
 
@@ -2092,10 +2091,10 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
 
       load_unaligned_u8_4x8(s, src_stride, &tu0, &tu1, &tu2, &tu3);
 
-      u0 = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_u32(tu0)));
-      u1 = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_u32(tu1)));
-      u2 = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_u32(tu2)));
-      u3 = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_u32(tu3)));
+      u0 = vreinterpretq_s16_u16(vmovl_u8(tu0));
+      u1 = vreinterpretq_s16_u16(vmovl_u8(tu1));
+      u2 = vreinterpretq_s16_u16(vmovl_u8(tu2));
+      u3 = vreinterpretq_s16_u16(vmovl_u8(tu3));
 
       s0 = vget_low_s16(u0);
       s1 = vget_high_s16(u0);
@@ -2115,8 +2114,8 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
 #if defined(__aarch64__)
         load_unaligned_u8_4x4(s, src_stride, &tu0, &tu1);
 
-        u0 = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_u32(tu0)));
-        u1 = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_u32(tu1)));
+        u0 = vreinterpretq_s16_u16(vmovl_u8(tu0));
+        u1 = vreinterpretq_s16_u16(vmovl_u8(tu1));
 
         s7 = vget_low_s16(u0);
         s8 = vget_high_s16(u0);
@@ -2177,8 +2176,8 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
         d_u8 += 4 * dst8_stride;
         height -= 4;
 #else
-        load_unaligned_u8_4x1(s, src_stride, &tu0);
-        u0 = vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_u32(tu0)));
+        tu0 = load_unaligned_u8_4x1(s);
+        u0 = vreinterpretq_s16_u16(vmovl_u8(tu0));
         s7 = vget_low_s16(u0);
 
         d0 = convolve8_4x4_s16(s0, s1, s2, s3, s4, s5, s6, s7, y_filter, zero,

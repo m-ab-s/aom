@@ -613,71 +613,53 @@ static INLINE uint8x16_t load_unaligned_u8q(const uint8_t *buf, int stride) {
   return vreinterpretq_u8_u32(a_u32);
 }
 
-static INLINE void load_unaligned_u8_4x8(const uint8_t *buf, int stride,
-                                         uint32x2_t *tu0, uint32x2_t *tu1,
-                                         uint32x2_t *tu2, uint32x2_t *tu3) {
+static INLINE uint8x8_t load_unaligned_u8_2x2(const uint8_t *buf, int stride) {
+  uint16_t a;
+  uint16x4_t a_u16;
+
+  memcpy(&a, buf, 2);
+  buf += stride;
+  a_u16 = vdup_n_u16(a);
+  memcpy(&a, buf, 2);
+  a_u16 = vset_lane_u16(a, a_u16, 1);
+  return vreinterpret_u8_u16(a_u16);
+}
+
+static INLINE uint8x8_t load_unaligned_u8_4x1(const uint8_t *buf) {
   uint32_t a;
+  uint32x2_t a_u32;
+
+  memcpy(&a, buf, 4);
+  a_u32 = vdup_n_u32(0);
+  a_u32 = vset_lane_u32(a, a_u32, 0);
+  return vreinterpret_u8_u32(a_u32);
+}
+
+static INLINE uint8x8_t load_unaligned_u8_4x2(const uint8_t *buf, int stride) {
+  uint32_t a;
+  uint32x2_t a_u32;
 
   memcpy(&a, buf, 4);
   buf += stride;
-  *tu0 = vdup_n_u32(a);
+  a_u32 = vdup_n_u32(a);
   memcpy(&a, buf, 4);
-  buf += stride;
-  *tu0 = vset_lane_u32(a, *tu0, 1);
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu1 = vdup_n_u32(a);
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu1 = vset_lane_u32(a, *tu1, 1);
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu2 = vdup_n_u32(a);
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu2 = vset_lane_u32(a, *tu2, 1);
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu3 = vdup_n_u32(a);
-  memcpy(&a, buf, 4);
-  *tu3 = vset_lane_u32(a, *tu3, 1);
+  a_u32 = vset_lane_u32(a, a_u32, 1);
+  return vreinterpret_u8_u32(a_u32);
 }
 
 static INLINE void load_unaligned_u8_4x4(const uint8_t *buf, int stride,
-                                         uint32x2_t *tu0, uint32x2_t *tu1) {
-  uint32_t a;
-
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu0 = vdup_n_u32(a);
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu0 = vset_lane_u32(a, *tu0, 1);
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu1 = vdup_n_u32(a);
-  memcpy(&a, buf, 4);
-  *tu1 = vset_lane_u32(a, *tu1, 1);
+                                         uint8x8_t *tu0, uint8x8_t *tu1) {
+  *tu0 = load_unaligned_u8_4x2(buf, stride);
+  buf += 2 * stride;
+  *tu1 = load_unaligned_u8_4x2(buf, stride);
 }
 
-static INLINE void load_unaligned_u8_4x1(const uint8_t *buf, int stride,
-                                         uint32x2_t *tu0) {
-  uint32_t a;
-
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu0 = vset_lane_u32(a, *tu0, 0);
-}
-
-static INLINE void load_unaligned_u8_4x2(const uint8_t *buf, int stride,
-                                         uint32x2_t *tu0) {
-  uint32_t a;
-
-  memcpy(&a, buf, 4);
-  buf += stride;
-  *tu0 = vdup_n_u32(a);
-  memcpy(&a, buf, 4);
-  *tu0 = vset_lane_u32(a, *tu0, 1);
+static INLINE void load_unaligned_u8_4x8(const uint8_t *buf, int stride,
+                                         uint8x8_t *tu0, uint8x8_t *tu1,
+                                         uint8x8_t *tu2, uint8x8_t *tu3) {
+  load_unaligned_u8_4x4(buf, stride, tu0, tu1);
+  buf += 4 * stride;
+  load_unaligned_u8_4x4(buf, stride, tu2, tu3);
 }
 
 /* These intrinsics require immediate values, so we must use #defines
@@ -695,17 +677,6 @@ static INLINE void load_unaligned_u8_4x2(const uint8_t *buf, int stride,
     a = vget_lane_u16(vreinterpret_u16_u8(src), lane); \
     memcpy(dst, &a, 2);                                \
   } while (0)
-
-static INLINE void load_unaligned_u8_2x2(const uint8_t *buf, int stride,
-                                         uint16x4_t *tu0) {
-  uint16_t a;
-
-  memcpy(&a, buf, 2);
-  buf += stride;
-  *tu0 = vdup_n_u16(a);
-  memcpy(&a, buf, 2);
-  *tu0 = vset_lane_u16(a, *tu0, 1);
-}
 
 static INLINE void load_u8_16x8(const uint8_t *s, ptrdiff_t p,
                                 uint8x16_t *const s0, uint8x16_t *const s1,
@@ -742,20 +713,24 @@ static INLINE void load_u8_16x4(const uint8_t *s, ptrdiff_t p,
 }
 
 static INLINE void load_unaligned_u16_4x4(const uint16_t *buf, uint32_t stride,
-                                          uint64x2_t *tu0, uint64x2_t *tu1) {
+                                          uint16x8_t *tu0, uint16x8_t *tu1) {
   uint64_t a;
+  uint64x2_t a_u64;
 
   memcpy(&a, buf, 8);
   buf += stride;
-  *tu0 = vdupq_n_u64(a);
+  a_u64 = vdupq_n_u64(0);
+  a_u64 = vsetq_lane_u64(a, a_u64, 0);
   memcpy(&a, buf, 8);
   buf += stride;
-  *tu0 = vsetq_lane_u64(a, *tu0, 1);
+  a_u64 = vsetq_lane_u64(a, a_u64, 1);
+  *tu0 = vreinterpretq_u16_u64(a_u64);
   memcpy(&a, buf, 8);
   buf += stride;
-  *tu1 = vdupq_n_u64(a);
+  a_u64 = vdupq_n_u64(a);
   memcpy(&a, buf, 8);
-  *tu1 = vsetq_lane_u64(a, *tu1, 1);
+  a_u64 = vsetq_lane_u64(a, a_u64, 1);
+  *tu1 = vreinterpretq_u16_u64(a_u64);
 }
 
 static INLINE void load_s32_4x4(int32_t *s, int32_t p, int32x4_t *s1,
