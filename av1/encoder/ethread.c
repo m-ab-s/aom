@@ -2521,7 +2521,7 @@ void av1_calc_mb_wiener_var_mt(AV1_COMP *cpi, int num_workers,
   intra_row_mt_sync->num_threads_working = num_workers;
   intra_row_mt_sync->next_mi_row = 0;
   memset(intra_row_mt_sync->num_finished_cols, -1,
-         sizeof(*intra_row_mt_sync->num_finished_cols) * num_workers);
+         sizeof(*intra_row_mt_sync->num_finished_cols) * mi_rows);
 
   prepare_wiener_var_workers(cpi, cal_mb_wiener_var_hook, num_workers);
   launch_workers(mt_info, num_workers);
