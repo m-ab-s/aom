@@ -47,10 +47,10 @@ typedef enum {
 } ColorFormat;
 static const char *color_fmt_str[] = { "I400", "I420", "I422", "I444" };
 typedef void (*TemporalFilterFunc)(
-    const YV12_BUFFER_CONFIG *ref_frame, const MACROBLOCKD *mbd,
+    const YV12_BUFFER_CONFIG *frame_to_filter, const MACROBLOCKD *mbd,
     const BLOCK_SIZE block_size, const int mb_row, const int mb_col,
     const int num_planes, const double *noise_level, const MV *subblock_mvs,
-    const int *subblock_mses, const int q_factor, const int filter_strenght,
+    const int *subblock_mses, const int q_factor, const int filter_strength,
     int tf_wgt_calc_lvl, const uint8_t *pred, uint32_t *accum, uint16_t *count);
 typedef libaom_test::FuncParam<TemporalFilterFunc> TemporalFilterFuncParam;
 
@@ -182,18 +182,18 @@ void TemporalFilterTest::RunTest(int isRandom, int run_times,
     const int filter_strength = 5;
     const int mb_row = 0;
     const int mb_col = 0;
-    std::unique_ptr<YV12_BUFFER_CONFIG> ref_frame(new (std::nothrow)
-                                                      YV12_BUFFER_CONFIG);
-    ASSERT_NE(ref_frame, nullptr);
-    ref_frame->y_crop_height = 360;
-    ref_frame->y_crop_width = 540;
-    ref_frame->heights[PLANE_TYPE_Y] = height;
-    ref_frame->heights[PLANE_TYPE_UV] = height >> subsampling_y;
-    ref_frame->strides[PLANE_TYPE_Y] = stride;
-    ref_frame->strides[PLANE_TYPE_UV] = stride >> subsampling_x;
+    std::unique_ptr<YV12_BUFFER_CONFIG> frame_to_filter(new (std::nothrow)
+                                                            YV12_BUFFER_CONFIG);
+    ASSERT_NE(frame_to_filter, nullptr);
+    frame_to_filter->y_crop_height = 360;
+    frame_to_filter->y_crop_width = 540;
+    frame_to_filter->heights[PLANE_TYPE_Y] = height;
+    frame_to_filter->heights[PLANE_TYPE_UV] = height >> subsampling_y;
+    frame_to_filter->strides[PLANE_TYPE_Y] = stride;
+    frame_to_filter->strides[PLANE_TYPE_UV] = stride >> subsampling_x;
     DECLARE_ALIGNED(16, uint8_t, src[1024 * 3]);
-    ref_frame->buffer_alloc = src;
-    ref_frame->flags = 0;  // Only support low bit-depth test.
+    frame_to_filter->buffer_alloc = src;
+    frame_to_filter->flags = 0;  // Only support low bit-depth test.
     memcpy(src, src1_, 1024 * 3 * sizeof(uint8_t));
 
     std::unique_ptr<MACROBLOCKD> mbd(new (std::nothrow) MACROBLOCKD);
@@ -202,26 +202,26 @@ void TemporalFilterTest::RunTest(int isRandom, int run_times,
     for (int plane = AOM_PLANE_Y; plane < num_planes; plane++) {
       int plane_height = plane ? height >> subsampling_y : height;
       int plane_stride = plane ? stride >> subsampling_x : stride;
-      ref_frame->buffers[plane] =
-          ref_frame->buffer_alloc + plane * plane_stride * plane_height;
+      frame_to_filter->buffers[plane] =
+          frame_to_filter->buffer_alloc + plane * plane_stride * plane_height;
       mbd->plane[plane].subsampling_x = plane ? subsampling_x : 0;
       mbd->plane[plane].subsampling_y = plane ? subsampling_y : 0;
     }
 
-    params_.ref_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
-                     num_planes, sigma, subblock_mvs, subblock_mses, q_factor,
-                     filter_strength, tf_wgt_calc_lvl_, src2_, accumulator_ref,
-                     count_ref);
-    params_.tst_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
-                     num_planes, sigma, subblock_mvs, subblock_mses, q_factor,
-                     filter_strength, tf_wgt_calc_lvl_, src2_, accumulator_mod,
-                     count_mod);
+    params_.ref_func(frame_to_filter.get(), mbd.get(), block_size, mb_row,
+                     mb_col, num_planes, sigma, subblock_mvs, subblock_mses,
+                     q_factor, filter_strength, tf_wgt_calc_lvl_, src2_,
+                     accumulator_ref, count_ref);
+    params_.tst_func(frame_to_filter.get(), mbd.get(), block_size, mb_row,
+                     mb_col, num_planes, sigma, subblock_mvs, subblock_mses,
+                     q_factor, filter_strength, tf_wgt_calc_lvl_, src2_,
+                     accumulator_mod, count_mod);
 
     if (run_times > 1) {
       aom_usec_timer_start(&ref_timer);
       for (int j = 0; j < run_times; j++) {
-        params_.ref_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
-                         num_planes, sigma, subblock_mvs, subblock_mses,
+        params_.ref_func(frame_to_filter.get(), mbd.get(), block_size, mb_row,
+                         mb_col, num_planes, sigma, subblock_mvs, subblock_mses,
                          q_factor, filter_strength, tf_wgt_calc_lvl_, src2_,
                          accumulator_ref, count_ref);
       }
@@ -231,8 +231,8 @@ void TemporalFilterTest::RunTest(int isRandom, int run_times,
 
       aom_usec_timer_start(&test_timer);
       for (int j = 0; j < run_times; j++) {
-        params_.tst_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
-                         num_planes, sigma, subblock_mvs, subblock_mses,
+        params_.tst_func(frame_to_filter.get(), mbd.get(), block_size, mb_row,
+                         mb_col, num_planes, sigma, subblock_mvs, subblock_mses,
                          q_factor, filter_strength, tf_wgt_calc_lvl_, src2_,
                          accumulator_mod, count_mod);
       }
@@ -312,10 +312,10 @@ INSTANTIATE_TEST_SUITE_P(NEON, TemporalFilterTest,
 #if CONFIG_AV1_HIGHBITDEPTH
 
 typedef void (*HBDTemporalFilterFunc)(
-    const YV12_BUFFER_CONFIG *ref_frame, const MACROBLOCKD *mbd,
+    const YV12_BUFFER_CONFIG *frame_to_filter, const MACROBLOCKD *mbd,
     const BLOCK_SIZE block_size, const int mb_row, const int mb_col,
     const int num_planes, const double *noise_level, const MV *subblock_mvs,
-    const int *subblock_mses, const int q_factor, const int filter_strenght,
+    const int *subblock_mses, const int q_factor, const int filter_strength,
     int tf_wgt_calc_lvl, const uint8_t *pred, uint32_t *accum, uint16_t *count);
 typedef libaom_test::FuncParam<HBDTemporalFilterFunc>
     HBDTemporalFilterFuncParam;
@@ -451,18 +451,19 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int run_times, int BD,
     const int filter_strength = 5;
     const int mb_row = 0;
     const int mb_col = 0;
-    std::unique_ptr<YV12_BUFFER_CONFIG> ref_frame(new (std::nothrow)
-                                                      YV12_BUFFER_CONFIG);
-    ASSERT_NE(ref_frame, nullptr);
-    ref_frame->y_crop_height = 360;
-    ref_frame->y_crop_width = 540;
-    ref_frame->heights[PLANE_TYPE_Y] = height;
-    ref_frame->heights[PLANE_TYPE_UV] = height >> subsampling_y;
-    ref_frame->strides[PLANE_TYPE_Y] = stride;
-    ref_frame->strides[PLANE_TYPE_UV] = stride >> subsampling_x;
+    std::unique_ptr<YV12_BUFFER_CONFIG> frame_to_filter(new (std::nothrow)
+                                                            YV12_BUFFER_CONFIG);
+    ASSERT_NE(frame_to_filter, nullptr);
+    frame_to_filter->y_crop_height = 360;
+    frame_to_filter->y_crop_width = 540;
+    frame_to_filter->heights[PLANE_TYPE_Y] = height;
+    frame_to_filter->heights[PLANE_TYPE_UV] = height >> subsampling_y;
+    frame_to_filter->strides[PLANE_TYPE_Y] = stride;
+    frame_to_filter->strides[PLANE_TYPE_UV] = stride >> subsampling_x;
     DECLARE_ALIGNED(16, uint16_t, src[1024 * 3]);
-    ref_frame->buffer_alloc = CONVERT_TO_BYTEPTR(src);
-    ref_frame->flags = YV12_FLAG_HIGHBITDEPTH;  // Only Hihgbd bit-depth test.
+    frame_to_filter->buffer_alloc = CONVERT_TO_BYTEPTR(src);
+    frame_to_filter->flags =
+        YV12_FLAG_HIGHBITDEPTH;  // Only Hihgbd bit-depth test.
     memcpy(src, src1_, 1024 * 3 * sizeof(uint16_t));
 
     std::unique_ptr<MACROBLOCKD> mbd(new (std::nothrow) MACROBLOCKD);
@@ -471,26 +472,26 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int run_times, int BD,
     for (int plane = AOM_PLANE_Y; plane < num_planes; plane++) {
       int plane_height = plane ? height >> subsampling_y : height;
       int plane_stride = plane ? stride >> subsampling_x : stride;
-      ref_frame->buffers[plane] =
-          ref_frame->buffer_alloc + plane * plane_stride * plane_height;
+      frame_to_filter->buffers[plane] =
+          frame_to_filter->buffer_alloc + plane * plane_stride * plane_height;
       mbd->plane[plane].subsampling_x = plane ? subsampling_x : 0;
       mbd->plane[plane].subsampling_y = plane ? subsampling_y : 0;
     }
 
-    params_.ref_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
-                     num_planes, sigma, subblock_mvs, subblock_mses, q_factor,
-                     filter_strength, tf_wgt_calc_lvl_,
+    params_.ref_func(frame_to_filter.get(), mbd.get(), block_size, mb_row,
+                     mb_col, num_planes, sigma, subblock_mvs, subblock_mses,
+                     q_factor, filter_strength, tf_wgt_calc_lvl_,
                      CONVERT_TO_BYTEPTR(src2_), accumulator_ref, count_ref);
-    params_.tst_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
-                     num_planes, sigma, subblock_mvs, subblock_mses, q_factor,
-                     filter_strength, tf_wgt_calc_lvl_,
+    params_.tst_func(frame_to_filter.get(), mbd.get(), block_size, mb_row,
+                     mb_col, num_planes, sigma, subblock_mvs, subblock_mses,
+                     q_factor, filter_strength, tf_wgt_calc_lvl_,
                      CONVERT_TO_BYTEPTR(src2_), accumulator_mod, count_mod);
 
     if (run_times > 1) {
       aom_usec_timer_start(&ref_timer);
       for (int j = 0; j < run_times; j++) {
-        params_.ref_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
-                         num_planes, sigma, subblock_mvs, subblock_mses,
+        params_.ref_func(frame_to_filter.get(), mbd.get(), block_size, mb_row,
+                         mb_col, num_planes, sigma, subblock_mvs, subblock_mses,
                          q_factor, filter_strength, tf_wgt_calc_lvl_,
                          CONVERT_TO_BYTEPTR(src2_), accumulator_ref, count_ref);
       }
@@ -500,8 +501,8 @@ void HBDTemporalFilterTest::RunTest(int isRandom, int run_times, int BD,
 
       aom_usec_timer_start(&test_timer);
       for (int j = 0; j < run_times; j++) {
-        params_.tst_func(ref_frame.get(), mbd.get(), block_size, mb_row, mb_col,
-                         num_planes, sigma, subblock_mvs, subblock_mses,
+        params_.tst_func(frame_to_filter.get(), mbd.get(), block_size, mb_row,
+                         mb_col, num_planes, sigma, subblock_mvs, subblock_mses,
                          q_factor, filter_strength, tf_wgt_calc_lvl_,
                          CONVERT_TO_BYTEPTR(src2_), accumulator_mod, count_mod);
       }
