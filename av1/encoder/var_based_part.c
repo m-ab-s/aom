@@ -440,7 +440,7 @@ static int64_t scale_part_thresh_content(int64_t threshold_base, int speed,
 
 // Tune thresholds less or more aggressively to prefer larger partitions
 static AOM_INLINE void tune_thresh_based_on_qindex(
-    AV1_COMP *cpi, int64_t thresholds[], uint64_t blk_sad, int current_qindex,
+    AV1_COMP *cpi, int64_t thresholds[], uint64_t block_sad, int current_qindex,
     int num_pixels, bool is_segment_id_boosted, int source_sad_nonrd,
     int lighting_change) {
   double weight;
@@ -471,8 +471,21 @@ static AOM_INLINE void tune_thresh_based_on_qindex(
       // moving boundary. So allow for sb with source_sad above threshold,
       // and avoid very large source_sad or high source content, to avoid
       // too many 8x8 within superblock.
-      if (is_segment_id_boosted == false && cpi->rc.avg_source_sad < 25000 &&
-          blk_sad > 25000 && blk_sad < 50000 && !lighting_change) {
+      uint64_t avg_source_sad_thresh = 25000;
+      uint64_t block_sad_low = 25000;
+      uint64_t block_sad_high = 50000;
+      if (cpi->svc.temporal_layer_id == 0 &&
+          cpi->svc.number_temporal_layers > 1) {
+        // Increase the sad thresholds for base TL0, as reference/LAST is
+        // 2/4 frames behind (for 2/3 #TL).
+        avg_source_sad_thresh = 40000;
+        block_sad_low = 35000;
+        block_sad_high = 70000;
+      }
+      if (is_segment_id_boosted == false &&
+          cpi->rc.avg_source_sad < avg_source_sad_thresh &&
+          block_sad > block_sad_low && block_sad < block_sad_high &&
+          !lighting_change) {
         thresholds[2] = (3 * thresholds[2]) >> 2;
         thresholds[3] = thresholds[2] << 3;
       }
@@ -1534,7 +1547,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   int variance4x4downsample[64];
   const int segment_id = xd->mi[0]->segment_id;
   uint64_t blk_sad = 0;
-  if (cpi->src_sad_blk_64x64 != NULL && !cpi->ppi->use_svc) {
+  if (cpi->src_sad_blk_64x64 != NULL &&
+      cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1) {
     const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
                                   ? (cm->seq_params->mib_size >> 1)
                                   : cm->seq_params->mib_size;
