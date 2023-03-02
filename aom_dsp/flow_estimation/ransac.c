@@ -245,15 +245,6 @@ static void copy_points_at_indices(double *dest, const double *src,
   }
 }
 
-static const double kInfinity = 1e12;
-
-static void clear_motion(RANSAC_MOTION *motion, int num_points) {
-  motion->num_inliers = 0;
-  motion->sse = kInfinity;
-  memset(motion->inlier_indices, 0,
-         sizeof(*motion->inlier_indices) * num_points);
-}
-
 // Returns true on success, false on error
 static bool ransac_internal(const Correspondence *matched_points, int npoints,
                             MotionModel *motion_models, int num_desired_motions,
@@ -294,7 +285,7 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
   projected_corners =
       (double *)aom_malloc(sizeof(*projected_corners) * npoints * 2);
   motions =
-      (RANSAC_MOTION *)aom_malloc(sizeof(RANSAC_MOTION) * num_desired_motions);
+      (RANSAC_MOTION *)aom_calloc(num_desired_motions, sizeof(RANSAC_MOTION));
 
   // Allocate one large buffer which will be carved up to store the inlier
   // indices for the current motion plus the num_desired_motions many
@@ -316,10 +307,9 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
 
   for (i = 0; i < num_desired_motions; ++i) {
     motions[i].inlier_indices = inlier_buffer + i * npoints;
-    clear_motion(motions + i, npoints);
   }
+  memset(&current_motion, 0, sizeof(current_motion));
   current_motion.inlier_indices = inlier_buffer + num_desired_motions * npoints;
-  clear_motion(&current_motion, npoints);
 
   for (i = 0; i < npoints; ++i) {
     corners1[2 * i + 0] = matched_points[i].x;
@@ -371,8 +361,19 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
       // will be recomputed later using only the inliers.
       worst_kept_motion->num_inliers = current_motion.num_inliers;
       worst_kept_motion->sse = current_motion.sse;
-      memcpy(worst_kept_motion->inlier_indices, current_motion.inlier_indices,
-             sizeof(*current_motion.inlier_indices) * npoints);
+
+      // Rather than copying the (potentially many) inlier indices from
+      // current_motion.inlier_indices to worst_kept_motion->inlier_indices,
+      // we can swap the underlying pointers.
+      //
+      // This is okay because the next time current_motion.inlier_indices
+      // is used will be in the next trial, where we ignore its previous
+      // contents anyway. And both arrays will be deallocated together at the
+      // end of this function, so there are no lifetime issues.
+      int *tmp = worst_kept_motion->inlier_indices;
+      worst_kept_motion->inlier_indices = current_motion.inlier_indices;
+      current_motion.inlier_indices = tmp;
+
       // Determine the new worst kept motion and its num_inliers and sse.
       for (i = 0; i < num_desired_motions; ++i) {
         if (is_better_motion(worst_kept_motion, &motions[i])) {
