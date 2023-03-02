@@ -586,7 +586,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     launch_loop_filter_rows(cm, thread_data, enc_row_mt, mib_size_log2);
   }
   av1_free_pc_tree_recursive(thread_data->td->rt_pc_root, av1_num_planes(cm), 0,
-                             0);
+                             0, cpi->sf.part_sf.partition_search_type);
   return 1;
 }
 
@@ -619,7 +619,7 @@ static int enc_worker_hook(void *arg1, void *unused) {
   }
 
   av1_free_pc_tree_recursive(thread_data->td->rt_pc_root, av1_num_planes(cm), 0,
-                             0);
+                             0, cpi->sf.part_sf.partition_search_type);
 
   return 1;
 }

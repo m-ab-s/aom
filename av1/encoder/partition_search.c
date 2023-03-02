@@ -4734,7 +4734,8 @@ static bool ml_partition_search_whole_tree(AV1_COMP *const cpi, ThreadData *td,
     update_partition_stats(&this_rdcost, &stats);
     av1_ext_part_send_partition_stats(ext_part_controller, &stats);
     if (!partition_decision.is_final_decision) {
-      av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0);
+      av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+                                 cpi->sf.part_sf.partition_search_type);
     }
   } while (!partition_decision.is_final_decision);
 
@@ -4742,8 +4743,8 @@ static bool ml_partition_search_whole_tree(AV1_COMP *const cpi, ThreadData *td,
   set_cb_offsets(x->cb_offset, 0, 0);
   encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
             pc_tree, NULL);
-
-  av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0);
+  av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+                             cpi->sf.part_sf.partition_search_type);
 
   return true;
 }
@@ -5016,7 +5017,8 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
         for (int i = 0; i < 4; ++i) {
           if (pc_tree->split[i] != NULL) {
             av1_free_pc_tree_recursive(pc_tree->split[i], av1_num_planes(cm), 0,
-                                       0);
+                                       0,
+                                       cpi->sf.part_sf.partition_search_type);
             pc_tree->split[i] = NULL;
           }
         }
@@ -5060,8 +5062,8 @@ static bool ml_partition_search_partial(AV1_COMP *const cpi, ThreadData *td,
   set_cb_offsets(x->cb_offset, 0, 0);
   encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
             pc_tree, NULL);
-
-  av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0);
+  av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+                             cpi->sf.part_sf.partition_search_type);
 
   return true;
 }
@@ -5106,7 +5108,8 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
       CHECK_MEM_ERROR(cm, rdcost, aom_calloc(num_configs, sizeof(*rdcost)));
     }
     if (num_configs <= 0) {
-      av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0);
+      av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+                                 cpi->sf.part_sf.partition_search_type);
       if (rdcost != NULL) aom_free(rdcost);
       exit(0);
       return false;
@@ -5122,7 +5125,8 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
       best_idx = i;
       *best_rd_cost = rdcost[i];
     }
-    av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0);
+    av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+                               cpi->sf.part_sf.partition_search_type);
     ++i;
   } while (i < num_configs);
 
@@ -5134,8 +5138,8 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   set_cb_offsets(x->cb_offset, 0, 0);
   encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
             pc_tree, NULL);
-
-  av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0);
+  av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+                             cpi->sf.part_sf.partition_search_type);
   aom_free(rdcost);
   ++cpi->sb_counter;
 
@@ -5612,7 +5616,8 @@ BEGIN_PARTITION_SEARCH:
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, run_type, bsize,
                 pc_tree, NULL);
       // Dealloc the whole PC_TREE after a superblock is done.
-      av1_free_pc_tree_recursive(pc_tree, num_planes, 0, 0);
+      av1_free_pc_tree_recursive(pc_tree, num_planes, 0, 0,
+                                 cpi->sf.part_sf.partition_search_type);
       pc_tree_dealloc = 1;
     } else if (should_do_dry_run_encode_for_current_block(
                    cm->seq_params->sb_size, x->sb_enc.max_partition_size,
@@ -5629,7 +5634,8 @@ BEGIN_PARTITION_SEARCH:
   // If the tree still exists (non-superblock), dealloc most nodes, only keep
   // nodes for the best partition and PARTITION_NONE.
   if (pc_tree_dealloc == 0)
-    av1_free_pc_tree_recursive(pc_tree, num_planes, 1, 1);
+    av1_free_pc_tree_recursive(pc_tree, num_planes, 1, 1,
+                               cpi->sf.part_sf.partition_search_type);
 
   if (bsize == cm->seq_params->sb_size) {
     assert(best_rdc.rate < INT_MAX);
