@@ -21,8 +21,16 @@ set(AOM_UNIT_TEST_DATA_LIST_FILE "${AOM_ROOT}/test/test-data.sha1")
 set(AOM_IDE_TEST_FOLDER "test")
 set(AOM_IDE_TESTDATA_FOLDER "testdata")
 
+# Appends |AOM_TEST_SOURCE_VARS| with |src_list_name| at the caller's scope.
+# This collects all variables containing libaom test source files.
+function(add_to_libaom_test_srcs src_list_name)
+  list(APPEND AOM_TEST_SOURCE_VARS ${src_list_name})
+  set(AOM_TEST_SOURCE_VARS "${AOM_TEST_SOURCE_VARS}" PARENT_SCOPE)
+endfunction()
+
 list(APPEND AOM_UNIT_TEST_WRAPPER_SOURCES "${AOM_GEN_SRC_DIR}/usage_exit.c"
             "${AOM_ROOT}/test/test_libaom.cc")
+add_to_libaom_test_srcs(AOM_UNIT_TEST_WRAPPER_SOURCES)
 
 list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
             "${AOM_ROOT}/test/acm_random.h"
@@ -41,6 +49,7 @@ list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
             "${AOM_ROOT}/test/transform_test_base.h"
             "${AOM_ROOT}/test/util.h"
             "${AOM_ROOT}/test/video_source.h")
+add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_SOURCES)
 
 list(APPEND AOM_UNIT_TEST_DECODER_SOURCES "${AOM_ROOT}/test/decode_api_test.cc"
             "${AOM_ROOT}/test/decode_scalability_test.cc"
@@ -48,6 +57,7 @@ list(APPEND AOM_UNIT_TEST_DECODER_SOURCES "${AOM_ROOT}/test/decode_api_test.cc"
             "${AOM_ROOT}/test/invalid_file_test.cc"
             "${AOM_ROOT}/test/test_vector_test.cc"
             "${AOM_ROOT}/test/ivf_video_source.h")
+add_to_libaom_test_srcs(AOM_UNIT_TEST_DECODER_SOURCES)
 
 list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
             "${AOM_ROOT}/test/active_map_test.cc"
@@ -86,9 +96,11 @@ list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
             "${AOM_ROOT}/test/y4m_video_source.h"
             "${AOM_ROOT}/test/yuv_video_source.h"
             "${AOM_ROOT}/test/time_stamp_test.cc")
+add_to_libaom_test_srcs(AOM_UNIT_TEST_ENCODER_SOURCES)
 
 list(APPEND AOM_ENCODE_PERF_TEST_SOURCES "${AOM_ROOT}/test/encode_perf_test.cc")
 list(APPEND AOM_UNIT_TEST_WEBM_SOURCES "${AOM_ROOT}/test/webm_video_source.h")
+add_to_libaom_test_srcs(AOM_UNIT_TEST_WEBM_SOURCES)
 list(APPEND AOM_TEST_INTRA_PRED_SPEED_SOURCES "${AOM_GEN_SRC_DIR}/usage_exit.c"
             "${AOM_ROOT}/test/test_intra_pred_speed.cc")
 
@@ -145,15 +157,19 @@ if(NOT BUILD_SHARED_LIBS)
 
   list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_NEON
               "${AOM_ROOT}/test/simd_cmp_neon.cc")
+  add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_INTRIN_NEON)
 
   list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_SSE2
               "${AOM_ROOT}/test/simd_cmp_sse2.cc")
+  add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_INTRIN_SSE2)
 
   list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_SSSE3
               "${AOM_ROOT}/test/simd_cmp_ssse3.cc")
+  add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_INTRIN_SSSE3)
 
   list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_AVX2
               "${AOM_ROOT}/test/simd_cmp_avx2.cc")
+  add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_INTRIN_AVX2)
 
   list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
               "${AOM_ROOT}/test/arf_freq_test.cc"
@@ -209,6 +225,7 @@ if(NOT BUILD_SHARED_LIBS)
 
   list(APPEND AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
               "${AOM_ROOT}/test/simd_cmp_sse4.cc")
+  add_to_libaom_test_srcs(AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1)
 
   if(NOT CONFIG_REALTIME_ONLY)
     list(APPEND AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
@@ -569,39 +586,26 @@ function(setup_aom_test_targets)
     endif()
   endif()
 
-  # Collect all variables containing libaom test source files.
-  get_cmake_property(all_cmake_vars VARIABLES)
-  foreach(var ${all_cmake_vars})
-
-    # https://github.com/cheshirekow/cmake_format/issues/34
-    # cmake-format: off
-    if (("${var}" MATCHES "_TEST_" AND NOT
-         "${var}" MATCHES
-         "_DATA_\|_CMAKE_\|INTRA_PRED\|_COMPILED\|_HOSTING\|_PERF_\|CODER_\|_RC_")
-        OR (CONFIG_AV1_ENCODER AND ENABLE_ENCODE_PERF_TESTS AND
-            "${var}" MATCHES "_ENCODE_PERF_TEST_")
-        OR (CONFIG_AV1_DECODER AND ENABLE_DECODE_PERF_TESTS AND
-            "${var}" MATCHES "_DECODE_PERF_TEST_")
-        OR (CONFIG_AV1_ENCODER AND "${var}" MATCHES "_TEST_ENCODER_")
-        OR (CONFIG_AV1_DECODER AND  "${var}" MATCHES "_TEST_DECODER_"))
-      list(APPEND aom_test_source_vars ${var})
-    endif()
-    # cmake-format: on
-  endforeach()
-
   # Libaom_test_srcs.txt generation.
   set(libaom_test_srcs_txt_file "${AOM_CONFIG_DIR}/libaom_test_srcs.txt")
   file(WRITE "${libaom_test_srcs_txt_file}"
        "# This file is generated. DO NOT EDIT.\n")
 
   # Static source file list first.
-  foreach(aom_test_source_var ${aom_test_source_vars})
+  list(SORT AOM_TEST_SOURCE_VARS)
+  foreach(aom_test_source_var ${AOM_TEST_SOURCE_VARS})
+    if("${aom_test_source_var}" STREQUAL "${last_aom_test_source_var}")
+      message(
+        FATAL_ERROR
+          "Duplicate AOM_TEST_SOURCE_VARS entry: ${aom_test_source_var}")
+    endif()
     foreach(file ${${aom_test_source_var}})
       if(NOT "${file}" MATCHES "${AOM_CONFIG_DIR}")
         string(REPLACE "${AOM_ROOT}/" "" file "${file}")
         file(APPEND "${libaom_test_srcs_txt_file}" "${file}\n")
       endif()
     endforeach()
+    set(last_aom_test_source_var ${aom_test_source_var})
   endforeach()
 
   # Set up test for rc interface
