@@ -61,7 +61,7 @@ static INLINE int get_cubic_value_int(const int *p, const int16_t *kernel) {
 //
 // TODO(rachelbarker): Test speed/quality impact of using bilinear interpolation
 // instad of bicubic interpolation
-static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *src,
+static INLINE void compute_flow_error(const uint8_t *src, const uint8_t *ref,
                                       int width, int height, int stride, int x,
                                       int y, double u, double v, int16_t *dt) {
   // This function is written to do 8x8 convolutions only
@@ -539,7 +539,7 @@ void aom_compute_flow_at_point_sse4_1(const uint8_t *src, const uint8_t *ref,
   invert_2x2(M, M_inv);
 
   for (int itr = 0; itr < DISFLOW_MAX_ITR; itr++) {
-    compute_flow_error(ref, src, width, height, stride, x, y, *u, *v, dt);
+    compute_flow_error(src, ref, width, height, stride, x, y, *u, *v, dt);
     compute_flow_vector(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, dt,
                         DISFLOW_PATCH_SIZE, b);
 

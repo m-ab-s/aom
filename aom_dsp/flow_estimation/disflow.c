@@ -154,7 +154,7 @@ static int determine_disflow_correspondence(CornerList *corners,
 // (x, y) in src and the other at (x + u, y + v) in ref.
 // This function returns the sum of squared pixel differences between
 // the two regions.
-static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *src,
+static INLINE void compute_flow_error(const uint8_t *src, const uint8_t *ref,
                                       int width, int height, int stride, int x,
                                       int y, double u, double v, int16_t *dt) {
   // Split offset into integer and fractional parts, and compute cubic
@@ -403,7 +403,7 @@ void aom_compute_flow_at_point_c(const uint8_t *src, const uint8_t *ref, int x,
   invert_2x2(M, M_inv);
 
   for (int itr = 0; itr < DISFLOW_MAX_ITR; itr++) {
-    compute_flow_error(ref, src, width, height, stride, x, y, *u, *v, dt);
+    compute_flow_error(src, ref, width, height, stride, x, y, *u, *v, dt);
     compute_flow_vector(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, dt,
                         DISFLOW_PATCH_SIZE, b);
 
