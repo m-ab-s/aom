@@ -3551,6 +3551,12 @@ typedef struct AV1_COMP {
    */
   double *sm_scaling_factor;
 #endif
+
+  /*!
+   * Number of pixels that choose palette mode for luma in the
+   * fast encoding pass in av1_determine_sc_tools_with_encoding().
+   */
+  int palette_pixel_num;
 } AV1_COMP;
 
 /*!

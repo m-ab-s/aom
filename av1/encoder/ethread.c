@@ -1282,6 +1282,7 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
     // Accumulate rtc counters.
     if (!frame_is_intra_only(&cpi->common))
       av1_accumulate_rtc_counters(cpi, &thread_data->td->mb);
+    cpi->palette_pixel_num += thread_data->td->mb.palette_pixels;
     if (thread_data->td != &cpi->td) {
       // Keep these conditional expressions in sync with the corresponding ones
       // in prepare_enc_workers().
@@ -1384,6 +1385,8 @@ static AOM_INLINE void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 
     // Reset rtc counters.
     av1_init_rtc_counters(&thread_data->td->mb);
+
+    thread_data->td->mb.palette_pixels = 0;
 
     if (thread_data->td->counts != &cpi->counts) {
       memcpy(thread_data->td->counts, &cpi->counts, sizeof(cpi->counts));

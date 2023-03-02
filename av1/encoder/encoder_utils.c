@@ -970,7 +970,14 @@ static void screen_content_tools_determination(
   if (pass != 1) return;
 
   const double psnr_diff = psnr[1].psnr[0] - psnr[0].psnr[0];
-  const int is_sc_encoding_much_better = psnr_diff > STRICT_PSNR_DIFF_THRESH;
+  // Calculate % of palette mode to be chosen in a frame from mode decision.
+  const double palette_ratio =
+      (double)cpi->palette_pixel_num / (double)(cm->height * cm->width);
+  const int is_sc_encoding_much_better =
+      ((psnr_diff > STRICT_PSNR_DIFF_THRESH) ||  // psnr_diff is large
+       ((palette_ratio < 0.0001) ? 0
+                                 : (psnr_diff / (palette_ratio) >
+                                    4)));  // psnr_diff/palette_ratio is large
   if (is_sc_encoding_much_better) {
     // Use screen content tools, if we get coding gain.
     features->allow_screen_content_tools = 1;

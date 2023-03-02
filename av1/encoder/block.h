@@ -1361,6 +1361,11 @@ typedef struct macroblock {
 #if COLLECT_NONRD_PICK_MODE_STAT
   mode_search_stat_nonrd ms_stat_nonrd;
 #endif  // COLLECT_NONRD_PICK_MODE_STAT
+
+  /*!\brief Number of pixels in current thread that choose palette mode in the
+   * fast encoding stage for screen content tool detemination.
+   */
+  int palette_pixels;
 } MACROBLOCK;
 #undef SINGLE_REF_MODES
 
