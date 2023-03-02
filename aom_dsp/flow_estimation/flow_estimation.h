@@ -65,16 +65,21 @@ typedef struct {
 // is not large enough to need all of the specified levels
 extern const int global_motion_pyr_levels[GLOBAL_MOTION_METHODS];
 
+extern const double kIdentityParams[MAX_PARAMDIM - 1];
+
 // Compute a global motion model between the given source and ref frames.
 //
 // As is standard for video codecs, the resulting model maps from (x, y)
 // coordinates in `src` to the corresponding points in `ref`, regardless
 // of the temporal order of the two frames.
-int aom_compute_global_motion(TransformationType type, YV12_BUFFER_CONFIG *src,
-                              YV12_BUFFER_CONFIG *ref, int bit_depth,
-                              GlobalMotionMethod gm_method,
-                              MotionModel *motion_models,
-                              int num_motion_models);
+//
+// Returns true if global motion estimation succeeded, false if not.
+// The output models should only be used if this function succeeds.
+bool aom_compute_global_motion(TransformationType type, YV12_BUFFER_CONFIG *src,
+                               YV12_BUFFER_CONFIG *ref, int bit_depth,
+                               GlobalMotionMethod gm_method,
+                               MotionModel *motion_models,
+                               int num_motion_models);
 
 #ifdef __cplusplus
 }

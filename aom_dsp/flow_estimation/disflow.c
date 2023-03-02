@@ -608,11 +608,11 @@ static void free_flow_field(FlowField *flow) {
 // Following the convention in flow_estimation.h, the flow vectors are computed
 // at fixed points in `src` and point to the corresponding locations in `ref`,
 // regardless of the temporal ordering of the frames.
-int av1_compute_global_motion_disflow(TransformationType type,
-                                      YV12_BUFFER_CONFIG *src,
-                                      YV12_BUFFER_CONFIG *ref, int bit_depth,
-                                      MotionModel *motion_models,
-                                      int num_motion_models) {
+bool av1_compute_global_motion_disflow(TransformationType type,
+                                       YV12_BUFFER_CONFIG *src,
+                                       YV12_BUFFER_CONFIG *ref, int bit_depth,
+                                       MotionModel *motion_models,
+                                       int num_motion_models) {
   // Precompute information we will need about each frame
   ImagePyramid *src_pyramid = src->y_pyramid;
   CornerList *src_corners = src->corners;
@@ -627,24 +627,25 @@ int av1_compute_global_motion_disflow(TransformationType type,
   assert(ref_pyramid->layers[0].height == src_height);
 
   FlowField *flow = alloc_flow_field(src_width, src_height);
+  if (!flow) return false;
 
   compute_flow_field(src_pyramid, ref_pyramid, flow);
 
   // find correspondences between the two images using the flow field
   Correspondence *correspondences =
       aom_malloc(src_corners->num_corners * sizeof(*correspondences));
+  if (!correspondences) {
+    free_flow_field(flow);
+    return false;
+  }
+
   const int num_correspondences =
       determine_disflow_correspondence(src_corners, flow, correspondences);
 
-  ransac(correspondences, num_correspondences, type, motion_models,
-         num_motion_models);
+  bool result = ransac(correspondences, num_correspondences, type,
+                       motion_models, num_motion_models);
 
   aom_free(correspondences);
   free_flow_field(flow);
-
-  // Return true if any one of the motions has inliers.
-  for (int i = 0; i < num_motion_models; ++i) {
-    if (motion_models[i].num_inliers > 0) return true;
-  }
-  return false;
+  return result;
 }

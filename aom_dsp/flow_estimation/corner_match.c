@@ -200,10 +200,9 @@ int aom_determine_correspondence(const unsigned char *src,
   return num_correspondences;
 }
 
-int av1_compute_global_motion_feature_match(
+bool av1_compute_global_motion_feature_match(
     TransformationType type, YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
     int bit_depth, MotionModel *motion_models, int num_motion_models) {
-  int i;
   int num_correspondences;
   Correspondence *correspondences;
   ImagePyramid *src_pyramid = src->y_pyramid;
@@ -230,20 +229,15 @@ int av1_compute_global_motion_feature_match(
   // find correspondences between the two images
   correspondences = (Correspondence *)aom_malloc(src_corners->num_corners *
                                                  sizeof(*correspondences));
-  if (!correspondences) return 0;
+  if (!correspondences) return false;
   num_correspondences = aom_determine_correspondence(
       src_buffer, src_corners->corners, src_corners->num_corners, ref_buffer,
       ref_corners->corners, ref_corners->num_corners, src_width, src_height,
       src_stride, ref_stride, correspondences);
 
-  ransac(correspondences, num_correspondences, type, motion_models,
-         num_motion_models);
+  bool result = ransac(correspondences, num_correspondences, type,
+                       motion_models, num_motion_models);
 
   aom_free(correspondences);
-
-  // Return true if any one of the motions has inliers.
-  for (i = 0; i < num_motion_models; ++i) {
-    if (motion_models[i].num_inliers > 0) return 1;
-  }
-  return 0;
+  return result;
 }

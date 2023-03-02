@@ -92,11 +92,6 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   int src_width = cpi->source->y_crop_width;
   int src_height = cpi->source->y_crop_height;
   int src_stride = cpi->source->y_stride;
-  // clang-format off
-  static const double kIdentityParams[MAX_PARAMDIM - 1] = {
-     0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0
-  };
-  // clang-format on
   WarpedMotionParams tmp_wm_params;
   const double *params_this_motion;
   assert(ref_buf[frame] != NULL);
@@ -107,16 +102,13 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
   for (model = ROTZOOM; model < GLOBAL_TRANS_TYPES_ENC; ++model) {
     int64_t best_warp_error = INT64_MAX;
-    // Initially set all params to identity.
-    for (i = 0; i < RANSAC_NUM_MOTIONS; ++i) {
-      memcpy(motion_models[i].params, kIdentityParams,
-             (MAX_PARAMDIM - 1) * sizeof(*(motion_models[i].params)));
-      motion_models[i].num_inliers = 0;
+
+    if (!aom_compute_global_motion(model, cpi->source, ref_buf[frame],
+                                   bit_depth, global_motion_method,
+                                   motion_models, RANSAC_NUM_MOTIONS)) {
+      continue;
     }
 
-    aom_compute_global_motion(model, cpi->source, ref_buf[frame], bit_depth,
-                              global_motion_method, motion_models,
-                              RANSAC_NUM_MOTIONS);
     int64_t ref_frame_error = 0;
     for (i = 0; i < RANSAC_NUM_MOTIONS; ++i) {
       if (motion_models[i].num_inliers == 0) continue;
