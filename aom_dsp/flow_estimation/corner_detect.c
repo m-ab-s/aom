@@ -47,7 +47,7 @@ void compute_corner_list(const ImagePyramid *pyr, CornerList *corners) {
 
   int *scores = NULL;
   int num_corners;
-  xy *const frm_corners_xy = aom_fast9_detect_nonmax(
+  xy *const frame_corners_xy = aom_fast9_detect_nonmax(
       buf, width, height, stride, FAST_BARRIER, &scores, &num_corners);
 
   if (num_corners <= 0) {
@@ -55,8 +55,8 @@ void compute_corner_list(const ImagePyramid *pyr, CornerList *corners) {
     corners->num_corners = 0;
   } else if (num_corners <= MAX_CORNERS) {
     // Use all detected corners
-    memcpy(corners->corners, frm_corners_xy,
-           sizeof(*frm_corners_xy) * num_corners);
+    memcpy(corners->corners, frame_corners_xy,
+           sizeof(*frame_corners_xy) * num_corners);
     corners->num_corners = num_corners;
   } else {
     // There are more than MAX_CORNERS corners avilable, so pick out a subset
@@ -85,8 +85,8 @@ void compute_corner_list(const ImagePyramid *pyr, CornerList *corners) {
     for (int i = 0; i < num_corners; i++) {
       if (scores[i] > threshold) {
         assert(copied_corners < MAX_CORNERS);
-        corners->corners[2 * copied_corners + 0] = frm_corners_xy[i].x;
-        corners->corners[2 * copied_corners + 1] = frm_corners_xy[i].y;
+        corners->corners[2 * copied_corners + 0] = frame_corners_xy[i].x;
+        corners->corners[2 * copied_corners + 1] = frame_corners_xy[i].y;
         copied_corners += 1;
       }
     }
@@ -95,7 +95,7 @@ void compute_corner_list(const ImagePyramid *pyr, CornerList *corners) {
   }
 
   free(scores);
-  free(frm_corners_xy);
+  free(frame_corners_xy);
 }
 
 void av1_compute_corner_list(const ImagePyramid *pyr, CornerList *corners) {

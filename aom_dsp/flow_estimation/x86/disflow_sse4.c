@@ -55,13 +55,13 @@ static INLINE int get_cubic_value_int(const int *p, const int16_t *kernel) {
 #endif  // CHECK_RESULTS
 
 // Compare two regions of width x height pixels, one rooted at position
-// (x, y) in frm and the other at (x + u, y + v) in ref.
+// (x, y) in src and the other at (x + u, y + v) in ref.
 // This function returns the sum of squared pixel differences between
 // the two regions.
 //
 // TODO(rachelbarker): Test speed/quality impact of using bilinear interpolation
 // instad of bicubic interpolation
-static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *frm,
+static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *src,
                                       int width, int height, int stride, int x,
                                       int y, double u, double v, int16_t *dt) {
   // This function is written to do 8x8 convolutions only
@@ -227,7 +227,7 @@ static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *frm,
 
     __m128i warped = _mm_packs_epi32(sum0_rounded, sum1_rounded);
     __m128i src_pixels_u8 =
-        _mm_loadu_si64((__m128i *)&frm[(y + i) * stride + x]);
+        _mm_loadu_si64((__m128i *)&src[(y + i) * stride + x]);
     __m128i src_pixels = _mm_slli_epi16(_mm_cvtepu8_epi16(src_pixels_u8), 3);
 
     // Calculate delta from the target patch
@@ -246,7 +246,7 @@ static INLINE void compute_flow_error(const uint8_t *ref, const uint8_t *frm,
       // earlier, but we also want to keep DISFLOW_DERIV_SCALE_LOG2 extra bits
       // of precision to match the scale of the dx and dy arrays.
       const int c_warped = ROUND_POWER_OF_TWO(result, round_bits);
-      const int c_src_px = frm[(x + j) + (y + i) * stride] << 3;
+      const int c_src_px = src[(x + j) + (y + i) * stride] << 3;
       const int c_err = c_warped - c_src_px;
       (void)c_err;
       assert(dt[i * DISFLOW_PATCH_SIZE + j] == c_err);
@@ -518,7 +518,7 @@ static INLINE void invert_2x2(const double *M, double *M_inv) {
   M_inv[3] = M[0] * det_inv;
 }
 
-void aom_compute_flow_at_point_sse4_1(const uint8_t *frm, const uint8_t *ref,
+void aom_compute_flow_at_point_sse4_1(const uint8_t *src, const uint8_t *ref,
                                       int x, int y, int width, int height,
                                       int stride, double *u, double *v) {
   double M[4];
@@ -531,15 +531,15 @@ void aom_compute_flow_at_point_sse4_1(const uint8_t *frm, const uint8_t *ref,
   const double o_v = *v;
 
   // Compute gradients within this patch
-  const uint8_t *frm_patch = &frm[y * stride + x];
-  sobel_filter_x(frm_patch, stride, dx, DISFLOW_PATCH_SIZE);
-  sobel_filter_y(frm_patch, stride, dy, DISFLOW_PATCH_SIZE);
+  const uint8_t *src_patch = &src[y * stride + x];
+  sobel_filter_x(src_patch, stride, dx, DISFLOW_PATCH_SIZE);
+  sobel_filter_y(src_patch, stride, dy, DISFLOW_PATCH_SIZE);
 
   compute_flow_matrix(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M);
   invert_2x2(M, M_inv);
 
   for (int itr = 0; itr < DISFLOW_MAX_ITR; itr++) {
-    compute_flow_error(ref, frm, width, height, stride, x, y, *u, *v, dt);
+    compute_flow_error(ref, src, width, height, stride, x, y, *u, *v, dt);
     compute_flow_vector(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, dt,
                         DISFLOW_PATCH_SIZE, b);
 

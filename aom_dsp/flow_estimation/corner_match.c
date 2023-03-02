@@ -27,10 +27,10 @@
 
 #define THRESHOLD_NCC 0.75
 
-/* Compute var(im) * MATCH_SZ_SQ over a MATCH_SZ by MATCH_SZ window of im,
+/* Compute var(frame) * MATCH_SZ_SQ over a MATCH_SZ by MATCH_SZ window of frame,
    centered at (x, y).
 */
-static double compute_variance(const unsigned char *im, int stride, int x,
+static double compute_variance(const unsigned char *frame, int stride, int x,
                                int y) {
   int sum = 0;
   int sumsq = 0;
@@ -38,21 +38,22 @@ static double compute_variance(const unsigned char *im, int stride, int x,
   int i, j;
   for (i = 0; i < MATCH_SZ; ++i)
     for (j = 0; j < MATCH_SZ; ++j) {
-      sum += im[(i + y - MATCH_SZ_BY2) * stride + (j + x - MATCH_SZ_BY2)];
-      sumsq += im[(i + y - MATCH_SZ_BY2) * stride + (j + x - MATCH_SZ_BY2)] *
-               im[(i + y - MATCH_SZ_BY2) * stride + (j + x - MATCH_SZ_BY2)];
+      sum += frame[(i + y - MATCH_SZ_BY2) * stride + (j + x - MATCH_SZ_BY2)];
+      sumsq += frame[(i + y - MATCH_SZ_BY2) * stride + (j + x - MATCH_SZ_BY2)] *
+               frame[(i + y - MATCH_SZ_BY2) * stride + (j + x - MATCH_SZ_BY2)];
     }
   var = sumsq * MATCH_SZ_SQ - sum * sum;
   return (double)var;
 }
 
-/* Compute corr(im1, im2) * MATCH_SZ * stddev(im1), where the
+/* Compute corr(frame1, frame2) * MATCH_SZ * stddev(frame1), where the
    correlation/standard deviation are taken over MATCH_SZ by MATCH_SZ windows
    of each image, centered at (x1, y1) and (x2, y2) respectively.
 */
-double av1_compute_cross_correlation_c(const unsigned char *im1, int stride1,
-                                       int x1, int y1, const unsigned char *im2,
-                                       int stride2, int x2, int y2) {
+double av1_compute_cross_correlation_c(const unsigned char *frame1, int stride1,
+                                       int x1, int y1,
+                                       const unsigned char *frame2, int stride2,
+                                       int x2, int y2) {
   int v1, v2;
   int sum1 = 0;
   int sum2 = 0;
@@ -62,8 +63,8 @@ double av1_compute_cross_correlation_c(const unsigned char *im1, int stride1,
   int i, j;
   for (i = 0; i < MATCH_SZ; ++i)
     for (j = 0; j < MATCH_SZ; ++j) {
-      v1 = im1[(i + y1 - MATCH_SZ_BY2) * stride1 + (j + x1 - MATCH_SZ_BY2)];
-      v2 = im2[(i + y2 - MATCH_SZ_BY2) * stride2 + (j + x2 - MATCH_SZ_BY2)];
+      v1 = frame1[(i + y1 - MATCH_SZ_BY2) * stride1 + (j + x1 - MATCH_SZ_BY2)];
+      v2 = frame2[(i + y2 - MATCH_SZ_BY2) * stride2 + (j + x2 - MATCH_SZ_BY2)];
       sum1 += v1;
       sum2 += v2;
       sumsq2 += v2 * v2;
@@ -86,9 +87,9 @@ static int is_eligible_distance(int point1x, int point1y, int point2x,
           (point1y - point2y) * (point1y - point2y)) <= thresh * thresh;
 }
 
-static void improve_correspondence(const unsigned char *frm,
+static void improve_correspondence(const unsigned char *src,
                                    const unsigned char *ref, int width,
-                                   int height, int frm_stride, int ref_stride,
+                                   int height, int src_stride, int ref_stride,
                                    Correspondence *correspondences,
                                    int num_correspondences) {
   int i;
@@ -108,7 +109,7 @@ static void improve_correspondence(const unsigned char *frm,
         if (!is_eligible_point(rx0 + x, ry0 + y, width, height)) continue;
         if (!is_eligible_distance(x0, y0, rx0 + x, ry0 + y, width, height))
           continue;
-        match_ncc = av1_compute_cross_correlation(frm, frm_stride, x0, y0, ref,
+        match_ncc = av1_compute_cross_correlation(src, src_stride, x0, y0, ref,
                                                   ref_stride, rx0 + x, ry0 + y);
         if (match_ncc > best_match_ncc) {
           best_match_ncc = match_ncc;
@@ -134,7 +135,7 @@ static void improve_correspondence(const unsigned char *frm,
         if (!is_eligible_distance(x0 + x, y0 + y, rx0, ry0, width, height))
           continue;
         match_ncc = av1_compute_cross_correlation(
-            ref, ref_stride, rx0, ry0, frm, frm_stride, x0 + x, y0 + y);
+            ref, ref_stride, rx0, ry0, src, src_stride, x0 + x, y0 + y);
         if (match_ncc > best_match_ncc) {
           best_match_ncc = match_ncc;
           best_y = y;
