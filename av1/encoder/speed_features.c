@@ -427,6 +427,7 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->tx_sf.adaptive_txb_search_level = 2;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
+    sf->tx_sf.use_rd_based_breakout_for_intra_tx_search = true;
 
     // TODO(any): evaluate if these lpf features can be moved to speed 2.
     // For screen content, "prune_sgr_based_on_wiener = 2" cause large quality
@@ -2044,6 +2045,7 @@ static AOM_INLINE void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->refine_fast_tx_search_results = 1;
   tx_sf->prune_tx_size_level = 0;
   tx_sf->prune_intra_tx_depths_using_nn = false;
+  tx_sf->use_rd_based_breakout_for_intra_tx_search = false;
 }
 
 static AOM_INLINE void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,

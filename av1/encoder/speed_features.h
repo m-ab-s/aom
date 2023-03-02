@@ -1263,6 +1263,21 @@ typedef struct TX_SPEED_FEATURES {
   // encode time by 4.65%, 9.16% and 10.45% for speed 6, 7 and 8 on a typical
   // image dataset with coding performance change less than 0.19%.
   bool prune_intra_tx_depths_using_nn;
+
+  // Enable/disable early breakout during transform search of intra modes, by
+  // using the minimum rd cost possible. By using this approach, the rd
+  // evaluation of applicable transform blocks (in the current block) can be
+  // avoided as
+  // 1) best_rd evolves during the search in choose_tx_size_type_from_rd()
+  // 2) appropriate ref_best_rd is passed in intra_block_yrd()
+  //
+  // For allintra encode, this speed feature reduces instruction count
+  // by 1.11%, 1.08%, 1.02% and 0.93% for speed 3, 6, 7 and 8 with coding
+  // performance change less than 0.02%. For AVIF image encode, this speed
+  // feature reduces encode time by 0.93%, 1.46%, 1.07%, 0.84%, 0.99% and 0.73%
+  // for speed 3, 4, 5, 6, 7 and 8 on a typical image dataset with coding
+  // performance change less than 0.004%.
+  bool use_rd_based_breakout_for_intra_tx_search;
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {

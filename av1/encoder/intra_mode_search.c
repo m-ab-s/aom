@@ -1168,9 +1168,13 @@ static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   RD_STATS rd_stats;
-  // In order to improve txfm search avoid rd based breakouts during winner
-  // mode evaluation. Hence passing ref_best_rd as a maximum value
-  av1_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats, bsize, INT64_MAX);
+  // In order to improve txfm search, avoid rd based breakouts during winner
+  // mode evaluation. Hence passing ref_best_rd as INT64_MAX by default when the
+  // speed feature use_rd_based_breakout_for_intra_tx_search is disabled.
+  int64_t ref_best_rd = cpi->sf.tx_sf.use_rd_based_breakout_for_intra_tx_search
+                            ? *best_rd
+                            : INT64_MAX;
+  av1_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats, bsize, ref_best_rd);
   if (rd_stats.rate == INT_MAX) return 0;
   int this_rate_tokenonly = rd_stats.rate;
   if (!xd->lossless[mbmi->segment_id] && block_signals_txsize(mbmi->bsize)) {
