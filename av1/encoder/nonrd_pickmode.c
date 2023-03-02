@@ -1740,26 +1740,19 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
     use_alt_ref_frame = 0;
   }
 
-  // Skip golden/altref reference if color is set, on flat blocks with motion.
-  // For screen: always skip golden/alt (if color_sensitivity_sb_g/alt is set)
+  // Skip golden reference if color is set, on flat blocks with motion.
+  // For screen: always skip golden (if color_sensitivity_sb_g is set)
   // except when x->nonrd_prune_ref_frame_search = 0. This latter flag
   // may be set in the variance partition when golden is a much better
   // reference than last, in which case it may not be worth skipping
-  // golden/altref completely.
-  // Condition on use_last_ref to make sure there remains at least one
-  // reference.
-  if (use_last_ref_frame &&
-      ((cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+  // golden completely.
+  if (((cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
         x->nonrd_prune_ref_frame_search != 0) ||
-       (x->source_variance < 200 &&
-        x->content_state_sb.source_sad_nonrd >= kLowSad))) {
-    if (x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_U)] == 1 ||
-        x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_V)] == 1)
-      use_golden_ref_frame = 0;
-    if (x->color_sensitivity_sb_alt[COLOR_SENS_IDX(AOM_PLANE_U)] == 1 ||
-        x->color_sensitivity_sb_alt[COLOR_SENS_IDX(AOM_PLANE_V)] == 1)
-      use_alt_ref_frame = 0;
-  }
+       (x->source_variance < 500 &&
+        x->content_state_sb.source_sad_nonrd > kLowSad)) &&
+      (x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_U)] == 1 ||
+       x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_V)] == 1))
+    use_golden_ref_frame = 0;
 
   // For non-screen: if golden and altref are not being selected as references
   // (use_golden_ref_frame/use_alt_ref_frame = 0) check to allow golden back
@@ -2090,29 +2083,18 @@ static AOM_INLINE int setup_compound_params_from_comp_idx(
     PREDICTION_MODE *this_mode, MV_REFERENCE_FRAME *ref_frame,
     MV_REFERENCE_FRAME *ref_frame2, int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
     const int *use_ref_frame_mask, int comp_index,
-    bool comp_use_zero_zeromv_only, MV_REFERENCE_FRAME *last_comp_ref_frame,
-    BLOCK_SIZE bsize) {
+    bool comp_use_zero_zeromv_only, MV_REFERENCE_FRAME *last_comp_ref_frame) {
   const MV_REFERENCE_FRAME *rf = comp_ref_mode_set[comp_index].ref_frame;
-  int skip_gf = 0;
-  int skip_alt = 0;
   *this_mode = comp_ref_mode_set[comp_index].pred_mode;
   *ref_frame = rf[0];
   *ref_frame2 = rf[1];
   assert(*ref_frame == LAST_FRAME);
   assert(*this_mode == GLOBAL_GLOBALMV || *this_mode == NEAREST_NEARESTMV);
-  if (x->source_variance < 50 && bsize > BLOCK_16X16) {
-    if (x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_U)] == 1 ||
-        x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_V)] == 1)
-      skip_gf = 1;
-    if (x->color_sensitivity_sb_alt[COLOR_SENS_IDX(AOM_PLANE_U)] == 1 ||
-        x->color_sensitivity_sb_alt[COLOR_SENS_IDX(AOM_PLANE_V)] == 1)
-      skip_alt = 1;
-  }
   if (comp_use_zero_zeromv_only && *this_mode != GLOBAL_GLOBALMV) {
     return 0;
   }
   if (*ref_frame2 == GOLDEN_FRAME &&
-      (cpi->sf.rt_sf.ref_frame_comp_nonrd[0] == 0 || skip_gf ||
+      (cpi->sf.rt_sf.ref_frame_comp_nonrd[0] == 0 ||
        !(cpi->ref_frame_flags & AOM_GOLD_FLAG))) {
     return 0;
   } else if (*ref_frame2 == LAST2_FRAME &&
@@ -2120,7 +2102,7 @@ static AOM_INLINE int setup_compound_params_from_comp_idx(
               !(cpi->ref_frame_flags & AOM_LAST2_FLAG))) {
     return 0;
   } else if (*ref_frame2 == ALTREF_FRAME &&
-             (cpi->sf.rt_sf.ref_frame_comp_nonrd[2] == 0 || skip_alt ||
+             (cpi->sf.rt_sf.ref_frame_comp_nonrd[2] == 0 ||
               !(cpi->ref_frame_flags & AOM_ALT_FLAG))) {
     return 0;
   }
@@ -2311,8 +2293,7 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
     if (!setup_compound_params_from_comp_idx(
             cpi, x, search_state->yv12_mb, this_mode, ref_frame, ref_frame2,
             search_state->frame_mv, search_state->use_ref_frame_mask,
-            comp_index, comp_use_zero_zeromv_only, last_comp_ref_frame,
-            bsize)) {
+            comp_index, comp_use_zero_zeromv_only, last_comp_ref_frame)) {
       return true;
     }
     *is_single_pred = 0;
