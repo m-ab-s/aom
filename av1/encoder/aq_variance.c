@@ -118,18 +118,16 @@ int av1_log_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs) {
   for (i = 0; i < bh; i += 4) {
     for (j = 0; j < bw; j += 4) {
       if (is_cur_buf_hbd(xd)) {
-        var +=
-            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                          x->plane[0].src.stride,
-                          CONVERT_TO_BYTEPTR(av1_highbd_all_zeros), 0, &sse) /
-                          16.0);
+        var += log1p(cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+                         x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+                         x->plane[0].src.stride,
+                         CONVERT_TO_BYTEPTR(av1_highbd_all_zeros), 0, &sse) /
+                     16.0);
       } else {
-        var +=
-            log(1.0 + cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                          x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                          x->plane[0].src.stride, av1_all_zeros, 0, &sse) /
-                          16.0);
+        var += log1p(cpi->ppi->fn_ptr[BLOCK_4X4].vf(
+                         x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+                         x->plane[0].src.stride, av1_all_zeros, 0, &sse) /
+                     16.0);
       }
     }
   }
@@ -186,7 +184,7 @@ static unsigned int haar_ac_energy(MACROBLOCK *x, BLOCK_SIZE bs) {
 
 double av1_log_block_wavelet_energy(MACROBLOCK *x, BLOCK_SIZE bs) {
   unsigned int haar_sad = haar_ac_energy(x, bs);
-  return log(haar_sad + 1.0);
+  return log1p(haar_sad);
 }
 
 int av1_block_wavelet_energy_level(const AV1_COMP *cpi, MACROBLOCK *x,

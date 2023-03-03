@@ -3536,7 +3536,7 @@ static void calculate_frame_avg_haar_energy(AV1_COMP *cpi) {
       src, stride, hbd, num_8x8_rows, num_8x8_cols);
 
   cpi->twopass_frame.frame_avg_haar_energy =
-      log(((double)frame_avg_wavelet_energy / num_mbs) + 1.0);
+      log1p((double)frame_avg_wavelet_energy / num_mbs);
 }
 #endif
 

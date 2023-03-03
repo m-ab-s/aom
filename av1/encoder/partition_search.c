@@ -5194,8 +5194,8 @@ static void log_sub_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
       max_var_4x4 = AOMMAX(max_var_4x4, var);
     }
   }
-  *var_min = log(1.0 + min_var_4x4 / 16.0);
-  *var_max = log(1.0 + max_var_4x4 / 16.0);
+  *var_min = log1p(min_var_4x4 / 16.0);
+  *var_max = log1p(max_var_4x4 / 16.0);
 }
 
 static AOM_INLINE void set_sms_tree_partitioning(
@@ -5693,7 +5693,7 @@ static int ml_predict_var_partitioning(AV1_COMP *cpi, MACROBLOCK *x,
     float score[LABELS];
 
     features[feature_idx] =
-        (logf((float)(dc_q * dc_q) / 256.0f + 1.0f) - means[feature_idx]) /
+        (log1pf((float)(dc_q * dc_q) / 256.0f) - means[feature_idx]) /
         sqrtf(vars[feature_idx]);
     feature_idx++;
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col, 1, bsize);
@@ -5713,8 +5713,8 @@ static int ml_predict_var_partitioning(AV1_COMP *cpi, MACROBLOCK *x,
           cpi->ppi->fn_ptr[bsize].vf(src, src_stride, pred, pred_stride, &sse);
       const float factor = (var == 0) ? 1.0f : (1.0f / (float)var);
 
-      features[feature_idx] = (logf((float)var + 1.0f) - means[feature_idx]) /
-                              sqrtf(vars[feature_idx]);
+      features[feature_idx] =
+          (log1pf((float)var) - means[feature_idx]) / sqrtf(vars[feature_idx]);
       feature_idx++;
       for (i = 0; i < 4; ++i) {
         const int x_idx = (i & 1) * bs / 2;
@@ -5769,7 +5769,7 @@ static int store_partition_data(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                                       cm->seq_params->bit_depth);
     int feature_idx = 0;
 
-    features[feature_idx++] = logf((float)(dc_q * dc_q) / 256.0f + 1.0f);
+    features[feature_idx++] = log1pf((float)(dc_q * dc_q) / 256.0f);
     av1_setup_src_planes(x, cpi->source, mi_row, mi_col, 1, bsize);
     {
       const int bs = block_size_wide[bsize];
@@ -5802,7 +5802,7 @@ static int store_partition_data(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
           cpi->fn_ptr[bsize].vf(src, src_stride, pred, pred_stride, &sse);
       const float factor = (var == 0) ? 1.0f : (1.0f / (float)var);
 
-      features[feature_idx++] = logf((float)var + 1.0f);
+      features[feature_idx++] = log1pf((float)var);
 
       fprintf(f, "%f,%f,", features[0], features[1]);
       for (i = 0; i < 4; ++i) {

@@ -150,7 +150,7 @@ static void compute_avg_log_variance(const AV1_COMP *const cpi, MACROBLOCK *x,
             x->plane[0].src.buf + i * x->plane[0].src.stride + j,
             x->plane[0].src.stride, is_hbd);
         block_4x4_var_info->var = src_var;
-        log_src_var = log(1.0 + src_var / 16.0);
+        log_src_var = log1p(src_var / 16.0);
         block_4x4_var_info->log_var = log_src_var;
       } else {
         // When source variance is already calculated and available for
@@ -158,7 +158,7 @@ static void compute_avg_log_variance(const AV1_COMP *const cpi, MACROBLOCK *x,
         // available, then retrieve from buffer. Else, calculate the same and
         // store to the buffer.
         if (log_src_var < 0) {
-          log_src_var = log(1.0 + src_var / 16.0);
+          log_src_var = log1p(src_var / 16.0);
           block_4x4_var_info->log_var = log_src_var;
         }
       }
@@ -168,7 +168,7 @@ static void compute_avg_log_variance(const AV1_COMP *const cpi, MACROBLOCK *x,
           cpi->ppi->fn_ptr[BLOCK_4X4].vf,
           xd->plane[0].dst.buf + i * xd->plane[0].dst.stride + j,
           xd->plane[0].dst.stride, is_hbd);
-      *avg_log_recon_variance += log(1.0 + recon_var / 16.0);
+      *avg_log_recon_variance += log1p(recon_var / 16.0);
     }
   }
 
