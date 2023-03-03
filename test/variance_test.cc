@@ -3225,13 +3225,9 @@ INSTANTIATE_TEST_SUITE_P(
                       MseWxHParams(2, 3, &aom_mse_wxh_16bit_neon, 8),
                       MseWxHParams(2, 2, &aom_mse_wxh_16bit_neon, 8)));
 
-// TODO(https://crbug.com/aomedia/3400): enable this after heap overflow is
-// fixed.
-#if 0
 INSTANTIATE_TEST_SUITE_P(NEON, AvxSseTest,
                          ::testing::Values(SseParams(2, 2,
                                                      &aom_get4x4sse_cs_neon)));
-#endif
 
 INSTANTIATE_TEST_SUITE_P(NEON, AvxMseTest,
                          ::testing::Values(MseParams(3, 3, &aom_mse8x8_neon),

@@ -476,9 +476,6 @@ static INLINE unsigned int mse16xh_neon(const uint8_t *src, int src_stride,
   return horizontal_add_u32x4(vaddq_u32(sse_u32[0], sse_u32[1]));
 }
 
-// TODO(https://crbug.com/aomedia/3400): enable this after heap overflow is
-// fixed.
-#if 0
 unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
                                    const uint8_t *ref, int ref_stride) {
   uint8x16_t s = load_unaligned_u8q(src, src_stride);
@@ -490,7 +487,6 @@ unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
 
   return horizontal_add_u32x4(sse);
 }
-#endif  // 0
 
 #else  // !defined(__ARM_FEATURE_DOTPROD)
 
@@ -591,43 +587,29 @@ static INLINE unsigned int mse16xh_neon(const uint8_t *src, int src_stride,
   return horizontal_add_u32x4(vreinterpretq_u32_s32(sse_s32[0]));
 }
 
-// TODO(https://crbug.com/aomedia/3400): enable this after heap overflow is
-// fixed.
-#if 0
 unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
                                    const uint8_t *ref, int ref_stride) {
-  uint8x8_t s[4], r[4];
-  int16x4_t diff[4];
-  int32x4_t sse;
+  uint8x8_t s[2], r[2];
+  uint16x8_t abs_diff[2];
+  uint32x4_t sse;
 
-  s[0] = vld1_u8(src);
-  src += src_stride;
-  r[0] = vld1_u8(ref);
-  ref += ref_stride;
-  s[1] = vld1_u8(src);
-  src += src_stride;
-  r[1] = vld1_u8(ref);
-  ref += ref_stride;
-  s[2] = vld1_u8(src);
-  src += src_stride;
-  r[2] = vld1_u8(ref);
-  ref += ref_stride;
-  s[3] = vld1_u8(src);
-  r[3] = vld1_u8(ref);
+  s[0] = load_u8(src, src_stride);
+  r[0] = load_u8(ref, ref_stride);
+  src += 2 * src_stride;
+  ref += 2 * ref_stride;
+  s[1] = load_u8(src, src_stride);
+  r[1] = load_u8(ref, ref_stride);
 
-  diff[0] = vget_low_s16(vreinterpretq_s16_u16(vsubl_u8(s[0], r[0])));
-  diff[1] = vget_low_s16(vreinterpretq_s16_u16(vsubl_u8(s[1], r[1])));
-  diff[2] = vget_low_s16(vreinterpretq_s16_u16(vsubl_u8(s[2], r[2])));
-  diff[3] = vget_low_s16(vreinterpretq_s16_u16(vsubl_u8(s[3], r[3])));
+  abs_diff[0] = vabdl_u8(s[0], r[0]);
+  abs_diff[1] = vabdl_u8(s[1], r[1]);
 
-  sse = vmull_s16(diff[0], diff[0]);
-  sse = vmlal_s16(sse, diff[1], diff[1]);
-  sse = vmlal_s16(sse, diff[2], diff[2]);
-  sse = vmlal_s16(sse, diff[3], diff[3]);
+  sse = vmull_u16(vget_low_u16(abs_diff[0]), vget_low_u16(abs_diff[0]));
+  sse = vmlal_u16(sse, vget_high_u16(abs_diff[0]), vget_high_u16(abs_diff[0]));
+  sse = vmlal_u16(sse, vget_low_u16(abs_diff[1]), vget_low_u16(abs_diff[1]));
+  sse = vmlal_u16(sse, vget_high_u16(abs_diff[1]), vget_high_u16(abs_diff[1]));
 
-  return horizontal_add_u32x4(vreinterpretq_u32_s32(sse));
+  return horizontal_add_u32x4(sse);
 }
-#endif  // 0
 
 #endif  // defined(__ARM_FEATURE_DOTPROD)
 
