@@ -476,6 +476,9 @@ static INLINE unsigned int mse16xh_neon(const uint8_t *src, int src_stride,
   return horizontal_add_u32x4(vaddq_u32(sse_u32[0], sse_u32[1]));
 }
 
+// TODO(https://crbug.com/aomedia/3400): enable this after heap overflow is
+// fixed.
+#if 0
 unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
                                    const uint8_t *ref, int ref_stride) {
   uint8x16_t s = load_unaligned_u8q(src, src_stride);
@@ -487,6 +490,7 @@ unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
 
   return horizontal_add_u32x4(sse);
 }
+#endif  // 0
 
 #else  // !defined(__ARM_FEATURE_DOTPROD)
 
@@ -587,6 +591,9 @@ static INLINE unsigned int mse16xh_neon(const uint8_t *src, int src_stride,
   return horizontal_add_u32x4(vreinterpretq_u32_s32(sse_s32[0]));
 }
 
+// TODO(https://crbug.com/aomedia/3400): enable this after heap overflow is
+// fixed.
+#if 0
 unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
                                    const uint8_t *ref, int ref_stride) {
   uint8x8_t s[4], r[4];
@@ -620,6 +627,7 @@ unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
 
   return horizontal_add_u32x4(vreinterpretq_u32_s32(sse));
 }
+#endif  // 0
 
 #endif  // defined(__ARM_FEATURE_DOTPROD)
 
