@@ -356,21 +356,20 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 if(CONFIG_AV1_ENCODER AND ENABLE_TESTS)
-  list(APPEND AOM_RC_TEST_SOURCES
-              "${AOM_ROOT}/common/tools_common.c"
-              "${AOM_ROOT}/common/tools_common.h"
-              "${AOM_ROOT}/common/y4minput.c"
-              "${AOM_ROOT}/common/y4minput.h"
-              "${AOM_ROOT}/test/codec_factory.h"
+  list(APPEND AOM_RC_TEST_SOURCES "${AOM_ROOT}/test/codec_factory.h"
               "${AOM_ROOT}/test/decode_test_driver.cc"
               "${AOM_ROOT}/test/decode_test_driver.h"
               "${AOM_ROOT}/test/encode_test_driver.cc"
               "${AOM_ROOT}/test/encode_test_driver.h"
+              "${AOM_ROOT}/test/i420_video_source.h"
               "${AOM_ROOT}/test/ratectrl_rtc_test.cc"
-              "${AOM_ROOT}/test/test_aom_rc.cc"
-              "${AOM_ROOT}/test/y4m_video_source.h"
-              "${AOM_ROOT}/test/yuv_video_source.h"
-              "${AOM_GEN_SRC_DIR}/usage_exit.c")
+              "${AOM_ROOT}/test/test_aom_rc.cc" "${AOM_ROOT}/test/util.h")
+  if(CONFIG_THREE_PASS)
+    # Add the dependencies of "${AOM_ROOT}/common/ivfdec.c".
+    list(APPEND AOM_RC_TEST_SOURCES "${AOM_ROOT}/common/tools_common.c"
+                "${AOM_ROOT}/common/tools_common.h"
+                "${AOM_GEN_SRC_DIR}/usage_exit.c")
+  endif()
 endif()
 
 if(ENABLE_TESTS)
