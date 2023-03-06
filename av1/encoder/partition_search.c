@@ -603,8 +603,7 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   }
 
 #if !CONFIG_REALTIME_ONLY
-  const AV1_COMMON *const cm = &cpi->common;
-  if (cm->delta_q_info.delta_q_present_flag &&
+  if (cpi->common.delta_q_info.delta_q_present_flag &&
       !cpi->sf.rt_sf.use_nonrd_pick_mode) {
     x->rdmult = av1_get_cb_rdmult(cpi, x, bsize, mi_row, mi_col);
   }
@@ -617,8 +616,8 @@ static void setup_block_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
 #if CONFIG_SALIENCY_MAP
   else if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_VMAF_SALIENCY_MAP) {
     av1_set_saliency_map_vmaf_rdmult(cpi, &x->errorperbit,
-                                     cm->seq_params->sb_size, mi_row, mi_col,
-                                     &x->rdmult);
+                                     cpi->common.seq_params->sb_size, mi_row,
+                                     mi_col, &x->rdmult);
   }
 #endif
 #if CONFIG_TUNE_VMAF

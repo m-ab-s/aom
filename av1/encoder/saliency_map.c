@@ -1364,6 +1364,10 @@ int av1_setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio) {
   return 1;
 }
 
+// av1_setup_motion_ratio() is only enabled when CONFIG_REALTIME_ONLY is 0,
+// because the computations need to access the first pass stats which are
+// only available when CONFIG_REALTIME_ONLY is equal to 0.
+#if !CONFIG_REALTIME_ONLY
 // Set motion_ratio that reflects the motion quantities between two consecutive
 // frames. Motion_ratio will be used to set up saliency_map based rdmult scaling
 // factor, i.e., the less the motion quantities are, the more bits will be spent
@@ -1407,3 +1411,4 @@ double av1_setup_motion_ratio(AV1_COMP *cpi) {
 
   return motion_ratio;
 }
+#endif  // !CONFIG_REALTIME_ONLY
