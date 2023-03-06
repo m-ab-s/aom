@@ -1528,7 +1528,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
     CHECK_MEM_ERROR(cm, cpi->saliency_map,
                     (uint8_t *)aom_calloc(cm->height * cm->width,
                                           sizeof(*cpi->saliency_map)));
-    // Buffer initialization based on MIN_MIB_SIZE_LOG2 to insure that
+    // Buffer initialization based on MIN_MIB_SIZE_LOG2 to ensure that
     // cpi->sm_scaling_factor buffer is allocated big enough, since we have no
     // idea of the actual superblock size we gonna use yet.
     const int min_mi_w_sb = (1 << MIN_MIB_SIZE_LOG2);
