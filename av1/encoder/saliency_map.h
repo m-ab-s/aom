@@ -20,7 +20,7 @@ typedef struct saliency_feature_map {
 } saliency_feature_map;
 
 int av1_set_saliency_map(AV1_COMP *cpi);
-#if !CONFIG_REALTIME_ONLY
+#if !CONFIG_REALTIME_ONLY && !REVERT_NEW_FIRSTPASS_STATS
 double av1_setup_motion_ratio(AV1_COMP *cpi);
 #endif
 int av1_setup_sm_rdmult_scaling_factor(AV1_COMP *cpi, double motion_ratio);
