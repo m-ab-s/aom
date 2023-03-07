@@ -602,21 +602,21 @@ static AOM_INLINE void simple_motion_search_prune_part_features(
   int f_idx = 0;
   if (features_to_get & FEATURE_SMS_NONE_FLAG) {
     for (int sub_idx = 0; sub_idx < 2; sub_idx++) {
-      features[f_idx++] = log1pf(sms_tree->sms_none_feat[sub_idx]);
+      features[f_idx++] = log1pf((float)sms_tree->sms_none_feat[sub_idx]);
     }
   }
 
   if (features_to_get & FEATURE_SMS_SPLIT_FLAG) {
     for (int sub_idx = 0; sub_idx < SUB_PARTITIONS_SPLIT; sub_idx++) {
       SIMPLE_MOTION_DATA_TREE *sub_tree = sms_tree->split[sub_idx];
-      features[f_idx++] = log1pf(sub_tree->sms_none_feat[0]);
-      features[f_idx++] = log1pf(sub_tree->sms_none_feat[1]);
+      features[f_idx++] = log1pf((float)sub_tree->sms_none_feat[0]);
+      features[f_idx++] = log1pf((float)sub_tree->sms_none_feat[1]);
     }
   }
 
   if (features_to_get & FEATURE_SMS_RECT_FLAG) {
     for (int sub_idx = 0; sub_idx < 8; sub_idx++) {
-      features[f_idx++] = log1pf(sms_tree->sms_rect_feat[sub_idx]);
+      features[f_idx++] = log1pf((float)sms_tree->sms_rect_feat[sub_idx]);
     }
   }
 
