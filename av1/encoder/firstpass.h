@@ -12,6 +12,8 @@
 #ifndef AOM_AV1_ENCODER_FIRSTPASS_H_
 #define AOM_AV1_ENCODER_FIRSTPASS_H_
 
+#include <stdbool.h>
+
 #include "av1/common/av1_common_int.h"
 #include "av1/common/enums.h"
 #include "av1/encoder/lookahead.h"
@@ -403,6 +405,8 @@ typedef struct GF_GROUP {
   // 0 : frame is a reference frame.
   // 1 : frame is a non-reference frame.
   int is_frame_non_ref[MAX_STATIC_GF_GROUP_LENGTH];
+  // Indicates whether a frame is dropped.
+  bool is_frame_dropped[MAX_STATIC_GF_GROUP_LENGTH];
 
   // Stores the display order hint of the frames not to be
   // refreshed by the current frame.

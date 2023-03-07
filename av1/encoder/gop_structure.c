@@ -548,22 +548,19 @@ static int construct_multi_layer_gf_structure(
                            ? 0
                            : cpi->common.current_frame.frame_number;
 
-  // Initialize gf_group->frame_parallel_level and gf_group->is_frame_non_ref to
-  // 0.
-  memset(
-      gf_group->frame_parallel_level, 0,
-      sizeof(gf_group->frame_parallel_level[0]) * MAX_STATIC_GF_GROUP_LENGTH);
-  memset(gf_group->is_frame_non_ref, 0,
-         sizeof(gf_group->is_frame_non_ref[0]) * MAX_STATIC_GF_GROUP_LENGTH);
-  memset(gf_group->src_offset, 0,
-         sizeof(gf_group->src_offset[0]) * MAX_STATIC_GF_GROUP_LENGTH);
+  // Initialize gf_group->frame_parallel_level, gf_group->is_frame_non_ref,
+  // gf_group->src_offset and gf_group->is_frame_dropped with 0.
+  memset(gf_group->frame_parallel_level, 0,
+         sizeof(gf_group->frame_parallel_level));
+  memset(gf_group->is_frame_non_ref, 0, sizeof(gf_group->is_frame_non_ref));
+  memset(gf_group->src_offset, 0, sizeof(gf_group->src_offset));
+  memset(gf_group->is_frame_dropped, false, sizeof(gf_group->is_frame_dropped));
   // Initialize gf_group->skip_frame_refresh and gf_group->skip_frame_as_ref
   // with INVALID_IDX.
   memset(gf_group->skip_frame_refresh, INVALID_IDX,
-         sizeof(gf_group->skip_frame_refresh[0][0]) *
-             MAX_STATIC_GF_GROUP_LENGTH * REF_FRAMES);
+         sizeof(gf_group->skip_frame_refresh));
   memset(gf_group->skip_frame_as_ref, INVALID_IDX,
-         sizeof(gf_group->skip_frame_as_ref[0]) * MAX_STATIC_GF_GROUP_LENGTH);
+         sizeof(gf_group->skip_frame_as_ref));
 
   int kf_decomp = cpi->oxcf.kf_cfg.enable_keyframe_filtering > 1;
   // This is a patch that fixes https://crbug.com/aomedia/3163
