@@ -49,6 +49,35 @@ static INLINE uint32_t lcg_randrange(uint32_t *state, uint32_t lo,
   return lo + lcg_randint(state, hi - lo);
 }
 
+// Pick k distinct numbers from the set {0, ..., n-1}
+// All possible sets of k numbers, and all possible orderings of those numbers,
+// are equally likely.
+//
+// Note: The algorithm used here uses resampling to avoid choosing repeated
+// values. This works well as long as n >> k, but can potentially lead to many
+// resampling attempts if n is equal to or only slightly larger than k.
+static INLINE void lcg_pick(int n, int k, int *out, unsigned int *seed) {
+  assert(0 <= k && k <= n);
+  for (int i = 0; i < k; i++) {
+    int v;
+
+  // Inner resampling loop
+  // We have to use a goto here because C does not have a multi-level continue
+  // statement
+  resample:
+    v = (int)lcg_randint(seed, n);
+    for (int j = 0; j < i; j++) {
+      if (v == out[j]) {
+        // Repeated v, resample
+        goto resample;
+      }
+    }
+
+    // New v, accept
+    out[i] = v;
+  }
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
