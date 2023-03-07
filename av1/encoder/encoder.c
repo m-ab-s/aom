@@ -952,11 +952,10 @@ static INLINE void init_frame_index_set(FRAME_INDEX_SET *frame_index_set) {
   frame_index_set->show_frame_count = 0;
 }
 
-static INLINE void update_frame_index_set(FRAME_INDEX_SET *frame_index_set,
-                                          int is_show_frame) {
-  if (is_show_frame) {
-    frame_index_set->show_frame_count++;
-  }
+static INLINE void update_counters_for_show_frame(AV1_COMP *const cpi) {
+  assert(cpi->common.show_frame);
+  cpi->frame_index_set.show_frame_count++;
+  cpi->common.current_frame.frame_number++;
 }
 
 AV1_PRIMARY *av1_create_primary_compressor(
@@ -3674,8 +3673,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     }
 #endif  // !CONFIG_REALTIME_ONLY
 
-    ++current_frame->frame_number;
-    update_frame_index_set(&cpi->frame_index_set, cm->show_frame);
+    update_counters_for_show_frame(cpi);
     return AOM_CODEC_OK;
   }
 
@@ -3736,6 +3734,12 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       av1_rc_postencode_update_drop_frame(cpi);
       release_scaled_references(cpi);
       cpi->is_dropped_frame = true;
+      // A dropped frame might not be shown but it always takes a slot in the gf
+      // group. Therefore, even when it is not shown, we still need to update
+      // the relevant frame counters.
+      if (cm->show_frame) {
+        update_counters_for_show_frame(cpi);
+      }
       return AOM_CODEC_OK;
     }
   }
@@ -3950,12 +3954,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   cm->seg.update_data = 0;
   cm->lf.mode_ref_delta_update = 0;
 
-  // A droppable frame might not be shown but it always
-  // takes a space in the gf group. Therefore, even when
-  // it is not shown, we still need update the count down.
   if (cm->show_frame) {
-    update_frame_index_set(&cpi->frame_index_set, cm->show_frame);
-    ++current_frame->frame_number;
+    update_counters_for_show_frame(cpi);
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
