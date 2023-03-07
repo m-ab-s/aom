@@ -437,7 +437,7 @@ static void set_multi_layer_params(
     RATE_CONTROL *rc, FRAME_INFO *frame_info, int start, int end,
     int *cur_frame_idx, int *frame_ind, int *parallel_frame_count,
     int max_parallel_frames, int do_frame_parallel_encode,
-    int *first_frame_index, int layer_depth) {
+    int *first_frame_index, int *cur_disp_idx, int layer_depth) {
   const int num_frames_to_process = end - start;
 
   // Either we are at the last level of the pyramid, or we don't have enough
@@ -449,6 +449,7 @@ static void set_multi_layer_params(
       gf_group->update_type[*frame_ind] = LF_UPDATE;
       gf_group->arf_src_offset[*frame_ind] = 0;
       gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
+      gf_group->display_idx[*frame_ind] = *cur_disp_idx;
       gf_group->layer_depth[*frame_ind] = MAX_ARF_LAYERS;
       gf_group->arf_boost[*frame_ind] =
           av1_calc_arf_boost(twopass, twopass_frame, p_rc, frame_info, start,
@@ -467,6 +468,7 @@ static void set_multi_layer_params(
       set_src_offset(gf_group, first_frame_index, *cur_frame_idx, *frame_ind);
       ++(*frame_ind);
       ++(*cur_frame_idx);
+      ++(*cur_disp_idx);
       ++start;
     }
   } else {
@@ -476,6 +478,8 @@ static void set_multi_layer_params(
     gf_group->update_type[*frame_ind] = INTNL_ARF_UPDATE;
     gf_group->arf_src_offset[*frame_ind] = m - start;
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
+    gf_group->display_idx[*frame_ind] =
+        *cur_disp_idx + gf_group->arf_src_offset[*frame_ind];
     gf_group->layer_depth[*frame_ind] = layer_depth;
     gf_group->frame_type[*frame_ind] = INTER_FRAME;
     gf_group->refbuf_state[*frame_ind] = REFBUF_UPDATE;
@@ -499,15 +503,17 @@ static void set_multi_layer_params(
     ++(*frame_ind);
 
     // Frames displayed before this internal ARF.
-    set_multi_layer_params(
-        twopass, twopass_frame, gf_group, p_rc, rc, frame_info, start, m,
-        cur_frame_idx, frame_ind, parallel_frame_count, max_parallel_frames,
-        do_frame_parallel_encode, first_frame_index, layer_depth + 1);
+    set_multi_layer_params(twopass, twopass_frame, gf_group, p_rc, rc,
+                           frame_info, start, m, cur_frame_idx, frame_ind,
+                           parallel_frame_count, max_parallel_frames,
+                           do_frame_parallel_encode, first_frame_index,
+                           cur_disp_idx, layer_depth + 1);
 
     // Overlay for internal ARF.
     gf_group->update_type[*frame_ind] = INTNL_OVERLAY_UPDATE;
     gf_group->arf_src_offset[*frame_ind] = 0;
     gf_group->cur_frame_idx[*frame_ind] = *cur_frame_idx;
+    gf_group->display_idx[*frame_ind] = *cur_disp_idx;
     gf_group->arf_boost[*frame_ind] = 0;
     gf_group->layer_depth[*frame_ind] = layer_depth;
     gf_group->frame_type[*frame_ind] = INTER_FRAME;
@@ -516,12 +522,14 @@ static void set_multi_layer_params(
     set_src_offset(gf_group, first_frame_index, *cur_frame_idx, *frame_ind);
     ++(*frame_ind);
     ++(*cur_frame_idx);
+    ++(*cur_disp_idx);
 
     // Frames displayed after this internal ARF.
-    set_multi_layer_params(
-        twopass, twopass_frame, gf_group, p_rc, rc, frame_info, m + 1, end,
-        cur_frame_idx, frame_ind, parallel_frame_count, max_parallel_frames,
-        do_frame_parallel_encode, first_frame_index, layer_depth + 1);
+    set_multi_layer_params(twopass, twopass_frame, gf_group, p_rc, rc,
+                           frame_info, m + 1, end, cur_frame_idx, frame_ind,
+                           parallel_frame_count, max_parallel_frames,
+                           do_frame_parallel_encode, first_frame_index,
+                           cur_disp_idx, layer_depth + 1);
   }
 }
 
@@ -721,11 +729,12 @@ static int construct_multi_layer_gf_structure(
 
   // Rest of the frames.
   if (!is_multi_layer_configured)
-    set_multi_layer_params(
-        twopass, &cpi->twopass_frame, gf_group, p_rc, rc, frame_info,
-        cur_frame_index, gf_interval, &cur_frame_index, &frame_index,
-        &parallel_frame_count, cpi->ppi->num_fp_contexts,
-        do_frame_parallel_encode, &first_frame_index, use_altref + 1);
+    set_multi_layer_params(twopass, &cpi->twopass_frame, gf_group, p_rc, rc,
+                           frame_info, cur_frame_index, gf_interval,
+                           &cur_frame_index, &frame_index,
+                           &parallel_frame_count, cpi->ppi->num_fp_contexts,
+                           do_frame_parallel_encode, &first_frame_index,
+                           &cur_disp_index, use_altref + 1);
 
   if (use_altref) {
     gf_group->update_type[frame_index] = OVERLAY_UPDATE;
