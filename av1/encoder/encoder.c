@@ -3728,12 +3728,20 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   // Never drop on key frame.
   if (has_no_stats_stage(cpi) && oxcf->rc_cfg.mode == AOM_CBR &&
       current_frame->frame_type != KEY_FRAME) {
+    FRAME_UPDATE_TYPE update_type =
+        cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
+    (void)update_type;
+    assert(
+        IMPLIES(cpi->is_dropped_frame, (update_type == OVERLAY_UPDATE ||
+                                        update_type == INTNL_OVERLAY_UPDATE)));
     if (av1_rc_drop_frame(cpi)) {
+      cpi->is_dropped_frame = true;
+    }
+    if (cpi->is_dropped_frame) {
       av1_setup_frame_size(cpi);
       av1_set_mv_search_params(cpi);
       av1_rc_postencode_update_drop_frame(cpi);
       release_scaled_references(cpi);
-      cpi->is_dropped_frame = true;
       cpi->ppi->gf_group.is_frame_dropped[cpi->gf_frame_index] = true;
       // A dropped frame might not be shown but it always takes a slot in the gf
       // group. Therefore, even when it is not shown, we still need to update
