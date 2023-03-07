@@ -51,9 +51,10 @@ static void append_negative_gtest_filter(const char *str) {
 
 int main(int argc, char **argv) {
 #if HAVE_FEXCEPT
-  if (feenableexcept(FE_DIVBYZERO) == -1) {
-    fprintf(stderr, "feenableexcept() failed\n");
-    return 1;
+  const int excepts = FE_DIVBYZERO;
+  if (feenableexcept(excepts) == -1) {
+    fprintf(stderr, "feenableexcept(0x%x) not supported on the architecture\n",
+            excepts);
   }
 #endif
 
