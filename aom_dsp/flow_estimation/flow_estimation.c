@@ -27,8 +27,8 @@ const int global_motion_pyr_levels[GLOBAL_MOTION_METHODS] = {
 };
 
 // clang-format off
-const double kIdentityParams[MAX_PARAMDIM - 1] = {
-  0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0
+const double kIdentityParams[MAX_PARAMDIM] = {
+  0.0, 0.0, 1.0, 0.0, 0.0, 1.0
 };
 // clang-format on
 

@@ -149,7 +149,6 @@ static bool find_rotzoom(int np, const double *pts1, const double *pts2,
   // Fill in remaining parameters
   params[4] = -params[3];
   params[5] = params[2];
-  params[6] = params[7] = 0;
 
   return true;
 }
@@ -208,7 +207,6 @@ static bool find_affine(int np, const double *pts1, const double *pts2,
   params[3] = x[0][2];
   params[4] = x[1][1];
   params[5] = x[1][2];
-  params[6] = params[7] = 0;
 
   return true;
 }
@@ -403,7 +401,7 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
         // we don't have a good fallback. So just clear the output
         // model and move on
         memcpy(motion_models[i].params, kIdentityParams,
-               (MAX_PARAMDIM - 1) * sizeof(*(motion_models[i].params)));
+               MAX_PARAMDIM * sizeof(*(motion_models[i].params)));
         motion_models[i].num_inliers = 0;
         continue;
       }
@@ -418,7 +416,7 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
       motion_models[i].num_inliers = num_inliers;
     } else {
       memcpy(motion_models[i].params, kIdentityParams,
-             (MAX_PARAMDIM - 1) * sizeof(*(motion_models[i].params)));
+             MAX_PARAMDIM * sizeof(*(motion_models[i].params)));
       motion_models[i].num_inliers = 0;
     }
   }

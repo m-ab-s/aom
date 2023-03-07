@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-#define MAX_PARAMDIM 9
+#define MAX_PARAMDIM 6
 #define MIN_INLIER_PROB 0.1
 
 /* clang-format off */
@@ -45,7 +45,7 @@ typedef enum {
 } GlobalMotionMethod;
 
 typedef struct {
-  double params[MAX_PARAMDIM - 1];
+  double params[MAX_PARAMDIM];
   int *inliers;
   int num_inliers;
 } MotionModel;
@@ -65,7 +65,7 @@ typedef struct {
 // is not large enough to need all of the specified levels
 extern const int global_motion_pyr_levels[GLOBAL_MOTION_METHODS];
 
-extern const double kIdentityParams[MAX_PARAMDIM - 1];
+extern const double kIdentityParams[MAX_PARAMDIM];
 
 // Compute a global motion model between the given source and ref frames.
 //
