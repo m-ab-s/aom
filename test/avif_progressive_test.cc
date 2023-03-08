@@ -225,8 +225,6 @@ TEST(AVIFProgressiveTest, DimensionChangeLargeImageMultiThread) {
   aom_codec_ctx_t enc;
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CQ_LEVEL, 31));
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_control(&enc, AOME_SET_NUMBER_SPATIAL_LAYERS, 2));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 6));
   EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_control(&enc, AV1E_SET_ROW_MT, 1));  // MultiThread
@@ -234,6 +232,8 @@ TEST(AVIFProgressiveTest, DimensionChangeLargeImageMultiThread) {
             aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE));
   EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIM));
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_control(&enc, AOME_SET_NUMBER_SPATIAL_LAYERS, 2));
 
   // First frame (layer 0)
   EXPECT_EQ(AOM_CODEC_OK,
