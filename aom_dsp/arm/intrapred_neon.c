@@ -1023,7 +1023,6 @@ void av1_dr_prediction_z1_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
       break;
     default: break;
   }
-  return;
 }
 
 /* ---------------------P R E D I C T I O N   Z 2--------------------------- */
@@ -1631,7 +1630,6 @@ void av1_dr_prediction_z2_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
                                 upsample_above, upsample_left, dx, dy);
       break;
   }
-  return;
 }
 
 /* ---------------------P R E D I C T I O N   Z 3--------------------------- */
