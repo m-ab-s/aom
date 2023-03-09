@@ -100,7 +100,6 @@ void av1_row_mt_sync_read_dummy(AV1EncRowMultiThreadSync *row_mt_sync, int r,
   (void)row_mt_sync;
   (void)r;
   (void)c;
-  return;
 }
 
 void av1_row_mt_sync_write_dummy(AV1EncRowMultiThreadSync *row_mt_sync, int r,
@@ -109,7 +108,6 @@ void av1_row_mt_sync_write_dummy(AV1EncRowMultiThreadSync *row_mt_sync, int r,
   (void)r;
   (void)c;
   (void)cols;
-  return;
 }
 
 void av1_row_mt_sync_read(AV1EncRowMultiThreadSync *row_mt_sync, int r, int c) {
@@ -1824,7 +1822,6 @@ void av1_tpl_row_mt_sync_read_dummy(AV1TplRowMultiThreadSync *tpl_mt_sync,
   (void)tpl_mt_sync;
   (void)r;
   (void)c;
-  return;
 }
 
 void av1_tpl_row_mt_sync_write_dummy(AV1TplRowMultiThreadSync *tpl_mt_sync,
@@ -1833,7 +1830,6 @@ void av1_tpl_row_mt_sync_write_dummy(AV1TplRowMultiThreadSync *tpl_mt_sync,
   (void)r;
   (void)c;
   (void)cols;
-  return;
 }
 
 void av1_tpl_row_mt_sync_read(AV1TplRowMultiThreadSync *tpl_row_mt_sync, int r,
