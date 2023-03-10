@@ -31,9 +31,7 @@
 #include "test/function_equivalence_test.h"
 
 using libaom_test::ACMRandom;
-using libaom_test::FunctionEquivalenceTest;
 using ::testing::Combine;
-using ::testing::Range;
 using ::testing::Values;
 using ::testing::ValuesIn;
 
