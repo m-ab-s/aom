@@ -100,7 +100,7 @@ void av1_convolve_2d_sr_c(const uint8_t *src, int src_stride, uint8_t *dst,
         sum += x_filter[k] * src_horiz[y * src_stride + x - fo_horiz + k];
       }
 
-      // TODO(yunqing, any): for 12-tap filter, in extreme cases, the result can
+      // TODO(aomedia:3393): for 12-tap filter, in extreme cases, the result can
       // be beyond the following range. For better prediction, a clamping can be
       // added for 12 tap filter to ensure the horizontal filtering result is
       // within 16 bit. The same applies to the vertical filtering.
