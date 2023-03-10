@@ -1530,7 +1530,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
                                           sizeof(*cpi->saliency_map)));
     // Buffer initialization based on MIN_MIB_SIZE_LOG2 to ensure that
     // cpi->sm_scaling_factor buffer is allocated big enough, since we have no
-    // idea of the actual superblock size we gonna use yet.
+    // idea of the actual superblock size we are going to use yet.
     const int min_mi_w_sb = (1 << MIN_MIB_SIZE_LOG2);
     const int min_mi_h_sb = (1 << MIN_MIB_SIZE_LOG2);
     const int max_sb_cols =
