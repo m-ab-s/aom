@@ -1026,7 +1026,20 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Enable/disable masked compound.
   int disable_masked_comp;
 
-  // Enable/disable the fast compound mode search.
+  // Enable/disable MV refinement for compound modes corresponds to compound
+  // types COMPOUND_AVERAGE, COMPOUND_DISTWTD (currently, this compound type
+  // is disabled for speeds >= 2 using the sf 'use_dist_wtd_comp_flag') and
+  // COMPOUND_DIFFWTD based on the availability. Levels 0 to 3 indicate
+  // increasing order of aggressiveness to disable MV refinement.
+  // 0: MV Refinement is enabled and for NEW_NEWMV mode used two iterations of
+  // refinement in av1_joint_motion_search().
+  // 1: MV Refinement is disabled for COMPOUND_DIFFWTD and enabled for
+  // COMPOUND_AVERAGE & COMPOUND_DISTWTD.
+  // 2: MV Refinement is enabled for COMPOUND_AVERAGE & COMPOUND_DISTWTD for
+  // NEW_NEWMV mode with one iteration of refinement in
+  // av1_joint_motion_search() and MV Refinement is disabled for other compound
+  // type modes.
+  // 3: MV Refinement is disabled.
   int enable_fast_compound_mode_search;
 
   // Reuse masked compound type search results

@@ -496,7 +496,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                             BLOCK_SIZE bsize, int_mv *cur_mv,
                             const uint8_t *mask, int mask_stride, int *rate_mv,
-                            int allow_second_mv) {
+                            int allow_second_mv, int joint_me_num_refine_iter) {
   const AV1_COMMON *const cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   const int pw = block_size_wide[bsize];
@@ -536,7 +536,7 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
 
   // Allow joint search multiple times iteratively for each reference frame
   // and break out of the search loop if it couldn't find a better mv.
-  for (ite = 0; ite < 4; ite++) {
+  for (ite = 0; ite < (2 * joint_me_num_refine_iter); ite++) {
     struct buf_2d ref_yv12[2];
     int bestsme = INT_MAX;
     int id = ite % 2;  // Even iterations search in the first reference frame,
@@ -887,8 +887,13 @@ static AOM_INLINE void do_masked_motion_search_indexed(
     av1_compound_single_motion_search_interinter(cpi, x, bsize, tmp_mv, mask,
                                                  mask_stride, rate_mv, which);
   } else if (which == 2) {
+    const int joint_me_num_refine_iter =
+        cpi->sf.inter_sf.enable_fast_compound_mode_search == 2
+            ? REDUCED_JOINT_ME_REFINE_ITER
+            : NUM_JOINT_ME_REFINE_ITER;
     av1_joint_motion_search(cpi, x, bsize, tmp_mv, mask, mask_stride, rate_mv,
-                            !cpi->sf.mv_sf.disable_second_mv);
+                            !cpi->sf.mv_sf.disable_second_mv,
+                            joint_me_num_refine_iter);
   }
 }
 

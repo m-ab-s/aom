@@ -1023,7 +1023,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_comp_type_by_comp_avg = 2;
     sf->inter_sf.selective_ref_frame = 3;
     sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_DISABLED;
-    // Enable fast search only for COMPOUND_DIFFWTD type.
     sf->inter_sf.enable_fast_compound_mode_search = 1;
     sf->inter_sf.reuse_mask_search_results = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 1;
@@ -1203,7 +1202,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
-    // Enable fast search for all valid compound modes.
     sf->inter_sf.enable_fast_compound_mode_search = 2;
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 3;
