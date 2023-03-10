@@ -564,7 +564,7 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
   if (!cpi->ppi->use_svc && cm->prev_frame &&
       (width * height > 1.5 * cm->prev_frame->width * cm->prev_frame->height))
     q = (q + active_worst_quality) >> 1;
-  // For singler layer RPS: Bias Q based on distance of closest reference.
+  // For single layer RPS: Bias Q based on distance of closest reference.
   if (cpi->ppi->rtc_ref.bias_recovery_frame) {
     const int min_dist = av1_svc_get_min_ref_dist(cpi);
     q = q - AOMMIN(min_dist, 20);
