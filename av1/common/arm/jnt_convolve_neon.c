@@ -2012,15 +2012,55 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
 #endif  // defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
 
 static INLINE int16x4_t
+convolve6_y_4x4_s16(const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
+                    const int16x4_t s3, const int16x4_t s4, const int16x4_t s5,
+                    const int16x8_t y_filter_0_7, const int16x4_t vert_const) {
+  const int16x4_t y_filter_0_3 = vget_low_s16(y_filter_0_7);
+  const int16x4_t y_filter_4_7 = vget_high_s16(y_filter_0_7);
+  int16x4_t sum = vert_const;
+
+  // Filter values at indices 0 and 7 are 0.
+  sum = vmla_lane_s16(sum, s0, y_filter_0_3, 1);
+  sum = vmla_lane_s16(sum, s1, y_filter_0_3, 2);
+  sum = vmla_lane_s16(sum, s2, y_filter_0_3, 3);
+  sum = vmla_lane_s16(sum, s3, y_filter_4_7, 0);
+  sum = vmla_lane_s16(sum, s4, y_filter_4_7, 1);
+  sum = vmla_lane_s16(sum, s5, y_filter_4_7, 2);
+
+  // We halved the convolution filter values so -1 from the right shift.
+  return vshr_n_s16(sum, ROUND0_BITS - 1);
+}
+
+static INLINE int16x8_t
+convolve6_y_8x4_s16(const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
+                    const int16x8_t s3, const int16x8_t s4, const int16x8_t s5,
+                    const int16x8_t y_filter_0_7, const int16x8_t vert_const) {
+  const int16x4_t y_filter_0_3 = vget_low_s16(y_filter_0_7);
+  const int16x4_t y_filter_4_7 = vget_high_s16(y_filter_0_7);
+  int16x8_t sum = vert_const;
+
+  // Filter values at indices 0 and 7 are 0.
+  sum = vmlaq_lane_s16(sum, s0, y_filter_0_3, 1);
+  sum = vmlaq_lane_s16(sum, s1, y_filter_0_3, 2);
+  sum = vmlaq_lane_s16(sum, s2, y_filter_0_3, 3);
+  sum = vmlaq_lane_s16(sum, s3, y_filter_4_7, 0);
+  sum = vmlaq_lane_s16(sum, s4, y_filter_4_7, 1);
+  sum = vmlaq_lane_s16(sum, s5, y_filter_4_7, 2);
+
+  // We halved the convolution filter values so -1 from the right shift.
+  return vshrq_n_s16(sum, ROUND0_BITS - 1);
+}
+
+static INLINE int16x4_t
 convolve8_y_4x4_s16(const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
                     const int16x4_t s3, const int16x4_t s4, const int16x4_t s5,
                     const int16x4_t s6, const int16x4_t s7,
-                    const int16x8_t filter, const int16x4_t shift_round_0) {
+                    const int16x8_t filter, const int16x4_t vert_const) {
   const int16x4_t filter_lo = vget_low_s16(filter);
   const int16x4_t filter_hi = vget_high_s16(filter);
-  int16x4_t sum;
+  int16x4_t sum = vert_const;
 
-  sum = vmul_lane_s16(s0, filter_lo, 0);
+  sum = vmla_lane_s16(sum, s0, filter_lo, 0);
   sum = vmla_lane_s16(sum, s1, filter_lo, 1);
   sum = vmla_lane_s16(sum, s2, filter_lo, 2);
   sum = vmla_lane_s16(sum, s3, filter_lo, 3);
@@ -2029,19 +2069,19 @@ convolve8_y_4x4_s16(const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
   sum = vmla_lane_s16(sum, s6, filter_hi, 2);
   sum = vmla_lane_s16(sum, s7, filter_hi, 3);
 
-  return vqrshl_s16(sum, shift_round_0);
+  return sum;
 }
 
 static INLINE int16x8_t
 convolve8_y_8x8_s16(const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
                     const int16x8_t s3, const int16x8_t s4, const int16x8_t s5,
                     const int16x8_t s6, const int16x8_t s7,
-                    const int16x8_t filter, const int16x8_t shift_round_0) {
+                    const int16x8_t filter, const int16x8_t vert_const) {
   const int16x4_t filter_lo = vget_low_s16(filter);
   const int16x4_t filter_hi = vget_high_s16(filter);
-  int16x8_t sum;
+  int16x8_t sum = vert_const;
 
-  sum = vmulq_lane_s16(s0, filter_lo, 0);
+  sum = vmlaq_lane_s16(sum, s0, filter_lo, 0);
   sum = vmlaq_lane_s16(sum, s1, filter_lo, 1);
   sum = vmlaq_lane_s16(sum, s2, filter_lo, 2);
   sum = vmlaq_lane_s16(sum, s3, filter_lo, 3);
@@ -2050,7 +2090,8 @@ convolve8_y_8x8_s16(const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
   sum = vmlaq_lane_s16(sum, s6, filter_hi, 2);
   sum = vmlaq_lane_s16(sum, s7, filter_hi, 3);
 
-  return vqrshlq_s16(sum, shift_round_0);
+  // We halved the convolution filter values so -1 from the right shift.
+  return vshrq_n_s16(sum, ROUND0_BITS - 1);
 }
 
 void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
@@ -2059,21 +2100,14 @@ void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
                                    ConvolveParams *conv_params) {
   CONV_BUF_TYPE *dst_ptr = conv_params->dst;
   const int dst_stride = conv_params->dst_stride;
-  const int bits = FILTER_BITS - conv_params->round_0;
   const int bd = 8;
-  const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
-  const int round_offset = (1 << (offset_bits - conv_params->round_1)) +
-                           (1 << (offset_bits - conv_params->round_1 - 1));
-  const int round_bits =
-      2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
+  const int offset_bits = bd + 2 * FILTER_BITS - ROUND0_BITS;
+  const int round_offset = (1 << (offset_bits - COMPOUND_ROUND1_BITS)) +
+                           (1 << (offset_bits - COMPOUND_ROUND1_BITS - 1));
+  const int round_bits = FILTER_BITS - ROUND0_BITS;
   const uint16_t fwd_offset = conv_params->fwd_offset;
   const uint16_t bck_offset = conv_params->bck_offset;
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-  const int shift_value = (conv_params->round_1 - 1 - bits);
-
-  // used to get rid of multiplication = (vertical filter output sum) *
-  // (1<<bits).
-  assert((conv_params->round_1 - 2) >= bits);
 
   if (w <= 4 || h == 4) {
     int16x4_t s0, s1, s2, s3, s4, s5, d0;
@@ -2089,8 +2123,11 @@ void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
     uint8x8_t d23;
 #endif
 
+    // This shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
+    // shifts - which are generally faster than rounding shifts on modern CPUs.
+    // The outermost -1 is needed because we halved the filter values.
+    const int16x4_t vert_const = vdup_n_s16(1 << ((ROUND0_BITS - 1) - 1));
     const int16x4_t round_offset64 = vdup_n_s16(round_offset);
-    const int16x4_t shift_vec = vdup_n_s16(-shift_value);
     int width = w;
 
     do {
@@ -2124,15 +2161,10 @@ void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
         s7 = vget_low_s16(tt1);
         s8 = vget_high_s16(tt1);
 
-        d0 = convolve6_4x4(s0, s1, s2, s3, s4, s5, y_filter);
-        d1 = convolve6_4x4(s1, s2, s3, s4, s5, s6, y_filter);
-        d2 = convolve6_4x4(s2, s3, s4, s5, s6, s7, y_filter);
-        d3 = convolve6_4x4(s3, s4, s5, s6, s7, s8, y_filter);
-
-        d0 = vqrshl_s16(d0, shift_vec);
-        d1 = vqrshl_s16(d1, shift_vec);
-        d2 = vqrshl_s16(d2, shift_vec);
-        d3 = vqrshl_s16(d3, shift_vec);
+        d0 = convolve6_y_4x4_s16(s0, s1, s2, s3, s4, s5, y_filter, vert_const);
+        d1 = convolve6_y_4x4_s16(s1, s2, s3, s4, s5, s6, y_filter, vert_const);
+        d2 = convolve6_y_4x4_s16(s2, s3, s4, s5, s6, s7, y_filter, vert_const);
+        d3 = convolve6_y_4x4_s16(s3, s4, s5, s6, s7, s8, y_filter, vert_const);
 
         d0 = vadd_s16(d0, round_offset64);
         d1 = vadd_s16(d1, round_offset64);
@@ -2172,8 +2204,7 @@ void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
         tt0 = vreinterpretq_s16_u16(vmovl_u8(t0));
         s5 = vget_low_s16(tt0);
 
-        d0 = convolve6_4x4(s0, s1, s2, s3, s4, s5, y_filter);
-        d0 = vqrshl_s16(d0, shift_vec);
+        d0 = convolve6_y_4x4_s16(s0, s1, s2, s3, s4, s5, y_filter, vert_const);
         d0 = vadd_s16(d0, round_offset64);
 
         if (conv_params->do_average) {
@@ -2209,8 +2240,11 @@ void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
     uint16x8_t d8;
     uint8x8_t t0, t1, t2, t3, t4;
 
+    // This shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
+    // shifts - which are generally faster than rounding shifts on modern CPUs.
+    // The outermost -1 is needed because we halved the filter values.
+    const int16x8_t vert_const = vdupq_n_s16(1 << ((ROUND0_BITS - 1) - 1));
     const int16x8_t round_offset128 = vdupq_n_s16(round_offset);
-    const int16x8_t shift_vec = vdupq_n_s16(-shift_value);
     const int16x4_t round_offset64 = vdup_n_s16(round_offset);
 #if defined(__aarch64__)
     int16x8_t s6, s7, s8, s9, s10, s11, s12, d1, d2, d3, d4, d5, d6, d7;
@@ -2246,23 +2280,16 @@ void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
         s11 = vreinterpretq_s16_u16(vmovl_u8(t6));
         s12 = vreinterpretq_s16_u16(vmovl_u8(t7));
 
-        d0 = convolve6_8x4(s0, s1, s2, s3, s4, s5, y_filter);
-        d1 = convolve6_8x4(s1, s2, s3, s4, s5, s6, y_filter);
-        d2 = convolve6_8x4(s2, s3, s4, s5, s6, s7, y_filter);
-        d3 = convolve6_8x4(s3, s4, s5, s6, s7, s8, y_filter);
-        d4 = convolve6_8x4(s4, s5, s6, s7, s8, s9, y_filter);
-        d5 = convolve6_8x4(s5, s6, s7, s8, s9, s10, y_filter);
-        d6 = convolve6_8x4(s6, s7, s8, s9, s10, s11, y_filter);
-        d7 = convolve6_8x4(s7, s8, s9, s10, s11, s12, y_filter);
-
-        d0 = vqrshlq_s16(d0, shift_vec);
-        d1 = vqrshlq_s16(d1, shift_vec);
-        d2 = vqrshlq_s16(d2, shift_vec);
-        d3 = vqrshlq_s16(d3, shift_vec);
-        d4 = vqrshlq_s16(d4, shift_vec);
-        d5 = vqrshlq_s16(d5, shift_vec);
-        d6 = vqrshlq_s16(d6, shift_vec);
-        d7 = vqrshlq_s16(d7, shift_vec);
+        d0 = convolve6_y_8x4_s16(s0, s1, s2, s3, s4, s5, y_filter, vert_const);
+        d1 = convolve6_y_8x4_s16(s1, s2, s3, s4, s5, s6, y_filter, vert_const);
+        d2 = convolve6_y_8x4_s16(s2, s3, s4, s5, s6, s7, y_filter, vert_const);
+        d3 = convolve6_y_8x4_s16(s3, s4, s5, s6, s7, s8, y_filter, vert_const);
+        d4 = convolve6_y_8x4_s16(s4, s5, s6, s7, s8, s9, y_filter, vert_const);
+        d5 = convolve6_y_8x4_s16(s5, s6, s7, s8, s9, s10, y_filter, vert_const);
+        d6 =
+            convolve6_y_8x4_s16(s6, s7, s8, s9, s10, s11, y_filter, vert_const);
+        d7 = convolve6_y_8x4_s16(s7, s8, s9, s10, s11, s12, y_filter,
+                                 vert_const);
 
         d0 = vaddq_s16(d0, round_offset128);
         d1 = vaddq_s16(d1, round_offset128);
@@ -2316,8 +2343,7 @@ void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
 #else   // !defined(__aarch64__)
         s5 = vreinterpretq_s16_u16(vmovl_u8(vld1_u8(s)));
 
-        d0 = convolve6_8x4(s0, s1, s2, s3, s4, s5, y_filter);
-        d0 = vqrshlq_s16(d0, shift_vec);
+        d0 = convolve6_y_8x4_s16(s0, s1, s2, s3, s4, s5, y_filter, vert_const);
         d0 = vaddq_s16(d0, round_offset128);
 
         s0 = s1;
@@ -2379,21 +2405,14 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
 
   CONV_BUF_TYPE *dst_ptr = conv_params->dst;
   const int dst_stride = conv_params->dst_stride;
-  const int bits = FILTER_BITS - conv_params->round_0;
   const int bd = 8;
-  const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
-  const int round_offset = (1 << (offset_bits - conv_params->round_1)) +
-                           (1 << (offset_bits - conv_params->round_1 - 1));
-  const int round_bits =
-      2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
+  const int offset_bits = bd + 2 * FILTER_BITS - ROUND0_BITS;
+  const int round_offset = (1 << (offset_bits - COMPOUND_ROUND1_BITS)) +
+                           (1 << (offset_bits - COMPOUND_ROUND1_BITS - 1));
+  const int round_bits = FILTER_BITS - ROUND0_BITS;
   const uint16_t fwd_offset = conv_params->fwd_offset;
   const uint16_t bck_offset = conv_params->bck_offset;
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
-  const int shift_value = (conv_params->round_1 - 1 - bits);
-
-  // used to get rid of multiplication = (vertical filter output sum) *
-  // (1<<bits).
-  assert((conv_params->round_1 - 2) >= bits);
 
   if ((w == 4) || (h == 4)) {
     int16x4_t s0, s1, s2, s3, s4, s5, s6, s7, d0;
@@ -2406,12 +2425,18 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
     uint8x8_t d01;
 
 #if defined(__aarch64__)
+    const int16x8_t round_offset64 = vdupq_n_s16(round_offset);
     int16x4_t s8, s9, s10, d1, d2, d3;
     uint16x4_t dd1, dd2, dd3;
+    int16x8_t t01, t23;
     uint8x8_t d23;
-#endif
+#else
     const int16x4_t round_offset64 = vdup_n_s16(round_offset);
-    const int16x4_t shift_vec = vdup_n_s16(-shift_value);
+#endif
+    // This shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
+    // shifts - which are generally faster than rounding shifts on modern CPUs.
+    // The outermost -1 is needed because we halved the filter values.
+    const int16x4_t vert_const = vdup_n_s16(1 << ((ROUND0_BITS - 1) - 1));
     int width = w;
 
     do {
@@ -2459,18 +2484,28 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
         s10 = vget_high_s16(tt1);
 
         d0 = convolve8_y_4x4_s16(s0, s1, s2, s3, s4, s5, s6, s7, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d1 = convolve8_y_4x4_s16(s1, s2, s3, s4, s5, s6, s7, s8, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d2 = convolve8_y_4x4_s16(s2, s3, s4, s5, s6, s7, s8, s9, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d3 = convolve8_y_4x4_s16(s3, s4, s5, s6, s7, s8, s9, s10, y_filter,
-                                 shift_vec);
+                                 vert_const);
 
-        d0 = vadd_s16(d0, round_offset64);
-        d1 = vadd_s16(d1, round_offset64);
-        d2 = vadd_s16(d2, round_offset64);
-        d3 = vadd_s16(d3, round_offset64);
+        t01 = vcombine_s16(d0, d1);
+        t23 = vcombine_s16(d2, d3);
+
+        // We halved the convolution filter values so -1 from the right shift.
+        t01 = vshrq_n_s16(t01, ROUND0_BITS - 1);
+        t23 = vshrq_n_s16(t23, ROUND0_BITS - 1);
+
+        t01 = vaddq_s16(t01, round_offset64);
+        t23 = vaddq_s16(t23, round_offset64);
+
+        d0 = vget_low_s16(t01);
+        d1 = vget_high_s16(t01);
+        d2 = vget_low_s16(t23);
+        d3 = vget_high_s16(t23);
 
         if (conv_params->do_average) {
           __builtin_prefetch(d + 0 * dst_stride);
@@ -2488,8 +2523,8 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
           compute_avg_4x4(dd0, dd1, dd2, dd3, vreinterpret_u16_s16(d0),
                           vreinterpret_u16_s16(d1), vreinterpret_u16_s16(d2),
                           vreinterpret_u16_s16(d3), fwd_offset, bck_offset,
-                          round_offset64, round_bits, use_dist_wtd_comp_avg,
-                          &d01, &d23);
+                          vget_low_s16(round_offset64), round_bits,
+                          use_dist_wtd_comp_avg, &d01, &d23);
 
           store_u8_4x1(d_u8 + 0 * dst8_stride, d01, 0);
           store_u8_4x1(d_u8 + 1 * dst8_stride, d01, 1);
@@ -2518,8 +2553,9 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
         s7 = vget_low_s16(tt0);
 
         d0 = convolve8_y_4x4_s16(s0, s1, s2, s3, s4, s5, s6, s7, y_filter,
-                                 shift_vec);
-
+                                 vert_const);
+        // We halved the convolution filter values so -1 from the right shift.
+        d0 = vshr_n_s16(d0, ROUND0_BITS - 1);
         d0 = vadd_s16(d0, round_offset64);
 
         if (conv_params->do_average) {
@@ -2556,8 +2592,11 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
     } while (width > 0);
   } else {
     const int16x8_t round_offset128 = vdupq_n_s16(round_offset);
-    const int16x8_t shift_vec = vdupq_n_s16(-shift_value);
     const int16x4_t round_offset64 = vdup_n_s16(round_offset);
+    // This shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
+    // shifts - which are generally faster than rounding shifts on modern CPUs.
+    // The outermost -1 is needed because we halved the filter values.
+    const int16x8_t vert_const = vdupq_n_s16(1 << ((ROUND0_BITS - 1) - 1));
     int16x8_t s0, s1, s2, s3, s4, s5, s6, s7, d0;
     uint16x8_t dd0;
     uint8x8_t t0, t1, t2, t3, t4, t5, t6;
@@ -2614,21 +2653,21 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
         __builtin_prefetch(dst_ptr + 3 * dst_stride);
 
         d0 = convolve8_y_8x8_s16(s0, s1, s2, s3, s4, s5, s6, s7, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d1 = convolve8_y_8x8_s16(s1, s2, s3, s4, s5, s6, s7, s8, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d2 = convolve8_y_8x8_s16(s2, s3, s4, s5, s6, s7, s8, s9, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d3 = convolve8_y_8x8_s16(s3, s4, s5, s6, s7, s8, s9, s10, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d4 = convolve8_y_8x8_s16(s4, s5, s6, s7, s8, s9, s10, s11, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d5 = convolve8_y_8x8_s16(s5, s6, s7, s8, s9, s10, s11, s12, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d6 = convolve8_y_8x8_s16(s6, s7, s8, s9, s10, s11, s12, s13, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d7 = convolve8_y_8x8_s16(s7, s8, s9, s10, s11, s12, s13, s14, y_filter,
-                                 shift_vec);
+                                 vert_const);
 
         d0 = vaddq_s16(d0, round_offset128);
         d1 = vaddq_s16(d1, round_offset128);
@@ -2692,7 +2731,7 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
         __builtin_prefetch(dst_ptr);
 
         d0 = convolve8_y_8x8_s16(s0, s1, s2, s3, s4, s5, s6, s7, y_filter,
-                                 shift_vec);
+                                 vert_const);
         d0 = vaddq_s16(d0, round_offset128);
 
         s0 = s1;
