@@ -717,7 +717,7 @@ void setup_mi(AV1_COMP *const cpi, YV12_BUFFER_CONFIG *src) {
 // to av1_encode() except that tpl is not performed.
 static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                               EncodeFrameInput *const frame_input,
-                              EncodeFrameParams *const frame_params,
+                              const EncodeFrameParams *const frame_params,
                               EncodeFrameResults *const frame_results) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
   if (cpi->oxcf.pass == 2) start_timing(cpi, denoise_and_encode_time);

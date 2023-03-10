@@ -1035,9 +1035,9 @@ static INLINE int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
   return 0;
 }
 
-static int is_shorter_gf_interval_better(AV1_COMP *cpi,
-                                         EncodeFrameParams *frame_params) {
-  RATE_CONTROL *const rc = &cpi->rc;
+static int is_shorter_gf_interval_better(
+    AV1_COMP *cpi, const EncodeFrameParams *frame_params) {
+  const RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   int gop_length_decision_method = cpi->sf.tpl_sf.gop_length_decision_method;
   int shorten_gf_interval;
