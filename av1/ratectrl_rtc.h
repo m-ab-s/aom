@@ -69,7 +69,7 @@ class AV1RateControlRTC {
       const AV1RateControlRtcConfig &cfg);
   ~AV1RateControlRTC();
 
-  void UpdateRateControl(const AV1RateControlRtcConfig &rc_cfg);
+  bool UpdateRateControl(const AV1RateControlRtcConfig &rc_cfg);
   // GetQP() needs to be called after ComputeQP() to get the latest QP
   int GetQP() const;
   signed char *GetCyclicRefreshMap() const;
@@ -80,7 +80,7 @@ class AV1RateControlRTC {
 
  private:
   AV1RateControlRTC() = default;
-  void InitRateControl(const AV1RateControlRtcConfig &cfg);
+  bool InitRateControl(const AV1RateControlRtcConfig &cfg);
   AV1_COMP *cpi_;
   int initial_width_;
   int initial_height_;

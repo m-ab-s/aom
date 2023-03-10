@@ -89,17 +89,17 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
         // Go down to 2 temporal layers.
         SetConfigSvc(3, 2);
         encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
-        rc_api_->UpdateRateControl(rc_cfg_);
+        EXPECT_TRUE(rc_api_->UpdateRateControl(rc_cfg_));
       } else if (superframe_cnt_ == 200 && layer_id_.spatial_layer_id == 0) {
         // Go down to 1 temporal layer.
         SetConfigSvc(3, 1);
         encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
-        rc_api_->UpdateRateControl(rc_cfg_);
+        EXPECT_TRUE(rc_api_->UpdateRateControl(rc_cfg_));
       } else if (superframe_cnt_ == 300 && layer_id_.spatial_layer_id == 0) {
         // Go back up to 3 temporal layers.
         SetConfigSvc(3, 3);
         encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
-        rc_api_->UpdateRateControl(rc_cfg_);
+        EXPECT_TRUE(rc_api_->UpdateRateControl(rc_cfg_));
       }
     } else if (dynamic_spatial_layers_) {
       // In this example the #spatial layers is modified on the fly,
@@ -108,12 +108,12 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
         // Change to 2 spatial layers (240p, 480p).
         SetConfigSvc(2, 3);
         encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
-        rc_api_->UpdateRateControl(rc_cfg_);
+        EXPECT_TRUE(rc_api_->UpdateRateControl(rc_cfg_));
       } else if (superframe_cnt_ == 200 && layer_id_.spatial_layer_id == 0) {
         // Change to 1 spatial layer (480p).
         SetConfigSvc(1, 3);
         encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
-        rc_api_->UpdateRateControl(rc_cfg_);
+        EXPECT_TRUE(rc_api_->UpdateRateControl(rc_cfg_));
       } else if (superframe_cnt_ == 300 && layer_id_.spatial_layer_id == 0) {
         // Go back to 3 spatial layers (120p, 240p, 480p).
         SetConfigSvc(3, 3);
@@ -126,7 +126,7 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
         // reference instead,
         frame_flags_ = AOM_EFLAG_FORCE_KF;
         frame_params_.frame_type = aom::kKeyFrame;
-        rc_api_->UpdateRateControl(rc_cfg_);
+        EXPECT_TRUE(rc_api_->UpdateRateControl(rc_cfg_));
       }
     }
     // TODO(marpan): Add dynamic spatial layers based on 0 layer bitrate.
