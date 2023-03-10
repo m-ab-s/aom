@@ -1002,7 +1002,7 @@ void av1_get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
     }
 
     int valid_rf_idx = 0;
-    int ref_frame_type_order[REF_FRAMES - LAST_FRAME] = {
+    static const int ref_frame_type_order[REF_FRAMES - LAST_FRAME] = {
       GOLDEN_FRAME,  ALTREF_FRAME, LAST_FRAME, BWDREF_FRAME,
       ALTREF2_FRAME, LAST2_FRAME,  LAST3_FRAME
     };
