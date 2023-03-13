@@ -189,6 +189,9 @@ TEST(AVIFProgressiveTest, DimensionChange) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
+// This test reproduces bug aomedia:3382. Certain parameters such as width,
+// height, g_threads, usage, etc. were carefully chosen based on the
+// complicated logic of av1_select_sb_size() to cause an inconsistent sb_size.
 TEST(AVIFProgressiveTest, DimensionChangeLargeImageMultiThread) {
   constexpr int kWidth = 1920;
   constexpr int kHeight = 1080;
