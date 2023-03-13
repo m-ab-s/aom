@@ -3268,14 +3268,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   int force_palette_test = 0;
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-      cpi->rc.high_source_sad && bsize <= BLOCK_16X16 &&
       x->content_state_sb.source_sad_nonrd != kZeroSad &&
-      x->source_variance > 200) {
+      bsize <= BLOCK_16X16) {
+    unsigned int thresh_sse = cpi->rc.high_source_sad ? 50000 : 500000;
+    unsigned int thresh_source_var = cpi->rc.high_source_sad ? 200 : 2000;
     unsigned int best_sse_inter_motion =
         (unsigned int)(search_state.best_rdc.sse >>
                        (b_width_log2_lookup[bsize] +
                         b_height_log2_lookup[bsize]));
-    if (best_sse_inter_motion > 50000) force_palette_test = 1;
+    if (best_sse_inter_motion > thresh_sse &&
+        x->source_variance > thresh_source_var)
+      force_palette_test = 1;
   }
 
   // Evaluate Intra modes in inter frame
