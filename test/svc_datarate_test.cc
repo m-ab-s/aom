@@ -93,6 +93,7 @@ class DatarateTestSVC
     rps_mode_ = 0;
     rps_recovery_frame_ = 0;
     user_define_frame_qp_ = 0;
+    set_speed_per_layer_ = false;
   }
 
   virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -108,6 +109,21 @@ class DatarateTestSVC
       if (dynamic_enable_disable_mode_ == 1) {
         svc_params_.layer_target_bitrate[2] = 0;
         cfg_.rc_target_bitrate -= target_layer_bitrate_[2];
+      }
+      if (set_speed_per_layer_) {
+        // This is for (3SL, 3TL)
+        // SLO
+        svc_params_.speed_per_layer[0] = 6;
+        svc_params_.speed_per_layer[1] = 7;
+        svc_params_.speed_per_layer[2] = 8;
+        // SL1
+        svc_params_.speed_per_layer[3] = 7;
+        svc_params_.speed_per_layer[4] = 8;
+        svc_params_.speed_per_layer[5] = 9;
+        // SL2
+        svc_params_.speed_per_layer[6] = 8;
+        svc_params_.speed_per_layer[7] = 9;
+        svc_params_.speed_per_layer[8] = 10;
       }
       encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
       // TODO(aomedia:3032): Configure KSVC in fixed mode.
@@ -1208,6 +1224,51 @@ class DatarateTestSVC
     }
   }
 
+  virtual void BasicRateTargetingSVC3TL3SLMultiThreadSpeedPerLayerTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+    cfg_.g_threads = 2;
+    ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30,
+                                         1, 0, 400);
+    cfg_.g_w = 640;
+    cfg_.g_h = 480;
+    const int bitrate_array[2] = { 600, 1200 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    set_speed_per_layer_ = true;
+    number_temporal_layers_ = 3;
+    number_spatial_layers_ = 3;
+    // SL0
+    const int bitrate_sl0 = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[0] = 50 * bitrate_sl0 / 100;
+    target_layer_bitrate_[1] = 70 * bitrate_sl0 / 100;
+    target_layer_bitrate_[2] = bitrate_sl0;
+    // SL1
+    const int bitrate_sl1 = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[3] = 50 * bitrate_sl1 / 100;
+    target_layer_bitrate_[4] = 70 * bitrate_sl1 / 100;
+    target_layer_bitrate_[5] = bitrate_sl1;
+    // SL2
+    const int bitrate_sl2 = 4 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[6] = 50 * bitrate_sl2 / 100;
+    target_layer_bitrate_[7] = 70 * bitrate_sl2 / 100;
+    target_layer_bitrate_[8] = bitrate_sl2;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.70)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.45)
+          << " The datarate for the file is greater than target by too much!";
+    }
+  }
+
   virtual void BasicRateTargetingSVC3TL3SLHDMultiThread2Test() {
     cfg_.rc_buf_initial_sz = 500;
     cfg_.rc_buf_optimal_sz = 500;
@@ -1944,6 +2005,7 @@ class DatarateTestSVC
   int user_define_frame_qp_;
   int frame_qp_;
   int total_frame_;
+  bool set_speed_per_layer_;
   libaom_test::ACMRandom rnd_;
 };
 
@@ -2031,6 +2093,13 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL3SLHD) {
 // for fixed mode SVC.
 TEST_P(DatarateTestSVC, BasicRateTargetingFixedModeSVC3TL3SLHD) {
   BasicRateTargetingFixedModeSVC3TL3SLHDTest();
+}
+
+// Check basic rate targeting for CBR, for 3 spatial, 3 temporal layers,
+// for 2 threads, 2 tile_columns, row-mt enabled, and different speed
+// per layer.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL3SLMultiThreadSpeedPerLayer) {
+  BasicRateTargetingSVC3TL3SLMultiThreadSpeedPerLayerTest();
 }
 
 // Check basic rate targeting for CBR, for 3 spatial, 3 temporal layers,

@@ -216,6 +216,8 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   // Restore layer rate control.
   cpi->rc = lc->rc;
   cpi->ppi->p_rc = lc->p_rc;
+  // Only for real-time mode, so speed >= 5.
+  if (lc->speed >= 5) cpi->oxcf.speed = lc->speed;
   cpi->oxcf.rc_cfg.target_bandwidth = lc->target_bandwidth;
   cpi->gf_frame_index = 0;
   cpi->mv_search_params.max_mv_magnitude = lc->max_mv_magnitude;

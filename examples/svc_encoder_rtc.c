@@ -1409,6 +1409,7 @@ int main(int argc, const char **argv) {
   for (i = 0; i < ss_number_layers * ts_number_layers; ++i) {
     svc_params.max_quantizers[i] = cfg.rc_max_quantizer;
     svc_params.min_quantizers[i] = cfg.rc_min_quantizer;
+    svc_params.speed_per_layer[i] = app_input.speed;
   }
   for (i = 0; i < ss_number_layers; ++i) {
     svc_params.scaling_factor_num[i] = 1;
