@@ -81,7 +81,7 @@
 //  purposes of activity masking.
 // Eventually this should be replaced by custom no-reference routines,
 //  which will be faster.
-const uint8_t AV1_VAR_OFFS[MAX_SB_SIZE] = {
+static const uint8_t AV1_VAR_OFFS[MAX_SB_SIZE] = {
   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
@@ -93,6 +93,7 @@ const uint8_t AV1_VAR_OFFS[MAX_SB_SIZE] = {
   128, 128, 128, 128, 128, 128, 128, 128
 };
 
+#if CONFIG_AV1_HIGHBITDEPTH
 static const uint16_t AV1_HIGH_VAR_OFFS_8[MAX_SB_SIZE] = {
   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
   128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
@@ -145,7 +146,27 @@ static const uint16_t AV1_HIGH_VAR_OFFS_12[MAX_SB_SIZE] = {
   128 * 16, 128 * 16, 128 * 16, 128 * 16, 128 * 16, 128 * 16, 128 * 16,
   128 * 16, 128 * 16
 };
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 /*!\endcond */
+
+const uint8_t *av1_var_offs(int use_hbd, int bd) {
+#if CONFIG_AV1_HIGHBITDEPTH
+  if (use_hbd) {
+    assert(bd == 8 || bd == 10 || bd == 12);
+    const int off_index = (bd - 8) >> 1;
+    static const uint16_t *high_var_offs[3] = { AV1_HIGH_VAR_OFFS_8,
+                                                AV1_HIGH_VAR_OFFS_10,
+                                                AV1_HIGH_VAR_OFFS_12 };
+    return CONVERT_TO_BYTEPTR(high_var_offs[off_index]);
+  }
+#else
+  (void)use_hbd;
+  (void)bd;
+  assert(!use_hbd);
+#endif
+  assert(bd == 8);
+  return AV1_VAR_OFFS;
+}
 
 void av1_init_rtc_counters(MACROBLOCK *const x) {
   av1_init_cyclic_refresh_counters(x);
@@ -167,21 +188,9 @@ unsigned int av1_get_perpixel_variance(const AV1_COMP *cpi,
   const int subsampling_y = xd->plane[plane].subsampling_y;
   const BLOCK_SIZE plane_bsize =
       get_plane_block_size(bsize, subsampling_x, subsampling_y);
-  unsigned int var, sse;
-  if (use_hbd) {
-    const int bd = xd->bd;
-    assert(bd == 8 || bd == 10 || bd == 12);
-    const int off_index = (bd - 8) >> 1;
-    static const uint16_t *high_var_offs[3] = { AV1_HIGH_VAR_OFFS_8,
-                                                AV1_HIGH_VAR_OFFS_10,
-                                                AV1_HIGH_VAR_OFFS_12 };
-    var = cpi->ppi->fn_ptr[plane_bsize].vf(
-        ref->buf, ref->stride, CONVERT_TO_BYTEPTR(high_var_offs[off_index]), 0,
-        &sse);
-  } else {
-    var = cpi->ppi->fn_ptr[plane_bsize].vf(ref->buf, ref->stride, AV1_VAR_OFFS,
-                                           0, &sse);
-  }
+  unsigned int sse;
+  const unsigned int var = cpi->ppi->fn_ptr[plane_bsize].vf(
+      ref->buf, ref->stride, av1_var_offs(use_hbd, xd->bd), 0, &sse);
   return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[plane_bsize]);
 }
 

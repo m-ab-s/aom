@@ -30,8 +30,6 @@
 #include "av1/encoder/var_based_part.h"
 #include "av1/encoder/reconinter_enc.h"
 
-extern const uint8_t AV1_VAR_OFFS[];
-
 // Possible values for the force_split variable while evaluating variance based
 // partitioning.
 enum {
@@ -1650,7 +1648,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       dst_stride = xd->plane[AOM_PLANE_Y].pre[0].stride;
     }
   } else {
-    dst_buf = AV1_VAR_OFFS;
+    dst_buf = av1_var_offs(is_cur_buf_hbd(xd), xd->bd);
     dst_stride = 0;
   }
 

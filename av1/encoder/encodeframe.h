@@ -31,6 +31,11 @@ struct yv12_buffer_config;
 struct AV1_COMP;
 struct ThreadData;
 
+// For the given bit depth, returns a constant array used to assist the
+// calculation of source block variance, which will then be used to decide
+// adaptive quantizers.
+const uint8_t *av1_var_offs(int use_hbd, int bd);
+
 void av1_init_rtc_counters(struct macroblock *const x);
 
 void av1_accumulate_rtc_counters(struct AV1_COMP *cpi,
