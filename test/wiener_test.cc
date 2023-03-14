@@ -710,5 +710,94 @@ INSTANTIATE_TEST_SUITE_P(AVX2, WienerTestHighbd,
                          ::testing::Values(av1_compute_stats_highbd_avx2));
 #endif  // HAVE_AVX2
 
+// A test that reproduces b/272139363: signed integer overflow in
+// update_b_sep_sym().
+TEST(SearchWienerTest, DISABLED_10bitSignedIntegerOverflowInUpdateBSepSym) {
+  constexpr int kWidth = 34;
+  constexpr int kHeight = 3;
+  static const uint16_t buffer[3 * kWidth * kHeight] = {
+    // Y plane:
+    61, 765, 674, 188, 367, 944, 153, 275, 906, 433, 154, 51, 8, 855, 186, 154,
+    392, 0, 634, 3, 690, 1023, 1023, 1023, 1023, 1023, 1023, 8, 1, 64, 426, 0,
+    100, 344, 944, 816, 816, 33, 1023, 1023, 1023, 1023, 295, 1023, 1023, 1023,
+    1023, 1023, 1023, 1015, 1023, 231, 1020, 254, 439, 439, 894, 439, 150, 1019,
+    1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 385, 320, 575,
+    682, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023, 511, 699, 987, 3, 140,
+    661, 120, 33, 143, 0, 0, 0, 3, 40, 625, 585, 16, 579, 160, 867,
+    // U plane:
+    739, 646, 13, 603, 7, 328, 91, 32, 488, 870, 330, 330, 330, 330, 330, 330,
+    109, 330, 330, 330, 3, 545, 945, 249, 35, 561, 801, 32, 931, 639, 801, 91,
+    1023, 827, 844, 948, 631, 894, 854, 601, 432, 504, 85, 1, 0, 0, 89, 89, 0,
+    0, 0, 0, 0, 0, 432, 801, 382, 4, 0, 0, 2, 89, 89, 89, 89, 89, 89, 384, 0, 0,
+    0, 0, 0, 0, 0, 1023, 1019, 1, 3, 691, 575, 691, 691, 691, 691, 691, 691,
+    691, 691, 691, 691, 691, 84, 527, 4, 485, 8, 682, 698, 340, 1015, 706,
+    // V plane:
+    49, 10, 28, 1023, 1023, 1023, 0, 32, 32, 872, 114, 1003, 1023, 57, 477, 999,
+    1023, 309, 309, 309, 309, 309, 309, 309, 309, 309, 309, 309, 309, 309, 309,
+    9, 418, 418, 418, 418, 418, 418, 0, 0, 0, 1023, 4, 5, 0, 0, 1023, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 64, 0, 155, 709, 3, 331, 807, 633, 1023,
+    1018, 646, 886, 991, 692, 915, 294, 0, 35, 2, 0, 471, 643, 770, 346, 176,
+    32, 329, 322, 302, 61, 765, 674, 188, 367, 944, 153, 275, 906, 433, 154
+  };
+  unsigned char *img_data =
+      reinterpret_cast<unsigned char *>(const_cast<uint16_t *>(buffer));
+
+  aom_image_t img;
+  EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I44416, kWidth, kHeight, 1,
+                               img_data));
+  img.cp = AOM_CICP_CP_UNSPECIFIED;
+  img.tc = AOM_CICP_TC_UNSPECIFIED;
+  img.mc = AOM_CICP_MC_UNSPECIFIED;
+  img.range = AOM_CR_FULL_RANGE;
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_ALL_INTRA));
+  cfg.rc_end_usage = AOM_Q;
+  cfg.g_profile = 1;
+  cfg.g_bit_depth = AOM_BITS_10;
+  cfg.g_input_bit_depth = 10;
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_limit = 1;
+  cfg.g_lag_in_frames = 0;
+  cfg.kf_mode = AOM_KF_DISABLED;
+  cfg.kf_max_dist = 0;
+  cfg.rc_min_quantizer = 3;
+  cfg.rc_max_quantizer = 54;
+  aom_codec_ctx_t enc;
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CQ_LEVEL, 28));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AV1E_SET_TILE_COLUMNS, 3));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 0));
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE));
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_control(&enc, AV1E_SET_SKIP_POSTPROC_FILTERING, 1));
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIM));
+
+  // Encode frame
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img, 0, 1, 0));
+  aom_codec_iter_t iter = nullptr;
+  const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter);
+  EXPECT_NE(pkt, nullptr);
+  EXPECT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  // pkt->data.frame.flags is 0x1f0011.
+  EXPECT_EQ(pkt->data.frame.flags & AOM_FRAME_IS_KEY, AOM_FRAME_IS_KEY);
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  EXPECT_EQ(pkt, nullptr);
+
+  // Flush encoder
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 1, 0));
+  iter = nullptr;
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  EXPECT_EQ(pkt, nullptr);
+
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+}
+
 }  // namespace wiener_highbd
 #endif  // CONFIG_AV1_HIGHBITDEPTH
