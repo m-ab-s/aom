@@ -712,7 +712,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, WienerTestHighbd,
 
 // A test that reproduces b/272139363: signed integer overflow in
 // update_b_sep_sym().
-TEST(SearchWienerTest, DISABLED_10bitSignedIntegerOverflowInUpdateBSepSym) {
+TEST(SearchWienerTest, 10bitSignedIntegerOverflowInUpdateBSepSym) {
   constexpr int kWidth = 34;
   constexpr int kHeight = 3;
   static const uint16_t buffer[3 * kWidth * kHeight] = {
