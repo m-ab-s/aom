@@ -402,9 +402,7 @@ typedef struct GF_GROUP {
   // 2 : frame occurs later in encode order in a given parallel encode set.
   int frame_parallel_level[MAX_STATIC_GF_GROUP_LENGTH];
   // Indicates whether a frame should act as non-reference frame.
-  // 0 : frame is a reference frame.
-  // 1 : frame is a non-reference frame.
-  int is_frame_non_ref[MAX_STATIC_GF_GROUP_LENGTH];
+  bool is_frame_non_ref[MAX_STATIC_GF_GROUP_LENGTH];
   // Indicates whether a frame is dropped.
   bool is_frame_dropped[MAX_STATIC_GF_GROUP_LENGTH];
 

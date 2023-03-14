@@ -84,7 +84,7 @@ static AOM_INLINE void set_params_for_leaf_frames(
     set_frame_parallel_level(&gf_group->frame_parallel_level[*frame_ind],
                              parallel_frame_count, max_parallel_frames);
     // Set LF_UPDATE frames as non-reference frames.
-    gf_group->is_frame_non_ref[*frame_ind] = 1;
+    gf_group->is_frame_non_ref[*frame_ind] = true;
   }
   set_src_offset(gf_group, first_frame_index, *cur_frame_idx, *frame_ind);
 
@@ -463,7 +463,7 @@ static void set_multi_layer_params(
         set_frame_parallel_level(&gf_group->frame_parallel_level[*frame_ind],
                                  parallel_frame_count, max_parallel_frames);
         // Set LF_UPDATE frames as non-reference frames.
-        gf_group->is_frame_non_ref[*frame_ind] = 1;
+        gf_group->is_frame_non_ref[*frame_ind] = true;
       }
       set_src_offset(gf_group, first_frame_index, *cur_frame_idx, *frame_ind);
       ++(*frame_ind);
@@ -554,7 +554,7 @@ static int construct_multi_layer_gf_structure(
          sizeof(gf_group->frame_parallel_level));
   memset(gf_group->is_frame_non_ref, 0, sizeof(gf_group->is_frame_non_ref));
   memset(gf_group->src_offset, 0, sizeof(gf_group->src_offset));
-  memset(gf_group->is_frame_dropped, false, sizeof(gf_group->is_frame_dropped));
+  memset(gf_group->is_frame_dropped, 0, sizeof(gf_group->is_frame_dropped));
   // Initialize gf_group->skip_frame_refresh and gf_group->skip_frame_as_ref
   // with INVALID_IDX.
   memset(gf_group->skip_frame_refresh, INVALID_IDX,
