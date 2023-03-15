@@ -230,7 +230,10 @@ static INLINE int16x8_t convolve8_8x8_s16(
   return sum;
 }
 
-#if defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+// clang versions < 16 did not include the dotprod feature for Arm architecture
+// versions that should have it by default, e.g., armv8.6-a.
+#if defined(__aarch64__) && \
+    (defined(__ARM_FEATURE_DOTPROD) || defined(__ARM_FEATURE_MATMUL_INT8))
 
 DECLARE_ALIGNED(16, static const uint8_t, dot_prod_permute_tbl[48]) = {
   0, 1, 2,  3,  1, 2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6,
