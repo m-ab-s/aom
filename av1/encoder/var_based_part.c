@@ -272,12 +272,10 @@ static AOM_INLINE void fill_variance_8x8avg_highbd(
     unsigned int sse = 0;
     int sum = 0;
     if (x8_idx < pixels_wide && y8_idx < pixels_high) {
-      int src_avg;
-      int dst_avg = 128;
-      src_avg = aom_highbd_avg_8x8(src_buf + y8_idx * src_stride + x8_idx,
-                                   src_stride);
-      dst_avg = aom_highbd_avg_8x8(dst_buf + y8_idx * dst_stride + x8_idx,
-                                   dst_stride);
+      int src_avg = aom_highbd_avg_8x8(src_buf + y8_idx * src_stride + x8_idx,
+                                       src_stride);
+      int dst_avg = aom_highbd_avg_8x8(dst_buf + y8_idx * dst_stride + x8_idx,
+                                       dst_stride);
 
       sum = src_avg - dst_avg;
       sse = sum * sum;
@@ -293,10 +291,10 @@ static AOM_INLINE void fill_variance_8x8avg_lowbd(
     int pixels_high) {
   unsigned int sse[4] = { 0 };
   int sum[4] = { 0 };
-  int dst_avg[4] = { 128, 128, 128, 128 };
-  int src_avg[4];
 
   if (all_blks_inside(x16_idx, y16_idx, pixels_wide, pixels_high)) {
+    int src_avg[4];
+    int dst_avg[4];
     aom_avg_8x8_quad(src_buf, src_stride, x16_idx, y16_idx, src_avg);
     aom_avg_8x8_quad(dst_buf, dst_stride, x16_idx, y16_idx, dst_avg);
     for (int idx = 0; idx < 4; idx++) {
@@ -308,11 +306,11 @@ static AOM_INLINE void fill_variance_8x8avg_lowbd(
       const int x8_idx = x16_idx + GET_BLK_IDX_X(idx, 3);
       const int y8_idx = y16_idx + GET_BLK_IDX_Y(idx, 3);
       if (x8_idx < pixels_wide && y8_idx < pixels_high) {
-        src_avg[idx] =
+        int src_avg =
             aom_avg_8x8(src_buf + y8_idx * src_stride + x8_idx, src_stride);
-        dst_avg[idx] =
+        int dst_avg =
             aom_avg_8x8(dst_buf + y8_idx * dst_stride + x8_idx, dst_stride);
-        sum[idx] = src_avg[idx] - dst_avg[idx];
+        sum[idx] = src_avg - dst_avg;
         sse[idx] = sum[idx] * sum[idx];
       }
     }
