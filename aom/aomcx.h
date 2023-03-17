@@ -1642,9 +1642,8 @@ typedef struct aom_svc_layer_id {
 
 /*!brief Parameter type for SVC
  *
- * In the max_quantizers, min_quantizers, and layer_target_bitrate arrays,
- * the index for spatial layer `sl` and temporal layer `tl` is
- * sl * number_temporal_layers + tl.
+ * In the arrays of size AOM_MAX_LAYERS, the index for spatial layer `sl` and
+ * temporal layer `tl` is sl * number_temporal_layers + tl.
  *
  */
 typedef struct aom_svc_params {
@@ -2094,12 +2093,6 @@ AOM_CTRL_USE_TYPE(AV1E_SET_DV_COST_UPD_FREQ, unsigned int)
 AOM_CTRL_USE_TYPE(AV1E_SET_PARTITION_INFO_PATH, const char *)
 #define AOM_CTRL_AV1E_SET_PARTITION_INFO_PATH
 
-AOM_CTRL_USE_TYPE(AV1E_ENABLE_RATE_GUIDE_DELTAQ, unsigned int)
-#define AOM_CTRL_AV1E_ENABLE_RATE_GUIDE_DELTAQ
-
-AOM_CTRL_USE_TYPE(AV1E_SET_RATE_DISTRIBUTION_INFO, const char *)
-#define AOM_CTRL_AV1E_SET_RATE_DISTRIBUTION_INFO
-
 AOM_CTRL_USE_TYPE(AV1E_SET_EXTERNAL_PARTITION, aom_ext_part_funcs_t *)
 #define AOM_CTRL_AV1E_SET_EXTERNAL_PARTITION
 
@@ -2150,6 +2143,12 @@ AOM_CTRL_USE_TYPE(AV1E_ENABLE_SB_QP_SWEEP, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_QUANTIZER_ONE_PASS, int)
 #define AOM_CTRL_AV1E_SET_QUANTIZER_ONE_PASS
+
+AOM_CTRL_USE_TYPE(AV1E_ENABLE_RATE_GUIDE_DELTAQ, unsigned int)
+#define AOM_CTRL_AV1E_ENABLE_RATE_GUIDE_DELTAQ
+
+AOM_CTRL_USE_TYPE(AV1E_SET_RATE_DISTRIBUTION_INFO, const char *)
+#define AOM_CTRL_AV1E_SET_RATE_DISTRIBUTION_INFO
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
