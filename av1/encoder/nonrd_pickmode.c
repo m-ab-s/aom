@@ -2932,6 +2932,12 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
 
     // Build inter predicted samples and compute RD cost using Identity
     // transform.
+    mi->ref_frame[0] = best_pickmode->best_ref_frame;
+    mi->ref_frame[1] = best_pickmode->best_second_ref_frame;
+    xd->plane[0].pre[0] = search_state->yv12_mb[mi->ref_frame[0]][0];
+    if (mi->ref_frame[1] > INTRA_FRAME)
+      xd->plane[0].pre[1] = search_state->yv12_mb[mi->ref_frame[1]][0];
+    set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                   AOM_PLANE_Y, AOM_PLANE_Y);
     av1_block_yrd_idtx(x, &idtx_rdc, &is_skippable, bsize, mi->tx_size);
