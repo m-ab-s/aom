@@ -1113,6 +1113,8 @@ static void fill_variance_tree_leaves(
   int pixels_wide = 128, pixels_high = 128;
   int border_offset_4x4 = 0;
   int temporal_denoising = cpi->sf.rt_sf.use_rtc_tf;
+  // dst_buf pointer is not used for is_key_frame, so it should be NULL.
+  assert(IMPLIES(is_key_frame, dst_buf == NULL));
   if (is_small_sb) {
     pixels_wide = 64;
     pixels_high = 64;
@@ -1646,7 +1648,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       dst_stride = xd->plane[AOM_PLANE_Y].pre[0].stride;
     }
   } else {
-    dst_buf = av1_var_offs(is_cur_buf_hbd(xd), xd->bd);
+    dst_buf = NULL;
     dst_stride = 0;
   }
 

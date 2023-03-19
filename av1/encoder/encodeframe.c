@@ -149,7 +149,10 @@ static const uint16_t AV1_HIGH_VAR_OFFS_12[MAX_SB_SIZE] = {
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 /*!\endcond */
 
-const uint8_t *av1_var_offs(int use_hbd, int bd) {
+// For the given bit depth, returns a constant array used to assist the
+// calculation of source block variance, which will then be used to decide
+// adaptive quantizers.
+static const uint8_t *get_var_offs(int use_hbd, int bd) {
 #if CONFIG_AV1_HIGHBITDEPTH
   if (use_hbd) {
     assert(bd == 8 || bd == 10 || bd == 12);
@@ -190,7 +193,7 @@ unsigned int av1_get_perpixel_variance(const AV1_COMP *cpi,
       get_plane_block_size(bsize, subsampling_x, subsampling_y);
   unsigned int sse;
   const unsigned int var = cpi->ppi->fn_ptr[plane_bsize].vf(
-      ref->buf, ref->stride, av1_var_offs(use_hbd, xd->bd), 0, &sse);
+      ref->buf, ref->stride, get_var_offs(use_hbd, xd->bd), 0, &sse);
   return ROUND_POWER_OF_TWO(var, num_pels_log2_lookup[plane_bsize]);
 }
 
