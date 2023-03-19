@@ -866,4 +866,13 @@ INSTANTIATE_TEST_SUITE_P(AVX2, LowbdConvolveTest,
                          ::testing::ValuesIn(kArray_Convolve8_avx2));
 #endif  // HAVE_AVX2
 
+#if HAVE_NEON
+const ConvolveFunctions convolve8_neon(aom_convolve8_horiz_neon,
+                                       aom_convolve8_vert_c, 0);
+const ConvolveParam kArray_Convolve8_neon[] = { ALL_SIZES(convolve8_neon) };
+
+INSTANTIATE_TEST_SUITE_P(NEON, LowbdConvolveTest,
+                         ::testing::ValuesIn(kArray_Convolve8_neon));
+#endif  // HAVE_NEON
+
 }  // namespace
