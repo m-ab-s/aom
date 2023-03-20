@@ -868,7 +868,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, LowbdConvolveTest,
 
 #if HAVE_NEON
 const ConvolveFunctions convolve8_neon(aom_convolve8_horiz_neon,
-                                       aom_convolve8_vert_c, 0);
+                                       aom_convolve8_vert_neon, 0);
 const ConvolveParam kArray_Convolve8_neon[] = { ALL_SIZES(convolve8_neon) };
 
 INSTANTIATE_TEST_SUITE_P(NEON, LowbdConvolveTest,
