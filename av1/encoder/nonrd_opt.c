@@ -123,7 +123,7 @@ static AOM_FORCE_INLINE void update_yrd_loop_vars_hbd(
  * coefficients for Hadamard transform
  */
 void av1_block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
-                   BLOCK_SIZE bsize, TX_SIZE tx_size, int is_inter_mode) {
+                   BLOCK_SIZE bsize, TX_SIZE tx_size) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblockd_plane *pd = &xd->plane[AOM_PLANE_Y];
   struct macroblock_plane *const p = &x->plane[AOM_PLANE_Y];
@@ -144,10 +144,6 @@ void av1_block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   const int use_hbd = is_cur_buf_hbd(xd);
   int num_blk_skip_w = num_4x4_w;
   int sh_blk_skip = 0;
-  if (is_inter_mode) {
-    num_blk_skip_w = num_4x4_w >> 1;
-    sh_blk_skip = 1;
-  }
 
 #if CONFIG_AV1_HIGHBITDEPTH
   if (use_hbd) {
@@ -397,8 +393,8 @@ void av1_block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   int eob_cost = 0;
   const int bw = 4 * num_4x4_w;
   const int bh = 4 * num_4x4_h;
-  const int num_blk_skip_w = num_4x4_w >> 1;
-  const int sh_blk_skip = 1;
+  const int num_blk_skip_w = num_4x4_w;
+  const int sh_blk_skip = 0;
   // Keep the intermediate value on the stack here. Writing directly to
   // skippable causes speed regression due to load-and-store issues in
   // update_yrd_loop_vars.
@@ -660,7 +656,7 @@ void av1_estimate_block_intra(int plane, int block, int row, int col,
 
   if (plane == 0) {
     av1_block_yrd(x, &this_rdc, &args->skippable, bsize_tx,
-                  AOMMIN(tx_size, TX_16X16), 0);
+                  AOMMIN(tx_size, TX_16X16));
   } else {
     av1_model_rd_for_sb_uv(cpi, bsize_tx, x, xd, &this_rdc, plane, plane);
   }
@@ -873,7 +869,7 @@ void av1_estimate_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
     mi->tx_size = intra_tx_size;
     compute_intra_yprediction(cm, this_mode, bsize, x, xd);
     // Look into selecting tx_size here, based on prediction residual.
-    av1_block_yrd(x, &this_rdc, &args.skippable, bsize, mi->tx_size, 0);
+    av1_block_yrd(x, &this_rdc, &args.skippable, bsize, mi->tx_size);
     // TODO(kyslov@) Need to account for skippable
     if (x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)]) {
       av1_foreach_transformed_block_in_plane(xd, uv_bsize, AOM_PLANE_U,
