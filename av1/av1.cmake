@@ -362,6 +362,7 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/neon/av1_fwd_txfm2d_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/highbd_fwd_txfm_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/wedge_utils_neon.c"
+            "${AOM_ROOT}/av1/encoder/arm/neon/reconinter_enc_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/temporal_filter_neon.c")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_ARM_CRC32

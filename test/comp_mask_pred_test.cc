@@ -292,6 +292,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kValidBlockSize)));
 #endif
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV1UpsampledPredTest,
+    ::testing::Combine(::testing::Values(&aom_upsampled_pred_neon),
+                       ::testing::ValuesIn(kValidBlockSize)));
+#endif
+
 typedef std::tuple<comp_avg_pred_func, BLOCK_SIZE> CompAvgPredParam;
 
 class AV1CompAvgPredTest : public ::testing::TestWithParam<CompAvgPredParam> {
