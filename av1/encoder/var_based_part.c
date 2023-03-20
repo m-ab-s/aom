@@ -354,8 +354,8 @@ static int compute_minmax_8x8(const uint8_t *src_buf, int src_stride,
   int minmax_min = 255;
   // Loop over the 4 8x8 subblocks.
   for (int idx = 0; idx < 4; idx++) {
-    int x8_idx = x16_idx + GET_BLK_IDX_X(idx, 3);
-    int y8_idx = y16_idx + GET_BLK_IDX_Y(idx, 3);
+    const int x8_idx = x16_idx + GET_BLK_IDX_X(idx, 3);
+    const int y8_idx = y16_idx + GET_BLK_IDX_Y(idx, 3);
     int min = 0;
     int max = 0;
     if (x8_idx < pixels_wide && y8_idx < pixels_high) {
@@ -393,8 +393,8 @@ static AOM_INLINE void fill_variance_4x4avg(const uint8_t *src_buf,
                                             int pixels_wide, int pixels_high,
                                             int border_offset_4x4) {
   for (int idx = 0; idx < 4; idx++) {
-    int x4_idx = x8_idx + GET_BLK_IDX_X(idx, 2);
-    int y4_idx = y8_idx + GET_BLK_IDX_Y(idx, 2);
+    const int x4_idx = x8_idx + GET_BLK_IDX_X(idx, 2);
+    const int y4_idx = y8_idx + GET_BLK_IDX_Y(idx, 2);
     unsigned int sse = 0;
     int sum = 0;
     if (x4_idx < pixels_wide - border_offset_4x4 &&
@@ -1149,7 +1149,21 @@ static void fill_variance_tree_leaves(
         VP16x16 *vst = &vt->split[blk64_idx].split[lvl1_idx].split[lvl2_idx];
         force_split[split_index] = PART_EVAL_ALL;
         variance4x4downsample[lvl1_scale_idx + lvl2_idx] = 0;
-        if (!is_key_frame) {
+        if (is_key_frame) {
+          force_split[split_index] = PART_EVAL_ALL;
+          // Go down to 4x4 down-sampling for variance.
+          variance4x4downsample[lvl1_scale_idx + lvl2_idx] = 1;
+          for (int lvl3_idx = 0; lvl3_idx < 4; lvl3_idx++) {
+            const int x8_idx = x16_idx + GET_BLK_IDX_X(lvl3_idx, 3);
+            const int y8_idx = y16_idx + GET_BLK_IDX_Y(lvl3_idx, 3);
+            VP8x8 *vst2 = &vst->split[lvl3_idx];
+            fill_variance_4x4avg(src_buf, src_stride, x8_idx, y8_idx, vst2,
+#if CONFIG_AV1_HIGHBITDEPTH
+                                 xd->cur_buf->flags,
+#endif
+                                 pixels_wide, pixels_high, border_offset_4x4);
+          }
+        } else {
           fill_variance_8x8avg(src_buf, src_stride, dst_buf, dst_stride,
                                x16_idx, y16_idx, vst, is_cur_buf_hbd(xd),
                                pixels_wide, pixels_high);
@@ -1193,20 +1207,6 @@ static void fill_variance_tree_leaves(
               force_split[blk64_idx + 1] = PART_EVAL_ONLY_SPLIT;
               force_split[0] = PART_EVAL_ONLY_SPLIT;
             }
-          }
-        } else {
-          force_split[split_index] = PART_EVAL_ALL;
-          // Go down to 4x4 down-sampling for variance.
-          variance4x4downsample[lvl1_scale_idx + lvl2_idx] = 1;
-          for (int lvl3_idx = 0; lvl3_idx < 4; lvl3_idx++) {
-            int x8_idx = x16_idx + GET_BLK_IDX_X(lvl3_idx, 3);
-            int y8_idx = y16_idx + GET_BLK_IDX_Y(lvl3_idx, 3);
-            VP8x8 *vst2 = &vst->split[lvl3_idx];
-            fill_variance_4x4avg(src_buf, src_stride, x8_idx, y8_idx, vst2,
-#if CONFIG_AV1_HIGHBITDEPTH
-                                 xd->cur_buf->flags,
-#endif
-                                 pixels_wide, pixels_high, border_offset_4x4);
           }
         }
       }
@@ -1692,7 +1692,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     for (int lvl1_idx = 0; lvl1_idx < 4; lvl1_idx++) {
       const int lvl1_scale_idx = (blk64_scale_idx + lvl1_idx) << 2;
       for (int lvl2_idx = 0; lvl2_idx < 4; lvl2_idx++) {
-        const int split_index = 21 + lvl1_scale_idx + lvl2_idx;
         if (variance4x4downsample[lvl1_scale_idx + lvl2_idx] != 1) continue;
         VP16x16 *vtemp =
             (!is_key_frame)
@@ -1705,6 +1704,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
         // to split. This also forces a split on the upper levels.
         get_variance(&vtemp->part_variances.none);
         if (vtemp->part_variances.none.variance > thresholds[3]) {
+          const int split_index = 21 + lvl1_scale_idx + lvl2_idx;
           force_split[split_index] =
               cpi->sf.rt_sf.vbp_prune_16x16_split_using_min_max_sub_blk_var
                   ? get_part_eval_based_on_sub_blk_var(vtemp, thresholds[3])
