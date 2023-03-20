@@ -3532,7 +3532,6 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
         lc->framerate_factor = params->framerate_factor[tl];
         if (tl == ppi->number_temporal_layers - 1)
           target_bandwidth += lc->layer_target_bitrate;
-        lc->speed = params->speed_per_layer[layer];
       }
     }
     if (cm->current_frame.frame_number == 0) {
