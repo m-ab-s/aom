@@ -2903,8 +2903,6 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
   struct macroblockd_plane *const pd = &xd->plane[0];
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
@@ -2918,6 +2916,7 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
       cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && !skip_idtx_palette &&
       !cpi->oxcf.txfm_cfg.use_inter_dct_only && !x->force_zeromv_skip_for_blk &&
       is_inter_mode(best_pickmode->best_mode) &&
+      best_pickmode->best_pred != NULL &&
       (!rt_sf->prune_idtx_nonrd ||
        (rt_sf->prune_idtx_nonrd && bsize <= BLOCK_32X32 &&
         best_pickmode->best_mode_skip_txfm != 1 && x->source_variance > 200))) {
@@ -2927,18 +2926,9 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
     this_mode_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
     pd->dst.buf = this_mode_pred->data;
     pd->dst.stride = bw;
-
-    // Build inter predicted samples and compute RD cost using Identity
-    // transform.
-    mi->ref_frame[0] = best_pickmode->best_ref_frame;
-    mi->ref_frame[1] = best_pickmode->best_second_ref_frame;
-    xd->plane[0].pre[0] = search_state->yv12_mb[mi->ref_frame[0]][0];
-    if (mi->ref_frame[1] > INTRA_FRAME)
-      xd->plane[0].pre[1] = search_state->yv12_mb[mi->ref_frame[1]][0];
-    set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                  AOM_PLANE_Y, AOM_PLANE_Y);
-    av1_block_yrd_idtx(x, &idtx_rdc, &is_skippable, bsize, mi->tx_size);
+    const PRED_BUFFER *const best_pred = best_pickmode->best_pred;
+    av1_block_yrd_idtx(x, best_pred->data, best_pred->stride, &idtx_rdc,
+                       &is_skippable, bsize, mi->tx_size);
     int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
     if (idx_rdcost < search_state->best_rdc.rdcost) {
       // Keep the skip_txfm off if the color_sensitivity is set.

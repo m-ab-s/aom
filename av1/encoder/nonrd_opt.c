@@ -367,6 +367,8 @@ static AOM_INLINE void scale_square_buf_vals(int16_t *dst, int tx_width,
  * uses low-precision set of functions (16-bit) and 32 bit for high bit depth
  * \param[in]    x              Pointer to structure holding all the data for
                                 the current macroblock
+ * \param[in]    pred_buf       Pointer to the prediction buffer
+ * \param[in]    pred_stride    Stride for the prediction buffer
  * \param[in]    this_rdc       Pointer to calculated RD Cost
  * \param[in]    skippable      Pointer to a flag indicating possible tx skip
  * \param[in]    bsize          Current block size
@@ -375,10 +377,10 @@ static AOM_INLINE void scale_square_buf_vals(int16_t *dst, int tx_width,
  * \remark Nothing is returned. Instead, calculated RD cost is placed to
  * \c this_rdc. \c skippable flag is set if all coefficients are zero.
  */
-void av1_block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
+void av1_block_yrd_idtx(MACROBLOCK *x, const uint8_t *const pred_buf,
+                        int pred_stride, RD_STATS *this_rdc, int *skippable,
                         BLOCK_SIZE bsize, TX_SIZE tx_size) {
   MACROBLOCKD *xd = &x->e_mbd;
-  const struct macroblockd_plane *pd = &xd->plane[AOM_PLANE_Y];
   struct macroblock_plane *const p = &x->plane[AOM_PLANE_Y];
   assert(bsize < BLOCK_SIZES_ALL);
   const int num_4x4_w = mi_size_wide[bsize];
@@ -425,7 +427,7 @@ void av1_block_yrd_idtx(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
   this_rdc->dist = 0;
   this_rdc->rate = 0;
   aom_subtract_block(bh, bw, p->src_diff, bw, p->src.buf, p->src.stride,
-                     pd->dst.buf, pd->dst.stride);
+                     pred_buf, pred_stride);
   // Keep track of the row and column of the blocks we use so that we know
   // if we are in the unrestricted motion border.
   DECLARE_BLOCK_YRD_BUFFERS()
