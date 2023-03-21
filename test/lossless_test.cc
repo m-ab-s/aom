@@ -76,6 +76,10 @@ class LosslessTestLarge
     return AOM_CODEC_OK == res_dec;
   }
 
+  void TestLosslessEncoding();
+  void TestLosslessEncoding444();
+  void TestLosslessEncodingCtrl();
+
  private:
   double psnr_;
   unsigned int nframes_;
@@ -85,7 +89,7 @@ class LosslessTestLarge
   int base_qindex_;
 };
 
-TEST_P(LosslessTestLarge, TestLossLessEncoding) {
+void LosslessTestLarge::TestLosslessEncoding() {
   const aom_rational timebase = { 33333333, 1000000000 };
   cfg_.g_timebase = timebase;
   cfg_.rc_target_bitrate = 2000;
@@ -103,7 +107,7 @@ TEST_P(LosslessTestLarge, TestLossLessEncoding) {
   EXPECT_GE(psnr_lossless, kMaxPsnr);
 }
 
-TEST_P(LosslessTestLarge, TestLossLessEncoding444) {
+void LosslessTestLarge::TestLosslessEncoding444() {
   libaom_test::Y4mVideoSource video("rush_hour_444.y4m", 0, 5);
 
   cfg_.g_profile = 1;
@@ -120,7 +124,7 @@ TEST_P(LosslessTestLarge, TestLossLessEncoding444) {
   EXPECT_GE(psnr_lossless, kMaxPsnr);
 }
 
-TEST_P(LosslessTestLarge, TestLossLessEncodingCtrl) {
+void LosslessTestLarge::TestLosslessEncodingCtrl() {
   const aom_rational timebase = { 33333333, 1000000000 };
   cfg_.g_timebase = timebase;
   cfg_.rc_target_bitrate = 2000;
@@ -139,9 +143,19 @@ TEST_P(LosslessTestLarge, TestLossLessEncodingCtrl) {
   EXPECT_GE(psnr_lossless, kMaxPsnr);
 }
 
+TEST_P(LosslessTestLarge, TestLosslessEncoding) { TestLosslessEncoding(); }
+
+TEST_P(LosslessTestLarge, TestLosslessEncoding444) {
+  TestLosslessEncoding444();
+}
+
+TEST_P(LosslessTestLarge, TestLosslessEncodingCtrl) {
+  TestLosslessEncodingCtrl();
+}
+
 class LosslessAllIntraTestLarge : public LosslessTestLarge {};
 
-TEST_P(LosslessAllIntraTestLarge, TestLossLessEncodingCtrl) {
+TEST_P(LosslessAllIntraTestLarge, TestLosslessEncodingCtrl) {
   const aom_rational timebase = { 33333333, 1000000000 };
   cfg_.g_timebase = timebase;
   // Intentionally set Q > 0, to make sure control can be used to activate
@@ -158,6 +172,35 @@ TEST_P(LosslessAllIntraTestLarge, TestLossLessEncodingCtrl) {
   EXPECT_GE(psnr_lossless, kMaxPsnr);
 }
 
+using LosslessRealtimeTestLarge = LosslessTestLarge;
+
+TEST_P(LosslessRealtimeTestLarge, TestLosslessEncoding) {
+  TestLosslessEncoding();
+}
+
+TEST_P(LosslessRealtimeTestLarge, TestLosslessEncoding444) {
+  TestLosslessEncoding444();
+}
+
+TEST_P(LosslessRealtimeTestLarge, TestLosslessEncodingCtrl) {
+  TestLosslessEncodingCtrl();
+}
+
+// TODO(aomedia:3412): remove this after lossless mode is fixed.
+using DISABLED_LosslessRealtimeTestLarge = LosslessTestLarge;
+
+TEST_P(DISABLED_LosslessRealtimeTestLarge, TestLosslessEncoding) {
+  TestLosslessEncoding();
+}
+
+TEST_P(DISABLED_LosslessRealtimeTestLarge, TestLosslessEncoding444) {
+  TestLosslessEncoding444();
+}
+
+TEST_P(DISABLED_LosslessRealtimeTestLarge, TestLosslessEncodingCtrl) {
+  TestLosslessEncodingCtrl();
+}
+
 AV1_INSTANTIATE_TEST_SUITE(LosslessTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood,
                                              ::libaom_test::kTwoPassGood),
@@ -168,4 +211,17 @@ AV1_INSTANTIATE_TEST_SUITE(LosslessAllIntraTestLarge,
                            ::testing::Values(::libaom_test::kAllIntra),
                            ::testing::Values(AOM_Q),
                            ::testing::Values(6, 9));  // cpu_used
+
+AV1_INSTANTIATE_TEST_SUITE(LosslessRealtimeTestLarge,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ),
+                           ::testing::Values(6));  // cpu_used
+
+// TODO(aomedia:3412): merge this to LosslessRealtimeTestLarge after lossless
+// mode is fixed for these speed settings.
+AV1_INSTANTIATE_TEST_SUITE(DISABLED_LosslessRealtimeTestLarge,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ),
+                           ::testing::Range(7, 11));  // cpu_used
+
 }  // namespace
