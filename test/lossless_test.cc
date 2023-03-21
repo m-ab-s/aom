@@ -186,21 +186,6 @@ TEST_P(LosslessRealtimeTestLarge, TestLosslessEncodingCtrl) {
   TestLosslessEncodingCtrl();
 }
 
-// TODO(aomedia:3412): remove this after lossless mode is fixed.
-using DISABLED_LosslessRealtimeTestLarge = LosslessTestLarge;
-
-TEST_P(DISABLED_LosslessRealtimeTestLarge, TestLosslessEncoding) {
-  TestLosslessEncoding();
-}
-
-TEST_P(DISABLED_LosslessRealtimeTestLarge, TestLosslessEncoding444) {
-  TestLosslessEncoding444();
-}
-
-TEST_P(DISABLED_LosslessRealtimeTestLarge, TestLosslessEncodingCtrl) {
-  TestLosslessEncodingCtrl();
-}
-
 AV1_INSTANTIATE_TEST_SUITE(LosslessTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood,
                                              ::libaom_test::kTwoPassGood),
@@ -215,13 +200,5 @@ AV1_INSTANTIATE_TEST_SUITE(LosslessAllIntraTestLarge,
 AV1_INSTANTIATE_TEST_SUITE(LosslessRealtimeTestLarge,
                            ::testing::Values(::libaom_test::kRealTime),
                            ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ),
-                           ::testing::Values(6));  // cpu_used
-
-// TODO(aomedia:3412): merge this to LosslessRealtimeTestLarge after lossless
-// mode is fixed for these speed settings.
-AV1_INSTANTIATE_TEST_SUITE(DISABLED_LosslessRealtimeTestLarge,
-                           ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Values(AOM_Q, AOM_VBR, AOM_CBR, AOM_CQ),
-                           ::testing::Range(7, 11));  // cpu_used
-
+                           ::testing::Range(6, 11));  // cpu_used
 }  // namespace
