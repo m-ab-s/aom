@@ -1628,6 +1628,7 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Temporal filtering
   // The value can be 1 or 2, which indicates the threshold to use.
+  // Must be off for lossless mode.
   int use_rtc_tf;
 
   // Prune the use of the identity transform in nonrd_pickmode,

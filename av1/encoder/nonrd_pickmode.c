@@ -1664,6 +1664,15 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   mi->uv_mode = UV_DC_PRED;
   *rd_cost = best_rdc;
 
+  // For lossless: always force the skip flags off.
+  // Even though the blk_skip is set to 0 above in the rdcost comparison,
+  // do it here again in case the above logic changes.
+  if (is_lossless_requested(&cpi->oxcf.rc_cfg)) {
+    x->txfm_search_info.skip_txfm = 0;
+    memset(ctx->blk_skip, 0,
+           sizeof(x->txfm_search_info.blk_skip[0]) * ctx->num_4x4_blk);
+  }
+
 #if CONFIG_INTERNAL_STATS
   store_coding_context_nonrd(x, ctx, mi->mode);
 #else
@@ -3311,8 +3320,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->mode = best_pickmode->best_mode;
   mi->ref_frame[0] = best_pickmode->best_ref_frame;
   mi->ref_frame[1] = best_pickmode->best_second_ref_frame;
-  // For lossless/Q=0: always force the skip flags off.
-  if (cm->quant_params.base_qindex == 0) {
+  // For lossless: always force the skip flags off.
+  if (is_lossless_requested(&cpi->oxcf.rc_cfg)) {
     txfm_info->skip_txfm = 0;
     memset(ctx->blk_skip, 0, sizeof(ctx->blk_skip[0]) * ctx->num_4x4_blk);
   } else {

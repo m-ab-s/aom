@@ -77,6 +77,7 @@ class LosslessTestLarge
   }
 
   void TestLosslessEncoding();
+  void TestLosslessEncodingVGALag0();
   void TestLosslessEncoding444();
   void TestLosslessEncodingCtrl();
 
@@ -102,6 +103,23 @@ void LosslessTestLarge::TestLosslessEncoding() {
   // intentionally changed the dimension for better testing coverage
   libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                      timebase.den, timebase.num, 0, 5);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  const double psnr_lossless = GetMinPsnr();
+  EXPECT_GE(psnr_lossless, kMaxPsnr);
+}
+
+void LosslessTestLarge::TestLosslessEncodingVGALag0() {
+  const aom_rational timebase = { 33333333, 1000000000 };
+  cfg_.g_timebase = timebase;
+  cfg_.rc_target_bitrate = 2000;
+  cfg_.g_lag_in_frames = 0;
+  cfg_.rc_min_quantizer = 0;
+  cfg_.rc_max_quantizer = 0;
+
+  init_flags_ = AOM_CODEC_USE_PSNR;
+
+  libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480,
+                                     timebase.den, timebase.num, 0, 30);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   const double psnr_lossless = GetMinPsnr();
   EXPECT_GE(psnr_lossless, kMaxPsnr);
@@ -145,6 +163,10 @@ void LosslessTestLarge::TestLosslessEncodingCtrl() {
 
 TEST_P(LosslessTestLarge, TestLosslessEncoding) { TestLosslessEncoding(); }
 
+TEST_P(LosslessTestLarge, TestLosslessEncodingVGALag0) {
+  TestLosslessEncodingVGALag0();
+}
+
 TEST_P(LosslessTestLarge, TestLosslessEncoding444) {
   TestLosslessEncoding444();
 }
@@ -176,6 +198,10 @@ using LosslessRealtimeTestLarge = LosslessTestLarge;
 
 TEST_P(LosslessRealtimeTestLarge, TestLosslessEncoding) {
   TestLosslessEncoding();
+}
+
+TEST_P(LosslessRealtimeTestLarge, TestLosslessEncodingVGALag0) {
+  TestLosslessEncodingVGALag0();
 }
 
 TEST_P(LosslessRealtimeTestLarge, TestLosslessEncoding444) {

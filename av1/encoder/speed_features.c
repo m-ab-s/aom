@@ -1537,6 +1537,12 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     if (speed >= 9) sf->rt_sf.estimate_motion_for_var_based_partition = 0;
   }
+  if (is_lossless_requested(&cpi->oxcf.rc_cfg)) {
+    sf->rt_sf.use_rtc_tf = 0;
+    // TODO(aomedia:3412): The setting accurate_bit_estimate = 0
+    // can be removed once it's fixed for lossless mode.
+    sf->hl_sf.accurate_bit_estimate = 0;
+  }
 }
 
 // TODO(kyslov): now this is very similar to
