@@ -39,12 +39,12 @@ typedef void (*comp_avg_pred_func)(uint8_t *comp_pred, const uint8_t *pred,
                                    int width, int height, const uint8_t *ref,
                                    int ref_stride);
 
-#if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2
+#if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2 || HAVE_NEON
 const BLOCK_SIZE kValidBlockSize[] = {
-  BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,   BLOCK_16X16,
-  BLOCK_16X32, BLOCK_32X8,  BLOCK_32X16,  BLOCK_32X32,  BLOCK_32X64,
-  BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64, BLOCK_128X128,
-  BLOCK_16X64, BLOCK_64X16
+  BLOCK_4X4,     BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,
+  BLOCK_16X16,   BLOCK_16X32, BLOCK_32X8,  BLOCK_32X16,  BLOCK_32X32,
+  BLOCK_32X64,   BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64,
+  BLOCK_128X128, BLOCK_16X64, BLOCK_64X16
 };
 #endif
 typedef std::tuple<comp_mask_pred_func, BLOCK_SIZE> CompMaskPredParam;
@@ -393,6 +393,13 @@ TEST_P(AV1CompAvgPredTest, DISABLED_Speed) {
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1CompAvgPredTest,
     ::testing::Combine(::testing::Values(&aom_comp_avg_pred_avx2),
+                       ::testing::ValuesIn(kValidBlockSize)));
+#endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV1CompAvgPredTest,
+    ::testing::Combine(::testing::Values(&aom_comp_avg_pred_neon),
                        ::testing::ValuesIn(kValidBlockSize)));
 #endif
 

@@ -1600,7 +1600,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # Comp Avg
   #
   add_proto qw/void aom_comp_avg_pred/, "uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride";
-  specialize qw/aom_comp_avg_pred avx2/;
+  specialize qw/aom_comp_avg_pred avx2 neon/;
 
   add_proto qw/void aom_dist_wtd_comp_avg_pred/, "uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride, const DIST_WTD_COMP_PARAMS *jcp_param";
   specialize qw/aom_dist_wtd_comp_avg_pred ssse3/;
