@@ -1141,8 +1141,8 @@ static AOM_INLINE void update_a_sep_sym(int wiener_win, int64_t **Mc,
     for (j = 0; j < wiener_win; j++) {
       int k, l;
       for (k = 0; k < wiener_win; ++k) {
+        const int kk = wrap_index(k, wiener_win);
         for (l = 0; l < wiener_win; ++l) {
-          const int kk = wrap_index(k, wiener_win);
           const int ll = wrap_index(l, wiener_win);
           B[ll * wiener_halfwin1 + kk] +=
               Hc[j * wiener_win + i][k * wiener_win2 + l] * b[i] /
@@ -1224,8 +1224,8 @@ static AOM_INLINE void update_b_sep_sym(int wiener_win, int64_t **Mc,
   const int scaler = max_a_l < scale_threshold ? 1 : 4;
 
   for (i = 0; i < wiener_win; i++) {
+    const int ii = wrap_index(i, wiener_win);
     for (j = 0; j < wiener_win; j++) {
-      const int ii = wrap_index(i, wiener_win);
       const int jj = wrap_index(j, wiener_win);
       int k, l;
       for (k = 0; k < wiener_win; ++k) {
