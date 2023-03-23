@@ -2520,6 +2520,17 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     }
   }
 
+  if (speed == 5) {
+    if (!(frame_is_intra_only(&cpi->common) ||
+          cm->features.allow_screen_content_tools)) {
+      const int qindex[2] = { 256, 128 };
+      // Set the sf value as 3 for low resolution and
+      // for higher resolutions with low quantizers.
+      if (cm->quant_params.base_qindex < qindex[is_480p_or_larger])
+        sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 3;
+    }
+  }
+
   set_subpel_search_method(&cpi->mv_search_params,
                            cpi->oxcf.unit_test_cfg.motion_vector_unit_test,
                            sf->mv_sf.subpel_search_method);
