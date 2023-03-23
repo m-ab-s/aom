@@ -1568,7 +1568,6 @@ int main(int argc, const char **argv) {
 
       got_data = 0;
       while ((pkt = aom_codec_get_cx_data(&codec, &iter))) {
-        got_data = 1;
         switch (pkt->kind) {
           case AOM_CODEC_CX_FRAME_PKT:
             for (unsigned int sl = layer_id.spatial_layer_id;
@@ -1587,6 +1586,7 @@ int main(int argc, const char **argv) {
                   rc.layer_encoding_bitrate[j] += 8.0 * pkt->data.frame.sz;
               }
             }
+            got_data = 1;
             // Write everything into the top layer.
             if (app_input.output_obu) {
               fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz,
@@ -1651,7 +1651,7 @@ int main(int argc, const char **argv) {
         }
       }
 #if CONFIG_AV1_DECODER
-      if (app_input.decode) {
+      if (got_data && app_input.decode) {
         // Don't look for mismatch on top spatial and top temporal layers as
         // they are non reference frames.
         if ((ss_number_layers > 1 || ts_number_layers > 1) &&
