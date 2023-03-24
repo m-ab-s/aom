@@ -50,7 +50,36 @@ svc_encoder_s1_t3() {
   [ -e "${output_file}" ] || return 1
 }
 
+# Runs svc_encoder_rtc using with 1 spatial layer 2 temporal layers with
+# speed 10.
+svc_encoder_s1_t2() {
+  local encoder="${LIBAOM_BIN_PATH}/svc_encoder_rtc${AOM_TEST_EXE_SUFFIX}"
+  local output_file="${AOM_TEST_OUTPUT_DIR}/svc_encoder_rtc"
+
+  if [ ! -x "${encoder}" ]; then
+    elog "${encoder} does not exist or is not executable."
+    return 1
+  fi
+
+  eval "${AOM_TEST_PREFIX}" "${encoder}" "${common_flags}" \
+      "--width=${YUV_RAW_INPUT_WIDTH}" \
+      "--height=${YUV_RAW_INPUT_HEIGHT}" \
+      "-lm 1" \
+      "--speed=10" \
+      "--target-bitrate=400" \
+      "--bitrates=220,400" \
+      "--spatial-layers=1" \
+      "--temporal-layers=2" \
+      "--timebase=1/30" \
+      "${YUV_RAW_INPUT}" \
+      "-o ${output_file}" \
+      ${devnull} || return 1
+
+  [ -e "${output_file}" ] || return 1
+}
+
 if [ "$(av1_encode_available)" = "yes" ]; then
-  svc_encoder_rtc_tests="svc_encoder_s1_t3"
+  svc_encoder_rtc_tests="svc_encoder_s1_t3
+                         svc_encoder_s1_t2"
   run_tests svc_encoder_verify_environment "${svc_encoder_rtc_tests}"
 fi
