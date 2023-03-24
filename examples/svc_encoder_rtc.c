@@ -1167,13 +1167,13 @@ static void test_decode(aom_codec_ctx_t *encoder, aom_codec_ctx_t *decoder,
     aom_find_mismatch(&enc_img, &dec_img, y, u, v);
 #endif
     decoder->err = 1;
-    printf(
-        "Encode/decode mismatch on frame %d at"
-        " Y[%d, %d] {%d/%d},"
-        " U[%d, %d] {%d/%d},"
-        " V[%d, %d] {%d/%d}",
-        frames_out, y[0], y[1], y[2], y[3], u[0], u[1], u[2], u[3], v[0], v[1],
-        v[2], v[3]);
+    fprintf(stderr,
+            "Encode/decode mismatch on frame %d at"
+            " Y[%d, %d] {%d/%d},"
+            " U[%d, %d] {%d/%d},"
+            " V[%d, %d] {%d/%d}\n",
+            frames_out, y[0], y[1], y[2], y[3], u[0], u[1], u[2], u[3], v[0],
+            v[1], v[2], v[3]);
     *mismatch_seen = frames_out;
   }
 
@@ -1642,7 +1642,7 @@ int main(int argc, const char **argv) {
             if (app_input.decode) {
               if (aom_codec_decode(&decoder, pkt->data.frame.buf,
                                    (unsigned int)pkt->data.frame.sz, NULL))
-                die_codec(&decoder, "Failed to decode frame.");
+                die_codec(&decoder, "Failed to decode frame");
             }
 #endif
 
@@ -1658,6 +1658,7 @@ int main(int argc, const char **argv) {
             !(layer_id.temporal_layer_id > 0 &&
               layer_id.temporal_layer_id == (int)ts_number_layers - 1)) {
           test_decode(&codec, &decoder, frame_cnt, &mismatch_seen);
+          if (mismatch_seen) die_codec(&decoder, "Mismatch seen");
         }
       }
 #endif
