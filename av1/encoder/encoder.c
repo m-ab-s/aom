@@ -1698,7 +1698,12 @@ void av1_remove_compressor(AV1_COMP *cpi) {
   av1_denoiser_free(&(cpi->denoiser));
 #endif
 
-  aom_free(cm->error);
+  if (cm->error) {
+    // Help detect use after free of the error detail string.
+    memset(cm->error->detail, 'A', sizeof(cm->error->detail) - 1);
+    cm->error->detail[sizeof(cm->error->detail) - 1] = '\0';
+    aom_free(cm->error);
+  }
   aom_free(cpi->td.tctx);
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 #if CONFIG_MULTITHREAD
