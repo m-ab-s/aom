@@ -160,7 +160,7 @@ TEST(EncodeForcedMaxFrameWidthHeight, DISABLED_DimensionDecreasing) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img, 0, 1, 0));
   aom_codec_iter_t iter = nullptr;
   const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter);
-  EXPECT_NE(pkt, nullptr);
+  ASSERT_NE(pkt, nullptr);
   EXPECT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
   // pkt->data.frame.flags is 0x1f0011.
   EXPECT_NE(pkt->data.frame.flags & AOM_FRAME_IS_KEY, 0u);
@@ -183,7 +183,7 @@ TEST(EncodeForcedMaxFrameWidthHeight, DISABLED_DimensionDecreasing) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img, 0, 1, 0));
   iter = nullptr;
   pkt = aom_codec_get_cx_data(&enc, &iter);
-  EXPECT_NE(pkt, nullptr);
+  ASSERT_NE(pkt, nullptr);
   EXPECT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
   // pkt->data.frame.flags is 0.
   EXPECT_EQ(pkt->data.frame.flags & AOM_FRAME_IS_KEY, 0u);
