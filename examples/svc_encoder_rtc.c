@@ -1209,7 +1209,6 @@ int main(int argc, const char **argv) {
   }
 #endif
 #if CONFIG_AV1_DECODER
-  int mismatch_seen = 0;
   aom_codec_ctx_t decoder;
 #endif
 
@@ -1657,8 +1656,16 @@ int main(int argc, const char **argv) {
         if ((ss_number_layers > 1 || ts_number_layers > 1) &&
             !(layer_id.temporal_layer_id > 0 &&
               layer_id.temporal_layer_id == (int)ts_number_layers - 1)) {
+          int mismatch_seen = 0;
           test_decode(&codec, &decoder, frame_cnt, &mismatch_seen);
-          if (mismatch_seen) die_codec(&decoder, "Mismatch seen");
+          if (mismatch_seen) {
+#if CONFIG_INTERNAL_STATS
+            fprintf(stats_file, "First mismatch occurred in frame %d\n",
+                    mismatch_seen);
+            fclose(stats_file);
+#endif
+            die_codec(&decoder, "Mismatch seen");
+          }
         }
       }
 #endif
@@ -1689,11 +1696,7 @@ int main(int argc, const char **argv) {
   if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec");
 
 #if CONFIG_INTERNAL_STATS
-  if (mismatch_seen) {
-    fprintf(stats_file, "First mismatch occurred in frame %d\n", mismatch_seen);
-  } else {
-    fprintf(stats_file, "No mismatch detected in recon buffers\n");
-  }
+  fprintf(stats_file, "No mismatch detected in recon buffers\n");
   fclose(stats_file);
 #endif
 
