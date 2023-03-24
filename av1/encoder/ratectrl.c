@@ -499,7 +499,7 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
       max_delta_down = AOMMIN(16, AOMMAX(1, rc->q_1_frame / 8));
     }
     if (!cpi->ppi->use_svc && cpi->is_screen_content_type) {
-      // Link max_delta_up linked to max_delta_down and buffer status.
+      // Link max_delta_up to max_delta_down and buffer status.
       if (p_rc->buffer_level > p_rc->optimal_buffer_level) {
         max_delta_up = AOMMAX(4, max_delta_down);
       } else {

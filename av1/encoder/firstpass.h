@@ -33,10 +33,6 @@ extern "C" {
 #define VLOW_MOTION_THRESHOLD 950
 struct ThreadData;
 
-// Temporarily revert newly added firstpass stats. After
-// resolving the stats matching issue, we could remove this #define.
-#define REVERT_NEW_FIRSTPASS_STATS 1
-
 /*!
  * \brief The stucture of acummulated frame stats in the first pass.
  *
@@ -167,7 +163,6 @@ typedef struct FIRSTPASS_STATS {
    * Correlation coefficient with the previous frame
    */
   double cor_coeff;
-#if !REVERT_NEW_FIRSTPASS_STATS
   /*!
    * log of intra_error
    */
@@ -176,7 +171,6 @@ typedef struct FIRSTPASS_STATS {
    * log of coded_error
    */
   double log_coded_error;
-#endif
 } FIRSTPASS_STATS;
 
 // We want to keep one past stats for key frame detection
