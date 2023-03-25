@@ -25,24 +25,6 @@
 #include "av1/common/filter.h"
 #include "av1/common/reconinter.h"
 
-uint32_t aom_get4x4sse_cs_c(const uint8_t *a, int a_stride, const uint8_t *b,
-                            int b_stride) {
-  int distortion = 0;
-  int r, c;
-
-  for (r = 0; r < 4; ++r) {
-    for (c = 0; c < 4; ++c) {
-      int diff = a[c] - b[c];
-      distortion += diff * diff;
-    }
-
-    a += a_stride;
-    b += b_stride;
-  }
-
-  return distortion;
-}
-
 uint32_t aom_get_mb_ss_c(const int16_t *a) {
   unsigned int i, sum = 0;
 

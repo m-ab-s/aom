@@ -476,18 +476,6 @@ static INLINE unsigned int mse16xh_neon(const uint8_t *src, int src_stride,
   return horizontal_add_u32x4(vaddq_u32(sse_u32[0], sse_u32[1]));
 }
 
-unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
-                                   const uint8_t *ref, int ref_stride) {
-  uint8x16_t s = load_unaligned_u8q(src, src_stride);
-  uint8x16_t r = load_unaligned_u8q(ref, ref_stride);
-
-  uint8x16_t abs_diff = vabdq_u8(s, r);
-
-  uint32x4_t sse = vdotq_u32(vdupq_n_u32(0), abs_diff, abs_diff);
-
-  return horizontal_add_u32x4(sse);
-}
-
 #else  // !defined(__ARM_FEATURE_DOTPROD)
 
 static INLINE unsigned int mse8xh_neon(const uint8_t *src, int src_stride,
@@ -585,30 +573,6 @@ static INLINE unsigned int mse16xh_neon(const uint8_t *src, int src_stride,
 
   *sse = horizontal_add_u32x4(vreinterpretq_u32_s32(sse_s32[0]));
   return horizontal_add_u32x4(vreinterpretq_u32_s32(sse_s32[0]));
-}
-
-unsigned int aom_get4x4sse_cs_neon(const uint8_t *src, int src_stride,
-                                   const uint8_t *ref, int ref_stride) {
-  uint8x8_t s[2], r[2];
-  uint16x8_t abs_diff[2];
-  uint32x4_t sse;
-
-  s[0] = load_u8(src, src_stride);
-  r[0] = load_u8(ref, ref_stride);
-  src += 2 * src_stride;
-  ref += 2 * ref_stride;
-  s[1] = load_u8(src, src_stride);
-  r[1] = load_u8(ref, ref_stride);
-
-  abs_diff[0] = vabdl_u8(s[0], r[0]);
-  abs_diff[1] = vabdl_u8(s[1], r[1]);
-
-  sse = vmull_u16(vget_low_u16(abs_diff[0]), vget_low_u16(abs_diff[0]));
-  sse = vmlal_u16(sse, vget_high_u16(abs_diff[0]), vget_high_u16(abs_diff[0]));
-  sse = vmlal_u16(sse, vget_low_u16(abs_diff[1]), vget_low_u16(abs_diff[1]));
-  sse = vmlal_u16(sse, vget_high_u16(abs_diff[1]), vget_high_u16(abs_diff[1]));
-
-  return horizontal_add_u32x4(sse);
 }
 
 #endif  // defined(__ARM_FEATURE_DOTPROD)

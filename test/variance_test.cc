@@ -56,8 +56,6 @@ typedef unsigned int (*SubpixAvgVarMxNFunc)(const uint8_t *a, int a_stride,
                                             const uint8_t *b, int b_stride,
                                             uint32_t *sse,
                                             const uint8_t *second_pred);
-typedef unsigned int (*Get4x4SseFunc)(const uint8_t *a, int a_stride,
-                                      const uint8_t *b, int b_stride);
 typedef unsigned int (*SumOfSquaresFunction)(const int16_t *src);
 typedef unsigned int (*DistWtdSubpixAvgVarMxNFunc)(
     const uint8_t *a, int a_stride, int xoffset, int yoffset, const uint8_t *b,
@@ -1672,7 +1670,6 @@ void ObmcVarianceTest<ObmcSubpelVarFunc>::SpeedTest() {
 
 typedef MseWxHTestClass<MseWxH16bitFunc> MseWxHTest;
 typedef Mse16xHTestClass<Mse16xH16bitFunc> Mse16xHTest;
-typedef MainTestClass<Get4x4SseFunc> AvxSseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxMseTest;
 typedef MainTestClass<VarianceMxNFunc> AvxVarianceTest;
 typedef MainTestClass<GetSseSum8x8QuadFunc> GetSseSum8x8QuadTest;
@@ -1687,8 +1684,6 @@ typedef ObmcVarianceTest<ObmcSubpelVarFunc> AvxObmcSubpelVarianceTest;
 typedef TestParams<MseWxH16bitFunc> MseWxHParams;
 typedef TestParams<Mse16xH16bitFunc> Mse16xHParams;
 
-TEST_P(AvxSseTest, RefSse) { RefTestSse(); }
-TEST_P(AvxSseTest, MaxSse) { MaxTestSse(); }
 TEST_P(MseWxHTest, RefMse) { RefMatchTestMse(); }
 TEST_P(MseWxHTest, DISABLED_SpeedMse) { SpeedTest(); }
 TEST_P(Mse16xHTest, RefMse) { RefMatchTestMse(); }
@@ -1738,11 +1733,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(C, SumOfSquaresTest,
                          ::testing::Values(aom_get_mb_ss_c));
-
-typedef TestParams<Get4x4SseFunc> SseParams;
-INSTANTIATE_TEST_SUITE_P(C, AvxSseTest,
-                         ::testing::Values(SseParams(2, 2,
-                                                     &aom_get4x4sse_cs_c)));
 
 typedef TestParams<VarianceMxNFunc> MseParams;
 INSTANTIATE_TEST_SUITE_P(C, AvxMseTest,
@@ -3224,10 +3214,6 @@ INSTANTIATE_TEST_SUITE_P(
                       MseWxHParams(3, 2, &aom_mse_wxh_16bit_neon, 8),
                       MseWxHParams(2, 3, &aom_mse_wxh_16bit_neon, 8),
                       MseWxHParams(2, 2, &aom_mse_wxh_16bit_neon, 8)));
-
-INSTANTIATE_TEST_SUITE_P(NEON, AvxSseTest,
-                         ::testing::Values(SseParams(2, 2,
-                                                     &aom_get4x4sse_cs_neon)));
 
 INSTANTIATE_TEST_SUITE_P(NEON, AvxMseTest,
                          ::testing::Values(MseParams(3, 3, &aom_mse8x8_neon),

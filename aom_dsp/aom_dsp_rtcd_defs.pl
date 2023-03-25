@@ -1342,10 +1342,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   #
   #
   add_proto qw/unsigned int aom_get_mb_ss/, "const int16_t *";
-  add_proto qw/unsigned int aom_get4x4sse_cs/, "const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int ref_stride";
-
   specialize qw/aom_get_mb_ss sse2/;
-  specialize qw/aom_get4x4sse_cs neon/;
 
   #
   # Variance / Subpixel Variance / Subpixel Avg Variance
