@@ -252,9 +252,9 @@ static aom_codec_err_t parse_layer_options_from_string(
       (option1 == NULL && type == SCALE_FACTOR))
     return AOM_CODEC_INVALID_PARAM;
 
-  input_string = malloc(strlen(input));
+  input_string = malloc(strlen(input) + 1);
   if (!input_string) die("Failed to allocate input string.");
-  memcpy(input_string, input, strlen(input));
+  memcpy(input_string, input, strlen(input) + 1);
   if (input_string == NULL) return AOM_CODEC_MEM_ERROR;
   token = strtok(input_string, delim);  // NOLINT
   for (i = 0; i < num_layers; ++i) {
@@ -1694,6 +1694,13 @@ int main(int argc, const char **argv) {
          1000000 * (double)frame_cnt / (double)cx_time);
 
   if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy codec");
+
+#if CONFIG_AV1_DECODER
+  if (app_input.decode) {
+    if (aom_codec_destroy(&decoder))
+      die_codec(&decoder, "Failed to destroy decoder");
+  }
+#endif
 
 #if CONFIG_INTERNAL_STATS
   fprintf(stats_file, "No mismatch detected in recon buffers\n");
