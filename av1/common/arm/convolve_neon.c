@@ -1091,7 +1091,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
   // FILTER_BITS - ROUND0_BITS.
   // The outermost -1 is needed because we halved the filter values.
   const int16x8_t horiz_const = vdupq_n_s16(1 << ((ROUND0_BITS - 1) - 1));
-#endif
+#endif  // defined(__aarch64__)
   // Filter values are even so downshift by 1 to reduce precision requirements.
   const int16x8_t x_filter = vshrq_n_s16(vld1q_s16(x_filter_ptr), 1);
 
@@ -1172,7 +1172,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
       w -= 4;
     } while (w > 0);
   } else {
-#endif
+#endif  // defined(__aarch64__)
     int width;
     const uint8_t *s;
     int16x8_t s0, s1, s2, s3, s4, s5, s6, s7;
@@ -1180,7 +1180,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
 #if defined(__aarch64__)
     int16x8_t s8, s9, s10;
     uint8x8_t t4, t5, t6, t7;
-#endif
+#endif  // defined(__aarch64__)
 
     if (w <= 4) {
 #if defined(__aarch64__)
@@ -1260,7 +1260,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
         dst += 8 * dst_stride;
         h -= 8;
       } while (h > 0);
-#else
+#else   // !defined(__aarch64__)
     // This shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use a single
     // rounding right shift by FILTER_BITS - instead of a first rounding right
     // shift by ROUND0_BITS, followed by second rounding right shift by
@@ -1301,7 +1301,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
       }
       h -= 1;
     } while (h > 0);
-#endif
+#endif  // defined(__aarch64__)
     } else {
       uint8_t *d;
       int16x8_t s11;
@@ -1390,7 +1390,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
         dst += 8 * dst_stride;
         h -= 8;
       } while (h > 0);
-#else
+#else   // !defined(__aarch64__)
     // This shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use a single
     // rounding right shift by FILTER_BITS - instead of a first rounding right
     // shift by ROUND0_BITS, followed by second rounding right shift by
@@ -1434,11 +1434,11 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
       dst += dst_stride;
       h -= 1;
     } while (h > 0);
-#endif
+#endif  // defined(__aarch64__)
     }
 #if defined(__aarch64__)
   }
-#endif
+#endif  // defined(__aarch64__)
 }
 
 #endif  // defined(__aarch64__) && defined(__ARM_FEATURE_MATMUL_INT8)
@@ -1894,7 +1894,7 @@ void av1_convolve_y_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
 #if defined(__aarch64__)
     uint8x8_t d23;
     int16x4_t s8, s9, s10, d1, d2, d3;
-#endif
+#endif  // defined(__aarch64__)
     s0 = vreinterpret_s16_u16(vget_low_u16(vmovl_u8(vld1_u8(src))));
     src += src_stride;
     s1 = vreinterpret_s16_u16(vget_low_u16(vmovl_u8(vld1_u8(src))));
@@ -1962,7 +1962,7 @@ void av1_convolve_y_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
       s6 = s10;
       dst += 4 * dst_stride;
       h -= 4;
-#else
+#else   // !defined(__aarch64__)
       __builtin_prefetch(dst + 0 * dst_stride);
       __builtin_prefetch(src + 0 * src_stride);
 
@@ -1984,7 +1984,7 @@ void av1_convolve_y_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
       s6 = s7;
       dst += dst_stride;
       h -= 1;
-#endif
+#endif  // defined(__aarch64__)
     } while (h > 0);
   } else {
     int height;
@@ -1995,7 +1995,7 @@ void av1_convolve_y_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
 #if defined(__aarch64__)
     uint8x8_t t1, t2, t3;
     int16x8_t s8, s9, s10;
-#endif
+#endif  // defined(__aarch64__)
     do {
       __builtin_prefetch(src + 0 * src_stride);
       __builtin_prefetch(src + 1 * src_stride);
@@ -2060,7 +2060,7 @@ void av1_convolve_y_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
         s6 = s10;
         d += 4 * dst_stride;
         height -= 4;
-#else
+#else   // !defined(__aarch64__)
         __builtin_prefetch(d);
         __builtin_prefetch(s);
 
@@ -2077,7 +2077,7 @@ void av1_convolve_y_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
         s5 = s6;
         s6 = s7;
         height -= 1;
-#endif
+#endif  // defined(__aarch64__)
       } while (height > 0);
       src += 8;
       dst += 8;
