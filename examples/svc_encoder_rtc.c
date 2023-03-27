@@ -258,10 +258,10 @@ static aom_codec_err_t parse_layer_options_from_string(
       (option1 == NULL && type == SCALE_FACTOR))
     return AOM_CODEC_INVALID_PARAM;
 
-  input_string = malloc(strlen(input) + 1);
-  if (!input_string) die("Failed to allocate input string.");
-  memcpy(input_string, input, strlen(input) + 1);
+  const size_t input_length = strlen(input);
+  input_string = malloc(input_length + 1);
   if (input_string == NULL) return AOM_CODEC_MEM_ERROR;
+  memcpy(input_string, input, input_length + 1);
   token = strtok(input_string, delim);  // NOLINT
   for (i = 0; i < num_layers; ++i) {
     if (token != NULL) {
@@ -269,11 +269,9 @@ static aom_codec_err_t parse_layer_options_from_string(
       if (res != AOM_CODEC_OK) break;
       token = strtok(NULL, delim);  // NOLINT
     } else {
+      res = AOM_CODEC_INVALID_PARAM;
       break;
     }
-  }
-  if (res == AOM_CODEC_OK && i != num_layers) {
-    res = AOM_CODEC_INVALID_PARAM;
   }
   free(input_string);
   return res;
@@ -336,9 +334,13 @@ static void parse_command_line(int argc, const char **argv_,
       enc_cfg->kf_min_dist = arg_parse_uint(&arg);
       enc_cfg->kf_max_dist = enc_cfg->kf_min_dist;
     } else if (arg_match(&arg, &scale_factors_arg, argi)) {
-      parse_layer_options_from_string(svc_params, SCALE_FACTOR, arg.val,
-                                      svc_params->scaling_factor_num,
-                                      svc_params->scaling_factor_den);
+      aom_codec_err_t res = parse_layer_options_from_string(
+          svc_params, SCALE_FACTOR, arg.val, svc_params->scaling_factor_num,
+          svc_params->scaling_factor_den);
+      if (res != AOM_CODEC_OK) {
+        die("Failed to parse scale factors: %s\n",
+            aom_codec_err_to_string(res));
+      }
     } else if (arg_match(&arg, &min_q_arg, argi)) {
       enc_cfg->rc_min_quantizer = arg_parse_uint(&arg);
     } else if (arg_match(&arg, &max_q_arg, argi)) {
@@ -389,8 +391,11 @@ static void parse_command_line(int argc, const char **argv_,
   for (argi = argj = argv; (*argj = *argi); argi += arg.argv_step) {
     arg.argv_step = 1;
     if (arg_match(&arg, &bitrates_arg, argi)) {
-      parse_layer_options_from_string(svc_params, BITRATE, arg.val,
-                                      svc_params->layer_target_bitrate, NULL);
+      aom_codec_err_t res = parse_layer_options_from_string(
+          svc_params, BITRATE, arg.val, svc_params->layer_target_bitrate, NULL);
+      if (res != AOM_CODEC_OK) {
+        die("Failed to parse bitrates: %s\n", aom_codec_err_to_string(res));
+      }
     } else {
       ++argj;
     }
@@ -1249,7 +1254,7 @@ int main(int argc, const char **argv) {
   // start with default encoder configuration
   aom_codec_err_t res = aom_codec_enc_config_default(aom_codec_av1_cx(), &cfg,
                                                      AOM_USAGE_REALTIME);
-  if (res) {
+  if (res != AOM_CODEC_OK) {
     die("Failed to get config: %s\n", aom_codec_err_to_string(res));
   }
 
