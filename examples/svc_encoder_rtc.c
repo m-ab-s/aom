@@ -1172,7 +1172,6 @@ static void test_decode(aom_codec_ctx_t *encoder, aom_codec_ctx_t *decoder,
 #else
     aom_find_mismatch(&enc_img, &dec_img, y, u, v);
 #endif
-    decoder->err = 1;
     fprintf(stderr,
             "Encode/decode mismatch on frame %d at"
             " Y[%d, %d] {%d/%d},"
@@ -1670,7 +1669,7 @@ int main(int argc, const char **argv) {
                     mismatch_seen);
             fclose(stats_file);
 #endif
-            die_codec(&decoder, "Mismatch seen");
+            die("Mismatch seen");
           }
         }
       }
