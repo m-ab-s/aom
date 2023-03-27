@@ -12,20 +12,26 @@
 //  encoding scheme for RTC video applications.
 
 #include <assert.h>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "config/aom_config.h"
+
+#if CONFIG_AV1_DECODER
+#include "aom/aom_decoder.h"
+#endif
 #include "aom/aom_encoder.h"
 #include "aom/aomcx.h"
 #include "av1/common/enums.h"
-#include "av1/encoder/encoder.h"
 #include "common/args.h"
 #include "common/tools_common.h"
 #include "common/video_writer.h"
 #include "examples/encoder_util.h"
 #include "aom_ports/aom_timer.h"
+#include "aom_ports/bitops.h"
 
 #define OPTION_BUFFER_SIZE 1024
 
