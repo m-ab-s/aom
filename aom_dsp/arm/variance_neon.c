@@ -374,17 +374,6 @@ VARIANCE_WXH_NEON(128, 128, 14)
 
 #undef VARIANCE_WXH_NEON
 
-void aom_get8x8var_neon(const uint8_t *src, int src_stride, const uint8_t *ref,
-                        int ref_stride, unsigned int *sse, int *sum) {
-  variance_8xh_neon(src, src_stride, ref, ref_stride, 8, sse, sum);
-}
-
-void aom_get16x16var_neon(const uint8_t *src, int src_stride,
-                          const uint8_t *ref, int ref_stride, unsigned int *sse,
-                          int *sum) {
-  variance_16xh_neon(src, src_stride, ref, ref_stride, 16, sse, sum);
-}
-
 // TODO(yunqingwang): Perform variance of two/four 8x8 blocks similar to that of
 // AVX2. Also, implement the NEON for variance computation present in this
 // function.

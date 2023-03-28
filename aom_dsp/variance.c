@@ -180,17 +180,6 @@ void aom_var_filter_block2d_bil_second_pass_c(const uint16_t *a, uint8_t *b,
     return aom_variance##W##x##H(temp3, W, b, b_stride, sse);                  \
   }
 
-/* Identical to the variance call except it takes an additional parameter, sum,
- * and returns that value using pass-by-reference instead of returning
- * sse - sum^2 / w*h
- */
-#define GET_VAR(W, H)                                                         \
-  void aom_get##W##x##H##var_c(const uint8_t *a, int a_stride,                \
-                               const uint8_t *b, int b_stride, uint32_t *sse, \
-                               int *sum) {                                    \
-    variance(a, a_stride, b, b_stride, W, H, sse, sum);                       \
-  }
-
 void aom_get_var_sse_sum_8x8_quad_c(const uint8_t *a, int a_stride,
                                     const uint8_t *b, int b_stride,
                                     uint32_t *sse8x8, int *sum8x8,
@@ -273,9 +262,6 @@ VARIANCES(32, 8)
 VARIANCES(16, 64)
 VARIANCES(64, 16)
 #endif
-
-GET_VAR(16, 16)
-GET_VAR(8, 8)
 
 MSE(16, 16)
 MSE(16, 8)
@@ -405,25 +391,6 @@ static void highbd_12_variance(const uint8_t *a8, int a_stride,
     highbd_12_variance(a, a_stride, b, b_stride, W, H, sse, &sum);             \
     var = (int64_t)(*sse) - (((int64_t)sum * sum) / (W * H));                  \
     return (var >= 0) ? (uint32_t)var : 0;                                     \
-  }
-
-#define HIGHBD_GET_VAR(S)                                                    \
-  void aom_highbd_8_get##S##x##S##var_c(const uint8_t *src, int src_stride,  \
-                                        const uint8_t *ref, int ref_stride,  \
-                                        uint32_t *sse, int *sum) {           \
-    highbd_8_variance(src, src_stride, ref, ref_stride, S, S, sse, sum);     \
-  }                                                                          \
-                                                                             \
-  void aom_highbd_10_get##S##x##S##var_c(const uint8_t *src, int src_stride, \
-                                         const uint8_t *ref, int ref_stride, \
-                                         uint32_t *sse, int *sum) {          \
-    highbd_10_variance(src, src_stride, ref, ref_stride, S, S, sse, sum);    \
-  }                                                                          \
-                                                                             \
-  void aom_highbd_12_get##S##x##S##var_c(const uint8_t *src, int src_stride, \
-                                         const uint8_t *ref, int ref_stride, \
-                                         uint32_t *sse, int *sum) {          \
-    highbd_12_variance(src, src_stride, ref, ref_stride, S, S, sse, sum);    \
   }
 
 #define HIGHBD_MSE(W, H)                                                      \
@@ -695,9 +662,6 @@ HIGHBD_VARIANCES(32, 8)
 HIGHBD_VARIANCES(16, 64)
 HIGHBD_VARIANCES(64, 16)
 #endif
-
-HIGHBD_GET_VAR(8)
-HIGHBD_GET_VAR(16)
 
 HIGHBD_MSE(16, 16)
 HIGHBD_MSE(16, 8)
