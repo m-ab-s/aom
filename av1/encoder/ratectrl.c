@@ -511,7 +511,8 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
                          ? AOMMIN(8, AOMMAX(1, rc->q_1_frame / 16))
                          : AOMMIN(16, AOMMAX(1, rc->q_1_frame / 8));
   }
-
+  if (cpi->svc.number_temporal_layers > 1 && cpi->svc.temporal_layer_id == 0)
+    max_delta_up = AOMMIN(max_delta_up, 14);
   // If resolution changes or avg_frame_bandwidth significantly changed,
   // then set this flag to indicate change in target bits per macroblock.
   const int change_target_bits_mb =
