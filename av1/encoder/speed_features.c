@@ -1420,6 +1420,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
       if (cm->width * cm->height <= 352 * 288)
         sf->rt_sf.nonrd_prune_ref_frame_search = 2;
+      sf->rt_sf.force_large_partition_blocks_intra = 0;
     }
     if (speed >= 8) {
       if (cpi->svc.number_temporal_layers > 2)
