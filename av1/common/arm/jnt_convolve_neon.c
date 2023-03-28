@@ -2123,10 +2123,10 @@ convolve8_y_8x8_s16(const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
   return vshrq_n_s16(sum, ROUND0_BITS - 1);
 }
 
-void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
-                                   uint8_t *dst8_ptr, const int dst8_stride,
-                                   int w, int h, const int16x8_t y_filter,
-                                   ConvolveParams *conv_params) {
+static INLINE void dist_wtd_convolve_y_6tap_neon(
+    const uint8_t *src_ptr, int src_stride, uint8_t *dst8_ptr,
+    const int dst8_stride, int w, int h, const int16x8_t y_filter,
+    ConvolveParams *conv_params) {
   CONV_BUF_TYPE *dst_ptr = conv_params->dst;
   const int dst_stride = conv_params->dst_stride;
   const int bd = 8;
@@ -2408,30 +2408,12 @@ void dist_wtd_convolve_y_6tap_neon(const uint8_t *src_ptr, int src_stride,
   }
 }
 
-void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
-                                  uint8_t *dst8, int dst8_stride, int w, int h,
-                                  const InterpFilterParams *filter_params_y,
-                                  const int subpel_y_qn,
-                                  ConvolveParams *conv_params) {
-  assert(!(w % 4));
-  assert(!(h % 4));
-
-  // vertical filter
-  const int16_t *y_filter_ptr = av1_get_interp_filter_subpel_kernel(
-      filter_params_y, subpel_y_qn & SUBPEL_MASK);
-  // Filter values are even, so downshift by 1 to reduce intermediate
-  // precision requirements.
-  const int16x8_t y_filter = vshrq_n_s16(vld1q_s16(y_filter_ptr), 1);
-
-  const int vert_offset = filter_params_y->taps / 2 - 1;
-  const uint8_t *src_ptr = src - (vert_offset * src_stride);
-
-  if (get_filter_tap(filter_params_y, subpel_y_qn) <= 6) {
-    dist_wtd_convolve_y_6tap_neon(src_ptr + src_stride, src_stride, dst8,
-                                  dst8_stride, w, h, y_filter, conv_params);
-    return;
-  }
-
+static INLINE void dist_wtd_convolve_y_8tap_neon(const uint8_t *src_ptr,
+                                                 int src_stride, uint8_t *dst8,
+                                                 const int dst8_stride, int w,
+                                                 int h,
+                                                 const int16x8_t y_filter,
+                                                 ConvolveParams *conv_params) {
   CONV_BUF_TYPE *dst_ptr = conv_params->dst;
   const int dst_stride = conv_params->dst_stride;
   const int bd = 8;
@@ -2797,5 +2779,32 @@ void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
       dst8 += 8;
       width -= 8;
     } while (width > 0);
+  }
+}
+
+void av1_dist_wtd_convolve_y_neon(const uint8_t *src, int src_stride,
+                                  uint8_t *dst8, int dst8_stride, int w, int h,
+                                  const InterpFilterParams *filter_params_y,
+                                  const int subpel_y_qn,
+                                  ConvolveParams *conv_params) {
+  assert(!(w % 4));
+  assert(!(h % 4));
+
+  // vertical filter
+  const int16_t *y_filter_ptr = av1_get_interp_filter_subpel_kernel(
+      filter_params_y, subpel_y_qn & SUBPEL_MASK);
+  // Filter values are even, so downshift by 1 to reduce intermediate
+  // precision requirements.
+  const int16x8_t y_filter = vshrq_n_s16(vld1q_s16(y_filter_ptr), 1);
+
+  const int vert_offset = filter_params_y->taps / 2 - 1;
+  const uint8_t *src_ptr = src - (vert_offset * src_stride);
+
+  if (get_filter_tap(filter_params_y, subpel_y_qn) <= 6) {
+    dist_wtd_convolve_y_6tap_neon(src_ptr + src_stride, src_stride, dst8,
+                                  dst8_stride, w, h, y_filter, conv_params);
+  } else {
+    dist_wtd_convolve_y_8tap_neon(src_ptr, src_stride, dst8, dst8_stride, w, h,
+                                  y_filter, conv_params);
   }
 }
