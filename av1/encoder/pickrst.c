@@ -938,10 +938,11 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
   if (cost_sgr < cost_none) rsc->sgrproj = rusi->sgrproj;
 }
 
-void acc_stat_one_line(const uint8_t *dgd, const uint8_t *src, int dgd_stride,
-                       int h_start, int h_end, uint8_t avg,
-                       const int wiener_halfwin, const int wiener_win2,
-                       int32_t *M_int32, int32_t *H_int32, int count) {
+static void acc_stat_one_line(const uint8_t *dgd, const uint8_t *src,
+                              int dgd_stride, int h_start, int h_end,
+                              uint8_t avg, const int wiener_halfwin,
+                              const int wiener_win2, int32_t *M_int32,
+                              int32_t *H_int32, int count) {
   int j, k, l;
   int16_t Y[WIENER_WIN2];
 
