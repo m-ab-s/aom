@@ -121,7 +121,9 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
       RATE_CONTROL *const lrc = &lc->rc;
       PRIMARY_RATE_CONTROL *const lp_rc = &lc->p_rc;
       lc->spatial_layer_target_bandwidth = spatial_layer_target;
-      bitrate_alloc = (float)lc->target_bandwidth / target_bandwidth;
+      if (target_bandwidth != 0) {
+        bitrate_alloc = (float)lc->target_bandwidth / target_bandwidth;
+      }
       lp_rc->starting_buffer_level =
           (int64_t)(p_rc->starting_buffer_level * bitrate_alloc);
       lp_rc->optimal_buffer_level =
