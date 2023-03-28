@@ -727,9 +727,11 @@ static void set_layer_pattern(
         // No updates on layer 1, reference LAST (TL0).
         ref_frame_config->reference[SVC_LAST_FRAME] = 1;
       }
-      // Always reference golden and altref
-      ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
-      ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
+      // Always reference golden and altref on TL0.
+      if (layer_id->temporal_layer_id == 0) {
+        ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
+        ref_frame_config->reference[SVC_ALTREF_FRAME] = 1;
+      }
       break;
     case 2:
       // 3-temporal layer:
