@@ -417,7 +417,7 @@ const char *aom_codec_err_to_string(aom_codec_err_t err);
  * \param[in]    ctx     Pointer to this instance's context.
  *
  */
-const char *aom_codec_error(aom_codec_ctx_t *ctx);
+const char *aom_codec_error(const aom_codec_ctx_t *ctx);
 
 /*!\brief Retrieve detailed error information for codec context
  *
@@ -431,7 +431,7 @@ const char *aom_codec_error(aom_codec_ctx_t *ctx);
  * \retval NULL
  *     No detailed information is available.
  */
-const char *aom_codec_error_detail(aom_codec_ctx_t *ctx);
+const char *aom_codec_error_detail(const aom_codec_ctx_t *ctx);
 
 /* REQUIRED FUNCTIONS
  *
