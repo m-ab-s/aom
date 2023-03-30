@@ -1676,7 +1676,7 @@ int main(int argc, const char **argv) {
                     frame_cnt);
             fclose(stats_file);
 #endif
-            die("Mismatch seen");
+            fatal("Mismatch seen");
           }
         }
       }
