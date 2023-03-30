@@ -31,7 +31,6 @@
 #include "common/video_writer.h"
 #include "examples/encoder_util.h"
 #include "aom_ports/aom_timer.h"
-#include "aom_ports/bitops.h"
 
 #define OPTION_BUFFER_SIZE 1024
 
@@ -1409,7 +1408,7 @@ int main(int argc, const char **argv) {
   aom_codec_control(&codec, AV1E_SET_INTRA_DEFAULT_TX_ONLY, 1);
 
   aom_codec_control(&codec, AV1E_SET_TILE_COLUMNS,
-                    cfg.g_threads ? get_msb(cfg.g_threads) : 0);
+                    cfg.g_threads ? (int)log2(cfg.g_threads) : 0);
   if (cfg.g_threads > 1) aom_codec_control(&codec, AV1E_SET_ROW_MT, 1);
 
   aom_codec_control(&codec, AV1E_SET_TUNE_CONTENT, app_input.tune_content);
