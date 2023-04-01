@@ -1594,7 +1594,7 @@ static aom_codec_err_t ctrl_get_baseline_gf_interval(aom_codec_alg_priv_t *ctx,
 }
 
 static aom_codec_err_t update_extra_cfg(aom_codec_alg_priv_t *ctx,
-                                        struct av1_extracfg *extra_cfg) {
+                                        const struct av1_extracfg *extra_cfg) {
   const aom_codec_err_t res = validate_config(ctx, &ctx->cfg, extra_cfg);
   if (res == AOM_CODEC_OK) {
     ctx->extra_cfg = *extra_cfg;
@@ -1657,22 +1657,28 @@ static aom_codec_err_t ctrl_set_static_thresh(aom_codec_alg_priv_t *ctx,
 
 static aom_codec_err_t ctrl_set_row_mt(aom_codec_alg_priv_t *ctx,
                                        va_list args) {
+  unsigned int row_mt = CAST(AV1E_SET_ROW_MT, args);
+  if (row_mt == ctx->extra_cfg.row_mt) return AOM_CODEC_OK;
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.row_mt = CAST(AV1E_SET_ROW_MT, args);
+  extra_cfg.row_mt = row_mt;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
 static aom_codec_err_t ctrl_set_tile_columns(aom_codec_alg_priv_t *ctx,
                                              va_list args) {
+  unsigned int tile_columns = CAST(AV1E_SET_TILE_COLUMNS, args);
+  if (tile_columns == ctx->extra_cfg.tile_columns) return AOM_CODEC_OK;
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.tile_columns = CAST(AV1E_SET_TILE_COLUMNS, args);
+  extra_cfg.tile_columns = tile_columns;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
 static aom_codec_err_t ctrl_set_tile_rows(aom_codec_alg_priv_t *ctx,
                                           va_list args) {
+  unsigned int tile_rows = CAST(AV1E_SET_TILE_ROWS, args);
+  if (tile_rows == ctx->extra_cfg.tile_rows) return AOM_CODEC_OK;
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.tile_rows = CAST(AV1E_SET_TILE_ROWS, args);
+  extra_cfg.tile_rows = tile_rows;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
