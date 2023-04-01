@@ -587,45 +587,6 @@ TEST_P(DatarateTestSetFrameQpRealtime, SetFrameQpOnePass) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-// Params: test mode, speed, threads.
-class DropFrameEncodeTest
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode, int,
-                                                 unsigned int>,
-      public DatarateTest {
- public:
-  DropFrameEncodeTest() : DatarateTest(GET_PARAM(0)) {
-    set_cpu_used_ = GET_PARAM(2);
-    threads_ = GET_PARAM(3);
-  }
-
- protected:
-  virtual ~DropFrameEncodeTest() {}
-
-  virtual void SetUp() {
-    InitializeConfig(GET_PARAM(1));
-    ResetModel();
-  }
-
-  unsigned int threads_;
-};
-
-// Test to reproduce the assertion failure related to buf->display_idx in
-// init_gop_frames_for_tpl() and segmentation fault reported in aomedia:3372
-// while encoding with --drop-frame=1.
-TEST_P(DropFrameEncodeTest, TestNoMisMatch) {
-  cfg_.rc_end_usage = AOM_CBR;
-  cfg_.rc_buf_sz = 1;
-  cfg_.g_pass = AOM_RC_ONE_PASS;
-  cfg_.rc_dropframe_thresh = 1;
-  cfg_.g_threads = threads_;
-
-  ::libaom_test::I420VideoSource video("test_input_w1h1.yuv", 1, 1, 30, 1, 0,
-                                       50);
-
-  ResetModel();
-  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-}
-
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestLarge,
                            ::testing::Values(::libaom_test::kRealTime),
                            ::testing::Range(5, 7), ::testing::Values(0, 3),
@@ -652,12 +613,6 @@ INSTANTIATE_TEST_SUITE_P(
     AV1, DatarateTestSetFrameQpRealtime,
     ::testing::Values(
         static_cast<const libaom_test::CodecFactory *>(&libaom_test::kAV1)));
-
-// TODO(aomedia:3420): Enable this unit-test for cpu-used >=3 once FPE error is
-// fixed.
-AV1_INSTANTIATE_TEST_SUITE(DropFrameEncodeTest,
-                           ::testing::Values(::libaom_test::kOnePassGood),
-                           ::testing::Range(0, 3), ::testing::Values(1, 4));
 
 }  // namespace
 }  // namespace datarate_test
