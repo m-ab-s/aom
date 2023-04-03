@@ -25,7 +25,6 @@
 #endif
 #include "aom/aom_encoder.h"
 #include "aom/aomcx.h"
-#include "av1/common/enums.h"
 #include "common/args.h"
 #include "common/tools_common.h"
 #include "common/video_writer.h"
@@ -471,6 +470,10 @@ struct RateControlMetrics {
   int layer_target_bitrate[AOM_MAX_LAYERS];
 };
 
+const unsigned int REF_FRAMES = 8;
+
+const unsigned int INTER_REFS_PER_FRAME = 7;
+
 // Reference frames used in this example encoder.
 enum {
   SVC_LAST_FRAME = 0,
@@ -611,7 +614,7 @@ static void set_layer_pattern(
   // Setting this flag to 1 enables simplex example of
   // RPS (Reference Picture Selection) for 1 layer.
   int use_rps_example = 0;
-  int i;
+  unsigned int i;
   int enable_longterm_temporal_ref = 1;
   int shift = (layering_mode == 8) ? 2 : 0;
   *use_svc_control = 1;
@@ -1207,7 +1210,7 @@ int main(int argc, const char **argv) {
   int frame_avail;
   int got_data = 0;
   int flags = 0;
-  unsigned i;
+  unsigned int i;
   int pts = 0;             // PTS starts at 0.
   int frame_duration = 1;  // 1 timebase tick per frame.
   aom_svc_layer_id_t layer_id;
