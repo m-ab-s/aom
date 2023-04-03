@@ -20,9 +20,6 @@
 #if ARCH_X86 || ARCH_X86_64
 #include "aom_ports/x86.h"
 #endif
-#if HAVE_FEXCEPT
-#include <fenv.h>
-#endif
 extern "C" {
 extern void av1_rtcd();
 extern void aom_dsp_rtcd();
@@ -51,14 +48,6 @@ static void append_negative_gtest_filter(const char *str) {
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
-
-#if HAVE_FEXCEPT
-  const int excepts = FE_DIVBYZERO;
-  if (feenableexcept(excepts) == -1) {
-    fprintf(stderr, "feenableexcept(0x%x) not supported on the architecture\n",
-            excepts);
-  }
-#endif
 
 #if ARCH_X86 || ARCH_X86_64
   const int simd_caps = x86_simd_caps();
