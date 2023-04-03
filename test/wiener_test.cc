@@ -710,6 +710,80 @@ INSTANTIATE_TEST_SUITE_P(AVX2, WienerTestHighbd,
                          ::testing::Values(av1_compute_stats_highbd_avx2));
 #endif  // HAVE_AVX2
 
+// A test that reproduces b/274668506: signed integer overflow in
+// update_a_sep_sym().
+TEST(SearchWienerTest, DISABLED_10bitSignedIntegerOverflowInUpdateASepSym) {
+  constexpr int kWidth = 427;
+  constexpr int kHeight = 1;
+  std::vector<uint16_t> buffer(3 * kWidth * kHeight);
+  // The values in the buffer alternate between 0 and 1023.
+  uint16_t value = 0;
+  for (size_t i = 0; i < buffer.size(); ++i) {
+    buffer[i] = value;
+    value = 1023 - value;
+  }
+  unsigned char *img_data = reinterpret_cast<unsigned char *>(buffer.data());
+
+  aom_image_t img;
+  EXPECT_EQ(
+      aom_img_wrap(&img, AOM_IMG_FMT_I44416, kWidth, kHeight, 1, img_data),
+      &img);
+  img.cp = AOM_CICP_CP_UNSPECIFIED;
+  img.tc = AOM_CICP_TC_UNSPECIFIED;
+  img.mc = AOM_CICP_MC_UNSPECIFIED;
+  img.range = AOM_CR_FULL_RANGE;
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  EXPECT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_ALL_INTRA),
+            AOM_CODEC_OK);
+  cfg.rc_end_usage = AOM_Q;
+  cfg.g_profile = 1;
+  cfg.g_bit_depth = AOM_BITS_10;
+  cfg.g_input_bit_depth = 10;
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_limit = 1;
+  cfg.g_lag_in_frames = 0;
+  cfg.kf_mode = AOM_KF_DISABLED;
+  cfg.kf_max_dist = 0;
+  cfg.g_threads = 61;
+  cfg.rc_min_quantizer = 2;
+  cfg.rc_max_quantizer = 20;
+  aom_codec_ctx_t enc;
+  EXPECT_EQ(aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH),
+            AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_CQ_LEVEL, 11), AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_ROW_MT, 1), AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_TILE_ROWS, 4), AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 3), AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE),
+            AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_SKIP_POSTPROC_FILTERING, 1),
+            AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIM),
+            AOM_CODEC_OK);
+
+  // Encode frame
+  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
+  aom_codec_iter_t iter = nullptr;
+  const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter);
+  ASSERT_NE(pkt, nullptr);
+  EXPECT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  // pkt->data.frame.flags is 0x1f0011.
+  EXPECT_EQ(pkt->data.frame.flags & AOM_FRAME_IS_KEY, AOM_FRAME_IS_KEY);
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  EXPECT_EQ(pkt, nullptr);
+
+  // Flush encoder
+  EXPECT_EQ(aom_codec_encode(&enc, nullptr, 0, 1, 0), AOM_CODEC_OK);
+  iter = nullptr;
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  EXPECT_EQ(pkt, nullptr);
+
+  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 // A test that reproduces b/272139363: signed integer overflow in
 // update_b_sep_sym().
 TEST(SearchWienerTest, 10bitSignedIntegerOverflowInUpdateBSepSym) {
