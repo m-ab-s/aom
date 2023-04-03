@@ -1138,6 +1138,17 @@ static AOM_INLINE void update_a_sep_sym(int wiener_win, int64_t **Mc,
       A[jj] += Mc[i][j] * b[i] / WIENER_TAP_SCALE_FACTOR;
     }
   }
+
+  // b/274668506: This is the dual branch for the issue in b/272139363. The fix
+  // is similar. See comments in update_b_sep_sym() below.
+  int32_t max_b_l = 0;
+  for (int l = 0; l < wiener_win; ++l) {
+    const int32_t abs_b_l = abs(b[l]);
+    if (abs_b_l > max_b_l) max_b_l = abs_b_l;
+  }
+  const int scale_threshold = 128 * WIENER_TAP_SCALE_FACTOR;
+  const int scaler = max_b_l < scale_threshold ? 1 : 4;
+
   for (i = 0; i < wiener_win; i++) {
     for (j = 0; j < wiener_win; j++) {
       int k, l;
@@ -1147,7 +1158,8 @@ static AOM_INLINE void update_a_sep_sym(int wiener_win, int64_t **Mc,
           const int ll = wrap_index(l, wiener_win);
           B[ll * wiener_halfwin1 + kk] +=
               Hc[j * wiener_win + i][k * wiener_win2 + l] * b[i] /
-              WIENER_TAP_SCALE_FACTOR * b[j] / WIENER_TAP_SCALE_FACTOR;
+              (scaler * WIENER_TAP_SCALE_FACTOR) * b[j] /
+              (WIENER_TAP_SCALE_FACTOR / scaler);
         }
       }
     }

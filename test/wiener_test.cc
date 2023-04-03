@@ -712,7 +712,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, WienerTestHighbd,
 
 // A test that reproduces b/274668506: signed integer overflow in
 // update_a_sep_sym().
-TEST(SearchWienerTest, DISABLED_10bitSignedIntegerOverflowInUpdateASepSym) {
+TEST(SearchWienerTest, 10bitSignedIntegerOverflowInUpdateASepSym) {
   constexpr int kWidth = 427;
   constexpr int kHeight = 1;
   std::vector<uint16_t> buffer(3 * kWidth * kHeight);
