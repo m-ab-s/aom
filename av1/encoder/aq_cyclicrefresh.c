@@ -331,13 +331,22 @@ static void cyclic_refresh_update_map(AV1_COMP *const cpi) {
     if (cr->use_block_sad_scene_det && cpi->rc.frames_since_key > 30 &&
         cr->counter_encode_maxq_scene_change > 30 &&
         cpi->src_sad_blk_64x64 != NULL &&
-        cpi->svc.number_temporal_layers == 1 &&
         cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1) {
       sb_sad = cpi->src_sad_blk_64x64[sb_col_index + sb_cols * sb_row_index];
       int scale = (cm->width * cm->height < 640 * 360) ? 6 : 8;
       int scale_low = 2;
       thresh_sad = (scale * 64 * 64);
       thresh_sad_low = (scale_low * 64 * 64);
+      // For temporal layers: the base temporal layer (temporal_layer_id = 0)
+      // has larger frame separation (2 or 4 frames apart), so use larger sad
+      // thresholds to compensate for larger frame sad. The larger thresholds
+      // also increase the amount of refresh, which is needed for the base
+      // temporal layer.
+      if (cpi->svc.number_temporal_layers > 1 &&
+          cpi->svc.temporal_layer_id == 0) {
+        thresh_sad <<= 4;
+        thresh_sad_low <<= 2;
+      }
     }
     // cr_map only needed at 8x8 blocks.
     for (y = 0; y < ymis; y += 2) {

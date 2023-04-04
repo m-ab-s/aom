@@ -475,7 +475,6 @@ static AOM_INLINE void tune_thresh_based_on_qindex(
         // Increase the sad thresholds for base TL0, as reference/LAST is
         // 2/4 frames behind (for 2/3 #TL).
         avg_source_sad_thresh = 40000;
-        block_sad_low = 35000;
         block_sad_high = 70000;
       }
       if (is_segment_id_boosted == false &&
