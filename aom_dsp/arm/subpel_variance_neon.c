@@ -549,3 +549,48 @@ SPECIALIZED_SUBPEL_AVG_VARIANCE_WXH_NEON(64, 16, 1)
 
 #undef SUBPEL_AVG_VARIANCE_WXH_NEON
 #undef SPECIALIZED_SUBPEL_AVG_VARIANCE_WXH_NEON
+
+#if !CONFIG_REALTIME_ONLY
+
+#define OBMC_SUBPEL_VARIANCE_WXH_NEON(w, h, padding)                   \
+  unsigned int aom_obmc_sub_pixel_variance##w##x##h##_neon(            \
+      const uint8_t *pre, int pre_stride, int xoffset, int yoffset,    \
+      const int32_t *wsrc, const int32_t *mask, unsigned int *sse) {   \
+    uint8_t tmp0[w * (h + padding)];                                   \
+    uint8_t tmp1[w * h];                                               \
+    var_filter_block2d_bil_w##w(pre, tmp0, pre_stride, 1, h + padding, \
+                                xoffset);                              \
+    var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);         \
+    return aom_obmc_variance##w##x##h(tmp1, w, wsrc, mask, sse);       \
+  }
+
+OBMC_SUBPEL_VARIANCE_WXH_NEON(4, 4, 2)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(4, 8, 2)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(4, 16, 2)
+
+OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 4, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 8, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 16, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 32, 1)
+
+OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 4, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 8, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 16, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 32, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 64, 1)
+
+OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 8, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 16, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 32, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 64, 1)
+
+OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 16, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 32, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 64, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 128, 1)
+
+OBMC_SUBPEL_VARIANCE_WXH_NEON(128, 64, 1)
+OBMC_SUBPEL_VARIANCE_WXH_NEON(128, 128, 1)
+
+#undef OBMC_SUBPEL_VARIANCE_WXH_NEON
+#endif  // !CONFIG_REALTIME_ONLY
