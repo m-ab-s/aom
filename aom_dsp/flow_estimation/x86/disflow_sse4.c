@@ -227,7 +227,7 @@ static INLINE void compute_flow_error(const uint8_t *src, const uint8_t *ref,
 
     __m128i warped = _mm_packs_epi32(sum0_rounded, sum1_rounded);
     __m128i src_pixels_u8 =
-        _mm_loadu_si64((__m128i *)&src[(y + i) * stride + x]);
+        _mm_loadl_epi64((__m128i *)&src[(y + i) * stride + x]);
     __m128i src_pixels = _mm_slli_epi16(_mm_cvtepu8_epi16(src_pixels_u8), 3);
 
     // Calculate delta from the target patch
