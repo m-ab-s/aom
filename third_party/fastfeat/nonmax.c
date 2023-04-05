@@ -29,6 +29,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // clang-format off
+#include <assert.h>
 #include <stdlib.h>
 #include "fast.h"
 
@@ -101,6 +102,7 @@ xy* aom_nonmax_suppression(const xy* corners, const int* scores, int num_corners
   {
     int score = scores[i];
     xy pos = corners[i];
+    assert(pos.y <= last_row);
 
     /*Check left */
     if(i > 0)
@@ -138,7 +140,7 @@ xy* aom_nonmax_suppression(const xy* corners, const int* scores, int num_corners
 
     /*Check below (if there is anything below)*/
     if(pos.y >= 0)
-      if (pos.y != last_row && row_start[pos.y + 1] != -1 && point_below < sz) /*Nothing below*/
+      if (pos.y + 1 < last_row+1 && row_start[pos.y + 1] != -1 && point_below < sz) /*Nothing below*/
       {
         if(corners[point_below].y < pos.y + 1)
           point_below = row_start[pos.y+1];
