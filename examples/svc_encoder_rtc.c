@@ -721,7 +721,7 @@ static void set_layer_pattern(
         // Refresh lag_index slot, needed for lagging golen.
         ref_frame_config->refresh[lag_index] = 1;
         // Refresh GOLDEN every x base layer frames.
-        if (base_count % 16 == 0) ref_frame_config->refresh[3] = 1;
+        if (base_count % 32 == 0) ref_frame_config->refresh[3] = 1;
       } else {
         layer_id->temporal_layer_id = 1;
         // No updates on layer 1, reference LAST (TL0).
