@@ -855,12 +855,14 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_dist_wtd_sad4x8_avg     sse2/;
   specialize qw/aom_dist_wtd_sad4x4_avg     sse2/;
 
-  specialize qw/aom_dist_wtd_sad4x16_avg     sse2/;
-  specialize qw/aom_dist_wtd_sad16x4_avg     sse2/;
-  specialize qw/aom_dist_wtd_sad8x32_avg     sse2/;
-  specialize qw/aom_dist_wtd_sad32x8_avg     sse2/;
-  specialize qw/aom_dist_wtd_sad16x64_avg    sse2/;
-  specialize qw/aom_dist_wtd_sad64x16_avg    sse2/;
+  if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
+    specialize qw/aom_dist_wtd_sad4x16_avg     sse2/;
+    specialize qw/aom_dist_wtd_sad16x4_avg     sse2/;
+    specialize qw/aom_dist_wtd_sad8x32_avg     sse2/;
+    specialize qw/aom_dist_wtd_sad32x8_avg     sse2/;
+    specialize qw/aom_dist_wtd_sad16x64_avg    sse2/;
+    specialize qw/aom_dist_wtd_sad64x16_avg    sse2/;
+  }
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
     foreach (@encoder_block_sizes) {
