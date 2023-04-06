@@ -10,8 +10,7 @@
  */
 
 #include <assert.h>
-#include <emmintrin.h>  // SSE2
-#include <tmmintrin.h>
+#include <emmintrin.h>
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
@@ -204,7 +203,7 @@ static unsigned int sad128xh_sse2(const uint8_t *a, int a_stride,
 }
 
 #define DIST_WTD_SADMXN_SSE2(m, n)                                            \
-  unsigned int aom_dist_wtd_sad##m##x##n##_avg_ssse3(                         \
+  unsigned int aom_dist_wtd_sad##m##x##n##_avg_sse2(                          \
       const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride, \
       const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {    \
     uint8_t comp_pred[m * n];                                                 \
