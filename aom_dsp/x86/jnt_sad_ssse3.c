@@ -18,8 +18,9 @@
 
 #include "aom_dsp/x86/synonyms.h"
 
-unsigned int aom_sad4xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
-                             int b_stride, int width, int height) {
+static unsigned int sad4xh_sse2(const uint8_t *a, int a_stride,
+                                const uint8_t *b, int b_stride, int width,
+                                int height) {
   int i;
   assert(width == 4);
   (void)width;
@@ -59,8 +60,9 @@ unsigned int aom_sad4xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
   return res;
 }
 
-unsigned int aom_sad8xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
-                             int b_stride, int width, int height) {
+static unsigned int sad8xh_sse2(const uint8_t *a, int a_stride,
+                                const uint8_t *b, int b_stride, int width,
+                                int height) {
   int i;
   assert(width == 8);
   (void)width;
@@ -91,8 +93,9 @@ unsigned int aom_sad8xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
   return res;
 }
 
-unsigned int aom_sad16xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
-                              int b_stride, int width, int height) {
+static unsigned int sad16xh_sse2(const uint8_t *a, int a_stride,
+                                 const uint8_t *b, int b_stride, int width,
+                                 int height) {
   int i;
   assert(width == 16);
   (void)width;
@@ -116,8 +119,9 @@ unsigned int aom_sad16xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
   return res;
 }
 
-unsigned int aom_sad32xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
-                              int b_stride, int width, int height) {
+static unsigned int sad32xh_sse2(const uint8_t *a, int a_stride,
+                                 const uint8_t *b, int b_stride, int width,
+                                 int height) {
   int i, j;
   assert(width == 32);
   (void)width;
@@ -143,8 +147,9 @@ unsigned int aom_sad32xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
   return res;
 }
 
-unsigned int aom_sad64xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
-                              int b_stride, int width, int height) {
+static unsigned int sad64xh_sse2(const uint8_t *a, int a_stride,
+                                 const uint8_t *b, int b_stride, int width,
+                                 int height) {
   int i, j;
   assert(width == 64);
   (void)width;
@@ -170,8 +175,9 @@ unsigned int aom_sad64xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
   return res;
 }
 
-unsigned int aom_sad128xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
-                               int b_stride, int width, int height) {
+static unsigned int sad128xh_sse2(const uint8_t *a, int a_stride,
+                                  const uint8_t *b, int b_stride, int width,
+                                  int height) {
   int i, j;
   assert(width == 128);
   (void)width;
@@ -204,7 +210,7 @@ unsigned int aom_sad128xh_sse2(const uint8_t *a, int a_stride, const uint8_t *b,
     uint8_t comp_pred[m * n];                                                 \
     aom_dist_wtd_comp_avg_pred(comp_pred, second_pred, m, n, ref, ref_stride, \
                                jcp_param);                                    \
-    return aom_sad##m##xh_sse2(src, src_stride, comp_pred, m, m, n);          \
+    return sad##m##xh_sse2(src, src_stride, comp_pred, m, m, n);              \
   }
 
 #define dist_wtd_sadMxN_avx2(m, n)                                            \
