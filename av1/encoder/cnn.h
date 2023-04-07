@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_COMMON_CNN_H_
-#define AOM_AV1_COMMON_CNN_H_
+#ifndef AOM_AV1_ENCODER_CNN_H_
+#define AOM_AV1_ENCODER_CNN_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -200,4 +200,4 @@ bool av1_cnn_predict_img_highbd(uint16_t **dgd, int width, int height,
 }  // extern "C"
 #endif
 
-#endif  // AOM_AV1_COMMON_CNN_H_
+#endif  // AOM_AV1_ENCODER_CNN_H_
