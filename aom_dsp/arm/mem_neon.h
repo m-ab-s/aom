@@ -107,10 +107,6 @@ static INLINE uint8x8_t load_u8(const uint8_t *buf, ptrdiff_t stride) {
   return vreinterpret_u8_u32(a);
 }
 
-static INLINE uint8x16_t load_u8_4x4(const uint8_t *s, ptrdiff_t p) {
-  return vcombine_u8(load_u8(s, p), load_u8(s + 2 * p, p));
-}
-
 static INLINE void load_u8_8x8(const uint8_t *s, ptrdiff_t p,
                                uint8x8_t *const s0, uint8x8_t *const s1,
                                uint8x8_t *const s2, uint8x8_t *const s3,

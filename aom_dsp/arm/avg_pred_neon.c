@@ -61,7 +61,7 @@ void aom_comp_avg_pred_neon(uint8_t *comp_pred, const uint8_t *pred, int width,
 
     do {
       const uint8x16_t p = vld1q_u8(pred);
-      const uint8x16_t r = load_u8_4x4(ref, ref_stride);
+      const uint8x16_t r = load_unaligned_u8q(ref, ref_stride);
       const uint8x16_t avg = vrhaddq_u8(p, r);
 
       vst1q_u8(comp_pred, avg);
