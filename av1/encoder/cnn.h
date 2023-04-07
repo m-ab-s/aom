@@ -184,18 +184,6 @@ bool av1_cnn_predict_img_multi_out_highbd(uint16_t **dgd, int width, int height,
                                           const CNN_CONFIG *cnn_config,
                                           const CNN_THREAD_DATA *thread_data,
                                           int bit_depth, CNN_MULTI_OUT *output);
-
-// Prediction functions from set of input image buffers. This function only
-// supports a single output.
-bool av1_cnn_predict_img(uint8_t **dgd, int width, int height, int stride,
-                         const CNN_CONFIG *cnn_config,
-                         const CNN_THREAD_DATA *thread_data, float **output,
-                         int out_stride);
-bool av1_cnn_predict_img_highbd(uint16_t **dgd, int width, int height,
-                                int stride, const CNN_CONFIG *cnn_config,
-                                const CNN_THREAD_DATA *thread_data,
-                                int bit_depth, float **output, int out_stride);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
