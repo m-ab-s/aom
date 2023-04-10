@@ -3470,7 +3470,8 @@ static AOM_INLINE int selective_disable_cdf_rtc(const AV1_COMP *cpi) {
     // after 8 frames since last update if frame_source_sad > 0.
     if (frame_is_intra_only(cm) || is_frame_resize_pending(cpi) ||
         rc->high_source_sad || rc->frames_since_key < 30 ||
-        cpi->cyclic_refresh->counter_encode_maxq_scene_change < 30 ||
+        (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
+         cpi->cyclic_refresh->counter_encode_maxq_scene_change < 30) ||
         (cpi->frames_since_last_update > 8 && cpi->rc.frame_source_sad > 0))
       return 0;
     else
