@@ -399,10 +399,8 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   int target_refresh = 0;
   double weight_segment_target = 0;
   double weight_segment = 0;
-  int qp_thresh = AOMMIN(20, rc->best_quality << 1);
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN)
-    qp_thresh = AOMMIN(35, rc->best_quality << 1);
-  int qp_max_thresh = 118 * MAXQ >> 7;
+  const int qp_thresh = AOMMAX(16, rc->best_quality + 4);
+  const int qp_max_thresh = 118 * MAXQ >> 7;
   const int scene_change_detected = is_scene_change_detected(cpi);
   const int is_screen_content =
       (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN);
