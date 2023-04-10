@@ -484,7 +484,9 @@ static void set_allintra_speed_features_framesize_independent(
     sf->intra_sf.chroma_intra_pruning_with_hog = 3;
 
     sf->lpf_sf.use_coarse_filter_level_search = 0;
-    sf->lpf_sf.disable_lr_filter = 1;
+    // Disable Wiener and Self-guided Loop restoration filters.
+    sf->lpf_sf.disable_wiener_filter = true;
+    sf->lpf_sf.disable_sgr_filter = true;
 
     sf->mv_sf.prune_mesh_search = PRUNE_MESH_SEARCH_LVL_2;
 
@@ -1211,7 +1213,9 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_FAST
                                           : MULTI_WINNER_MODE_OFF;
 
-    sf->lpf_sf.disable_lr_filter = 1;
+    // Disable Self-guided Loop restoration filter.
+    sf->lpf_sf.disable_sgr_filter = true;
+    sf->lpf_sf.disable_wiener_coeff_refine_search = true;
 
     sf->tpl_sf.prune_starting_mv = 3;
     sf->tpl_sf.use_y_only_rate_distortion = 1;
@@ -1580,7 +1584,9 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->intra_sf.dv_cost_upd_level = INTERNAL_COST_UPD_OFF;
   sf->tx_sf.model_based_prune_tx_search_level = 0;
   sf->lpf_sf.dual_sgr_penalty_level = 1;
-  sf->lpf_sf.disable_lr_filter = 1;
+  // Disable Wiener and Self-guided Loop restoration filters.
+  sf->lpf_sf.disable_wiener_filter = true;
+  sf->lpf_sf.disable_sgr_filter = true;
   sf->rt_sf.skip_interp_filter_search = 1;
   sf->intra_sf.prune_palette_search_level = 2;
   sf->intra_sf.prune_luma_palette_size_search_level = 2;
@@ -2110,7 +2116,10 @@ static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->cdef_pick_method = CDEF_FULL_SEARCH;
   // Set decoder side speed feature to use less dual sgr modes
   lpf_sf->dual_sgr_penalty_level = 0;
-  lpf_sf->disable_lr_filter = 0;
+  // Enable Wiener and Self-guided Loop restoration filters by default.
+  lpf_sf->disable_wiener_filter = false;
+  lpf_sf->disable_sgr_filter = false;
+  lpf_sf->disable_wiener_coeff_refine_search = false;
   lpf_sf->use_downsampled_wiener_stats = 0;
 }
 
@@ -2291,7 +2300,10 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
         (sf->inter_sf.use_dist_wtd_comp_flag != DIST_WTD_COMP_DISABLED);
     cpi->common.seq_params->enable_dual_filter &=
         !sf->interp_sf.disable_dual_filter;
-    cpi->common.seq_params->enable_restoration &= !sf->lpf_sf.disable_lr_filter;
+    // Set the flag 'enable_restoration', if one the Loop restoration filters
+    // (i.e., Wiener or Self-guided) is enabled.
+    cpi->common.seq_params->enable_restoration &=
+        (!sf->lpf_sf.disable_wiener_filter || !sf->lpf_sf.disable_sgr_filter);
 
     cpi->common.seq_params->enable_interintra_compound &=
         (sf->inter_sf.disable_interintra_wedge_var_thresh != UINT_MAX);

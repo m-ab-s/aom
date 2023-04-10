@@ -2253,7 +2253,8 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
     for (int i = 0; i < num_planes; ++i)
       cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
 
-    av1_alloc_restoration_buffers(cm);
+    const bool is_sgr_enabled = !cpi->sf.lpf_sf.disable_sgr_filter;
+    av1_alloc_restoration_buffers(cm, is_sgr_enabled);
     // Store the allocated restoration buffers in MT object.
     if (cpi->ppi->p_mt_info.num_workers > 1) {
       av1_init_lr_mt_buffers(cpi);

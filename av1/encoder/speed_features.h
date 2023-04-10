@@ -1432,8 +1432,14 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // Reduce the wiener filter win size for luma
   int reduce_wiener_window_size;
 
-  // Disable loop restoration filter
-  int disable_lr_filter;
+  // Flag to disable Wiener Loop restoration filter.
+  bool disable_wiener_filter;
+
+  // Flag to disable Self-guided Loop restoration filter.
+  bool disable_sgr_filter;
+
+  // Disable the refinement search around the wiener filter coefficients.
+  bool disable_wiener_coeff_refine_search;
 
   // Whether to downsample the rows in computation of wiener stats.
   int use_downsampled_wiener_stats;
