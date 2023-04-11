@@ -1206,7 +1206,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_avg_8x8_quad avx2 sse2 neon/;
 
   add_proto qw/void aom_minmax_8x8/, "const uint8_t *s, int p, const uint8_t *d, int dp, int *min, int *max";
-  specialize qw/aom_minmax_8x8 sse2/;
+  specialize qw/aom_minmax_8x8 sse2 neon/;
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
     add_proto qw/unsigned int aom_highbd_avg_8x8/, "const uint8_t *, int p";

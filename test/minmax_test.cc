@@ -232,4 +232,9 @@ INSTANTIATE_TEST_SUITE_P(C, HBDMinMaxTest,
 INSTANTIATE_TEST_SUITE_P(SSE2, MinMaxTest,
                          ::testing::Values(&aom_minmax_8x8_sse2));
 #endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, MinMaxTest,
+                         ::testing::Values(&aom_minmax_8x8_neon));
+#endif
 }  // namespace
