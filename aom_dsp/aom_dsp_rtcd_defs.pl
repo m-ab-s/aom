@@ -103,7 +103,7 @@ specialize qw/aom_dc_top_predictor_32x32 neon sse2 avx2/;
 specialize qw/aom_dc_top_predictor_32x64 sse2 avx2/;
 specialize qw/aom_dc_top_predictor_64x16 sse2 avx2/;
 specialize qw/aom_dc_top_predictor_64x32 sse2 avx2/;
-specialize qw/aom_dc_top_predictor_64x64 sse2 avx2/;
+specialize qw/aom_dc_top_predictor_64x64 neon sse2 avx2/;
 
 specialize qw/aom_dc_left_predictor_4x4 neon sse2/;
 specialize qw/aom_dc_left_predictor_4x8 sse2/;
@@ -123,7 +123,7 @@ specialize qw/aom_dc_left_predictor_32x32 neon sse2 avx2/;
 specialize qw/aom_dc_left_predictor_32x64 sse2 avx2/;
 specialize qw/aom_dc_left_predictor_64x16 sse2 avx2/;
 specialize qw/aom_dc_left_predictor_64x32 sse2 avx2/;
-specialize qw/aom_dc_left_predictor_64x64 sse2 avx2/;
+specialize qw/aom_dc_left_predictor_64x64 neon sse2 avx2/;
 
 specialize qw/aom_dc_128_predictor_4x4 neon sse2/;
 specialize qw/aom_dc_128_predictor_4x8 sse2/;
@@ -143,7 +143,7 @@ specialize qw/aom_dc_128_predictor_32x32 neon sse2 avx2/;
 specialize qw/aom_dc_128_predictor_32x64 sse2 avx2/;
 specialize qw/aom_dc_128_predictor_64x16 sse2 avx2/;
 specialize qw/aom_dc_128_predictor_64x32 sse2 avx2/;
-specialize qw/aom_dc_128_predictor_64x64 sse2 avx2/;
+specialize qw/aom_dc_128_predictor_64x64 neon sse2 avx2/;
 
 specialize qw/aom_v_predictor_4x4 neon sse2/;
 specialize qw/aom_v_predictor_4x8 sse2/;
@@ -283,7 +283,7 @@ specialize qw/aom_dc_predictor_32x8 sse2/;
 specialize qw/aom_dc_predictor_32x16 sse2 avx2/;
 specialize qw/aom_dc_predictor_32x32 neon sse2 avx2/;
 specialize qw/aom_dc_predictor_32x64 sse2 avx2/;
-specialize qw/aom_dc_predictor_64x64 sse2 avx2/;
+specialize qw/aom_dc_predictor_64x64 neon sse2 avx2/;
 specialize qw/aom_dc_predictor_64x32 sse2 avx2/;
 specialize qw/aom_dc_predictor_64x16 sse2 avx2/;
 if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {

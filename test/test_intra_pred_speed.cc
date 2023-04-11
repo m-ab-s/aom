@@ -905,9 +905,11 @@ INTRA_PRED_TEST(AVX2, TX_64X16, aom_dc_predictor_64x16_avx2,
 #endif
 
 #if HAVE_NEON
-INTRA_PRED_TEST(NEON, TX_64X64, nullptr, nullptr, nullptr, nullptr, nullptr,
-                nullptr, aom_paeth_predictor_64x64_neon,
-                aom_smooth_predictor_64x64_neon,
+INTRA_PRED_TEST(NEON, TX_64X64, aom_dc_predictor_64x64_neon,
+                aom_dc_left_predictor_64x64_neon,
+                aom_dc_top_predictor_64x64_neon,
+                aom_dc_128_predictor_64x64_neon, nullptr, nullptr,
+                aom_paeth_predictor_64x64_neon, aom_smooth_predictor_64x64_neon,
                 aom_smooth_v_predictor_64x64_neon,
                 aom_smooth_h_predictor_64x64_neon)
 INTRA_PRED_TEST(NEON, TX_64X32, nullptr, nullptr, nullptr, nullptr, nullptr,
