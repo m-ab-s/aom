@@ -43,6 +43,7 @@ typedef struct {
   int output_obu;
   int decode;
   int tune_content;
+  int show_psnr;
 } AppInput;
 
 typedef enum {
@@ -96,6 +97,8 @@ static const arg_def_t output_obu_arg =
 static const arg_def_t test_decode_arg =
     ARG_DEF(NULL, "test-decode", 1,
             "Attempt to test decoding the output when set to 1. Default is 1.");
+static const arg_def_t psnr_arg =
+    ARG_DEF(NULL, "psnr", -1, "Show PSNR in status line.");
 static const struct arg_enum_list tune_content_enum[] = {
   { "default", AOM_CONTENT_DEFAULT },
   { "screen", AOM_CONTENT_SCREEN },
@@ -114,32 +117,19 @@ static const arg_def_t bitdepth_arg = ARG_DEF_ENUM(
     "d", "bit-depth", 1, "Bit depth for codec 8 or 10. ", bitdepth_enum);
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-static const arg_def_t *svc_args[] = { &frames_arg,
-                                       &outputfile,
-                                       &width_arg,
-                                       &height_arg,
-                                       &timebase_arg,
-                                       &bitrate_arg,
-                                       &spatial_layers_arg,
-                                       &kf_dist_arg,
-                                       &scale_factors_arg,
-                                       &min_q_arg,
-                                       &max_q_arg,
-                                       &temporal_layers_arg,
-                                       &layering_mode_arg,
-                                       &threads_arg,
-                                       &aqmode_arg,
+static const arg_def_t *svc_args[] = {
+  &frames_arg,          &outputfile,     &width_arg,
+  &height_arg,          &timebase_arg,   &bitrate_arg,
+  &spatial_layers_arg,  &kf_dist_arg,    &scale_factors_arg,
+  &min_q_arg,           &max_q_arg,      &temporal_layers_arg,
+  &layering_mode_arg,   &threads_arg,    &aqmode_arg,
 #if CONFIG_AV1_HIGHBITDEPTH
-                                       &bitdepth_arg,
+  &bitdepth_arg,
 #endif
-                                       &speed_arg,
-                                       &bitrates_arg,
-                                       &dropframe_thresh_arg,
-                                       &error_resilient_arg,
-                                       &output_obu_arg,
-                                       &test_decode_arg,
-                                       &tune_content_arg,
-                                       NULL };
+  &speed_arg,           &bitrates_arg,   &dropframe_thresh_arg,
+  &error_resilient_arg, &output_obu_arg, &test_decode_arg,
+  &tune_content_arg,    &psnr_arg,       NULL,
+};
 
 #define zero(Dest) memset(&(Dest), 0, sizeof(Dest))
 
@@ -380,6 +370,8 @@ static void parse_command_line(int argc, const char **argv_,
     } else if (arg_match(&arg, &tune_content_arg, argi)) {
       app_input->tune_content = arg_parse_enum_or_int(&arg);
       printf("tune content %d\n", app_input->tune_content);
+    } else if (arg_match(&arg, &psnr_arg, argi)) {
+      app_input->show_psnr = 1;
     } else {
       ++argj;
     }
@@ -1196,6 +1188,31 @@ static int test_decode(aom_codec_ctx_t *encoder, aom_codec_ctx_t *decoder,
 }
 #endif  // CONFIG_AV1_DECODER
 
+struct psnr_stats {
+  // The second element of these arrays is reserved for high bitdepth.
+  uint64_t psnr_sse_total[2];
+  uint64_t psnr_samples_total[2];
+  double psnr_totals[2][4];
+  int psnr_count[2];
+};
+
+static void show_psnr(struct psnr_stats *psnr_stream, double peak) {
+  double ovpsnr;
+
+  if (!psnr_stream->psnr_count[0]) return;
+
+  fprintf(stderr, "\nPSNR (Overall/Avg/Y/U/V)");
+  ovpsnr = sse_to_psnr((double)psnr_stream->psnr_samples_total[0], peak,
+                       (double)psnr_stream->psnr_sse_total[0]);
+  fprintf(stderr, " %.3f", ovpsnr);
+
+  for (int i = 0; i < 4; i++) {
+    fprintf(stderr, " %.3f",
+            psnr_stream->psnr_totals[0][i] / psnr_stream->psnr_count[0]);
+  }
+  fprintf(stderr, "\n");
+}
+
 int main(int argc, const char **argv) {
   AppInput app_input;
   AvxVideoWriter *outfile[AOM_MAX_LAYERS] = { NULL };
@@ -1372,9 +1389,10 @@ int main(int argc, const char **argv) {
 
   // Initialize codec.
   aom_codec_ctx_t codec;
-  if (aom_codec_enc_init(
-          &codec, encoder, &cfg,
-          cfg.g_input_bit_depth == AOM_BITS_8 ? 0 : AOM_CODEC_USE_HIGHBITDEPTH))
+  aom_codec_flags_t flag = 0;
+  flag |= cfg.g_input_bit_depth == AOM_BITS_8 ? 0 : AOM_CODEC_USE_HIGHBITDEPTH;
+  flag |= app_input.show_psnr ? AOM_CODEC_USE_PSNR : 0;
+  if (aom_codec_enc_init(&codec, encoder, &cfg, flag))
     die_codec(&codec, "Failed to initialize encoder");
 
 #if CONFIG_AV1_DECODER
@@ -1458,6 +1476,8 @@ int main(int argc, const char **argv) {
   }
 
   frame_avail = 1;
+  struct psnr_stats psnr_stream;
+  memset(&psnr_stream, 0, sizeof(psnr_stream));
   while (frame_avail || got_data) {
     struct aom_usec_timer timer;
     frame_avail = read_frame(&(app_input.input_ctx), &raw);
@@ -1662,6 +1682,16 @@ int main(int argc, const char **argv) {
 #endif
 
             break;
+          case AOM_CODEC_PSNR_PKT:
+            if (app_input.show_psnr) {
+              psnr_stream.psnr_sse_total[0] += pkt->data.psnr.sse[0];
+              psnr_stream.psnr_samples_total[0] += pkt->data.psnr.samples[0];
+              for (int plane = 0; plane < 4; plane++) {
+                psnr_stream.psnr_totals[0][plane] += pkt->data.psnr.psnr[plane];
+              }
+              psnr_stream.psnr_count[0]++;
+            }
+            break;
           default: break;
         }
       }
@@ -1706,6 +1736,10 @@ int main(int argc, const char **argv) {
   printf("Frame cnt and encoding time/FPS stats for encoding: %d %f %f\n",
          frame_cnt, 1000 * (float)cx_time / (double)(frame_cnt * 1000000),
          1000000 * (double)frame_cnt / (double)cx_time);
+
+  if (app_input.show_psnr) {
+    show_psnr(&psnr_stream, 255.0);
+  }
 
   if (aom_codec_destroy(&codec)) die_codec(&codec, "Failed to destroy encoder");
 
