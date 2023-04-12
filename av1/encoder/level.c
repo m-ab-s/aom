@@ -511,9 +511,10 @@ static double get_presentation_time(const DECODER_MODEL *const decoder_model,
 }
 
 #define MAX_TIME 1e16
-double time_next_buffer_is_free(int num_decoded_frame, int decoder_buffer_delay,
-                                const FRAME_BUFFER *frame_buffer_pool,
-                                double current_time) {
+static double time_next_buffer_is_free(int num_decoded_frame,
+                                       int decoder_buffer_delay,
+                                       const FRAME_BUFFER *frame_buffer_pool,
+                                       double current_time) {
   if (num_decoded_frame == 0) {
     return (double)decoder_buffer_delay / 90000.0;
   }
