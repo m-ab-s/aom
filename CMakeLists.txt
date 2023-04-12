@@ -219,7 +219,7 @@ include_directories(${AOM_ROOT} ${AOM_CONFIG_DIR} ${AOM_ROOT}/apps
 
 # Targets
 add_library(aom_version ${AOM_VERSION_SOURCES})
-add_dummy_source_file_to_target(aom_version c)
+add_stub_source_file_to_target(aom_version c)
 add_custom_command(OUTPUT "${AOM_CONFIG_DIR}/config/aom_version.h"
                    COMMAND ${CMAKE_COMMAND} ARGS
                            -DAOM_CONFIG_DIR=${AOM_CONFIG_DIR}
@@ -778,7 +778,7 @@ if(XCODE)
     # here, it really is the Xcode generator's fault, or just a deficiency in
     # Xcode itself.
     foreach(aom_app ${AOM_APP_TARGETS})
-      add_dummy_source_file_to_target("${aom_app}" "cc")
+      add_stub_source_file_to_target("${aom_app}" "cc")
     endforeach()
   endif()
 endif()

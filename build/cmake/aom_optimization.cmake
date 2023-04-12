@@ -127,7 +127,7 @@ endfunction()
 
 # Adds library target named $lib_name for ASM files in variable named by
 # $asm_sources. Builds an output directory path from $lib_name. Links $lib_name
-# into the aom library target(s). Generates a dummy C file with a dummy function
+# into the aom library target(s). Generates a stub C file with a stub function
 # to ensure that all cmake generators can determine the linker language, and
 # that build tools don't complain that an object exposes no symbols.
 #
@@ -173,11 +173,11 @@ function(add_asm_library lib_name asm_sources)
     endforeach()
 
     # The above created a target containing only ASM sources. CMake needs help
-    # here to determine the linker language. Add a dummy C file to force the
+    # here to determine the linker language. Add a stub C file to force the
     # linker language to C. We don't bother with setting the LINKER_LANGUAGE
     # property on the library target because not all generators obey it (looking
     # at you, Xcode generator).
-    add_dummy_source_file_to_target("${asm_lib_name}" "c")
+    add_stub_source_file_to_target("${asm_lib_name}" "c")
 
     # Add the new lib target to the global list of aom library targets.
     list(APPEND AOM_LIB_TARGETS ${asm_lib_name})
