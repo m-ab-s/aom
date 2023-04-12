@@ -182,7 +182,7 @@ static unsigned int haar_ac_energy(MACROBLOCK *x, BLOCK_SIZE bs) {
   return (unsigned int)((uint64_t)var * 256) >> num_pels_log2_lookup[bs];
 }
 
-double av1_log_block_wavelet_energy(MACROBLOCK *x, BLOCK_SIZE bs) {
+static double log_block_wavelet_energy(MACROBLOCK *x, BLOCK_SIZE bs) {
   unsigned int haar_sad = haar_ac_energy(x, bs);
   return log1p(haar_sad);
 }
@@ -193,7 +193,7 @@ int av1_block_wavelet_energy_level(const AV1_COMP *cpi, MACROBLOCK *x,
   energy_midpoint = (is_stat_consumption_stage_twopass(cpi))
                         ? cpi->twopass_frame.frame_avg_haar_energy
                         : DEFAULT_E_MIDPOINT;
-  energy = av1_log_block_wavelet_energy(x, bs) - energy_midpoint;
+  energy = log_block_wavelet_energy(x, bs) - energy_midpoint;
   return clamp((int)round(energy), ENERGY_MIN, ENERGY_MAX);
 }
 
