@@ -23,387 +23,306 @@
 //------------------------------------------------------------------------------
 // DC 4x4
 
-// 'do_above' and 'do_left' facilitate branch removal when inlined.
-static INLINE void dc_4x4(uint8_t *dst, ptrdiff_t stride, const uint8_t *above,
-                          const uint8_t *left, int do_above, int do_left) {
-  uint16x8_t sum_top;
-  uint16x8_t sum_left;
-  uint8x8_t dc0;
+static INLINE uint16x8_t dc_load_sum_4(const uint8_t *in) {
+  const uint8x8_t a = vld1_u8(in);
+  const uint16x4_t p0 = vpaddl_u8(a);
+  const uint16x4_t p1 = vpadd_u16(p0, p0);
+  return vcombine_u16(p1, vdup_n_u16(0));
+}
 
-  if (do_above) {
-    const uint8x8_t A = vld1_u8(above);  // top row
-    const uint16x4_t p0 = vpaddl_u8(A);  // cascading summation of the top
-    const uint16x4_t p1 = vpadd_u16(p0, p0);
-    sum_top = vcombine_u16(p1, p1);
-  }
-
-  if (do_left) {
-    const uint8x8_t L = vld1_u8(left);   // left border
-    const uint16x4_t p0 = vpaddl_u8(L);  // cascading summation of the left
-    const uint16x4_t p1 = vpadd_u16(p0, p0);
-    sum_left = vcombine_u16(p1, p1);
-  }
-
-  if (do_above && do_left) {
-    const uint16x8_t sum = vaddq_u16(sum_left, sum_top);
-    dc0 = vrshrn_n_u16(sum, 3);
-  } else if (do_above) {
-    dc0 = vrshrn_n_u16(sum_top, 2);
-  } else if (do_left) {
-    dc0 = vrshrn_n_u16(sum_left, 2);
-  } else {
-    dc0 = vdup_n_u8(0x80);
-  }
-
-  {
-    const uint8x8_t dc = vdup_lane_u8(dc0, 0);
-    int i;
-    for (i = 0; i < 4; ++i) {
-      vst1_lane_u32((uint32_t *)(dst + i * stride), vreinterpret_u32_u8(dc), 0);
-    }
+static INLINE void dc_store_4x4(uint8_t *dst, ptrdiff_t stride, uint8x8_t dc0) {
+  const uint8x8_t dc = vdup_lane_u8(dc0, 0);
+  for (int i = 0; i < 4; ++i) {
+    store_u8_4x1(dst + i * stride, dc, 0);
   }
 }
 
 void aom_dc_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
-  dc_4x4(dst, stride, above, left, 1, 1);
+  const uint16x8_t sum_top = dc_load_sum_4(above);
+  const uint16x8_t sum_left = dc_load_sum_4(left);
+  const uint16x8_t sum = vaddq_u16(sum_left, sum_top);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum, 3);
+  dc_store_4x4(dst, stride, dc0);
 }
 
 void aom_dc_left_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
+  const uint16x8_t sum_left = dc_load_sum_4(left);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_left, 2);
   (void)above;
-  dc_4x4(dst, stride, NULL, left, 0, 1);
+  dc_store_4x4(dst, stride, dc0);
 }
 
 void aom_dc_top_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
                                    const uint8_t *above, const uint8_t *left) {
+  const uint16x8_t sum_top = dc_load_sum_4(above);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_top, 2);
   (void)left;
-  dc_4x4(dst, stride, above, NULL, 1, 0);
+  dc_store_4x4(dst, stride, dc0);
 }
 
 void aom_dc_128_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
                                    const uint8_t *above, const uint8_t *left) {
+  const uint8x8_t dc0 = vdup_n_u8(0x80);
   (void)above;
   (void)left;
-  dc_4x4(dst, stride, NULL, NULL, 0, 0);
+  dc_store_4x4(dst, stride, dc0);
 }
 
 //------------------------------------------------------------------------------
 // DC 8x8
 
-// 'do_above' and 'do_left' facilitate branch removal when inlined.
-static INLINE void dc_8x8(uint8_t *dst, ptrdiff_t stride, const uint8_t *above,
-                          const uint8_t *left, int do_above, int do_left) {
-  uint16x8_t sum_top;
-  uint16x8_t sum_left;
-  uint8x8_t dc0;
+static INLINE uint16x8_t dc_load_sum_8(const uint8_t *in) {
+  // This isn't used in the case where we want to load both above and left
+  // vectors, since we want to avoid performing the reduction twice.
+  const uint8x8_t a = vld1_u8(in);
+  const uint16x4_t p0 = vpaddl_u8(a);
+  const uint16x4_t p1 = vpadd_u16(p0, p0);
+  const uint16x4_t p2 = vpadd_u16(p1, p1);
+  return vcombine_u16(p2, vdup_n_u16(0));
+}
 
-  if (do_above) {
-    const uint8x8_t A = vld1_u8(above);  // top row
-    const uint16x4_t p0 = vpaddl_u8(A);  // cascading summation of the top
-    const uint16x4_t p1 = vpadd_u16(p0, p0);
-    const uint16x4_t p2 = vpadd_u16(p1, p1);
-    sum_top = vcombine_u16(p2, p2);
-  }
+static INLINE uint16x8_t horizontal_add_and_broadcast_u16x8(uint16x8_t a) {
+#ifdef __aarch64__
+  // On AArch64 we could also use vdupq_n_u16(vaddvq_u16(a)) here to save an
+  // instruction, however the addv instruction is usually slightly more
+  // expensive than a pairwise addition, so the need for immediately
+  // broadcasting the result again seems to negate any benefit.
+  const uint16x8_t b = vpaddq_u16(a, a);
+  const uint16x8_t c = vpaddq_u16(b, b);
+  return vpaddq_u16(c, c);
+#else
+  const uint16x4_t b = vadd_u16(vget_low_u16(a), vget_high_u16(a));
+  const uint16x4_t c = vpadd_u16(b, b);
+  const uint16x4_t d = vpadd_u16(c, c);
+  return vcombine_u16(d, d);
+#endif
+}
 
-  if (do_left) {
-    const uint8x8_t L = vld1_u8(left);   // left border
-    const uint16x4_t p0 = vpaddl_u8(L);  // cascading summation of the left
-    const uint16x4_t p1 = vpadd_u16(p0, p0);
-    const uint16x4_t p2 = vpadd_u16(p1, p1);
-    sum_left = vcombine_u16(p2, p2);
-  }
-
-  if (do_above && do_left) {
-    const uint16x8_t sum = vaddq_u16(sum_left, sum_top);
-    dc0 = vrshrn_n_u16(sum, 4);
-  } else if (do_above) {
-    dc0 = vrshrn_n_u16(sum_top, 3);
-  } else if (do_left) {
-    dc0 = vrshrn_n_u16(sum_left, 3);
-  } else {
-    dc0 = vdup_n_u8(0x80);
-  }
-
-  {
-    const uint8x8_t dc = vdup_lane_u8(dc0, 0);
-    int i;
-    for (i = 0; i < 8; ++i) {
-      vst1_u32((uint32_t *)(dst + i * stride), vreinterpret_u32_u8(dc));
-    }
+static INLINE void dc_store_8x8(uint8_t *dst, ptrdiff_t stride, uint8x8_t dc0) {
+  const uint8x8_t dc = vdup_lane_u8(dc0, 0);
+  for (int i = 0; i < 8; ++i) {
+    vst1_u8(dst + i * stride, dc);
   }
 }
 
 void aom_dc_predictor_8x8_neon(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
-  dc_8x8(dst, stride, above, left, 1, 1);
+  const uint8x8_t sum_top = vld1_u8(above);
+  const uint8x8_t sum_left = vld1_u8(left);
+  uint16x8_t sum = vaddl_u8(sum_left, sum_top);
+  sum = horizontal_add_and_broadcast_u16x8(sum);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum, 4);
+  dc_store_8x8(dst, stride, dc0);
 }
 
 void aom_dc_left_predictor_8x8_neon(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
+  const uint16x8_t sum_left = dc_load_sum_8(left);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_left, 3);
   (void)above;
-  dc_8x8(dst, stride, NULL, left, 0, 1);
+  dc_store_8x8(dst, stride, dc0);
 }
 
 void aom_dc_top_predictor_8x8_neon(uint8_t *dst, ptrdiff_t stride,
                                    const uint8_t *above, const uint8_t *left) {
+  const uint16x8_t sum_top = dc_load_sum_8(above);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_top, 3);
   (void)left;
-  dc_8x8(dst, stride, above, NULL, 1, 0);
+  dc_store_8x8(dst, stride, dc0);
 }
 
 void aom_dc_128_predictor_8x8_neon(uint8_t *dst, ptrdiff_t stride,
                                    const uint8_t *above, const uint8_t *left) {
+  const uint8x8_t dc0 = vdup_n_u8(0x80);
   (void)above;
   (void)left;
-  dc_8x8(dst, stride, NULL, NULL, 0, 0);
+  dc_store_8x8(dst, stride, dc0);
 }
 
 //------------------------------------------------------------------------------
 // DC 16x16
 
-// 'do_above' and 'do_left' facilitate branch removal when inlined.
-static INLINE void dc_16x16(uint8_t *dst, ptrdiff_t stride,
-                            const uint8_t *above, const uint8_t *left,
-                            int do_above, int do_left) {
-  uint16x8_t sum_top;
-  uint16x8_t sum_left;
-  uint8x8_t dc0;
+static INLINE uint16x8_t dc_load_sum_16(const uint8_t *in) {
+  const uint8x16_t a = vld1q_u8(in);
+  // delay the remainder of the reduction until
+  // horizontal_add_and_broadcast_u16x8, since we want to do it once rather
+  // than twice in the case we are loading both above and left.
+  return vpaddlq_u8(a);
+}
 
-  if (do_above) {
-    const uint8x16_t A = vld1q_u8(above);  // top row
-    const uint16x8_t p0 = vpaddlq_u8(A);   // cascading summation of the top
-    const uint16x4_t p1 = vadd_u16(vget_low_u16(p0), vget_high_u16(p0));
-    const uint16x4_t p2 = vpadd_u16(p1, p1);
-    const uint16x4_t p3 = vpadd_u16(p2, p2);
-    sum_top = vcombine_u16(p3, p3);
-  }
-
-  if (do_left) {
-    const uint8x16_t L = vld1q_u8(left);  // left row
-    const uint16x8_t p0 = vpaddlq_u8(L);  // cascading summation of the left
-    const uint16x4_t p1 = vadd_u16(vget_low_u16(p0), vget_high_u16(p0));
-    const uint16x4_t p2 = vpadd_u16(p1, p1);
-    const uint16x4_t p3 = vpadd_u16(p2, p2);
-    sum_left = vcombine_u16(p3, p3);
-  }
-
-  if (do_above && do_left) {
-    const uint16x8_t sum = vaddq_u16(sum_left, sum_top);
-    dc0 = vrshrn_n_u16(sum, 5);
-  } else if (do_above) {
-    dc0 = vrshrn_n_u16(sum_top, 4);
-  } else if (do_left) {
-    dc0 = vrshrn_n_u16(sum_left, 4);
-  } else {
-    dc0 = vdup_n_u8(0x80);
-  }
-
-  {
-    const uint8x16_t dc = vdupq_lane_u8(dc0, 0);
-    int i;
-    for (i = 0; i < 16; ++i) {
-      vst1q_u8(dst + i * stride, dc);
-    }
+static INLINE void dc_store_16x16(uint8_t *dst, ptrdiff_t stride,
+                                  uint8x8_t dc0) {
+  const uint8x16_t dc = vdupq_lane_u8(dc0, 0);
+  for (int i = 0; i < 16; ++i) {
+    vst1q_u8(dst + i * stride, dc);
   }
 }
 
 void aom_dc_predictor_16x16_neon(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
-  dc_16x16(dst, stride, above, left, 1, 1);
+  const uint16x8_t sum_top = dc_load_sum_16(above);
+  const uint16x8_t sum_left = dc_load_sum_16(left);
+  uint16x8_t sum = vaddq_u16(sum_left, sum_top);
+  sum = horizontal_add_and_broadcast_u16x8(sum);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum, 5);
+  dc_store_16x16(dst, stride, dc0);
 }
 
 void aom_dc_left_predictor_16x16_neon(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above,
                                       const uint8_t *left) {
+  uint16x8_t sum_left = dc_load_sum_16(left);
+  sum_left = horizontal_add_and_broadcast_u16x8(sum_left);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_left, 4);
   (void)above;
-  dc_16x16(dst, stride, NULL, left, 0, 1);
+  dc_store_16x16(dst, stride, dc0);
 }
 
 void aom_dc_top_predictor_16x16_neon(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
+  uint16x8_t sum_top = dc_load_sum_16(above);
+  sum_top = horizontal_add_and_broadcast_u16x8(sum_top);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_top, 4);
   (void)left;
-  dc_16x16(dst, stride, above, NULL, 1, 0);
+  dc_store_16x16(dst, stride, dc0);
 }
 
 void aom_dc_128_predictor_16x16_neon(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
+  const uint8x8_t dc0 = vdup_n_u8(0x80);
   (void)above;
   (void)left;
-  dc_16x16(dst, stride, NULL, NULL, 0, 0);
+  dc_store_16x16(dst, stride, dc0);
 }
 
 //------------------------------------------------------------------------------
 // DC 32x32
 
-// 'do_above' and 'do_left' facilitate branch removal when inlined.
-static INLINE void dc_32x32(uint8_t *dst, ptrdiff_t stride,
-                            const uint8_t *above, const uint8_t *left,
-                            int do_above, int do_left) {
-  uint16x8_t sum_top;
-  uint16x8_t sum_left;
-  uint8x8_t dc0;
+static INLINE uint16x8_t dc_load_sum_32(const uint8_t *in) {
+  const uint8x16_t a0 = vld1q_u8(in);
+  const uint8x16_t a1 = vld1q_u8(in + 16);
+  // delay the remainder of the reduction until
+  // horizontal_add_and_broadcast_u16x8, since we want to do it once rather
+  // than twice in the case we are loading both above and left.
+  return vpadalq_u8(vpaddlq_u8(a0), a1);
+}
 
-  if (do_above) {
-    const uint8x16_t A0 = vld1q_u8(above);  // top row
-    const uint8x16_t A1 = vld1q_u8(above + 16);
-    const uint16x8_t p0 = vpaddlq_u8(A0);  // cascading summation of the top
-    const uint16x8_t p1 = vpaddlq_u8(A1);
-    const uint16x8_t p2 = vaddq_u16(p0, p1);
-    const uint16x4_t p3 = vadd_u16(vget_low_u16(p2), vget_high_u16(p2));
-    const uint16x4_t p4 = vpadd_u16(p3, p3);
-    const uint16x4_t p5 = vpadd_u16(p4, p4);
-    sum_top = vcombine_u16(p5, p5);
-  }
-
-  if (do_left) {
-    const uint8x16_t L0 = vld1q_u8(left);  // left row
-    const uint8x16_t L1 = vld1q_u8(left + 16);
-    const uint16x8_t p0 = vpaddlq_u8(L0);  // cascading summation of the left
-    const uint16x8_t p1 = vpaddlq_u8(L1);
-    const uint16x8_t p2 = vaddq_u16(p0, p1);
-    const uint16x4_t p3 = vadd_u16(vget_low_u16(p2), vget_high_u16(p2));
-    const uint16x4_t p4 = vpadd_u16(p3, p3);
-    const uint16x4_t p5 = vpadd_u16(p4, p4);
-    sum_left = vcombine_u16(p5, p5);
-  }
-
-  if (do_above && do_left) {
-    const uint16x8_t sum = vaddq_u16(sum_left, sum_top);
-    dc0 = vrshrn_n_u16(sum, 6);
-  } else if (do_above) {
-    dc0 = vrshrn_n_u16(sum_top, 5);
-  } else if (do_left) {
-    dc0 = vrshrn_n_u16(sum_left, 5);
-  } else {
-    dc0 = vdup_n_u8(0x80);
-  }
-
-  {
-    const uint8x16_t dc = vdupq_lane_u8(dc0, 0);
-    int i;
-    for (i = 0; i < 32; ++i) {
-      vst1q_u8(dst + i * stride, dc);
-      vst1q_u8(dst + i * stride + 16, dc);
-    }
+static INLINE void dc_store_32x32(uint8_t *dst, ptrdiff_t stride,
+                                  uint8x8_t dc0) {
+  const uint8x16_t dc = vdupq_lane_u8(dc0, 0);
+  for (int i = 0; i < 32; ++i) {
+    vst1q_u8(dst + i * stride, dc);
+    vst1q_u8(dst + i * stride + 16, dc);
   }
 }
 
 void aom_dc_predictor_32x32_neon(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
-  dc_32x32(dst, stride, above, left, 1, 1);
+  const uint16x8_t sum_top = dc_load_sum_32(above);
+  const uint16x8_t sum_left = dc_load_sum_32(left);
+  uint16x8_t sum = vaddq_u16(sum_left, sum_top);
+  sum = horizontal_add_and_broadcast_u16x8(sum);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum, 6);
+  dc_store_32x32(dst, stride, dc0);
 }
 
 void aom_dc_left_predictor_32x32_neon(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above,
                                       const uint8_t *left) {
+  uint16x8_t sum_left = dc_load_sum_32(left);
+  sum_left = horizontal_add_and_broadcast_u16x8(sum_left);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_left, 5);
   (void)above;
-  dc_32x32(dst, stride, NULL, left, 0, 1);
+  dc_store_32x32(dst, stride, dc0);
 }
 
 void aom_dc_top_predictor_32x32_neon(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
+  uint16x8_t sum_top = dc_load_sum_32(above);
+  sum_top = horizontal_add_and_broadcast_u16x8(sum_top);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_top, 5);
   (void)left;
-  dc_32x32(dst, stride, above, NULL, 1, 0);
+  dc_store_32x32(dst, stride, dc0);
 }
 
 void aom_dc_128_predictor_32x32_neon(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
+  const uint8x8_t dc0 = vdup_n_u8(0x80);
   (void)above;
   (void)left;
-  dc_32x32(dst, stride, NULL, NULL, 0, 0);
+  dc_store_32x32(dst, stride, dc0);
 }
 
 //------------------------------------------------------------------------------
 // DC 64x64
 
-// 'do_above' and 'do_left' facilitate branch removal when inlined.
-static INLINE void dc_64x64(uint8_t *dst, ptrdiff_t stride,
-                            const uint8_t *above, const uint8_t *left,
-                            int do_above, int do_left) {
-  uint16x8_t sum_top;
-  uint16x8_t sum_left;
-  uint8x8_t dc0;
+static INLINE uint16x8_t dc_load_sum_64(const uint8_t *in) {
+  const uint8x16_t a0 = vld1q_u8(in);
+  const uint8x16_t a1 = vld1q_u8(in + 16);
+  const uint8x16_t a2 = vld1q_u8(in + 32);
+  const uint8x16_t a3 = vld1q_u8(in + 48);
+  const uint16x8_t p01 = vpadalq_u8(vpaddlq_u8(a0), a1);
+  const uint16x8_t p23 = vpadalq_u8(vpaddlq_u8(a2), a3);
+  // delay the remainder of the reduction until
+  // horizontal_add_and_broadcast_u16x8, since we want to do it once rather
+  // than twice in the case we are loading both above and left.
+  return vaddq_u16(p01, p23);
+}
 
-  if (do_above) {
-    const uint8x16_t a0 = vld1q_u8(above);  // top row
-    const uint8x16_t a1 = vld1q_u8(above + 16);
-    const uint8x16_t a2 = vld1q_u8(above + 32);
-    const uint8x16_t a3 = vld1q_u8(above + 48);
-    const uint16x8_t p0 = vpaddlq_u8(a0);  // cascading summation of the top
-    const uint16x8_t p1 = vpaddlq_u8(a1);
-    const uint16x8_t p2 = vpaddlq_u8(a2);
-    const uint16x8_t p3 = vpaddlq_u8(a3);
-    const uint16x8_t p01 = vaddq_u16(p0, p1);
-    const uint16x8_t p23 = vaddq_u16(p2, p3);
-    sum_top = vdupq_n_u16(horizontal_add_u16x8(vaddq_u16(p01, p23)));
-  }
-
-  if (do_left) {
-    const uint8x16_t l0 = vld1q_u8(left);  // left row
-    const uint8x16_t l1 = vld1q_u8(left + 16);
-    const uint8x16_t l2 = vld1q_u8(left + 32);
-    const uint8x16_t l3 = vld1q_u8(left + 48);
-    const uint16x8_t p0 = vpaddlq_u8(l0);  // cascading summation of the left
-    const uint16x8_t p1 = vpaddlq_u8(l1);
-    const uint16x8_t p2 = vpaddlq_u8(l2);
-    const uint16x8_t p3 = vpaddlq_u8(l3);
-    const uint16x8_t p01 = vaddq_u16(p0, p1);
-    const uint16x8_t p23 = vaddq_u16(p2, p3);
-    sum_left = vdupq_n_u16(horizontal_add_u16x8(vaddq_u16(p01, p23)));
-  }
-
-  if (do_above && do_left) {
-    const uint16x8_t sum = vaddq_u16(sum_left, sum_top);
-    dc0 = vrshrn_n_u16(sum, 7);
-  } else if (do_above) {
-    dc0 = vrshrn_n_u16(sum_top, 6);
-  } else if (do_left) {
-    dc0 = vrshrn_n_u16(sum_left, 6);
-  } else {
-    dc0 = vdup_n_u8(0x80);
-  }
-
-  {
-    const uint8x16_t dc = vdupq_lane_u8(dc0, 0);
-    int i;
-    for (i = 0; i < 64; ++i) {
-      vst1q_u8(dst + i * stride, dc);
-      vst1q_u8(dst + i * stride + 16, dc);
-      vst1q_u8(dst + i * stride + 32, dc);
-      vst1q_u8(dst + i * stride + 48, dc);
-    }
+static INLINE void dc_store_64x64(uint8_t *dst, ptrdiff_t stride,
+                                  uint8x8_t dc0) {
+  const uint8x16_t dc = vdupq_lane_u8(dc0, 0);
+  for (int i = 0; i < 64; ++i) {
+    vst1q_u8(dst + i * stride, dc);
+    vst1q_u8(dst + i * stride + 16, dc);
+    vst1q_u8(dst + i * stride + 32, dc);
+    vst1q_u8(dst + i * stride + 48, dc);
   }
 }
 
 void aom_dc_predictor_64x64_neon(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
-  dc_64x64(dst, stride, above, left, 1, 1);
+  const uint16x8_t sum_top = dc_load_sum_64(above);
+  const uint16x8_t sum_left = dc_load_sum_64(left);
+  uint16x8_t sum = vaddq_u16(sum_left, sum_top);
+  sum = horizontal_add_and_broadcast_u16x8(sum);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum, 7);
+  dc_store_64x64(dst, stride, dc0);
 }
 
 void aom_dc_left_predictor_64x64_neon(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above,
                                       const uint8_t *left) {
+  uint16x8_t sum_left = dc_load_sum_64(left);
+  sum_left = horizontal_add_and_broadcast_u16x8(sum_left);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_left, 6);
   (void)above;
-  dc_64x64(dst, stride, NULL, left, 0, 1);
+  dc_store_64x64(dst, stride, dc0);
 }
 
 void aom_dc_top_predictor_64x64_neon(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
+  uint16x8_t sum_top = dc_load_sum_64(above);
+  sum_top = horizontal_add_and_broadcast_u16x8(sum_top);
+  const uint8x8_t dc0 = vrshrn_n_u16(sum_top, 6);
   (void)left;
-  dc_64x64(dst, stride, above, NULL, 1, 0);
+  dc_store_64x64(dst, stride, dc0);
 }
 
 void aom_dc_128_predictor_64x64_neon(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
+  const uint8x8_t dc0 = vdup_n_u8(0x80);
   (void)above;
   (void)left;
-  dc_64x64(dst, stride, NULL, NULL, 0, 0);
+  dc_store_64x64(dst, stride, dc0);
 }
 
 // -----------------------------------------------------------------------------
