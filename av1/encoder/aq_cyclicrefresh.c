@@ -395,10 +395,6 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   SVC *const svc = &cpi->svc;
-  int num4x4bl = cm->mi_params.MBs << 4;
-  int target_refresh = 0;
-  double weight_segment_target = 0;
-  double weight_segment = 0;
   const int qp_thresh = AOMMAX(16, rc->best_quality + 4);
   const int qp_max_thresh = 118 * MAXQ >> 7;
   const int scene_change_detected = is_scene_change_detected(cpi);
@@ -517,25 +513,10 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
       cr->rate_ratio_qdelta = 1.0;
     }
   }
-  // Weight for segment prior to encoding: take the average of the target
-  // number for the frame to be encoded and the actual from the previous frame.
-  // Use the target if its less. To be used for setting the base qp for the
-  // frame in av1_rc_regulate_q.
-  target_refresh =
-      cr->percent_refresh * cm->mi_params.mi_rows * cm->mi_params.mi_cols / 100;
-  weight_segment_target = (double)(target_refresh) / num4x4bl;
-  weight_segment = (double)((target_refresh + cr->actual_num_seg1_blocks +
-                             cr->actual_num_seg2_blocks) >>
-                            1) /
-                   num4x4bl;
-  if (weight_segment_target < 7 * weight_segment / 8)
-    weight_segment = weight_segment_target;
-  cr->weight_segment = weight_segment;
   if (rc->rtc_external_ratectrl) {
     cr->actual_num_seg1_blocks = cr->percent_refresh * cm->mi_params.mi_rows *
                                  cm->mi_params.mi_cols / 100;
     cr->actual_num_seg2_blocks = 0;
-    cr->weight_segment = (double)(cr->actual_num_seg1_blocks) / num4x4bl;
   }
 }
 
