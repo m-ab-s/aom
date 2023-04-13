@@ -31,7 +31,7 @@ macro(setup_aom_install_targets)
     include("GNUInstallDirs")
     set(AOM_PKG_CONFIG_FILE "${AOM_CONFIG_DIR}/aom.pc")
 
-    # Create a stub library target for creating aom.pc.
+    # Create a library target for creating aom.pc.
     create_stub_source_file(aom_pc c AOM_PKG_CONFIG_SOURCES)
     add_library(aom_pc ${AOM_PKG_CONFIG_SOURCES})
 

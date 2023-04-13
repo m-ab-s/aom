@@ -336,7 +336,7 @@ function(setup_aom_dsp_targets)
   list(APPEND AOM_LIB_TARGETS aom_dsp)
 
   # Not all generators support libraries consisting only of object files. Add a
-  # stub source file to the aom_dsp target.
+  # source file to the aom_dsp target.
   add_stub_source_file_to_target("aom_dsp" "c")
 
   if(CONFIG_AV1_DECODER)

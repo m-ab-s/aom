@@ -16,9 +16,9 @@ set(AOM_BUILD_CMAKE_UTIL_CMAKE_ 1)
 # Directory where generated sources will be written.
 set(AOM_GEN_SRC_DIR "${AOM_CONFIG_DIR}/gen_src")
 
-# Creates stub source file in $AOM_GEN_SRC_DIR named $basename.$extension and
-# returns the full path to the stub source file via appending it to the list
-# variable referred to by $out_file_list_var parameter.
+# Creates source file in $AOM_GEN_SRC_DIR named $basename.$extension and returns
+# the full path to the source file via appending it to the list variable
+# referred to by $out_file_list_var parameter.
 macro(create_stub_source_file basename extension out_file_list_var)
   set(stub_source_file "${AOM_GEN_SRC_DIR}/${basename}_stub.${extension}")
   file(WRITE "${stub_source_file}"

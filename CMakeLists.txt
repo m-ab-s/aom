@@ -345,7 +345,7 @@ foreach(aom_lib ${AOM_LIB_TARGETS})
   endif()
 endforeach()
 
-# Generate C/C++ stub files containing the function usage_exit(). Users of the
+# Generate C/C++ files containing the function usage_exit(). Users of the
 # aom_common_app_util library must define this function. This is a convenience
 # to allow omission of the function from applications that might want to use
 # other pieces of the util support without defining usage_exit().
