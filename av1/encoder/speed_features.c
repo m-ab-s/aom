@@ -593,6 +593,8 @@ static void set_good_speed_feature_framesize_dependent(
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
   const int is_lf_frame =
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == LF_UPDATE;
+  const int allow_screen_content_tools =
+      cm->features.allow_screen_content_tools;
 
   if (is_480p_or_larger) {
     sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
@@ -813,6 +815,8 @@ static void set_good_speed_feature_framesize_dependent(
 
     if (!is_720p_or_larger) {
       sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW_SET;
+      sf->inter_sf.prune_nearest_near_mv_using_refmv_weight =
+          (boosted || allow_screen_content_tools) ? 0 : 1;
     }
 
     if (!is_480p_or_larger) {
@@ -832,6 +836,8 @@ static void set_good_speed_feature_framesize_dependent(
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 4;
     sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL3;
     sf->inter_sf.prune_comp_ref_frames = 2;
+    sf->inter_sf.prune_nearest_near_mv_using_refmv_weight =
+        (boosted || allow_screen_content_tools) ? 0 : 1;
     if (is_720p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
     } else if (is_480p_or_larger) {
