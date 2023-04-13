@@ -173,6 +173,8 @@ const char *get_short_name_by_aom_decoder(aom_codec_iface_t *decoder);
 // If the interface is unknown, returns 0.
 uint32_t get_fourcc_by_aom_decoder(aom_codec_iface_t *iface);
 
+const char *image_format_to_string(aom_img_fmt_t fmt);
+
 int read_yuv_frame(struct AvxInputContext *input_ctx, aom_image_t *yuv_frame);
 
 void aom_img_write(const aom_image_t *img, FILE *file);
