@@ -178,7 +178,7 @@ function(add_asm_library lib_name asm_sources)
     # function to force the linker language to C. We don't bother with setting
     # the LINKER_LANGUAGE property on the library target because not all
     # generators obey it (looking at you, Xcode generator).
-    add_stub_source_file_to_target("${asm_lib_name}" "c")
+    add_no_op_source_file_to_target("${asm_lib_name}" "c")
 
     # Add the new lib target to the global list of aom library targets.
     list(APPEND AOM_LIB_TARGETS ${asm_lib_name})

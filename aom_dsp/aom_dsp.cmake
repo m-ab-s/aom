@@ -327,8 +327,8 @@ endif()
 function(setup_aom_dsp_targets)
   add_library(aom_dsp_common OBJECT ${AOM_DSP_COMMON_SOURCES})
   list(APPEND AOM_LIB_TARGETS aom_dsp_common)
-  create_stub_source_file("aom_av1" "c" "stub_source_file")
-  add_library(aom_dsp OBJECT "${stub_source_file}")
+  create_no_op_source_file("aom_av1" "c" "no_op_source_file")
+  add_library(aom_dsp OBJECT "${no_op_source_file}")
   target_sources(aom PRIVATE $<TARGET_OBJECTS:aom_dsp_common>)
   if(BUILD_SHARED_LIBS)
     target_sources(aom_static PRIVATE $<TARGET_OBJECTS:aom_dsp_common>)
@@ -337,7 +337,7 @@ function(setup_aom_dsp_targets)
 
   # Not all generators support libraries consisting only of object files. Add a
   # source file to the aom_dsp target.
-  add_stub_source_file_to_target("aom_dsp" "c")
+  add_no_op_source_file_to_target("aom_dsp" "c")
 
   if(CONFIG_AV1_DECODER)
     add_library(aom_dsp_decoder OBJECT ${AOM_DSP_DECODER_SOURCES})
