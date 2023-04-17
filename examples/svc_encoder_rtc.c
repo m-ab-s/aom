@@ -1538,11 +1538,16 @@ int main(int argc, const char **argv) {
         aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id);
       }
 
-      if (set_err_resil_frame) {
+      if (set_err_resil_frame && cfg.g_error_resilient == 0) {
         // Set error_resilient per frame: off/0 for base layer and
         // on/1 for enhancement layer frames.
-        int err_resil_mode =
-            (layer_id.spatial_layer_id > 0 || layer_id.temporal_layer_id > 0);
+        // Note that this is can only be done on the fly/per-frame/layer
+        // if the config error_resilience is off/0. See the logic for updating
+        // in set_encoder_config():
+        // tool_cfg->error_resilient_mode =
+        //     cfg->g_error_resilient | extra_cfg->error_resilient_mode;
+        const int err_resil_mode =
+            layer_id.spatial_layer_id > 0 || layer_id.temporal_layer_id > 0;
         aom_codec_control(&codec, AV1E_SET_ERROR_RESILIENT_MODE,
                           err_resil_mode);
       }
