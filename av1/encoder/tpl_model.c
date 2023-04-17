@@ -2063,6 +2063,7 @@ double av1_tpl_get_frame_importance(const TplParams *tpl_data,
           RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
                  this_stats->mc_dep_dist);
       double dist_scaled = (double)(this_stats->recrf_dist << RDDIV_BITS);
+      dist_scaled = AOMMAX(dist_scaled, 1);
       intra_cost_base += log(dist_scaled) * cbcmp;
       mc_dep_cost_base += log(dist_scaled + mc_dep_delta) * cbcmp;
       cbcmp_base += cbcmp;
