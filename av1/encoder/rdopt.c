@@ -1321,6 +1321,16 @@ static int64_t motion_mode_rd(
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   int mode_index_start, mode_index_end;
+  int txfm_rd_gate_level = cpi->sf.inter_sf.txfm_rd_gate_level;
+
+  // Set aggressive level of transform rd gating for mode evaluation stage.
+  if (cpi->sf.inter_sf.motion_mode_txfm_rd_gating_offset &&
+      txfm_rd_gate_level && !eval_motion_mode &&
+      num_pels_log2_lookup[bsize] > 8) {
+    txfm_rd_gate_level += cpi->sf.inter_sf.motion_mode_txfm_rd_gating_offset;
+    txfm_rd_gate_level = AOMMIN(txfm_rd_gate_level, MAX_TX_RD_GATE_LEVEL);
+  }
+
   // Modify the start and end index according to speed features. For example,
   // if SIMPLE_TRANSLATION has already been searched according to
   // the motion_mode_for_winner_cand speed feature, update the mode_index_start
@@ -1524,7 +1534,7 @@ static int64_t motion_mode_rd(
       if (rd_stats->rdcost < *best_est_rd) {
         *best_est_rd = rd_stats->rdcost;
         assert(sse_y >= 0);
-        ref_skip_rd[1] = cpi->sf.inter_sf.txfm_rd_gate_level
+        ref_skip_rd[1] = txfm_rd_gate_level
                              ? RDCOST(x->rdmult, mode_rate, (sse_y << 4))
                              : INT64_MAX;
       }
@@ -1546,14 +1556,14 @@ static int64_t motion_mode_rd(
       // Perform full transform search
       int64_t skip_rd = INT64_MAX;
       int64_t skip_rdy = INT64_MAX;
-      if (cpi->sf.inter_sf.txfm_rd_gate_level) {
+      if (txfm_rd_gate_level) {
         // Check if the mode is good enough based on skip RD
         int64_t sse_y = INT64_MAX;
         int64_t curr_sse = get_sse(cpi, x, &sse_y);
         skip_rd = RDCOST(x->rdmult, rd_stats->rate, curr_sse);
         skip_rdy = RDCOST(x->rdmult, rd_stats->rate, (sse_y << 4));
         int eval_txfm = check_txfm_eval(x, bsize, ref_skip_rd[0], skip_rd,
-                                        cpi->sf.inter_sf.txfm_rd_gate_level, 0);
+                                        txfm_rd_gate_level, 0);
         if (!eval_txfm) continue;
       }
 
