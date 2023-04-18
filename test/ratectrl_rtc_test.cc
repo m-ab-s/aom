@@ -146,6 +146,10 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
     encoder->Control(AOME_GET_LAST_QUANTIZER, &qp);
     rc_api_->ComputeQP(frame_params_);
     ASSERT_EQ(rc_api_->GetQP(), qp);
+    int encoder_lpf_level;
+    encoder->Control(AOME_GET_LOOPFILTER_LEVEL, &encoder_lpf_level);
+    aom::AV1LoopfilterLevel loopfilter_level = rc_api_->GetLoopfilterLevel();
+    ASSERT_EQ(loopfilter_level.filter_level[0], encoder_lpf_level);
   }
 
   void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {

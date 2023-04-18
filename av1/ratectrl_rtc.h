@@ -63,6 +63,12 @@ struct AV1FrameParamsRTC {
   int temporal_layer_id;
 };
 
+struct AV1LoopfilterLevel {
+  int filter_level[2];
+  int filter_level_u;
+  int filter_level_v;
+};
+
 class AV1RateControlRTC {
  public:
   static std::unique_ptr<AV1RateControlRTC> Create(
@@ -72,6 +78,8 @@ class AV1RateControlRTC {
   bool UpdateRateControl(const AV1RateControlRtcConfig &rc_cfg);
   // GetQP() needs to be called after ComputeQP() to get the latest QP
   int GetQP() const;
+  // GetLoopfilterLevel() needs to be called after ComputeQP()
+  AV1LoopfilterLevel GetLoopfilterLevel() const;
   signed char *GetCyclicRefreshMap() const;
   int *GetDeltaQ() const;
   void ComputeQP(const AV1FrameParamsRTC &frame_params);

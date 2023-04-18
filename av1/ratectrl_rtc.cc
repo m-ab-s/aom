@@ -19,6 +19,7 @@
 #include "aom_mem/aom_mem.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encoder_utils.h"
+#include "av1/encoder/picklpf.h"
 #include "av1/encoder/ratectrl.h"
 #include "av1/encoder/rc_utils.h"
 #include "av1/encoder/svc_layercontext.h"
@@ -125,6 +126,7 @@ bool AV1RateControlRTC::InitRateControl(const AV1RateControlRtcConfig &rc_cfg) {
   oxcf->rc_cfg.drop_frames_water_mark = 0;
   oxcf->tool_cfg.bit_depth = AOM_BITS_8;
   oxcf->tool_cfg.superblock_size = AOM_SUPERBLOCK_SIZE_DYNAMIC;
+  oxcf->algo_cfg.loopfilter_control = LOOPFILTER_ALL;
   cm->current_frame.frame_number = 0;
   cpi_->ppi->p_rc.kf_boost = DEFAULT_KF_BOOST_RT;
   for (auto &lvl_idx : oxcf->target_seq_level_idx) lvl_idx = SEQ_LEVEL_MAX;
@@ -301,6 +303,17 @@ void AV1RateControlRTC::ComputeQP(const AV1FrameParamsRTC &frame_params) {
 
 int AV1RateControlRTC::GetQP() const {
   return cpi_->common.quant_params.base_qindex;
+}
+
+AV1LoopfilterLevel AV1RateControlRTC::GetLoopfilterLevel() const {
+  av1_pick_filter_level(nullptr, cpi_, LPF_PICK_FROM_Q);
+  AV1LoopfilterLevel lpf_level;
+  lpf_level.filter_level[0] = cpi_->common.lf.filter_level[0];
+  lpf_level.filter_level[1] = cpi_->common.lf.filter_level[1];
+  lpf_level.filter_level_u = cpi_->common.lf.filter_level_u;
+  lpf_level.filter_level_v = cpi_->common.lf.filter_level_v;
+
+  return lpf_level;
 }
 
 signed char *AV1RateControlRTC::GetCyclicRefreshMap() const {
