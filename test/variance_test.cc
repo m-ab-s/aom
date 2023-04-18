@@ -2103,6 +2103,23 @@ INSTANTIATE_TEST_SUITE_P(
                       MseParams(3, 4, &aom_highbd_8_mse8x16_c, 8),
                       MseParams(3, 3, &aom_highbd_8_mse8x8_c, 8)));
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AvxHBDMseTest,
+    ::testing::Values(MseParams(4, 4, &aom_highbd_12_mse16x16_neon, 12),
+                      MseParams(4, 3, &aom_highbd_12_mse16x8_neon, 12),
+                      MseParams(3, 4, &aom_highbd_12_mse8x16_neon, 12),
+                      MseParams(3, 3, &aom_highbd_12_mse8x8_neon, 12),
+                      MseParams(4, 4, &aom_highbd_10_mse16x16_neon, 10),
+                      MseParams(4, 3, &aom_highbd_10_mse16x8_neon, 10),
+                      MseParams(3, 4, &aom_highbd_10_mse8x16_neon, 10),
+                      MseParams(3, 3, &aom_highbd_10_mse8x8_neon, 10),
+                      MseParams(4, 4, &aom_highbd_8_mse16x16_neon, 8),
+                      MseParams(4, 3, &aom_highbd_8_mse16x8_neon, 8),
+                      MseParams(3, 4, &aom_highbd_8_mse8x16_neon, 8),
+                      MseParams(3, 3, &aom_highbd_8_mse8x8_neon, 8)));
+#endif  // HAVE_NEON
+
 const VarianceParams kArrayHBDVariance_c[] = {
   VarianceParams(7, 7, &aom_highbd_12_variance128x128_c, 12),
   VarianceParams(7, 6, &aom_highbd_12_variance128x64_c, 12),
