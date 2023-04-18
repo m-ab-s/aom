@@ -935,7 +935,8 @@ int av1_get_vmaf_base_qindex(const AV1_COMP *const cpi, int current_qindex) {
   const double dvmaf = 26.11 * (1.0 - exp(-0.06 * motion));
   const double dsse = dvmaf * approx_sse / approx_dvmaf;
 
-  const double beta = approx_sse / (dsse + approx_sse);
+  // Clamping beta to address VQ issue (aomedia:3170).
+  const double beta = AOMMAX(approx_sse / (dsse + approx_sse), 0.5);
   const int offset =
       av1_get_deltaq_offset(cm->seq_params->bit_depth, current_qindex, beta);
   int qindex = current_qindex + offset;
