@@ -1886,11 +1886,14 @@ const SadSkipMxNParam skip_neon_tests[] = {
   make_tuple(16, 8, &aom_sad_skip_16x8_neon, -1),
   make_tuple(8, 16, &aom_sad_skip_8x16_neon, -1),
   make_tuple(8, 8, &aom_sad_skip_8x8_neon, -1),
+  make_tuple(8, 4, &aom_sad_skip_8x4_neon, -1),
   make_tuple(4, 8, &aom_sad_skip_4x8_neon, -1),
+  make_tuple(4, 4, &aom_sad_skip_4x4_neon, -1),
 #if !CONFIG_REALTIME_ONLY
   make_tuple(64, 16, &aom_sad_skip_64x16_neon, -1),
   make_tuple(32, 8, &aom_sad_skip_32x8_neon, -1),
   make_tuple(16, 64, &aom_sad_skip_16x64_neon, -1),
+  make_tuple(16, 4, &aom_sad_skip_16x4_neon, -1),
   make_tuple(8, 32, &aom_sad_skip_8x32_neon, -1),
   make_tuple(4, 16, &aom_sad_skip_4x16_neon, -1),
 #endif
@@ -1910,13 +1913,16 @@ const SadSkipMxNx4Param skip_x4d_neon_tests[] = {
   make_tuple(16, 32, &aom_sad_skip_16x32x4d_neon, -1),
   make_tuple(16, 16, &aom_sad_skip_16x16x4d_neon, -1),
   make_tuple(16, 8, &aom_sad_skip_16x8x4d_neon, -1),
-  make_tuple(8, 8, &aom_sad_skip_8x8x4d_neon, -1),
   make_tuple(8, 16, &aom_sad_skip_8x16x4d_neon, -1),
+  make_tuple(8, 8, &aom_sad_skip_8x8x4d_neon, -1),
+  make_tuple(8, 4, &aom_sad_skip_8x4x4d_neon, -1),
   make_tuple(4, 8, &aom_sad_skip_4x8x4d_neon, -1),
+  make_tuple(4, 4, &aom_sad_skip_4x4x4d_neon, -1),
 #if !CONFIG_REALTIME_ONLY
   make_tuple(64, 16, &aom_sad_skip_64x16x4d_neon, -1),
   make_tuple(32, 8, &aom_sad_skip_32x8x4d_neon, -1),
   make_tuple(16, 64, &aom_sad_skip_16x64x4d_neon, -1),
+  make_tuple(16, 4, &aom_sad_skip_16x4x4d_neon, -1),
   make_tuple(8, 32, &aom_sad_skip_8x32x4d_neon, -1),
   make_tuple(4, 16, &aom_sad_skip_4x16x4d_neon, -1),
 #endif
