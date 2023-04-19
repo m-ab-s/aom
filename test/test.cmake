@@ -608,6 +608,27 @@ function(setup_aom_test_targets)
     set(last_aom_test_source_var ${aom_test_source_var})
   endforeach()
 
+  # libaom_test_srcs.gni generation
+  set(libaom_test_srcs_gni_file "${AOM_CONFIG_DIR}/libaom_test_srcs.gni")
+  file(WRITE "${libaom_test_srcs_gni_file}"
+       "# This file is generated. DO NOT EDIT.\n")
+
+  foreach(aom_test_source_var ${AOM_TEST_SOURCE_VARS})
+    string(TOLOWER "${aom_test_source_var}" aom_test_source_var_lowercase)
+    file(APPEND "${libaom_test_srcs_gni_file}"
+         "\n${aom_test_source_var_lowercase} = [\n")
+
+    foreach(file ${${aom_test_source_var}})
+      if(NOT "${file}" MATCHES "${AOM_CONFIG_DIR}")
+        string(REPLACE "${AOM_ROOT}/" "//third_party/libaom/source/libaom/" file
+                       "${file}")
+        file(APPEND "${libaom_test_srcs_gni_file}" "  \"${file}\",\n")
+      endif()
+    endforeach()
+
+    file(APPEND "${libaom_test_srcs_gni_file}" "]\n")
+  endforeach()
+
   # Set up test for rc interface
   if(CONFIG_AV1_ENCODER
      AND ENABLE_TESTS
