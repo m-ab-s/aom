@@ -28,6 +28,10 @@ extern "C" {
 #if CONFIG_MULTITHREAD
 
 #if defined(_WIN32) && !HAVE_PTHREAD_H
+// Prevent leaking max/min macros.
+#undef NOMINMAX
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 #include <errno.h>    // NOLINT
 #include <process.h>  // NOLINT
 #include <windows.h>  // NOLINT
