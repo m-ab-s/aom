@@ -369,6 +369,41 @@ class DatarateTestSVC
       if (rps_mode)
         ref_config_rps(ref_frame_config, frame_cnt, rps_recovery_frame);
     }
+    if (number_temporal_layers_ == 2 && number_spatial_layers_ == 1) {
+      // 2-temporal layer.
+      //    1    3    5
+      //  0    2    4
+      // Keep golden fixed at slot 3.
+      int base_count = frame_cnt >> 1;
+      ref_frame_config->ref_idx[3] = 3;
+      // Cyclically refresh slots 5, 6, 7, for lag alt ref.
+      int lag_index = 5;
+      if (base_count > 0) {
+        lag_index = 5 + (base_count % 3);
+        if (frame_cnt % 2 != 0) lag_index = 5 + ((base_count + 1) % 3);
+      }
+      // Set the altref slot to lag_index.
+      ref_frame_config->ref_idx[6] = lag_index;
+      if (frame_cnt % 2 == 0) {
+        layer_id->temporal_layer_id = 0;
+        // Update LAST on layer 0, reference LAST.
+        ref_frame_config->refresh[0] = 1;
+        ref_frame_config->reference[0] = 1;
+        // Refresh lag_index slot, needed for lagging golen.
+        ref_frame_config->refresh[lag_index] = 1;
+        // Refresh GOLDEN every x base layer frames.
+        if (base_count % 32 == 0) ref_frame_config->refresh[3] = 1;
+      } else {
+        layer_id->temporal_layer_id = 1;
+        // No updates on layer 1, reference LAST (TL0).
+        ref_frame_config->reference[0] = 1;
+      }
+      // Always reference golden and altref on TL0.
+      if (layer_id->temporal_layer_id == 0) {
+        ref_frame_config->reference[3] = 1;
+        ref_frame_config->reference[6] = 1;
+      }
+    }
     if (number_temporal_layers_ == 3 && number_spatial_layers_ == 1) {
       // 3-layer:
       //   1    3   5    7
@@ -1717,6 +1752,56 @@ class DatarateTestSVC
     EXPECT_EQ((int)GetMismatchFrames(), num_nonref);
   }
 
+  virtual void BasicRateTargetingSVC2TL1SLDropSetEnhER0Test() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    const int bitrate_array[2] = { 200, 550 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+
+    // Set error_resilience off.
+    cfg_.g_error_resilient = 0;
+
+    // Drop TL1: for part of sequence. Start at first TL1 at
+    // frame 101, and end at frame 199. Frame 200 is TL0,
+    // so we can continue decoding without mismatch (since LAST is the
+    // only reference).
+    int n = 0;
+    int num_nonref = 300 / 2;
+    for (int i = 101; i < 200; i++) {
+      if (i % 2 != 0) {
+        drop_frames_list_[n] = i;
+        n++;
+        if (i % 2 != 0) num_nonref -= 1;
+      }
+    }
+    drop_frames_ = n;
+    number_temporal_layers_ = 2;
+    target_layer_bitrate_[0] = 70 * cfg_.rc_target_bitrate / 100;
+    target_layer_bitrate_[1] = cfg_.rc_target_bitrate;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.60)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.60)
+          << " The datarate for the file is greater than target by too much!";
+    }
+    // Test that no mismatches have been found.
+    std::cout << "          Decoded frames: " << GetDecodedFrames() << "\n";
+    std::cout << "          Mismatch frames: " << GetMismatchFrames() << "\n";
+    EXPECT_EQ(300 - GetDecodedFrames(), drop_frames_);
+    EXPECT_EQ((int)GetMismatchFrames(), num_nonref);
+  }
+
   virtual void BasicRateTargetingSVC3TL1SLDropSetEnhER0Test() {
     cfg_.rc_buf_initial_sz = 500;
     cfg_.rc_buf_optimal_sz = 500;
@@ -1739,7 +1824,7 @@ class DatarateTestSVC
     // Drop TL1 and TL2: for part of sequence. Start at first TL2 at
     // frame 101, and end at second T2 at frame 199. Frame 200 is TL0,
     // so we can continue decoding without mismatch (since LAST is the
-    // only reference and error_resil = 1 on TL1/TL2 frames).
+    // only reference).
     int n = 0;
     int num_nonref = 300 / 2;
     for (int i = 101; i < 200; i++) {
@@ -1787,7 +1872,7 @@ class DatarateTestSVC
     // Drop TL1 and TL2: for part of sequence. Start at first TL2 at
     // frame 101, and end at second T2 at frame 199. Frame 200 is TL0,
     // so we can continue decoding without mismatch (since LAST is the
-    // only reference and error_resil = 1 on TL1/TL2 frames).
+    // only reference).
     // Drop here means drop whole superframe.
     int n = 0;
     int num_nonref = 300 / 2;
@@ -2176,6 +2261,15 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropAllEnhFrameER) {
 // frames in the sequence.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDropSetEnhFrameER) {
   BasicRateTargetingSVC3TL1SLDropSetEnhFrameERTest();
+}
+
+// Check basic rate targeting for CBR, for 2 temporal layers, 1 spatial layer,
+// with dropping set of enhancement layers (TL 1) in middle of sequence.
+// Test that the error_resilient flag can be 0/off for all frames.
+// This allows for successful decoding after dropping a set enhancement layer
+// frames in the sequence.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC2TL1SLDropSetEnhER0) {
+  BasicRateTargetingSVC2TL1SLDropSetEnhER0Test();
 }
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial layer,
