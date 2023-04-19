@@ -783,143 +783,293 @@ void aom_v_predictor_64x64_neon(uint8_t *dst, ptrdiff_t stride,
 
 // -----------------------------------------------------------------------------
 
+static INLINE void h_store_4x8(uint8_t *dst, ptrdiff_t stride, uint8x8_t d0) {
+  store_u8_4x1(dst + 0 * stride, vdup_lane_u8(d0, 0), 0);
+  store_u8_4x1(dst + 1 * stride, vdup_lane_u8(d0, 1), 0);
+  store_u8_4x1(dst + 2 * stride, vdup_lane_u8(d0, 2), 0);
+  store_u8_4x1(dst + 3 * stride, vdup_lane_u8(d0, 3), 0);
+  store_u8_4x1(dst + 4 * stride, vdup_lane_u8(d0, 4), 0);
+  store_u8_4x1(dst + 5 * stride, vdup_lane_u8(d0, 5), 0);
+  store_u8_4x1(dst + 6 * stride, vdup_lane_u8(d0, 6), 0);
+  store_u8_4x1(dst + 7 * stride, vdup_lane_u8(d0, 7), 0);
+}
+
+static INLINE void h_store_8x8(uint8_t *dst, ptrdiff_t stride, uint8x8_t d0) {
+  vst1_u8(dst + 0 * stride, vdup_lane_u8(d0, 0));
+  vst1_u8(dst + 1 * stride, vdup_lane_u8(d0, 1));
+  vst1_u8(dst + 2 * stride, vdup_lane_u8(d0, 2));
+  vst1_u8(dst + 3 * stride, vdup_lane_u8(d0, 3));
+  vst1_u8(dst + 4 * stride, vdup_lane_u8(d0, 4));
+  vst1_u8(dst + 5 * stride, vdup_lane_u8(d0, 5));
+  vst1_u8(dst + 6 * stride, vdup_lane_u8(d0, 6));
+  vst1_u8(dst + 7 * stride, vdup_lane_u8(d0, 7));
+}
+
+static INLINE void h_store_16x8(uint8_t *dst, ptrdiff_t stride, uint8x8_t d0) {
+  vst1q_u8(dst + 0 * stride, vdupq_lane_u8(d0, 0));
+  vst1q_u8(dst + 1 * stride, vdupq_lane_u8(d0, 1));
+  vst1q_u8(dst + 2 * stride, vdupq_lane_u8(d0, 2));
+  vst1q_u8(dst + 3 * stride, vdupq_lane_u8(d0, 3));
+  vst1q_u8(dst + 4 * stride, vdupq_lane_u8(d0, 4));
+  vst1q_u8(dst + 5 * stride, vdupq_lane_u8(d0, 5));
+  vst1q_u8(dst + 6 * stride, vdupq_lane_u8(d0, 6));
+  vst1q_u8(dst + 7 * stride, vdupq_lane_u8(d0, 7));
+}
+
+static INLINE void h_store_32x8(uint8_t *dst, ptrdiff_t stride, uint8x8_t d0) {
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 0));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 0));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 1));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 1));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 2));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 2));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 3));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 3));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 4));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 4));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 5));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 5));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 6));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 6));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 7));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 7));
+}
+
+static INLINE void h_store_64x8(uint8_t *dst, ptrdiff_t stride, uint8x8_t d0) {
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 0));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 0));
+  vst1q_u8(dst + 32, vdupq_lane_u8(d0, 0));
+  vst1q_u8(dst + 48, vdupq_lane_u8(d0, 0));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 1));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 1));
+  vst1q_u8(dst + 32, vdupq_lane_u8(d0, 1));
+  vst1q_u8(dst + 48, vdupq_lane_u8(d0, 1));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 2));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 2));
+  vst1q_u8(dst + 32, vdupq_lane_u8(d0, 2));
+  vst1q_u8(dst + 48, vdupq_lane_u8(d0, 2));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 3));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 3));
+  vst1q_u8(dst + 32, vdupq_lane_u8(d0, 3));
+  vst1q_u8(dst + 48, vdupq_lane_u8(d0, 3));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 4));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 4));
+  vst1q_u8(dst + 32, vdupq_lane_u8(d0, 4));
+  vst1q_u8(dst + 48, vdupq_lane_u8(d0, 4));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 5));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 5));
+  vst1q_u8(dst + 32, vdupq_lane_u8(d0, 5));
+  vst1q_u8(dst + 48, vdupq_lane_u8(d0, 5));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 6));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 6));
+  vst1q_u8(dst + 32, vdupq_lane_u8(d0, 6));
+  vst1q_u8(dst + 48, vdupq_lane_u8(d0, 6));
+  dst += stride;
+  vst1q_u8(dst + 0, vdupq_lane_u8(d0, 7));
+  vst1q_u8(dst + 16, vdupq_lane_u8(d0, 7));
+  vst1q_u8(dst + 32, vdupq_lane_u8(d0, 7));
+  vst1q_u8(dst + 48, vdupq_lane_u8(d0, 7));
+}
+
 void aom_h_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
                               const uint8_t *above, const uint8_t *left) {
-  uint8x8_t d0u8 = vdup_n_u8(0);
-  uint32x2_t d1u32 = vdup_n_u32(0);
+  const uint8x8_t d0 = load_u8_4x1_lane0(left);
   (void)above;
-
-  d1u32 = vld1_lane_u32((const uint32_t *)left, d1u32, 0);
-
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u32(d1u32), 0);
-  vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(d0u8), 0);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u32(d1u32), 1);
-  vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(d0u8), 0);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u32(d1u32), 2);
-  vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(d0u8), 0);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u32(d1u32), 3);
-  vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(d0u8), 0);
+  store_u8_4x1(dst + 0 * stride, vdup_lane_u8(d0, 0), 0);
+  store_u8_4x1(dst + 1 * stride, vdup_lane_u8(d0, 1), 0);
+  store_u8_4x1(dst + 2 * stride, vdup_lane_u8(d0, 2), 0);
+  store_u8_4x1(dst + 3 * stride, vdup_lane_u8(d0, 3), 0);
 }
 
 void aom_h_predictor_8x8_neon(uint8_t *dst, ptrdiff_t stride,
                               const uint8_t *above, const uint8_t *left) {
-  uint8x8_t d0u8 = vdup_n_u8(0);
-  uint64x1_t d1u64 = vdup_n_u64(0);
+  const uint8x8_t d0 = vld1_u8(left);
   (void)above;
-
-  d1u64 = vld1_u64((const uint64_t *)left);
-
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u64(d1u64), 0);
-  vst1_u8(dst, d0u8);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u64(d1u64), 1);
-  vst1_u8(dst, d0u8);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u64(d1u64), 2);
-  vst1_u8(dst, d0u8);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u64(d1u64), 3);
-  vst1_u8(dst, d0u8);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u64(d1u64), 4);
-  vst1_u8(dst, d0u8);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u64(d1u64), 5);
-  vst1_u8(dst, d0u8);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u64(d1u64), 6);
-  vst1_u8(dst, d0u8);
-  dst += stride;
-  d0u8 = vdup_lane_u8(vreinterpret_u8_u64(d1u64), 7);
-  vst1_u8(dst, d0u8);
+  h_store_8x8(dst, stride, d0);
 }
 
 void aom_h_predictor_16x16_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
-  int j;
-  uint8x8_t d2u8 = vdup_n_u8(0);
-  uint8x16_t q0u8 = vdupq_n_u8(0);
-  uint8x16_t q1u8 = vdupq_n_u8(0);
+  const uint8x16_t d0 = vld1q_u8(left);
   (void)above;
-
-  q1u8 = vld1q_u8(left);
-  d2u8 = vget_low_u8(q1u8);
-  for (j = 0; j < 2; j++, d2u8 = vget_high_u8(q1u8)) {
-    q0u8 = vdupq_lane_u8(d2u8, 0);
-    vst1q_u8(dst, q0u8);
-    dst += stride;
-    q0u8 = vdupq_lane_u8(d2u8, 1);
-    vst1q_u8(dst, q0u8);
-    dst += stride;
-    q0u8 = vdupq_lane_u8(d2u8, 2);
-    vst1q_u8(dst, q0u8);
-    dst += stride;
-    q0u8 = vdupq_lane_u8(d2u8, 3);
-    vst1q_u8(dst, q0u8);
-    dst += stride;
-    q0u8 = vdupq_lane_u8(d2u8, 4);
-    vst1q_u8(dst, q0u8);
-    dst += stride;
-    q0u8 = vdupq_lane_u8(d2u8, 5);
-    vst1q_u8(dst, q0u8);
-    dst += stride;
-    q0u8 = vdupq_lane_u8(d2u8, 6);
-    vst1q_u8(dst, q0u8);
-    dst += stride;
-    q0u8 = vdupq_lane_u8(d2u8, 7);
-    vst1q_u8(dst, q0u8);
-    dst += stride;
-  }
+  h_store_16x8(dst, stride, vget_low_u8(d0));
+  h_store_16x8(dst + 8 * stride, stride, vget_high_u8(d0));
 }
 
 void aom_h_predictor_32x32_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
-  int j, k;
-  uint8x8_t d2u8 = vdup_n_u8(0);
-  uint8x16_t q0u8 = vdupq_n_u8(0);
-  uint8x16_t q1u8 = vdupq_n_u8(0);
+  const uint8x16_t d0 = vld1q_u8(left);
+  const uint8x16_t d1 = vld1q_u8(left + 16);
   (void)above;
+  h_store_32x8(dst + 0 * stride, stride, vget_low_u8(d0));
+  h_store_32x8(dst + 8 * stride, stride, vget_high_u8(d0));
+  h_store_32x8(dst + 16 * stride, stride, vget_low_u8(d1));
+  h_store_32x8(dst + 24 * stride, stride, vget_high_u8(d1));
+}
 
-  for (k = 0; k < 2; k++, left += 16) {
-    q1u8 = vld1q_u8(left);
-    d2u8 = vget_low_u8(q1u8);
-    for (j = 0; j < 2; j++, d2u8 = vget_high_u8(q1u8)) {
-      q0u8 = vdupq_lane_u8(d2u8, 0);
-      vst1q_u8(dst, q0u8);
-      vst1q_u8(dst + 16, q0u8);
-      dst += stride;
-      q0u8 = vdupq_lane_u8(d2u8, 1);
-      vst1q_u8(dst, q0u8);
-      vst1q_u8(dst + 16, q0u8);
-      dst += stride;
-      q0u8 = vdupq_lane_u8(d2u8, 2);
-      vst1q_u8(dst, q0u8);
-      vst1q_u8(dst + 16, q0u8);
-      dst += stride;
-      q0u8 = vdupq_lane_u8(d2u8, 3);
-      vst1q_u8(dst, q0u8);
-      vst1q_u8(dst + 16, q0u8);
-      dst += stride;
-      q0u8 = vdupq_lane_u8(d2u8, 4);
-      vst1q_u8(dst, q0u8);
-      vst1q_u8(dst + 16, q0u8);
-      dst += stride;
-      q0u8 = vdupq_lane_u8(d2u8, 5);
-      vst1q_u8(dst, q0u8);
-      vst1q_u8(dst + 16, q0u8);
-      dst += stride;
-      q0u8 = vdupq_lane_u8(d2u8, 6);
-      vst1q_u8(dst, q0u8);
-      vst1q_u8(dst + 16, q0u8);
-      dst += stride;
-      q0u8 = vdupq_lane_u8(d2u8, 7);
-      vst1q_u8(dst, q0u8);
-      vst1q_u8(dst + 16, q0u8);
-      dst += stride;
-    }
+void aom_h_predictor_4x8_neon(uint8_t *dst, ptrdiff_t stride,
+                              const uint8_t *above, const uint8_t *left) {
+  const uint8x8_t d0 = vld1_u8(left);
+  (void)above;
+  h_store_4x8(dst, stride, d0);
+}
+
+void aom_h_predictor_4x16_neon(uint8_t *dst, ptrdiff_t stride,
+                               const uint8_t *above, const uint8_t *left) {
+  const uint8x16_t d0 = vld1q_u8(left);
+  (void)above;
+  h_store_4x8(dst + 0 * stride, stride, vget_low_u8(d0));
+  h_store_4x8(dst + 8 * stride, stride, vget_high_u8(d0));
+}
+
+void aom_h_predictor_8x4_neon(uint8_t *dst, ptrdiff_t stride,
+                              const uint8_t *above, const uint8_t *left) {
+  const uint8x8_t d0 = load_u8_4x1_lane0(left);
+  (void)above;
+  vst1_u8(dst + 0 * stride, vdup_lane_u8(d0, 0));
+  vst1_u8(dst + 1 * stride, vdup_lane_u8(d0, 1));
+  vst1_u8(dst + 2 * stride, vdup_lane_u8(d0, 2));
+  vst1_u8(dst + 3 * stride, vdup_lane_u8(d0, 3));
+}
+
+void aom_h_predictor_8x16_neon(uint8_t *dst, ptrdiff_t stride,
+                               const uint8_t *above, const uint8_t *left) {
+  const uint8x16_t d0 = vld1q_u8(left);
+  (void)above;
+  h_store_8x8(dst + 0 * stride, stride, vget_low_u8(d0));
+  h_store_8x8(dst + 8 * stride, stride, vget_high_u8(d0));
+}
+
+void aom_h_predictor_8x32_neon(uint8_t *dst, ptrdiff_t stride,
+                               const uint8_t *above, const uint8_t *left) {
+  const uint8x16_t d0 = vld1q_u8(left);
+  const uint8x16_t d1 = vld1q_u8(left + 16);
+  (void)above;
+  h_store_8x8(dst + 0 * stride, stride, vget_low_u8(d0));
+  h_store_8x8(dst + 8 * stride, stride, vget_high_u8(d0));
+  h_store_8x8(dst + 16 * stride, stride, vget_low_u8(d1));
+  h_store_8x8(dst + 24 * stride, stride, vget_high_u8(d1));
+}
+
+void aom_h_predictor_16x4_neon(uint8_t *dst, ptrdiff_t stride,
+                               const uint8_t *above, const uint8_t *left) {
+  const uint8x8_t d0 = load_u8_4x1_lane0(left);
+  (void)above;
+  vst1q_u8(dst + 0 * stride, vdupq_lane_u8(d0, 0));
+  vst1q_u8(dst + 1 * stride, vdupq_lane_u8(d0, 1));
+  vst1q_u8(dst + 2 * stride, vdupq_lane_u8(d0, 2));
+  vst1q_u8(dst + 3 * stride, vdupq_lane_u8(d0, 3));
+}
+
+void aom_h_predictor_16x8_neon(uint8_t *dst, ptrdiff_t stride,
+                               const uint8_t *above, const uint8_t *left) {
+  const uint8x8_t d0 = vld1_u8(left);
+  (void)above;
+  h_store_16x8(dst, stride, d0);
+}
+
+void aom_h_predictor_16x32_neon(uint8_t *dst, ptrdiff_t stride,
+                                const uint8_t *above, const uint8_t *left) {
+  const uint8x16_t d0 = vld1q_u8(left);
+  const uint8x16_t d1 = vld1q_u8(left + 16);
+  (void)above;
+  h_store_16x8(dst + 0 * stride, stride, vget_low_u8(d0));
+  h_store_16x8(dst + 8 * stride, stride, vget_high_u8(d0));
+  h_store_16x8(dst + 16 * stride, stride, vget_low_u8(d1));
+  h_store_16x8(dst + 24 * stride, stride, vget_high_u8(d1));
+}
+
+void aom_h_predictor_16x64_neon(uint8_t *dst, ptrdiff_t stride,
+                                const uint8_t *above, const uint8_t *left) {
+  const uint8x16_t d0 = vld1q_u8(left);
+  const uint8x16_t d1 = vld1q_u8(left + 16);
+  const uint8x16_t d2 = vld1q_u8(left + 32);
+  const uint8x16_t d3 = vld1q_u8(left + 48);
+  (void)above;
+  h_store_16x8(dst + 0 * stride, stride, vget_low_u8(d0));
+  h_store_16x8(dst + 8 * stride, stride, vget_high_u8(d0));
+  h_store_16x8(dst + 16 * stride, stride, vget_low_u8(d1));
+  h_store_16x8(dst + 24 * stride, stride, vget_high_u8(d1));
+  h_store_16x8(dst + 32 * stride, stride, vget_low_u8(d2));
+  h_store_16x8(dst + 40 * stride, stride, vget_high_u8(d2));
+  h_store_16x8(dst + 48 * stride, stride, vget_low_u8(d3));
+  h_store_16x8(dst + 56 * stride, stride, vget_high_u8(d3));
+}
+
+void aom_h_predictor_32x8_neon(uint8_t *dst, ptrdiff_t stride,
+                               const uint8_t *above, const uint8_t *left) {
+  const uint8x8_t d0 = vld1_u8(left);
+  (void)above;
+  h_store_32x8(dst, stride, d0);
+}
+
+void aom_h_predictor_32x16_neon(uint8_t *dst, ptrdiff_t stride,
+                                const uint8_t *above, const uint8_t *left) {
+  const uint8x16_t d0 = vld1q_u8(left);
+  (void)above;
+  h_store_32x8(dst + 0 * stride, stride, vget_low_u8(d0));
+  h_store_32x8(dst + 8 * stride, stride, vget_high_u8(d0));
+}
+
+void aom_h_predictor_32x64_neon(uint8_t *dst, ptrdiff_t stride,
+                                const uint8_t *above, const uint8_t *left) {
+  const uint8x16_t d0 = vld1q_u8(left + 0);
+  const uint8x16_t d1 = vld1q_u8(left + 16);
+  const uint8x16_t d2 = vld1q_u8(left + 32);
+  const uint8x16_t d3 = vld1q_u8(left + 48);
+  (void)above;
+  h_store_32x8(dst + 0 * stride, stride, vget_low_u8(d0));
+  h_store_32x8(dst + 8 * stride, stride, vget_high_u8(d0));
+  h_store_32x8(dst + 16 * stride, stride, vget_low_u8(d1));
+  h_store_32x8(dst + 24 * stride, stride, vget_high_u8(d1));
+  h_store_32x8(dst + 32 * stride, stride, vget_low_u8(d2));
+  h_store_32x8(dst + 40 * stride, stride, vget_high_u8(d2));
+  h_store_32x8(dst + 48 * stride, stride, vget_low_u8(d3));
+  h_store_32x8(dst + 56 * stride, stride, vget_high_u8(d3));
+}
+
+void aom_h_predictor_64x16_neon(uint8_t *dst, ptrdiff_t stride,
+                                const uint8_t *above, const uint8_t *left) {
+  const uint8x16_t d0 = vld1q_u8(left);
+  (void)above;
+  h_store_64x8(dst + 0 * stride, stride, vget_low_u8(d0));
+  h_store_64x8(dst + 8 * stride, stride, vget_high_u8(d0));
+}
+
+void aom_h_predictor_64x32_neon(uint8_t *dst, ptrdiff_t stride,
+                                const uint8_t *above, const uint8_t *left) {
+  (void)above;
+  for (int i = 0; i < 2; ++i) {
+    const uint8x16_t d0 = vld1q_u8(left);
+    h_store_64x8(dst + 0 * stride, stride, vget_low_u8(d0));
+    h_store_64x8(dst + 8 * stride, stride, vget_high_u8(d0));
+    left += 16;
+    dst += 16 * stride;
+  }
+}
+
+void aom_h_predictor_64x64_neon(uint8_t *dst, ptrdiff_t stride,
+                                const uint8_t *above, const uint8_t *left) {
+  (void)above;
+  for (int i = 0; i < 4; ++i) {
+    const uint8x16_t d0 = vld1q_u8(left);
+    h_store_64x8(dst + 0 * stride, stride, vget_low_u8(d0));
+    h_store_64x8(dst + 8 * stride, stride, vget_high_u8(d0));
+    left += 16;
+    dst += 16 * stride;
   }
 }
 

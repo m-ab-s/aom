@@ -342,11 +342,7 @@ INSTANTIATE_TEST_SUITE_P(SSE2, LowbdIntraPredTest,
 const IntraPredFunc<IntraPred> LowbdIntraPredTestVectorNeon[] = {
   lowbd_intrapred(dc, neon),       lowbd_intrapred(dc_top, neon),
   lowbd_intrapred(dc_left, neon),  lowbd_intrapred(dc_128, neon),
-  lowbd_intrapred(v, neon),
-
-  lowbd_entry(h, 4, 4, neon),      lowbd_entry(h, 8, 8, neon),
-  lowbd_entry(h, 16, 16, neon),    lowbd_entry(h, 32, 32, neon),
-
+  lowbd_intrapred(v, neon),        lowbd_intrapred(h, neon),
   lowbd_intrapred(smooth, neon),   lowbd_intrapred(smooth_v, neon),
   lowbd_intrapred(smooth_h, neon), lowbd_intrapred(paeth, neon),
 };
