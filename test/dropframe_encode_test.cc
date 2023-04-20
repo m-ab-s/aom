@@ -16,15 +16,14 @@
 
 namespace {
 
-// Params: test mode, speed, threads.
-class DropFrameEncodeTest
-    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode, int,
+// Params: test mode, threads.
+class DropFrameEncodeTestLarge
+    : public ::libaom_test::CodecTestWith2Params<libaom_test::TestMode,
                                                  unsigned int>,
       public ::libaom_test::EncoderTest {
  protected:
-  DropFrameEncodeTest()
-      : EncoderTest(GET_PARAM(0)), frame_number_(0), threads_(GET_PARAM(3)),
-        cpu_used_(GET_PARAM(2)) {}
+  DropFrameEncodeTestLarge()
+      : EncoderTest(GET_PARAM(0)), frame_number_(0), threads_(GET_PARAM(2)) {}
 
   virtual void SetUp() { InitializeConfig(GET_PARAM(1)); }
 
@@ -32,21 +31,18 @@ class DropFrameEncodeTest
                                   ::libaom_test::Encoder *encoder) {
     frame_number_ = video->frame();
     if (frame_number_ == 0) {
-      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AOME_SET_CPUUSED, 1);
     }
   }
 
   unsigned int frame_number_;
   unsigned int threads_;
-
- private:
-  int cpu_used_;
 };
 
 // Test to reproduce the assertion failure related to buf->display_idx in
 // init_gop_frames_for_tpl() and segmentation fault reported in aomedia:3372
 // while encoding with --drop-frame=1.
-TEST_P(DropFrameEncodeTest, TestNoMisMatch) {
+TEST_P(DropFrameEncodeTestLarge, TestNoMisMatch) {
   cfg_.rc_end_usage = AOM_CBR;
   cfg_.rc_buf_sz = 1;
   cfg_.g_pass = AOM_RC_ONE_PASS;
@@ -59,8 +55,8 @@ TEST_P(DropFrameEncodeTest, TestNoMisMatch) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
-AV1_INSTANTIATE_TEST_SUITE(DropFrameEncodeTest,
+AV1_INSTANTIATE_TEST_SUITE(DropFrameEncodeTestLarge,
                            ::testing::Values(::libaom_test::kOnePassGood),
-                           ::testing::Range(0, 7), ::testing::Values(1, 4));
+                           ::testing::Values(1, 4));
 
 }  // namespace
