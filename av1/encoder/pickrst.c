@@ -149,6 +149,11 @@ typedef struct {
   SgrprojInfo sgrproj;
   WienerInfo wiener;
   PixelRect tile_rect;
+
+  // Buffers used to hold dgd-avg and src-avg data respectively during SIMD
+  // call of Wiener filter.
+  int16_t *dgd_avg;
+  int16_t *src_avg;
 } RestSearchCtxt;
 
 static AOM_INLINE void rsc_on_tile(void *priv) {
@@ -970,9 +975,12 @@ static void acc_stat_one_line(const uint8_t *dgd, const uint8_t *src,
 }
 
 void av1_compute_stats_c(int wiener_win, const uint8_t *dgd, const uint8_t *src,
-                         int h_start, int h_end, int v_start, int v_end,
-                         int dgd_stride, int src_stride, int64_t *M, int64_t *H,
+                         int16_t *dgd_avg, int16_t *src_avg, int h_start,
+                         int h_end, int v_start, int v_end, int dgd_stride,
+                         int src_stride, int64_t *M, int64_t *H,
                          int use_downsampled_wiener_stats) {
+  (void)dgd_avg;
+  (void)src_avg;
   int i, k, l;
   const int wiener_win2 = wiener_win * wiener_win;
   const int wiener_halfwin = (wiener_win >> 1);
@@ -1615,21 +1623,24 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
   const AV1_COMMON *const cm = rsc->cm;
   if (cm->seq_params->use_highbitdepth) {
     // TODO(any) : Add support for use_downsampled_wiener_stats SF in HBD
-    // functions
+    // functions. Optimize intrinsics of HBD design similar to LBD (i.e.,
+    // pre-calculate d and s buffers and avoid most of the C operations).
     av1_compute_stats_highbd(reduced_wiener_win, rsc->dgd_buffer,
                              rsc->src_buffer, limits->h_start, limits->h_end,
                              limits->v_start, limits->v_end, rsc->dgd_stride,
                              rsc->src_stride, M, H, cm->seq_params->bit_depth);
   } else {
     av1_compute_stats(reduced_wiener_win, rsc->dgd_buffer, rsc->src_buffer,
-                      limits->h_start, limits->h_end, limits->v_start,
-                      limits->v_end, rsc->dgd_stride, rsc->src_stride, M, H,
+                      rsc->dgd_avg, rsc->src_avg, limits->h_start,
+                      limits->h_end, limits->v_start, limits->v_end,
+                      rsc->dgd_stride, rsc->src_stride, M, H,
                       rsc->lpf_sf->use_downsampled_wiener_stats);
   }
 #else
   av1_compute_stats(reduced_wiener_win, rsc->dgd_buffer, rsc->src_buffer,
-                    limits->h_start, limits->h_end, limits->v_start,
-                    limits->v_end, rsc->dgd_stride, rsc->src_stride, M, H,
+                    rsc->dgd_avg, rsc->src_avg, limits->h_start, limits->h_end,
+                    limits->v_start, limits->v_end, rsc->dgd_stride,
+                    rsc->src_stride, M, H,
                     rsc->lpf_sf->use_downsampled_wiener_stats);
 #endif
 
@@ -1846,6 +1857,36 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
                        "Failed to allocate trial restored frame buffer");
 
   RestSearchCtxt rsc;
+
+  // TODO(Diksha): The buffers allocated below are used during Wiener filter
+  // processing. Hence, allocate the same when Wiener filter is enabled.
+  //
+  // The buffers 'src_avg' and 'dgd_avg' are used to compute H and M buffers.
+  // These buffers are required for AVX2 SIMD purpose only. Hence, allocated the
+  // same if AVX2 variant of SIMD for av1_compute_stats() is enabled. The buffer
+  // size required is calculated based on maximum width and height of the LRU
+  // (i.e., from foreach_rest_unit_in_tile() 1.5 times the
+  // RESTORATION_UNITSIZE_MAX) allowed for Wiener filtering. The width and
+  // height aligned to multiple of 16 is considered for intrinsic purpose.
+  rsc.dgd_avg = NULL;
+  rsc.src_avg = NULL;
+#if HAVE_AVX2
+  int16_t *buf;
+  const int buf_size =
+      sizeof(*buf) * 6 * RESTORATION_UNITSIZE_MAX * RESTORATION_UNITSIZE_MAX;
+  CHECK_MEM_ERROR(cm, buf, (int16_t *)aom_memalign(32, buf_size));
+
+  // When LRU width isn't multiple of 16, the 256 bits load instruction used in
+  // AVX2 intrinsic can read data beyond valid LRU. Hence, in order to silence
+  // Valgrind warning this buffer is initialized with zero. Overhead due to this
+  // initialization is negligible since it is done at frame level.
+  memset(buf, 0, buf_size);
+  rsc.dgd_avg = buf;
+  rsc.src_avg = buf + 3 * RESTORATION_UNITSIZE_MAX * RESTORATION_UNITSIZE_MAX;
+  // Asserts the starting address of src_avg is always 32-bytes aligned.
+  assert(!((intptr_t)rsc.src_avg % 32));
+#endif
+
   const int plane_start = AOM_PLANE_Y;
   const int plane_end = num_planes > 1 ? AOM_PLANE_V : AOM_PLANE_Y;
   for (int plane = plane_start; plane <= plane_end; ++plane) {
@@ -1890,6 +1931,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
       }
     }
   }
-
+#if HAVE_AVX2
+  aom_free(buf);
+#endif
   aom_free(rusi);
 }

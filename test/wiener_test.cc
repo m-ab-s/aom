@@ -35,11 +35,14 @@ namespace wiener_lowbd {
 // C implementation of the algorithm implmented by the SIMD code.
 // This is a little more efficient than the version in av1_compute_stats_c().
 static void compute_stats_win_opt_c(int wiener_win, const uint8_t *dgd,
-                                    const uint8_t *src, int h_start, int h_end,
-                                    int v_start, int v_end, int dgd_stride,
-                                    int src_stride, int64_t *M, int64_t *H,
+                                    const uint8_t *src, int16_t *d, int16_t *s,
+                                    int h_start, int h_end, int v_start,
+                                    int v_end, int dgd_stride, int src_stride,
+                                    int64_t *M, int64_t *H,
                                     int use_downsampled_wiener_stats) {
   ASSERT_TRUE(wiener_win == WIENER_WIN || wiener_win == WIENER_WIN_CHROMA);
+  (void)d;
+  (void)s;
   int i, j, k, l, m, n;
   const int pixel_count = (h_end - h_start) * (v_end - v_start);
   const int wiener_win2 = wiener_win * wiener_win;
@@ -156,23 +159,25 @@ static void compute_stats_win_opt_c(int wiener_win, const uint8_t *dgd,
 }
 
 void compute_stats_opt_c(int wiener_win, const uint8_t *dgd, const uint8_t *src,
-                         int h_start, int h_end, int v_start, int v_end,
-                         int dgd_stride, int src_stride, int64_t *M, int64_t *H,
+                         int16_t *d, int16_t *s, int h_start, int h_end,
+                         int v_start, int v_end, int dgd_stride, int src_stride,
+                         int64_t *M, int64_t *H,
                          int use_downsampled_wiener_stats) {
   if (wiener_win == WIENER_WIN || wiener_win == WIENER_WIN_CHROMA) {
-    compute_stats_win_opt_c(wiener_win, dgd, src, h_start, h_end, v_start,
+    compute_stats_win_opt_c(wiener_win, dgd, src, d, s, h_start, h_end, v_start,
                             v_end, dgd_stride, src_stride, M, H,
                             use_downsampled_wiener_stats);
   } else {
-    av1_compute_stats_c(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                        dgd_stride, src_stride, M, H,
+    av1_compute_stats_c(wiener_win, dgd, src, d, s, h_start, h_end, v_start,
+                        v_end, dgd_stride, src_stride, M, H,
                         use_downsampled_wiener_stats);
   }
 }
 
 static const int kIterations = 100;
 typedef void (*compute_stats_Func)(int wiener_win, const uint8_t *dgd,
-                                   const uint8_t *src, int h_start, int h_end,
+                                   const uint8_t *src, int16_t *dgd_avg,
+                                   int16_t *src_avg, int h_start, int h_end,
                                    int v_start, int v_end, int dgd_stride,
                                    int src_stride, int64_t *M, int64_t *H,
                                    int use_downsampled_wiener_stats);
@@ -192,11 +197,17 @@ class WienerTest : public ::testing::TestWithParam<WienerTestParam> {
     dgd_buf = (uint8_t *)aom_memalign(
         32, MAX_DATA_BLOCK * MAX_DATA_BLOCK * sizeof(*dgd_buf));
     ASSERT_NE(dgd_buf, nullptr);
+    const int buf_size =
+        sizeof(*buf) * 6 * RESTORATION_UNITSIZE_MAX * RESTORATION_UNITSIZE_MAX;
+    buf = (int16_t *)aom_memalign(32, buf_size);
+    ASSERT_NE(buf, nullptr);
+    memset(buf, 0, buf_size);
     target_func_ = GET_PARAM(0);
   }
   virtual void TearDown() {
     aom_free(src_buf);
     aom_free(dgd_buf);
+    aom_free(buf);
   }
   void RunWienerTest(const int32_t wiener_win, int32_t run_times);
   void RunWienerTest_ExtremeValues(const int32_t wiener_win);
@@ -206,6 +217,7 @@ class WienerTest : public ::testing::TestWithParam<WienerTestParam> {
   libaom_test::ACMRandom rng_;
   uint8_t *src_buf;
   uint8_t *dgd_buf;
+  int16_t *buf;
 };
 
 void WienerTest::RunWienerTest(const int32_t wiener_win, int32_t run_times) {
@@ -232,6 +244,9 @@ void WienerTest::RunWienerTest(const int32_t wiener_win, int32_t run_times) {
   const int src_stride = MAX_DATA_BLOCK;
   const int iters = run_times == 1 ? kIterations : 2;
   const int max_value_downsample_stats = 1;
+  int16_t *dgd_avg = buf;
+  int16_t *src_avg =
+      buf + (3 * RESTORATION_UNITSIZE_MAX * RESTORATION_UNITSIZE_MAX);
 
   for (int iter = 0; iter < iters && !HasFatalFailure(); ++iter) {
     for (int i = 0; i < MAX_DATA_BLOCK * MAX_DATA_BLOCK; ++i) {
@@ -246,16 +261,16 @@ void WienerTest::RunWienerTest(const int32_t wiener_win, int32_t run_times) {
       aom_usec_timer timer;
       aom_usec_timer_start(&timer);
       for (int i = 0; i < run_times; ++i) {
-        av1_compute_stats_c(wiener_win, dgd, src, h_start, h_end, v_start,
-                            v_end, dgd_stride, src_stride, M_ref, H_ref,
-                            use_downsampled_stats);
+        av1_compute_stats_c(wiener_win, dgd, src, dgd_avg, src_avg, h_start,
+                            h_end, v_start, v_end, dgd_stride, src_stride,
+                            M_ref, H_ref, use_downsampled_stats);
       }
       aom_usec_timer_mark(&timer);
       const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
       aom_usec_timer_start(&timer);
       for (int i = 0; i < run_times; ++i) {
-        target_func_(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                     dgd_stride, src_stride, M_test, H_test,
+        target_func_(wiener_win, dgd, src, dgd_avg, src_avg, h_start, h_end,
+                     v_start, v_end, dgd_stride, src_stride, M_test, H_test,
                      use_downsampled_stats);
       }
       aom_usec_timer_mark(&timer);
@@ -302,6 +317,9 @@ void WienerTest::RunWienerTest_ExtremeValues(const int32_t wiener_win) {
   const int src_stride = MAX_DATA_BLOCK;
   const int iters = 1;
   const int max_value_downsample_stats = 1;
+  int16_t *dgd_avg = buf;
+  int16_t *src_avg =
+      buf + (3 * RESTORATION_UNITSIZE_MAX * RESTORATION_UNITSIZE_MAX);
 
   for (int iter = 0; iter < iters && !HasFatalFailure(); ++iter) {
     for (int i = 0; i < MAX_DATA_BLOCK * MAX_DATA_BLOCK; ++i) {
@@ -313,12 +331,12 @@ void WienerTest::RunWienerTest_ExtremeValues(const int32_t wiener_win) {
     for (int use_downsampled_stats = 0;
          use_downsampled_stats <= max_value_downsample_stats;
          use_downsampled_stats++) {
-      av1_compute_stats_c(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                          dgd_stride, src_stride, M_ref, H_ref,
-                          use_downsampled_stats);
+      av1_compute_stats_c(wiener_win, dgd, src, dgd_avg, src_avg, h_start,
+                          h_end, v_start, v_end, dgd_stride, src_stride, M_ref,
+                          H_ref, use_downsampled_stats);
 
-      target_func_(wiener_win, dgd, src, h_start, h_end, v_start, v_end,
-                   dgd_stride, src_stride, M_test, H_test,
+      target_func_(wiener_win, dgd, src, dgd_avg, src_avg, h_start, h_end,
+                   v_start, v_end, dgd_stride, src_stride, M_test, H_test,
                    use_downsampled_stats);
 
       int failed = 0;
