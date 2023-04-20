@@ -233,6 +233,8 @@ if(AOM_TARGET_SYSTEM STREQUAL "Windows")
   # Prevent windows.h from defining the min and max macros. This allows us to
   # use std::min and std::max.
   add_compiler_flag_if_supported("-DNOMINMAX")
+  # Quiet warnings related to fopen, printf, etc.
+  add_compiler_flag_if_supported("-D_CRT_SECURE_NO_WARNINGS")
 endif()
 
 #
