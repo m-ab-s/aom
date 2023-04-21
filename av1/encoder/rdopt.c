@@ -3189,8 +3189,10 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
   FULLPEL_MOTION_SEARCH_PARAMS fullms_params;
   const search_site_config *lookahead_search_sites =
       cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
+  const FULLPEL_MV start_mv = get_fullmv_from_mv(&dv_ref.as_mv);
   av1_make_default_fullpel_ms_params(&fullms_params, cpi, x, bsize,
-                                     &dv_ref.as_mv, lookahead_search_sites,
+                                     &dv_ref.as_mv, start_mv,
+                                     lookahead_search_sites,
                                      /*fine_search_interval=*/0);
   const IntraBCMVCosts *const dv_costs = x->dv_costs;
   av1_set_ms_to_intra_mode(&fullms_params, dv_costs);
@@ -3237,7 +3239,6 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     }
 
     const int step_param = cpi->mv_search_params.mv_step_param;
-    const FULLPEL_MV start_mv = get_fullmv_from_mv(&dv_ref.as_mv);
     IntraBCHashInfo *intrabc_hash_info = &x->intrabc_hash_info;
     int_mv best_mv, best_hash_mv;
 

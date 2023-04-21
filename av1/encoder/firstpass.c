@@ -280,7 +280,7 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
       cpi->is_screen_content_type && cpi->common.features.allow_intrabc;
   FULLPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_fullpel_ms_params(&ms_params, cpi, x, bsize, ref_mv,
-                                     first_pass_search_sites,
+                                     start_mv, first_pass_search_sites,
                                      fine_search_interval);
   av1_set_mv_search_method(&ms_params, first_pass_search_sites, NSTEP);
 
