@@ -842,9 +842,11 @@ void MainTestClass<VarianceFunctionType>::SpeedTest() {
     if (!use_high_bit_depth()) {
       src_[j] = rnd_.Rand8();
       ref_[j] = rnd_.Rand8();
+#if CONFIG_AV1_HIGHBITDEPTH
     } else {
       CONVERT_TO_SHORTPTR(src_)[j] = rnd_.Rand16() & mask();
       CONVERT_TO_SHORTPTR(ref_)[j] = rnd_.Rand16() & mask();
+#endif  // CONFIG_AV1_HIGHBITDEPTH
     }
   }
   unsigned int sse;
@@ -1203,14 +1205,21 @@ template <typename FunctionType>
 void MainTestClass<FunctionType>::RefTestMse() {
   for (int i = 0; i < 10; ++i) {
     for (int j = 0; j < block_size(); ++j) {
-      src_[j] = rnd_.Rand8();
-      ref_[j] = rnd_.Rand8();
+      if (!use_high_bit_depth()) {
+        src_[j] = rnd_.Rand8();
+        ref_[j] = rnd_.Rand8();
+#if CONFIG_AV1_HIGHBITDEPTH
+      } else {
+        CONVERT_TO_SHORTPTR(src_)[j] = rnd_.Rand16() & mask();
+        CONVERT_TO_SHORTPTR(ref_)[j] = rnd_.Rand16() & mask();
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+      }
     }
     unsigned int sse1, sse2;
     const int stride = width();
     API_REGISTER_STATE_CHECK(params_.func(src_, stride, ref_, stride, &sse1));
     variance_ref(src_, ref_, params_.log2width, params_.log2height, stride,
-                 stride, &sse2, false, AOM_BITS_8);
+                 stride, &sse2, use_high_bit_depth(), params_.bit_depth);
     EXPECT_EQ(sse1, sse2);
   }
 }
@@ -1234,11 +1243,25 @@ void MainTestClass<FunctionType>::RefTestSse() {
 
 template <typename FunctionType>
 void MainTestClass<FunctionType>::MaxTestMse() {
-  memset(src_, 255, block_size());
-  memset(ref_, 0, block_size());
+  int max_value = (1 << params_.bit_depth) - 1;
+  if (!use_high_bit_depth()) {
+    memset(src_, max_value, block_size());
+    memset(ref_, 0, block_size());
+#if CONFIG_AV1_HIGHBITDEPTH
+  } else {
+    aom_memset16(CONVERT_TO_SHORTPTR(src_), max_value, block_size());
+    aom_memset16(CONVERT_TO_SHORTPTR(ref_), 0, block_size());
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+  }
   unsigned int sse;
   API_REGISTER_STATE_CHECK(params_.func(src_, width(), ref_, width(), &sse));
-  const unsigned int expected = block_size() * 255 * 255;
+  unsigned int expected = (unsigned int)block_size() * max_value * max_value;
+  switch (params_.bit_depth) {
+    case AOM_BITS_12: expected = ROUND_POWER_OF_TWO(expected, 8); break;
+    case AOM_BITS_10: expected = ROUND_POWER_OF_TWO(expected, 4); break;
+    case AOM_BITS_8:
+    default: break;
+  }
   EXPECT_EQ(expected, sse);
 }
 
@@ -2047,6 +2070,7 @@ TEST_P(MseHBDWxHTest, RefMse) { RefMatchTestMse(); }
 TEST_P(MseHBDWxHTest, DISABLED_SpeedMse) { SpeedTest(); }
 TEST_P(AvxHBDMseTest, RefMse) { RefTestMse(); }
 TEST_P(AvxHBDMseTest, MaxMse) { MaxTestMse(); }
+TEST_P(AvxHBDMseTest, DISABLED_SpeedMse) { SpeedTest(); }
 TEST_P(AvxHBDVarianceTest, Zero) { ZeroTest(); }
 TEST_P(AvxHBDVarianceTest, Ref) { RefTest(); }
 TEST_P(AvxHBDVarianceTest, RefStride) { RefStrideTest(); }
@@ -2064,22 +2088,20 @@ INSTANTIATE_TEST_SUITE_P(
                       MseHBDWxHParams(2, 3, &aom_mse_wxh_16bit_highbd_c, 10),
                       MseHBDWxHParams(2, 2, &aom_mse_wxh_16bit_highbd_c, 10)));
 
-/* TODO(debargha): This test does not support the highbd version
 INSTANTIATE_TEST_SUITE_P(
     C, AvxHBDMseTest,
-    ::testing::Values(make_tuple(4, 4, &aom_highbd_12_mse16x16_c),
-                      make_tuple(4, 4, &aom_highbd_12_mse16x8_c),
-                      make_tuple(4, 4, &aom_highbd_12_mse8x16_c),
-                      make_tuple(4, 4, &aom_highbd_12_mse8x8_c),
-                      make_tuple(4, 4, &aom_highbd_10_mse16x16_c),
-                      make_tuple(4, 4, &aom_highbd_10_mse16x8_c),
-                      make_tuple(4, 4, &aom_highbd_10_mse8x16_c),
-                      make_tuple(4, 4, &aom_highbd_10_mse8x8_c),
-                      make_tuple(4, 4, &aom_highbd_8_mse16x16_c),
-                      make_tuple(4, 4, &aom_highbd_8_mse16x8_c),
-                      make_tuple(4, 4, &aom_highbd_8_mse8x16_c),
-                      make_tuple(4, 4, &aom_highbd_8_mse8x8_c)));
-*/
+    ::testing::Values(MseParams(4, 4, &aom_highbd_12_mse16x16_c, 12),
+                      MseParams(4, 3, &aom_highbd_12_mse16x8_c, 12),
+                      MseParams(3, 4, &aom_highbd_12_mse8x16_c, 12),
+                      MseParams(3, 3, &aom_highbd_12_mse8x8_c, 12),
+                      MseParams(4, 4, &aom_highbd_10_mse16x16_c, 10),
+                      MseParams(4, 3, &aom_highbd_10_mse16x8_c, 10),
+                      MseParams(3, 4, &aom_highbd_10_mse8x16_c, 10),
+                      MseParams(3, 3, &aom_highbd_10_mse8x8_c, 10),
+                      MseParams(4, 4, &aom_highbd_8_mse16x16_c, 8),
+                      MseParams(4, 3, &aom_highbd_8_mse16x8_c, 8),
+                      MseParams(3, 4, &aom_highbd_8_mse8x16_c, 8),
+                      MseParams(3, 3, &aom_highbd_8_mse8x8_c, 8)));
 
 const VarianceParams kArrayHBDVariance_c[] = {
   VarianceParams(7, 7, &aom_highbd_12_variance128x128_c, 12),
@@ -2635,22 +2657,14 @@ INSTANTIATE_TEST_SUITE_P(
                                 12)));
 #endif  // HAVE_SSE4_1
 
-/* TODO(debargha): This test does not support the highbd version
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AvxHBDMseTest,
-    ::testing::Values(MseParams(4, 4, &aom_highbd_12_mse16x16_sse2),
-                      MseParams(4, 3, &aom_highbd_12_mse16x8_sse2),
-                      MseParams(3, 4, &aom_highbd_12_mse8x16_sse2),
-                      MseParams(3, 3, &aom_highbd_12_mse8x8_sse2),
-                      MseParams(4, 4, &aom_highbd_10_mse16x16_sse2),
-                      MseParams(4, 3, &aom_highbd_10_mse16x8_sse2),
-                      MseParams(3, 4, &aom_highbd_10_mse8x16_sse2),
-                      MseParams(3, 3, &aom_highbd_10_mse8x8_sse2),
-                      MseParams(4, 4, &aom_highbd_8_mse16x16_sse2),
-                      MseParams(4, 3, &aom_highbd_8_mse16x8_sse2),
-                      MseParams(3, 4, &aom_highbd_8_mse8x16_sse2),
-                      MseParams(3, 3, &aom_highbd_8_mse8x8_sse2)));
-*/
+    ::testing::Values(MseParams(4, 4, &aom_highbd_12_mse16x16_sse2, 12),
+                      MseParams(3, 3, &aom_highbd_12_mse8x8_sse2, 12),
+                      MseParams(4, 4, &aom_highbd_10_mse16x16_sse2, 10),
+                      MseParams(3, 3, &aom_highbd_10_mse8x8_sse2, 10),
+                      MseParams(4, 4, &aom_highbd_8_mse16x16_sse2, 8),
+                      MseParams(3, 3, &aom_highbd_8_mse8x8_sse2, 8.)));
 
 const VarianceParams kArrayHBDVariance_sse2[] = {
   VarianceParams(7, 7, &aom_highbd_12_variance128x128_sse2, 12),
