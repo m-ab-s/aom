@@ -1046,21 +1046,29 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sad_skip_4x8x4d          sse2 neon/;
   specialize qw/aom_sad_skip_4x4x4d               neon/;
 
-  specialize qw/aom_sad128x128x3d avx2/;
-  specialize qw/aom_sad128x64x3d  avx2/;
-  specialize qw/aom_sad64x128x3d  avx2/;
-  specialize qw/aom_sad64x64x3d   avx2/;
-  specialize qw/aom_sad64x32x3d   avx2/;
-  specialize qw/aom_sad32x64x3d   avx2/;
-  specialize qw/aom_sad32x32x3d   avx2/;
-  specialize qw/aom_sad32x16x3d   avx2/;
-  specialize qw/aom_sad16x32x3d   avx2/;
-  specialize qw/aom_sad16x16x3d   avx2/;
-  specialize qw/aom_sad16x8x3d    avx2/;
+  specialize qw/aom_sad128x128x3d neon avx2/;
+  specialize qw/aom_sad128x64x3d  neon avx2/;
+  specialize qw/aom_sad64x128x3d  neon avx2/;
+  specialize qw/aom_sad64x64x3d   neon avx2/;
+  specialize qw/aom_sad64x32x3d   neon avx2/;
+  specialize qw/aom_sad32x64x3d   neon avx2/;
+  specialize qw/aom_sad32x32x3d   neon avx2/;
+  specialize qw/aom_sad32x16x3d   neon avx2/;
+  specialize qw/aom_sad16x32x3d   neon avx2/;
+  specialize qw/aom_sad16x16x3d   neon avx2/;
+  specialize qw/aom_sad16x8x3d    neon avx2/;
+  specialize qw/aom_sad8x16x3d    neon/;
+  specialize qw/aom_sad8x8x3d     neon/;
+  specialize qw/aom_sad8x4x3d     neon/;
+  specialize qw/aom_sad4x8x3d     neon/;
+  specialize qw/aom_sad4x4x3d     neon/;
 
-  specialize qw/aom_sad64x16x3d   avx2/;
-  specialize qw/aom_sad32x8x3d    avx2/;
-  specialize qw/aom_sad16x64x3d   avx2/;
+  specialize qw/aom_sad64x16x3d   neon avx2/;
+  specialize qw/aom_sad32x8x3d    neon avx2/;
+  specialize qw/aom_sad16x64x3d   neon avx2/;
+  specialize qw/aom_sad16x4x3d    neon/;
+  specialize qw/aom_sad8x32x3d    neon/;
+  specialize qw/aom_sad4x16x3d    neon/;
 
   specialize qw/aom_masked_sad128x128x4d  ssse3/;
   specialize qw/aom_masked_sad128x64x4d   ssse3/;

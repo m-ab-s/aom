@@ -1958,6 +1958,34 @@ const SadMxNAvgParam avg_neon_tests[] = {
 };
 INSTANTIATE_TEST_SUITE_P(NEON, SADavgTest, ::testing::ValuesIn(avg_neon_tests));
 
+const SadMxNx4Param x3d_neon_tests[] = {
+  make_tuple(128, 128, &aom_sad128x128x3d_neon, -1),
+  make_tuple(128, 64, &aom_sad128x64x3d_neon, -1),
+  make_tuple(64, 128, &aom_sad64x128x3d_neon, -1),
+  make_tuple(64, 64, &aom_sad64x64x3d_neon, -1),
+  make_tuple(64, 32, &aom_sad64x32x3d_neon, -1),
+  make_tuple(32, 64, &aom_sad32x64x3d_neon, -1),
+  make_tuple(32, 32, &aom_sad32x32x3d_neon, -1),
+  make_tuple(32, 16, &aom_sad32x16x3d_neon, -1),
+  make_tuple(16, 32, &aom_sad16x32x3d_neon, -1),
+  make_tuple(16, 16, &aom_sad16x16x3d_neon, -1),
+  make_tuple(16, 8, &aom_sad16x8x3d_neon, -1),
+  make_tuple(8, 16, &aom_sad8x16x3d_neon, -1),
+  make_tuple(8, 8, &aom_sad8x8x3d_neon, -1),
+  make_tuple(8, 4, &aom_sad8x4x3d_neon, -1),
+  make_tuple(4, 8, &aom_sad4x8x3d_neon, -1),
+  make_tuple(4, 4, &aom_sad4x4x3d_neon, -1),
+#if !CONFIG_REALTIME_ONLY
+  make_tuple(64, 16, &aom_sad64x16x3d_neon, -1),
+  make_tuple(32, 8, &aom_sad32x8x3d_neon, -1),
+  make_tuple(16, 64, &aom_sad16x64x3d_neon, -1),
+  make_tuple(16, 4, &aom_sad16x4x3d_neon, -1),
+  make_tuple(8, 32, &aom_sad8x32x3d_neon, -1),
+  make_tuple(4, 16, &aom_sad4x16x3d_neon, -1),
+#endif  // !CONFIG_REALTIME_ONLY
+};
+INSTANTIATE_TEST_SUITE_P(NEON, SADx3Test, ::testing::ValuesIn(x3d_neon_tests));
+
 #endif  // HAVE_NEON
 
 //------------------------------------------------------------------------------
