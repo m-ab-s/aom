@@ -61,7 +61,6 @@ static INLINE unsigned int sad(const uint8_t *a, int a_stride, const uint8_t *b,
     return 2 * sad(src, 2 * src_stride, ref, 2 * ref_stride, (m), (n / 2));   \
   }
 
-#if CONFIG_REALTIME_ONLY
 // Calculate sad against 4 reference locations and store each in sad_array
 #define SAD_MXNX4D(m, n)                                                      \
   void aom_sad##m##x##n##x4d_c(const uint8_t *src, int src_stride,            \
@@ -82,28 +81,6 @@ static INLINE unsigned int sad(const uint8_t *a, int a_stride, const uint8_t *b,
                              2 * ref_stride, (m), (n / 2));                   \
     }                                                                         \
   }
-#else  // !CONFIG_REALTIME_ONLY
-// Calculate sad against 4 reference locations and store each in sad_array
-#define SAD_MXNX4D(m, n)                                                      \
-  void aom_sad##m##x##n##x4d_c(const uint8_t *src, int src_stride,            \
-                               const uint8_t *const ref_array[4],             \
-                               int ref_stride, uint32_t sad_array[4]) {       \
-    int i;                                                                    \
-    for (i = 0; i < 4; ++i) {                                                 \
-      sad_array[i] =                                                          \
-          aom_sad##m##x##n##_c(src, src_stride, ref_array[i], ref_stride);    \
-    }                                                                         \
-  }                                                                           \
-  void aom_sad_skip_##m##x##n##x4d_c(const uint8_t *src, int src_stride,      \
-                                     const uint8_t *const ref_array[4],       \
-                                     int ref_stride, uint32_t sad_array[4]) { \
-    int i;                                                                    \
-    for (i = 0; i < 4; ++i) {                                                 \
-      sad_array[i] = 2 * sad(src, 2 * src_stride, ref_array[i],               \
-                             2 * ref_stride, (m), (n / 2));                   \
-    }                                                                         \
-  }
-#endif  // CONFIG_REALTIME_ONLY
 // Call SIMD version of aom_sad_mxnx4d if the 3d version is unavailable.
 #define SAD_MXNX3D(m, n)                                                      \
   void aom_sad##m##x##n##x3d_c(const uint8_t *src, int src_stride,            \
