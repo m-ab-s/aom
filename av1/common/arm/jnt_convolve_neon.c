@@ -327,12 +327,6 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
         d3 = convolve8_horiz_8_sdot(s3, x_filter, correction, range_limit,
                                     permute_tbl);
 
-        // We halved the convolution filter values so -1 from the right shift.
-        d0 = vshrq_n_s16(d0, ROUND0_BITS - 1);
-        d1 = vshrq_n_s16(d1, ROUND0_BITS - 1);
-        d2 = vshrq_n_s16(d2, ROUND0_BITS - 1);
-        d3 = vshrq_n_s16(d3, ROUND0_BITS - 1);
-
         store_s16_8x4(d, dst_stride, d0, d1, d2, d3);
 
         s += 8;
@@ -1135,7 +1129,8 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
   // This shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
   // shifts - which are generally faster than rounding shifts on modern CPUs.
   // The outermost -1 is needed because we halved the filter values.
-  const int32x4_t horiz_const = vdupq_n_s32(1 << ((ROUND0_BITS - 1) - 1));
+  const int32x4_t horiz_const = vdupq_n_s32(
+      (round_offset << (ROUND0_BITS - 1)) + (1 << ((ROUND0_BITS - 1) - 1)));
 
   const uint8_t *src_ptr = src - horiz_offset;
   CONV_BUF_TYPE *dst = conv_params->dst;
@@ -1162,15 +1157,11 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
       d2 = convolve8_4_usdot(s2, x_filter, permute_tbl, horiz_const);
       d3 = convolve8_4_usdot(s3, x_filter, permute_tbl, horiz_const);
 
-      d01 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
-      d23 = vcombine_s16(vmovn_s32(d2), vmovn_s32(d3));
-
       // We halved the convolution filter values so -1 from the right shift.
-      d01 = vshrq_n_s16(d01, ROUND0_BITS - 1);
-      d23 = vshrq_n_s16(d23, ROUND0_BITS - 1);
-
-      d01 = vaddq_s16(d01, round_offset_vec);
-      d23 = vaddq_s16(d23, round_offset_vec);
+      d01 = vcombine_s16(vshrn_n_s32(d0, ROUND0_BITS - 1),
+                         vshrn_n_s32(d1, ROUND0_BITS - 1));
+      d23 = vcombine_s16(vshrn_n_s32(d2, ROUND0_BITS - 1),
+                         vshrn_n_s32(d3, ROUND0_BITS - 1));
 
       if (conv_params->do_average) {
         load_u16_4x4(dst_ptr, dst_stride, &dd0, &dd1, &dd2, &dd3);
@@ -1220,11 +1211,6 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
         d1 = convolve8_horiz_8_usdot(s1, x_filter, permute_tbl, horiz_const);
         d2 = convolve8_horiz_8_usdot(s2, x_filter, permute_tbl, horiz_const);
         d3 = convolve8_horiz_8_usdot(s3, x_filter, permute_tbl, horiz_const);
-
-        d0 = vaddq_s16(d0, round_offset_vec);
-        d1 = vaddq_s16(d1, round_offset_vec);
-        d2 = vaddq_s16(d2, round_offset_vec);
-        d3 = vaddq_s16(d3, round_offset_vec);
 
         if (conv_params->do_average) {
           load_u16_8x4(d, dst_stride, &dd0, &dd1, &dd2, &dd3);
@@ -1289,7 +1275,8 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
   // shifts - which are generally faster than rounding shifts on modern CPUs.
   // The outermost -1 is needed because we halved the filter values.
   int32x4_t correction =
-      vdupq_n_s32(correction_s32 + (1 << ((ROUND0_BITS - 1) - 1)));
+      vdupq_n_s32(correction_s32 + (round_offset << (ROUND0_BITS - 1)) +
+                  (1 << ((ROUND0_BITS - 1) - 1)));
 
   const uint8_t *src_ptr = src - horiz_offset;
   CONV_BUF_TYPE *dst = conv_params->dst;
@@ -1316,15 +1303,11 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
       d2 = convolve8_4_sdot(s2, x_filter, correction, range_limit, permute_tbl);
       d3 = convolve8_4_sdot(s3, x_filter, correction, range_limit, permute_tbl);
 
-      d01 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
-      d23 = vcombine_s16(vmovn_s32(d2), vmovn_s32(d3));
-
       // We halved the convolution filter values so -1 from the right shift.
-      d01 = vshrq_n_s16(d01, ROUND0_BITS - 1);
-      d23 = vshrq_n_s16(d23, ROUND0_BITS - 1);
-
-      d01 = vaddq_s16(d01, round_offset_vec);
-      d23 = vaddq_s16(d23, round_offset_vec);
+      d01 = vcombine_s16(vshrn_n_s32(d0, ROUND0_BITS - 1),
+                         vshrn_n_s32(d1, ROUND0_BITS - 1));
+      d23 = vcombine_s16(vshrn_n_s32(d2, ROUND0_BITS - 1),
+                         vshrn_n_s32(d3, ROUND0_BITS - 1));
 
       if (conv_params->do_average) {
         load_u16_4x4(dst_ptr, dst_stride, &dd0, &dd1, &dd2, &dd3);
@@ -1378,17 +1361,6 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
                                     permute_tbl);
         d3 = convolve8_horiz_8_sdot(s3, x_filter, correction, range_limit,
                                     permute_tbl);
-
-        // We halved the convolution filter values so -1 from the right shift.
-        d0 = vshrq_n_s16(d0, ROUND0_BITS - 1);
-        d1 = vshrq_n_s16(d1, ROUND0_BITS - 1);
-        d2 = vshrq_n_s16(d2, ROUND0_BITS - 1);
-        d3 = vshrq_n_s16(d3, ROUND0_BITS - 1);
-
-        d0 = vaddq_s16(d0, round_offset_vec);
-        d1 = vaddq_s16(d1, round_offset_vec);
-        d2 = vaddq_s16(d2, round_offset_vec);
-        d3 = vaddq_s16(d3, round_offset_vec);
 
         if (conv_params->do_average) {
           load_u16_8x4(d, dst_stride, &dd0, &dd1, &dd2, &dd3);

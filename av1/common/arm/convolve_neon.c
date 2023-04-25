@@ -2934,12 +2934,6 @@ static INLINE void convolve_2d_sr_horiz_8tap_neon(
         d3 = convolve8_horiz_8_sdot(s3, x_filter, correction, range_limit,
                                     permute_tbl);
 
-        // We halved the convolution filter values so -1 from the right shift.
-        d0 = vshrq_n_s16(d0, ROUND0_BITS - 1);
-        d1 = vshrq_n_s16(d1, ROUND0_BITS - 1);
-        d2 = vshrq_n_s16(d2, ROUND0_BITS - 1);
-        d3 = vshrq_n_s16(d3, ROUND0_BITS - 1);
-
         store_s16_8x4(d, dst_stride, d0, d1, d2, d3);
 
         s += 8;

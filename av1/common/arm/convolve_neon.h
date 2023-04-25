@@ -349,7 +349,9 @@ static INLINE int16x8_t convolve8_horiz_8_sdot(uint8x16_t samples,
   sum[1] = vdotq_lane_s32(sum[1], permuted_samples[2], filters, 1);
 
   /* Narrow and re-pack. */
-  return vcombine_s16(vmovn_s32(sum[0]), vmovn_s32(sum[1]));
+  /* We halved the convolution filter values so -1 from the right shift. */
+  return vcombine_s16(vshrn_n_s32(sum[0], ROUND0_BITS - 1),
+                      vshrn_n_s32(sum[1], ROUND0_BITS - 1));
 }
 
 static INLINE int32x4_t convolve8_4_sdot(uint8x16_t samples,
