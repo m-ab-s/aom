@@ -676,6 +676,39 @@ static INLINE void transpose_s16_8x8q(int16x8_t *a, int16x8_t *out) {
   out[7] = d3.val[1];
 }
 
+static INLINE void transpose_u16_4x4d(uint16x4_t *a0, uint16x4_t *a1,
+                                      uint16x4_t *a2, uint16x4_t *a3) {
+  // Swap 16 bit elements. Goes from:
+  // a0: 00 01 02 03
+  // a1: 10 11 12 13
+  // a2: 20 21 22 23
+  // a3: 30 31 32 33
+  // to:
+  // b0.val[0]: 00 10 02 12
+  // b0.val[1]: 01 11 03 13
+  // b1.val[0]: 20 30 22 32
+  // b1.val[1]: 21 31 23 33
+
+  const uint16x4x2_t b0 = vtrn_u16(*a0, *a1);
+  const uint16x4x2_t b1 = vtrn_u16(*a2, *a3);
+
+  // Swap 32 bit elements resulting in:
+  // c0.val[0]: 00 10 20 30
+  // c0.val[1]: 02 12 22 32
+  // c1.val[0]: 01 11 21 31
+  // c1.val[1]: 03 13 23 33
+
+  const uint32x2x2_t c0 = vtrn_u32(vreinterpret_u32_u16(b0.val[0]),
+                                   vreinterpret_u32_u16(b1.val[0]));
+  const uint32x2x2_t c1 = vtrn_u32(vreinterpret_u32_u16(b0.val[1]),
+                                   vreinterpret_u32_u16(b1.val[1]));
+
+  *a0 = vreinterpret_u16_u32(c0.val[0]);
+  *a1 = vreinterpret_u16_u32(c1.val[0]);
+  *a2 = vreinterpret_u16_u32(c0.val[1]);
+  *a3 = vreinterpret_u16_u32(c1.val[1]);
+}
+
 static INLINE void transpose_s16_4x4d(int16x4_t *a0, int16x4_t *a1,
                                       int16x4_t *a2, int16x4_t *a3) {
   // Swap 16 bit elements. Goes from:
