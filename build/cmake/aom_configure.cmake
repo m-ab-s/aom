@@ -302,6 +302,9 @@ endif()
 
 # Test compiler flags.
 if(MSVC)
+  # It isn't possible to specify C99 conformance for MSVC. MSVC doesn't support
+  # C++ standards modes earlier than C++14.
+  add_cxx_flag_if_supported("/std:c++14")
   add_compiler_flag_if_supported("/W3")
 
   # Disable MSVC warnings that suggest making code non-portable.
