@@ -1965,7 +1965,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
 
   add_proto qw/void aom_comp_mask_pred/, "uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride, const uint8_t *mask, int mask_stride, int invert_mask";
-  specialize qw/aom_comp_mask_pred ssse3 avx2/;
+  specialize qw/aom_comp_mask_pred ssse3 avx2 neon/;
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
     add_proto qw/void aom_highbd_comp_mask_pred/, "uint8_t *comp_pred, const uint8_t *pred8, int width, int height, const uint8_t *ref8, int ref_stride, const uint8_t *mask, int mask_stride, int invert_mask";
