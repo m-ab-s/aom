@@ -3006,6 +3006,9 @@ static AOM_INLINE int compute_num_pack_bs_workers(AV1_COMP *cpi) {
 // Computes num_workers for all intra multi-threading.
 static AOM_INLINE int compute_num_ai_workers(AV1_COMP *cpi) {
   if (cpi->oxcf.max_threads <= 1) return 1;
+  // The multi-threading implementation of deltaq-mode = 3 in allintra
+  // mode is based on row multi threading.
+  if (!cpi->oxcf.row_mt) return 1;
   cpi->weber_bsize = BLOCK_8X8;
   const BLOCK_SIZE bsize = cpi->weber_bsize;
   const int mb_step = mi_size_wide[bsize];
