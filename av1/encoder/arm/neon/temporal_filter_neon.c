@@ -63,11 +63,13 @@ static INLINE uint8x16_t load_and_pad(uint8_t *src, const uint32_t col,
   uint8x8_t s = vld1_u8(src);
 
   if (col == 0) {
-    s[0] = s[2];
-    s[1] = s[2];
+    const uint8_t lane2 = vget_lane_u8(s, 2);
+    s = vset_lane_u8(lane2, s, 0);
+    s = vset_lane_u8(lane2, s, 1);
   } else if (col >= block_width - 4) {
-    s[6] = s[5];
-    s[7] = s[5];
+    const uint8_t lane5 = vget_lane_u8(s, 5);
+    s = vset_lane_u8(lane5, s, 6);
+    s = vset_lane_u8(lane5, s, 7);
   }
   return vcombine_u8(s, s);
 }
@@ -236,11 +238,13 @@ static INLINE uint16x8_t load_and_pad(uint16_t *src, const uint32_t col,
   uint16x8_t s = vld1q_u16(src);
 
   if (col == 0) {
-    s[0] = s[2];
-    s[1] = s[2];
+    const uint16_t lane2 = vgetq_lane_u16(s, 2);
+    s = vsetq_lane_u16(lane2, s, 0);
+    s = vsetq_lane_u16(lane2, s, 1);
   } else if (col >= block_width - 4) {
-    s[6] = s[5];
-    s[7] = s[5];
+    const uint16_t lane5 = vgetq_lane_u16(s, 5);
+    s = vsetq_lane_u16(lane5, s, 6);
+    s = vsetq_lane_u16(lane5, s, 7);
   }
   return s;
 }
