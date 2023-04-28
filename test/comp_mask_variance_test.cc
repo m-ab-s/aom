@@ -39,14 +39,13 @@ typedef void (*comp_avg_pred_func)(uint8_t *comp_pred, const uint8_t *pred,
                                    int width, int height, const uint8_t *ref,
                                    int ref_stride);
 
-#if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2 || HAVE_NEON
-const BLOCK_SIZE kValidBlockSize[] = {
-  BLOCK_4X4,     BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,
-  BLOCK_16X16,   BLOCK_16X32, BLOCK_32X8,  BLOCK_32X16,  BLOCK_32X32,
-  BLOCK_32X64,   BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64,
-  BLOCK_128X128, BLOCK_16X64, BLOCK_64X16
+#if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2
+const BLOCK_SIZE kCompMaskPredParams[] = {
+  BLOCK_8X8,   BLOCK_8X16, BLOCK_8X32,  BLOCK_16X8, BLOCK_16X16,
+  BLOCK_16X32, BLOCK_32X8, BLOCK_32X16, BLOCK_32X32
 };
 #endif
+
 typedef std::tuple<comp_mask_pred_func, BLOCK_SIZE> CompMaskPredParam;
 
 class AV1CompMaskVarianceTest
@@ -170,14 +169,14 @@ TEST_P(AV1CompMaskVarianceTest, DISABLED_Speed) {
 INSTANTIATE_TEST_SUITE_P(
     SSSE3, AV1CompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_ssse3),
-                       ::testing::ValuesIn(kValidBlockSize)));
+                       ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1CompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_avx2),
-                       ::testing::ValuesIn(kValidBlockSize)));
+                       ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
 
 #ifndef aom_comp_mask_pred
@@ -273,17 +272,26 @@ TEST_P(AV1CompMaskUpVarianceTest, DISABLED_Speed) {
 INSTANTIATE_TEST_SUITE_P(
     SSSE3, AV1CompMaskUpVarianceTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_ssse3),
-                       ::testing::ValuesIn(kValidBlockSize)));
+                       ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1CompMaskUpVarianceTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_avx2),
-                       ::testing::ValuesIn(kValidBlockSize)));
+                       ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
 
 #endif  // ifndef aom_comp_mask_pred
+
+#if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2 || HAVE_NEON
+const BLOCK_SIZE kValidBlockSize[] = {
+  BLOCK_4X4,     BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,
+  BLOCK_16X16,   BLOCK_16X32, BLOCK_32X8,  BLOCK_32X16,  BLOCK_32X32,
+  BLOCK_32X64,   BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64,
+  BLOCK_128X128, BLOCK_16X64, BLOCK_64X16
+};
+#endif
 
 typedef std::tuple<comp_avg_pred_func, BLOCK_SIZE> CompAvgPredParam;
 
@@ -557,7 +565,7 @@ TEST_P(AV1HighbdCompMaskVarianceTest, DISABLED_Speed) {
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdCompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx2),
-                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::ValuesIn(kCompMaskPredParams),
                        ::testing::Range(8, 13, 2)));
 #endif
 
@@ -565,7 +573,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1HighbdCompMaskVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_sse2),
-                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::ValuesIn(kCompMaskPredParams),
                        ::testing::Range(8, 13, 2)));
 #endif
 
@@ -694,7 +702,7 @@ TEST_P(AV1HighbdCompMaskUpVarianceTest, DISABLED_Speed) {
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdCompMaskUpVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx2),
-                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::ValuesIn(kCompMaskPredParams),
                        ::testing::Range(8, 13, 2)));
 #endif
 
@@ -702,7 +710,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1HighbdCompMaskUpVarianceTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_sse2),
-                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::ValuesIn(kCompMaskPredParams),
                        ::testing::Range(8, 13, 2)));
 #endif
 
