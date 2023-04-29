@@ -179,67 +179,108 @@ static INLINE void compute_avg_8x4(
 
 #if defined(__aarch64__) && defined(__ARM_FEATURE_MATMUL_INT8)
 
+static INLINE int16x4_t convolve8_4_2d_h(uint8x16_t samples,
+                                         const int8x8_t x_filter,
+                                         const uint8x16x2_t permute_tbl,
+                                         const int32x4_t horiz_const) {
+  uint8x16_t permuted_samples[2];
+  int32x4_t sum;
+
+  // Permute samples ready for dot product.
+  // { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 }
+  permuted_samples[0] = vqtbl1q_u8(samples, permute_tbl.val[0]);
+  // { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 }
+  permuted_samples[1] = vqtbl1q_u8(samples, permute_tbl.val[1]);
+
+  // First 4 output values.
+  sum = vusdotq_lane_s32(horiz_const, permuted_samples[0], x_filter, 0);
+  sum = vusdotq_lane_s32(sum, permuted_samples[1], x_filter, 1);
+
+  // We halved the convolution filter values so -1 from the right shift.
+  return vshrn_n_s32(sum, ROUND0_BITS - 1);
+}
+
+static INLINE int16x8_t convolve8_8_2d_h(uint8x16_t samples,
+                                         const int8x8_t x_filter,
+                                         const uint8x16x3_t permute_tbl,
+                                         const int32x4_t horiz_const) {
+  uint8x16_t permuted_samples[3];
+  int32x4_t sum[2];
+
+  // Permute samples ready for dot product.
+  // { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 }
+  permuted_samples[0] = vqtbl1q_u8(samples, permute_tbl.val[0]);
+  // { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 }
+  permuted_samples[1] = vqtbl1q_u8(samples, permute_tbl.val[1]);
+  // { 8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14 }
+  permuted_samples[2] = vqtbl1q_u8(samples, permute_tbl.val[2]);
+
+  // First 4 output values.
+  sum[0] = vusdotq_lane_s32(horiz_const, permuted_samples[0], x_filter, 0);
+  sum[0] = vusdotq_lane_s32(sum[0], permuted_samples[1], x_filter, 1);
+  // Second 4 output values.
+  sum[1] = vusdotq_lane_s32(horiz_const, permuted_samples[1], x_filter, 0);
+  sum[1] = vusdotq_lane_s32(sum[1], permuted_samples[2], x_filter, 1);
+
+  // Narrow and re-pack.
+  // We halved the convolution filter values so -1 from the right shift.
+  return vcombine_s16(vshrn_n_s32(sum[0], ROUND0_BITS - 1),
+                      vshrn_n_s32(sum[1], ROUND0_BITS - 1));
+}
+
 static INLINE void dist_wtd_convolve_2d_horiz_8tap_neon(
     const uint8_t *src, int src_stride, int16_t *im_block, const int im_stride,
     const int16x8_t x_filter_s16, const int im_h, int w) {
   const int bd = 8;
-  int16_t *dst_ptr = im_block;
-  int dst_stride = im_stride;
-  int width = w;
-  int height = im_h;
-
-  const int8x8_t x_filter = vmovn_s16(x_filter_s16);
-  // This shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
+  // A shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
   // shifts - which are generally faster than rounding shifts on modern CPUs.
-  // The outermost -1 is needed because we halved the filter values.
+  // (The extra -1 is needed because we halved the filter values.)
   const int32x4_t horiz_const = vdupq_n_s32((1 << (bd + FILTER_BITS - 2)) +
                                             (1 << ((ROUND0_BITS - 1) - 1)));
+  // Horizontal filter.
+  const int8x8_t x_filter = vmovn_s16(x_filter_s16);
+
+  const uint8_t *src_ptr = src;
+  int16_t *dst_ptr = im_block;
+  int dst_stride = im_stride;
+  int height = im_h;
 
   if (w == 4) {
     const uint8x16x2_t permute_tbl = vld1q_u8_x2(dot_prod_permute_tbl);
     uint8x16_t s0, s1, s2, s3;
-    int32x4_t t0, t1, t2, t3;
     int16x4_t d0, d1, d2, d3;
 
     do {
-      load_u8_16x4(src, src_stride, &s0, &s1, &s2, &s3);
+      load_u8_16x4(src_ptr, src_stride, &s0, &s1, &s2, &s3);
 
-      t0 = convolve8_4_usdot(s0, x_filter, permute_tbl, horiz_const);
-      t1 = convolve8_4_usdot(s1, x_filter, permute_tbl, horiz_const);
-      t2 = convolve8_4_usdot(s2, x_filter, permute_tbl, horiz_const);
-      t3 = convolve8_4_usdot(s3, x_filter, permute_tbl, horiz_const);
-
-      // We halved the convolution filter values so -1 from the right shift.
-      d0 = vshrn_n_s32(t0, ROUND0_BITS - 1);
-      d1 = vshrn_n_s32(t1, ROUND0_BITS - 1);
-      d2 = vshrn_n_s32(t2, ROUND0_BITS - 1);
-      d3 = vshrn_n_s32(t3, ROUND0_BITS - 1);
+      d0 = convolve8_4_2d_h(s0, x_filter, permute_tbl, horiz_const);
+      d1 = convolve8_4_2d_h(s1, x_filter, permute_tbl, horiz_const);
+      d2 = convolve8_4_2d_h(s2, x_filter, permute_tbl, horiz_const);
+      d3 = convolve8_4_2d_h(s3, x_filter, permute_tbl, horiz_const);
 
       store_s16_4x4(dst_ptr, dst_stride, d0, d1, d2, d3);
 
-      src += 4 * src_stride;
+      src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
     } while (height > 0);
   } else {
     const uint8x16x3_t permute_tbl = vld1q_u8_x3(dot_prod_permute_tbl);
-    const uint8_t *s;
-    int16_t *d;
     uint8x16_t s0, s1, s2, s3;
     int16x8_t d0, d1, d2, d3;
 
     do {
-      width = w;
-      s = src;
-      d = dst_ptr;
+      const uint8_t *s = src_ptr;
+      int16_t *d = dst_ptr;
+      int width = w;
 
       do {
         load_u8_16x4(s, src_stride, &s0, &s1, &s2, &s3);
 
-        d0 = convolve8_horiz_8_usdot(s0, x_filter, permute_tbl, horiz_const);
-        d1 = convolve8_horiz_8_usdot(s1, x_filter, permute_tbl, horiz_const);
-        d2 = convolve8_horiz_8_usdot(s2, x_filter, permute_tbl, horiz_const);
-        d3 = convolve8_horiz_8_usdot(s3, x_filter, permute_tbl, horiz_const);
+        d0 = convolve8_8_2d_h(s0, x_filter, permute_tbl, horiz_const);
+        d1 = convolve8_8_2d_h(s1, x_filter, permute_tbl, horiz_const);
+        d2 = convolve8_8_2d_h(s2, x_filter, permute_tbl, horiz_const);
+        d3 = convolve8_8_2d_h(s3, x_filter, permute_tbl, horiz_const);
 
         store_s16_8x4(d, dst_stride, d0, d1, d2, d3);
 
@@ -247,8 +288,7 @@ static INLINE void dist_wtd_convolve_2d_horiz_8tap_neon(
         d += 8;
         width -= 8;
       } while (width > 0);
-
-      src += 4 * src_stride;
+      src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
     } while (height > 0);
@@ -257,75 +297,126 @@ static INLINE void dist_wtd_convolve_2d_horiz_8tap_neon(
 
 #elif defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
 
+static INLINE int16x4_t convolve8_4_2d_h(uint8x16_t samples,
+                                         const int8x8_t x_filter,
+                                         const int32x4_t correction,
+                                         const uint8x16_t range_limit,
+                                         const uint8x16x2_t permute_tbl) {
+  int8x16_t clamped_samples, permuted_samples[2];
+  int32x4_t sum;
+
+  // Clamp sample range to [-128, 127] for 8-bit signed dot product.
+  clamped_samples = vreinterpretq_s8_u8(vsubq_u8(samples, range_limit));
+
+  // Permute samples ready for dot product.
+  // { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 }
+  permuted_samples[0] = vqtbl1q_s8(clamped_samples, permute_tbl.val[0]);
+  // { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 }
+  permuted_samples[1] = vqtbl1q_s8(clamped_samples, permute_tbl.val[1]);
+
+  // Accumulate dot product into 'correction' to account for range clamp.
+  sum = vdotq_lane_s32(correction, permuted_samples[0], x_filter, 0);
+  sum = vdotq_lane_s32(sum, permuted_samples[1], x_filter, 1);
+
+  // We halved the convolution filter values so -1 from the right shift.
+  return vshrn_n_s32(sum, ROUND0_BITS - 1);
+}
+
+static INLINE int16x8_t convolve8_8_2d_h(uint8x16_t samples,
+                                         const int8x8_t x_filter,
+                                         const int32x4_t correction,
+                                         const uint8x16_t range_limit,
+                                         const uint8x16x3_t permute_tbl) {
+  int8x16_t clamped_samples, permuted_samples[3];
+  int32x4_t sum[2];
+
+  // Clamp sample range to [-128, 127] for 8-bit signed dot product.
+  clamped_samples = vreinterpretq_s8_u8(vsubq_u8(samples, range_limit));
+
+  // Permute samples ready for dot product. */
+  // { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 }
+  permuted_samples[0] = vqtbl1q_s8(clamped_samples, permute_tbl.val[0]);
+  // { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 }
+  permuted_samples[1] = vqtbl1q_s8(clamped_samples, permute_tbl.val[1]);
+  // { 8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14 }
+  permuted_samples[2] = vqtbl1q_s8(clamped_samples, permute_tbl.val[2]);
+
+  // Accumulate dot product into 'correction' to account for range clamp.
+  // First 4 output values.
+  sum[0] = vdotq_lane_s32(correction, permuted_samples[0], x_filter, 0);
+  sum[0] = vdotq_lane_s32(sum[0], permuted_samples[1], x_filter, 1);
+  // Second 4 output values.
+  sum[1] = vdotq_lane_s32(correction, permuted_samples[1], x_filter, 0);
+  sum[1] = vdotq_lane_s32(sum[1], permuted_samples[2], x_filter, 1);
+
+  // Narrow and re-pack.
+  // We halved the convolution filter values so -1 from the right shift.
+  return vcombine_s16(vshrn_n_s32(sum[0], ROUND0_BITS - 1),
+                      vshrn_n_s32(sum[1], ROUND0_BITS - 1));
+}
+
 static INLINE void dist_wtd_convolve_2d_horiz_8tap_neon(
     const uint8_t *src, int src_stride, int16_t *im_block, const int im_stride,
     const int16x8_t x_filter_s16, const int im_h, int w) {
   const int bd = 8;
+  const int32_t horiz_const = (1 << (bd + FILTER_BITS - 2));
+  // Dot product constants and other shims.
+  const int32_t correction_s32 = vaddlvq_s16(vshlq_n_s16(x_filter_s16, 7));
+  // Fold horiz_const into the dot-product filter correction constant. The
+  // additional shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-
+  // rounding shifts - which are generally faster than rounding shifts on
+  // modern CPUs. (The extra -1 is needed because we halved the filter values.)
+  const int32x4_t correction = vdupq_n_s32(correction_s32 + horiz_const +
+                                           (1 << ((ROUND0_BITS - 1) - 1)));
+  const uint8x16_t range_limit = vdupq_n_u8(128);
+  // Horizontal filter.
+  const int8x8_t x_filter = vmovn_s16(x_filter_s16);
+
+  const uint8_t *src_ptr = src;
   int16_t *dst_ptr = im_block;
   int dst_stride = im_stride;
-  int width = w;
   int height = im_h;
-
-  const int8x8_t x_filter = vmovn_s16(x_filter_s16);
-  const int32_t horiz_const = (1 << (bd + FILTER_BITS - 2));
-  // Dot product constants.
-  const int16x8_t correct_tmp = vshlq_n_s16(x_filter_s16, 7);
-  // This shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
-  // shifts - which are generally faster than rounding shifts on modern CPUs.
-  // The outermost -1 is needed because we halved the filter values.
-  const int32x4_t correction = vdupq_n_s32(
-      vaddlvq_s16(correct_tmp) + horiz_const + (1 << ((ROUND0_BITS - 1) - 1)));
-  const uint8x16_t range_limit = vdupq_n_u8(128);
 
   if (w == 4) {
     const uint8x16x2_t permute_tbl = vld1q_u8_x2(dot_prod_permute_tbl);
     uint8x16_t s0, s1, s2, s3;
-    int32x4_t t0, t1, t2, t3;
     int16x4_t d0, d1, d2, d3;
 
     do {
-      load_u8_16x4(src, src_stride, &s0, &s1, &s2, &s3);
+      load_u8_16x4(src_ptr, src_stride, &s0, &s1, &s2, &s3);
 
-      t0 = convolve8_4_sdot(s0, x_filter, correction, range_limit, permute_tbl);
-      t1 = convolve8_4_sdot(s1, x_filter, correction, range_limit, permute_tbl);
-      t2 = convolve8_4_sdot(s2, x_filter, correction, range_limit, permute_tbl);
-      t3 = convolve8_4_sdot(s3, x_filter, correction, range_limit, permute_tbl);
-
-      // We halved the convolution filter values so -1 from the right shift.
-      d0 = vshrn_n_s32(t0, ROUND0_BITS - 1);
-      d1 = vshrn_n_s32(t1, ROUND0_BITS - 1);
-      d2 = vshrn_n_s32(t2, ROUND0_BITS - 1);
-      d3 = vshrn_n_s32(t3, ROUND0_BITS - 1);
+      d0 = convolve8_4_2d_h(s0, x_filter, correction, range_limit, permute_tbl);
+      d1 = convolve8_4_2d_h(s1, x_filter, correction, range_limit, permute_tbl);
+      d2 = convolve8_4_2d_h(s2, x_filter, correction, range_limit, permute_tbl);
+      d3 = convolve8_4_2d_h(s3, x_filter, correction, range_limit, permute_tbl);
 
       store_s16_4x4(dst_ptr, dst_stride, d0, d1, d2, d3);
 
-      src += 4 * src_stride;
+      src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
     } while (height > 0);
   } else {
     const uint8x16x3_t permute_tbl = vld1q_u8_x3(dot_prod_permute_tbl);
-    const uint8_t *s;
-    int16_t *d;
     uint8x16_t s0, s1, s2, s3;
     int16x8_t d0, d1, d2, d3;
 
     do {
-      width = w;
-      s = src;
-      d = dst_ptr;
+      const uint8_t *s = src_ptr;
+      int16_t *d = dst_ptr;
+      int width = w;
 
       do {
         load_u8_16x4(s, src_stride, &s0, &s1, &s2, &s3);
 
-        d0 = convolve8_horiz_8_sdot(s0, x_filter, correction, range_limit,
-                                    permute_tbl);
-        d1 = convolve8_horiz_8_sdot(s1, x_filter, correction, range_limit,
-                                    permute_tbl);
-        d2 = convolve8_horiz_8_sdot(s2, x_filter, correction, range_limit,
-                                    permute_tbl);
-        d3 = convolve8_horiz_8_sdot(s3, x_filter, correction, range_limit,
-                                    permute_tbl);
+        d0 = convolve8_8_2d_h(s0, x_filter, correction, range_limit,
+                              permute_tbl);
+        d1 = convolve8_8_2d_h(s1, x_filter, correction, range_limit,
+                              permute_tbl);
+        d2 = convolve8_8_2d_h(s2, x_filter, correction, range_limit,
+                              permute_tbl);
+        d3 = convolve8_8_2d_h(s3, x_filter, correction, range_limit,
+                              permute_tbl);
 
         store_s16_8x4(d, dst_stride, d0, d1, d2, d3);
 
@@ -333,8 +424,7 @@ static INLINE void dist_wtd_convolve_2d_horiz_8tap_neon(
         d += 8;
         width -= 8;
       } while (width > 0);
-
-      src += 4 * src_stride;
+      src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
     } while (height > 0);
