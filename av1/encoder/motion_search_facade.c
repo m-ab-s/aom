@@ -192,23 +192,42 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
       // Check difference between mvs in the stack and candidate mv.
       for (int stack_idx = 0; stack_idx < stack_size; stack_idx++) {
-        FULLPEL_MV *fmv_stack = &args->start_mv_stack[stack_idx];
-        const int row = abs(fmv_stack->row - fmv_cand->as_fullmv.row);
-        const int col = abs(fmv_stack->col - fmv_cand->as_fullmv.col);
+        const uint8_t this_ref_mv_idx = args->ref_mv_idx_stack[stack_idx];
+        const FULLPEL_MV *fmv_stack = &args->start_mv_stack[stack_idx];
+        const int this_newmv_valid =
+            args->single_newmv_valid[this_ref_mv_idx][ref];
+        const int row_diff = abs(fmv_stack->row - fmv_cand->as_fullmv.row);
+        const int col_diff = abs(fmv_stack->col - fmv_cand->as_fullmv.col);
 
-        if (row <= 1 && col <= 1) {
-          skip_cand_mv = 1;
-          break;
+        if (!this_newmv_valid) continue;
+
+        if (cpi->sf.mv_sf.skip_fullpel_search_using_startmv >= 2) {
+          // Prunes the current start_mv candidate, if the absolute mv
+          // difference of both row and column are <= 1.
+          if (row_diff <= 1 && col_diff <= 1) {
+            skip_cand_mv = 1;
+            break;
+          }
+        } else if (cpi->sf.mv_sf.skip_fullpel_search_using_startmv >= 1) {
+          // Prunes the current start_mv candidate, if the sum of the absolute
+          // mv difference of row and column is <= 1.
+          if (row_diff + col_diff <= 1) {
+            skip_cand_mv = 1;
+            break;
+          }
         }
       }
       if (skip_cand_mv) {
+        // Ensure atleast one full-pel motion search is not pruned.
+        assert(mbmi->ref_mv_idx != 0);
         // Mark the candidate mv as invalid so that motion search gets skipped.
         cand[cand_idx].fmv.as_int = INVALID_MV;
       } else {
-        // Store start mv candidate of full-pel search in the mv stack (except
-        // last ref_mv_idx).
+        // Store start_mv candidate and corresponding ref_mv_idx of full-pel
+        // search in the mv stack (except last ref_mv_idx).
         if (mbmi->ref_mv_idx != MAX_REF_MV_SEARCH - 1) {
           args->start_mv_stack[args->start_mv_cnt] = fmv_cand->as_fullmv;
+          args->ref_mv_idx_stack[args->start_mv_cnt] = mbmi->ref_mv_idx;
           args->start_mv_cnt++;
           assert(args->start_mv_cnt <= (MAX_REF_MV_SEARCH - 1) * 2);
         }

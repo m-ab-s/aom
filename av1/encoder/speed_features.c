@@ -1208,6 +1208,7 @@ static void set_good_speed_features_framesize_independent(
                                                                           : 2;
 
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
+    sf->mv_sf.skip_fullpel_search_using_startmv = boosted ? 0 : 1;
 
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
     sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
@@ -1260,7 +1261,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
     sf->mv_sf.use_bsize_dependent_search_method = 1;
-    sf->mv_sf.skip_fullpel_search_using_startmv = boosted ? 0 : 1;
+    sf->mv_sf.skip_fullpel_search_using_startmv = boosted ? 0 : 2;
 
     sf->tpl_sf.gop_length_decision_method = 3;
 
