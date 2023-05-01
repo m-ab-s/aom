@@ -58,7 +58,7 @@ static INLINE void get_abs_diff(const uint8_t *frame1, const uint32_t stride1,
   } while (i < block_height);
 }
 
-static INLINE uint8x16_t load_and_pad(uint8_t *src, const uint32_t col,
+static INLINE uint8x16_t load_and_pad(const uint8_t *src, const uint32_t col,
                                       const uint32_t block_width) {
   uint8x8_t s = vld1_u8(src);
 
@@ -77,10 +77,10 @@ static INLINE uint8x16_t load_and_pad(uint8_t *src, const uint32_t col,
 static void apply_temporal_filter(
     const uint8_t *frame, const unsigned int stride, const uint32_t block_width,
     const uint32_t block_height, const int *subblock_mses,
-    unsigned int *accumulator, uint16_t *count, uint8_t *frame_abs_diff,
-    uint32_t *luma_sse_sum, const double inv_num_ref_pixels,
+    unsigned int *accumulator, uint16_t *count, const uint8_t *frame_abs_diff,
+    const uint32_t *luma_sse_sum, const double inv_num_ref_pixels,
     const double decay_factor, const double inv_factor,
-    const double weight_factor, double *d_factor, int tf_wgt_calc_lvl) {
+    const double weight_factor, const double *d_factor, int tf_wgt_calc_lvl) {
   assert(((block_width == 16) || (block_width == 32)) &&
          ((block_height == 16) || (block_height == 32)));
 
@@ -90,11 +90,11 @@ static void apply_temporal_filter(
   // Traverse 4 columns at a time - first and last two columns need padding.
   for (uint32_t col = 0; col < block_width; col += 4) {
     uint8x16_t vsrc[5][2];
-    uint8_t *src = frame_abs_diff + col;
+    const uint8_t *src = frame_abs_diff + col;
 
     // Load, pad (for first and last two columns) and mask 3 rows from the top.
     for (int i = 2; i < 5; i++) {
-      uint8x16_t s = load_and_pad(src, col, block_width);
+      const uint8x16_t s = load_and_pad(src, col, block_width);
       vsrc[i][0] = vandq_u8(s, vmask.val[0]);
       vsrc[i][1] = vandq_u8(s, vmask.val[1]);
       src += SSE_STRIDE;
@@ -149,7 +149,7 @@ static void apply_temporal_filter(
     for (unsigned int i = 0, k = 0; i < block_height; i++) {
       for (unsigned int j = 0; j < block_width; j++, k++) {
         const int pixel_value = frame[i * stride + j];
-        uint32_t diff_sse = acc_5x5_neon[i][j] + luma_sse_sum[i * BW + j];
+        const uint32_t diff_sse = acc_5x5_neon[i][j] + luma_sse_sum[i * BW + j];
 
         const double window_error = diff_sse * inv_num_ref_pixels;
         const int subblock_idx =
@@ -170,7 +170,7 @@ static void apply_temporal_filter(
     for (unsigned int i = 0, k = 0; i < block_height; i++) {
       for (unsigned int j = 0; j < block_width; j++, k++) {
         const int pixel_value = frame[i * stride + j];
-        uint32_t diff_sse = acc_5x5_neon[i][j] + luma_sse_sum[i * BW + j];
+        const uint32_t diff_sse = acc_5x5_neon[i][j] + luma_sse_sum[i * BW + j];
 
         const double window_error = diff_sse * inv_num_ref_pixels;
         const int subblock_idx =
@@ -233,7 +233,7 @@ static INLINE void get_squared_error(
   } while (i < block_height);
 }
 
-static INLINE uint16x8_t load_and_pad(uint16_t *src, const uint32_t col,
+static INLINE uint16x8_t load_and_pad(const uint16_t *src, const uint32_t col,
                                       const uint32_t block_width) {
   uint16x8_t s = vld1q_u16(src);
 
@@ -252,10 +252,10 @@ static INLINE uint16x8_t load_and_pad(uint16_t *src, const uint32_t col,
 static void apply_temporal_filter(
     const uint8_t *frame, const unsigned int stride, const uint32_t block_width,
     const uint32_t block_height, const int *subblock_mses,
-    unsigned int *accumulator, uint16_t *count, uint16_t *frame_sse,
-    uint32_t *luma_sse_sum, const double inv_num_ref_pixels,
+    unsigned int *accumulator, uint16_t *count, const uint16_t *frame_sse,
+    const uint32_t *luma_sse_sum, const double inv_num_ref_pixels,
     const double decay_factor, const double inv_factor,
-    const double weight_factor, double *d_factor, int tf_wgt_calc_lvl) {
+    const double weight_factor, const double *d_factor, int tf_wgt_calc_lvl) {
   assert(((block_width == 16) || (block_width == 32)) &&
          ((block_height == 16) || (block_height == 32)));
 
@@ -265,7 +265,7 @@ static void apply_temporal_filter(
   // Traverse 4 columns at a time - first and last two columns need padding.
   for (uint32_t col = 0; col < block_width; col += 4) {
     uint16x8_t vsrc[5];
-    uint16_t *src = frame_sse + col;
+    const uint16_t *src = frame_sse + col;
 
     // Load and pad (for first and last two columns) 3 rows from the top.
     for (int i = 2; i < 5; i++) {
@@ -307,7 +307,7 @@ static void apply_temporal_filter(
     for (unsigned int i = 0, k = 0; i < block_height; i++) {
       for (unsigned int j = 0; j < block_width; j++, k++) {
         const int pixel_value = frame[i * stride + j];
-        uint32_t diff_sse = acc_5x5_neon[i][j] + luma_sse_sum[i * BW + j];
+        const uint32_t diff_sse = acc_5x5_neon[i][j] + luma_sse_sum[i * BW + j];
 
         const double window_error = diff_sse * inv_num_ref_pixels;
         const int subblock_idx =
@@ -328,7 +328,7 @@ static void apply_temporal_filter(
     for (unsigned int i = 0, k = 0; i < block_height; i++) {
       for (unsigned int j = 0; j < block_width; j++, k++) {
         const int pixel_value = frame[i * stride + j];
-        uint32_t diff_sse = acc_5x5_neon[i][j] + luma_sse_sum[i * BW + j];
+        const uint32_t diff_sse = acc_5x5_neon[i][j] + luma_sse_sum[i * BW + j];
 
         const double window_error = diff_sse * inv_num_ref_pixels;
         const int subblock_idx =
