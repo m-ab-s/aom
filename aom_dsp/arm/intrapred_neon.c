@@ -1149,7 +1149,6 @@ static DECLARE_ALIGNED(32, uint8_t, BaseMask[33][32]) = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
 };
 
-/* clang-format on */
 static AOM_FORCE_INLINE void dr_prediction_z1_HxW_internal_neon_64(
     int H, int W, uint8x8_t *dst, const uint8_t *above, int upsample_above,
     int dx) {
