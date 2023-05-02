@@ -1682,7 +1682,7 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
       active_best_quality -= extend_minq;
       active_worst_quality += (extend_maxq / 2);
 #else
-      active_best_quality -= cpi->ppi->twopass.extend_minq;
+      active_best_quality -= cpi->ppi->twopass.extend_minq / 4;
       active_worst_quality += (cpi->ppi->twopass.extend_maxq / 2);
 #endif
     } else {
@@ -1690,7 +1690,7 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
       active_best_quality -= extend_minq / 2;
       active_worst_quality += extend_maxq;
 #else
-      active_best_quality -= cpi->ppi->twopass.extend_minq / 2;
+      active_best_quality -= cpi->ppi->twopass.extend_minq / 4;
       active_worst_quality += cpi->ppi->twopass.extend_maxq;
 #endif
     }
