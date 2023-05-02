@@ -160,6 +160,8 @@ set_aom_config_var(CONFIG_OUTPUT_FRAME_SIZE 0
 set_aom_config_var(
   CONFIG_SALIENCY_MAP 0
   "AV1 experiment: Enable saliency map based encoding tuning for VMAF.")
+set_aom_config_var(CONFIG_CWG_C013 0
+                   "AV1 experiment: Support for 7.x and 8.x levels.")
 
 #
 # Variables in this section control optional features of the build system.
