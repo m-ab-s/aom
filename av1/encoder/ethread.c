@@ -1706,7 +1706,6 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   }
 
   num_workers = AOMMIN(num_workers, mt_info->num_workers);
-
   lpf_pipeline_mt_init(cpi, num_workers);
 
   av1_init_tile_data(cpi);
