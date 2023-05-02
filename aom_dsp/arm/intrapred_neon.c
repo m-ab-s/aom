@@ -1171,8 +1171,6 @@ static AOM_FORCE_INLINE void dr_prediction_z1_HxW_internal_neon_64(
   a16 = vdupq_n_u16(16);
   a_mbase_x = vdup_n_u8(above[max_base_x]);
   uint16x8_t v_32 = vdupq_n_u16(32);
-  int16x8_t v_upsample_above = vdupq_n_s16(upsample_above);
-  uint16x8_t c3f = vdupq_n_u16(0x3f);
 
   int x = dx;
   for (int r = 0; r < W; r++) {
@@ -1193,12 +1191,11 @@ static AOM_FORCE_INLINE void dr_prediction_z1_HxW_internal_neon_64(
 
     if (upsample_above) {
       v_tmp_a0_128 = vld2_u8(above + base);
-      shift = vshrq_n_u16(
-          vandq_u16(vshlq_u16(vdupq_n_u16(x), v_upsample_above), c3f), 1);
+      shift = vdupq_n_u16(((x << upsample_above) & 0x3f) >> 1);
     } else {
       v_tmp_a0_128.val[0] = vld1_u8(above + base);
       v_tmp_a0_128.val[1] = vld1_u8(above + base + 1);
-      shift = vshrq_n_u16(vandq_u16(vdupq_n_u16(x), c3f), 1);
+      shift = vdupq_n_u16((x & 0x3f) >> 1);
     }
     a0 = vmovl_u8(v_tmp_a0_128.val[0]);
     a1 = vmovl_u8(v_tmp_a0_128.val[1]);
@@ -1207,8 +1204,7 @@ static AOM_FORCE_INLINE void dr_prediction_z1_HxW_internal_neon_64(
     res = vmlaq_u16(a32, diff, shift);
 
     uint8x8_t mask = vld1_u8(BaseMask[base_max_diff]);
-    dst[r] =
-        vorr_u8(vand_u8(mask, vshrn_n_u16(res, 5)), vbic_u8(a_mbase_x, mask));
+    dst[r] = vbsl_u8(mask, vshrn_n_u16(res, 5), a_mbase_x);
 
     x += dx;
   }
@@ -1255,15 +1251,11 @@ static AOM_FORCE_INLINE void dr_prediction_z1_HxW_internal_neon(
 
   uint8x16x2_t a0, a1;
   uint16x8x2_t diff, a32;
-  uint16x8_t a16, c3f;
-  uint8x16_t a_mbase_x;
 
-  a16 = vdupq_n_u16(16);
-  a_mbase_x = vdupq_n_u8(above[max_base_x]);
-  c3f = vdupq_n_u16(0x3f);
+  uint16x8_t a16 = vdupq_n_u16(16);
+  uint8x16_t a_mbase_x = vdupq_n_u8(above[max_base_x]);
   uint16x8_t v_32 = vdupq_n_u16(32);
   uint8x16_t v_zero = vdupq_n_u8(0);
-  int16x8_t v_upsample_above = vdupq_n_s16(upsample_above);
 
   int x = dx;
   for (int r = 0; r < W; r++) {
@@ -1286,12 +1278,11 @@ static AOM_FORCE_INLINE void dr_prediction_z1_HxW_internal_neon(
       uint8x8x2_t v_tmp_a0_128 = vld2_u8(above + base);
       a0_128 = vcombine_u8(v_tmp_a0_128.val[0], v_tmp_a0_128.val[1]);
       a1_128 = vextq_u8(a0_128, v_zero, 8);
-      shift = vshrq_n_u16(
-          vandq_u16(vshlq_u16(vdupq_n_u16(x), v_upsample_above), c3f), 1);
+      shift = vdupq_n_u16(((x << upsample_above) & 0x3f) >> 1);
     } else {
       a0_128 = vld1q_u8(above + base);
       a1_128 = vld1q_u8(above + base + 1);
-      shift = vshrq_n_u16(vandq_u16(vdupq_n_u16(x), c3f), 1);
+      shift = vdupq_n_u16((x & 0x3f) >> 1);
     }
     a0 = vzipq_u8(a0_128, v_zero);
     a1 = vzipq_u8(a1_128, v_zero);
@@ -1309,7 +1300,7 @@ static AOM_FORCE_INLINE void dr_prediction_z1_HxW_internal_neon(
         vcombine_u8(vshrn_n_u16(res.val[0], 5), vshrn_n_u16(res.val[1], 5));
 
     uint8x16_t mask = vld1q_u8(BaseMask[base_max_diff]);
-    dst[r] = vorrq_u8(vandq_u8(mask, v_temp), vbicq_u8(a_mbase_x, mask));
+    dst[r] = vbslq_u8(mask, v_temp, a_mbase_x);
 
     x += dx;
   }
@@ -1344,11 +1335,9 @@ static AOM_FORCE_INLINE void dr_prediction_z1_32xN_internal_neon(
   uint8x16_t a_mbase_x;
   uint8x16x2_t a0, a1;
   uint16x8x2_t diff, a32;
-  uint16x8_t a16, c3f;
 
   a_mbase_x = vdupq_n_u8(above[max_base_x]);
-  a16 = vdupq_n_u16(16);
-  c3f = vdupq_n_u16(0x3f);
+  uint16x8_t a16 = vdupq_n_u16(16);
   uint16x8_t v_32 = vdupq_n_u16(32);
   uint8x16_t v_zero = vdupq_n_u8(0);
 
@@ -1369,7 +1358,7 @@ static AOM_FORCE_INLINE void dr_prediction_z1_32xN_internal_neon(
     }
     if (base_max_diff > 32) base_max_diff = 32;
 
-    uint16x8_t shift = vshrq_n_u16(vandq_u16(vdupq_n_u16(x), c3f), 1);
+    uint16x8_t shift = vdupq_n_u16((x & 0x3f) >> 1);
 
     for (int j = 0, jj = 0; j < 32; j += 16, jj++) {
       int mdiff = base_max_diff - j;
@@ -1402,10 +1391,8 @@ static AOM_FORCE_INLINE void dr_prediction_z1_32xN_internal_neon(
 
     mask.val[0] = vld1q_u8(BaseMask[base_max_diff]);
     mask.val[1] = vld1q_u8(BaseMask[base_max_diff] + 16);
-    dstvec[r].val[0] = vorrq_u8(vandq_u8(mask.val[0], res16[0]),
-                                vbicq_u8(a_mbase_x, mask.val[0]));
-    dstvec[r].val[1] = vorrq_u8(vandq_u8(mask.val[1], res16[1]),
-                                vbicq_u8(a_mbase_x, mask.val[1]));
+    dstvec[r].val[0] = vbslq_u8(mask.val[0], res16[0], a_mbase_x);
+    dstvec[r].val[1] = vbslq_u8(mask.val[1], res16[1], a_mbase_x);
     x += dx;
   }
 }
@@ -1439,13 +1426,10 @@ static void dr_prediction_z1_64xN_neon(int N, uint8_t *dst, ptrdiff_t stride,
 
   uint8x16x2_t a0, a1;
   uint16x8x2_t a32, diff;
-  uint16x8_t a16, c3f;
-  uint8x16_t a_mbase_x, max_base_x128, mask128;
 
-  a16 = vdupq_n_u16(16);
-  a_mbase_x = vdupq_n_u8(above[max_base_x]);
-  max_base_x128 = vdupq_n_u8(max_base_x);
-  c3f = vdupq_n_u16(0x3f);
+  uint16x8_t a16 = vdupq_n_u16(16);
+  uint8x16_t a_mbase_x = vdupq_n_u8(above[max_base_x]);
+  uint8x16_t max_base_x128 = vdupq_n_u8(max_base_x);
   uint16x8_t v_32 = vdupq_n_u16(32);
   uint8x16_t v_zero = vdupq_n_u8(0);
   uint8x16_t step = vdupq_n_u8(16);
@@ -1466,8 +1450,8 @@ static void dr_prediction_z1_64xN_neon(int N, uint8_t *dst, ptrdiff_t stride,
       return;
     }
 
-    uint16x8_t shift = vshrq_n_u16(vandq_u16(vdupq_n_u16(x), c3f), 1);
-    uint8x16_t a0_128, a1_128, res128;
+    uint16x8_t shift = vdupq_n_u16((x & 0x3f) >> 1);
+    uint8x16_t a0_128, a1_128, res128, mask128;
     uint8x16_t base_inc128 =
         vaddq_u8(vdupq_n_u8(base), vcombine_u8(vcreate_u8(0x0706050403020100),
                                                vcreate_u8(0x0F0E0D0C0B0A0908)));
@@ -1497,8 +1481,7 @@ static void dr_prediction_z1_64xN_neon(int N, uint8_t *dst, ptrdiff_t stride,
             vcombine_u8(vshrn_n_u16(res.val[0], 5), vshrn_n_u16(res.val[1], 5));
 
         mask128 = vcgtq_u8(vqsubq_u8(max_base_x128, base_inc128), v_zero);
-        res128 =
-            vorrq_u8(vandq_u8(mask128, v_temp), vbicq_u8(a_mbase_x, mask128));
+        res128 = vbslq_u8(mask128, v_temp, a_mbase_x);
         vst1q_u8(dst + j, res128);
 
         base_inc128 = vaddq_u8(base_inc128, step);
