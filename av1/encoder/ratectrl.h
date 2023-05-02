@@ -470,11 +470,6 @@ typedef struct {
    */
   int temp_extend_maxq;
 
-  /*!
-   * Temporary variable used in simulating the delayed update of
-   * extend_minq_fast.
-   */
-  int temp_extend_minq_fast;
 #endif
   /*!
    * Proposed minimum allowed Q different layers in a coding pyramid

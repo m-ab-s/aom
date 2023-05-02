@@ -4241,19 +4241,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
             fast_extra_thresh - rc->projected_frame_size;
         p_rc->vbr_bits_off_target_fast = AOMMIN(p_rc->vbr_bits_off_target_fast,
                                                 (4 * rc->avg_frame_bandwidth));
-
-        // Fast adaptation of minQ if necessary to use up the extra bits.
-        if (rc->avg_frame_bandwidth) {
-          twopass->extend_minq_fast = (int)(p_rc->vbr_bits_off_target_fast * 8 /
-                                            rc->avg_frame_bandwidth);
-        }
-        twopass->extend_minq_fast = AOMMIN(
-            twopass->extend_minq_fast, minq_adj_limit - twopass->extend_minq);
-      } else if (p_rc->vbr_bits_off_target_fast) {
-        twopass->extend_minq_fast = AOMMIN(
-            twopass->extend_minq_fast, minq_adj_limit - twopass->extend_minq);
-      } else {
-        twopass->extend_minq_fast = 0;
       }
     }
 
@@ -4264,7 +4251,6 @@ void av1_twopass_postencode_update(AV1_COMP *cpi) {
           p_rc->vbr_bits_off_target_fast;
       cpi->ppi->p_rc.temp_extend_minq = twopass->extend_minq;
       cpi->ppi->p_rc.temp_extend_maxq = twopass->extend_maxq;
-      cpi->ppi->p_rc.temp_extend_minq_fast = twopass->extend_minq_fast;
     }
 #endif
   }
