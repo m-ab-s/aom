@@ -2303,6 +2303,21 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     sf->winner_mode_sf.tx_size_search_level = 3;
   }
 
+  if (cpi->mt_info.num_workers > 1) {
+    // Loop restoration stage is conditionally disabled for speed 5, 6 when
+    // num_workers > 1. Since av1_pick_filter_restoration() is not
+    // multi-threaded, enabling the Loop restoration stage will cause an
+    // increase in encode time (3% to 7% increase depends on frame
+    // resolution).
+    // TODO(any): Implement multi-threading of av1_pick_filter_restoration()
+    // and enable Wiener filter for speed 5, 6 similar to single thread
+    // encoding path.
+    if (speed >= 5) {
+      sf->lpf_sf.disable_sgr_filter = true;
+      sf->lpf_sf.disable_wiener_filter = true;
+    }
+  }
+
   if (!cpi->ppi->seq_params_locked) {
     cpi->common.seq_params->order_hint_info.enable_dist_wtd_comp &=
         (sf->inter_sf.use_dist_wtd_comp_flag != DIST_WTD_COMP_DISABLED);
