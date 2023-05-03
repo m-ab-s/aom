@@ -2464,10 +2464,15 @@ static aom_codec_err_t ctrl_set_target_seq_level_idx(aom_codec_alg_priv_t *ctx,
   const int val = CAST(AV1E_SET_TARGET_SEQ_LEVEL_IDX, args);
   const int level = val % 100;
   const int operating_point_idx = val / 100;
-  if (operating_point_idx >= 0 &&
-      operating_point_idx < MAX_NUM_OPERATING_POINTS) {
-    extra_cfg.target_seq_level_idx[operating_point_idx] = (AV1_LEVEL)level;
+  if (operating_point_idx < 0 ||
+      operating_point_idx >= MAX_NUM_OPERATING_POINTS) {
+    char *const err_string = ctx->ppi->error.detail;
+    snprintf(err_string, ARG_ERR_MSG_MAX_LEN,
+             "Invalid operating point index: %d", operating_point_idx);
+    ctx->base.err_detail = err_string;
+    return AOM_CODEC_INVALID_PARAM;
   }
+  extra_cfg.target_seq_level_idx[operating_point_idx] = (AV1_LEVEL)level;
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4053,8 +4058,12 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
     const int val = arg_parse_int_helper(&arg, err_string);
     const int level = val % 100;
     const int operating_point_idx = val / 100;
-    if (operating_point_idx >= 0 &&
-        operating_point_idx < MAX_NUM_OPERATING_POINTS) {
+    if (operating_point_idx < 0 ||
+        operating_point_idx >= MAX_NUM_OPERATING_POINTS) {
+      snprintf(err_string, ARG_ERR_MSG_MAX_LEN,
+               "Invalid operating point index: %d", operating_point_idx);
+      err = AOM_CODEC_INVALID_PARAM;
+    } else {
       extra_cfg.target_seq_level_idx[operating_point_idx] = (AV1_LEVEL)level;
     }
   } else if (arg_match_helper(&arg,
