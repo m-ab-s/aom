@@ -60,7 +60,9 @@ int aom_arm_cpu_caps(void) {
 #if HAVE_NEON && \
     !(defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
 /*For GetExceptionCode() and EXCEPTION_ILLEGAL_INSTRUCTION.*/
+#undef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#undef WIN32_EXTRA_LEAN
 #define WIN32_EXTRA_LEAN
 #include <windows.h>
 #endif  // HAVE_NEON &&
