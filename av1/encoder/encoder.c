@@ -364,7 +364,7 @@ static void set_bitstream_level_tier(AV1_PRIMARY *const ppi, int width,
                                      int height, double init_framerate) {
   SequenceHeader *const seq_params = &ppi->seq_params;
 #if CONFIG_CWG_C013
-  AV1LevelParams *const level_params = &ppi->level_params;
+  const AV1LevelParams *const level_params = &ppi->level_params;
 #endif
   // TODO(any): This is a placeholder function that only addresses dimensions
   // and max display sample rates.

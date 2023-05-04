@@ -314,7 +314,16 @@ static const AV1LevelSpec av1_level_defs[SEQ_LEVELS] = {
     .high_cr = 4.0,
     .max_tiles = 512,
     .max_tile_cols = 64 },
-#endif
+#else   // !CONFIG_CWG_C013
+  UNDEFINED_LEVEL,
+  UNDEFINED_LEVEL,
+  UNDEFINED_LEVEL,
+  UNDEFINED_LEVEL,
+  UNDEFINED_LEVEL,
+  UNDEFINED_LEVEL,
+  UNDEFINED_LEVEL,
+  UNDEFINED_LEVEL,
+#endif  // CONFIG_CWG_C013
 };
 
 typedef enum {
