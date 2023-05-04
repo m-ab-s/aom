@@ -223,3 +223,66 @@ uint64_t aom_sum_sse_2d_i16_neon(const int16_t *src, int stride, int width,
 
   return sse;
 }
+
+static INLINE uint64_t aom_sum_squares_i16_4xn_neon(const int16_t *src,
+                                                    uint32_t n) {
+  uint64x2_t sum_u64 = vdupq_n_u64(0);
+
+  int i = n;
+  do {
+    uint32x4_t sum;
+    int16x4_t s0 = vld1_s16(src);
+
+    sum = vreinterpretq_u32_s32(vmull_s16(s0, s0));
+
+    sum_u64 = vpadalq_u32(sum_u64, sum);
+
+    src += 4;
+    i -= 4;
+  } while (i >= 4);
+
+  if (i > 0) {
+    return horizontal_add_u64x2(sum_u64) + aom_sum_squares_i16_c(src, i);
+  }
+  return horizontal_add_u64x2(sum_u64);
+}
+
+static INLINE uint64_t aom_sum_squares_i16_8xn_neon(const int16_t *src,
+                                                    uint32_t n) {
+  uint64x2_t sum_u64[2] = { vdupq_n_u64(0), vdupq_n_u64(0) };
+
+  int i = n;
+  do {
+    uint32x4_t sum[2];
+    int16x8_t s0 = vld1q_s16(src);
+
+    sum[0] =
+        vreinterpretq_u32_s32(vmull_s16(vget_low_s16(s0), vget_low_s16(s0)));
+    sum[1] =
+        vreinterpretq_u32_s32(vmull_s16(vget_high_s16(s0), vget_high_s16(s0)));
+
+    sum_u64[0] = vpadalq_u32(sum_u64[0], sum[0]);
+    sum_u64[1] = vpadalq_u32(sum_u64[1], sum[1]);
+
+    src += 8;
+    i -= 8;
+  } while (i >= 8);
+
+  if (i > 0) {
+    return horizontal_add_u64x2(vaddq_u64(sum_u64[0], sum_u64[1])) +
+           aom_sum_squares_i16_c(src, i);
+  }
+  return horizontal_add_u64x2(vaddq_u64(sum_u64[0], sum_u64[1]));
+}
+
+uint64_t aom_sum_squares_i16_neon(const int16_t *src, uint32_t n) {
+  // This function seems to be called only for values of N >= 64. See
+  // av1/encoder/compound_type.c.
+  if (LIKELY(n >= 8)) {
+    return aom_sum_squares_i16_8xn_neon(src, n);
+  }
+  if (n >= 4) {
+    return aom_sum_squares_i16_4xn_neon(src, n);
+  }
+  return aom_sum_squares_i16_c(src, n);
+}
