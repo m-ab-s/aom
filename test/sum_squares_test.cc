@@ -715,6 +715,14 @@ INSTANTIATE_TEST_SUITE_P(AVX2, Lowbd2dVarTest,
 
 #endif  // HAVE_SSE2
 
+#if HAVE_NEON
+
+INSTANTIATE_TEST_SUITE_P(NEON, Lowbd2dVarTest,
+                         ::testing::Values(TestFuncVar2D(&aom_var_2d_u8_c,
+                                                         &aom_var_2d_u8_neon)));
+
+#endif  // HAVE_NEON
+
 class Highbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
  public:
   virtual ~Highbd2dVarTest() {}
