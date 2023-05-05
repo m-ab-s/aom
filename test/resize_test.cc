@@ -788,7 +788,8 @@ class ResizingCspVideoSource : public ::libaom_test::DummyVideoSource {
   virtual ~ResizingCspVideoSource() {}
 };
 
-#if (defined(DISABLE_TRELLISQ_SEARCH) && DISABLE_TRELLISQ_SEARCH)
+#if (defined(DISABLE_TRELLISQ_SEARCH) && DISABLE_TRELLISQ_SEARCH) || \
+    (defined(CONFIG_MAX_DECODE_PROFILE) && CONFIG_MAX_DECODE_PROFILE < 1)
 TEST_P(ResizeCspTest, DISABLED_TestResizeCspWorks) {
 #else
 TEST_P(ResizeCspTest, TestResizeCspWorks) {

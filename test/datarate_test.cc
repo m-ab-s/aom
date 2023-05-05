@@ -397,7 +397,11 @@ TEST_P(DatarateTestLarge, ErrorResilienceOnSceneCuts) {
 }
 
 // Check basic rate targeting for CBR, for 444 input screen mode.
+#if defined(CONFIG_MAX_DECODE_PROFILE) && CONFIG_MAX_DECODE_PROFILE < 1
+TEST_P(DatarateTestLarge, DISABLED_BasicRateTargeting444CBRScreen) {
+#else
 TEST_P(DatarateTestLarge, BasicRateTargeting444CBRScreen) {
+#endif
   BasicRateTargeting444CBRScreenTest();
 }
 
@@ -509,7 +513,11 @@ TEST_P(DatarateTestRealtime, ErrorResilienceOnSceneCuts) {
 }
 
 // Check basic rate targeting for CBR for 444 screen mode.
+#if defined(CONFIG_MAX_DECODE_PROFILE) && CONFIG_MAX_DECODE_PROFILE < 1
+TEST_P(DatarateTestRealtime, DISABLED_BasicRateTargeting444CBRScreen) {
+#else
 TEST_P(DatarateTestRealtime, BasicRateTargeting444CBRScreen) {
+#endif
   BasicRateTargeting444CBRScreenTest();
 }
 

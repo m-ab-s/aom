@@ -2214,7 +2214,11 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL3SLKf) {
 
 // Check basic rate targeting for CBR, for 3 spatial, 3 temporal layers,
 // for 4:4:4 input.
+#if defined(CONFIG_MAX_DECODE_PROFILE) && CONFIG_MAX_DECODE_PROFILE < 1
+TEST_P(DatarateTestSVC, DISABLED_BasicRateTargeting444SVC3TL3SL) {
+#else
 TEST_P(DatarateTestSVC, BasicRateTargeting444SVC3TL3SL) {
+#endif
   BasicRateTargeting444SVC3TL3SLTest();
 }
 
