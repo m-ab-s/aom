@@ -265,6 +265,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/arm/hadamard_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/avg_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/obmc_variance_neon.c"
+              "${AOM_ROOT}/aom_dsp/arm/obmc_sad_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/sse_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/sum_squares_neon.c")
 
