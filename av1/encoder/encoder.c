@@ -375,9 +375,7 @@ static INLINE int does_level_match(int width, int height, double fps,
 static void set_bitstream_level_tier(AV1_PRIMARY *const ppi, int width,
                                      int height, double init_framerate) {
   SequenceHeader *const seq_params = &ppi->seq_params;
-#if CONFIG_CWG_C013
   const AV1LevelParams *const level_params = &ppi->level_params;
-#endif
   // TODO(any): This is a placeholder function that only addresses dimensions
   // and max display sample rates.
   // Need to add checks for max bit rate, max decoded luma sample rate, header
@@ -447,7 +445,15 @@ static void set_bitstream_level_tier(AV1_PRIMARY *const ppi, int width,
 #endif
 
   for (int i = 0; i < MAX_NUM_OPERATING_POINTS; ++i) {
-    seq_params->seq_level_idx[i] = level;
+    assert(is_valid_seq_level_idx(level_params->target_seq_level_idx[i]) ||
+           level_params->target_seq_level_idx[i] == SEQ_LEVEL_KEEP_STATS);
+    // If a higher target level is specified, it is then used rather than the
+    // inferred one from resolution and framerate.
+    seq_params->seq_level_idx[i] =
+        level_params->target_seq_level_idx[i] < SEQ_LEVELS &&
+                level_params->target_seq_level_idx[i] > level
+            ? level_params->target_seq_level_idx[i]
+            : level;
     // Set the maximum parameters for bitrate and buffer size for this profile,
     // level, and tier
     seq_params->op_params[i].bitrate = av1_max_level_bitrate(
