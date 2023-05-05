@@ -559,43 +559,48 @@ SIMD_INLINE v64 v64_cmpeq_16(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_shl_8(v64 a, unsigned int c) {
-  return vreinterpret_s64_u8(vshl_u8(vreinterpret_u8_s64(a), vdup_n_s8(c)));
+  return vreinterpret_s64_u8(
+      vshl_u8(vreinterpret_u8_s64(a), vdup_n_s8((int8_t)c)));
 }
 
 SIMD_INLINE v64 v64_shr_u8(v64 a, unsigned int c) {
-  return vreinterpret_s64_u8(vshl_u8(vreinterpret_u8_s64(a), vdup_n_s8(-c)));
+  return vreinterpret_s64_u8(
+      vshl_u8(vreinterpret_u8_s64(a), vdup_n_s8(-(int8_t)c)));
 }
 
 SIMD_INLINE v64 v64_shr_s8(v64 a, unsigned int c) {
-  return vreinterpret_s64_s8(vshl_s8(vreinterpret_s8_s64(a), vdup_n_s8(-c)));
+  return vreinterpret_s64_s8(
+      vshl_s8(vreinterpret_s8_s64(a), vdup_n_s8(-(int8_t)c)));
 }
 
 SIMD_INLINE v64 v64_shl_16(v64 a, unsigned int c) {
-  return vreinterpret_s64_u16(vshl_u16(vreinterpret_u16_s64(a), vdup_n_s16(c)));
+  return vreinterpret_s64_u16(
+      vshl_u16(vreinterpret_u16_s64(a), vdup_n_s16((int16_t)c)));
 }
 
 SIMD_INLINE v64 v64_shr_u16(v64 a, unsigned int c) {
   return vreinterpret_s64_u16(
-      vshl_u16(vreinterpret_u16_s64(a), vdup_n_s16(-(int)c)));
+      vshl_u16(vreinterpret_u16_s64(a), vdup_n_s16(-(int16_t)c)));
 }
 
 SIMD_INLINE v64 v64_shr_s16(v64 a, unsigned int c) {
   return vreinterpret_s64_s16(
-      vshl_s16(vreinterpret_s16_s64(a), vdup_n_s16(-(int)c)));
+      vshl_s16(vreinterpret_s16_s64(a), vdup_n_s16(-(int16_t)c)));
 }
 
 SIMD_INLINE v64 v64_shl_32(v64 a, unsigned int c) {
-  return vreinterpret_s64_u32(vshl_u32(vreinterpret_u32_s64(a), vdup_n_s32(c)));
+  return vreinterpret_s64_u32(
+      vshl_u32(vreinterpret_u32_s64(a), vdup_n_s32((int32_t)c)));
 }
 
 SIMD_INLINE v64 v64_shr_u32(v64 a, unsigned int c) {
   return vreinterpret_s64_u32(
-      vshl_u32(vreinterpret_u32_s64(a), vdup_n_s32(-(int)c)));
+      vshl_u32(vreinterpret_u32_s64(a), vdup_n_s32(-(int32_t)c)));
 }
 
 SIMD_INLINE v64 v64_shr_s32(v64 a, unsigned int c) {
   return vreinterpret_s64_s32(
-      vshl_s32(vreinterpret_s32_s64(a), vdup_n_s32(-(int)c)));
+      vshl_s32(vreinterpret_s32_s64(a), vdup_n_s32(-(int32_t)c)));
 }
 
 // The following functions require an immediate.
