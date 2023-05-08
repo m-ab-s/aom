@@ -732,7 +732,6 @@ void av1_estimate_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
       RDCOST(x->rdmult, ref_cost_intra + intra_cost_penalty, 0);
   int perform_intra_pred = rt_sf->check_intra_pred_nonrd;
   int force_intra_check = 0;
-  int allow_blk_skip = 1;
   // For spatial enhancement layer: turn off intra prediction if the
   // previous spatial layer as golden ref is not chosen as best reference.
   // only do this for temporal enhancement layer and on non-key frames.
@@ -829,13 +828,6 @@ void av1_estimate_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   }
   pd->dst = *orig_dst;
 
-  // TODO(marpan): This is to remove bad visual artifact.
-  // For now avoid use of the blk_skip feature (set in block_yrd),
-  // unless it's spatially flat or stationary block.
-  if (x->source_variance > 0 &&
-      x->content_state_sb.source_sad_nonrd != kZeroSad)
-    allow_blk_skip = 0;
-
   for (int midx = 0; midx < RTC_INTRA_MODES; ++midx) {
     const PREDICTION_MODE this_mode = intra_mode_list[midx];
     const THR_MODES mode_index = mode_idx[INTRA_FRAME][mode_offset(this_mode)];
@@ -926,13 +918,12 @@ void av1_estimate_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
       best_pickmode->best_ref_frame = INTRA_FRAME;
       best_pickmode->best_second_ref_frame = NONE;
       best_pickmode->best_mode_skip_txfm = this_rdc.skip_txfm;
-      if (allow_blk_skip && !this_rdc.skip_txfm) {
-        memcpy(ctx->blk_skip, x->txfm_search_info.blk_skip,
-               sizeof(x->txfm_search_info.blk_skip[0]) * ctx->num_4x4_blk);
-      }
       mi->uv_mode = this_mode;
       mi->mv[0].as_int = INVALID_MV;
       mi->mv[1].as_int = INVALID_MV;
+      if (!this_rdc.skip_txfm)
+        memset(ctx->blk_skip, 0,
+               sizeof(x->txfm_search_info.blk_skip[0]) * ctx->num_4x4_blk);
     }
   }
   mi->tx_size = best_pickmode->best_tx_size;
