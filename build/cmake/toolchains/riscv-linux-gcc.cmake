@@ -18,7 +18,7 @@ set(CMAKE_SYSTEM_NAME "Linux")
 if("${CROSS}" STREQUAL "")
 
   # Default the cross compiler prefix to something known to work.
-  set(CROSS riscv64-unknown-linux-gnu-)
+  set(CROSS riscv64-linux-gnu-)
 endif()
 
 if(NOT CMAKE_C_COMPILER)
