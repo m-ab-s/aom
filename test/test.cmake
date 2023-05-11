@@ -354,6 +354,11 @@ if(NOT BUILD_SHARED_LIBS)
 
   endif()
 
+  if(HAVE_NEON)
+    list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
+                "${AOM_ROOT}/test/av1_convolve_scale_test.cc")
+  endif()
+
   if(HAVE_SSE4_2 OR HAVE_ARM_CRC32)
     list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES "${AOM_ROOT}/test/hash_test.cc")
   endif()

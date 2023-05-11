@@ -455,11 +455,20 @@ TEST_P(LowBDConvolveScaleTest, Check) { Run(); }
 TEST_P(LowBDConvolveScaleTest, DISABLED_Speed) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
+    C, LowBDConvolveScaleTest,
+    ::testing::Combine(::testing::Values(av1_convolve_2d_scale_c),
+                       ::testing::ValuesIn(kBlockDim),
+                       ::testing::ValuesIn(kNTaps), ::testing::ValuesIn(kNTaps),
+                       ::testing::Bool()));
+
+#if HAVE_SSE4_1
+INSTANTIATE_TEST_SUITE_P(
     SSE4_1, LowBDConvolveScaleTest,
     ::testing::Combine(::testing::Values(av1_convolve_2d_scale_sse4_1),
                        ::testing::ValuesIn(kBlockDim),
                        ::testing::ValuesIn(kNTaps), ::testing::ValuesIn(kNTaps),
                        ::testing::Bool()));
+#endif  // HAVE_SSE4_1
 
 #if CONFIG_AV1_HIGHBITDEPTH
 typedef void (*HighbdConvolveFunc)(const uint16_t *src, int src_stride,
@@ -522,10 +531,30 @@ TEST_P(HighBDConvolveScaleTest, Check) { Run(); }
 TEST_P(HighBDConvolveScaleTest, DISABLED_Speed) { SpeedTest(); }
 
 INSTANTIATE_TEST_SUITE_P(
+    C, HighBDConvolveScaleTest,
+    ::testing::Combine(::testing::Values(av1_highbd_convolve_2d_scale_c),
+                       ::testing::ValuesIn(kBlockDim),
+                       ::testing::ValuesIn(kNTaps), ::testing::ValuesIn(kNTaps),
+                       ::testing::Bool(), ::testing::ValuesIn(kBDs)));
+
+#if HAVE_SSE4_1
+INSTANTIATE_TEST_SUITE_P(
     SSE4_1, HighBDConvolveScaleTest,
     ::testing::Combine(::testing::Values(av1_highbd_convolve_2d_scale_sse4_1),
                        ::testing::ValuesIn(kBlockDim),
                        ::testing::ValuesIn(kNTaps), ::testing::ValuesIn(kNTaps),
                        ::testing::Bool(), ::testing::ValuesIn(kBDs)));
+#endif  // HAVE_SSE4_1
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, HighBDConvolveScaleTest,
+    ::testing::Combine(::testing::Values(av1_highbd_convolve_2d_scale_neon),
+                       ::testing::ValuesIn(kBlockDim),
+                       ::testing::ValuesIn(kNTaps), ::testing::ValuesIn(kNTaps),
+                       ::testing::Bool(), ::testing::ValuesIn(kBDs)));
+
+#endif  // HAVE_NEON
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace
