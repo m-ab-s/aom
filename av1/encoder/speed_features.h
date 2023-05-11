@@ -840,11 +840,15 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 2: used with static rd model
   int inter_mode_rd_model_estimation;
 
-  // Bypass transform search based on skip rd
+  // Bypass transform search based on skip rd at following stages
+  //   i. Compound type mode search
+  //  ii. Motion mode search (mode evaluation and winner motion mode stage)
+  // iii. Trasform search for best inter candidates
   int txfm_rd_gate_level;
 
   // Set transform rd gating offset used in mode evaluation stage of motion
   // mode. This sf is applicable only if txfm_rd_gate_level is enabled.
+  // TODO(Cherma): Combine this sf with txfm_rd_gate_level.
   int motion_mode_txfm_rd_gating_offset;
 
   // Limit the inter mode tested in the RD loop
