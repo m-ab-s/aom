@@ -96,11 +96,11 @@ struct FrameInfo {
 };
 
 void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
-                         unsigned int initial_h, unsigned int *w,
-                         unsigned int *h, int flag_codec,
-                         bool change_start_resln_) {
+                         unsigned int initial_h, int flag_codec,
+                         bool change_start_resln, unsigned int *w,
+                         unsigned int *h) {
   if (frame < 10) {
-    if (change_start_resln_) {
+    if (change_start_resln) {
       *w = initial_w / 4;
       *h = initial_h / 4;
     } else {
@@ -189,21 +189,21 @@ class ResizingVideoSource : public ::libaom_test::DummyVideoSource {
   virtual ~ResizingVideoSource() {}
 
  protected:
-  virtual void Begin() {
+  void Begin() override {
     frame_ = 0;
     unsigned int width;
     unsigned int height;
-    ScaleForFrameNumber(frame_, kInitialWidth, kInitialHeight, &width, &height,
-                        flag_codec_, change_start_resln_);
+    ScaleForFrameNumber(frame_, kInitialWidth, kInitialHeight, flag_codec_,
+                        change_start_resln_, &width, &height);
     SetSize(width, height);
     FillFrame();
   }
-  virtual void Next() {
+  void Next() override {
     ++frame_;
     unsigned int width;
     unsigned int height;
-    ScaleForFrameNumber(frame_, kInitialWidth, kInitialHeight, &width, &height,
-                        flag_codec_, change_start_resln_);
+    ScaleForFrameNumber(frame_, kInitialWidth, kInitialHeight, flag_codec_,
+                        change_start_resln_, &width, &height);
     SetSize(width, height);
     FillFrame();
   }
@@ -257,8 +257,8 @@ TEST_P(ResizeTest, TestExternalResizeWorks) {
     const unsigned int frame = static_cast<unsigned>(info->pts);
     unsigned int expected_w;
     unsigned int expected_h;
-    ScaleForFrameNumber(frame, kInitialWidth, kInitialHeight, &expected_w,
-                        &expected_h, 0, video.change_start_resln_);
+    ScaleForFrameNumber(frame, kInitialWidth, kInitialHeight, video.flag_codec_,
+                        video.change_start_resln_, &expected_w, &expected_h);
     EXPECT_EQ(expected_w, info->w)
         << "Frame " << frame << " had unexpected width";
     EXPECT_EQ(expected_h, info->h)
@@ -617,22 +617,22 @@ TEST_P(ResizeRealtimeTest, TestExternalResizeWorks) {
   // 1. kInitialWidth and kInitialHeight
   // 2. down-scaled kInitialWidth and kInitialHeight
   for (int i = 0; i < 2; i++) {
-    video.change_start_resln_ = (bool)i;
+    video.change_start_resln_ = static_cast<bool>(i);
 
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
     // Check we decoded the same number of frames as we attempted to encode
     ASSERT_EQ(frame_info_list_.size(), video.limit());
-    for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
-         info != frame_info_list_.end(); ++info) {
-      const unsigned int frame = static_cast<unsigned>(info->pts);
+    for (const auto &info : frame_info_list_) {
+      const unsigned int frame = static_cast<unsigned>(info.pts);
       unsigned int expected_w;
       unsigned int expected_h;
-      ScaleForFrameNumber(frame, kInitialWidth, kInitialHeight, &expected_w,
-                          &expected_h, 1, video.change_start_resln_);
-      EXPECT_EQ(expected_w, info->w)
+      ScaleForFrameNumber(frame, kInitialWidth, kInitialHeight,
+                          video.flag_codec_, video.change_start_resln_,
+                          &expected_w, &expected_h);
+      EXPECT_EQ(expected_w, info.w)
           << "Frame " << frame << " had unexpected width";
-      EXPECT_EQ(expected_h, info->h)
+      EXPECT_EQ(expected_h, info.h)
           << "Frame " << frame << " had unexpected height";
       EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
     }
