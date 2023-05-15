@@ -70,7 +70,6 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
   bp->best_motion_mode = SIMPLE_TRANSLATION;
   bp->num_proj_ref = 0;
   av1_zero(bp->wm_params);
-  av1_zero(bp->blk_skip);
   av1_zero(bp->pmi);
 }
 
@@ -94,7 +93,7 @@ static INLINE void update_search_state_nonrd(
   best_pickmode->best_mode_initial_skip_flag =
       (nonskip_rdc->rate == INT_MAX && search_state->this_rdc.skip_txfm);
   if (!best_pickmode->best_mode_skip_txfm) {
-    memcpy(best_pickmode->blk_skip, txfm_info->blk_skip,
+    memcpy(ctx->blk_skip, txfm_info->blk_skip,
            sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
   }
 }
@@ -2948,7 +2947,7 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
       search_state->best_rdc.rdcost = idx_rdcost;
       best_pickmode->best_mode_skip_txfm = idtx_rdc.skip_txfm;
       if (!idtx_rdc.skip_txfm) {
-        memcpy(best_pickmode->blk_skip, txfm_info->blk_skip,
+        memcpy(ctx->blk_skip, txfm_info->blk_skip,
                sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
       }
       xd->tx_type_map[0] = best_pickmode->tx_type;
@@ -3182,9 +3181,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   inter_pred_params_sr.conv_params =
       get_conv_params(/*do_average=*/0, AOM_PLANE_Y, xd->bd);
 
-  memset(txfm_info->blk_skip, 0,
-         sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
-
   for (int idx = 0; idx < num_inter_modes + tot_num_comp_modes; ++idx) {
     // If we are at the first compound mode, and the single modes already
     // perform well, then end the search.
@@ -3329,16 +3325,6 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     memset(ctx->blk_skip, 0, sizeof(ctx->blk_skip[0]) * ctx->num_4x4_blk);
   } else {
     txfm_info->skip_txfm = best_pickmode->best_mode_skip_txfm;
-    if (!txfm_info->skip_txfm) {
-      // For inter modes: copy blk_skip from best_pickmode.
-      // If palette or intra mode was selected as best then
-      // blk_skip is already copied into the ctx.
-      // TODO(marpan): Look into removing blk_skip from best_pickmode
-      // and just copy directly into the ctx for inter.
-      if (best_pickmode->best_mode >= INTRA_MODE_END)
-        memcpy(ctx->blk_skip, best_pickmode->blk_skip,
-               sizeof(best_pickmode->blk_skip[0]) * ctx->num_4x4_blk);
-    }
   }
   if (has_second_ref(mi)) {
     mi->comp_group_idx = 0;
