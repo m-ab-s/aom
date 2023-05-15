@@ -380,6 +380,7 @@ class EstimateNoiseTest
   int height_;
   int stride_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EstimateNoiseTest);
 
 TEST_P(EstimateNoiseTest, RandomValues) { RunTest(1); }
 
