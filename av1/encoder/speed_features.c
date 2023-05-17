@@ -886,7 +886,6 @@ static void set_good_speed_feature_framesize_dependent(
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
 
     sf->hl_sf.recode_tolerance = 55;
-    if (!is_480p_or_larger) sf->hl_sf.num_frames_used_in_tf = 3;
   }
 }
 
@@ -1246,6 +1245,8 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 6) {
     sf->hl_sf.disable_extra_sc_testing = 1;
     sf->hl_sf.second_alt_ref_filtering = 0;
+    sf->hl_sf.adjust_num_frames_for_arf_filtering =
+        allow_screen_content_tools ? 0 : 1;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.selective_ref_frame = 6;
@@ -1868,7 +1869,7 @@ static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->superres_auto_search_type = SUPERRES_AUTO_ALL;
   hl_sf->disable_extra_sc_testing = 0;
   hl_sf->second_alt_ref_filtering = 1;
-  hl_sf->num_frames_used_in_tf = INT_MAX;
+  hl_sf->adjust_num_frames_for_arf_filtering = 0;
   hl_sf->accurate_bit_estimate = 0;
   hl_sf->weight_calc_level_in_tf = 0;
 }

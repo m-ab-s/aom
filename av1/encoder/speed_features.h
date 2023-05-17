@@ -432,10 +432,10 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   int second_alt_ref_filtering;
 
   /*!
-   * Number of frames to be used in temporal filtering controlled based on noise
-   * levels and arf-q.
+   * The number of frames to be used during temporal filtering of an ARF frame
+   * is adjusted based on noise level of the current frame.
    */
-  int num_frames_used_in_tf;
+  int adjust_num_frames_for_arf_filtering;
 
   /*!
    * Decide the bit estimation approach used in qindex decision.

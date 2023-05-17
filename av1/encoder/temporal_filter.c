@@ -1051,6 +1051,18 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
     adjust_num = 0;
   } else if ((update_type == KF_UPDATE) && q <= 10) {
     adjust_num = 0;
+  } else if (cpi->sf.hl_sf.adjust_num_frames_for_arf_filtering &&
+             update_type != KF_UPDATE) {
+    // Adjust number of frames to be considered for filtering based on noise
+    // level of the current frame. For low-noise frame, use more frames to
+    // filter such that the filtered frame can provide better predictions for
+    // subsequent frames and vice versa.
+    if (noise_levels[AOM_PLANE_Y] < 0.5)
+      adjust_num = 4;
+    else if (noise_levels[AOM_PLANE_Y] < 1.0)
+      adjust_num = 2;
+    else
+      adjust_num = 0;
   }
   num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth);
 
@@ -1065,10 +1077,6 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
 
     num_frames = AOMMIN(num_frames, gfu_boost / 150);
     num_frames += !(num_frames & 1);  // Make the number odd.
-
-    // Limit the number of frames if noise levels are low and high quantizers.
-    if (noise_levels[AOM_PLANE_Y] < 1.9 && cpi->ppi->p_rc.arf_q > 40)
-      num_frames = AOMMIN(num_frames, cpi->sf.hl_sf.num_frames_used_in_tf);
 
     // Only use 2 neighbours for the second ARF.
     if (update_type == INTNL_ARF_UPDATE) num_frames = AOMMIN(num_frames, 3);
