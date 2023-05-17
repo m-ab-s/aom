@@ -2316,7 +2316,8 @@ static void cdef_restoration_frame(AV1_COMP *cpi, AV1_COMMON *cm,
                     cpi->sf.lpf_sf.cdef_pick_method, cpi->td.mb.rdmult,
                     cpi->sf.rt_sf.skip_cdef_sb, cpi->oxcf.tool_cfg.cdef_control,
                     use_screen_content_model,
-                    cpi->ppi->rtc_ref.non_reference_frame);
+                    cpi->ppi->rtc_ref.non_reference_frame,
+                    cpi->rc.rtc_external_ratectrl);
 
     // Apply the filter
     if ((skip_apply_postproc_filters & SKIP_APPLY_CDEF) == 0) {
