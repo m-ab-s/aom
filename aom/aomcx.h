@@ -1513,6 +1513,11 @@ enum aome_enc_control_id {
    */
   AV1E_SET_RATE_DISTRIBUTION_INFO = 161,
 
+  /*!\brief Codec control to get the CDEF strength for Y / luma plane.
+   * Returns an array of CDEF_MAX_STRENGTHS.
+   */
+  AV1E_GET_LUMA_CDEF_STRENGTH = 162,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -2151,6 +2156,9 @@ AOM_CTRL_USE_TYPE(AV1E_ENABLE_RATE_GUIDE_DELTAQ, unsigned int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_RATE_DISTRIBUTION_INFO, const char *)
 #define AOM_CTRL_AV1E_SET_RATE_DISTRIBUTION_INFO
+
+AOM_CTRL_USE_TYPE(AV1E_GET_LUMA_CDEF_STRENGTH, int *)
+#define AOM_CTRL_AV1E_GET_LUMA_CDEF_STRENGTH
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
