@@ -108,6 +108,33 @@ static INLINE uint16x4_t highbd_convolve8_4_s32_s16(
   return vqrshrun_n_s32(sum, COMPOUND_ROUND1_BITS);
 }
 
+static INLINE uint16x4_t highbd_convolve8_sr_4_s32_s16(
+    const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
+    const int16x4_t s3, const int16x4_t s4, const int16x4_t s5,
+    const int16x4_t s6, const int16x4_t s7, const int16x8_t y_filter,
+    const int32x4_t shift_s32, const int32x4_t offset) {
+  int32x4_t sum =
+      highbd_convolve8_4_s32(s0, s1, s2, s3, s4, s5, s6, s7, y_filter, offset);
+
+  sum = vqrshlq_s32(sum, shift_s32);
+  return vqmovun_s32(sum);
+}
+
+static INLINE uint16x4_t highbd_convolve8_wtd_4_s32_s16(
+    const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
+    const int16x4_t s3, const int16x4_t s4, const int16x4_t s5,
+    const int16x4_t s6, const int16x4_t s7, const int16x8_t y_filter,
+    const int32x4_t shift_s32, const int32x4_t offset, const int32x4_t weight,
+    const int32x4_t offset2) {
+  int32x4_t sum =
+      highbd_convolve8_4_s32(s0, s1, s2, s3, s4, s5, s6, s7, y_filter, offset);
+
+  sum = vqrshlq_s32(sum, shift_s32);
+  sum = vmlaq_s32(offset2, sum, weight);
+
+  return vqmovun_s32(sum);
+}
+
 // Like above but also perform round shifting and subtract correction term
 static INLINE uint16x4_t highbd_convolve8_4_sr_s32_s16(
     const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
@@ -161,6 +188,25 @@ static INLINE uint16x8_t highbd_convolve8_8_s32_s16(
 
   return vcombine_u16(vqrshrun_n_s32(sum0, COMPOUND_ROUND1_BITS),
                       vqrshrun_n_s32(sum1, COMPOUND_ROUND1_BITS));
+}
+
+static INLINE uint16x8_t highbd_convolve8_wtd_8_s32_s16(
+    const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
+    const int16x8_t s3, const int16x8_t s4, const int16x8_t s5,
+    const int16x8_t s6, const int16x8_t s7, const int16x8_t y_filter,
+    const int32x4_t shift_s32, const int32x4_t offset, const int32x4_t weight,
+    const int32x4_t offset2) {
+  int32x4_t sum0;
+  int32x4_t sum1;
+  highbd_convolve8_8_s32(s0, s1, s2, s3, s4, s5, s6, s7, y_filter, offset,
+                         &sum0, &sum1);
+
+  sum0 = vqrshlq_s32(sum0, shift_s32);
+  sum1 = vqrshlq_s32(sum1, shift_s32);
+  sum0 = vmlaq_s32(offset2, sum0, weight);
+  sum1 = vmlaq_s32(offset2, sum1, weight);
+
+  return vcombine_u16(vqmovun_s32(sum0), vqmovun_s32(sum1));
 }
 
 // Like above but also perform round shifting and subtract correction term
@@ -339,6 +385,17 @@ static INLINE uint16x4_t highbd_convolve8_horiz4_s32_s16(
   return vqmovun_s32(sum);
 }
 
+static INLINE uint16x4_t highbd_convolve8_wtd_horiz4_s32_s16(
+    const int16x8_t s0, const int16x8_t s1, const int16x8_t x_filter_0_7,
+    const int32x4_t shift_s32, const int32x4_t offset, const int32x4_t weight,
+    const int32x4_t offset2) {
+  int32x4_t sum = highbd_convolve8_horiz4_s32(s0, s1, x_filter_0_7, offset);
+
+  sum = vqrshlq_s32(sum, shift_s32);
+  sum = vmlaq_s32(offset2, sum, weight);
+  return vqmovun_s32(sum);
+}
+
 static INLINE void highbd_convolve8_horiz8_s32(
     const int16x8_t s0, const int16x8_t s0_hi, const int16x8_t x_filter_0_7,
     const int32x4_t offset, int32x4_t *sum0, int32x4_t *sum1) {
@@ -362,6 +419,21 @@ static INLINE uint16x8_t highbd_convolve8_horiz8_s32_s16(
 
   sum0 = vqrshlq_s32(sum0, shift_s32);
   sum1 = vqrshlq_s32(sum1, shift_s32);
+
+  return vcombine_u16(vqmovun_s32(sum0), vqmovun_s32(sum1));
+}
+
+static INLINE uint16x8_t highbd_convolve8_wtd_horiz8_s32_s16(
+    const int16x8_t s0, const int16x8_t s1, const int16x8_t x_filter_0_7,
+    const int32x4_t shift_s32, const int32x4_t offset, const int32x4_t weight,
+    const int32x4_t offset2) {
+  int32x4_t sum0, sum1;
+  highbd_convolve8_horiz8_s32(s0, s1, x_filter_0_7, offset, &sum0, &sum1);
+
+  sum0 = vqrshlq_s32(sum0, shift_s32);
+  sum1 = vqrshlq_s32(sum1, shift_s32);
+  sum0 = vmlaq_s32(offset2, sum0, weight);
+  sum1 = vmlaq_s32(offset2, sum1, weight);
 
   return vcombine_u16(vqmovun_s32(sum0), vqmovun_s32(sum1));
 }
