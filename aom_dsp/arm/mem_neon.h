@@ -12,7 +12,6 @@
 #define AOM_AOM_DSP_ARM_MEM_NEON_H_
 
 #include <arm_neon.h>
-#include <assert.h>
 #include <string.h>
 #include "aom_dsp/aom_dsp_common.h"
 
@@ -99,19 +98,6 @@ static INLINE uint8x8_t load_u8_4x1_lane0(const uint8_t *p) {
   uint8x8_t ret = vdup_n_u8(0);
   load_u8_4x1(p, &ret, 0);
   return ret;
-}
-
-// Load 2 sets of 4 bytes when alignment is guaranteed.
-static INLINE uint8x8_t load_u8(const uint8_t *buf, ptrdiff_t stride) {
-  uint32x2_t a = vdup_n_u32(0);
-
-  assert(!((intptr_t)buf % sizeof(uint32_t)));
-  assert(!(stride % sizeof(uint32_t)));
-
-  a = vld1_lane_u32((const uint32_t *)buf, a, 0);
-  buf += stride;
-  a = vld1_lane_u32((const uint32_t *)buf, a, 1);
-  return vreinterpret_u8_u32(a);
 }
 
 static INLINE void load_u8_8x8(const uint8_t *s, ptrdiff_t p,
