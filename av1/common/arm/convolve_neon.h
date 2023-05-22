@@ -232,7 +232,7 @@ static INLINE int16x8_t convolve8_8x8_s16(
 
 // clang versions < 16 did not include the dotprod feature for Arm architecture
 // versions that should have it by default, e.g., armv8.6-a.
-#if defined(__aarch64__) && \
+#if AOM_ARCH_AARCH64 && \
     (defined(__ARM_FEATURE_DOTPROD) || defined(__ARM_FEATURE_MATMUL_INT8))
 
 DECLARE_ALIGNED(16, static const uint8_t, dot_prod_permute_tbl[48]) = {
@@ -241,9 +241,9 @@ DECLARE_ALIGNED(16, static const uint8_t, dot_prod_permute_tbl[48]) = {
   8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14
 };
 
-#endif  // defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#endif  // AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
 
-#if defined(__aarch64__) && defined(__ARM_FEATURE_MATMUL_INT8)
+#if AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_MATMUL_INT8)
 
 static INLINE int16x8_t convolve8_x_8_usdot(uint8x16_t samples,
                                             const int8x8_t filters,
@@ -319,7 +319,7 @@ static INLINE int32x4_t convolve8_4_usdot(uint8x16_t samples,
   return sum;
 }
 
-#elif defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#elif AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
 
 static INLINE int16x8_t convolve8_horiz_8_sdot(uint8x16_t samples,
                                                const int8x8_t filters,
@@ -444,7 +444,7 @@ static INLINE int16x8_t convolve8_x_8_sdot(uint8x16_t samples,
   return vcombine_s16(vmovn_s32(sum[0]), vmovn_s32(sum[1]));
 }
 
-#endif  // defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#endif  // AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
 
 static INLINE int16x4_t convolve8_4x4_s16(
     const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
@@ -508,7 +508,7 @@ static INLINE int16x8_t convolve6_8x4(const int16x8_t s0, const int16x8_t s1,
   return sum;
 }
 
-#if !(defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD))
+#if !(AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD))
 
 static INLINE int16x4_t convolve8_horiz_4x4_s16(
     const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
@@ -556,6 +556,6 @@ static INLINE int16x8_t convolve8_horiz_8x8_s16(
   return vshrq_n_s16(sum, ROUND0_BITS - 1);
 }
 
-#endif  // !(defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD))
+#endif  // !(AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD))
 
 #endif  // AOM_AV1_COMMON_ARM_CONVOLVE_NEON_H_

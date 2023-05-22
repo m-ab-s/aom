@@ -57,16 +57,14 @@ int aom_arm_cpu_caps(void) {
 }
 
 #elif defined(_MSC_VER) /* end !CONFIG_RUNTIME_CPU_DETECT || __APPLE__ */
-#if HAVE_NEON && \
-    !(defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
+#if HAVE_NEON && !AOM_ARCH_AARCH64
 /*For GetExceptionCode() and EXCEPTION_ILLEGAL_INSTRUCTION.*/
 #undef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #undef WIN32_EXTRA_LEAN
 #define WIN32_EXTRA_LEAN
 #include <windows.h>
-#endif  // HAVE_NEON &&
-        // !(defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
+#endif  // HAVE_NEON && !AOM_ARCH_AARCH64
 
 int aom_arm_cpu_caps(void) {
   int flags;
@@ -75,7 +73,7 @@ int aom_arm_cpu_caps(void) {
     return flags;
   }
   mask = arm_cpu_env_mask();
-#if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#if AOM_ARCH_AARCH64
   return HAS_NEON & mask;
 #else
 /* MSVC has no inline __asm support for ARM, but it does let you __emit
@@ -94,7 +92,7 @@ int aom_arm_cpu_caps(void) {
   }
 #endif  /* HAVE_NEON */
   return flags & mask;
-#endif  // defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#endif  // AOM_ARCH_AARCH64
 }
 
 #elif defined(__ANDROID__) /* end _MSC_VER */

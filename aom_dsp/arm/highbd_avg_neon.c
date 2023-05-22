@@ -98,7 +98,7 @@ void aom_highbd_minmax_8x8_neon(const uint8_t *s8, int p, const uint8_t *d8,
   const uint16x8_t min4567 = vminq_u16(min45, min67);
   const uint16x8_t min07 = vminq_u16(min0123, min4567);
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   *max = (int)vmaxvq_u16(max07);
   *min = (int)vminvq_u16(min07);
 #else

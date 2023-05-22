@@ -26,7 +26,7 @@
 #include "av1/encoder/rd.h"
 
 static INLINE uint16_t get_max_eob(int16x8_t v_eobmax) {
-#ifdef __aarch64__
+#if AOM_ARCH_AARCH64
   return (uint16_t)vmaxvq_s16(v_eobmax);
 #else
   const int16x4_t v_eobmax_3210 =

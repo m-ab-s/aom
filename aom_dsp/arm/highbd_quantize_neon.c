@@ -19,7 +19,7 @@
 #include "av1/encoder/av1_quantize.h"
 
 static INLINE uint32_t sum_abs_coeff(const uint32x4_t a) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vaddvq_u32(a);
 #else
   const uint64x2_t b = vpaddlq_u32(a);
@@ -98,7 +98,7 @@ static INLINE void get_min_max_lane_eob(const int16_t *iscan,
 }
 
 static INLINE uint16_t get_max_eob(int16x8_t v_eobmax) {
-#ifdef __aarch64__
+#if AOM_ARCH_AARCH64
   return (uint16_t)vmaxvq_s16(v_eobmax);
 #else
   const int16x4_t v_eobmax_3210 =
@@ -116,7 +116,7 @@ static INLINE uint16_t get_max_eob(int16x8_t v_eobmax) {
 }
 
 static INLINE uint16_t get_min_eob(int16x8_t v_eobmin) {
-#ifdef __aarch64__
+#if AOM_ARCH_AARCH64
   return (uint16_t)vminvq_s16(v_eobmin);
 #else
   const int16x4_t v_eobmin_3210 =

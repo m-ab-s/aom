@@ -97,7 +97,7 @@ void av1_get_horver_correlation_full_neon(const int16_t *diff, int stride,
     v_x_sum = vpadalq_s32(v_x_sum, x_sum_32);
     v_x2_sum = vpadalq_s32(v_x2_sum, x2_sum_32);
   }
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   xy_sum = vaddvq_s64(v_xy_sum);
   xz_sum = vaddvq_s64(v_xz_sum);
   x2_sum = vaddvq_s64(v_x2_sum);
@@ -160,7 +160,7 @@ void av1_get_horver_correlation_full_neon(const int16_t *diff, int stride,
       v_y2_sum = vmlal_s16(v_y2_sum, v_y_hi, v_y_hi);
       const int32x4_t v_y_sum_a = vpadalq_s16(v_y_sum, v_y);
       const int64x2_t v_xy_sum2 = vpaddlq_s32(v_xy_sum_a);
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
       const int64x2_t v_y2_sum_a = vpaddlq_s32(v_y2_sum);
       xy_sum += vaddvq_s64(v_xy_sum2);
       const int32_t y = vaddvq_s32(v_y_sum_a);
@@ -278,7 +278,7 @@ void av1_get_horver_correlation_full_neon(const int16_t *diff, int stride,
       v_x_sum_a = vpadalq_s16(v_x_sum_a, v_y);
       v_x_sum_a = vpadalq_s16(v_x_sum_a, v_w);
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
       xy_sum += vaddvq_s64(vpaddlq_s32(v_xy_sum_a));
       xz_sum += vaddvq_s64(vpaddlq_s32(v_xz_sum_a));
       x_sum += vaddvq_s32(v_x_sum_a);
@@ -398,7 +398,7 @@ void av1_get_horver_correlation_full_neon(const int16_t *diff, int stride,
       v_x2_firstrow = vmlal_s16(v_x2_firstrow, v_diff_lo, v_diff_lo);
       v_x2_firstrow = vmlal_s16(v_x2_firstrow, v_diff_hi, v_diff_hi);
     }
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
     x_firstrow += vaddvq_s32(v_x_firstrow);
     x2_firstrow += vaddvq_s32(v_x2_firstrow);
 #else

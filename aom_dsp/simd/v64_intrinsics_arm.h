@@ -130,7 +130,7 @@ SIMD_INLINE int64_t v64_dotp_su8(v64 x, v64 y) {
   int16x8_t t =
       vmulq_s16(vmovl_s8(vreinterpret_s8_s64(x)),
                 vreinterpretq_s16_u16(vmovl_u8(vreinterpret_u8_s64(y))));
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vaddlvq_s16(t);
 #else
   int64x2_t r = vpaddlq_s32(vpaddlq_s16(t));
@@ -139,7 +139,7 @@ SIMD_INLINE int64_t v64_dotp_su8(v64 x, v64 y) {
 }
 
 SIMD_INLINE int64_t v64_dotp_s16(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vaddlvq_s32(
       vmull_s16(vreinterpret_s16_s64(x), vreinterpret_s16_s64(y)));
 #else
@@ -150,7 +150,7 @@ SIMD_INLINE int64_t v64_dotp_s16(v64 x, v64 y) {
 }
 
 SIMD_INLINE uint64_t v64_hadd_u8(v64 x) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vaddlv_u8(vreinterpret_u8_s64(x));
 #else
   return vget_lane_u64(
@@ -173,7 +173,7 @@ SIMD_INLINE sad64_internal v64_sad_u8(sad64_internal s, v64 a, v64 b) {
 }
 
 SIMD_INLINE uint32_t v64_sad_u8_sum(sad64_internal s) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vaddlvq_u16(s);
 #else
   uint64x2_t r = vpaddlq_u32(vpaddlq_u16(s));
@@ -194,7 +194,7 @@ SIMD_INLINE ssd64_internal v64_ssd_u8(ssd64_internal s, v64 a, v64 b) {
 }
 
 SIMD_INLINE uint32_t v64_ssd_u8_sum(ssd64_internal s) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vaddvq_u32(s);
 #else
   uint64x2_t t = vpaddlq_u32(s);
@@ -290,7 +290,7 @@ SIMD_INLINE v64 v64_mullo_s16(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_mulhi_s16(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   int16x8_t t = vreinterpretq_s16_s32(
       vmull_s16(vreinterpret_s16_s64(x), vreinterpret_s16_s64(y)));
   return vget_low_s64(vreinterpretq_s64_s16(vuzp2q_s16(t, t)));
@@ -370,7 +370,7 @@ SIMD_INLINE v64 v64_min_s16(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_ziplo_8(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u8(
       vzip1_u8(vreinterpret_u8_s64(y), vreinterpret_u8_s64(x)));
 #else
@@ -380,7 +380,7 @@ SIMD_INLINE v64 v64_ziplo_8(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_ziphi_8(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u8(
       vzip2_u8(vreinterpret_u8_s64(y), vreinterpret_u8_s64(x)));
 #else
@@ -390,7 +390,7 @@ SIMD_INLINE v64 v64_ziphi_8(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_ziplo_16(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u16(
       vzip1_u16(vreinterpret_u16_s64(y), vreinterpret_u16_s64(x)));
 #else
@@ -400,7 +400,7 @@ SIMD_INLINE v64 v64_ziplo_16(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_ziphi_16(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u16(
       vzip2_u16(vreinterpret_u16_s64(y), vreinterpret_u16_s64(x)));
 #else
@@ -410,7 +410,7 @@ SIMD_INLINE v64 v64_ziphi_16(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_ziplo_32(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u32(
       vzip1_u32(vreinterpret_u32_s64(y), vreinterpret_u32_s64(x)));
 #else
@@ -420,7 +420,7 @@ SIMD_INLINE v64 v64_ziplo_32(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_ziphi_32(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u32(
       vzip2_u32(vreinterpret_u32_s64(y), vreinterpret_u32_s64(x)));
 #else
@@ -466,7 +466,7 @@ SIMD_INLINE v64 v64_pack_s16_s8(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_unziplo_8(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u8(
       vuzp1_u8(vreinterpret_u8_s64(y), vreinterpret_u8_s64(x)));
 #else
@@ -476,7 +476,7 @@ SIMD_INLINE v64 v64_unziplo_8(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_unziphi_8(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u8(
       vuzp2_u8(vreinterpret_u8_s64(y), vreinterpret_u8_s64(x)));
 #else
@@ -486,7 +486,7 @@ SIMD_INLINE v64 v64_unziphi_8(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_unziplo_16(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u16(
       vuzp1_u16(vreinterpret_u16_s64(y), vreinterpret_u16_s64(x)));
 #else
@@ -496,7 +496,7 @@ SIMD_INLINE v64 v64_unziplo_16(v64 x, v64 y) {
 }
 
 SIMD_INLINE v64 v64_unziphi_16(v64 x, v64 y) {
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   return vreinterpret_s64_u16(
       vuzp2_u16(vreinterpret_u16_s64(y), vreinterpret_u16_s64(x)));
 #else

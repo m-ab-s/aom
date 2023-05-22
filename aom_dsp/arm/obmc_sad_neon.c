@@ -37,7 +37,7 @@ static INLINE void obmc_sad_8x1_s16_neon(int16x8_t ref_s16, const int32_t *mask,
   *sum = vrsraq_n_u32(*sum, abs_hi, 12);
 }
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
 
 // Use tbl for doing a double-width zero extension from 8->32 bits since we can
 // do this in one instruction rather than two (indices out of range (255 here)
@@ -110,7 +110,7 @@ static INLINE unsigned int obmc_sad_large_neon(const uint8_t *ref,
   return horizontal_add_u32x4(vaddq_u32(sum[0], sum[1]));
 }
 
-#else  // !defined(__aarch64__)
+#else  // !AOM_ARCH_AARCH64
 
 static INLINE unsigned int obmc_sad_large_neon(const uint8_t *ref,
                                                int ref_stride,
@@ -144,7 +144,7 @@ static INLINE unsigned int obmc_sad_large_neon(const uint8_t *ref,
   return horizontal_add_u32x4(sum);
 }
 
-#endif  // defined(__aarch64__)
+#endif  // AOM_ARCH_AARCH64
 
 static INLINE unsigned int obmc_sad_128xh_neon(const uint8_t *ref,
                                                int ref_stride,

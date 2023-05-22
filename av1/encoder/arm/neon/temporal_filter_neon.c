@@ -21,7 +21,7 @@
 // For the squared error buffer, add padding for 4 samples.
 #define SSE_STRIDE (BW + 4)
 
-#if defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#if AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
 
 // clang-format off
 
@@ -192,7 +192,7 @@ static void apply_temporal_filter(
   }
 }
 
-#else  // !(defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD))
+#else  // !(AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD))
 
 // When using vld1q_u16_x4 compilers may insert an alignment hint of 256 bits.
 DECLARE_ALIGNED(32, static const uint16_t, kSlidingWindowMask[]) = {
@@ -350,7 +350,7 @@ static void apply_temporal_filter(
   }
 }
 
-#endif  // defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#endif  // AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
 
 void av1_apply_temporal_filter_neon(
     const YV12_BUFFER_CONFIG *frame_to_filter, const MACROBLOCKD *mbd,
@@ -392,11 +392,11 @@ void av1_apply_temporal_filter_neon(
   double s_decay = pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2);
   s_decay = CLIP(s_decay, 1e-5, 1);
   double d_factor[4] = { 0 };
-#if defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#if AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
   uint8_t frame_abs_diff[SSE_STRIDE * BH] = { 0 };
-#else   // !(defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD))
+#else   // !(AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD))
   uint16_t frame_sse[SSE_STRIDE * BH] = { 0 };
-#endif  // defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#endif  // AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
   uint32_t luma_sse_sum[BW * BH] = { 0 };
 
   for (int subblock_idx = 0; subblock_idx < 4; subblock_idx++) {
@@ -435,7 +435,7 @@ void av1_apply_temporal_filter_neon(
     // search is only done on Y-plane, so the information from Y-plane
     // will be more accurate. The luma sse sum is reused in both chroma
     // planes.
-#if defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#if AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
     if (plane == AOM_PLANE_U) {
       for (unsigned int i = 0; i < plane_h; i++) {
         for (unsigned int j = 0; j < plane_w; j++) {
@@ -460,7 +460,7 @@ void av1_apply_temporal_filter_neon(
                           count + plane_offset, frame_abs_diff, luma_sse_sum,
                           inv_num_ref_pixels, decay_factor, inv_factor,
                           weight_factor, d_factor, tf_wgt_calc_lvl);
-#else   // !(defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD))
+#else   // !(AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD))
     if (plane == AOM_PLANE_U) {
       for (unsigned int i = 0; i < plane_h; i++) {
         for (unsigned int j = 0; j < plane_w; j++) {
@@ -483,7 +483,7 @@ void av1_apply_temporal_filter_neon(
                           count + plane_offset, frame_sse, luma_sse_sum,
                           inv_num_ref_pixels, decay_factor, inv_factor,
                           weight_factor, d_factor, tf_wgt_calc_lvl);
-#endif  // defined(__aarch64__) && defined(__ARM_FEATURE_DOTPROD)
+#endif  // AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
 
     plane_offset += plane_h * plane_w;
   }

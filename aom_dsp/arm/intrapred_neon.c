@@ -84,7 +84,7 @@ static INLINE uint16x8_t dc_load_sum_8(const uint8_t *in) {
 }
 
 static INLINE uint16x8_t horizontal_add_and_broadcast_u16x8(uint16x8_t a) {
-#ifdef __aarch64__
+#if AOM_ARCH_AARCH64
   // On AArch64 we could also use vdupq_n_u16(vaddvq_u16(a)) here to save an
   // instruction, however the addv instruction is usually slightly more
   // expensive than a pairwise addition, so the need for immediately
@@ -1528,13 +1528,13 @@ static void dr_prediction_z2_Nx4_neon(int N, uint8_t *dst, ptrdiff_t stride,
   int16x4_t v_frac_bits_y = vdup_n_s16(-frac_bits_y);
   int16x4_t min_base_y64 = vdup_n_s16(min_base_y);
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   // Use ext rather than loading left + 14 directly to avoid over-read.
   const uint8x16_t left_m2 = vld1q_u8(left - 2);
   const uint8x16_t left_0 = vld1q_u8(left);
   const uint8x16_t left_14 = vextq_u8(left_0, left_0, 14);
   const uint8x16x2_t left_vals = { { left_m2, left_14 } };
-#endif  // defined(__aarch64__)
+#endif  // AOM_ARCH_AARCH64
 
   for (int r = 0; r < N; r++) {
     uint16x8_t res, shift;
@@ -1593,13 +1593,13 @@ static void dr_prediction_z2_Nx4_neon(int N, uint8_t *dst, ptrdiff_t stride,
       // Values in base_y_c64 range from -2 through 14 inclusive.
       base_y_c64 = vbic_s16(base_y_c64, vreinterpret_s16_u16(mask64));
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
       uint8x8_t left_idx0 = vreinterpret_u8_s16(base_y_c64 + 2);  // [0, 16]
       uint8x8_t left_idx1 = vreinterpret_u8_s16(base_y_c64 + 3);  // [1, 17]
 
       uint8x8_t a0_y = vtrn1_u8(vqtbl2_u8(left_vals, left_idx0), v_zero_u8);
       uint8x8_t a1_y = vtrn1_u8(vqtbl2_u8(left_vals, left_idx1), v_zero_u8);
-#else   // !defined(__aarch64__)
+#else   // !AOM_ARCH_AARCH64
       DECLARE_ALIGNED(32, int16_t, base_y_c[4]);
 
       vst1_s16(base_y_c, base_y_c64);
@@ -1616,7 +1616,7 @@ static void dr_prediction_z2_Nx4_neon(int N, uint8_t *dst, ptrdiff_t stride,
       a1_y = vld1_lane_u8(left + base_y_c[1], a1_y, 2);
       a1_y = vld1_lane_u8(left + base_y_c[2], a1_y, 4);
       a1_y = vld1_lane_u8(left + base_y_c[3], a1_y, 6);
-#endif  // defined(__aarch64__)
+#endif  // AOM_ARCH_AARCH64
 
       if (upsample_left) {
         v_shift.val[1] = vshr_n_u16(
@@ -1696,7 +1696,7 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
   uint16x8_t c1234 = vcombine_u16(vcreate_u16(0x0004000300020001),
                                   vcreate_u16(0x0008000700060005));
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   // Use ext rather than loading left + 30 directly to avoid over-read.
   const uint8x16_t left_m2 = vld1q_u8(left - 2);
   const uint8x16_t left_0 = vld1q_u8(left + 0);
@@ -1704,7 +1704,7 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
   const uint8x16_t left_14 = vextq_u8(left_0, left_16, 14);
   const uint8x16_t left_30 = vextq_u8(left_16, left_16, 14);
   const uint8x16x3_t left_vals = { { left_m2, left_14, left_30 } };
-#endif  // defined(__aarch64__)
+#endif  // AOM_ARCH_AARCH64
 
   for (int r = 0; r < N; r++) {
     uint8x8_t resx, resy, resxy;
@@ -1776,7 +1776,7 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
       // Values in base_y_c128 range from -2 through 31 inclusive.
       base_y_c128 = vbicq_s16(base_y_c128, vreinterpretq_s16_u16(mask128));
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
       uint8x16_t left_idx0 = vreinterpretq_u8_s16(base_y_c128 + 2);  // [0, 33]
       uint8x16_t left_idx1 = vreinterpretq_u8_s16(base_y_c128 + 3);  // [1, 34]
       uint8x16_t left_idx01 = vuzp1q_u8(left_idx0, left_idx1);
@@ -1784,7 +1784,7 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
       uint8x16_t a01_x = vqtbl3q_u8(left_vals, left_idx01);
       uint8x8_t a0_x1 = vget_low_u8(a01_x);
       uint8x8_t a1_x1 = vget_high_u8(a01_x);
-#else   // !defined(__aarch64__)
+#else   // !AOM_ARCH_AARCH64
       DECLARE_ALIGNED(32, int16_t, base_y_c[16]);
 
       vst1q_s16(base_y_c, base_y_c128);
@@ -1809,7 +1809,7 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
       a1_x1 = vld1_lane_u8(left + base_y_c[5], a1_x1, 5);
       a1_x1 = vld1_lane_u8(left + base_y_c[6], a1_x1, 6);
       a1_x1 = vld1_lane_u8(left + base_y_c[7], a1_x1, 7);
-#endif  // defined(__aarch64__)
+#endif  // AOM_ARCH_AARCH64
 
       if (upsample_left) {
         shift.val[1] = vshrq_n_u16(
@@ -1867,7 +1867,7 @@ static void dr_prediction_z2_HxW_neon(int H, int W, uint8_t *dst,
   c1234.val[0] = vaddq_u16(c0123.val[0], c1);
   c1234.val[1] = vaddq_u16(c0123.val[1], c1);
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   const uint8x16_t left_m1 = vld1q_u8(left - 1);
   const uint8x16_t left_0 = vld1q_u8(left + 0);
   const uint8x16_t left_16 = vld1q_u8(left + 16);
@@ -1878,7 +1878,7 @@ static void dr_prediction_z2_HxW_neon(int H, int W, uint8_t *dst,
   const uint8x16_t left_47 = vextq_u8(left_32, left_48, 15);
   const uint8x16x4_t left_vals0 = { { left_m1, left_15, left_31, left_47 } };
   const uint8x16x4_t left_vals1 = { { left_0, left_16, left_32, left_48 } };
-#endif  // defined(__aarch64__)
+#endif  // AOM_ARCH_AARCH64
 
   for (int r = 0; r < H; r++) {
     uint16x8x2_t res, r6, shift;
@@ -1991,7 +1991,7 @@ static void dr_prediction_z2_HxW_neon(int H, int W, uint8_t *dst,
           a0_y128 = vandq_u8(a0_y128, v_loadmaskz2);
           a1_y128 = vld1q_u8(left + min_y + 1);
           a1_y128 = vandq_u8(a1_y128, v_loadmaskz2);
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
           a0_y128 = vqtbl1q_u8(a0_y128, vreinterpretq_u8_s8(base_y_offset128));
           a1_y128 = vqtbl1q_u8(a1_y128, vreinterpretq_u8_s8(base_y_offset128));
 #else
@@ -2023,7 +2023,7 @@ static void dr_prediction_z2_HxW_neon(int H, int W, uint8_t *dst,
           base_y_c256.val[1] = vbicq_s16(base_y_c256.val[1],
                                          vreinterpretq_s16_u16(mask256.val[1]));
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
           // Values in left_idx{0,1} range from 0 through 63 inclusive.
           uint8x16_t left_idx0 = vreinterpretq_u8_s16(base_y_c256.val[0] + 1);
           uint8x16_t left_idx1 = vreinterpretq_u8_s16(base_y_c256.val[1] + 1);
@@ -2037,7 +2037,7 @@ static void dr_prediction_z2_HxW_neon(int H, int W, uint8_t *dst,
           a0_y1 = vget_high_u8(a0_y01);
           a1_y0 = vget_low_u8(a1_y01);
           a1_y1 = vget_high_u8(a1_y01);
-#else   // !defined(__aarch64__)
+#else   // !AOM_ARCH_AARCH64
           DECLARE_ALIGNED(32, int16_t, base_y_c[16]);
 
           vst1q_s16(base_y_c, base_y_c256.val[0]);
@@ -2086,7 +2086,7 @@ static void dr_prediction_z2_HxW_neon(int H, int W, uint8_t *dst,
           a1_y1 = vld1_lane_u8(left + base_y_c[13], a1_y1, 5);
           a1_y1 = vld1_lane_u8(left + base_y_c[14], a1_y1, 6);
           a1_y1 = vld1_lane_u8(left + base_y_c[15], a1_y1, 7);
-#endif  // defined(__aarch64__)
+#endif  // AOM_ARCH_AARCH64
         }
 
         shifty.val[0] = vshrq_n_u16(
@@ -2318,7 +2318,7 @@ static AOM_FORCE_INLINE void transpose8x16_16x8_neon(uint8x16_t *x,
   w11 = vzipq_u32(vreinterpretq_u32_u16(w6.val[1]),
                   vreinterpretq_u32_u16(w7.val[1]));
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   d[0] = vzip1q_u64(vreinterpretq_u64_u32(w8.val[0]),
                     vreinterpretq_u64_u32(w9.val[0]));
   d[1] = vzip2q_u64(vreinterpretq_u64_u32(w8.val[0]),
@@ -2388,7 +2388,7 @@ static AOM_FORCE_INLINE void transpose16x16_neon(uint8x16_t *x, uint64x2_t *d) {
   w15 = vzipq_u32(vreinterpretq_u32_u16(w10.val[1]),
                   vreinterpretq_u32_u16(w11.val[1]));
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   d[0] = vzip1q_u64(vreinterpretq_u64_u32(w12.val[0]),
                     vreinterpretq_u64_u32(w13.val[0]));
   d[1] = vzip2q_u64(vreinterpretq_u64_u32(w12.val[0]),
@@ -2443,7 +2443,7 @@ static AOM_FORCE_INLINE void transpose16x16_neon(uint8x16_t *x, uint64x2_t *d) {
   w15 = vzipq_u32(vreinterpretq_u32_u16(w10.val[1]),
                   vreinterpretq_u32_u16(w11.val[1]));
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   d[8] = vzip1q_u64(vreinterpretq_u64_u32(w12.val[0]),
                     vreinterpretq_u64_u32(w13.val[0]));
   d[9] = vzip2q_u64(vreinterpretq_u64_u32(w12.val[0]),
@@ -2516,7 +2516,7 @@ static AOM_FORCE_INLINE void transpose16x32_neon(uint8x16x2_t *x,
 
   // Store first 4-line result
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   d[0].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[0]),
                            vreinterpretq_u64_u32(w14.val[0]));
   d[0].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[0]),
@@ -2572,7 +2572,7 @@ static AOM_FORCE_INLINE void transpose16x32_neon(uint8x16x2_t *x,
 
   // Store second 4-line result
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   d[4].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[0]),
                            vreinterpretq_u64_u32(w14.val[0]));
   d[4].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[0]),
@@ -2639,7 +2639,7 @@ static AOM_FORCE_INLINE void transpose16x32_neon(uint8x16x2_t *x,
 
   // Store first 4-line result
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   d[8].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[0]),
                            vreinterpretq_u64_u32(w14.val[0]));
   d[8].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[0]),
@@ -2695,7 +2695,7 @@ static AOM_FORCE_INLINE void transpose16x32_neon(uint8x16x2_t *x,
 
   // Store second 4-line result
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   d[12].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[0]),
                             vreinterpretq_u64_u32(w14.val[0]));
   d[12].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[0]),

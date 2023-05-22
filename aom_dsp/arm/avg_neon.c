@@ -18,7 +18,7 @@
 #include "aom_dsp/arm/transpose_neon.h"
 #include "aom_ports/mem.h"
 
-#if !defined(__aarch64__)
+#if !AOM_ARCH_AARCH64
 static INLINE uint32x2_t horizontal_add_u16x8_v(const uint16x8_t a) {
   const uint32x4_t b = vpaddlq_u16(a);
   const uint64x2_t c = vpaddlq_u32(b);
@@ -30,7 +30,7 @@ static INLINE uint32x2_t horizontal_add_u16x8_v(const uint16x8_t a) {
 unsigned int aom_avg_4x4_neon(const uint8_t *a, int a_stride) {
   const uint8x16_t b = load_unaligned_u8q(a, a_stride);
   const uint16x8_t c = vaddl_u8(vget_low_u8(b), vget_high_u8(b));
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   const uint32_t d = vaddlvq_u16(c);
   return (d + 8) >> 4;
 #else
@@ -53,7 +53,7 @@ unsigned int aom_avg_8x8_neon(const uint8_t *a, int a_stride) {
     sum = vaddw_u8(sum, e);
   }
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   const uint32_t d = vaddlvq_u16(sum);
   return (d + 32) >> 6;
 #else
@@ -216,7 +216,7 @@ int aom_vector_var_neon(const int16_t *ref, const int16_t *src, int bwl) {
     v_mean = vpadalq_s16(v_mean, diff);
     v_low = vget_low_s16(diff);
     v_sse = vmlal_s16(v_sse, v_low, v_low);
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
     v_sse = vmlal_high_s16(v_sse, diff, diff);
 #else
     const int16x4_t v_high = vget_high_s16(diff);
@@ -259,7 +259,7 @@ void aom_minmax_8x8_neon(const uint8_t *a, int a_stride, const uint8_t *b,
   const uint8x16_t ab07_max = vmaxq_u8(ab0123_max, ab4567_max);
   const uint8x16_t ab07_min = vminq_u8(ab0123_min, ab4567_min);
 
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   *min = *max = 0;  // Clear high bits
   *((uint8_t *)max) = vmaxvq_u8(ab07_max);
   *((uint8_t *)min) = vminvq_u8(ab07_min);

@@ -614,7 +614,7 @@ SIMD_INLINE v256 v256_cmpeq_32(v256 a, v256 b) {
 
 SIMD_INLINE v256 v256_shuffle_8(v256 x, v256 pattern) {
 #if HAVE_NEON
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   uint8x16x2_t p = { { vreinterpretq_u8_s64(x.val[0]),
                        vreinterpretq_u8_s64(x.val[1]) } };
   return v256_from_v128(
@@ -653,7 +653,7 @@ SIMD_INLINE v256 v256_shuffle_8(v256 x, v256 pattern) {
 
 SIMD_INLINE v256 v256_wideshuffle_8(v256 x, v256 y, v256 pattern) {
 #if HAVE_NEON
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   uint8x16x4_t p = { {
       vreinterpretq_u8_s64(y.val[0]),
       vreinterpretq_u8_s64(y.val[1]),

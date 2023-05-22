@@ -260,7 +260,7 @@ static INLINE void transpose_u16_4x8q(uint16x8_t a[4]) {
 
 static INLINE uint16x8x2_t aom_vtrnq_u64_to_u16(uint32x4_t a0, uint32x4_t a1) {
   uint16x8x2_t b0;
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   b0.val[0] = vreinterpretq_u16_u64(
       vtrn1q_u64(vreinterpretq_u64_u32(a0), vreinterpretq_u64_u32(a1)));
   b0.val[1] = vreinterpretq_u16_u64(
@@ -521,7 +521,7 @@ static INLINE void transpose_u16_8x8(uint16x8_t *a0, uint16x8_t *a1,
 
 static INLINE int16x8x2_t aom_vtrnq_s64_to_s16(int32x4_t a0, int32x4_t a1) {
   int16x8x2_t b0;
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   b0.val[0] = vreinterpretq_s16_s64(
       vtrn1q_s64(vreinterpretq_s64_s32(a0), vreinterpretq_s64_s32(a1)));
   b0.val[1] = vreinterpretq_s16_s64(
@@ -744,7 +744,7 @@ static INLINE void transpose_s16_4x4d(int16x4_t *a0, int16x4_t *a1,
 
 static INLINE int32x4x2_t aom_vtrnq_s64_to_s32(int32x4_t a0, int32x4_t a1) {
   int32x4x2_t b0;
-#if defined(__aarch64__)
+#if AOM_ARCH_AARCH64
   b0.val[0] = vreinterpretq_s32_s64(
       vtrn1q_s64(vreinterpretq_s64_s32(a0), vreinterpretq_s64_s32(a1)));
   b0.val[1] = vreinterpretq_s32_s64(
