@@ -3266,8 +3266,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       x->content_state_sb.source_sad_nonrd != kZeroSad &&
       bsize <= BLOCK_16X16) {
-    unsigned int thresh_sse = cpi->rc.high_source_sad ? 50000 : 500000;
-    unsigned int thresh_source_var = cpi->rc.high_source_sad ? 200 : 2000;
+    unsigned int thresh_sse = cpi->rc.high_source_sad ? 15000 : 250000;
+    unsigned int thresh_source_var = cpi->rc.high_source_sad ? 50 : 1000;
     unsigned int best_sse_inter_motion =
         (unsigned int)(search_state.best_rdc.sse >>
                        (b_width_log2_lookup[bsize] +
