@@ -727,14 +727,14 @@ using std::make_tuple;
     aom_highbd_##func(src, src_stride, dst, dst_stride, filter_x,            \
                       filter_x_stride, filter_y, filter_y_stride, w, h, bd); \
   }
-#if HAVE_SSE2 && ARCH_X86_64
+#if HAVE_SSE2 && AOM_ARCH_X86_64
 WRAP(convolve8_horiz_sse2, 8)
 WRAP(convolve8_vert_sse2, 8)
 WRAP(convolve8_horiz_sse2, 10)
 WRAP(convolve8_vert_sse2, 10)
 WRAP(convolve8_horiz_sse2, 12)
 WRAP(convolve8_vert_sse2, 12)
-#endif  // HAVE_SSE2 && ARCH_X86_64
+#endif  // HAVE_SSE2 && AOM_ARCH_X86_64
 
 WRAP(convolve8_horiz_c, 8)
 WRAP(convolve8_vert_c, 8)
@@ -776,7 +776,7 @@ const ConvolveParam kArrayConvolve_c[] = { ALL_SIZES(convolve8_c) };
 INSTANTIATE_TEST_SUITE_P(C, ConvolveTest,
                          ::testing::ValuesIn(kArrayConvolve_c));
 
-#if HAVE_SSE2 && ARCH_X86_64
+#if HAVE_SSE2 && AOM_ARCH_X86_64
 #if CONFIG_AV1_HIGHBITDEPTH
 const ConvolveFunctions wrap_convolve8_sse2(wrap_convolve8_horiz_sse2_8,
                                             wrap_convolve8_vert_sse2_8, 8);

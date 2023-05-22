@@ -23,10 +23,10 @@ include("${AOM_ROOT}/build/cmake/util.cmake")
 set_aom_detect_var(INLINE "" "Sets INLINE value for current target.")
 
 # CPUs.
-set_aom_detect_var(ARCH_ARM 0 "Enables ARM architecture.")
-set_aom_detect_var(ARCH_PPC 0 "Enables PPC architecture.")
-set_aom_detect_var(ARCH_X86 0 "Enables X86 architecture.")
-set_aom_detect_var(ARCH_X86_64 0 "Enables X86_64 architecture.")
+set_aom_detect_var(AOM_ARCH_ARM 0 "Enables ARM architecture.")
+set_aom_detect_var(AOM_ARCH_PPC 0 "Enables PPC architecture.")
+set_aom_detect_var(AOM_ARCH_X86 0 "Enables X86 architecture.")
+set_aom_detect_var(AOM_ARCH_X86_64 0 "Enables X86_64 architecture.")
 
 # ARM feature flags.
 set_aom_detect_var(HAVE_NEON 0 "Enables NEON intrinsics optimizations.")
