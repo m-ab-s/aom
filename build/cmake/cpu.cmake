@@ -11,6 +11,9 @@
 
 if("${AOM_TARGET_CPU}" MATCHES "^arm")
   set(AOM_ARCH_ARM 1)
+  if("${AOM_TARGET_CPU}" STREQUAL "arm64")
+    set(AOM_ARCH_AARCH64 1)
+  endif()
   set(RTCD_ARCH_ARM "yes")
 
   if(ENABLE_NEON)
