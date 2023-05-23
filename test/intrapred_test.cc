@@ -405,9 +405,9 @@ const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorNeon[] = {
   highbd_entry(dc, 16, 16, neon, 8),    highbd_entry(dc, 32, 32, neon, 8),
   highbd_entry(dc, 64, 64, neon, 8),
 
-  highbd_intrapred(v, neon, 12),        highbd_intrapred(paeth, neon, 12),
-  highbd_intrapred(smooth, neon, 12),   highbd_intrapred(smooth_v, neon, 12),
-  highbd_intrapred(smooth_h, neon, 12),
+  highbd_intrapred(v, neon, 12),        highbd_intrapred(h, neon, 12),
+  highbd_intrapred(paeth, neon, 12),    highbd_intrapred(smooth, neon, 12),
+  highbd_intrapred(smooth_v, neon, 12), highbd_intrapred(smooth_h, neon, 12),
 };
 
 INSTANTIATE_TEST_SUITE_P(NEON, HighbdIntraPredTest,
