@@ -2319,9 +2319,9 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     // multi-threaded, enabling the Loop restoration stage will cause an
     // increase in encode time (3% to 7% increase depends on frame
     // resolution).
-    // TODO(any): Implement multi-threading of av1_pick_filter_restoration()
-    // and enable Wiener filter for speed 5, 6 similar to single thread
-    // encoding path.
+    // TODO(aomedia:3446): Implement multi-threading of
+    // av1_pick_filter_restoration() and enable Wiener filter for speed 5, 6
+    // similar to single thread encoding path.
     if (speed >= 5) {
       sf->lpf_sf.disable_sgr_filter = true;
       sf->lpf_sf.disable_wiener_filter = true;

@@ -267,11 +267,10 @@ class AVxEncoderThreadTest
         // 5, 6 when num_workers > 1. Due to this, the match between single
         // thread and multi thread output can not be achieved. Hence, testing
         // this case alone with LR disabled.
-        // TODO(any): Remove the constarin on this test case once Loop
+        // TODO(aomedia:3446): Remove the constraint on this test case once Loop
         // restoration state is same in both single and multi thread path.
         if (set_cpu_used_ >= 5 && row_mt_ == 0)
           encoder->Control(AV1E_SET_ENABLE_RESTORATION, 0);
-
       } else if (encoding_mode_ == ::libaom_test::kRealTime) {
         encoder->Control(AOME_SET_ENABLEAUTOALTREF, 0);
         encoder->Control(AV1E_SET_AQ_MODE, 3);
