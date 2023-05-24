@@ -164,6 +164,101 @@ HIGHBD_DC_PREDICTOR_128(64, 64, q)
 #undef HIGHBD_DC_PREDICTOR_128
 
 // -----------------------------------------------------------------------------
+// DC_LEFT
+
+static INLINE uint32x4_t horizontal_add_and_broadcast_long_u16x8(uint16x8_t a) {
+  const uint32x4_t b = vpaddlq_u16(a);
+#if AOM_ARCH_AARCH64
+  const uint32x4_t c = vpaddq_u32(b, b);
+  return vpaddq_u32(c, c);
+#else
+  const uint32x2_t c = vadd_u32(vget_low_u32(b), vget_high_u32(b));
+  const uint32x2_t d = vpadd_u32(c, c);
+  return vcombine_u32(d, d);
+#endif
+}
+
+static INLINE uint32x4_t highbd_dc_load_sum_4(const uint16_t *left) {
+  const uint16x4_t a = vld1_u16(left);   // up to 12 bits
+  const uint16x4_t b = vpadd_u16(a, a);  // up to 13 bits
+  return vcombine_u32(vpaddl_u16(b), vdup_n_u32(0));
+}
+
+static INLINE uint32x4_t highbd_dc_load_sum_8(const uint16_t *left) {
+  return horizontal_add_and_broadcast_long_u16x8(vld1q_u16(left));
+}
+
+static INLINE uint32x4_t highbd_dc_load_sum_16(const uint16_t *left) {
+  const uint16x8_t a0 = vld1q_u16(left + 0);  // up to 12 bits
+  const uint16x8_t a1 = vld1q_u16(left + 8);
+  const uint16x8_t b = vaddq_u16(a0, a1);  // up to 13 bits
+  return horizontal_add_and_broadcast_long_u16x8(b);
+}
+
+static INLINE uint32x4_t highbd_dc_load_sum_32(const uint16_t *left) {
+  const uint16x8_t a0 = vld1q_u16(left + 0);  // up to 12 bits
+  const uint16x8_t a1 = vld1q_u16(left + 8);
+  const uint16x8_t a2 = vld1q_u16(left + 16);
+  const uint16x8_t a3 = vld1q_u16(left + 24);
+  const uint16x8_t b0 = vaddq_u16(a0, a1);  // up to 13 bits
+  const uint16x8_t b1 = vaddq_u16(a2, a3);
+  const uint16x8_t c = vaddq_u16(b0, b1);  // up to 14 bits
+  return horizontal_add_and_broadcast_long_u16x8(c);
+}
+
+static INLINE uint32x4_t highbd_dc_load_sum_64(const uint16_t *left) {
+  const uint16x8_t a0 = vld1q_u16(left + 0);  // up to 12 bits
+  const uint16x8_t a1 = vld1q_u16(left + 8);
+  const uint16x8_t a2 = vld1q_u16(left + 16);
+  const uint16x8_t a3 = vld1q_u16(left + 24);
+  const uint16x8_t a4 = vld1q_u16(left + 32);
+  const uint16x8_t a5 = vld1q_u16(left + 40);
+  const uint16x8_t a6 = vld1q_u16(left + 48);
+  const uint16x8_t a7 = vld1q_u16(left + 56);
+  const uint16x8_t b0 = vaddq_u16(a0, a1);  // up to 13 bits
+  const uint16x8_t b1 = vaddq_u16(a2, a3);
+  const uint16x8_t b2 = vaddq_u16(a4, a5);
+  const uint16x8_t b3 = vaddq_u16(a6, a7);
+  const uint16x8_t c0 = vaddq_u16(b0, b1);  // up to 14 bits
+  const uint16x8_t c1 = vaddq_u16(b2, b3);
+  const uint16x8_t d = vaddq_u16(c0, c1);  // up to 15 bits
+  return horizontal_add_and_broadcast_long_u16x8(d);
+}
+
+#define DC_PREDICTOR_LEFT(w, h, shift, q)                                  \
+  void aom_highbd_dc_left_predictor_##w##x##h##_neon(                      \
+      uint16_t *dst, ptrdiff_t stride, const uint16_t *above,              \
+      const uint16_t *left, int bd) {                                      \
+    (void)above;                                                           \
+    (void)bd;                                                              \
+    const uint32x4_t sum = highbd_dc_load_sum_##h(left);                   \
+    const uint16x4_t dc0 = vrshrn_n_u32(sum, (shift));                     \
+    highbd_dc_store_##w##xh(dst, stride, (h), vdup##q##_lane_u16(dc0, 0)); \
+  }
+
+DC_PREDICTOR_LEFT(4, 4, 2, )
+DC_PREDICTOR_LEFT(4, 8, 3, )
+DC_PREDICTOR_LEFT(4, 16, 4, )
+DC_PREDICTOR_LEFT(8, 4, 2, q)
+DC_PREDICTOR_LEFT(8, 8, 3, q)
+DC_PREDICTOR_LEFT(8, 16, 4, q)
+DC_PREDICTOR_LEFT(8, 32, 5, q)
+DC_PREDICTOR_LEFT(16, 4, 2, q)
+DC_PREDICTOR_LEFT(16, 8, 3, q)
+DC_PREDICTOR_LEFT(16, 16, 4, q)
+DC_PREDICTOR_LEFT(16, 32, 5, q)
+DC_PREDICTOR_LEFT(16, 64, 6, q)
+DC_PREDICTOR_LEFT(32, 8, 3, q)
+DC_PREDICTOR_LEFT(32, 16, 4, q)
+DC_PREDICTOR_LEFT(32, 32, 5, q)
+DC_PREDICTOR_LEFT(32, 64, 6, q)
+DC_PREDICTOR_LEFT(64, 16, 4, q)
+DC_PREDICTOR_LEFT(64, 32, 5, q)
+DC_PREDICTOR_LEFT(64, 64, 6, q)
+
+#undef DC_PREDICTOR_LEFT
+
+// -----------------------------------------------------------------------------
 // V_PRED
 
 #define HIGHBD_V_NXM(W, H)                                    \
