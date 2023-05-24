@@ -93,29 +93,58 @@ int aom_satd_lp_neon(const int16_t *coeff, int length) {
 void aom_int_pro_row_neon(int16_t *hbuf, const uint8_t *ref,
                           const int ref_stride, const int width,
                           const int height, int norm_factor) {
-  const uint8_t *idx = ref;
-  const uint16x8_t zero = vdupq_n_u16(0);
-  const int16x8_t neg_norm_factor = vdupq_n_s16(-norm_factor);
+  assert(width % 16 == 0);
+  assert(height % 4 == 0);
 
-  for (int wd = 0; wd < width; wd += 16) {
-    uint16x8_t vec0 = zero;
-    uint16x8_t vec1 = zero;
-    idx = ref + wd;
-    for (int ht = 0; ht < height; ++ht) {
-      const uint8x16_t tmp = vld1q_u8(idx);
-      idx += ref_stride;
-      vec0 = vaddw_u8(vec0, vget_low_u8(tmp));
-      vec1 = vaddw_u8(vec1, vget_high_u8(tmp));
+  const int16x8_t neg_norm_factor = vdupq_n_s16(-norm_factor);
+  uint16x8_t sum_lo[2], sum_hi[2];
+
+  int w = 0;
+  do {
+    const uint8_t *r = ref + w;
+    uint8x16_t r0 = vld1q_u8(r + 0 * ref_stride);
+    uint8x16_t r1 = vld1q_u8(r + 1 * ref_stride);
+    uint8x16_t r2 = vld1q_u8(r + 2 * ref_stride);
+    uint8x16_t r3 = vld1q_u8(r + 3 * ref_stride);
+
+    sum_lo[0] = vaddl_u8(vget_low_u8(r0), vget_low_u8(r1));
+    sum_hi[0] = vaddl_u8(vget_high_u8(r0), vget_high_u8(r1));
+    sum_lo[1] = vaddl_u8(vget_low_u8(r2), vget_low_u8(r3));
+    sum_hi[1] = vaddl_u8(vget_high_u8(r2), vget_high_u8(r3));
+
+    r += 4 * ref_stride;
+
+    for (int h = height - 4; h != 0; h -= 4) {
+      r0 = vld1q_u8(r + 0 * ref_stride);
+      r1 = vld1q_u8(r + 1 * ref_stride);
+      r2 = vld1q_u8(r + 2 * ref_stride);
+      r3 = vld1q_u8(r + 3 * ref_stride);
+
+      uint16x8_t tmp0_lo = vaddl_u8(vget_low_u8(r0), vget_low_u8(r1));
+      uint16x8_t tmp0_hi = vaddl_u8(vget_high_u8(r0), vget_high_u8(r1));
+      uint16x8_t tmp1_lo = vaddl_u8(vget_low_u8(r2), vget_low_u8(r3));
+      uint16x8_t tmp1_hi = vaddl_u8(vget_high_u8(r2), vget_high_u8(r3));
+
+      sum_lo[0] = vaddq_u16(sum_lo[0], tmp0_lo);
+      sum_hi[0] = vaddq_u16(sum_hi[0], tmp0_hi);
+      sum_lo[1] = vaddq_u16(sum_lo[1], tmp1_lo);
+      sum_hi[1] = vaddq_u16(sum_hi[1], tmp1_hi);
+
+      r += 4 * ref_stride;
     }
 
-    const int16x8_t result0 =
-        vshlq_s16(vreinterpretq_s16_u16(vec0), neg_norm_factor);
-    const int16x8_t result1 =
-        vshlq_s16(vreinterpretq_s16_u16(vec1), neg_norm_factor);
+    sum_lo[0] = vaddq_u16(sum_lo[0], sum_lo[1]);
+    sum_hi[0] = vaddq_u16(sum_hi[0], sum_hi[1]);
 
-    vst1q_s16(hbuf + wd, result0);
-    vst1q_s16(hbuf + wd + 8, result1);
-  }
+    const int16x8_t avg0 =
+        vshlq_s16(vreinterpretq_s16_u16(sum_lo[0]), neg_norm_factor);
+    const int16x8_t avg1 =
+        vshlq_s16(vreinterpretq_s16_u16(sum_hi[0]), neg_norm_factor);
+
+    vst1q_s16(hbuf + w, avg0);
+    vst1q_s16(hbuf + w + 8, avg1);
+    w += 16;
+  } while (w < width);
 }
 
 void aom_int_pro_col_neon(int16_t *vbuf, const uint8_t *ref,
