@@ -82,6 +82,88 @@ INTRA_PRED_SQUARE(dc)
 #undef INTRA_PRED_SQUARE
 
 // -----------------------------------------------------------------------------
+// DC_128
+
+static INLINE void highbd_dc_store_4xh(uint16_t *dst, ptrdiff_t stride, int h,
+                                       uint16x4_t dc) {
+  for (int i = 0; i < h; ++i) {
+    vst1_u16(dst + i * stride, dc);
+  }
+}
+
+static INLINE void highbd_dc_store_8xh(uint16_t *dst, ptrdiff_t stride, int h,
+                                       uint16x8_t dc) {
+  for (int i = 0; i < h; ++i) {
+    vst1q_u16(dst + i * stride, dc);
+  }
+}
+
+static INLINE void highbd_dc_store_16xh(uint16_t *dst, ptrdiff_t stride, int h,
+                                        uint16x8_t dc) {
+  for (int i = 0; i < h; ++i) {
+    vst1q_u16(dst + i * stride, dc);
+    vst1q_u16(dst + i * stride + 8, dc);
+  }
+}
+
+static INLINE void highbd_dc_store_32xh(uint16_t *dst, ptrdiff_t stride, int h,
+                                        uint16x8_t dc) {
+  for (int i = 0; i < h; ++i) {
+    vst1q_u16(dst + i * stride, dc);
+    vst1q_u16(dst + i * stride + 8, dc);
+    vst1q_u16(dst + i * stride + 16, dc);
+    vst1q_u16(dst + i * stride + 24, dc);
+  }
+}
+
+static INLINE void highbd_dc_store_64xh(uint16_t *dst, ptrdiff_t stride, int h,
+                                        uint16x8_t dc) {
+  for (int i = 0; i < h; ++i) {
+    vst1q_u16(dst + i * stride, dc);
+    vst1q_u16(dst + i * stride + 8, dc);
+    vst1q_u16(dst + i * stride + 16, dc);
+    vst1q_u16(dst + i * stride + 24, dc);
+    vst1q_u16(dst + i * stride + 32, dc);
+    vst1q_u16(dst + i * stride + 40, dc);
+    vst1q_u16(dst + i * stride + 48, dc);
+    vst1q_u16(dst + i * stride + 56, dc);
+  }
+}
+
+#define HIGHBD_DC_PREDICTOR_128(w, h, q)                        \
+  void aom_highbd_dc_128_predictor_##w##x##h##_neon(            \
+      uint16_t *dst, ptrdiff_t stride, const uint16_t *above,   \
+      const uint16_t *left, int bd) {                           \
+    (void)above;                                                \
+    (void)bd;                                                   \
+    (void)left;                                                 \
+    highbd_dc_store_##w##xh(dst, stride, (h),                   \
+                            vdup##q##_n_u16(0x80 << (bd - 8))); \
+  }
+
+HIGHBD_DC_PREDICTOR_128(4, 4, )
+HIGHBD_DC_PREDICTOR_128(4, 8, )
+HIGHBD_DC_PREDICTOR_128(4, 16, )
+HIGHBD_DC_PREDICTOR_128(8, 4, q)
+HIGHBD_DC_PREDICTOR_128(8, 8, q)
+HIGHBD_DC_PREDICTOR_128(8, 16, q)
+HIGHBD_DC_PREDICTOR_128(8, 32, q)
+HIGHBD_DC_PREDICTOR_128(16, 4, q)
+HIGHBD_DC_PREDICTOR_128(16, 8, q)
+HIGHBD_DC_PREDICTOR_128(16, 16, q)
+HIGHBD_DC_PREDICTOR_128(16, 32, q)
+HIGHBD_DC_PREDICTOR_128(16, 64, q)
+HIGHBD_DC_PREDICTOR_128(32, 8, q)
+HIGHBD_DC_PREDICTOR_128(32, 16, q)
+HIGHBD_DC_PREDICTOR_128(32, 32, q)
+HIGHBD_DC_PREDICTOR_128(32, 64, q)
+HIGHBD_DC_PREDICTOR_128(64, 16, q)
+HIGHBD_DC_PREDICTOR_128(64, 32, q)
+HIGHBD_DC_PREDICTOR_128(64, 64, q)
+
+#undef HIGHBD_DC_PREDICTOR_128
+
+// -----------------------------------------------------------------------------
 // V_PRED
 
 #define HIGHBD_V_NXM(W, H)                                    \
