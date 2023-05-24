@@ -226,6 +226,10 @@ INSTANTIATE_TEST_SUITE_P(C, MinMaxTest, ::testing::Values(&aom_minmax_8x8_c));
 #if CONFIG_AV1_HIGHBITDEPTH
 INSTANTIATE_TEST_SUITE_P(C, HBDMinMaxTest,
                          ::testing::Values(&aom_highbd_minmax_8x8_c));
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, HBDMinMaxTest,
+                         ::testing::Values(&aom_highbd_minmax_8x8_neon));
+#endif
 #endif
 
 #if HAVE_SSE2

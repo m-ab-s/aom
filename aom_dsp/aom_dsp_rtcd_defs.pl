@@ -1193,6 +1193,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/unsigned int aom_highbd_avg_4x4/, "const uint8_t *, int p";
     specialize qw/aom_highbd_avg_4x4 neon/;
     add_proto qw/void aom_highbd_minmax_8x8/, "const uint8_t *s, int p, const uint8_t *d, int dp, int *min, int *max";
+    specialize qw/aom_highbd_minmax_8x8 neon/;
   }
 
   add_proto qw/void aom_int_pro_row/, "int16_t *hbuf, const uint8_t *ref, const int ref_stride, const int width, const int height, int norm_factor";
