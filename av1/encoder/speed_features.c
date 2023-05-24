@@ -919,7 +919,9 @@ static void set_good_speed_features_framesize_independent(
   }
 
   // Speed 0 for all speed features that give neutral coding performance change.
-  sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3;
+  sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
+  sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
+  sf->gm_sf.disable_gm_search_based_on_stats = 1;
 
   sf->part_sf.less_rectangular_check_level = 1;
   sf->part_sf.ml_prune_partition = 1;
@@ -970,9 +972,6 @@ static void set_good_speed_features_framesize_independent(
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
 
   if (speed >= 1) {
-    sf->gm_sf.gm_search_type = GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2;
-    sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
-
     sf->part_sf.intra_cnn_based_part_prune_level =
         allow_screen_content_tools ? 0 : 2;
     sf->part_sf.simple_motion_search_early_term_none = 1;
@@ -1028,7 +1027,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->fp_sf.skip_motion_search_threshold = 25;
 
-    sf->gm_sf.disable_gm_search_based_on_stats = 1;
     sf->gm_sf.num_refinement_steps = 2;
 
     sf->part_sf.reuse_best_prediction_for_part_ab =
