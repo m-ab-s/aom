@@ -591,12 +591,26 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 static int enc_worker_hook(void *arg1, void *unused) {
   EncWorkerData *const thread_data = (EncWorkerData *)arg1;
   AV1_COMP *const cpi = thread_data->cpi;
+  MACROBLOCKD *const xd = &thread_data->td->mb.e_mbd;
+  struct aom_internal_error_info *const error_info = &thread_data->error_info;
   const AV1_COMMON *const cm = &cpi->common;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
   int t;
 
   (void)unused;
+
+  xd->error_info = error_info;
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+    return 0;
+  }
+  error_info->setjmp = 1;
+
   // Preallocate the pc_tree for realtime coding to reduce the cost of memory
   // allocation.
   thread_data->td->rt_pc_root =
@@ -619,6 +633,7 @@ static int enc_worker_hook(void *arg1, void *unused) {
   av1_free_pc_tree_recursive(thread_data->td->rt_pc_root, av1_num_planes(cm), 0,
                              0, cpi->sf.part_sf.partition_search_type);
 
+  error_info->setjmp = 0;
   return 1;
 }
 
@@ -1265,16 +1280,26 @@ static AOM_INLINE void sync_enc_workers(MultiThreadInfo *const mt_info,
                                         AV1_COMMON *const cm, int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   int had_error = mt_info->workers[0].had_error;
+  struct aom_internal_error_info error_info;
+
+  // Read the error_info of main thread.
+  if (had_error) {
+    AVxWorker *const worker = &mt_info->workers[0];
+    error_info = ((EncWorkerData *)worker->data1)->error_info;
+  }
 
   // Encoding ends.
   for (int i = num_workers - 1; i > 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];
-    had_error |= !winterface->sync(worker);
+    if (!winterface->sync(worker)) {
+      had_error = 1;
+      error_info = ((EncWorkerData *)worker->data1)->error_info;
+    }
   }
 
   if (had_error)
-    aom_internal_error(cm->error, AOM_CODEC_ERROR,
-                       "Failed to encode tile data");
+    aom_internal_error(cm->error, error_info.error_code, "%s",
+                       error_info.detail);
 }
 
 static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
