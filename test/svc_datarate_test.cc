@@ -116,7 +116,15 @@ class DatarateTestSVC
       encoder->Control(AV1E_SET_ENABLE_TPL_MODEL, 0);
       encoder->Control(AV1E_SET_DELTAQ_MODE, 0);
       if (cfg_.g_threads > 1) {
-        encoder->Control(AV1E_SET_TILE_COLUMNS, cfg_.g_threads >> 1);
+        if (cfg_.g_threads == 4) {
+          encoder->Control(AV1E_SET_TILE_COLUMNS, 2);
+          encoder->Control(AV1E_SET_TILE_ROWS, 2);
+        } else if (cfg_.g_threads == 8) {
+          encoder->Control(AV1E_SET_TILE_COLUMNS, 4);
+          encoder->Control(AV1E_SET_TILE_ROWS, 2);
+        } else {
+          encoder->Control(AV1E_SET_TILE_COLUMNS, cfg_.g_threads >> 1);
+        }
         encoder->Control(AV1E_SET_ROW_MT, 1);
       }
       if (screen_mode_) {
