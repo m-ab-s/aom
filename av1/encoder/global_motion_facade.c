@@ -283,6 +283,7 @@ static int do_gm_search_logic(SPEED_FEATURES *const sf, int frame) {
     case GM_REDUCED_REF_SEARCH_SKIP_L2_L3_ARF2:
       return !(frame == LAST2_FRAME || frame == LAST3_FRAME ||
                (frame == ALTREF2_FRAME));
+    case GM_SEARCH_CLOSEST_REFS_ONLY: return 1;
     case GM_DISABLE_SEARCH: return 0;
     default: assert(0);
   }
@@ -421,6 +422,18 @@ static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
         sizeof(gm_info->reference_frames[0][0]), compare_distance);
   qsort(gm_info->reference_frames[1], gm_info->num_ref_frames[1],
         sizeof(gm_info->reference_frames[1][0]), compare_distance);
+
+  if (cpi->sf.gm_sf.gm_search_type == GM_SEARCH_CLOSEST_REFS_ONLY) {
+    // Filter down to the nearest two ref frames.
+    // Prefer one past and one future ref over two past refs, even if
+    // the second past ref is closer
+    if (gm_info->num_ref_frames[1] > 0) {
+      gm_info->num_ref_frames[0] = AOMMIN(gm_info->num_ref_frames[0], 1);
+      gm_info->num_ref_frames[1] = AOMMIN(gm_info->num_ref_frames[1], 1);
+    } else {
+      gm_info->num_ref_frames[0] = AOMMIN(gm_info->num_ref_frames[0], 2);
+    }
+  }
 }
 
 // Computes global motion w.r.t. valid reference frames.
