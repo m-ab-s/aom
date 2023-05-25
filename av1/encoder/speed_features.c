@@ -168,6 +168,14 @@ static int frame_is_boosted(const AV1_COMP *cpi) {
   return frame_is_kf_gf_arf(cpi);
 }
 
+// Set transform rd gate level for all transform search cases.
+static AOM_INLINE void set_txfm_rd_gate_level(
+    int txfm_rd_gate_level[TX_SEARCH_CASES], int level) {
+  assert(level <= MAX_TX_RD_GATE_LEVEL);
+  for (int idx = 0; idx < TX_SEARCH_CASES; idx++)
+    txfm_rd_gate_level[idx] = level;
+}
+
 static void set_allintra_speed_feature_framesize_dependent(
     const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -1045,7 +1053,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_DISABLED;
     sf->inter_sf.enable_fast_compound_mode_search = 1;
     sf->inter_sf.reuse_mask_search_results = 1;
-    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 1;
+    set_txfm_rd_gate_level(sf->inter_sf.txfm_rd_gate_level, boosted ? 0 : 1);
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 1;
     sf->inter_sf.alt_ref_search_fp = 1;
 
@@ -1105,8 +1113,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 2;
     sf->inter_sf.selective_ref_frame = 5;
     sf->inter_sf.reuse_compound_type_decision = 1;
-    sf->inter_sf.txfm_rd_gate_level =
-        boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2);
+    set_txfm_rd_gate_level(sf->inter_sf.txfm_rd_gate_level,
+                           boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2));
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 2;
 
     sf->interp_sf.adaptive_interp_filter_search = 2;
@@ -1164,8 +1172,8 @@ static void set_good_speed_features_framesize_independent(
                                                                           : 1;
 
     sf->inter_sf.alt_ref_search_fp = 2;
-    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 3;
-    sf->inter_sf.motion_mode_txfm_rd_gating_offset = boosted ? 0 : 2;
+    sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_DEFAULT] = boosted ? 0 : 3;
+    sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_MOTION_MODE] = boosted ? 0 : 5;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 2;
     sf->inter_sf.prune_ext_comp_using_neighbors = 2;
@@ -1222,7 +1230,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
 
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
-    sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
+    sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_DEFAULT] = boosted ? 0 : 4;
     sf->inter_sf.enable_fast_compound_mode_search = 2;
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 3;
@@ -1631,7 +1639,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
   sf->inter_sf.selective_ref_frame = 4;
   sf->inter_sf.alt_ref_search_fp = 2;
-  sf->inter_sf.txfm_rd_gate_level = boosted ? 0 : 4;
+  set_txfm_rd_gate_level(sf->inter_sf.txfm_rd_gate_level, boosted ? 0 : 4);
   sf->inter_sf.limit_txfm_eval_per_mode = 3;
 
   sf->inter_sf.adaptive_rd_thresh = 4;
@@ -2011,8 +2019,6 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_ref_mv_idx_search = 0;
   inter_sf->prune_warped_prob_thresh = 0;
   inter_sf->reuse_compound_type_decision = 0;
-  inter_sf->txfm_rd_gate_level = 0;
-  inter_sf->motion_mode_txfm_rd_gating_offset = 0;
   inter_sf->prune_inter_modes_if_skippable = 0;
   inter_sf->disable_masked_comp = 0;
   inter_sf->enable_fast_compound_mode_search = 0;
@@ -2022,6 +2028,7 @@ static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->limit_inter_mode_cands = 0;
   inter_sf->limit_txfm_eval_per_mode = 0;
   inter_sf->skip_arf_compound = 0;
+  set_txfm_rd_gate_level(inter_sf->txfm_rd_gate_level, 0);
 }
 
 static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {

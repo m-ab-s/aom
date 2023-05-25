@@ -234,6 +234,16 @@ enum {
   PRUNE_NEARMV_MAX = PRUNE_NEARMV_LEVEL3,
 } UENUM1BYTE(PRUNE_NEARMV_LEVEL);
 
+enum {
+  // Default Transform search case - used in evaluation of compound type mode
+  // and best inter candidates
+  TX_SEARCH_DEFAULT = 0,
+  // Transform search in motion mode rd
+  TX_SEARCH_MOTION_MODE,
+  // All transform search cases
+  TX_SEARCH_CASES
+} UENUM1BYTE(TX_SEARCH_CASE);
+
 typedef struct {
   TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
   int fast_intra_tx_type_search;
@@ -855,13 +865,8 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Bypass transform search based on skip rd at following stages
   //   i. Compound type mode search
   //  ii. Motion mode search (mode evaluation and winner motion mode stage)
-  // iii. Trasform search for best inter candidates
-  int txfm_rd_gate_level;
-
-  // Set transform rd gating offset used in mode evaluation stage of motion
-  // mode. This sf is applicable only if txfm_rd_gate_level is enabled.
-  // TODO(Cherma): Combine this sf with txfm_rd_gate_level.
-  int motion_mode_txfm_rd_gating_offset;
+  // iii. Transform search for best inter candidates
+  int txfm_rd_gate_level[TX_SEARCH_CASES];
 
   // Limit the inter mode tested in the RD loop
   int reduce_inter_modes;

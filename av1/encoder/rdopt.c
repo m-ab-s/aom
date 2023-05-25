@@ -1321,15 +1321,9 @@ static int64_t motion_mode_rd(
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
   int mode_index_start, mode_index_end;
-  int txfm_rd_gate_level = cpi->sf.inter_sf.txfm_rd_gate_level;
-
-  // Set aggressive level of transform rd gating for mode evaluation stage.
-  if (cpi->sf.inter_sf.motion_mode_txfm_rd_gating_offset &&
-      txfm_rd_gate_level && !eval_motion_mode &&
-      num_pels_log2_lookup[bsize] > 8) {
-    txfm_rd_gate_level += cpi->sf.inter_sf.motion_mode_txfm_rd_gating_offset;
-    txfm_rd_gate_level = AOMMIN(txfm_rd_gate_level, MAX_TX_RD_GATE_LEVEL);
-  }
+  const int txfm_rd_gate_level =
+      get_txfm_rd_gate_level(cpi->sf.inter_sf.txfm_rd_gate_level, bsize,
+                             TX_SEARCH_MOTION_MODE, eval_motion_mode);
 
   // Modify the start and end index according to speed features. For example,
   // if SIMPLE_TRANSLATION has already been searched according to
@@ -5200,13 +5194,15 @@ static void tx_search_best_inter_candidates(
     RD_STATS rd_stats_uv;
     const int mode_rate = inter_modes_info->mode_rate_arr[data_idx];
     int64_t skip_rd = INT64_MAX;
-    if (cpi->sf.inter_sf.txfm_rd_gate_level) {
+    const int txfm_rd_gate_level = get_txfm_rd_gate_level(
+        cpi->sf.inter_sf.txfm_rd_gate_level, bsize, TX_SEARCH_DEFAULT,
+        /*eval_motion_mode=*/0);
+    if (txfm_rd_gate_level) {
       // Check if the mode is good enough based on skip RD
       int64_t curr_sse = inter_modes_info->sse_arr[data_idx];
       skip_rd = RDCOST(x->rdmult, mode_rate, curr_sse);
-      int eval_txfm =
-          check_txfm_eval(x, bsize, search_state->best_skip_rd[0], skip_rd,
-                          cpi->sf.inter_sf.txfm_rd_gate_level, 0);
+      int eval_txfm = check_txfm_eval(x, bsize, search_state->best_skip_rd[0],
+                                      skip_rd, txfm_rd_gate_level, 0);
       if (!eval_txfm) continue;
     }
 
