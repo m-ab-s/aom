@@ -1345,7 +1345,7 @@ static int fast_bigdia_search(const FULLPEL_MV start_mv,
                        do_init_search, cost_list, best_mv);
 }
 
-static int diamond_search_sad(FULLPEL_MV start_mv,
+static int diamond_search_sad(FULLPEL_MV start_mv, unsigned int start_mv_sad,
                               const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                               const int search_step, int *num00,
                               FULLPEL_MV *best_mv, FULLPEL_MV *second_best_mv) {
@@ -1387,8 +1387,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
   // search steps in the future if diamond_search_sad is called again.
   int num_center_steps = 0;
 
-  clamp_fullmv(&start_mv, &ms_params->mv_limits);
-
   // search_step determines the length of the initial step and hence the number
   // of iterations.
   const int tot_steps = cfg->num_search_steps - search_step;
@@ -1401,13 +1399,10 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
 
   // Check the starting position
   const uint8_t *best_address = get_buf_from_fullmv(ref, &start_mv);
-  unsigned int bestsad = mvsad_err_cost_(best_mv, &ms_params->mv_cost_params);
+  unsigned int bestsad = start_mv_sad;
 
   // TODO(chiyotsai@google.com): Implement 4 points search for msdf&sdaf
   if (ms_params->ms_buffers.second_pred) {
-    bestsad +=
-        get_mvpred_compound_sad(ms_params, src, best_address, ref_stride);
-
     for (int step = tot_steps - 1; step >= 0; --step) {
       const search_site *site = cfg->site[step];
       const int num_searches = cfg->searches_per_step[step];
@@ -1434,8 +1429,6 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
       UPDATE_SEARCH_STEP;
     }
   } else {
-    bestsad += get_mvpred_sad(ms_params, src, best_address, ref_stride);
-
     for (int step = tot_steps - 1; step >= 0; --step) {
       const search_site *site = cfg->site[step];
       const int num_searches = cfg->searches_per_step[step];
@@ -1506,13 +1499,36 @@ static int diamond_search_sad(FULLPEL_MV start_mv,
 #undef UPDATE_SEARCH_STEP
 }
 
-static int full_pixel_diamond(const FULLPEL_MV start_mv,
+static INLINE unsigned int get_start_mvpred_sad_cost(
+    const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, FULLPEL_MV start_mv) {
+  const struct buf_2d *const src = ms_params->ms_buffers.src;
+  const struct buf_2d *const ref = ms_params->ms_buffers.ref;
+  const uint8_t *best_address = get_buf_from_fullmv(ref, &start_mv);
+
+  unsigned int start_mv_sad =
+      mvsad_err_cost_(&start_mv, &ms_params->mv_cost_params);
+
+  if (ms_params->ms_buffers.second_pred)
+    start_mv_sad +=
+        get_mvpred_compound_sad(ms_params, src, best_address, ref->stride);
+  else
+    start_mv_sad += get_mvpred_sad(ms_params, src, best_address, ref->stride);
+
+  return start_mv_sad;
+}
+
+static int full_pixel_diamond(FULLPEL_MV start_mv,
                               const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                               const int step_param, int *cost_list,
                               FULLPEL_MV *best_mv, FULLPEL_MV *second_best_mv) {
   const search_site_config *cfg = ms_params->search_sites;
   int thissme, n, num00 = 0;
-  diamond_search_sad(start_mv, ms_params, step_param, &n, best_mv,
+
+  // Clamp start mv and calculate the cost
+  clamp_fullmv(&start_mv, &ms_params->mv_limits);
+  unsigned int start_mv_sad = get_start_mvpred_sad_cost(ms_params, start_mv);
+
+  diamond_search_sad(start_mv, start_mv_sad, ms_params, step_param, &n, best_mv,
                      second_best_mv);
 
   int bestsme = get_mvpred_compound_var_cost(ms_params, best_mv);
@@ -1526,8 +1542,8 @@ static int full_pixel_diamond(const FULLPEL_MV start_mv,
     // TODO(chiyotsai@google.com): There is another bug here where the second
     // best mv gets incorrectly overwritten. Fix it later.
     FULLPEL_MV tmp_best_mv;
-    diamond_search_sad(start_mv, ms_params, step_param + n, &num00,
-                       &tmp_best_mv, second_best_mv);
+    diamond_search_sad(start_mv, start_mv_sad, ms_params, step_param + n,
+                       &num00, &tmp_best_mv, second_best_mv);
 
     thissme = get_mvpred_compound_var_cost(ms_params, &tmp_best_mv);
 
