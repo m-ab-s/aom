@@ -283,9 +283,16 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   av1_set_mv_search_method(&full_ms_params, search_site_cfg,
                            tpl_sf->search_method);
 
-  av1_full_pixel_search(start_mv, &full_ms_params, step_param,
-                        cond_cost_list(cpi, cost_list), &best_mv->as_fullmv,
-                        NULL);
+  bestsme = av1_full_pixel_search(start_mv, &full_ms_params, step_param,
+                                  cond_cost_list(cpi, cost_list),
+                                  &best_mv->as_fullmv, NULL);
+
+  // When sub-pel motion search is skipped, populate sub-pel precision MV and
+  // return.
+  if (tpl_sf->subpel_force_stop == FULL_PEL) {
+    best_mv->as_mv = get_mv_from_fullmv(&best_mv->as_fullmv);
+    return bestsme;
+  }
 
   SUBPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &center_mv,
@@ -444,6 +451,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                                        TplDepStats *tpl_stats) {
   AV1_COMMON *cm = &cpi->common;
   const GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  TPL_SPEED_FEATURES *tpl_sf = &cpi->sf.tpl_sf;
 
   (void)gf_group;
 
@@ -472,7 +480,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
       mi_row * MI_SIZE * tpl_frame->rec_picture->y_stride + mi_col * MI_SIZE;
   uint8_t *dst_buffer = tpl_frame->rec_picture->y_buffer + dst_mb_offset;
   int dst_buffer_stride = tpl_frame->rec_picture->y_stride;
-  int use_y_only_rate_distortion = cpi->sf.tpl_sf.use_y_only_rate_distortion;
+  int use_y_only_rate_distortion = tpl_sf->use_y_only_rate_distortion;
 
   uint8_t *rec_buffer_pool[3] = {
     tpl_frame->rec_picture->y_buffer,
@@ -551,7 +559,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   // if cpi->sf.tpl_sf.prune_intra_modes is on, then search only DC_PRED,
   // H_PRED, and V_PRED
   const PREDICTION_MODE last_intra_mode =
-      cpi->sf.tpl_sf.prune_intra_modes ? D45_PRED : INTRA_MODE_END;
+      tpl_sf->prune_intra_modes ? D45_PRED : INTRA_MODE_END;
   const SequenceHeader *seq_params = cm->seq_params;
   for (PREDICTION_MODE mode = INTRA_MODE_START; mode < last_intra_mode;
        ++mode) {
@@ -657,7 +665,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
       TplDepStats *ref_tpl_stats = &tpl_frame->tpl_stats_ptr[av1_tpl_ptr_pos(
           mi_row - mi_height, mi_col, tpl_frame->stride, block_mis_log2)];
       if (!is_alike_mv(ref_tpl_stats->mv[rf_idx], center_mvs, refmv_count,
-                       cpi->sf.tpl_sf.skip_alike_starting_mv)) {
+                       tpl_sf->skip_alike_starting_mv)) {
         center_mvs[refmv_count].mv.as_int = ref_tpl_stats->mv[rf_idx].as_int;
         ++refmv_count;
       }
@@ -667,7 +675,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
       TplDepStats *ref_tpl_stats = &tpl_frame->tpl_stats_ptr[av1_tpl_ptr_pos(
           mi_row, mi_col - mi_width, tpl_frame->stride, block_mis_log2)];
       if (!is_alike_mv(ref_tpl_stats->mv[rf_idx], center_mvs, refmv_count,
-                       cpi->sf.tpl_sf.skip_alike_starting_mv)) {
+                       tpl_sf->skip_alike_starting_mv)) {
         center_mvs[refmv_count].mv.as_int = ref_tpl_stats->mv[rf_idx].as_int;
         ++refmv_count;
       }
@@ -678,7 +686,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
           mi_row - mi_height, mi_col + mi_width, tpl_frame->stride,
           block_mis_log2)];
       if (!is_alike_mv(ref_tpl_stats->mv[rf_idx], center_mvs, refmv_count,
-                       cpi->sf.tpl_sf.skip_alike_starting_mv)) {
+                       tpl_sf->skip_alike_starting_mv)) {
         center_mvs[refmv_count].mv.as_int = ref_tpl_stats->mv[rf_idx].as_int;
         ++refmv_count;
       }
@@ -697,13 +705,13 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                                                     rf_idx + LAST_FRAME);
       if (tp_mv.as_int != INVALID_MV &&
           !is_alike_mv(tp_mv, center_mvs + 1, refmv_count - 1,
-                       cpi->sf.tpl_sf.skip_alike_starting_mv)) {
+                       tpl_sf->skip_alike_starting_mv)) {
         center_mvs[0].mv = tp_mv;
       }
     }
 
     // Prune starting mvs
-    if (cpi->sf.tpl_sf.prune_starting_mv) {
+    if (tpl_sf->prune_starting_mv) {
       // Get each center mv's sad.
       for (idx = 0; idx < refmv_count; ++idx) {
         FULLPEL_MV mv = get_fullmv_from_mv(&center_mvs[idx].mv.as_mv);
@@ -717,7 +725,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
       if (refmv_count > 1) {
         qsort(center_mvs, refmv_count, sizeof(center_mvs[0]), compare_sad);
       }
-      refmv_count = AOMMIN(4 - cpi->sf.tpl_sf.prune_starting_mv, refmv_count);
+      refmv_count = AOMMIN(4 - tpl_sf->prune_starting_mv, refmv_count);
       // Further reduce number of refmv based on sad difference.
       if (refmv_count > 1) {
         int last_sad = center_mvs[refmv_count - 1].sad;
@@ -742,21 +750,31 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
     tpl_stats->mv[rf_idx].as_int = best_rfidx_mv.as_int;
     single_mv[rf_idx] = best_rfidx_mv;
 
-    struct buf_2d ref_buf = { NULL, ref_frame_ptr->y_buffer,
-                              ref_frame_ptr->y_width, ref_frame_ptr->y_height,
-                              ref_frame_ptr->y_stride };
-    InterPredParams inter_pred_params;
-    av1_init_inter_params(&inter_pred_params, bw, bh, mi_row * MI_SIZE,
-                          mi_col * MI_SIZE, 0, 0, xd->bd, is_cur_buf_hbd(xd), 0,
-                          &tpl_data->sf, &ref_buf, kernel);
-    inter_pred_params.conv_params = get_conv_params(0, 0, xd->bd);
+    if (tpl_sf->subpel_force_stop != FULL_PEL) {
+      struct buf_2d ref_buf = { NULL, ref_frame_ptr->y_buffer,
+                                ref_frame_ptr->y_width, ref_frame_ptr->y_height,
+                                ref_frame_ptr->y_stride };
+      InterPredParams inter_pred_params;
+      av1_init_inter_params(&inter_pred_params, bw, bh, mi_row * MI_SIZE,
+                            mi_col * MI_SIZE, 0, 0, xd->bd, is_cur_buf_hbd(xd),
+                            0, &tpl_data->sf, &ref_buf, kernel);
+      inter_pred_params.conv_params = get_conv_params(0, 0, xd->bd);
 
-    av1_enc_build_one_inter_predictor(predictor, bw, &best_rfidx_mv.as_mv,
-                                      &inter_pred_params);
+      av1_enc_build_one_inter_predictor(predictor, bw, &best_rfidx_mv.as_mv,
+                                        &inter_pred_params);
 
-    inter_cost =
-        tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
-                          predictor, bw, coeff, bw, bh, tx_size);
+      inter_cost =
+          tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
+                            predictor, bw, coeff, bw, bh, tx_size);
+    } else {
+      const FULLPEL_MV best_fullmv = get_fullmv_from_mv(&best_rfidx_mv.as_mv);
+      // Since sub-pel motion search is not performed, use the prediction pixels
+      // directly from the reference block ref_mb
+      inter_cost = tpl_get_satd_cost(
+          bd_info, src_diff, bw, src_mb_buffer, src_stride,
+          &ref_mb[best_fullmv.row * ref_stride + best_fullmv.col], ref_stride,
+          coeff, bw, bh, tx_size);
+    }
     // Store inter cost for each ref frame
     tpl_stats->pred_error[rf_idx] = AOMMAX(1, inter_cost);
 
@@ -783,7 +801,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
 
   int start_rf = 0;
   int end_rf = 3;
-  if (!cpi->sf.tpl_sf.allow_compound_pred) end_rf = 0;
+  if (!tpl_sf->allow_compound_pred) end_rf = 0;
   if (cpi->third_pass_ctx &&
       frame_offset < cpi->third_pass_ctx->frame_info_count &&
       tpl_data->frame_idx < gf_group->size) {
@@ -803,10 +821,10 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
           break;
         }
       }
-      if (!found || !cpi->sf.tpl_sf.allow_compound_pred) {
+      if (!found || !tpl_sf->allow_compound_pred) {
         comp_ref_frames[2][0] = this_mi->ref_frame[0] - LAST_FRAME;
         comp_ref_frames[2][1] = this_mi->ref_frame[1] - LAST_FRAME;
-        if (!cpi->sf.tpl_sf.allow_compound_pred) {
+        if (!tpl_sf->allow_compound_pred) {
           start_rf = 2;
           end_rf = 3;
         }
