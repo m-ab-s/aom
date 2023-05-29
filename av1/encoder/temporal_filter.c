@@ -1055,7 +1055,10 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   } else if ((update_type == KF_UPDATE) && q <= 10) {
     adjust_num = 0;
   } else if (cpi->sf.hl_sf.adjust_num_frames_for_arf_filtering &&
-             update_type != KF_UPDATE) {
+             update_type != KF_UPDATE && (cpi->rc.frames_since_key > 0)) {
+    // Since screen content detection happens after temporal filtering,
+    // 'frames_since_key' check is added to ensure the sf is disabled for the
+    // first alt-ref frame.
     // Adjust number of frames to be considered for filtering based on noise
     // level of the current frame. For low-noise frame, use more frames to
     // filter such that the filtered frame can provide better predictions for
