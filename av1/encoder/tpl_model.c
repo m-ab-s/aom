@@ -58,6 +58,7 @@ void av1_init_tpl_txfm_stats(TplTxfmStats *tpl_txfm_stats) {
          sizeof(tpl_txfm_stats->abs_coeff_mean[0]) * tpl_txfm_stats->coeff_num);
 }
 
+#if CONFIG_BITRATE_ACCURACY
 void av1_accumulate_tpl_txfm_stats(const TplTxfmStats *sub_stats,
                                    TplTxfmStats *accumulated_stats) {
   accumulated_stats->txfm_block_count += sub_stats->txfm_block_count;
@@ -94,6 +95,7 @@ static AOM_INLINE void av1_tpl_store_txfm_stats(
     const int frame_index) {
   tpl_data->txfm_stats_list[frame_index] = *tpl_txfm_stats;
 }
+#endif  // CONFIG_BITRATE_ACCURACY
 
 static AOM_INLINE void get_quantize_error(const MACROBLOCK *x, int plane,
                                           const tran_low_t *coeff,
@@ -352,6 +354,8 @@ static void get_rate_distortion(
   *recon_error = 1;
   *pred_error = 1;
 
+  (void)tpl_txfm_stats;
+
   MACROBLOCKD *xd = &x->e_mbd;
   int is_compound = (best_mode == NEW_NEWMV);
   int num_planes = use_y_only_rate_distortion ? 1 : MAX_MB_PLANE;
@@ -433,10 +437,12 @@ static void get_rate_distortion(
         block_size_high[bsize_plane], max_txsize_rect_lookup[bsize_plane],
         &this_rate, &this_recon_error, &sse);
 
+#if CONFIG_BITRATE_ACCURACY
     if (plane == 0 && tpl_txfm_stats) {
       // We only collect Y plane's transform coefficient
       av1_record_tpl_txfm_block(tpl_txfm_stats, coeff);
     }
+#endif  // CONFIG_BITRATE_ACCURACY
 
     *recon_error += this_recon_error;
     *pred_error += sse;
@@ -1780,8 +1786,10 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
     } else {
       mc_flow_dispenser(cpi);
     }
+#if CONFIG_BITRATE_ACCURACY
     av1_tpl_txfm_stats_update_abs_coeff_mean(&cpi->td.tpl_txfm_stats);
     av1_tpl_store_txfm_stats(tpl_data, &cpi->td.tpl_txfm_stats, frame_idx);
+#endif  // CONFIG_BITRATE_ACCURACY
 #if CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
     if (cpi->oxcf.pass == AOM_RC_THIRD_PASS) {
       int frame_coding_idx =

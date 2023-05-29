@@ -2011,6 +2011,7 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
   }
 }
 
+#if CONFIG_BITRATE_ACCURACY
 // Accumulate transform stats after tpl.
 static void tpl_accumulate_txfm_stats(ThreadData *main_td,
                                       const MultiThreadInfo *mt_info,
@@ -2026,6 +2027,7 @@ static void tpl_accumulate_txfm_stats(ThreadData *main_td,
     }
   }
 }
+#endif  // CONFIG_BITRATE_ACCURACY
 
 // Implements multi-threading for tpl.
 void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
@@ -2051,7 +2053,9 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
   prepare_tpl_workers(cpi, tpl_worker_hook, num_workers);
   launch_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
+#if CONFIG_BITRATE_ACCURACY
   tpl_accumulate_txfm_stats(&cpi->td, &cpi->mt_info, num_workers);
+#endif  // CONFIG_BITRATE_ACCURACY
 }
 
 // Deallocate memory for temporal filter multi-thread synchronization.
