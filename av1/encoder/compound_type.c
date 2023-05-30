@@ -1611,20 +1611,24 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
       mbmi->mv[1] = tmp_mv[1];
     } else {
       // Handle masked compound types
-      // Factors to control gating of compound type selection based on best
-      // approximate rd so far
-      const int max_comp_type_rd_threshold_mul =
-          comp_type_rd_threshold_mul[cpi->sf.inter_sf
-                                         .prune_comp_type_by_comp_avg];
-      const int max_comp_type_rd_threshold_div =
-          comp_type_rd_threshold_div[cpi->sf.inter_sf
-                                         .prune_comp_type_by_comp_avg];
-      // Evaluate COMPOUND_WEDGE / COMPOUND_DIFFWTD if approximated cost is
-      // within threshold
-      int64_t approx_rd = ((*rd / max_comp_type_rd_threshold_div) *
-                           max_comp_type_rd_threshold_mul);
+      bool eval_masked_comp_type = true;
+      if (*rd != INT64_MAX) {
+        // Factors to control gating of compound type selection based on best
+        // approximate rd so far
+        const int max_comp_type_rd_threshold_mul =
+            comp_type_rd_threshold_mul[cpi->sf.inter_sf
+                                           .prune_comp_type_by_comp_avg];
+        const int max_comp_type_rd_threshold_div =
+            comp_type_rd_threshold_div[cpi->sf.inter_sf
+                                           .prune_comp_type_by_comp_avg];
+        // Evaluate COMPOUND_WEDGE / COMPOUND_DIFFWTD if approximated cost is
+        // within threshold
+        const int64_t approx_rd = ((*rd / max_comp_type_rd_threshold_div) *
+                                   max_comp_type_rd_threshold_mul);
+        if (approx_rd >= ref_best_rd) eval_masked_comp_type = false;
+      }
 
-      if (approx_rd < ref_best_rd) {
+      if (eval_masked_comp_type) {
         const int64_t tmp_rd_thresh = AOMMIN(*rd, rd_thresh);
         best_rd_cur = masked_compound_type_rd(
             cpi, x, cur_mv, bsize, this_mode, &rs2, *rate_mv, orig_dst,
