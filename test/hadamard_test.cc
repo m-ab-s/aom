@@ -387,6 +387,15 @@ INSTANTIATE_TEST_SUITE_P(
         HadamardFuncWithSize(&aom_highbd_hadamard_16x16_c, 16, 16),
         HadamardFuncWithSize(&aom_highbd_hadamard_32x32_c, 32, 32)));
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, HadamardHighbdTest,
+    ::testing::Values(
+        HadamardFuncWithSize(&aom_highbd_hadamard_8x8_neon, 8, 8),
+        HadamardFuncWithSize(&aom_highbd_hadamard_16x16_neon, 16, 16),
+        HadamardFuncWithSize(&aom_highbd_hadamard_32x32_neon, 32, 32)));
+#endif  // HAVE_NEON
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // Tests for low precision
