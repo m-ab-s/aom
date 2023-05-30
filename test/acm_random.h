@@ -52,6 +52,12 @@ class ACMRandom {
     return static_cast<int16_t>(Rand15()) - (1 << 14);
   }
 
+  int16_t Rand13Signed() {
+    // Use 13 bits: values between 4095 and -4096.
+    const uint32_t value = random_.Generate(8192);
+    return static_cast<int16_t>(value) - 4096;
+  }
+
   uint16_t Rand12() {
     const uint32_t value =
         random_.Generate(testing::internal::Random::kMaxRange);

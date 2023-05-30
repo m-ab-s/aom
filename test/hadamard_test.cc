@@ -259,6 +259,10 @@ class HadamardTestBase
     for (int i = 0; i < block_size_; ++i) a[i] = Rand();
     ReferenceHadamard(a, bw_, b_ref, bw_, bh_, shift_);
     API_REGISTER_STATE_CHECK(h_func_(a, bw_, b));
+
+    // The order of the output is not important. Sort before checking.
+    std::sort(b, b + block_size_);
+    std::sort(b_ref, b_ref + block_size_);
     EXPECT_EQ(memcmp(b, b_ref, sizeof(b)), 0);
   }
 
@@ -278,6 +282,10 @@ class HadamardTestBase
 
       ReferenceHadamard(a, i, b_ref, bw_, bh_, shift_);
       API_REGISTER_STATE_CHECK(h_func_(a, i, b));
+
+      // The order of the output is not important. Sort before checking.
+      std::sort(b, b + block_size_);
+      std::sort(b_ref, b_ref + block_size_);
       EXPECT_EQ(0, memcmp(b, b_ref, sizeof(b)));
     }
   }
@@ -354,6 +362,32 @@ INSTANTIATE_TEST_SUITE_P(
                       HadamardFuncWithSize(&aom_hadamard_16x16_neon, 16, 16),
                       HadamardFuncWithSize(&aom_hadamard_32x32_neon, 32, 32)));
 #endif  // HAVE_NEON
+
+#if CONFIG_AV1_HIGHBITDEPTH
+class HadamardHighbdTest : public HadamardTestBase<tran_low_t, HadamardFunc> {
+ protected:
+  HadamardHighbdTest() : HadamardTestBase(GetParam(), /*do_shift=*/true) {}
+  virtual int16_t Rand() { return rnd_.Rand13Signed(); }
+};
+
+TEST_P(HadamardHighbdTest, CompareReferenceRandom) { CompareReferenceRandom(); }
+
+TEST_P(HadamardHighbdTest, VaryStride) { VaryStride(); }
+
+TEST_P(HadamardHighbdTest, DISABLED_Speed) {
+  SpeedTest(10);
+  SpeedTest(10000);
+  SpeedTest(10000000);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    C, HadamardHighbdTest,
+    ::testing::Values(
+        HadamardFuncWithSize(&aom_highbd_hadamard_8x8_c, 8, 8),
+        HadamardFuncWithSize(&aom_highbd_hadamard_16x16_c, 16, 16),
+        HadamardFuncWithSize(&aom_highbd_hadamard_32x32_c, 32, 32)));
+
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // Tests for low precision
 class HadamardLowbdLPTest : public HadamardTestBase<int16_t, HadamardLPFunc> {
