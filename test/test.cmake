@@ -356,7 +356,8 @@ if(NOT BUILD_SHARED_LIBS)
 
   if(HAVE_NEON)
     list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
-                "${AOM_ROOT}/test/av1_convolve_scale_test.cc")
+                "${AOM_ROOT}/test/av1_convolve_scale_test.cc"
+                "${AOM_ROOT}/test/av1_horz_only_frame_superres_test.cc")
   endif()
 
   if(HAVE_SSE4_2 OR HAVE_ARM_CRC32)
