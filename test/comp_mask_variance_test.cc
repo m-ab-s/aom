@@ -46,19 +46,14 @@ const BLOCK_SIZE kCompMaskPredParams[] = {
 };
 #endif
 
-typedef std::tuple<comp_mask_pred_func, BLOCK_SIZE> CompMaskPredParam;
-
-class AV1CompMaskVarianceTest
-    : public ::testing::TestWithParam<CompMaskPredParam> {
+class AV1CompMaskVarianceTestBase : public ::testing::Test {
  public:
-  ~AV1CompMaskVarianceTest();
+  ~AV1CompMaskVarianceTestBase();
   void SetUp();
 
   void TearDown();
 
  protected:
-  void RunCheckOutput(comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv);
-  void RunSpeedTest(comp_mask_pred_func test_impl, BLOCK_SIZE bsize);
   bool CheckResult(int width, int height) {
     for (int y = 0; y < height; ++y) {
       for (int x = 0; x < width; ++x) {
@@ -80,11 +75,10 @@ class AV1CompMaskVarianceTest
   uint8_t *ref_buffer_;
   uint8_t *ref_;
 };
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1CompMaskVarianceTest);
 
-AV1CompMaskVarianceTest::~AV1CompMaskVarianceTest() {}
+AV1CompMaskVarianceTestBase::~AV1CompMaskVarianceTestBase() {}
 
-void AV1CompMaskVarianceTest::SetUp() {
+void AV1CompMaskVarianceTestBase::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   av1_init_wedge_masks();
   comp_pred1_ = (uint8_t *)aom_memalign(16, MAX_SB_SQUARE);
@@ -93,23 +87,39 @@ void AV1CompMaskVarianceTest::SetUp() {
   ASSERT_NE(comp_pred2_, nullptr);
   pred_ = (uint8_t *)aom_memalign(16, MAX_SB_SQUARE);
   ASSERT_NE(pred_, nullptr);
-  ref_buffer_ = (uint8_t *)aom_memalign(16, MAX_SB_SQUARE + (8 * MAX_SB_SIZE));
+  // The biggest block size is MAX_SB_SQUARE(128*128), however for the
+  // convolution we need to access 3 bytes before and 4 bytes after (for an
+  // 8-tap filter), in both directions, so we need to allocate
+  // (128 + 7) * (128 + 7) = MAX_SB_SQUARE + (14 * MAX_SB_SIZE) + 49
+  ref_buffer_ =
+      (uint8_t *)aom_memalign(16, MAX_SB_SQUARE + (14 * MAX_SB_SIZE) + 49);
   ASSERT_NE(ref_buffer_, nullptr);
-  ref_ = ref_buffer_ + (8 * MAX_SB_SIZE);
+  // Start of the actual block where the convolution will be computed
+  ref_ = ref_buffer_ + (3 * MAX_SB_SIZE + 3);
   for (int i = 0; i < MAX_SB_SQUARE; ++i) {
     pred_[i] = rnd_.Rand8();
   }
-  for (int i = 0; i < MAX_SB_SQUARE + (8 * MAX_SB_SIZE); ++i) {
+  for (int i = 0; i < MAX_SB_SQUARE + (14 * MAX_SB_SIZE) + 49; ++i) {
     ref_buffer_[i] = rnd_.Rand8();
   }
 }
 
-void AV1CompMaskVarianceTest::TearDown() {
+void AV1CompMaskVarianceTestBase::TearDown() {
   aom_free(comp_pred1_);
   aom_free(comp_pred2_);
   aom_free(pred_);
   aom_free(ref_buffer_);
 }
+
+typedef std::tuple<comp_mask_pred_func, BLOCK_SIZE> CompMaskPredParam;
+
+class AV1CompMaskVarianceTest
+    : public AV1CompMaskVarianceTestBase,
+      public ::testing::WithParamInterface<CompMaskPredParam> {
+ protected:
+  void RunCheckOutput(comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv);
+  void RunSpeedTest(comp_mask_pred_func test_impl, BLOCK_SIZE bsize);
+};
 
 void AV1CompMaskVarianceTest::RunCheckOutput(comp_mask_pred_func test_impl,
                                              BLOCK_SIZE bsize, int inv) {
@@ -155,6 +165,8 @@ void AV1CompMaskVarianceTest::RunSpeedTest(comp_mask_pred_func test_impl,
   printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
 }
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1CompMaskVarianceTest);
+
 TEST_P(AV1CompMaskVarianceTest, CheckOutput) {
   // inv = 0, 1
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 0);
@@ -186,111 +198,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
 
-#ifndef aom_comp_mask_pred
-// can't run this test if aom_comp_mask_pred is defined to aom_comp_mask_pred_c
-class AV1CompMaskUpVarianceTest : public AV1CompMaskVarianceTest {
- public:
-  ~AV1CompMaskUpVarianceTest();
-
- protected:
-  void RunCheckOutput(comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv);
-  void RunSpeedTest(comp_mask_pred_func test_impl, BLOCK_SIZE bsize,
-                    int havSub);
-};
-
-AV1CompMaskUpVarianceTest::~AV1CompMaskUpVarianceTest() {}
-
-void AV1CompMaskUpVarianceTest::RunCheckOutput(comp_mask_pred_func test_impl,
-                                               BLOCK_SIZE bsize, int inv) {
-  const int w = block_size_wide[bsize];
-  const int h = block_size_high[bsize];
-  const int wedge_types = get_wedge_types_lookup(bsize);
-  int subpel_search;
-  for (subpel_search = USE_4_TAPS; subpel_search <= USE_8_TAPS;
-       ++subpel_search) {
-    // loop through subx and suby
-    for (int sub = 0; sub < 8 * 8; ++sub) {
-      int subx = sub & 0x7;
-      int suby = (sub >> 3);
-      for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-        const uint8_t *mask =
-            av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
-
-        // ref
-        aom_comp_mask_upsampled_pred_c(
-            nullptr, nullptr, 0, 0, nullptr, comp_pred1_, pred_, w, h, subx,
-            suby, ref_, MAX_SB_SIZE, mask, w, inv, subpel_search);
-
-        aom_comp_mask_pred = test_impl;  // test
-        aom_comp_mask_upsampled_pred(nullptr, nullptr, 0, 0, nullptr,
-                                     comp_pred2_, pred_, w, h, subx, suby, ref_,
-                                     MAX_SB_SIZE, mask, w, inv, subpel_search);
-        ASSERT_EQ(CheckResult(w, h), true)
-            << " wedge " << wedge_index << " inv " << inv << "sub (" << subx
-            << "," << suby << ")";
-      }
-    }
-  }
-}
-
-void AV1CompMaskUpVarianceTest::RunSpeedTest(comp_mask_pred_func test_impl,
-                                             BLOCK_SIZE bsize, int havSub) {
-  const int w = block_size_wide[bsize];
-  const int h = block_size_high[bsize];
-  const int subx = havSub ? 3 : 0;
-  const int suby = havSub ? 4 : 0;
-  const int wedge_types = get_wedge_types_lookup(bsize);
-  int wedge_index = wedge_types / 2;
-  const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
-
-  const int num_loops = 1000000000 / (w + h);
-  comp_mask_pred_func funcs[2] = { &aom_comp_mask_pred_c, test_impl };
-  double elapsed_time[2] = { 0 };
-  int subpel_search = USE_8_TAPS;  // set to USE_4_TAPS to test 4-tap filter.
-  for (int i = 0; i < 2; ++i) {
-    aom_usec_timer timer;
-    aom_usec_timer_start(&timer);
-    aom_comp_mask_pred = funcs[i];
-    for (int j = 0; j < num_loops; ++j) {
-      aom_comp_mask_upsampled_pred(nullptr, nullptr, 0, 0, nullptr, comp_pred1_,
-                                   pred_, w, h, subx, suby, ref_, MAX_SB_SIZE,
-                                   mask, w, 0, subpel_search);
-    }
-    aom_usec_timer_mark(&timer);
-    double time = static_cast<double>(aom_usec_timer_elapsed(&timer));
-    elapsed_time[i] = 1000.0 * time / num_loops;
-  }
-  printf("CompMaskUp[%d] %3dx%-3d:%7.2f/%7.2fns", havSub, w, h, elapsed_time[0],
-         elapsed_time[1]);
-  printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
-}
-
-TEST_P(AV1CompMaskUpVarianceTest, CheckOutput) {
-  // inv mask = 0, 1
-  RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 0);
-  RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 1);
-}
-
-TEST_P(AV1CompMaskUpVarianceTest, DISABLED_Speed) {
-  RunSpeedTest(GET_PARAM(0), GET_PARAM(1), 1);
-}
-
-#if HAVE_SSSE3
-INSTANTIATE_TEST_SUITE_P(
-    SSSE3, AV1CompMaskUpVarianceTest,
-    ::testing::Combine(::testing::Values(&aom_comp_mask_pred_ssse3),
-                       ::testing::ValuesIn(kCompMaskPredParams)));
-#endif
-
-#if HAVE_AVX2
-INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1CompMaskUpVarianceTest,
-    ::testing::Combine(::testing::Values(&aom_comp_mask_pred_avx2),
-                       ::testing::ValuesIn(kCompMaskPredParams)));
-#endif
-
-#endif  // ifndef aom_comp_mask_pred
-
 #if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2 || HAVE_NEON
 const BLOCK_SIZE kValidBlockSize[] = {
   BLOCK_4X4,     BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,
@@ -298,6 +205,91 @@ const BLOCK_SIZE kValidBlockSize[] = {
   BLOCK_32X64,   BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64,
   BLOCK_128X128, BLOCK_16X64, BLOCK_64X16
 };
+#endif
+
+typedef void (*upsampled_pred_func)(MACROBLOCKD *xd, const AV1_COMMON *const cm,
+                                    int mi_row, int mi_col, const MV *const mv,
+                                    uint8_t *comp_pred, int width, int height,
+                                    int subpel_x_q3, int subpel_y_q3,
+                                    const uint8_t *ref, int ref_stride,
+                                    int subpel_search);
+
+typedef std::tuple<upsampled_pred_func, BLOCK_SIZE> UpsampledPredParam;
+
+class AV1UpsampledPredTest
+    : public AV1CompMaskVarianceTestBase,
+      public ::testing::WithParamInterface<UpsampledPredParam> {
+ protected:
+  void RunCheckOutput(upsampled_pred_func test_impl, BLOCK_SIZE bsize);
+  void RunSpeedTest(upsampled_pred_func test_impl, BLOCK_SIZE bsize,
+                    int havSub);
+};
+
+void AV1UpsampledPredTest::RunCheckOutput(upsampled_pred_func test_impl,
+                                          BLOCK_SIZE bsize) {
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+  for (int subpel_search = USE_4_TAPS; subpel_search <= USE_8_TAPS;
+       ++subpel_search) {
+    // loop through subx and suby
+    for (int sub = 0; sub < 8 * 8; ++sub) {
+      int subx = sub & 0x7;
+      int suby = (sub >> 3);
+
+      aom_upsampled_pred_c(nullptr, nullptr, 0, 0, nullptr, comp_pred1_, w, h,
+                           subx, suby, ref_, MAX_SB_SIZE, subpel_search);
+
+      test_impl(nullptr, nullptr, 0, 0, nullptr, comp_pred2_, w, h, subx, suby,
+                ref_, MAX_SB_SIZE, subpel_search);
+      ASSERT_EQ(CheckResult(w, h), true)
+          << "sub (" << subx << "," << suby << ")";
+    }
+  }
+}
+
+void AV1UpsampledPredTest::RunSpeedTest(upsampled_pred_func test_impl,
+                                        BLOCK_SIZE bsize, int havSub) {
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+  const int subx = havSub ? 3 : 0;
+  const int suby = havSub ? 4 : 0;
+
+  const int num_loops = 1000000000 / (w + h);
+  upsampled_pred_func funcs[2] = { aom_upsampled_pred_c, test_impl };
+  double elapsed_time[2] = { 0 };
+  int subpel_search = USE_8_TAPS;  // set to USE_4_TAPS to test 4-tap filter.
+  for (int i = 0; i < 2; ++i) {
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    upsampled_pred_func func = funcs[i];
+    for (int j = 0; j < num_loops; ++j) {
+      func(nullptr, nullptr, 0, 0, nullptr, comp_pred1_, w, h, subx, suby, ref_,
+           MAX_SB_SIZE, subpel_search);
+    }
+    aom_usec_timer_mark(&timer);
+    double time = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    elapsed_time[i] = 1000.0 * time / num_loops;
+  }
+  printf("UpsampledPred[%d] %3dx%-3d:%7.2f/%7.2fns", havSub, w, h,
+         elapsed_time[0], elapsed_time[1]);
+  printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
+}
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1UpsampledPredTest);
+
+TEST_P(AV1UpsampledPredTest, CheckOutput) {
+  RunCheckOutput(GET_PARAM(0), GET_PARAM(1));
+}
+
+TEST_P(AV1UpsampledPredTest, DISABLED_Speed) {
+  RunSpeedTest(GET_PARAM(0), GET_PARAM(1), 1);
+}
+
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, AV1UpsampledPredTest,
+    ::testing::Combine(::testing::Values(&aom_upsampled_pred_sse2),
+                       ::testing::ValuesIn(kValidBlockSize)));
 #endif
 
 typedef std::tuple<comp_avg_pred_func, BLOCK_SIZE> CompAvgPredParam;
