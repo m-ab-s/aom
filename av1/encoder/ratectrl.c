@@ -523,8 +523,6 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
                          ? AOMMIN(8, AOMMAX(1, rc->q_1_frame / 16))
                          : AOMMIN(16, AOMMAX(1, rc->q_1_frame / 8));
   }
-  if (svc->number_temporal_layers > 1 && svc->temporal_layer_id == 0)
-    max_delta_up = AOMMIN(max_delta_up, 14);
   // If resolution changes or avg_frame_bandwidth significantly changed,
   // then set this flag to indicate change in target bits per macroblock.
   const int change_target_bits_mb =
@@ -580,17 +578,28 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
     else if (q - rc->q_1_frame > max_delta_up)
       q = rc->q_1_frame + max_delta_up;
   }
-  // Constrain the Q for enhancement temporal layer, relative to base TLO.
-  if (svc->number_temporal_layers > 1 && svc->temporal_layer_id > 0 &&
-      svc->spatial_layer_id == 0) {
-    // Get base temporal layer TL0.
-    const int layer = LAYER_IDS_TO_IDX(0, 0, svc->number_temporal_layers);
-    LAYER_CONTEXT *lc = &svc->layer_context[layer];
-    // lc->rc.avg_frame_bandwidth and lc->p_rc.last_q correspond to the
-    // last TL0 frame.
-    if (rc->avg_frame_bandwidth < lc->rc.avg_frame_bandwidth &&
-        q < lc->p_rc.last_q[INTER_FRAME] - 4)
-      q = lc->p_rc.last_q[INTER_FRAME] - 4;
+  // Adjustment for temporal layers.
+  if (svc->number_temporal_layers > 1 && svc->spatial_layer_id == 0 &&
+      !change_target_bits_mb && !cpi->rc.rtc_external_ratectrl &&
+      cpi->oxcf.resize_cfg.resize_mode != RESIZE_DYNAMIC) {
+    if (svc->temporal_layer_id > 0) {
+      // Constrain enhancement relative to the previous base TL0.
+      // Get base temporal layer TL0.
+      const int layer = LAYER_IDS_TO_IDX(0, 0, svc->number_temporal_layers);
+      LAYER_CONTEXT *lc = &svc->layer_context[layer];
+      // lc->rc.avg_frame_bandwidth and lc->p_rc.last_q correspond to the
+      // last TL0 frame.
+      if (rc->avg_frame_bandwidth < lc->rc.avg_frame_bandwidth &&
+          q < lc->p_rc.last_q[INTER_FRAME] - 4)
+        q = lc->p_rc.last_q[INTER_FRAME] - 4;
+    } else if (cpi->svc.temporal_layer_id == 0 &&
+               p_rc->buffer_level > (p_rc->optimal_buffer_level >> 2) &&
+               rc->frame_source_sad < 100000) {
+      // Push base TL0 Q down if buffer is stable and frame_source_sad
+      // is below threshold.
+      int delta = (svc->number_temporal_layers == 2) ? 4 : 10;
+      q = q - delta;
+    }
   }
   // For non-svc (single layer): if resolution has increased push q closer
   // to the active_worst to avoid excess overshoot.
