@@ -258,7 +258,8 @@ int av1_rc_clamp_iframe_target_size(const AV1_COMP *const cpi, int64_t target) {
 
 // Update the buffer level for higher temporal layers, given the encoded current
 // temporal layer.
-static void update_layer_buffer_level(SVC *svc, int encoded_frame_size) {
+static void update_layer_buffer_level(SVC *svc, int encoded_frame_size,
+                                      bool is_screen) {
   const int current_temporal_layer = svc->temporal_layer_id;
   for (int i = current_temporal_layer + 1; i < svc->number_temporal_layers;
        ++i) {
@@ -272,6 +273,15 @@ static void update_layer_buffer_level(SVC *svc, int encoded_frame_size) {
     lp_rc->bits_off_target =
         AOMMIN(lp_rc->bits_off_target, lp_rc->maximum_buffer_size);
     lp_rc->buffer_level = lp_rc->bits_off_target;
+
+    // For screen-content mode: don't let buffer level go below threshold,
+    // given here as -rc->maximum_ buffer_size, to allow buffer to come back
+    // up sooner after slide change with big oveshoot.
+    if (is_screen) {
+      lp_rc->bits_off_target =
+          AOMMAX(lp_rc->bits_off_target, -lp_rc->maximum_buffer_size);
+      lp_rc->buffer_level = lp_rc->bits_off_target;
+    }
   }
 }
 // Update the buffer level: leaky bucket model.
@@ -298,7 +308,8 @@ static void update_buffer_level(AV1_COMP *cpi, int encoded_frame_size) {
   p_rc->buffer_level = p_rc->bits_off_target;
 
   if (cpi->ppi->use_svc)
-    update_layer_buffer_level(&cpi->svc, encoded_frame_size);
+    update_layer_buffer_level(&cpi->svc, encoded_frame_size,
+                              cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN);
 
 #if CONFIG_FPMT_TEST
   /* The variable temp_buffer_level is introduced for quality

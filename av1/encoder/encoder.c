@@ -3717,9 +3717,11 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
   }
 
   // For 1 pass CBR, check if we are dropping this frame.
-  // Never drop on key frame.
+  // Never drop on key frame, or for frame whose base layer is key.
   if (has_no_stats_stage(cpi) && oxcf->rc_cfg.mode == AOM_CBR &&
-      current_frame->frame_type != KEY_FRAME) {
+      current_frame->frame_type != KEY_FRAME &&
+      !(cpi->ppi->use_svc &&
+        cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame)) {
     FRAME_UPDATE_TYPE update_type =
         cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
     (void)update_type;
