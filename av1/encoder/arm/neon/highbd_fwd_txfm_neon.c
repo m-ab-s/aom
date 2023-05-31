@@ -3886,9 +3886,9 @@ typedef void (*TxfmFuncNEON)(int32x4_t *input, int32x4_t *output,
 
 static INLINE TxfmFuncNEON fwd_txfm_type_to_func(TXFM_TYPE txfm_type) {
   switch (txfm_type) {
-    case TXFM_TYPE_DCT32: return fdct32_new_neon; break;
-    case TXFM_TYPE_DCT64: return fdct64_new_neon; break;
-    case TXFM_TYPE_IDENTITY32: return idtx32x32_neon; break;
+    case TXFM_TYPE_DCT32: return fdct32_new_neon;
+    case TXFM_TYPE_DCT64: return fdct64_new_neon;
+    case TXFM_TYPE_IDENTITY32: return idtx32x32_neon;
     default: assert(0);
   }
   return NULL;

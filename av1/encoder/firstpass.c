@@ -221,7 +221,6 @@ static aom_variance_fn_t highbd_get_block_variance_fn(BLOCK_SIZE bsize,
         case BLOCK_8X16: return aom_highbd_8_mse8x16;
         default: return aom_highbd_8_mse16x16;
       }
-      break;
     case 10:
       switch (bsize) {
         case BLOCK_8X8: return aom_highbd_10_mse8x8;
@@ -229,7 +228,6 @@ static aom_variance_fn_t highbd_get_block_variance_fn(BLOCK_SIZE bsize,
         case BLOCK_8X16: return aom_highbd_10_mse8x16;
         default: return aom_highbd_10_mse16x16;
       }
-      break;
     case 12:
       switch (bsize) {
         case BLOCK_8X8: return aom_highbd_12_mse8x8;
@@ -237,7 +235,6 @@ static aom_variance_fn_t highbd_get_block_variance_fn(BLOCK_SIZE bsize,
         case BLOCK_8X16: return aom_highbd_12_mse8x16;
         default: return aom_highbd_12_mse16x16;
       }
-      break;
   }
 }
 

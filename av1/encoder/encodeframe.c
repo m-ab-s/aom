@@ -611,7 +611,7 @@ static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       }
 
       // TODO(jingning): revisit this function.
-      if (cpi->oxcf.algo_cfg.enable_tpl_model && 0) {
+      if (cpi->oxcf.algo_cfg.enable_tpl_model && (0)) {
         adjust_rdmult_tpl_model(cpi, x, mi_row, mi_col);
       }
     }

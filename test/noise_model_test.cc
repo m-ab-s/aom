@@ -36,7 +36,6 @@ double randn(libaom_test::ACMRandom *random, double sigma) {
       return sigma * (u * sqrt(-2.0 * log(s) / s));
     }
   }
-  return 0;
 }
 
 // Synthesizes noise using the auto-regressive filter of the given lag,
