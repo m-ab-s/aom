@@ -244,8 +244,10 @@ void TestImage<SrcPixel>::Check() const {
 typedef tuple<int, int> BlockDimension;
 
 struct BaseParams {
-  BaseParams(BlockDimension dims, NTaps ntaps_x, NTaps ntaps_y, bool avg)
-      : dims(dims), ntaps_x(ntaps_x), ntaps_y(ntaps_y), avg(avg) {}
+  BaseParams(BlockDimension dimensions, NTaps num_taps_x, NTaps num_taps_y,
+             bool average)
+      : dims(dimensions), ntaps_x(num_taps_x), ntaps_y(num_taps_y),
+        avg(average) {}
 
   BlockDimension dims;
   NTaps ntaps_x, ntaps_y;
