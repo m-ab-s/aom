@@ -839,8 +839,6 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (!is_480p_or_larger) {
-      sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
-          boosted ? INT_MAX : 250;
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 26);
     }
 
@@ -893,7 +891,8 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (!is_720p_or_larger) {
-      sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh = 150;
+      sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
+          is_boosted_arf2_bwd_type ? 450 : 150;
     }
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
