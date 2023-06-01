@@ -344,6 +344,7 @@ else()
   add_c_flag_if_supported("-Wimplicit-function-declaration")
   add_compiler_flag_if_supported("-Wlogical-op")
   add_compiler_flag_if_supported("-Wpointer-arith")
+  add_compiler_flag_if_supported("-Wshadow")
   add_compiler_flag_if_supported("-Wshorten-64-to-32")
   add_compiler_flag_if_supported("-Wsign-compare")
   add_compiler_flag_if_supported("-Wstring-conversion")
@@ -374,9 +375,6 @@ else()
     # Disable no optimization warning when compiling with sanitizers
     add_compiler_flag_if_supported("-Wno-disabled-optimization")
   endif()
-
-  # Add -Wshadow only for C files to avoid massive gtest warning spam.
-  add_c_flag_if_supported("-Wshadow")
 
   # Add -Wundef only for C files to avoid massive gtest warning spam.
   add_c_flag_if_supported("-Wundef")
