@@ -382,10 +382,10 @@ class DatarateTestSVC
       //    1    3    5
       //  0    2    4
       // Keep golden fixed at slot 3.
-      int base_count = frame_cnt >> 1;
+      base_count = frame_cnt >> 1;
       ref_frame_config->ref_idx[3] = 3;
       // Cyclically refresh slots 5, 6, 7, for lag alt ref.
-      int lag_index = 5;
+      lag_index = 5;
       if (base_count > 0) {
         lag_index = 5 + (base_count % 3);
         if (frame_cnt % 2 != 0) lag_index = 5 + ((base_count + 1) % 3);
@@ -411,8 +411,7 @@ class DatarateTestSVC
         ref_frame_config->reference[3] = 1;
         ref_frame_config->reference[6] = 1;
       }
-    }
-    if (number_temporal_layers_ == 3 && number_spatial_layers_ == 1) {
+    } else if (number_temporal_layers_ == 3 && number_spatial_layers_ == 1) {
       // 3-layer:
       //   1    3   5    7
       //     2        6

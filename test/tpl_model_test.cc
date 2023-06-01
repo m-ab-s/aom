@@ -420,7 +420,7 @@ int find_gop_q_iterative(double bit_budget, aom_bit_depth_t bit_depth,
   double min_bits_diff = fabs(curr_estimate - bit_budget);
   // Start at q = 254 because we already have an estimate for q = 255.
   for (int q = 254; q >= 0; q--) {
-    double curr_estimate = av1_vbr_rc_info_estimate_gop_bitrate(
+    curr_estimate = av1_vbr_rc_info_estimate_gop_bitrate(
         q, bit_depth, update_type_scale_factors, frame_count, update_type_list,
         qstep_ratio_list, stats_list, q_index_list, estimated_bitrate_byframe);
     double bits_diff = fabs(curr_estimate - bit_budget);

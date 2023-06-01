@@ -623,7 +623,7 @@ class ConvolveTestBase : public ::testing::TestWithParam<ConvolveParam> {
       }
     }
 
-    const InterpFilter filter = (InterpFilter)1;
+    InterpFilter filter = (InterpFilter)1;
     const InterpKernel *filters =
         (const InterpKernel *)av1_get_interp_filter_kernel(filter, USE_8_TAPS);
     wrapper_filter_average_block2d_8_c(in, kInputStride, filters[1], filters[1],
@@ -635,10 +635,9 @@ class ConvolveTestBase : public ::testing::TestWithParam<ConvolveParam> {
     aom_usec_timer_start(&timer);
     while (tests_num > 0) {
       for (int filter_bank = 0; filter_bank < kNumFilterBanks; ++filter_bank) {
-        const InterpFilter filter = (InterpFilter)filter_bank;
-        const InterpKernel *filters =
-            (const InterpKernel *)av1_get_interp_filter_kernel(filter,
-                                                               USE_8_TAPS);
+        filter = (InterpFilter)filter_bank;
+        filters = (const InterpKernel *)av1_get_interp_filter_kernel(
+            filter, USE_8_TAPS);
         for (int filter_x = 0; filter_x < kNumFilters; ++filter_x) {
           for (int filter_y = 0; filter_y < kNumFilters; ++filter_y) {
             if (filter_x && filter_y) continue;
