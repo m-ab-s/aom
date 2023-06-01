@@ -29,7 +29,7 @@
 #include "test/util.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
-namespace AV1CompMaskVariance {
+namespace {
 typedef void (*comp_mask_pred_func)(uint8_t *comp_pred, const uint8_t *pred,
                                     int width, int height, const uint8_t *ref,
                                     int ref_stride, const uint8_t *mask,
@@ -46,9 +46,9 @@ const BLOCK_SIZE kCompMaskPredParams[] = {
 };
 #endif
 
-class AV1CompMaskVarianceTestBase : public ::testing::Test {
+class AV1CompMaskPredBase : public ::testing::Test {
  public:
-  ~AV1CompMaskVarianceTestBase();
+  ~AV1CompMaskPredBase();
   void SetUp();
 
   void TearDown();
@@ -76,9 +76,9 @@ class AV1CompMaskVarianceTestBase : public ::testing::Test {
   uint8_t *ref_;
 };
 
-AV1CompMaskVarianceTestBase::~AV1CompMaskVarianceTestBase() {}
+AV1CompMaskPredBase::~AV1CompMaskPredBase() {}
 
-void AV1CompMaskVarianceTestBase::SetUp() {
+void AV1CompMaskPredBase::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   av1_init_wedge_masks();
   comp_pred1_ = (uint8_t *)aom_memalign(16, MAX_SB_SQUARE);
@@ -104,7 +104,7 @@ void AV1CompMaskVarianceTestBase::SetUp() {
   }
 }
 
-void AV1CompMaskVarianceTestBase::TearDown() {
+void AV1CompMaskPredBase::TearDown() {
   aom_free(comp_pred1_);
   aom_free(comp_pred2_);
   aom_free(pred_);
@@ -113,16 +113,16 @@ void AV1CompMaskVarianceTestBase::TearDown() {
 
 typedef std::tuple<comp_mask_pred_func, BLOCK_SIZE> CompMaskPredParam;
 
-class AV1CompMaskVarianceTest
-    : public AV1CompMaskVarianceTestBase,
+class AV1CompMaskPredTest
+    : public AV1CompMaskPredBase,
       public ::testing::WithParamInterface<CompMaskPredParam> {
  protected:
   void RunCheckOutput(comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv);
   void RunSpeedTest(comp_mask_pred_func test_impl, BLOCK_SIZE bsize);
 };
 
-void AV1CompMaskVarianceTest::RunCheckOutput(comp_mask_pred_func test_impl,
-                                             BLOCK_SIZE bsize, int inv) {
+void AV1CompMaskPredTest::RunCheckOutput(comp_mask_pred_func test_impl,
+                                         BLOCK_SIZE bsize, int inv) {
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
   const int wedge_types = get_wedge_types_lookup(bsize);
@@ -138,8 +138,8 @@ void AV1CompMaskVarianceTest::RunCheckOutput(comp_mask_pred_func test_impl,
   }
 }
 
-void AV1CompMaskVarianceTest::RunSpeedTest(comp_mask_pred_func test_impl,
-                                           BLOCK_SIZE bsize) {
+void AV1CompMaskPredTest::RunSpeedTest(comp_mask_pred_func test_impl,
+                                       BLOCK_SIZE bsize) {
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
   const int wedge_types = get_wedge_types_lookup(bsize);
@@ -165,35 +165,35 @@ void AV1CompMaskVarianceTest::RunSpeedTest(comp_mask_pred_func test_impl,
   printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
 }
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1CompMaskVarianceTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1CompMaskPredTest);
 
-TEST_P(AV1CompMaskVarianceTest, CheckOutput) {
+TEST_P(AV1CompMaskPredTest, CheckOutput) {
   // inv = 0, 1
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 0);
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 1);
 }
 
-TEST_P(AV1CompMaskVarianceTest, DISABLED_Speed) {
+TEST_P(AV1CompMaskPredTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
 }
 
 #if HAVE_SSSE3
 INSTANTIATE_TEST_SUITE_P(
-    SSSE3, AV1CompMaskVarianceTest,
+    SSSE3, AV1CompMaskPredTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_ssse3),
                        ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1CompMaskVarianceTest,
+    AVX2, AV1CompMaskPredTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_avx2),
                        ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
-    NEON, AV1CompMaskVarianceTest,
+    NEON, AV1CompMaskPredTest,
     ::testing::Combine(::testing::Values(&aom_comp_mask_pred_neon),
                        ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
@@ -217,7 +217,7 @@ typedef void (*upsampled_pred_func)(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 typedef std::tuple<upsampled_pred_func, BLOCK_SIZE> UpsampledPredParam;
 
 class AV1UpsampledPredTest
-    : public AV1CompMaskVarianceTestBase,
+    : public AV1CompMaskPredBase,
       public ::testing::WithParamInterface<UpsampledPredParam> {
  protected:
   void RunCheckOutput(upsampled_pred_func test_impl, BLOCK_SIZE bsize);
@@ -411,9 +411,9 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 #if CONFIG_AV1_HIGHBITDEPTH
-class AV1HighbdCompMaskVarianceTestBase : public ::testing::Test {
+class AV1HighbdCompMaskPredTestBase : public ::testing::Test {
  public:
-  ~AV1HighbdCompMaskVarianceTestBase();
+  ~AV1HighbdCompMaskPredTestBase();
   void SetUp();
 
   void TearDown();
@@ -441,9 +441,9 @@ class AV1HighbdCompMaskVarianceTestBase : public ::testing::Test {
   uint16_t *ref_;
 };
 
-AV1HighbdCompMaskVarianceTestBase::~AV1HighbdCompMaskVarianceTestBase() {}
+AV1HighbdCompMaskPredTestBase::~AV1HighbdCompMaskPredTestBase() {}
 
-void AV1HighbdCompMaskVarianceTestBase::SetUp() {
+void AV1HighbdCompMaskPredTestBase::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   av1_init_wedge_masks();
 
@@ -467,7 +467,7 @@ void AV1HighbdCompMaskVarianceTestBase::SetUp() {
   ref_ = ref_buffer_ + (3 * MAX_SB_SIZE + 3);
 }
 
-void AV1HighbdCompMaskVarianceTestBase::TearDown() {
+void AV1HighbdCompMaskPredTestBase::TearDown() {
   aom_free(comp_pred1_);
   aom_free(comp_pred2_);
   aom_free(pred_);
@@ -483,20 +483,20 @@ typedef void (*highbd_comp_mask_pred_func)(uint8_t *comp_pred8,
 typedef std::tuple<highbd_comp_mask_pred_func, BLOCK_SIZE, int>
     HighbdCompMaskPredParam;
 
-class AV1HighbdCompMaskVarianceTest
-    : public AV1HighbdCompMaskVarianceTestBase,
+class AV1HighbdCompMaskPredTest
+    : public AV1HighbdCompMaskPredTestBase,
       public ::testing::WithParamInterface<HighbdCompMaskPredParam> {
  public:
-  ~AV1HighbdCompMaskVarianceTest();
+  ~AV1HighbdCompMaskPredTest();
 
  protected:
   void RunCheckOutput(comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv);
   void RunSpeedTest(comp_mask_pred_func test_impl, BLOCK_SIZE bsize);
 };
 
-AV1HighbdCompMaskVarianceTest::~AV1HighbdCompMaskVarianceTest() {}
+AV1HighbdCompMaskPredTest::~AV1HighbdCompMaskPredTest() {}
 
-void AV1HighbdCompMaskVarianceTest::RunCheckOutput(
+void AV1HighbdCompMaskPredTest::RunCheckOutput(
     highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv) {
   int bd_ = GET_PARAM(2);
   const int w = block_size_wide[bsize];
@@ -525,7 +525,7 @@ void AV1HighbdCompMaskVarianceTest::RunCheckOutput(
   }
 }
 
-void AV1HighbdCompMaskVarianceTest::RunSpeedTest(
+void AV1HighbdCompMaskPredTest::RunSpeedTest(
     highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize) {
   int bd_ = GET_PARAM(2);
 
@@ -564,21 +564,21 @@ void AV1HighbdCompMaskVarianceTest::RunSpeedTest(
   printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
 }
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdCompMaskVarianceTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdCompMaskPredTest);
 
-TEST_P(AV1HighbdCompMaskVarianceTest, CheckOutput) {
+TEST_P(AV1HighbdCompMaskPredTest, CheckOutput) {
   // inv = 0, 1
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 0);
   RunCheckOutput(GET_PARAM(0), GET_PARAM(1), 1);
 }
 
-TEST_P(AV1HighbdCompMaskVarianceTest, DISABLED_Speed) {
+TEST_P(AV1HighbdCompMaskPredTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
 }
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
-    AVX2, AV1HighbdCompMaskVarianceTest,
+    AVX2, AV1HighbdCompMaskPredTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx2),
                        ::testing::ValuesIn(kCompMaskPredParams),
                        ::testing::Range(8, 13, 2)));
@@ -586,7 +586,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
-    SSE2, AV1HighbdCompMaskVarianceTest,
+    SSE2, AV1HighbdCompMaskPredTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_sse2),
                        ::testing::ValuesIn(kCompMaskPredParams),
                        ::testing::Range(8, 13, 2)));
@@ -602,7 +602,7 @@ typedef std::tuple<highbd_upsampled_pred_func, BLOCK_SIZE, int>
     HighbdUpsampledPredParam;
 
 class AV1HighbdUpsampledPredTest
-    : public AV1HighbdCompMaskVarianceTestBase,
+    : public AV1HighbdCompMaskPredTestBase,
       public ::testing::WithParamInterface<HighbdUpsampledPredParam> {
  public:
   ~AV1HighbdUpsampledPredTest();
@@ -706,4 +706,4 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 #endif  // CONFIG_AV1_HIGHBITDEPTH
-}  // namespace AV1CompMaskVariance
+}  // namespace
