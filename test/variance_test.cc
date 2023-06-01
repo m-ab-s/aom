@@ -883,14 +883,15 @@ void MainTestClass<GetSseSum8x8QuadFuncType>::RefTestSseSum() {
     const int stride = width();
     int k = 0;
 
-    for (int i = 0; i < height(); i += 8) {
-      for (int j = 0; j < width(); j += 32) {
-        API_REGISTER_STATE_CHECK(params_.func(
-            src_ + stride * i + j, stride, ref_ + stride * i + j, stride,
-            &sse1[k], &sum1[k], &sse_tot_simd, &sum_tot_simd, &var1[k]));
+    for (int row = 0; row < height(); row += 8) {
+      for (int col = 0; col < width(); col += 32) {
+        API_REGISTER_STATE_CHECK(params_.func(src_ + stride * row + col, stride,
+                                              ref_ + stride * row + col, stride,
+                                              &sse1[k], &sum1[k], &sse_tot_simd,
+                                              &sum_tot_simd, &var1[k]));
         aom_get_var_sse_sum_8x8_quad_c(
-            src_ + stride * i + j, stride, ref_ + stride * i + j, stride,
-            &sse2[k], &sum2[k], &sse_tot_c, &sum_tot_c, &var2[k]);
+            src_ + stride * row + col, stride, ref_ + stride * row + col,
+            stride, &sse2[k], &sum2[k], &sse_tot_c, &sum_tot_c, &var2[k]);
         k += 4;
       }
     }
