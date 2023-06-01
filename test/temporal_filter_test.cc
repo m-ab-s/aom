@@ -389,15 +389,15 @@ TEST_P(EstimateNoiseTest, DISABLED_Speed) { SpeedTest(2000); }
 #if HAVE_AVX2
 // Width and height for which av1_estimate_noise_from_single_plane() will be
 // tested.
-int width[] = { 3840, 1920, 1280, 800, 640, 360, 357 };
-int height[] = { 2160, 1080, 720, 600, 480, 240, 237 };
+const int kWidths[] = { 3840, 1920, 1280, 800, 640, 360, 357 };
+const int kHeights[] = { 2160, 1080, 720, 600, 480, 240, 237 };
 
 INSTANTIATE_TEST_SUITE_P(
     AVX2, EstimateNoiseTest,
     ::testing::Combine(
         ::testing::Values(av1_estimate_noise_from_single_plane_c),
         ::testing::Values(av1_estimate_noise_from_single_plane_avx2),
-        ::testing::ValuesIn(width), ::testing::ValuesIn(height)));
+        ::testing::ValuesIn(kWidths), ::testing::ValuesIn(kHeights)));
 #endif  // HAVE_AVX2
 
 #if CONFIG_AV1_HIGHBITDEPTH
