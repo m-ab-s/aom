@@ -804,7 +804,7 @@ TEST(SearchWienerTest, 10bitSignedIntegerOverflowInUpdateASepSym) {
 
 // A test that reproduces b/281219978: signed integer overflow in
 // update_b_sep_sym().
-TEST(SearchWienerTest, DISABLED_12bitSignedIntegerOverflowInUpdateBSepSym) {
+TEST(SearchWienerTest, 12bitSignedIntegerOverflowInUpdateBSepSym) {
   constexpr int kWidth = 311;
   constexpr int kHeight = 3;
   static const uint16_t buffer[3 * kWidth * kHeight] = {
