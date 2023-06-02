@@ -1264,7 +1264,7 @@ static AOM_INLINE void launch_workers(MultiThreadInfo *const mt_info,
 static AOM_INLINE void sync_enc_workers(MultiThreadInfo *const mt_info,
                                         AV1_COMMON *const cm, int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
-  int had_error = 0;
+  int had_error = mt_info->workers[0].had_error;
 
   // Encoding ends.
   for (int i = num_workers - 1; i > 0; i--) {
