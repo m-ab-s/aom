@@ -551,6 +551,36 @@ const MaskedSADParam msad_test[] = {
 };
 
 INSTANTIATE_TEST_SUITE_P(NEON, MaskedSADTest, ::testing::ValuesIn(msad_test));
+
+const MaskedSADx4Param msadx4_test[] = {
+  make_tuple(&aom_masked_sad4x4x4d_neon, &aom_masked_sad4x4x4d_c),
+  make_tuple(&aom_masked_sad4x8x4d_neon, &aom_masked_sad4x8x4d_c),
+  make_tuple(&aom_masked_sad8x4x4d_neon, &aom_masked_sad8x4x4d_c),
+  make_tuple(&aom_masked_sad8x8x4d_neon, &aom_masked_sad8x8x4d_c),
+  make_tuple(&aom_masked_sad8x16x4d_neon, &aom_masked_sad8x16x4d_c),
+  make_tuple(&aom_masked_sad16x8x4d_neon, &aom_masked_sad16x8x4d_c),
+  make_tuple(&aom_masked_sad16x16x4d_neon, &aom_masked_sad16x16x4d_c),
+  make_tuple(&aom_masked_sad16x32x4d_neon, &aom_masked_sad16x32x4d_c),
+  make_tuple(&aom_masked_sad32x16x4d_neon, &aom_masked_sad32x16x4d_c),
+  make_tuple(&aom_masked_sad32x32x4d_neon, &aom_masked_sad32x32x4d_c),
+  make_tuple(&aom_masked_sad32x64x4d_neon, &aom_masked_sad32x64x4d_c),
+  make_tuple(&aom_masked_sad64x32x4d_neon, &aom_masked_sad64x32x4d_c),
+  make_tuple(&aom_masked_sad64x64x4d_neon, &aom_masked_sad64x64x4d_c),
+  make_tuple(&aom_masked_sad64x128x4d_neon, &aom_masked_sad64x128x4d_c),
+  make_tuple(&aom_masked_sad128x64x4d_neon, &aom_masked_sad128x64x4d_c),
+  make_tuple(&aom_masked_sad128x128x4d_neon, &aom_masked_sad128x128x4d_c),
+#if !CONFIG_REALTIME_ONLY
+  make_tuple(&aom_masked_sad4x16x4d_neon, &aom_masked_sad4x16x4d_c),
+  make_tuple(&aom_masked_sad16x4x4d_neon, &aom_masked_sad16x4x4d_c),
+  make_tuple(&aom_masked_sad8x32x4d_neon, &aom_masked_sad8x32x4d_c),
+  make_tuple(&aom_masked_sad32x8x4d_neon, &aom_masked_sad32x8x4d_c),
+  make_tuple(&aom_masked_sad16x64x4d_neon, &aom_masked_sad16x64x4d_c),
+  make_tuple(&aom_masked_sad64x16x4d_neon, &aom_masked_sad64x16x4d_c),
+#endif
+};
+
+INSTANTIATE_TEST_SUITE_P(NEON, MaskedSADx4Test,
+                         ::testing::ValuesIn(msadx4_test));
 #endif  // HAVE_NEON
 
 }  // namespace
