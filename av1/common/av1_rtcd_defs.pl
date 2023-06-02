@@ -290,7 +290,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
                                                    const MV *const mv, uint8_t *comp_pred, const uint8_t *pred, int width,
                                                    int height, int subpel_x_q3, int subpel_y_q3, const uint8_t *ref,
                                                    int ref_stride, int subpel_search";
-  specialize qw/aom_comp_avg_upsampled_pred sse2/;
+  specialize qw/aom_comp_avg_upsampled_pred sse2 neon/;
 
   add_proto qw/void aom_dist_wtd_comp_avg_upsampled_pred/, "MACROBLOCKD *xd, const struct AV1Common *const cm, int mi_row, int mi_col,
                                                        const MV *const mv, uint8_t *comp_pred, const uint8_t *pred, int width,

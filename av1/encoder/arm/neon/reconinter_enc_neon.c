@@ -124,3 +124,17 @@ void aom_upsampled_pred_neon(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                             width, NULL, -1, filter_y, 16, width, height);
   }
 }
+
+void aom_comp_avg_upsampled_pred_neon(MACROBLOCKD *xd,
+                                      const AV1_COMMON *const cm, int mi_row,
+                                      int mi_col, const MV *const mv,
+                                      uint8_t *comp_pred, const uint8_t *pred,
+                                      int width, int height, int subpel_x_q3,
+                                      int subpel_y_q3, const uint8_t *ref,
+                                      int ref_stride, int subpel_search) {
+  aom_upsampled_pred_neon(xd, cm, mi_row, mi_col, mv, comp_pred, width, height,
+                          subpel_x_q3, subpel_y_q3, ref, ref_stride,
+                          subpel_search);
+
+  aom_comp_avg_pred_neon(comp_pred, pred, width, height, comp_pred, width);
+}
