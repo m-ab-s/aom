@@ -1181,7 +1181,7 @@ static AOM_INLINE void sync_fpmt_workers(AV1_PRIMARY *ppi) {
     AVxWorker *const worker = ppi->p_mt_info.p_workers[i];
     if (!winterface->sync(worker)) {
       had_error = 1;
-      error = ((AV1_COMP *)worker->data1)->common.error;
+      error = ppi->parallel_cpi[i]->common.error;
     }
   }
 
