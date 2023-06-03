@@ -13,6 +13,8 @@
 #include <stddef.h>
 #include <arm_acle.h>
 
+#include "config/aom_config.h"
+
 #define CRC_LOOP(op, crc, type, buf, len) \
   while ((len) >= sizeof(type)) {         \
     (crc) = op((crc), *(type *)(buf));    \
