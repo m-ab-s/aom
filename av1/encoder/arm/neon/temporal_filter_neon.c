@@ -11,6 +11,7 @@
 
 #include <arm_neon.h>
 
+#include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/temporal_filter.h"

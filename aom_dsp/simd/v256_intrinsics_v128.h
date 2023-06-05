@@ -12,6 +12,8 @@
 #ifndef AOM_AOM_DSP_SIMD_V256_INTRINSICS_V128_H_
 #define AOM_AOM_DSP_SIMD_V256_INTRINSICS_V128_H_
 
+#include "config/aom_config.h"
+
 #if HAVE_NEON
 #include "aom_dsp/simd/v128_intrinsics_arm.h"
 #elif HAVE_SSE2

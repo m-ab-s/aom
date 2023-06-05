@@ -13,6 +13,8 @@
 #include <assert.h>
 #include <math.h>
 
+#include "config/aom_config.h"
+
 #include "aom_dsp/arm/mem_neon.h"
 #include "av1/common/txb_common.h"
 #include "av1/encoder/encodetxb.h"

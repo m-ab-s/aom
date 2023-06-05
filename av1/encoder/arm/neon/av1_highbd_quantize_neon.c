@@ -11,6 +11,8 @@
 
 #include <arm_neon.h>
 
+#include "config/aom_config.h"
+
 #include "aom_dsp/arm/mem_neon.h"
 
 #include "av1/common/quant_common.h"

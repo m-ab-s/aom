@@ -14,6 +14,7 @@
 #include <arm_neon.h>
 
 #include "av1/encoder/rdopt.h"
+#include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
 // Process horizontal and vertical correlations in a 4x4 block of pixels.

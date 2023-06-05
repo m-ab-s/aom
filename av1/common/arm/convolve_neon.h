@@ -13,6 +13,8 @@
 
 #include <arm_neon.h>
 
+#include "config/aom_config.h"
+
 #define HORIZ_EXTRA_ROWS ((SUBPEL_TAPS + 7) & ~0x07)
 
 static INLINE int16x4_t convolve8_4(const int16x4_t s0, const int16x4_t s1,

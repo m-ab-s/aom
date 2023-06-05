@@ -13,6 +13,8 @@
 
 #include <arm_neon.h>
 
+#include "config/aom_config.h"
+
 // Swap high and low halves.
 static INLINE uint16x8_t transpose64_u16q(const uint16x8_t a) {
   return vextq_u16(a, a, 4);

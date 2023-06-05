@@ -14,6 +14,8 @@
 
 #include <arm_neon.h>
 
+#include "config/aom_config.h"
+
 #include "aom_dsp/simd/v64_intrinsics_arm.h"
 
 typedef int64x2_t v128;

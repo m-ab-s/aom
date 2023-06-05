@@ -15,6 +15,8 @@
 #include <arm_neon.h>
 #include <string.h>
 
+#include "config/aom_config.h"
+
 #include "aom_dsp/simd/v64_intrinsics_arm.h"
 #include "aom_ports/arm.h"
 

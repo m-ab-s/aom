@@ -11,6 +11,7 @@
 #include <arm_neon.h>
 
 #include "aom_dsp/arm/sum_neon.h"
+#include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
 static int32x4_t k_means_multiply_add_neon(const int16x8_t a) {

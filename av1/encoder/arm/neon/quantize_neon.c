@@ -14,6 +14,8 @@
 #include <assert.h>
 #include <math.h>
 
+#include "config/aom_config.h"
+
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/sum_neon.h"
 #include "aom_mem/aom_mem.h"

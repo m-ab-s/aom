@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <arm_neon.h>
 
+#include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 #include "av1/encoder/ml.h"
 
