@@ -926,29 +926,29 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       }
       add_proto qw/unsigned int/, "aom_highbd_dist_wtd_sad${w}x${h}_avg", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride, const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS* jcp_param";
     }
-    specialize qw/aom_highbd_sad128x128 avx2/;
-    specialize qw/aom_highbd_sad128x64  avx2/;
-    specialize qw/aom_highbd_sad64x128  avx2/;
-    specialize qw/aom_highbd_sad64x64   avx2 sse2/;
-    specialize qw/aom_highbd_sad64x32   avx2 sse2/;
-    specialize qw/aom_highbd_sad32x64   avx2 sse2/;
-    specialize qw/aom_highbd_sad32x32   avx2 sse2/;
-    specialize qw/aom_highbd_sad32x16   avx2 sse2/;
-    specialize qw/aom_highbd_sad16x32   avx2 sse2/;
-    specialize qw/aom_highbd_sad16x16   avx2 sse2/;
-    specialize qw/aom_highbd_sad16x8    avx2 sse2/;
-    specialize qw/aom_highbd_sad8x16         sse2/;
-    specialize qw/aom_highbd_sad8x8          sse2/;
-    specialize qw/aom_highbd_sad8x4          sse2/;
-    specialize qw/aom_highbd_sad4x8          sse2/;
-    specialize qw/aom_highbd_sad4x4          sse2/;
+    specialize qw/aom_highbd_sad128x128 avx2      neon/;
+    specialize qw/aom_highbd_sad128x64  avx2      neon/;
+    specialize qw/aom_highbd_sad64x128  avx2      neon/;
+    specialize qw/aom_highbd_sad64x64   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad64x32   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad32x64   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad32x32   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad32x16   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad16x32   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad16x16   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad16x8    avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad8x16         sse2 neon/;
+    specialize qw/aom_highbd_sad8x8          sse2 neon/;
+    specialize qw/aom_highbd_sad8x4          sse2 neon/;
+    specialize qw/aom_highbd_sad4x8          sse2 neon/;
+    specialize qw/aom_highbd_sad4x4          sse2 neon/;
 
-    specialize qw/aom_highbd_sad4x16         sse2/;
-    specialize qw/aom_highbd_sad16x4    avx2 sse2/;
-    specialize qw/aom_highbd_sad8x32         sse2/;
-    specialize qw/aom_highbd_sad32x8    avx2 sse2/;
-    specialize qw/aom_highbd_sad16x64   avx2 sse2/;
-    specialize qw/aom_highbd_sad64x16   avx2 sse2/;
+    specialize qw/aom_highbd_sad4x16         sse2 neon/;
+    specialize qw/aom_highbd_sad16x4    avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad8x32         sse2 neon/;
+    specialize qw/aom_highbd_sad32x8    avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad16x64   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad64x16   avx2 sse2 neon/;
 
     specialize qw/aom_highbd_sad_skip_128x128 avx2/;
     specialize qw/aom_highbd_sad_skip_128x64  avx2/;
