@@ -2917,8 +2917,6 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
   BEST_PICKMODE *const best_pickmode = &search_state->best_pickmode;
 
-  // Check for IDTX: based only on Y channel, so avoid when color_sensitivity
-  // is set.
   // TODO(marpan): Only allow for 8 bit-depth for now, re-enable for 10/12 bit
   // when issue 3359 is fixed.
   if (cm->seq_params->bit_depth == 8 &&
@@ -2938,6 +2936,8 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
     const PRED_BUFFER *const best_pred = best_pickmode->best_pred;
     av1_block_yrd_idtx(x, best_pred->data, best_pred->stride, &idtx_rdc,
                        &is_skippable, bsize, mi->tx_size);
+    int64_t idx_rdcost_y = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
+    int allow_idtx = 1;
     // Incorporate color into rd cost.
     if ((x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] ||
          x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)])) {
@@ -2958,9 +2958,12 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
       idtx_rdc.rate += rdc_uv.rate;
       idtx_rdc.dist += rdc_uv.dist;
       idtx_rdc.skip_txfm = idtx_rdc.skip_txfm && rdc_uv.skip_txfm;
+      if (idx_rdcost_y == 0 && rdc_uv.dist > 0 && x->source_variance < 3000 &&
+          x->content_state_sb.source_sad_nonrd > kMedSad)
+        allow_idtx = 0;
     }
     int64_t idx_rdcost = RDCOST(x->rdmult, idtx_rdc.rate, idtx_rdc.dist);
-    if (idx_rdcost < search_state->best_rdc.rdcost) {
+    if (allow_idtx && idx_rdcost < search_state->best_rdc.rdcost) {
       best_pickmode->tx_type = IDTX;
       search_state->best_rdc.rdcost = idx_rdcost;
       best_pickmode->best_mode_skip_txfm = idtx_rdc.skip_txfm;
