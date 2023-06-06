@@ -1518,6 +1518,14 @@ enum aome_enc_control_id {
    */
   AV1E_GET_LUMA_CDEF_STRENGTH = 162,
 
+  /*!\brief Codec control to set the target bitrate in kilobits per second,
+   * unsigned int parameter. For 1 pass CBR mode, single layer encoding.
+   * This controls replaces the call aom_codec_enc_config_set(&codec, &cfg)
+   * when only target bitrate is changed, and so is much cheaper as it
+   * bypasses a lot of unneeded code checks.
+   */
+  AV1E_SET_BITRATE_ONE_PASS_CBR = 163,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -2159,6 +2167,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_RATE_DISTRIBUTION_INFO, const char *)
 
 AOM_CTRL_USE_TYPE(AV1E_GET_LUMA_CDEF_STRENGTH, int *)
 #define AOM_CTRL_AV1E_GET_LUMA_CDEF_STRENGTH
+
+AOM_CTRL_USE_TYPE(AV1E_SET_BITRATE_ONE_PASS_CBR, unsigned int)
+#define AOM_CTRL_AV1E_SET_BITRATE_ONE_PASS_CBR
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

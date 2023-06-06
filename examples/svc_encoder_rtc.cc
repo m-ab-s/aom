@@ -1259,6 +1259,7 @@ int main(int argc, const char **argv) {
   double framerate = 30.0;
   int use_svc_control = 1;
   int set_err_resil_frame = 0;
+  int test_changing_bitrate = 0;
   zero(rc.layer_target_bitrate);
   memset(&layer_id, 0, sizeof(aom_svc_layer_id_t));
   memset(&app_input, 0, sizeof(AppInput));
@@ -1601,6 +1602,23 @@ int main(int argc, const char **argv) {
                               &ref_frame_comp_pred);
           }
         }
+      }
+
+      // Change target_bitrate every other frame.
+      if (test_changing_bitrate && frame_cnt % 2 == 0) {
+        if (frame_cnt < 500)
+          cfg.rc_target_bitrate += 10;
+        else
+          cfg.rc_target_bitrate -= 10;
+        // Do big increase and decrease.
+        if (frame_cnt == 100) cfg.rc_target_bitrate <<= 1;
+        if (frame_cnt == 600) cfg.rc_target_bitrate >>= 1;
+        if (cfg.rc_target_bitrate < 100) cfg.rc_target_bitrate = 100;
+        // Call change_config, or bypass with new control.
+        // res = aom_codec_enc_config_set(&codec, &cfg);
+        if (aom_codec_control(&codec, AV1E_SET_BITRATE_ONE_PASS_CBR,
+                              cfg.rc_target_bitrate))
+          die_codec(&codec, "Failed to SET_BITRATE_ONE_PASS_CBR");
       }
 
       // Do the layer encode.
