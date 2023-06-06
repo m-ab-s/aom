@@ -13,8 +13,11 @@
 #include <float.h>
 #include <stdint.h>
 
-#include "av1/encoder/thirdpass.h"
 #include "config/aom_config.h"
+
+#if CONFIG_THREE_PASS
+#include "av1/encoder/thirdpass.h"
+#endif
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
 
@@ -538,8 +541,6 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
   const int bw = 4 << mi_size_wide_log2[bsize];
   const int bh = 4 << mi_size_high_log2[bsize];
 
-  int frame_offset = tpl_data->frame_idx - cpi->gf_frame_index;
-
   int32_t best_intra_cost = INT32_MAX;
   int32_t intra_cost;
   PREDICTION_MODE best_mode = DC_PRED;
@@ -670,6 +671,9 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
     tpl_stats->intra_rate = rate_cost;
   }
 
+#if CONFIG_THREE_PASS
+  const int frame_offset = tpl_data->frame_idx - cpi->gf_frame_index;
+
   if (cpi->third_pass_ctx &&
       frame_offset < cpi->third_pass_ctx->frame_info_count &&
       tpl_data->frame_idx < gf_group->size) {
@@ -699,6 +703,7 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
       }
     }
   }
+#endif  // CONFIG_THREE_PASS
 
   // Motion compensated prediction
   xd->mi[0]->ref_frame[0] = INTRA_FRAME;
@@ -771,6 +776,7 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
       }
     }
 
+#if CONFIG_THREE_PASS
     if (cpi->third_pass_ctx &&
         frame_offset < cpi->third_pass_ctx->frame_info_count &&
         tpl_data->frame_idx < gf_group->size) {
@@ -788,6 +794,7 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
         center_mvs[0].mv = tp_mv;
       }
     }
+#endif  // CONFIG_THREE_PASS
 
     // Prune starting mvs
     if (tpl_sf->prune_starting_mv && refmv_count > 1) {
@@ -866,6 +873,7 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
   int start_rf = 0;
   int end_rf = 3;
   if (!tpl_sf->allow_compound_pred) end_rf = 0;
+#if CONFIG_THREE_PASS
   if (cpi->third_pass_ctx &&
       frame_offset < cpi->third_pass_ctx->frame_info_count &&
       tpl_data->frame_idx < gf_group->size) {
@@ -895,6 +903,7 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
       }
     }
   }
+#endif  // CONFIG_THREE_PASS
 
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;

@@ -51,7 +51,9 @@
 #include "av1/encoder/speed_features.h"
 #include "av1/encoder/svc_layercontext.h"
 #include "av1/encoder/temporal_filter.h"
+#if CONFIG_THREE_PASS
 #include "av1/encoder/thirdpass.h"
+#endif
 #include "av1/encoder/tokenize.h"
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/av1_noise_estimate.h"
@@ -3593,10 +3595,12 @@ typedef struct AV1_COMP {
    */
   TWO_PASS_FRAME twopass_frame;
 
+#if CONFIG_THREE_PASS
   /*!
    * Context needed for third pass encoding.
    */
   THIRD_PASS_DEC_CTX *third_pass_ctx;
+#endif
 
   /*!
    * File pointer to second pass log

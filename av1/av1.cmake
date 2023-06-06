@@ -232,8 +232,6 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/svc_layercontext.h"
             "${AOM_ROOT}/av1/encoder/temporal_filter.c"
             "${AOM_ROOT}/av1/encoder/temporal_filter.h"
-            "${AOM_ROOT}/av1/encoder/thirdpass.c"
-            "${AOM_ROOT}/av1/encoder/thirdpass.h"
             "${AOM_ROOT}/av1/encoder/tokenize.c"
             "${AOM_ROOT}/av1/encoder/tokenize.h"
             "${AOM_ROOT}/av1/encoder/tpl_model.c"
@@ -439,6 +437,11 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_2
             "${AOM_ROOT}/av1/encoder/x86/hash_sse42.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_VSX "${AOM_ROOT}/av1/common/ppc/cfl_ppc.c")
+
+if(CONFIG_THREE_PASS)
+  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/thirdpass.c"
+              "${AOM_ROOT}/av1/encoder/thirdpass.h")
+endif()
 
 if(CONFIG_TUNE_VMAF)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/tune_vmaf.c"

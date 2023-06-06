@@ -11,8 +11,12 @@
 
 #include <float.h>
 
+#include "config/aom_config.h"
+
 #include "av1/encoder/encodeframe_utils.h"
+#if CONFIG_THREE_PASS
 #include "av1/encoder/thirdpass.h"
+#endif
 #include "config/aom_dsp_rtcd.h"
 
 #include "av1/common/enums.h"
@@ -1558,6 +1562,7 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
   const PartitionBlkParams *blk_params = &part_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params->bsize;
 
+#if CONFIG_THREE_PASS
   if (cpi->third_pass_ctx) {
     int mi_row = blk_params->mi_row;
     int mi_col = blk_params->mi_col;
@@ -1627,6 +1632,7 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
       }
     }
   }
+#endif  // CONFIG_THREE_PASS
 
   // Prune rectangular partitions for larger blocks.
   if (bsize > cpi->sf.part_sf.rect_partition_eval_thresh) {
