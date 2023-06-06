@@ -820,7 +820,11 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
 
   if (has_no_stats_stage(cpi) && (rc_cfg->mode == AOM_Q)) {
     p_rc->baseline_gf_interval = FIXED_GF_INTERVAL;
-  } else {
+  } else if (!is_one_pass_rt_params(cpi) ||
+             cm->current_frame.frame_number == 0) {
+    // For rtc mode: logic for setting the baseline_gf_interval is done
+    // in av1_get_one_pass_rt_params(), and it should not be reset here in
+    // change_config(), unless after init_config (first frame).
     p_rc->baseline_gf_interval = (MIN_GF_INTERVAL + MAX_GF_INTERVAL) / 2;
   }
 
