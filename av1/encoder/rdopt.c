@@ -1640,18 +1640,22 @@ static int64_t motion_mode_rd(
 
 static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
                             MACROBLOCK *const x, BLOCK_SIZE bsize,
-                            const BUFFER_SET *const orig_dst) {
+                            const BUFFER_SET *const orig_dst, int64_t best_rd) {
   assert(bsize < BLOCK_SIZES_ALL);
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   const int mi_row = xd->mi_row;
   const int mi_col = xd->mi_col;
-  av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize, 0,
-                                av1_num_planes(cm) - 1);
-
   int64_t total_sse = 0;
+  int64_t this_rd = INT64_MAX;
+  const int skip_mode_ctx = av1_get_skip_mode_context(xd);
+  rd_stats->rate = x->mode_costs.skip_mode_cost[skip_mode_ctx][1];
+
   for (int plane = 0; plane < num_planes; ++plane) {
+    // Call av1_enc_build_inter_predictor() for one plane at a time.
+    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, orig_dst, bsize,
+                                  plane, plane);
     const struct macroblock_plane *const p = &x->plane[plane];
     const struct macroblockd_plane *const pd = &xd->plane[plane];
     const BLOCK_SIZE plane_bsize =
@@ -1663,11 +1667,14 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
     int64_t sse = aom_sum_squares_2d_i16(p->src_diff, bw, bw, bh) << 4;
     sse >>= ((cpi->frame_info.bit_depth - 8) * 2);
     total_sse += sse;
+    // When current rd cost is more than the best rd, skip evaluation of
+    // remaining planes.
+    this_rd = RDCOST(x->rdmult, rd_stats->rate, total_sse);
+    if (this_rd > best_rd) break;
   }
-  const int skip_mode_ctx = av1_get_skip_mode_context(xd);
+
   rd_stats->dist = rd_stats->sse = total_sse;
-  rd_stats->rate = x->mode_costs.skip_mode_cost[skip_mode_ctx][1];
-  rd_stats->rdcost = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
+  rd_stats->rdcost = this_rd;
 
   restore_dst_buf(xd, *orig_dst, num_planes);
   return 0;
@@ -3465,9 +3472,6 @@ static AOM_INLINE void rd_pick_skip_mode(
     orig_dst.stride[i] = xd->plane[i].dst.stride;
   }
 
-  // Obtain the rdcost for skip_mode.
-  skip_mode_rd(&skip_mode_rd_stats, cpi, x, bsize, &orig_dst);
-
   // Compare the use of skip_mode with the best intra/inter mode obtained.
   const int skip_mode_ctx = av1_get_skip_mode_context(xd);
   int64_t best_intra_inter_mode_cost = INT64_MAX;
@@ -3480,6 +3484,10 @@ static AOM_INLINE void rd_pick_skip_mode(
     rd_cost->rate += mode_costs->skip_mode_cost[skip_mode_ctx][0];
     av1_rd_cost_update(x->rdmult, rd_cost);
   }
+
+  // Obtain the rdcost for skip_mode.
+  skip_mode_rd(&skip_mode_rd_stats, cpi, x, bsize, &orig_dst,
+               best_intra_inter_mode_cost);
 
   if (skip_mode_rd_stats.rdcost <= best_intra_inter_mode_cost &&
       (!xd->lossless[mbmi->segment_id] || skip_mode_rd_stats.dist == 0)) {
