@@ -237,13 +237,14 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   const search_site_config *src_search_sites =
       av1_get_search_site_config(cpi, x, search_method);
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
+  FULLPEL_MV_STATS best_mv_stats;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
                                      start_mv, src_search_sites,
                                      /*fine_search_interval=*/0);
 
   const unsigned int full_var_rd = av1_full_pixel_search(
       start_mv, &full_ms_params, step_param, cond_cost_list(cpi, cost_list),
-      &tmp_mv->as_fullmv, NULL);
+      &tmp_mv->as_fullmv, &best_mv_stats, NULL);
 
   // calculate the bit cost on motion vector
   MV mvp_full = get_mv_from_fullmv(&tmp_mv->as_fullmv);
@@ -272,13 +273,13 @@ static int combined_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
     // adaptively downgrade subpel search method based on block properties
     if (use_aggressive_subpel_search_method(
             x, sf->rt_sf.use_adaptive_subpel_search, fullpel_performed_well))
-      av1_find_best_sub_pixel_tree_pruned_more(xd, cm, &ms_params,
-                                               subpel_start_mv, &tmp_mv->as_mv,
-                                               &dis, &x->pred_sse[ref], NULL);
+      av1_find_best_sub_pixel_tree_pruned_more(
+          xd, cm, &ms_params, subpel_start_mv, &best_mv_stats, &tmp_mv->as_mv,
+          &dis, &x->pred_sse[ref], NULL);
     else
       cpi->mv_search_params.find_fractional_mv_step(
-          xd, cm, &ms_params, subpel_start_mv, &tmp_mv->as_mv, &dis,
-          &x->pred_sse[ref], NULL);
+          xd, cm, &ms_params, subpel_start_mv, &best_mv_stats, &tmp_mv->as_mv,
+          &dis, &x->pred_sse[ref], NULL);
     *rate_mv =
         av1_mv_bit_cost(&tmp_mv->as_mv, &ref_mv, x->mv_costs->nmv_joint_cost,
                         x->mv_costs->mv_cost_stack, MV_COST_WEIGHT);
@@ -363,7 +364,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     MV start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, start_mv));
     cpi->mv_search_params.find_fractional_mv_step(
-        xd, cm, &ms_params, start_mv, &best_mv.as_mv, &dis,
+        xd, cm, &ms_params, start_mv, NULL, &best_mv.as_mv, &dis,
         &x->pred_sse[ref_frame], NULL);
     this_ref_frm_newmv->as_int = best_mv.as_int;
 

@@ -42,6 +42,7 @@ static void motion_search(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *src,
 
   // Parameters used for motion search.
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
+  FULLPEL_MV_STATS best_mv_stats;
   const SEARCH_METHODS search_method = NSTEP;
   const search_site_config *search_site_cfg =
       cpi->mv_search_params.search_site_cfg[SS_CFG_FPF];
@@ -67,7 +68,8 @@ static void motion_search(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *src,
                                      /*fine_search_interval=*/0);
   av1_set_mv_search_method(&full_ms_params, search_site_cfg, search_method);
   av1_full_pixel_search(*ref_mv, &full_ms_params, step_param,
-                        cond_cost_list(cpi, cost_list), ref_mv, NULL);
+                        cond_cost_list(cpi, cost_list), ref_mv, &best_mv_stats,
+                        NULL);
 
   // Restore input state.
   mb->plane[0].src = ori_src_buf;

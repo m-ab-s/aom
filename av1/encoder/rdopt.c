@@ -3242,9 +3242,11 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
     const int step_param = cpi->mv_search_params.mv_step_param;
     IntraBCHashInfo *intrabc_hash_info = &x->intrabc_hash_info;
     int_mv best_mv, best_hash_mv;
+    FULLPEL_MV_STATS best_mv_stats;
 
-    int bestsme = av1_full_pixel_search(start_mv, &fullms_params, step_param,
-                                        NULL, &best_mv.as_fullmv, NULL);
+    int bestsme =
+        av1_full_pixel_search(start_mv, &fullms_params, step_param, NULL,
+                              &best_mv.as_fullmv, &best_mv_stats, NULL);
     const int hashsme = av1_intrabc_hash_search(
         cpi, xd, &fullms_params, intrabc_hash_info, &best_hash_mv.as_fullmv);
     if (hashsme < bestsme) {

@@ -141,6 +141,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
 
   // Do motion search.
   int_mv best_mv;  // Searched motion vector.
+  FULLPEL_MV_STATS best_mv_stats;
   int block_mse = INT_MAX;
   MV block_mv = kZeroMv;
   const int q = av1_get_q(cpi);
@@ -160,7 +161,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
 
   av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                         cond_cost_list(cpi, cost_list), &best_mv.as_fullmv,
-                        NULL);
+                        &best_mv_stats, NULL);
 
   if (force_integer_mv == 1) {  // Only do full search on the entire block.
     const int mv_row = best_mv.as_mv.row;
@@ -181,12 +182,13 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
     // Since we are merely refining the result from full pixel search, we don't
     // need regularization for subpel search
     ms_params.mv_cost_params.mv_cost_type = MV_COST_NONE;
+    best_mv_stats.err_cost = 0;
 
     MV subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, subpel_start_mv));
     error = cpi->mv_search_params.find_fractional_mv_step(
-        &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv, &best_mv.as_mv,
-        &distortion, &sse, NULL);
+        &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv, &best_mv_stats,
+        &best_mv.as_mv, &distortion, &sse, NULL);
     block_mse = DIVIDE_AND_ROUND(error, mb_pels);
     block_mv = best_mv.as_mv;
     *ref_mv = best_mv.as_mv;
@@ -220,7 +222,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
 
         av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                               cond_cost_list(cpi, cost_list),
-                              &best_mv.as_fullmv, NULL);
+                              &best_mv.as_fullmv, &best_mv_stats, NULL);
 
         av1_make_default_subpel_ms_params(&ms_params, cpi, mb, subblock_size,
                                           &baseline_mv, cost_list);
@@ -229,12 +231,13 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
         // Since we are merely refining the result from full pixel search, we
         // don't need regularization for subpel search
         ms_params.mv_cost_params.mv_cost_type = MV_COST_NONE;
+        best_mv_stats.err_cost = 0;
 
         subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
         assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, subpel_start_mv));
         error = cpi->mv_search_params.find_fractional_mv_step(
             &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv,
-            &best_mv.as_mv, &distortion, &sse, NULL);
+            &best_mv_stats, &best_mv.as_mv, &distortion, &sse, NULL);
         subblock_mses[subblock_idx] = DIVIDE_AND_ROUND(error, subblock_pels);
         subblock_mvs[subblock_idx] = best_mv.as_mv;
         ++subblock_idx;

@@ -259,6 +259,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   TPL_SPEED_FEATURES *tpl_sf = &cpi->sf.tpl_sf;
   int step_param;
   uint32_t bestsme = UINT_MAX;
+  FULLPEL_MV_STATS best_mv_stats;
   int distortion;
   uint32_t sse;
   int cost_list[5];
@@ -288,7 +289,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
 
   bestsme = av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                                   cond_cost_list(cpi, cost_list),
-                                  &best_mv->as_fullmv, NULL);
+                                  &best_mv->as_fullmv, &best_mv_stats, NULL);
 
   // When sub-pel motion search is skipped, populate sub-pel precision MV and
   // return.
@@ -303,11 +304,12 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   ms_params.forced_stop = tpl_sf->subpel_force_stop;
   ms_params.var_params.subpel_search_type = USE_2_TAPS;
   ms_params.mv_cost_params.mv_cost_type = MV_COST_NONE;
+  best_mv_stats.err_cost = 0;
   MV subpel_start_mv = get_mv_from_fullmv(&best_mv->as_fullmv);
   assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, subpel_start_mv));
   bestsme = cpi->mv_search_params.find_fractional_mv_step(
-      xd, cm, &ms_params, subpel_start_mv, &best_mv->as_mv, &distortion, &sse,
-      NULL);
+      xd, cm, &ms_params, subpel_start_mv, &best_mv_stats, &best_mv->as_mv,
+      &distortion, &sse, NULL);
 
   return bestsme;
 }
