@@ -501,7 +501,7 @@ if(CONFIG_AV1_ENCODER)
                                     $<TARGET_OBJECTS:aom_common_app_util>
                                     $<TARGET_OBJECTS:aom_encoder_app_util>)
 
-    add_executable(svc_encoder_rtc "${AOM_ROOT}/examples/svc_encoder_rtc.c"
+    add_executable(svc_encoder_rtc "${AOM_ROOT}/examples/svc_encoder_rtc.cc"
                                    $<TARGET_OBJECTS:aom_common_app_util>
                                    $<TARGET_OBJECTS:aom_encoder_app_util>)
 

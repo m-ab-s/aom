@@ -196,7 +196,7 @@ static void open_input_file(struct AvxInputContext *input,
       input->framerate.numerator = input->y4m.fps_n;
       input->framerate.denominator = input->y4m.fps_d;
       input->fmt = input->y4m.aom_fmt;
-      input->bit_depth = input->y4m.bit_depth;
+      input->bit_depth = static_cast<aom_bit_depth_t>(input->y4m.bit_depth);
     } else {
       fatal("Unsupported Y4M stream.");
     }
@@ -247,7 +247,7 @@ static aom_codec_err_t parse_layer_options_from_string(
     return AOM_CODEC_INVALID_PARAM;
 
   const size_t input_length = strlen(input);
-  input_string = malloc(input_length + 1);
+  input_string = reinterpret_cast<char *>(malloc(input_length + 1));
   if (input_string == NULL) return AOM_CODEC_MEM_ERROR;
   memcpy(input_string, input, input_length + 1);
   token = strtok(input_string, delim);  // NOLINT
@@ -335,7 +335,8 @@ static void parse_command_line(int argc, const char **argv_,
       enc_cfg->rc_max_quantizer = arg_parse_uint(&arg);
 #if CONFIG_AV1_HIGHBITDEPTH
     } else if (arg_match(&arg, &bitdepth_arg, argi)) {
-      enc_cfg->g_bit_depth = arg_parse_enum_or_int(&arg);
+      enc_cfg->g_bit_depth =
+          static_cast<aom_bit_depth_t>(arg_parse_enum_or_int(&arg));
       switch (enc_cfg->g_bit_depth) {
         case AOM_BITS_8:
           enc_cfg->g_input_bit_depth = 8;
@@ -406,7 +407,7 @@ static void parse_command_line(int argc, const char **argv_,
   app_input->input_ctx.filename = argv[0];
   free(argv);
 
-  open_input_file(&app_input->input_ctx, 0);
+  open_input_file(&app_input->input_ctx, AOM_CSP_UNKNOWN);
   if (app_input->input_ctx.file_type == FILE_TYPE_Y4M) {
     enc_cfg->g_w = app_input->input_ctx.width;
     enc_cfg->g_h = app_input->input_ctx.height;
@@ -1148,15 +1149,19 @@ static int test_decode(aom_codec_ctx_t *encoder, aom_codec_ctx_t *decoder,
       (dec_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH)) {
     if (enc_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
       aom_image_t enc_hbd_img;
-      aom_img_alloc(&enc_hbd_img, enc_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH,
-                    enc_img.d_w, enc_img.d_h, 16);
+      aom_img_alloc(
+          &enc_hbd_img,
+          static_cast<aom_img_fmt_t>(enc_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH),
+          enc_img.d_w, enc_img.d_h, 16);
       aom_img_truncate_16_to_8(&enc_hbd_img, &enc_img);
       enc_img = enc_hbd_img;
     }
     if (dec_img.fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
       aom_image_t dec_hbd_img;
-      aom_img_alloc(&dec_hbd_img, dec_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH,
-                    dec_img.d_w, dec_img.d_h, 16);
+      aom_img_alloc(
+          &dec_hbd_img,
+          static_cast<aom_img_fmt_t>(dec_img.fmt - AOM_IMG_FMT_HIGHBITDEPTH),
+          dec_img.d_w, dec_img.d_h, 16);
       aom_img_truncate_16_to_8(&dec_hbd_img, &dec_img);
       dec_img = dec_hbd_img;
     }
@@ -1270,7 +1275,7 @@ int main(int argc, const char **argv) {
   app_input.input_ctx.framerate.numerator = 30;
   app_input.input_ctx.framerate.denominator = 1;
   app_input.input_ctx.only_i420 = 0;
-  app_input.input_ctx.bit_depth = 0;
+  app_input.input_ctx.bit_depth = AOM_BITS_8;
   app_input.speed = 7;
   exec_name = argv[0];
 
@@ -1620,8 +1625,10 @@ int main(int argc, const char **argv) {
                   fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz,
                          obu_files[j]);
                 } else {
-                  aom_video_writer_write_frame(outfile[j], pkt->data.frame.buf,
-                                               pkt->data.frame.sz, pts);
+                  aom_video_writer_write_frame(
+                      outfile[j],
+                      reinterpret_cast<const uint8_t *>(pkt->data.frame.buf),
+                      pkt->data.frame.sz, pts);
                 }
                 if (sl == layer_id.spatial_layer_id)
                   rc.layer_encoding_bitrate[j] += 8.0 * pkt->data.frame.sz;
@@ -1633,9 +1640,10 @@ int main(int argc, const char **argv) {
               fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz,
                      total_layer_obu_file);
             } else {
-              aom_video_writer_write_frame(total_layer_file,
-                                           pkt->data.frame.buf,
-                                           pkt->data.frame.sz, pts);
+              aom_video_writer_write_frame(
+                  total_layer_file,
+                  reinterpret_cast<const uint8_t *>(pkt->data.frame.buf),
+                  pkt->data.frame.sz, pts);
             }
             // Keep count of rate control stats per layer (for non-key).
             if (!(pkt->data.frame.flags & AOM_FRAME_IS_KEY)) {
@@ -1682,8 +1690,10 @@ int main(int argc, const char **argv) {
 
 #if CONFIG_AV1_DECODER
             if (app_input.decode) {
-              if (aom_codec_decode(&decoder, pkt->data.frame.buf,
-                                   pkt->data.frame.sz, NULL))
+              if (aom_codec_decode(
+                      &decoder,
+                      reinterpret_cast<const uint8_t *>(pkt->data.frame.buf),
+                      pkt->data.frame.sz, NULL))
                 die_codec(&decoder, "Failed to decode frame");
             }
 #endif
