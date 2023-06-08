@@ -2319,7 +2319,9 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
     // Do not skip if intra or new mv is picked, or color sensitivity is set.
     // Never skip on slide/scene change.
     if (cpi->sf.rt_sf.skip_cdef_sb >= 2) {
-      mi_sb[0]->cdef_strength = mi_sb[0]->cdef_strength && allow_cdef_skipping;
+      mi_sb[0]->cdef_strength =
+          mi_sb[0]->cdef_strength &&
+          (allow_cdef_skipping || x->source_variance == 0);
     } else {
       mi_sb[0]->cdef_strength =
           mi_sb[0]->cdef_strength && allow_cdef_skipping &&
