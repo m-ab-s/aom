@@ -18,6 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <memory>
+
 #include "config/aom_config.h"
 
 #if CONFIG_AV1_DECODER
@@ -30,6 +32,7 @@
 #include "common/video_writer.h"
 #include "examples/encoder_util.h"
 #include "aom_ports/aom_timer.h"
+#include "av1/ratectrl_rtc.h"
 
 #define OPTION_BUFFER_SIZE 1024
 
@@ -44,6 +47,7 @@ typedef struct {
   int decode;
   int tune_content;
   int show_psnr;
+  bool use_external_rc;
 } AppInput;
 
 typedef enum {
@@ -99,6 +103,8 @@ static const arg_def_t test_decode_arg =
             "Attempt to test decoding the output when set to 1. Default is 1.");
 static const arg_def_t psnr_arg =
     ARG_DEF(NULL, "psnr", -1, "Show PSNR in status line.");
+static const arg_def_t ext_rc_arg =
+    ARG_DEF(NULL, "use-ext-rc", 0, "Use external rate control.");
 static const struct arg_enum_list tune_content_enum[] = {
   { "default", AOM_CONTENT_DEFAULT },
   { "screen", AOM_CONTENT_SCREEN },
@@ -372,6 +378,8 @@ static void parse_command_line(int argc, const char **argv_,
       printf("tune content %d\n", app_input->tune_content);
     } else if (arg_match(&arg, &psnr_arg, argi)) {
       app_input->show_psnr = 1;
+    } else if (arg_match(&arg, &ext_rc_arg, argi)) {
+      app_input->use_external_rc = true;
     } else {
       ++argj;
     }
@@ -1220,6 +1228,51 @@ static void show_psnr(struct psnr_stats *psnr_stream, double peak) {
   fprintf(stderr, "\n");
 }
 
+static aom::AV1RateControlRtcConfig create_rtc_rc_config(
+    const aom_codec_enc_cfg_t &cfg, const AppInput &app_input) {
+  aom::AV1RateControlRtcConfig rc_cfg;
+  rc_cfg.width = cfg.g_w;
+  rc_cfg.height = cfg.g_h;
+  rc_cfg.max_quantizer = cfg.rc_max_quantizer;
+  rc_cfg.min_quantizer = cfg.rc_min_quantizer;
+  rc_cfg.target_bandwidth = cfg.rc_target_bitrate;
+  rc_cfg.buf_initial_sz = cfg.rc_buf_initial_sz;
+  rc_cfg.buf_optimal_sz = cfg.rc_buf_optimal_sz;
+  rc_cfg.buf_sz = cfg.rc_buf_sz;
+  rc_cfg.overshoot_pct = cfg.rc_overshoot_pct;
+  rc_cfg.undershoot_pct = cfg.rc_undershoot_pct;
+  // This is hardcoded as AOME_SET_MAX_INTRA_BITRATE_PCT
+  rc_cfg.max_intra_bitrate_pct = 300;
+  rc_cfg.framerate = cfg.g_timebase.den;
+  // TODO(jianj): Add suppor for SVC.
+  rc_cfg.ss_number_layers = 1;
+  rc_cfg.ts_number_layers = 1;
+  rc_cfg.scaling_factor_num[0] = 1;
+  rc_cfg.scaling_factor_den[0] = 1;
+  rc_cfg.layer_target_bitrate[0] = static_cast<int>(rc_cfg.target_bandwidth);
+  rc_cfg.max_quantizers[0] = rc_cfg.max_quantizer;
+  rc_cfg.min_quantizers[0] = rc_cfg.min_quantizer;
+  rc_cfg.aq_mode = app_input.aq_mode;
+
+  return rc_cfg;
+}
+
+static int qindex_to_quantizer(int qindex) {
+  // Table that converts 0-63 range Q values passed in outside to the 0-255
+  // range Qindex used internally.
+  static const int quantizer_to_qindex[] = {
+    0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,
+    52,  56,  60,  64,  68,  72,  76,  80,  84,  88,  92,  96,  100,
+    104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152,
+    156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204,
+    208, 212, 216, 220, 224, 228, 232, 236, 240, 244, 249, 255,
+  };
+  for (int quantizer = 0; quantizer < 64; ++quantizer)
+    if (quantizer_to_qindex[quantizer] >= qindex) return quantizer;
+
+  return 63;
+}
+
 int main(int argc, const char **argv) {
   AppInput app_input;
   AvxVideoWriter *outfile[AOM_MAX_LAYERS] = { NULL };
@@ -1447,6 +1500,10 @@ int main(int argc, const char **argv) {
     aom_codec_control(&codec, AV1E_SET_ENABLE_INTRABC, 0);
   }
 
+  if (app_input.use_external_rc) {
+    aom_codec_control(&codec, AV1E_SET_RTC_EXTERNAL_RC, 1);
+  }
+
   svc_params.number_spatial_layers = ss_number_layers;
   svc_params.number_temporal_layers = ts_number_layers;
   for (i = 0; i < ss_number_layers * ts_number_layers; ++i) {
@@ -1481,6 +1538,13 @@ int main(int argc, const char **argv) {
   for (int lx = 0; lx < ts_number_layers * ss_number_layers; lx++) {
     cx_time_layer[lx] = 0;
     frame_cnt_layer[lx] = 0;
+  }
+
+  std::unique_ptr<aom::AV1RateControlRTC> rc_api;
+  if (app_input.use_external_rc) {
+    const aom::AV1RateControlRtcConfig rc_cfg =
+        create_rtc_rc_config(cfg, app_input);
+    rc_api = aom::AV1RateControlRTC::Create(rc_cfg);
   }
 
   frame_avail = 1;
@@ -1621,6 +1685,21 @@ int main(int argc, const char **argv) {
           die_codec(&codec, "Failed to SET_BITRATE_ONE_PASS_CBR");
       }
 
+      if (rc_api) {
+        aom::AV1FrameParamsRTC frame_params;
+        // TODO(jianj): Add support for SVC.
+        frame_params.spatial_layer_id = 0;
+        frame_params.temporal_layer_id = 0;
+        frame_params.frame_type =
+            is_key_frame ? aom::kKeyFrame : aom::kInterFrame;
+        rc_api->ComputeQP(frame_params);
+        const int current_qp = rc_api->GetQP();
+        if (aom_codec_control(&codec, AV1E_SET_QUANTIZER_ONE_PASS,
+                              qindex_to_quantizer(current_qp))) {
+          die_codec(&codec, "Failed to SET_QUANTIZER_ONE_PASS");
+        }
+      }
+
       // Do the layer encode.
       aom_usec_timer_start(&timer);
       if (aom_codec_encode(&codec, frame_avail ? &raw : NULL, pts, 1, flags))
@@ -1675,6 +1754,9 @@ int main(int argc, const char **argv) {
               if (slx == 0) ++rc.layer_enc_frames[layer_id.temporal_layer_id];
             }
 
+            if (rc_api) {
+              rc_api->PostEncodeUpdate(pkt->data.frame.sz);
+            }
             // Update for short-time encoding bitrate states, for moving window
             // of size rc->window, shifted by rc->window / 2.
             // Ignore first window segment, due to key frame.

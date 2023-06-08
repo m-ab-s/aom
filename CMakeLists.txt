@@ -501,14 +501,18 @@ if(CONFIG_AV1_ENCODER)
                                     $<TARGET_OBJECTS:aom_common_app_util>
                                     $<TARGET_OBJECTS:aom_encoder_app_util>)
 
-    add_executable(svc_encoder_rtc "${AOM_ROOT}/examples/svc_encoder_rtc.cc"
-                                   $<TARGET_OBJECTS:aom_common_app_util>
-                                   $<TARGET_OBJECTS:aom_encoder_app_util>)
-
     # Maintain a list of encoder example targets.
     list(APPEND AOM_ENCODER_EXAMPLE_TARGETS aomenc lossless_encoder noise_model
                 photon_noise_table set_maps simple_encoder scalable_encoder
-                twopass_encoder svc_encoder_rtc)
+                twopass_encoder)
+
+    if(NOT BUILD_SHARED_LIBS)
+      add_executable(svc_encoder_rtc "${AOM_ROOT}/examples/svc_encoder_rtc.cc"
+                                     $<TARGET_OBJECTS:aom_common_app_util>
+                                     $<TARGET_OBJECTS:aom_encoder_app_util>)
+      target_link_libraries(svc_encoder_rtc ${AOM_LIB_LINK_TYPE} aom_av1_rc)
+      list(APPEND AOM_ENCODER_EXAMPLE_TARGETS svc_encoder_rtc)
+    endif()
   endif()
 
   if(ENABLE_TOOLS)
