@@ -3766,7 +3766,7 @@ void av1_dist_wtd_convolve_x_neon(const uint8_t *src, int src_stride,
                                   const int subpel_x_qn,
                                   ConvolveParams *conv_params) {
   if (conv_params->do_average) {
-    if (conv_params->use_dist_wtd_comp_avg) {
+    if (UNLIKELY(conv_params->use_dist_wtd_comp_avg)) {
       dist_wtd_convolve_x_dist_wtd_avg_neon(src, src_stride, dst8, dst8_stride,
                                             w, h, filter_params_x, subpel_x_qn,
                                             conv_params);
