@@ -2855,7 +2855,7 @@ static INLINE void dist_wtd_convolve_x_dist_wtd_avg_neon(
   uint8x8_t t1, t2, t3, t4, t5, t6, t7;
 #endif  // AOM_ARCH_AARCH64
 
-  if ((w == 4) || (h == 4)) {
+  if (w == 4 || h == 4) {
     int16x4_t s0, s1, s2, s3, s4, s5, s6, s7, s8;
     uint16x4_t d0, dd0;
     uint8x8_t d01;
@@ -3190,7 +3190,7 @@ static INLINE void dist_wtd_convolve_x_avg_neon(
   uint8x8_t t1, t2, t3, t4, t5, t6, t7;
 #endif  // AOM_ARCH_AARCH64
 
-  if ((w == 4) || (h == 4)) {
+  if (w == 4 || h == 4) {
     int16x4_t s0, s1, s2, s3, s4, s5, s6, s7, s8;
     uint16x4_t d0, dd0;
     uint8x8_t d01;
@@ -3519,7 +3519,7 @@ static INLINE void dist_wtd_convolve_x_neon(
   uint8x8_t t1, t2, t3, t4, t5, t6, t7;
 #endif  // AOM_ARCH_AARCH64
 
-  if ((w == 4) || (h == 4)) {
+  if (w == 4 || h == 4) {
     int16x4_t s0, s1, s2, s3, s4, s5, s6, s7, s8;
     uint16x4_t d0;
 #if AOM_ARCH_AARCH64
@@ -4502,7 +4502,7 @@ static INLINE void dist_wtd_convolve_y_8tap_dist_wtd_avg_neon(
   const int dst_stride = conv_params->dst_stride;
   int width = w;
 
-  if ((w == 4) || (h == 4)) {
+  if (w == 4 || h == 4) {
     int16x4_t s0, s1, s2, s3, s4, s5, s6, s7;
     uint16x4_t d0, dd0;
     uint8x8_t t0, t1, t2, t3, t4, t5, t6, d01;
@@ -4789,7 +4789,7 @@ static INLINE void dist_wtd_convolve_y_8tap_avg_neon(
   const int dst_stride = conv_params->dst_stride;
   int width = w;
 
-  if ((w == 4) || (h == 4)) {
+  if (w == 4 || h == 4) {
     int16x4_t s0, s1, s2, s3, s4, s5, s6, s7;
     uint16x4_t d0, dd0;
     uint8x8_t t0, t1, t2, t3, t4, t5, t6, d01;
@@ -5072,7 +5072,7 @@ static INLINE void dist_wtd_convolve_y_8tap_neon(const uint8_t *src_ptr,
   const int dst_stride = conv_params->dst_stride;
   int width = w;
 
-  if ((w == 4) || (h == 4)) {
+  if (w == 4 || h == 4) {
     int16x4_t s0, s1, s2, s3, s4, s5, s6, s7;
     uint16x4_t d0;
     uint8x8_t t0, t1, t2, t3, t4, t5, t6;
