@@ -24,7 +24,8 @@
 #include "aom_dsp/arm/transpose_neon.h"
 #include "aom_ports/mem.h"
 
-#if AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
+#if AOM_ARCH_AARCH64 && \
+    (defined(__ARM_FEATURE_DOTPROD) || defined(__ARM_FEATURE_MATMUL_INT8))
 
 DECLARE_ALIGNED(16, static const uint8_t, dot_prod_permute_tbl[48]) = {
   0, 1, 2,  3,  1, 2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6,
@@ -45,6 +46,130 @@ DECLARE_ALIGNED(16, static const uint8_t, dot_prod_merge_block_tbl[48]) = {
   /* Shift left and insert three new columns in transposed 4x4 block. */
   3, 16, 17, 18, 7, 20, 21, 22, 11, 24, 25, 26, 15, 28, 29, 30
 };
+
+#if defined(__ARM_FEATURE_MATMUL_INT8)
+
+static INLINE int16x4_t convolve8_4_usdot(uint8x16_t samples,
+                                          const int8x8_t filter,
+                                          const uint8x16x2_t permute_tbl) {
+  uint8x16_t permuted_samples[2];
+  int32x4_t sum;
+
+  /* Permute samples ready for dot product. */
+  /* { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 } */
+  permuted_samples[0] = vqtbl1q_u8(samples, permute_tbl.val[0]);
+  /* { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 } */
+  permuted_samples[1] = vqtbl1q_u8(samples, permute_tbl.val[1]);
+
+  /* Accumulate dot product into 'correction' to account for range clamp. */
+  sum = vusdotq_lane_s32(vdupq_n_s32(0), permuted_samples[0], filter, 0);
+  sum = vusdotq_lane_s32(sum, permuted_samples[1], filter, 1);
+
+  /* Further narrowing and packing is performed by the caller. */
+  return vqmovn_s32(sum);
+}
+
+static INLINE uint8x8_t convolve8_8_usdot(uint8x16_t samples,
+                                          const int8x8_t filter,
+                                          const uint8x16x3_t permute_tbl) {
+  uint8x16_t permuted_samples[3];
+  int32x4_t sum0, sum1;
+  int16x8_t sum;
+
+  /* Permute samples ready for dot product. */
+  /* { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 } */
+  permuted_samples[0] = vqtbl1q_u8(samples, permute_tbl.val[0]);
+  /* { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 } */
+  permuted_samples[1] = vqtbl1q_u8(samples, permute_tbl.val[1]);
+  /* { 8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14 } */
+  permuted_samples[2] = vqtbl1q_u8(samples, permute_tbl.val[2]);
+
+  /* First 4 output values. */
+  sum0 = vusdotq_lane_s32(vdupq_n_s32(0), permuted_samples[0], filter, 0);
+  sum0 = vusdotq_lane_s32(sum0, permuted_samples[1], filter, 1);
+  /* Second 4 output values. */
+  sum1 = vusdotq_lane_s32(vdupq_n_s32(0), permuted_samples[1], filter, 0);
+  sum1 = vusdotq_lane_s32(sum1, permuted_samples[2], filter, 1);
+
+  /* Narrow and re-pack. */
+  sum = vcombine_s16(vqmovn_s32(sum0), vqmovn_s32(sum1));
+  return vqrshrun_n_s16(sum, FILTER_BITS);
+}
+
+void aom_convolve8_horiz_neon(const uint8_t *src, ptrdiff_t src_stride,
+                              uint8_t *dst, ptrdiff_t dst_stride,
+                              const int16_t *filter_x, int x_step_q4,
+                              const int16_t *filter_y, int y_step_q4, int w,
+                              int h) {
+  const int8x8_t filter = vmovn_s16(vld1q_s16(filter_x));
+  uint8x16_t s0, s1, s2, s3;
+
+  assert((intptr_t)dst % 4 == 0);
+  assert(dst_stride % 4 == 0);
+
+  (void)x_step_q4;
+  (void)filter_y;
+  (void)y_step_q4;
+
+  src -= ((SUBPEL_TAPS / 2) - 1);
+
+  if (w == 4) {
+    const uint8x16x2_t perm_tbl = vld1q_u8_x2(dot_prod_permute_tbl);
+    do {
+      int16x4_t t0, t1, t2, t3;
+      uint8x8_t d01, d23;
+
+      load_u8_16x4(src, src_stride, &s0, &s1, &s2, &s3);
+
+      t0 = convolve8_4_usdot(s0, filter, perm_tbl);
+      t1 = convolve8_4_usdot(s1, filter, perm_tbl);
+      t2 = convolve8_4_usdot(s2, filter, perm_tbl);
+      t3 = convolve8_4_usdot(s3, filter, perm_tbl);
+      d01 = vqrshrun_n_s16(vcombine_s16(t0, t1), FILTER_BITS);
+      d23 = vqrshrun_n_s16(vcombine_s16(t2, t3), FILTER_BITS);
+
+      store_u8_4x1(dst + 0 * dst_stride, d01, 0);
+      store_u8_4x1(dst + 1 * dst_stride, d01, 1);
+      store_u8_4x1(dst + 2 * dst_stride, d23, 0);
+      store_u8_4x1(dst + 3 * dst_stride, d23, 1);
+
+      src += 4 * src_stride;
+      dst += 4 * dst_stride;
+      h -= 4;
+    } while (h > 0);
+  } else {
+    const uint8x16x3_t perm_tbl = vld1q_u8_x3(dot_prod_permute_tbl);
+    const uint8_t *s;
+    uint8_t *d;
+    int width;
+    uint8x8_t d0, d1, d2, d3;
+
+    do {
+      width = w;
+      s = src;
+      d = dst;
+      do {
+        load_u8_16x4(s, src_stride, &s0, &s1, &s2, &s3);
+
+        d0 = convolve8_8_usdot(s0, filter, perm_tbl);
+        d1 = convolve8_8_usdot(s1, filter, perm_tbl);
+        d2 = convolve8_8_usdot(s2, filter, perm_tbl);
+        d3 = convolve8_8_usdot(s3, filter, perm_tbl);
+
+        store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
+
+        s += 8;
+        d += 8;
+        width -= 8;
+      } while (width != 0);
+      src += 4 * src_stride;
+      dst += 4 * dst_stride;
+      h -= 4;
+    } while (h > 0);
+  }
+}
+
+#else  // !defined(__ARM_FEATURE_MATMUL_INT8)
 
 static INLINE int16x4_t convolve8_4_sdot(uint8x16_t samples,
                                          const int8x8_t filter,
@@ -179,6 +304,8 @@ void aom_convolve8_horiz_neon(const uint8_t *src, ptrdiff_t src_stride,
     } while (h > 0);
   }
 }
+
+#endif  // defined(__ARM_FEATURE_MATMUL_INT8)
 
 static INLINE void transpose_concat_4x4(int8x8_t a0, int8x8_t a1, int8x8_t a2,
                                         int8x8_t a3, int8x16_t *b,
@@ -465,7 +592,9 @@ void aom_convolve8_vert_neon(const uint8_t *src, ptrdiff_t src_stride,
   }
 }
 
-#else  // !(AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD))
+#else  // !(AOM_ARCH_AARCH64 &&
+       //   (defined(__ARM_FEATURE_DOTPROD) ||
+       //    defined(__ARM_FEATURE_MATMUL_INT8)))
 
 static INLINE int16x4_t convolve8_4(const int16x4_t s0, const int16x4_t s1,
                                     const int16x4_t s2, const int16x4_t s3,
