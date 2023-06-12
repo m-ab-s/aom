@@ -1359,12 +1359,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   #
   # Variance / Subpixel Variance / Subpixel Avg Variance
   #
-  add_proto qw/unsigned int/, "aom_variance2x2", "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-
-  add_proto qw/unsigned int/, "aom_variance2x4", "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-
-  add_proto qw/unsigned int/, "aom_variance4x2", "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-
   add_proto qw/uint64_t/, "aom_mse_wxh_16bit", "uint8_t *dst, int dstride,uint16_t *src, int sstride, int w, int h";
   specialize qw/aom_mse_wxh_16bit  sse2 avx2 neon/;
 
@@ -1478,12 +1472,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
     foreach $bd (8, 10, 12) {
-      add_proto qw/unsigned int/, "aom_highbd_${bd}_variance2x2", "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-
-      add_proto qw/unsigned int/, "aom_highbd_${bd}_variance2x4", "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-
-      add_proto qw/unsigned int/, "aom_highbd_${bd}_variance4x2", "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse";
-
       foreach (@encoder_block_sizes) {
         ($w, $h) = @$_;
         add_proto qw/unsigned int/, "aom_highbd_${bd}_variance${w}x${h}", "const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, uint32_t *sse";
