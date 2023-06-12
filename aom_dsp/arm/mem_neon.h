@@ -917,6 +917,14 @@ static INLINE void load_u16_16x4(const uint16_t *s, ptrdiff_t p,
   *s7 = vld1q_u16(s + 8);
 }
 
+static INLINE uint16x4_t load_unaligned_u16_4x1(const uint16_t *buf) {
+  uint64_t a;
+  uint64x1_t a_u64 = vdup_n_u64(0);
+  memcpy(&a, buf, 8);
+  a_u64 = vset_lane_u64(a, a_u64, 0);
+  return vreinterpret_u16_u64(a_u64);
+}
+
 static INLINE uint16x8_t load_unaligned_u16_4x2(const uint16_t *buf,
                                                 uint32_t stride) {
   uint64_t a;
