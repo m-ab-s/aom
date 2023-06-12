@@ -205,6 +205,12 @@ typedef struct {
   int decimation_factor;
   int decimation_count;
 
+  /*!
+   * Frame number for encoded frames (non-dropped).
+   * Use for setting the rtc reference structure.
+   */
+  unsigned int frame_number_encoded;
+
   /*!\endcond */
   /*!
    * User specified maximum Q allowed for current frame

@@ -2335,6 +2335,7 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
     rc->frame_num_last_gf_refresh = current_frame->frame_number;
   rc->prev_coded_width = cm->width;
   rc->prev_coded_height = cm->height;
+  rc->frame_number_encoded++;
   // if (current_frame->frame_number == 1 && cm->show_frame)
   /*
   rc->this_frame_target =
@@ -2823,6 +2824,9 @@ void av1_set_rtc_reference_structure_one_layer(AV1_COMP *cpi, int gf_update) {
   ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags =
       &ext_flags->refresh_frame;
   RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
+  unsigned int frame_number = (cpi->oxcf.rc_cfg.drop_frames_water_mark)
+                                  ? rc->frame_number_encoded
+                                  : cm->current_frame.frame_number;
   unsigned int lag_alt = 4;
   int last_idx = 0;
   int last_idx_refresh = 0;
@@ -2868,19 +2872,16 @@ void av1_set_rtc_reference_structure_one_layer(AV1_COMP *cpi, int gf_update) {
     ext_flags->ref_frame_flags ^= AOM_LAST2_FLAG;
   const int sh = 6;
   // Moving index slot for last: 0 - (sh - 1).
-  if (cm->current_frame.frame_number > 1)
-    last_idx = ((cm->current_frame.frame_number - 1) % sh);
+  if (frame_number > 1) last_idx = ((frame_number - 1) % sh);
   // Moving index for refresh of last: one ahead for next frame.
-  last_idx_refresh = (cm->current_frame.frame_number % sh);
+  last_idx_refresh = (frame_number % sh);
   gld_idx = 6;
 
   // Moving index for alt_ref, lag behind LAST by lag_alt frames.
-  if (cm->current_frame.frame_number > lag_alt)
-    alt_ref_idx = ((cm->current_frame.frame_number - lag_alt) % sh);
+  if (frame_number > lag_alt) alt_ref_idx = ((frame_number - lag_alt) % sh);
   if (cpi->sf.rt_sf.ref_frame_comp_nonrd[1]) {
     // Moving index for LAST2, lag behind LAST by 2 frames.
-    if (cm->current_frame.frame_number > 2)
-      last2_idx = ((cm->current_frame.frame_number - 2) % sh);
+    if (frame_number > 2) last2_idx = ((frame_number - 2) % sh);
   }
   rtc_ref->ref_idx[0] = last_idx;          // LAST
   rtc_ref->ref_idx[1] = last_idx_refresh;  // LAST2 (for refresh of last).
@@ -3329,6 +3330,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
         av1_svc_reset_temporal_layers(cpi, 1);
       svc->layer_context[layer].is_key_frame = 1;
     }
+    rc->frame_number_encoded = 0;
   } else {
     *frame_type = INTER_FRAME;
     gf_group->update_type[cpi->gf_frame_index] = LF_UPDATE;

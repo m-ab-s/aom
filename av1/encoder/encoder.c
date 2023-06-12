@@ -1410,6 +1410,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   init_frame_index_set(&cpi->frame_index_set);
 
   cm->current_frame.frame_number = 0;
+  cpi->rc.frame_number_encoded = 0;
   cm->current_frame_id = -1;
   cpi->tile_data = NULL;
   cpi->last_show_frame_buf = NULL;
