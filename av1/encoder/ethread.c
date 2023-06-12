@@ -264,6 +264,7 @@ static void row_mt_mem_alloc(AV1_COMP *cpi, int max_rows, int max_cols,
   enc_row_mt->allocated_rows = max_rows;
   enc_row_mt->allocated_cols = max_cols - 1;
   enc_row_mt->allocated_sb_rows = sb_rows;
+  enc_row_mt->row_mt_exit = false;
 }
 
 void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
@@ -455,6 +456,7 @@ static void launch_loop_filter_rows(AV1_COMMON *cm, EncWorkerData *thread_data,
   AV1LfSync *const lf_sync = (AV1LfSync *)thread_data->lf_sync;
   const int sb_rows = get_sb_rows_in_frame(cm);
   AV1LfMTInfo *cur_job_info;
+  bool row_mt_exit = false;
   (void)enc_row_mt;
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *enc_row_mt_mutex_ = enc_row_mt->mutex_;
@@ -469,12 +471,16 @@ static void launch_loop_filter_rows(AV1_COMMON *cm, EncWorkerData *thread_data,
     const int next_sb_row = AOMMIN(sb_rows - 1, cur_sb_row + 1);
     // Wait for current and next superblock row to finish encoding.
     pthread_mutex_lock(enc_row_mt_mutex_);
-    while (enc_row_mt->num_tile_cols_done[cur_sb_row] < cm->tiles.cols ||
-           enc_row_mt->num_tile_cols_done[next_sb_row] < cm->tiles.cols) {
+    while (!enc_row_mt->row_mt_exit &&
+           (enc_row_mt->num_tile_cols_done[cur_sb_row] < cm->tiles.cols ||
+            enc_row_mt->num_tile_cols_done[next_sb_row] < cm->tiles.cols)) {
       pthread_cond_wait(enc_row_mt->cond_, enc_row_mt_mutex_);
     }
+    row_mt_exit = enc_row_mt->row_mt_exit;
     pthread_mutex_unlock(enc_row_mt_mutex_);
 #endif
+    if (row_mt_exit) return;
+
     av1_thread_loop_filter_rows(
         lf_data->frame_buffer, lf_data->cm, lf_data->planes, lf_data->xd,
         cur_job_info->mi_row, cur_job_info->plane, cur_job_info->dir,
@@ -483,18 +489,71 @@ static void launch_loop_filter_rows(AV1_COMMON *cm, EncWorkerData *thread_data,
   }
 }
 
+static void set_encoding_done(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  const int tile_cols = cm->tiles.cols;
+  const int tile_rows = cm->tiles.rows;
+  AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
+  const int mib_size = cm->seq_params->mib_size;
+
+  // In case of row-multithreading, due to top-right dependency, the worker on
+  // an SB row waits for the completion of the encode of the top and top-right
+  // SBs. Hence, in case a thread (main/worker) encounters an error, update that
+  // encoding of every SB row in the frame is complete in order to avoid the
+  // dependent workers of every tile from waiting indefinitely.
+  for (int tile_row = 0; tile_row < tile_rows; tile_row++) {
+    for (int tile_col = 0; tile_col < tile_cols; tile_col++) {
+      TileDataEnc *const this_tile =
+          &cpi->tile_data[tile_row * tile_cols + tile_col];
+      const TileInfo *const tile_info = &this_tile->tile_info;
+      AV1EncRowMultiThreadSync *const row_mt_sync = &this_tile->row_mt_sync;
+      const int sb_cols_in_tile = av1_get_sb_cols_in_tile(cm, tile_info);
+      for (int mi_row = tile_info->mi_row_start, sb_row_in_tile = 0;
+           mi_row < tile_info->mi_row_end;
+           mi_row += mib_size, sb_row_in_tile++) {
+        enc_row_mt->sync_write_ptr(row_mt_sync, sb_row_in_tile,
+                                   sb_cols_in_tile - 1, sb_cols_in_tile);
+      }
+    }
+  }
+}
+
 static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   EncWorkerData *const thread_data = (EncWorkerData *)arg1;
   AV1_COMP *const cpi = thread_data->cpi;
-  AV1_COMMON *const cm = &cpi->common;
   int thread_id = thread_data->thread_id;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
-  int cur_tile_id = enc_row_mt->thread_id_to_tile_id[thread_id];
-  const int mib_size_log2 = cm->seq_params->mib_size_log2;
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *enc_row_mt_mutex_ = enc_row_mt->mutex_;
 #endif
   (void)unused;
+
+  struct aom_internal_error_info *const error_info = &thread_data->error_info;
+  MACROBLOCKD *const xd = &thread_data->td->mb.e_mbd;
+  xd->error_info = error_info;
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(enc_row_mt_mutex_);
+    enc_row_mt->row_mt_exit = true;
+    // Wake up all the workers waiting in launch_loop_filter_rows() to exit in
+    // case of an error.
+    pthread_cond_broadcast(enc_row_mt->cond_);
+    pthread_mutex_unlock(enc_row_mt_mutex_);
+#endif
+    set_encoding_done(cpi);
+    return 0;
+  }
+  error_info->setjmp = 1;
+
+  AV1_COMMON *const cm = &cpi->common;
+  const int mib_size_log2 = cm->seq_params->mib_size_log2;
+  int cur_tile_id = enc_row_mt->thread_id_to_tile_id[thread_id];
+
   // Preallocate the pc_tree for realtime coding to reduce the cost of memory
   // allocation.
   thread_data->td->rt_pc_root =
@@ -506,6 +565,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 
   const BLOCK_SIZE fp_block_size = cpi->fp_block_size;
   int end_of_frame = 0;
+  bool row_mt_exit = false;
 
   // When master thread does not have a valid job to process, xd->tile_ctx
   // is not set and it contains NULL pointer. This can result in NULL pointer
@@ -518,7 +578,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(enc_row_mt_mutex_);
 #endif
-    if (!get_next_job(&cpi->tile_data[cur_tile_id], &current_mi_row,
+    row_mt_exit = enc_row_mt->row_mt_exit;
+    if (!row_mt_exit &&
+        !get_next_job(&cpi->tile_data[cur_tile_id], &current_mi_row,
                       cm->seq_params->mib_size)) {
       // No jobs are available for the current tile. Query for the status of
       // other tiles and get the next job if available
@@ -529,7 +591,11 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_unlock(enc_row_mt_mutex_);
 #endif
-    if (end_of_frame == 1) break;
+    // When row_mt_exit is set to true, other workers need not pursue any
+    // further jobs.
+    if (row_mt_exit) return 1;
+
+    if (end_of_frame) break;
 
     TileDataEnc *const this_tile = &cpi->tile_data[cur_tile_id];
     AV1EncRowMultiThreadSync *const row_mt_sync = &this_tile->row_mt_sync;
@@ -585,6 +651,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   }
   av1_free_pc_tree_recursive(thread_data->td->rt_pc_root, av1_num_planes(cm), 0,
                              0, cpi->sf.part_sf.partition_search_type);
+  error_info->setjmp = 0;
   return 1;
 }
 
