@@ -471,7 +471,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
   add_proto qw/void av1_nn_fast_softmax_16/, " const float *input_nodes, float *output";
   if (aom_config("CONFIG_EXCLUDE_SIMD_MISMATCH") ne "yes") {
-    specialize qw/av1_nn_predict sse3 neon/;
+    specialize qw/av1_nn_predict sse3 avx2 neon/;
     specialize qw/av1_nn_fast_softmax_16 sse3/;
   }
 

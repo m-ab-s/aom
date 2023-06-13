@@ -176,13 +176,15 @@ void NnPredictTest::RunNnPredictSpeedTest(const NN_CONFIG *const shape,
 // runs of the encoder.  It also conveniently covers all the kernels
 // implemented.
 static const NN_CONFIG kShapes[] = {
-  { 10, 16, 1, { 64 }, { 0 }, { 0 } }, { 12, 1, 1, { 12 }, { 0 }, { 0 } },
-  { 12, 1, 1, { 24 }, { 0 }, { 0 } },  { 12, 1, 1, { 32 }, { 0 }, { 0 } },
-  { 18, 4, 1, { 24 }, { 0 }, { 0 } },  { 18, 4, 1, { 32 }, { 0 }, { 0 } },
-  { 4, 1, 1, { 16 }, { 0 }, { 0 } },   { 8, 1, 1, { 16 }, { 0 }, { 0 } },
-  { 8, 4, 1, { 16 }, { 0 }, { 0 } },   { 8, 1, 1, { 24 }, { 0 }, { 0 } },
-  { 8, 1, 1, { 32 }, { 0 }, { 0 } },   { 8, 1, 1, { 64 }, { 0 }, { 0 } },
-  { 9, 3, 1, { 32 }, { 0 }, { 0 } },   { 4, 4, 1, { 8 }, { 0 }, { 0 } },
+  { 37, 1, 2, { 16, 24 }, { 0 }, { 0 } }, { 24, 24, 1, { 12 }, { 0 }, { 0 } },
+  { 10, 16, 1, { 64 }, { 0 }, { 0 } },    { 12, 1, 1, { 12 }, { 0 }, { 0 } },
+  { 12, 1, 1, { 24 }, { 0 }, { 0 } },     { 12, 1, 1, { 32 }, { 0 }, { 0 } },
+  { 18, 4, 1, { 24 }, { 0 }, { 0 } },     { 18, 4, 1, { 32 }, { 0 }, { 0 } },
+  { 4, 1, 1, { 16 }, { 0 }, { 0 } },      { 8, 1, 0, { 0 }, { 0 }, { 0 } },
+  { 8, 4, 1, { 16 }, { 0 }, { 0 } },      { 8, 1, 1, { 32 }, { 0 }, { 0 } },
+  { 9, 3, 1, { 32 }, { 0 }, { 0 } },      { 8, 4, 0, { 0 }, { 0 }, { 0 } },
+  { 8, 8, 0, { 0 }, { 0 }, { 0 } },       { 4, 4, 1, { 8 }, { 0 }, { 0 } },
+  { 4, 3, 0, { 64 }, { 0 }, { 0 } },
 };
 
 void NnPredictTest::RunNnPredictTest_all(const NN_CONFIG *const shapes,
@@ -209,6 +211,11 @@ TEST_P(NnPredictTest, DISABLED_Speed) {
 #if HAVE_SSE3 && !CONFIG_EXCLUDE_SIMD_MISMATCH
 INSTANTIATE_TEST_SUITE_P(SSE3, NnPredictTest,
                          ::testing::Values(av1_nn_predict_sse3));
+#endif
+
+#if HAVE_AVX2 && !CONFIG_EXCLUDE_SIMD_MISMATCH
+INSTANTIATE_TEST_SUITE_P(AVX2, NnPredictTest,
+                         ::testing::Values(av1_nn_predict_avx2));
 #endif
 
 #if HAVE_NEON
