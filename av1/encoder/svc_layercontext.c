@@ -560,12 +560,24 @@ void av1_svc_check_reset_layer_rc_flag(AV1_COMP *const cpi) {
   SVC *const svc = &cpi->svc;
   for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
     // Check for reset based on avg_frame_bandwidth for spatial layer sl.
+    // If avg_frame_bandwidth for top temporal layer is not set
+    // (because enhancement layer was inactive), use the base TL0
     int layer = LAYER_IDS_TO_IDX(sl, svc->number_temporal_layers - 1,
                                  svc->number_temporal_layers);
     LAYER_CONTEXT *lc = &svc->layer_context[layer];
     RATE_CONTROL *lrc = &lc->rc;
-    if (lrc->avg_frame_bandwidth > (3 * lrc->prev_avg_frame_bandwidth >> 1) ||
-        lrc->avg_frame_bandwidth < (lrc->prev_avg_frame_bandwidth >> 1)) {
+    int avg_frame_bandwidth = lrc->avg_frame_bandwidth;
+    int prev_avg_frame_bandwidth = lrc->prev_avg_frame_bandwidth;
+    if (avg_frame_bandwidth == 0 || prev_avg_frame_bandwidth == 0) {
+      // Use base TL0.
+      layer = LAYER_IDS_TO_IDX(sl, 0, svc->number_temporal_layers);
+      lc = &svc->layer_context[layer];
+      lrc = &lc->rc;
+      avg_frame_bandwidth = lrc->avg_frame_bandwidth;
+      prev_avg_frame_bandwidth = lrc->prev_avg_frame_bandwidth;
+    }
+    if (avg_frame_bandwidth > (3 * prev_avg_frame_bandwidth >> 1) ||
+        avg_frame_bandwidth < (prev_avg_frame_bandwidth >> 1)) {
       // Reset for all temporal layers with spatial layer sl.
       for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
         int layer2 = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
