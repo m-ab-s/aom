@@ -269,7 +269,7 @@ static INLINE unsigned int highbd_sadb(const uint8_t *a8, int a_stride,
   }                                                                            \
   void aom_highbd_sad_skip_##m##x##n##x4d_c(                                   \
       const uint8_t *src, int src_stride, const uint8_t *const ref_array[4],   \
-      int ref_stride, uint32_t *sad_array) {                                   \
+      int ref_stride, uint32_t sad_array[4]) {                                 \
     int i;                                                                     \
     for (i = 0; i < 4; ++i) {                                                  \
       sad_array[i] = 2 * highbd_sad(src, 2 * src_stride, ref_array[i],         \
