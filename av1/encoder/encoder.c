@@ -3119,15 +3119,21 @@ static void set_grain_syn_params(AV1_COMMON *cm) {
   film_grain_params->scaling_points_y[0][0] = 128;
   film_grain_params->scaling_points_y[0][1] = 100;
 
-  film_grain_params->num_cb_points = 1;
-  film_grain_params->scaling_points_cb[0][0] = 128;
-  film_grain_params->scaling_points_cb[0][1] = 100;
+  if (!cm->seq_params->monochrome) {
+    film_grain_params->num_cb_points = 1;
+    film_grain_params->scaling_points_cb[0][0] = 128;
+    film_grain_params->scaling_points_cb[0][1] = 100;
 
-  film_grain_params->num_cr_points = 1;
-  film_grain_params->scaling_points_cr[0][0] = 128;
-  film_grain_params->scaling_points_cr[0][1] = 100;
+    film_grain_params->num_cr_points = 1;
+    film_grain_params->scaling_points_cr[0][0] = 128;
+    film_grain_params->scaling_points_cr[0][1] = 100;
+  } else {
+    film_grain_params->num_cb_points = 0;
+    film_grain_params->num_cr_points = 0;
+  }
 
   film_grain_params->chroma_scaling_from_luma = 0;
+
   film_grain_params->scaling_shift = 1;
   film_grain_params->ar_coeff_lag = 0;
   film_grain_params->ar_coeff_shift = 1;

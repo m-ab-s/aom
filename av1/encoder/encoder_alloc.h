@@ -296,6 +296,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 #endif
   if (cpi->film_grain_table) {
     aom_film_grain_table_free(cpi->film_grain_table);
+    aom_free(cpi->film_grain_table);
     cpi->film_grain_table = NULL;
   }
 
