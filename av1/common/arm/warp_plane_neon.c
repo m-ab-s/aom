@@ -15,293 +15,68 @@
 #include <math.h>
 
 #include "aom_dsp/aom_dsp_common.h"
+#include "aom_dsp/arm/sum_neon.h"
 #include "aom_ports/mem.h"
 #include "config/av1_rtcd.h"
 #include "av1/common/warped_motion.h"
 #include "av1/common/scale.h"
 
-/* This is a modified version of 'av1_warped_filter' from warped_motion.c:
-   * Each coefficient is stored in 8 bits instead of 16 bits
-   * The coefficients are rearranged in the column order 0, 2, 4, 6, 1, 3, 5, 7
-
-     This is done in order to avoid overflow: Since the tap with the largest
-     coefficient could be any of taps 2, 3, 4 or 5, we can't use the summation
-     order ((0 + 1) + (4 + 5)) + ((2 + 3) + (6 + 7)) used in the regular
-     convolve functions.
-
-     Instead, we use the summation order
-     ((0 + 2) + (4 + 6)) + ((1 + 3) + (5 + 7)).
-     The rearrangement of coefficients in this table is so that we can get the
-     coefficients into the correct order more quickly.
-*/
-/* clang-format off */
-DECLARE_ALIGNED(8, static const int8_t,
-                filter_8bit_neon[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8]) = {
-#if WARPEDPIXEL_PREC_BITS == 6
-  // [-1, 0)
-  { 0, 127,   0, 0,   0,   1, 0, 0}, { 0, 127,   0, 0,  -1,   2, 0, 0},
-  { 1, 127,  -1, 0,  -3,   4, 0, 0}, { 1, 126,  -2, 0,  -4,   6, 1, 0},
-  { 1, 126,  -3, 0,  -5,   8, 1, 0}, { 1, 125,  -4, 0,  -6,  11, 1, 0},
-  { 1, 124,  -4, 0,  -7,  13, 1, 0}, { 2, 123,  -5, 0,  -8,  15, 1, 0},
-  { 2, 122,  -6, 0,  -9,  18, 1, 0}, { 2, 121,  -6, 0, -10,  20, 1, 0},
-  { 2, 120,  -7, 0, -11,  22, 2, 0}, { 2, 119,  -8, 0, -12,  25, 2, 0},
-  { 3, 117,  -8, 0, -13,  27, 2, 0}, { 3, 116,  -9, 0, -13,  29, 2, 0},
-  { 3, 114, -10, 0, -14,  32, 3, 0}, { 3, 113, -10, 0, -15,  35, 2, 0},
-  { 3, 111, -11, 0, -15,  37, 3, 0}, { 3, 109, -11, 0, -16,  40, 3, 0},
-  { 3, 108, -12, 0, -16,  42, 3, 0}, { 4, 106, -13, 0, -17,  45, 3, 0},
-  { 4, 104, -13, 0, -17,  47, 3, 0}, { 4, 102, -14, 0, -17,  50, 3, 0},
-  { 4, 100, -14, 0, -17,  52, 3, 0}, { 4,  98, -15, 0, -18,  55, 4, 0},
-  { 4,  96, -15, 0, -18,  58, 3, 0}, { 4,  94, -16, 0, -18,  60, 4, 0},
-  { 4,  91, -16, 0, -18,  63, 4, 0}, { 4,  89, -16, 0, -18,  65, 4, 0},
-  { 4,  87, -17, 0, -18,  68, 4, 0}, { 4,  85, -17, 0, -18,  70, 4, 0},
-  { 4,  82, -17, 0, -18,  73, 4, 0}, { 4,  80, -17, 0, -18,  75, 4, 0},
-  { 4,  78, -18, 0, -18,  78, 4, 0}, { 4,  75, -18, 0, -17,  80, 4, 0},
-  { 4,  73, -18, 0, -17,  82, 4, 0}, { 4,  70, -18, 0, -17,  85, 4, 0},
-  { 4,  68, -18, 0, -17,  87, 4, 0}, { 4,  65, -18, 0, -16,  89, 4, 0},
-  { 4,  63, -18, 0, -16,  91, 4, 0}, { 4,  60, -18, 0, -16,  94, 4, 0},
-  { 3,  58, -18, 0, -15,  96, 4, 0}, { 4,  55, -18, 0, -15,  98, 4, 0},
-  { 3,  52, -17, 0, -14, 100, 4, 0}, { 3,  50, -17, 0, -14, 102, 4, 0},
-  { 3,  47, -17, 0, -13, 104, 4, 0}, { 3,  45, -17, 0, -13, 106, 4, 0},
-  { 3,  42, -16, 0, -12, 108, 3, 0}, { 3,  40, -16, 0, -11, 109, 3, 0},
-  { 3,  37, -15, 0, -11, 111, 3, 0}, { 2,  35, -15, 0, -10, 113, 3, 0},
-  { 3,  32, -14, 0, -10, 114, 3, 0}, { 2,  29, -13, 0,  -9, 116, 3, 0},
-  { 2,  27, -13, 0,  -8, 117, 3, 0}, { 2,  25, -12, 0,  -8, 119, 2, 0},
-  { 2,  22, -11, 0,  -7, 120, 2, 0}, { 1,  20, -10, 0,  -6, 121, 2, 0},
-  { 1,  18,  -9, 0,  -6, 122, 2, 0}, { 1,  15,  -8, 0,  -5, 123, 2, 0},
-  { 1,  13,  -7, 0,  -4, 124, 1, 0}, { 1,  11,  -6, 0,  -4, 125, 1, 0},
-  { 1,   8,  -5, 0,  -3, 126, 1, 0}, { 1,   6,  -4, 0,  -2, 126, 1, 0},
-  { 0,   4,  -3, 0,  -1, 127, 1, 0}, { 0,   2,  -1, 0,   0, 127, 0, 0},
-  // [0, 1)
-  { 0,   0,   1, 0, 0, 127,   0,  0}, { 0,  -1,   2, 0, 0, 127,   0,  0},
-  { 0,  -3,   4, 1, 1, 127,  -2,  0}, { 0,  -5,   6, 1, 1, 127,  -2,  0},
-  { 0,  -6,   8, 1, 2, 126,  -3,  0}, {-1,  -7,  11, 2, 2, 126,  -4, -1},
-  {-1,  -8,  13, 2, 3, 125,  -5, -1}, {-1, -10,  16, 3, 3, 124,  -6, -1},
-  {-1, -11,  18, 3, 4, 123,  -7, -1}, {-1, -12,  20, 3, 4, 122,  -7, -1},
-  {-1, -13,  23, 3, 4, 121,  -8, -1}, {-2, -14,  25, 4, 5, 120,  -9, -1},
-  {-1, -15,  27, 4, 5, 119, -10, -1}, {-1, -16,  30, 4, 5, 118, -11, -1},
-  {-2, -17,  33, 5, 6, 116, -12, -1}, {-2, -17,  35, 5, 6, 114, -12, -1},
-  {-2, -18,  38, 5, 6, 113, -13, -1}, {-2, -19,  41, 6, 7, 111, -14, -2},
-  {-2, -19,  43, 6, 7, 110, -15, -2}, {-2, -20,  46, 6, 7, 108, -15, -2},
-  {-2, -20,  49, 6, 7, 106, -16, -2}, {-2, -21,  51, 7, 7, 104, -16, -2},
-  {-2, -21,  54, 7, 7, 102, -17, -2}, {-2, -21,  56, 7, 8, 100, -18, -2},
-  {-2, -22,  59, 7, 8,  98, -18, -2}, {-2, -22,  62, 7, 8,  96, -19, -2},
-  {-2, -22,  64, 7, 8,  94, -19, -2}, {-2, -22,  67, 8, 8,  91, -20, -2},
-  {-2, -22,  69, 8, 8,  89, -20, -2}, {-2, -22,  72, 8, 8,  87, -21, -2},
-  {-2, -21,  74, 8, 8,  84, -21, -2}, {-2, -22,  77, 8, 8,  82, -21, -2},
-  {-2, -21,  79, 8, 8,  79, -21, -2}, {-2, -21,  82, 8, 8,  77, -22, -2},
-  {-2, -21,  84, 8, 8,  74, -21, -2}, {-2, -21,  87, 8, 8,  72, -22, -2},
-  {-2, -20,  89, 8, 8,  69, -22, -2}, {-2, -20,  91, 8, 8,  67, -22, -2},
-  {-2, -19,  94, 8, 7,  64, -22, -2}, {-2, -19,  96, 8, 7,  62, -22, -2},
-  {-2, -18,  98, 8, 7,  59, -22, -2}, {-2, -18, 100, 8, 7,  56, -21, -2},
-  {-2, -17, 102, 7, 7,  54, -21, -2}, {-2, -16, 104, 7, 7,  51, -21, -2},
-  {-2, -16, 106, 7, 6,  49, -20, -2}, {-2, -15, 108, 7, 6,  46, -20, -2},
-  {-2, -15, 110, 7, 6,  43, -19, -2}, {-2, -14, 111, 7, 6,  41, -19, -2},
-  {-1, -13, 113, 6, 5,  38, -18, -2}, {-1, -12, 114, 6, 5,  35, -17, -2},
-  {-1, -12, 116, 6, 5,  33, -17, -2}, {-1, -11, 118, 5, 4,  30, -16, -1},
-  {-1, -10, 119, 5, 4,  27, -15, -1}, {-1,  -9, 120, 5, 4,  25, -14, -2},
-  {-1,  -8, 121, 4, 3,  23, -13, -1}, {-1,  -7, 122, 4, 3,  20, -12, -1},
-  {-1,  -7, 123, 4, 3,  18, -11, -1}, {-1,  -6, 124, 3, 3,  16, -10, -1},
-  {-1,  -5, 125, 3, 2,  13,  -8, -1}, {-1,  -4, 126, 2, 2,  11,  -7, -1},
-  { 0,  -3, 126, 2, 1,   8,  -6,  0}, { 0,  -2, 127, 1, 1,   6,  -5,  0},
-  { 0,  -2, 127, 1, 1,   4,  -3,  0}, { 0,   0, 127, 0, 0,   2,  -1,  0},
-  // [1, 2)
-  { 0, 0, 127,   0, 0,   1,   0, 0}, { 0, 0, 127,   0, 0,  -1,   2, 0},
-  { 0, 1, 127,  -1, 0,  -3,   4, 0}, { 0, 1, 126,  -2, 0,  -4,   6, 1},
-  { 0, 1, 126,  -3, 0,  -5,   8, 1}, { 0, 1, 125,  -4, 0,  -6,  11, 1},
-  { 0, 1, 124,  -4, 0,  -7,  13, 1}, { 0, 2, 123,  -5, 0,  -8,  15, 1},
-  { 0, 2, 122,  -6, 0,  -9,  18, 1}, { 0, 2, 121,  -6, 0, -10,  20, 1},
-  { 0, 2, 120,  -7, 0, -11,  22, 2}, { 0, 2, 119,  -8, 0, -12,  25, 2},
-  { 0, 3, 117,  -8, 0, -13,  27, 2}, { 0, 3, 116,  -9, 0, -13,  29, 2},
-  { 0, 3, 114, -10, 0, -14,  32, 3}, { 0, 3, 113, -10, 0, -15,  35, 2},
-  { 0, 3, 111, -11, 0, -15,  37, 3}, { 0, 3, 109, -11, 0, -16,  40, 3},
-  { 0, 3, 108, -12, 0, -16,  42, 3}, { 0, 4, 106, -13, 0, -17,  45, 3},
-  { 0, 4, 104, -13, 0, -17,  47, 3}, { 0, 4, 102, -14, 0, -17,  50, 3},
-  { 0, 4, 100, -14, 0, -17,  52, 3}, { 0, 4,  98, -15, 0, -18,  55, 4},
-  { 0, 4,  96, -15, 0, -18,  58, 3}, { 0, 4,  94, -16, 0, -18,  60, 4},
-  { 0, 4,  91, -16, 0, -18,  63, 4}, { 0, 4,  89, -16, 0, -18,  65, 4},
-  { 0, 4,  87, -17, 0, -18,  68, 4}, { 0, 4,  85, -17, 0, -18,  70, 4},
-  { 0, 4,  82, -17, 0, -18,  73, 4}, { 0, 4,  80, -17, 0, -18,  75, 4},
-  { 0, 4,  78, -18, 0, -18,  78, 4}, { 0, 4,  75, -18, 0, -17,  80, 4},
-  { 0, 4,  73, -18, 0, -17,  82, 4}, { 0, 4,  70, -18, 0, -17,  85, 4},
-  { 0, 4,  68, -18, 0, -17,  87, 4}, { 0, 4,  65, -18, 0, -16,  89, 4},
-  { 0, 4,  63, -18, 0, -16,  91, 4}, { 0, 4,  60, -18, 0, -16,  94, 4},
-  { 0, 3,  58, -18, 0, -15,  96, 4}, { 0, 4,  55, -18, 0, -15,  98, 4},
-  { 0, 3,  52, -17, 0, -14, 100, 4}, { 0, 3,  50, -17, 0, -14, 102, 4},
-  { 0, 3,  47, -17, 0, -13, 104, 4}, { 0, 3,  45, -17, 0, -13, 106, 4},
-  { 0, 3,  42, -16, 0, -12, 108, 3}, { 0, 3,  40, -16, 0, -11, 109, 3},
-  { 0, 3,  37, -15, 0, -11, 111, 3}, { 0, 2,  35, -15, 0, -10, 113, 3},
-  { 0, 3,  32, -14, 0, -10, 114, 3}, { 0, 2,  29, -13, 0,  -9, 116, 3},
-  { 0, 2,  27, -13, 0,  -8, 117, 3}, { 0, 2,  25, -12, 0,  -8, 119, 2},
-  { 0, 2,  22, -11, 0,  -7, 120, 2}, { 0, 1,  20, -10, 0,  -6, 121, 2},
-  { 0, 1,  18,  -9, 0,  -6, 122, 2}, { 0, 1,  15,  -8, 0,  -5, 123, 2},
-  { 0, 1,  13,  -7, 0,  -4, 124, 1}, { 0, 1,  11,  -6, 0,  -4, 125, 1},
-  { 0, 1,   8,  -5, 0,  -3, 126, 1}, { 0, 1,   6,  -4, 0,  -2, 126, 1},
-  { 0, 0,   4,  -3, 0,  -1, 127, 1}, { 0, 0,   2,  -1, 0,   0, 127, 0},
-  // dummy (replicate row index 191)
-  { 0, 0,   2,  -1, 0,   0, 127, 0},
-
-#else
-  // [-1, 0)
-  { 0, 127,   0, 0,   0,   1, 0, 0}, { 1, 127,  -1, 0,  -3,   4, 0, 0},
-  { 1, 126,  -3, 0,  -5,   8, 1, 0}, { 1, 124,  -4, 0,  -7,  13, 1, 0},
-  { 2, 122,  -6, 0,  -9,  18, 1, 0}, { 2, 120,  -7, 0, -11,  22, 2, 0},
-  { 3, 117,  -8, 0, -13,  27, 2, 0}, { 3, 114, -10, 0, -14,  32, 3, 0},
-  { 3, 111, -11, 0, -15,  37, 3, 0}, { 3, 108, -12, 0, -16,  42, 3, 0},
-  { 4, 104, -13, 0, -17,  47, 3, 0}, { 4, 100, -14, 0, -17,  52, 3, 0},
-  { 4,  96, -15, 0, -18,  58, 3, 0}, { 4,  91, -16, 0, -18,  63, 4, 0},
-  { 4,  87, -17, 0, -18,  68, 4, 0}, { 4,  82, -17, 0, -18,  73, 4, 0},
-  { 4,  78, -18, 0, -18,  78, 4, 0}, { 4,  73, -18, 0, -17,  82, 4, 0},
-  { 4,  68, -18, 0, -17,  87, 4, 0}, { 4,  63, -18, 0, -16,  91, 4, 0},
-  { 3,  58, -18, 0, -15,  96, 4, 0}, { 3,  52, -17, 0, -14, 100, 4, 0},
-  { 3,  47, -17, 0, -13, 104, 4, 0}, { 3,  42, -16, 0, -12, 108, 3, 0},
-  { 3,  37, -15, 0, -11, 111, 3, 0}, { 3,  32, -14, 0, -10, 114, 3, 0},
-  { 2,  27, -13, 0,  -8, 117, 3, 0}, { 2,  22, -11, 0,  -7, 120, 2, 0},
-  { 1,  18,  -9, 0,  -6, 122, 2, 0}, { 1,  13,  -7, 0,  -4, 124, 1, 0},
-  { 1,   8,  -5, 0,  -3, 126, 1, 0}, { 0,   4,  -3, 0,  -1, 127, 1, 0},
-  // [0, 1)
-  { 0,   0,   1, 0, 0, 127,   0,  0}, { 0,  -3,   4, 1, 1, 127,  -2,  0},
-  { 0,  -6,   8, 1, 2, 126,  -3,  0}, {-1,  -8,  13, 2, 3, 125,  -5, -1},
-  {-1, -11,  18, 3, 4, 123,  -7, -1}, {-1, -13,  23, 3, 4, 121,  -8, -1},
-  {-1, -15,  27, 4, 5, 119, -10, -1}, {-2, -17,  33, 5, 6, 116, -12, -1},
-  {-2, -18,  38, 5, 6, 113, -13, -1}, {-2, -19,  43, 6, 7, 110, -15, -2},
-  {-2, -20,  49, 6, 7, 106, -16, -2}, {-2, -21,  54, 7, 7, 102, -17, -2},
-  {-2, -22,  59, 7, 8,  98, -18, -2}, {-2, -22,  64, 7, 8,  94, -19, -2},
-  {-2, -22,  69, 8, 8,  89, -20, -2}, {-2, -21,  74, 8, 8,  84, -21, -2},
-  {-2, -21,  79, 8, 8,  79, -21, -2}, {-2, -21,  84, 8, 8,  74, -21, -2},
-  {-2, -20,  89, 8, 8,  69, -22, -2}, {-2, -19,  94, 8, 7,  64, -22, -2},
-  {-2, -18,  98, 8, 7,  59, -22, -2}, {-2, -17, 102, 7, 7,  54, -21, -2},
-  {-2, -16, 106, 7, 6,  49, -20, -2}, {-2, -15, 110, 7, 6,  43, -19, -2},
-  {-1, -13, 113, 6, 5,  38, -18, -2}, {-1, -12, 116, 6, 5,  33, -17, -2},
-  {-1, -10, 119, 5, 4,  27, -15, -1}, {-1,  -8, 121, 4, 3,  23, -13, -1},
-  {-1,  -7, 123, 4, 3,  18, -11, -1}, {-1,  -5, 125, 3, 2,  13,  -8, -1},
-  { 0,  -3, 126, 2, 1,   8,  -6,  0}, { 0,  -2, 127, 1, 1,   4,  -3,  0},
-  // [1, 2)
-  { 0,  0, 127,   0, 0,   1,   0, 0}, { 0, 1, 127,  -1, 0,  -3,   4, 0},
-  { 0,  1, 126,  -3, 0,  -5,   8, 1}, { 0, 1, 124,  -4, 0,  -7,  13, 1},
-  { 0,  2, 122,  -6, 0,  -9,  18, 1}, { 0, 2, 120,  -7, 0, -11,  22, 2},
-  { 0,  3, 117,  -8, 0, -13,  27, 2}, { 0, 3, 114, -10, 0, -14,  32, 3},
-  { 0,  3, 111, -11, 0, -15,  37, 3}, { 0, 3, 108, -12, 0, -16,  42, 3},
-  { 0,  4, 104, -13, 0, -17,  47, 3}, { 0, 4, 100, -14, 0, -17,  52, 3},
-  { 0,  4,  96, -15, 0, -18,  58, 3}, { 0, 4,  91, -16, 0, -18,  63, 4},
-  { 0,  4,  87, -17, 0, -18,  68, 4}, { 0, 4,  82, -17, 0, -18,  73, 4},
-  { 0,  4,  78, -18, 0, -18,  78, 4}, { 0, 4,  73, -18, 0, -17,  82, 4},
-  { 0,  4,  68, -18, 0, -17,  87, 4}, { 0, 4,  63, -18, 0, -16,  91, 4},
-  { 0,  3,  58, -18, 0, -15,  96, 4}, { 0, 3,  52, -17, 0, -14, 100, 4},
-  { 0,  3,  47, -17, 0, -13, 104, 4}, { 0, 3,  42, -16, 0, -12, 108, 3},
-  { 0,  3,  37, -15, 0, -11, 111, 3}, { 0, 3,  32, -14, 0, -10, 114, 3},
-  { 0,  2,  27, -13, 0,  -8, 117, 3}, { 0, 2,  22, -11, 0,  -7, 120, 2},
-  { 0,  1,  18,  -9, 0,  -6, 122, 2}, { 0, 1,  13,  -7, 0,  -4, 124, 1},
-  { 0,  1,   8,  -5, 0,  -3, 126, 1}, { 0, 0,   4,  -3, 0,  -1, 127, 1},
-  // dummy (replicate row index 95)
-  { 0, 0,   4,  -3, 0,  -1, 127, 1},
-#endif  // WARPEDPIXEL_PREC_BITS == 6
-};
-/* clang-format on */
-
-static INLINE void convolve(int32x2x2_t x0, int32x2x2_t x1, uint8x8_t src_0,
-                            uint8x8_t src_1, int16x4_t *res) {
-  int16x8_t coeff_0, coeff_1;
-  int16x8_t pix_0, pix_1;
-
-  coeff_0 = vcombine_s16(vreinterpret_s16_s32(x0.val[0]),
-                         vreinterpret_s16_s32(x1.val[0]));
-  coeff_1 = vcombine_s16(vreinterpret_s16_s32(x0.val[1]),
-                         vreinterpret_s16_s32(x1.val[1]));
-
-  pix_0 = vreinterpretq_s16_u16(vmovl_u8(src_0));
-  pix_0 = vmulq_s16(coeff_0, pix_0);
-
-  pix_1 = vreinterpretq_s16_u16(vmovl_u8(src_1));
-  pix_0 = vmlaq_s16(pix_0, coeff_1, pix_1);
-
-  *res = vpadd_s16(vget_low_s16(pix_0), vget_high_s16(pix_0));
-}
-
-static INLINE void horizontal_filter_neon(uint8x16_t src_1, uint8x16_t src_2,
-                                          uint8x16_t src_3, uint8x16_t src_4,
+static INLINE void horizontal_filter_neon(const uint8x16_t in,
                                           int16x8_t *tmp_dst, int sx, int alpha,
-                                          int k, const int offset_bits_horiz,
-                                          const int reduce_bits_horiz) {
-  const uint8x16_t mask = vreinterpretq_u8_u16(vdupq_n_u16(0x00ff));
-  const int32x4_t add_const = vdupq_n_s32((int32_t)(1 << offset_bits_horiz));
-  const int16x8_t shift = vdupq_n_s16(-(int16_t)reduce_bits_horiz);
-
-  int16x8_t f0, f1, f2, f3, f4, f5, f6, f7;
-  int32x2x2_t b0, b1;
-  uint8x8_t src_1_low, src_2_low, src_3_low, src_4_low, src_5_low, src_6_low;
-  int32x4_t tmp_res_low, tmp_res_high;
-  uint16x8_t res;
-  int16x4_t res_0246_even, res_0246_odd, res_1357_even, res_1357_odd;
-
-  uint8x16_t tmp_0 = vandq_u8(src_1, mask);
-  uint8x16_t tmp_1 = vandq_u8(src_2, mask);
-  uint8x16_t tmp_2 = vandq_u8(src_3, mask);
-  uint8x16_t tmp_3 = vandq_u8(src_4, mask);
-
-  tmp_2 = vextq_u8(tmp_0, tmp_0, 1);
-  tmp_3 = vextq_u8(tmp_1, tmp_1, 1);
-
-  src_1 = vaddq_u8(tmp_0, tmp_2);
-  src_2 = vaddq_u8(tmp_1, tmp_3);
-
-  src_1_low = vget_low_u8(src_1);
-  src_2_low = vget_low_u8(src_2);
-  src_3_low = vget_low_u8(vextq_u8(src_1, src_1, 4));
-  src_4_low = vget_low_u8(vextq_u8(src_2, src_2, 4));
-  src_5_low = vget_low_u8(vextq_u8(src_1, src_1, 2));
-  src_6_low = vget_low_u8(vextq_u8(src_1, src_1, 6));
+                                          int k) {
+  const int32x4_t add_const = vdupq_n_s32(1 << (8 + FILTER_BITS - 1));
 
   // Loading the 8 filter taps
-  f0 = vmovl_s8(
-      vld1_s8(filter_8bit_neon[(sx + 0 * alpha) >> WARPEDDIFF_PREC_BITS]));
-  f1 = vmovl_s8(
-      vld1_s8(filter_8bit_neon[(sx + 1 * alpha) >> WARPEDDIFF_PREC_BITS]));
-  f2 = vmovl_s8(
-      vld1_s8(filter_8bit_neon[(sx + 2 * alpha) >> WARPEDDIFF_PREC_BITS]));
-  f3 = vmovl_s8(
-      vld1_s8(filter_8bit_neon[(sx + 3 * alpha) >> WARPEDDIFF_PREC_BITS]));
-  f4 = vmovl_s8(
-      vld1_s8(filter_8bit_neon[(sx + 4 * alpha) >> WARPEDDIFF_PREC_BITS]));
-  f5 = vmovl_s8(
-      vld1_s8(filter_8bit_neon[(sx + 5 * alpha) >> WARPEDDIFF_PREC_BITS]));
-  f6 = vmovl_s8(
-      vld1_s8(filter_8bit_neon[(sx + 6 * alpha) >> WARPEDDIFF_PREC_BITS]));
-  f7 = vmovl_s8(
-      vld1_s8(filter_8bit_neon[(sx + 7 * alpha) >> WARPEDDIFF_PREC_BITS]));
+  const int16x8_t f0 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sx + 0 * alpha) >> WARPEDDIFF_PREC_BITS)));
+  const int16x8_t f1 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sx + 1 * alpha) >> WARPEDDIFF_PREC_BITS)));
+  const int16x8_t f2 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sx + 2 * alpha) >> WARPEDDIFF_PREC_BITS)));
+  const int16x8_t f3 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sx + 3 * alpha) >> WARPEDDIFF_PREC_BITS)));
+  const int16x8_t f4 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sx + 4 * alpha) >> WARPEDDIFF_PREC_BITS)));
+  const int16x8_t f5 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sx + 5 * alpha) >> WARPEDDIFF_PREC_BITS)));
+  const int16x8_t f6 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sx + 6 * alpha) >> WARPEDDIFF_PREC_BITS)));
+  const int16x8_t f7 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sx + 7 * alpha) >> WARPEDDIFF_PREC_BITS)));
 
-  b0 = vtrn_s32(vreinterpret_s32_s16(vget_low_s16(f0)),
-                vreinterpret_s32_s16(vget_low_s16(f2)));
-  b1 = vtrn_s32(vreinterpret_s32_s16(vget_low_s16(f4)),
-                vreinterpret_s32_s16(vget_low_s16(f6)));
-  convolve(b0, b1, src_1_low, src_3_low, &res_0246_even);
+  int16x8_t in16_lo = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(in)));
+  int16x8_t in16_hi = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(in)));
 
-  b0 = vtrn_s32(vreinterpret_s32_s16(vget_low_s16(f1)),
-                vreinterpret_s32_s16(vget_low_s16(f3)));
-  b1 = vtrn_s32(vreinterpret_s32_s16(vget_low_s16(f5)),
-                vreinterpret_s32_s16(vget_low_s16(f7)));
-  convolve(b0, b1, src_2_low, src_4_low, &res_0246_odd);
+  int16x8_t m0 = vmulq_s16(f0, in16_lo);
+  int16x8_t m1 = vmulq_s16(f2, vextq_s16(in16_lo, in16_hi, 2));
+  int16x8_t m2 = vmulq_s16(f4, vextq_s16(in16_lo, in16_hi, 4));
+  int16x8_t m3 = vmulq_s16(f6, vextq_s16(in16_lo, in16_hi, 6));
+  int16x8_t m4 = vmulq_s16(f1, vextq_s16(in16_lo, in16_hi, 1));
+  int16x8_t m5 = vmulq_s16(f3, vextq_s16(in16_lo, in16_hi, 3));
+  int16x8_t m6 = vmulq_s16(f5, vextq_s16(in16_lo, in16_hi, 5));
+  int16x8_t m7 = vmulq_s16(f7, vextq_s16(in16_lo, in16_hi, 7));
 
-  b0 = vtrn_s32(vreinterpret_s32_s16(vget_high_s16(f0)),
-                vreinterpret_s32_s16(vget_high_s16(f2)));
-  b1 = vtrn_s32(vreinterpret_s32_s16(vget_high_s16(f4)),
-                vreinterpret_s32_s16(vget_high_s16(f6)));
-  convolve(b0, b1, src_2_low, src_4_low, &res_1357_even);
+  int32x4_t m0123_pairs[] = { vpaddlq_s16(m0), vpaddlq_s16(m1), vpaddlq_s16(m2),
+                              vpaddlq_s16(m3) };
+  int32x4_t m4567_pairs[] = { vpaddlq_s16(m4), vpaddlq_s16(m5), vpaddlq_s16(m6),
+                              vpaddlq_s16(m7) };
 
-  b0 = vtrn_s32(vreinterpret_s32_s16(vget_high_s16(f1)),
-                vreinterpret_s32_s16(vget_high_s16(f3)));
-  b1 = vtrn_s32(vreinterpret_s32_s16(vget_high_s16(f5)),
-                vreinterpret_s32_s16(vget_high_s16(f7)));
-  convolve(b0, b1, src_5_low, src_6_low, &res_1357_odd);
-
-  tmp_res_low = vaddl_s16(res_0246_even, res_1357_even);
-  tmp_res_high = vaddl_s16(res_0246_odd, res_1357_odd);
+  int32x4_t tmp_res_low = horizontal_add_4d_s32x4(m0123_pairs);
+  int32x4_t tmp_res_high = horizontal_add_4d_s32x4(m4567_pairs);
 
   tmp_res_low = vaddq_s32(tmp_res_low, add_const);
   tmp_res_high = vaddq_s32(tmp_res_high, add_const);
 
-  res = vcombine_u16(vqmovun_s32(tmp_res_low), vqmovun_s32(tmp_res_high));
-  res = vqrshlq_u16(res, shift);
-
+  uint16x8_t res = vcombine_u16(vqrshrun_n_s32(tmp_res_low, ROUND0_BITS),
+                                vqrshrun_n_s32(tmp_res_high, ROUND0_BITS));
   tmp_dst[k + 7] = vreinterpretq_s16_u16(res);
 }
 
@@ -486,18 +261,17 @@ void av1_warp_affine_neon(const int32_t *mat, const uint8_t *ref, int width,
   uint8x16_t vec_dup, mask_val;
   int32x4_t res_lo, res_hi;
   int16x8_t result_final;
-  uint8x16_t src_1, src_2, src_3, src_4;
+  uint8x16_t src_1;
   static const uint8_t k0To15[16] = { 0, 1, 2,  3,  4,  5,  6,  7,
                                       8, 9, 10, 11, 12, 13, 14, 15 };
   uint8x16_t indx_vec = vld1q_u8(k0To15);
   uint8x16_t cmp_vec;
 
-  const int reduce_bits_horiz = conv_params->round_0;
+  const int reduce_bits_horiz = ROUND0_BITS;
   const int reduce_bits_vert = conv_params->is_compound
                                    ? conv_params->round_1
                                    : 2 * FILTER_BITS - reduce_bits_horiz;
   const int32x4_t shift_vert = vdupq_n_s32(-(int32_t)reduce_bits_vert);
-  const int offset_bits_horiz = bd + FILTER_BITS - 1;
 
   assert(IMPLIES(conv_params->is_compound, conv_params->dst != NULL));
 
@@ -592,12 +366,7 @@ void av1_warp_affine_neon(const int32_t *mat, const uint8_t *ref, int width,
             mask_val = vcgeq_u8(indx_vec, cmp_vec);
             src_1 = vbslq_u8(mask_val, vec_dup, src_1);
           }
-          src_2 = vextq_u8(src_1, src_1, 1);
-          src_3 = vextq_u8(src_2, src_2, 1);
-          src_4 = vextq_u8(src_3, src_3, 1);
-
-          horizontal_filter_neon(src_1, src_2, src_3, src_4, tmp, sx, alpha, k,
-                                 offset_bits_horiz, reduce_bits_horiz);
+          horizontal_filter_neon(src_1, tmp, sx, alpha, k);
         }
       } else {
         for (k = -7; k < AOMMIN(8, p_height - i); ++k) {
@@ -610,12 +379,7 @@ void av1_warp_affine_neon(const int32_t *mat, const uint8_t *ref, int width,
 
           const uint8_t *src = ref + iy * stride + ix4 - 7;
           src_1 = vld1q_u8(src);
-          src_2 = vextq_u8(src_1, src_1, 1);
-          src_3 = vextq_u8(src_2, src_2, 1);
-          src_4 = vextq_u8(src_3, src_3, 1);
-
-          horizontal_filter_neon(src_1, src_2, src_3, src_4, tmp, sx, alpha, k,
-                                 offset_bits_horiz, reduce_bits_horiz);
+          horizontal_filter_neon(src_1, tmp, sx, alpha, k);
         }
       }
 

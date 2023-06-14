@@ -88,6 +88,21 @@ static INLINE uint32x4_t horizontal_add_4d_u32x4(const uint32x4_t sum[4]) {
 #endif
 }
 
+static INLINE int32x4_t horizontal_add_4d_s32x4(const int32x4_t sum[4]) {
+#if AOM_ARCH_AARCH64
+  int32x4_t res01 = vpaddq_s32(sum[0], sum[1]);
+  int32x4_t res23 = vpaddq_s32(sum[2], sum[3]);
+  return vpaddq_s32(res01, res23);
+#else
+  int32x4_t res = vdupq_n_s32(0);
+  res = vsetq_lane_s32(horizontal_add_s32x4(sum[0]), res, 0);
+  res = vsetq_lane_s32(horizontal_add_s32x4(sum[1]), res, 1);
+  res = vsetq_lane_s32(horizontal_add_s32x4(sum[2]), res, 2);
+  res = vsetq_lane_s32(horizontal_add_s32x4(sum[3]), res, 3);
+  return res;
+#endif
+}
+
 static INLINE uint32_t horizontal_long_add_u16x8(const uint16x8_t vec_lo,
                                                  const uint16x8_t vec_hi) {
 #if AOM_ARCH_AARCH64
