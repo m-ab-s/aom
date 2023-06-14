@@ -596,27 +596,32 @@ void av1_svc_check_reset_layer_rc_flag(AV1_COMP *const cpi) {
 
 void av1_svc_set_last_source(AV1_COMP *const cpi, EncodeFrameInput *frame_input,
                              YV12_BUFFER_CONFIG *prev_source) {
-  RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
-  if (cpi->svc.spatial_layer_id == 0) {
-    // For base spatial layer: if the LAST reference (index 0) is not
-    // the previous (super)frame set the last_source to the source corresponding
-    // to the last TL0, otherwise keep it at prev_source.
-    frame_input->last_source = prev_source != NULL ? prev_source : NULL;
-    if (cpi->svc.current_superframe > 0) {
-      const int buffslot_last = rtc_ref->ref_idx[0];
-      if (rtc_ref->buffer_time_index[buffslot_last] <
-          cpi->svc.current_superframe - 1)
+  frame_input->last_source = prev_source != NULL ? prev_source : NULL;
+  if (!cpi->ppi->use_svc && cpi->rc.prev_frame_is_dropped &&
+      cpi->rc.frame_number_encoded > 0) {
+    frame_input->last_source = &cpi->svc.source_last_TL0;
+  } else {
+    RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
+    if (cpi->svc.spatial_layer_id == 0) {
+      // For base spatial layer: if the LAST reference (index 0) is not
+      // the previous (super)frame set the last_source to the source
+      // corresponding to the last TL0, otherwise keep it at prev_source.
+      if (cpi->svc.current_superframe > 0) {
+        const int buffslot_last = rtc_ref->ref_idx[0];
+        if (rtc_ref->buffer_time_index[buffslot_last] <
+            cpi->svc.current_superframe - 1)
+          frame_input->last_source = &cpi->svc.source_last_TL0;
+      }
+    } else if (cpi->svc.spatial_layer_id > 0) {
+      // For spatial enhancement layers: the previous source (prev_source)
+      // corresponds to the lower spatial layer (which is the same source so
+      // we can't use that), so always set the last_source to the source of the
+      // last TL0.
+      if (cpi->svc.current_superframe > 0)
         frame_input->last_source = &cpi->svc.source_last_TL0;
+      else
+        frame_input->last_source = NULL;
     }
-  } else if (cpi->svc.spatial_layer_id > 0) {
-    // For spatial enhancement layers: the previous source (prev_source)
-    // corresponds to the lower spatial layer (which is the same source so
-    // we can't use that), so always set the last_source to the source of the
-    // last TL0.
-    if (cpi->svc.current_superframe > 0)
-      frame_input->last_source = &cpi->svc.source_last_TL0;
-    else
-      frame_input->last_source = NULL;
   }
 }
 

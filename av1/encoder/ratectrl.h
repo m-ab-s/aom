@@ -204,6 +204,7 @@ typedef struct {
 
   int decimation_factor;
   int decimation_count;
+  int prev_frame_is_dropped;
 
   /*!
    * Frame number for encoded frames (non-dropped).

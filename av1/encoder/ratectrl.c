@@ -2336,6 +2336,7 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   rc->prev_coded_width = cm->width;
   rc->prev_coded_height = cm->height;
   rc->frame_number_encoded++;
+  rc->prev_frame_is_dropped = 0;
   // if (current_frame->frame_number == 1 && cm->show_frame)
   /*
   rc->this_frame_target =
@@ -2356,6 +2357,7 @@ void av1_rc_postencode_update_drop_frame(AV1_COMP *cpi) {
   cpi->rc.prev_avg_frame_bandwidth = cpi->rc.avg_frame_bandwidth;
   cpi->rc.prev_coded_width = cpi->common.width;
   cpi->rc.prev_coded_height = cpi->common.height;
+  cpi->rc.prev_frame_is_dropped = 1;
 }
 
 int av1_find_qindex(double desired_q, aom_bit_depth_t bit_depth,
