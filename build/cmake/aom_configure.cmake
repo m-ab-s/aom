@@ -361,7 +361,7 @@ else()
 
     # This combination has more stack overhead, so we account for it by
     # providing higher stack limit than usual.
-    add_c_flag_if_supported("-Wstack-usage=170000")
+    add_c_flag_if_supported("-Wstack-usage=285000")
     add_cxx_flag_if_supported("-Wstack-usage=270000")
   elseif(CONFIG_RD_DEBUG) # Another case where higher stack usage is expected.
     add_c_flag_if_supported("-Wstack-usage=135000")
