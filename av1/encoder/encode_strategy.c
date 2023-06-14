@@ -1427,7 +1427,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   // Source may be changed if temporal filtered later.
   frame_input.source = &source->img;
-  if (cpi->ppi->use_svc && last_source != NULL)
+  if ((cpi->ppi->use_svc || cpi->rc.prev_frame_is_dropped) &&
+      last_source != NULL)
     av1_svc_set_last_source(cpi, &frame_input, &last_source->img);
   else
     frame_input.last_source = last_source != NULL ? &last_source->img : NULL;
@@ -1720,13 +1721,15 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
         is_frame_droppable(&cpi->ppi->rtc_ref, &ext_flags->refresh_frame);
   }
 
-  // For SVC: keep track of the (unscaled) source corresponding to the
-  // refresh of LAST reference (base temporal layer- TL0). Copy only for the
+  // For SVC, or when frame-dropper is enabled:
+  // keep track of the (unscaled) source corresponding to the refresh of LAST
+  // reference (base temporal layer - TL0). Copy only for the
   // top spatial enhancement layer so all spatial layers of the next
   // superframe have last_source to be aligned with previous TL0 superframe.
   // Avoid cases where resolution changes for unscaled source (top spatial
-  // layer).
-  if (cpi->ppi->use_svc &&
+  // layer). Only needs to be done for frame that are encoded (size > 0).
+  if (*size > 0 &&
+      (cpi->ppi->use_svc || cpi->oxcf.rc_cfg.drop_frames_water_mark > 0) &&
       cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1 &&
       cpi->svc.temporal_layer_id == 0 &&
       cpi->unscaled_source->y_width == cpi->svc.source_last_TL0.y_width &&
