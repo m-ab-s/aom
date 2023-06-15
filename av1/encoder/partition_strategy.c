@@ -471,8 +471,6 @@ static int simple_motion_search_get_best_ref(
 
   // Otherwise do loop through the reference frames and find the one with the
   // minimum SSE
-  const MACROBLOCKD *xd = &x->e_mbd;
-
   const int num_planes = 1;
 
   *best_sse = INT_MAX;
@@ -483,12 +481,9 @@ static int simple_motion_search_get_best_ref(
     if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ref]) {
       const FULLPEL_MV *start_mvs = sms_tree->start_mvs;
       unsigned int curr_sse = 0, curr_var = 0;
-      int_mv best_mv =
-          av1_simple_motion_search(cpi, x, mi_row, mi_col, bsize, ref,
-                                   start_mvs[ref], num_planes, use_subpixel);
-      curr_var = cpi->ppi->fn_ptr[bsize].vf(
-          x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].dst.buf,
-          xd->plane[0].dst.stride, &curr_sse);
+      const int_mv best_mv = av1_simple_motion_search_sse_var(
+          cpi, x, mi_row, mi_col, bsize, ref, start_mvs[ref], num_planes,
+          use_subpixel, &curr_sse, &curr_var);
       if (curr_sse < *best_sse) {
         *best_sse = curr_sse;
         *best_var = curr_var;
@@ -840,8 +835,11 @@ void av1_get_max_min_partition_features(AV1_COMP *const cpi, MACROBLOCK *x,
       unsigned int sse = 0;
       unsigned int var = 0;
       const FULLPEL_MV start_mv = kZeroFullMv;
-      int_mv best_mv = av1_simple_motion_sse_var(
-          cpi, x, this_mi_row, this_mi_col, mb_size, start_mv, 0, &sse, &var);
+      const MV_REFERENCE_FRAME ref =
+          cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
+      const int_mv best_mv = av1_simple_motion_search_sse_var(
+          cpi, x, this_mi_row, this_mi_col, mb_size, ref, start_mv, 1, 0, &sse,
+          &var);
 
       const float mv_row = (float)(best_mv.as_mv.row / 8);
       const float mv_col = (float)(best_mv.as_mv.col / 8);

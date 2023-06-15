@@ -960,10 +960,12 @@ int av1_interinter_compound_motion_search(const AV1_COMP *const cpi,
   return tmp_rate_mv;
 }
 
-int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
-                                int mi_col, BLOCK_SIZE bsize, int ref,
-                                FULLPEL_MV start_mv, int num_planes,
-                                int use_subpixel) {
+int_mv av1_simple_motion_search_sse_var(AV1_COMP *const cpi, MACROBLOCK *x,
+                                        int mi_row, int mi_col,
+                                        BLOCK_SIZE bsize, int ref,
+                                        FULLPEL_MV start_mv, int num_planes,
+                                        int use_subpixel, unsigned int *sse,
+                                        unsigned int *var) {
   assert(num_planes == 1 &&
          "Currently simple_motion_search only supports luma plane");
   assert(!frame_is_intra_only(&cpi->common) &&
@@ -992,7 +994,7 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
              MAX_MVSEARCH_STEPS - 2);
   int cost_list[5];
   const int ref_idx = 0;
-  int var;
+  int bestsme;
   int_mv best_mv;
   FULLPEL_MV_STATS best_mv_stats;
 
@@ -1015,12 +1017,12 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
                                      start_mv, src_search_sites,
                                      fine_search_interval);
 
-  var = av1_full_pixel_search(start_mv, &full_ms_params, step_param,
-                              cond_cost_list(cpi, cost_list),
-                              &best_mv.as_fullmv, &best_mv_stats, NULL);
+  bestsme = av1_full_pixel_search(start_mv, &full_ms_params, step_param,
+                                  cond_cost_list(cpi, cost_list),
+                                  &best_mv.as_fullmv, &best_mv_stats, NULL);
 
   const int use_subpel_search =
-      var < INT_MAX && !cpi->common.features.cur_frame_force_integer_mv &&
+      bestsme < INT_MAX && !cpi->common.features.cur_frame_force_integer_mv &&
       use_subpixel &&
       (cpi->sf.mv_sf.simple_motion_subpel_force_stop != FULL_PEL);
   if (scaled_ref_frame) {
@@ -1041,42 +1043,22 @@ int_mv av1_simple_motion_search(AV1_COMP *const cpi, MACROBLOCK *x, int mi_row,
     cpi->mv_search_params.find_fractional_mv_step(
         xd, cm, &ms_params, subpel_start_mv, &best_mv_stats, &best_mv.as_mv,
         &not_used, &x->pred_sse[ref], NULL);
+
+    mbmi->mv[0] = best_mv;
+
+    // Get a copy of the prediction output
+    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                  AOM_PLANE_Y, AOM_PLANE_Y);
+    *var = cpi->ppi->fn_ptr[bsize].vf(
+        x->plane[0].src.buf, x->plane[0].src.stride, xd->plane[0].dst.buf,
+        xd->plane[0].dst.stride, sse);
   } else {
     // Manually convert from units of pixel to 1/8-pixels if we are not doing
     // subpel search
     convert_fullmv_to_mv(&best_mv);
+    *var = best_mv_stats.distortion;
+    *sse = best_mv_stats.sse;
   }
-
-  mbmi->mv[0] = best_mv;
-
-  // Get a copy of the prediction output
-  av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                AOM_PLANE_Y, AOM_PLANE_Y);
-
-  if (scaled_ref_frame) {
-    xd->plane[AOM_PLANE_Y].pre[ref_idx] = backup_yv12;
-  }
-
-  return best_mv;
-}
-
-int_mv av1_simple_motion_sse_var(AV1_COMP *cpi, MACROBLOCK *x, int mi_row,
-                                 int mi_col, BLOCK_SIZE bsize,
-                                 const FULLPEL_MV start_mv, int use_subpixel,
-                                 unsigned int *sse, unsigned int *var) {
-  MACROBLOCKD *xd = &x->e_mbd;
-  const MV_REFERENCE_FRAME ref =
-      cpi->rc.is_src_frame_alt_ref ? ALTREF_FRAME : LAST_FRAME;
-
-  int_mv best_mv = av1_simple_motion_search(cpi, x, mi_row, mi_col, bsize, ref,
-                                            start_mv, 1, use_subpixel);
-
-  const uint8_t *src = x->plane[0].src.buf;
-  const int src_stride = x->plane[0].src.stride;
-  const uint8_t *dst = xd->plane[0].dst.buf;
-  const int dst_stride = xd->plane[0].dst.stride;
-
-  *var = cpi->ppi->fn_ptr[bsize].vf(src, src_stride, dst, dst_stride, sse);
 
   return best_mv;
 }

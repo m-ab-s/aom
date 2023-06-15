@@ -59,18 +59,14 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                       int *rate_mv, int ref_idx);
 
 // Performs a motion search in SIMPLE_TRANSLATION mode using reference frame
-// ref. Note that this sets the offset of mbmi, so we will need to reset it
-// after calling this function.
-int_mv av1_simple_motion_search(struct AV1_COMP *const cpi, MACROBLOCK *x,
-                                int mi_row, int mi_col, BLOCK_SIZE bsize,
-                                int ref, FULLPEL_MV start_mv, int num_planes,
-                                int use_subpixel);
-
-// Performs a simple motion search to calculate the sse and var of the residue
-int_mv av1_simple_motion_sse_var(struct AV1_COMP *cpi, MACROBLOCK *x,
-                                 int mi_row, int mi_col, BLOCK_SIZE bsize,
-                                 const FULLPEL_MV start_mv, int use_subpixel,
-                                 unsigned int *sse, unsigned int *var);
+// ref and calculates the sse and var of the residue. Note that this sets the
+// offset of mbmi, so we will need to reset it after calling this function.
+int_mv av1_simple_motion_search_sse_var(struct AV1_COMP *cpi, MACROBLOCK *x,
+                                        int mi_row, int mi_col,
+                                        BLOCK_SIZE bsize, int ref,
+                                        const FULLPEL_MV start_mv,
+                                        int num_planes, int use_subpixel,
+                                        unsigned int *sse, unsigned int *var);
 
 static AOM_INLINE const search_site_config *av1_get_search_site_config(
     const AV1_COMP *cpi, MACROBLOCK *x, SEARCH_METHODS search_method) {
