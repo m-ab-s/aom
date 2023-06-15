@@ -2358,6 +2358,10 @@ void av1_rc_postencode_update_drop_frame(AV1_COMP *cpi) {
   cpi->rc.prev_coded_width = cpi->common.width;
   cpi->rc.prev_coded_height = cpi->common.height;
   cpi->rc.prev_frame_is_dropped = 1;
+  // On a scene/slide change for dropped frame: reset the avg_source_sad to 0,
+  // otherwise the avg_source_sad can get too large and subsequent frames
+  // may miss the scene/slide detection.
+  if (cpi->rc.high_source_sad) cpi->rc.avg_source_sad = 0;
 }
 
 int av1_find_qindex(double desired_q, aom_bit_depth_t bit_depth,
@@ -2998,6 +3002,11 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   int light_change = 0;
   // Flag to check light change or not.
   const int check_light_change = 0;
+  // TODO(marpan): There seems some difference along the bottom border when
+  // using the source_last_tl0 for last_source (when previous frame is dropped).
+  // Remove this bord parameter when issue is resolved: differene is that
+  // non-zero sad exists along bottom border even though source is static.
+  const int border = rc->prev_frame_is_dropped;
   // Store blkwise SAD for later use
   if (width == cm->render_width && height == cm->render_height) {
     if (cpi->src_sad_blk_64x64 == NULL) {
@@ -3006,7 +3015,8 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
                                              sizeof(*cpi->src_sad_blk_64x64)));
     }
   }
-  for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
+  // Avoid bottom and right border.
+  for (int sbi_row = 0; sbi_row < sb_rows - border; ++sbi_row) {
     for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
       tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
                                             last_src_ystride);
