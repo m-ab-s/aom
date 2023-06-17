@@ -1213,6 +1213,8 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 5) {
     sf->hl_sf.weight_calc_level_in_tf = 1;
+    sf->hl_sf.adjust_num_frames_for_arf_filtering =
+        allow_screen_content_tools ? 0 : 1;
 
     sf->fp_sf.reduce_mv_step_param = 4;
 
@@ -1256,8 +1258,6 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 6) {
     sf->hl_sf.disable_extra_sc_testing = 1;
     sf->hl_sf.second_alt_ref_filtering = 0;
-    sf->hl_sf.adjust_num_frames_for_arf_filtering =
-        allow_screen_content_tools ? 0 : 1;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.selective_ref_frame = 6;
