@@ -293,6 +293,7 @@ if(CONFIG_AV1_ENCODER)
 
     list(APPEND AOM_DSP_ENCODER_INTRIN_NEON
                 "${AOM_ROOT}/aom_dsp/arm/highbd_avg_neon.c"
+                "${AOM_ROOT}/aom_dsp/arm/highbd_avg_pred_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_hadamard_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_quantize_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_sad_neon.c"

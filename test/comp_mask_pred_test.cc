@@ -828,5 +828,13 @@ TEST_P(AV1HighbdCompAvgPredTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
 }
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV1HighbdCompAvgPredTest,
+    ::testing::Combine(::testing::Values(&aom_highbd_comp_avg_pred_neon),
+                       ::testing::ValuesIn(kValidBlockSize),
+                       ::testing::Range(8, 13, 2)));
+#endif
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace
