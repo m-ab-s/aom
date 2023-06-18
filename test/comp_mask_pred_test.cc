@@ -583,6 +583,14 @@ TEST_P(AV1HighbdCompMaskPredTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
 }
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV1HighbdCompMaskPredTest,
+    ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_neon),
+                       ::testing::ValuesIn(kCompMaskPredParams),
+                       ::testing::Range(8, 13, 2)));
+#endif
+
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdCompMaskPredTest,
