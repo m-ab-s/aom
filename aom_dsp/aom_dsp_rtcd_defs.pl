@@ -974,27 +974,29 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_sad_skip_16x64   avx2 sse2 neon/;
     specialize qw/aom_highbd_sad_skip_64x16   avx2 sse2 neon/;
 
-    specialize qw/aom_highbd_sad128x128_avg avx2/;
-    specialize qw/aom_highbd_sad128x64_avg  avx2/;
-    specialize qw/aom_highbd_sad64x128_avg  avx2/;
-    specialize qw/aom_highbd_sad64x64_avg   avx2 sse2/;
-    specialize qw/aom_highbd_sad64x32_avg   avx2 sse2/;
-    specialize qw/aom_highbd_sad32x64_avg   avx2 sse2/;
-    specialize qw/aom_highbd_sad32x32_avg   avx2 sse2/;
-    specialize qw/aom_highbd_sad32x16_avg   avx2 sse2/;
-    specialize qw/aom_highbd_sad16x32_avg   avx2 sse2/;
-    specialize qw/aom_highbd_sad16x16_avg   avx2 sse2/;
-    specialize qw/aom_highbd_sad16x8_avg    avx2 sse2/;
-    specialize qw/aom_highbd_sad8x4_avg     sse2/;
-    specialize qw/aom_highbd_sad4x8_avg     sse2/;
-    specialize qw/aom_highbd_sad4x4_avg     sse2/;
+    specialize qw/aom_highbd_sad128x128_avg avx2      neon/;
+    specialize qw/aom_highbd_sad128x64_avg  avx2      neon/;
+    specialize qw/aom_highbd_sad64x128_avg  avx2      neon/;
+    specialize qw/aom_highbd_sad64x64_avg   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad64x32_avg   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad32x64_avg   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad32x32_avg   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad32x16_avg   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad16x32_avg   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad16x16_avg   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad16x8_avg    avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad8x16_avg              neon/;
+    specialize qw/aom_highbd_sad8x8_avg               neon/;
+    specialize qw/aom_highbd_sad8x4_avg          sse2 neon/;
+    specialize qw/aom_highbd_sad4x8_avg          sse2 neon/;
+    specialize qw/aom_highbd_sad4x4_avg          sse2 neon/;
 
-    specialize qw/aom_highbd_sad4x16_avg    sse2/;
-    specialize qw/aom_highbd_sad16x4_avg    avx2 sse2/;
-    specialize qw/aom_highbd_sad8x32_avg    sse2/;
-    specialize qw/aom_highbd_sad32x8_avg    avx2 sse2/;
-    specialize qw/aom_highbd_sad16x64_avg   avx2 sse2/;
-    specialize qw/aom_highbd_sad64x16_avg   avx2 sse2/;
+    specialize qw/aom_highbd_sad4x16_avg         sse2 neon/;
+    specialize qw/aom_highbd_sad8x32_avg         sse2 neon/;
+    specialize qw/aom_highbd_sad16x4_avg    avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad16x64_avg   avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad32x8_avg    avx2 sse2 neon/;
+    specialize qw/aom_highbd_sad64x16_avg   avx2 sse2 neon/;
   }
   #
   # Masked SAD
