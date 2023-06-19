@@ -92,6 +92,11 @@ static INLINE uint8x16_t load_u8_8x2(const uint8_t *s, ptrdiff_t p) {
     *(s0) = vreinterpret_u8_u32(                                           \
         vld1_lane_u32((uint32_t *)(s), vreinterpret_u32_u8(*(s0)), lane)); \
   } while (0)
+#define load_u16_2x1(s, s0, lane)                                           \
+  do {                                                                      \
+    *(s0) = vreinterpret_u16_u32(                                           \
+        vld1_lane_u32((uint32_t *)(s), vreinterpret_u32_u16(*(s0)), lane)); \
+  } while (0)
 
 // Load four bytes into the low half of a uint8x8_t, zero the upper half.
 static INLINE uint8x8_t load_u8_4x1_lane0(const uint8_t *p) {

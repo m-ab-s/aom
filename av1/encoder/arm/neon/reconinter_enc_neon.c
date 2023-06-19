@@ -138,3 +138,114 @@ void aom_comp_avg_upsampled_pred_neon(MACROBLOCKD *xd,
 
   aom_comp_avg_pred_neon(comp_pred, pred, width, height, comp_pred, width);
 }
+
+#if CONFIG_AV1_HIGHBITDEPTH
+void aom_highbd_upsampled_pred_neon(MACROBLOCKD *xd,
+                                    const struct AV1Common *const cm,
+                                    int mi_row, int mi_col, const MV *const mv,
+                                    uint8_t *comp_pred8, int width, int height,
+                                    int subpel_x_q3, int subpel_y_q3,
+                                    const uint8_t *ref8, int ref_stride, int bd,
+                                    int subpel_search) {
+  // expect xd == NULL only in tests
+  if (xd != NULL) {
+    const MB_MODE_INFO *mi = xd->mi[0];
+    const int ref_num = 0;
+    const int is_intrabc = is_intrabc_block(mi);
+    const struct scale_factors *const sf =
+        is_intrabc ? &cm->sf_identity : xd->block_ref_scale_factors[ref_num];
+    const int is_scaled = av1_is_scaled(sf);
+
+    if (is_scaled) {
+      int plane = 0;
+      const int mi_x = mi_col * MI_SIZE;
+      const int mi_y = mi_row * MI_SIZE;
+      const struct macroblockd_plane *const pd = &xd->plane[plane];
+      const struct buf_2d *const dst_buf = &pd->dst;
+      const struct buf_2d *const pre_buf =
+          is_intrabc ? dst_buf : &pd->pre[ref_num];
+
+      InterPredParams inter_pred_params;
+      inter_pred_params.conv_params = get_conv_params(0, plane, xd->bd);
+      const int_interpfilters filters =
+          av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+      av1_init_inter_params(
+          &inter_pred_params, width, height, mi_y >> pd->subsampling_y,
+          mi_x >> pd->subsampling_x, pd->subsampling_x, pd->subsampling_y,
+          xd->bd, is_cur_buf_hbd(xd), is_intrabc, sf, pre_buf, filters);
+      av1_enc_build_one_inter_predictor(comp_pred8, width, mv,
+                                        &inter_pred_params);
+      return;
+    }
+  }
+
+  const InterpFilterParams *filter = av1_get_filter(subpel_search);
+
+  if (!subpel_x_q3 && !subpel_y_q3) {
+    const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
+    uint16_t *comp_pred = CONVERT_TO_SHORTPTR(comp_pred8);
+    if (width > 4) {
+      assert(width % 8 == 0);
+      int i = height;
+      do {
+        int j = 0;
+        do {
+          uint16x8_t r = vld1q_u16(ref + j);
+          vst1q_u16(comp_pred + j, r);
+          j += 8;
+        } while (j < width);
+        ref += ref_stride;
+        comp_pred += width;
+      } while (--i != 0);
+    } else if (width == 4) {
+      int i = height;
+      do {
+        uint16x4_t r = vld1_u16(ref);
+        vst1_u16(comp_pred, r);
+        ref += ref_stride;
+        comp_pred += width;
+      } while (--i != 0);
+    } else {
+      assert(width == 2);
+      int i = height / 2;
+      uint16x4_t r = vdup_n_u16(0);
+      do {
+        load_u16_2x1(ref + 0 * ref_stride, &r, 0);
+        load_u16_2x1(ref + 1 * ref_stride, &r, 1);
+        store_u16_2x1(comp_pred + 0 * width, r, 0);
+        store_u16_2x1(comp_pred + 1 * width, r, 1);
+        ref += 2 * ref_stride;
+        comp_pred += 2 * width;
+      } while (--i != 0);
+    }
+  } else if (!subpel_y_q3) {
+    const int16_t *const kernel =
+        av1_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
+    aom_highbd_convolve8_horiz_neon(ref8, ref_stride, comp_pred8, width, kernel,
+                                    16, NULL, -1, width, height, bd);
+  } else if (!subpel_x_q3) {
+    const int16_t *const kernel =
+        av1_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
+    aom_highbd_convolve8_vert_neon(ref8, ref_stride, comp_pred8, width, NULL,
+                                   -1, kernel, 16, width, height, bd);
+  } else {
+    DECLARE_ALIGNED(16, uint16_t,
+                    temp[((MAX_SB_SIZE + 16) + 16) * MAX_SB_SIZE]);
+    const int16_t *const kernel_x =
+        av1_get_interp_filter_subpel_kernel(filter, subpel_x_q3 << 1);
+    const int16_t *const kernel_y =
+        av1_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
+    const int intermediate_height =
+        (((height - 1) * 8 + subpel_y_q3) >> 3) + filter->taps;
+    assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
+    aom_highbd_convolve8_horiz_neon(
+        ref8 - ref_stride * ((filter->taps >> 1) - 1), ref_stride,
+        CONVERT_TO_BYTEPTR(temp), MAX_SB_SIZE, kernel_x, 16, NULL, -1, width,
+        intermediate_height, bd);
+    aom_highbd_convolve8_vert_neon(
+        CONVERT_TO_BYTEPTR(temp + MAX_SB_SIZE * ((filter->taps >> 1) - 1)),
+        MAX_SB_SIZE, comp_pred8, width, NULL, -1, kernel_y, 16, width, height,
+        bd);
+  }
+}
+#endif  // CONFIG_AV1_HIGHBITDEPTH
