@@ -62,6 +62,15 @@ static INLINE uint64_t horizontal_long_add_u32x4(const uint32x4_t a) {
 #endif
 }
 
+static INLINE int64_t horizontal_long_add_s32x4(const int32x4_t a) {
+#if AOM_ARCH_AARCH64
+  return vaddlvq_s32(a);
+#else
+  const int64x2_t b = vpaddlq_s32(a);
+  return vgetq_lane_s64(b, 0) + vgetq_lane_s64(b, 1);
+#endif
+}
+
 static INLINE unsigned int horizontal_add_u32x4(const uint32x4_t a) {
 #if AOM_ARCH_AARCH64
   return vaddvq_u32(a);
@@ -199,5 +208,15 @@ static INLINE uint32_t horizontal_add_u16x4(const uint16x4_t a) {
   const uint32x2_t b = vpaddl_u16(a);
   const uint64x1_t c = vpaddl_u32(b);
   return vget_lane_u32(vreinterpret_u32_u64(c), 0);
+#endif
+}
+
+static INLINE int32x4_t horizontal_add_2d_s32(int32x4_t a, int32x4_t b) {
+#if AOM_ARCH_AARCH64
+  return vpaddq_s32(a, b);
+#else
+  const int32x2_t a0 = vpadd_s32(vget_low_s32(a), vget_high_s32(a));
+  const int32x2_t b0 = vpadd_s32(vget_low_s32(b), vget_high_s32(b));
+  return vcombine_s32(a0, b0);
 #endif
 }

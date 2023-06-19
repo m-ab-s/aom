@@ -789,4 +789,20 @@ static INLINE void transpose_s32_4x4(int32x4_t *a0, int32x4_t *a1,
   *a3 = c1.val[1];
 }
 
+static INLINE int64x2_t aom_vtrn1q_s64(int64x2_t a, int64x2_t b) {
+#if AOM_ARCH_AARCH64
+  return vtrn1q_s64(a, b);
+#else
+  return vcombine_s64(vget_low_s64(a), vget_low_s64(b));
+#endif
+}
+
+static INLINE int64x2_t aom_vtrn2q_s64(int64x2_t a, int64x2_t b) {
+#if AOM_ARCH_AARCH64
+  return vtrn2q_s64(a, b);
+#else
+  return vcombine_s64(vget_high_s64(a), vget_high_s64(b));
+#endif
+}
+
 #endif  // AOM_AOM_DSP_ARM_TRANSPOSE_NEON_H_

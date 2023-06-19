@@ -389,6 +389,12 @@ INSTANTIATE_TEST_SUITE_P(AVX2, WienerTest,
                          ::testing::Values(av1_compute_stats_avx2));
 #endif  // HAVE_AVX2
 
+#if HAVE_NEON
+
+INSTANTIATE_TEST_SUITE_P(NEON, WienerTest,
+                         ::testing::Values(av1_compute_stats_neon));
+#endif  // HAVE_NEON
+
 }  // namespace wiener_lowbd
 
 #if CONFIG_AV1_HIGHBITDEPTH

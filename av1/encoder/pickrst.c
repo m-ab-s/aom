@@ -1874,15 +1874,14 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   RestSearchCtxt rsc;
 
   // The buffers 'src_avg' and 'dgd_avg' are used to compute H and M buffers.
-  // These buffers are required for AVX2 SIMD purpose only. Hence, allocated the
-  // same if AVX2 variant of SIMD for av1_compute_stats() is enabled. The buffer
-  // size required is calculated based on maximum width and height of the LRU
-  // (i.e., from foreach_rest_unit_in_tile() 1.5 times the
-  // RESTORATION_UNITSIZE_MAX) allowed for Wiener filtering. The width and
-  // height aligned to multiple of 16 is considered for intrinsic purpose.
+  // These buffers are only required for the AVX2 and NEON implementations of
+  // av1_compute_stats. The buffer size required is calculated based on maximum
+  // width and height of the LRU (i.e., from foreach_rest_unit_in_tile() 1.5
+  // times the RESTORATION_UNITSIZE_MAX) allowed for Wiener filtering. The width
+  // and height aligned to multiple of 16 is considered for intrinsic purpose.
   rsc.dgd_avg = NULL;
   rsc.src_avg = NULL;
-#if HAVE_AVX2
+#if HAVE_AVX2 || HAVE_NEON
   // The buffers allocated below are used during Wiener filter processing of low
   // bitdepth path. Hence, allocate the same when Wiener filter is enabled in
   // low bitdepth path.
@@ -1952,7 +1951,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
       }
     }
   }
-#if HAVE_AVX2
+#if HAVE_AVX || HAVE_NEON
   if (!cpi->sf.lpf_sf.disable_wiener_filter &&
       !cm->seq_params->use_highbitdepth) {
     aom_free(rsc.dgd_avg);
