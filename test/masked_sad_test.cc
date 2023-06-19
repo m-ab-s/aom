@@ -581,6 +581,41 @@ const MaskedSADx4Param msadx4_test[] = {
 
 INSTANTIATE_TEST_SUITE_P(NEON, MaskedSADx4Test,
                          ::testing::ValuesIn(msadx4_test));
+
+#if CONFIG_AV1_HIGHBITDEPTH
+const MaskedSADParam hbd_msad_neon_test[] = {
+  make_tuple(&aom_highbd_masked_sad4x4_neon, &aom_highbd_masked_sad4x4_c),
+  make_tuple(&aom_highbd_masked_sad4x8_neon, &aom_highbd_masked_sad4x8_c),
+  make_tuple(&aom_highbd_masked_sad8x4_neon, &aom_highbd_masked_sad8x4_c),
+  make_tuple(&aom_highbd_masked_sad8x8_neon, &aom_highbd_masked_sad8x8_c),
+  make_tuple(&aom_highbd_masked_sad8x16_neon, &aom_highbd_masked_sad8x16_c),
+  make_tuple(&aom_highbd_masked_sad16x8_neon, &aom_highbd_masked_sad16x8_c),
+  make_tuple(&aom_highbd_masked_sad16x16_neon, &aom_highbd_masked_sad16x16_c),
+  make_tuple(&aom_highbd_masked_sad16x32_neon, &aom_highbd_masked_sad16x32_c),
+  make_tuple(&aom_highbd_masked_sad32x16_neon, &aom_highbd_masked_sad32x16_c),
+  make_tuple(&aom_highbd_masked_sad32x32_neon, &aom_highbd_masked_sad32x32_c),
+  make_tuple(&aom_highbd_masked_sad32x64_neon, &aom_highbd_masked_sad32x64_c),
+  make_tuple(&aom_highbd_masked_sad64x32_neon, &aom_highbd_masked_sad64x32_c),
+  make_tuple(&aom_highbd_masked_sad64x64_neon, &aom_highbd_masked_sad64x64_c),
+  make_tuple(&aom_highbd_masked_sad64x128_neon, &aom_highbd_masked_sad64x128_c),
+  make_tuple(&aom_highbd_masked_sad128x64_neon, &aom_highbd_masked_sad128x64_c),
+  make_tuple(&aom_highbd_masked_sad128x128_neon,
+             &aom_highbd_masked_sad128x128_c),
+#if !CONFIG_REALTIME_ONLY
+  make_tuple(&aom_highbd_masked_sad4x16_neon, &aom_highbd_masked_sad4x16_c),
+  make_tuple(&aom_highbd_masked_sad16x4_neon, &aom_highbd_masked_sad16x4_c),
+  make_tuple(&aom_highbd_masked_sad8x32_neon, &aom_highbd_masked_sad8x32_c),
+  make_tuple(&aom_highbd_masked_sad32x8_neon, &aom_highbd_masked_sad32x8_c),
+  make_tuple(&aom_highbd_masked_sad16x64_neon, &aom_highbd_masked_sad16x64_c),
+  make_tuple(&aom_highbd_masked_sad64x16_neon, &aom_highbd_masked_sad64x16_c),
+#endif  // !CONFIG_REALTIME_ONLY
+};
+
+INSTANTIATE_TEST_SUITE_P(NEON, HighbdMaskedSADTest,
+                         ::testing::ValuesIn(hbd_msad_neon_test));
+
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
 #endif  // HAVE_NEON
 
 }  // namespace
