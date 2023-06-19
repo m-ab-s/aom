@@ -13,6 +13,7 @@
 
 #include "aom_dsp/x86/synonyms.h"
 #include "av1/common/warped_motion.h"
+#include "av1/encoder/global_motion.h"
 #include "config/av1_rtcd.h"
 
 int64_t av1_calc_frame_error_sse2(const uint8_t *const ref, int ref_stride,

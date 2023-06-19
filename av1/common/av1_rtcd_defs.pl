@@ -493,6 +493,16 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/int av1_denoiser_filter/, "const uint8_t *sig, int sig_stride, const uint8_t *mc_avg, int mc_avg_stride, uint8_t *avg, int avg_stride, int increase_denoising, BLOCK_SIZE bs, int motion_magnitude";
     specialize qw/av1_denoiser_filter neon sse2/;
   }
+
+  # Global motion
+  if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
+    add_proto qw/int64_t av1_calc_frame_error/, "const uint8_t *const ref, int stride, const uint8_t *const dst, int p_width, int p_height, int p_stride";
+    specialize qw/av1_calc_frame_error sse2 avx2/;
+
+    if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
+      add_proto qw/int64_t av1_calc_highbd_frame_error/, "const uint16_t *const ref, int stride, const uint16_t *const dst, int p_width, int p_height, int p_stride, int bd";
+    }
+  }
 }
 # end encoder functions
 
@@ -545,9 +555,6 @@ if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
 
 add_proto qw/void av1_warp_affine/, "const int32_t *mat, const uint8_t *ref, int width, int height, int stride, uint8_t *pred, int p_col, int p_row, int p_width, int p_height, int p_stride, int subsampling_x, int subsampling_y, ConvolveParams *conv_params, int16_t alpha, int16_t beta, int16_t gamma, int16_t delta";
 specialize qw/av1_warp_affine sse4_1 avx2 neon/;
-
-add_proto qw/int64_t av1_calc_frame_error/, "const uint8_t *const ref, int stride, const uint8_t *const dst, int p_width, int p_height, int p_stride";
-specialize qw/av1_calc_frame_error sse2 avx2/;
 
 # LOOP_RESTORATION functions
 add_proto qw/void av1_apply_selfguided_restoration/, "const uint8_t *dat, int width, int height, int stride, int eps, const int *xqd, uint8_t *dst, int dst_stride, int32_t *tmpbuf, int bit_depth, int highbd";
