@@ -163,7 +163,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
                sizeof(WarpedMotionParams));
       }
     }
-    assert(cm->global_motion[frame].wmtype <= AFFINE);
+
     if (!av1_get_shear_params(&cm->global_motion[frame]))
       cm->global_motion[frame] = default_warp_params;
 

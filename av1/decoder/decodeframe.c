@@ -4326,7 +4326,6 @@ static int read_global_motion_params(WarpedMotionParams *params,
                        trans_dec_factor;
   }
 
-  assert(params->wmtype <= AFFINE);
   int good_shear_params = av1_get_shear_params(params);
   if (!good_shear_params) return 0;
 
