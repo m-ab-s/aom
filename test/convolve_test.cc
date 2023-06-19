@@ -767,10 +767,13 @@ WRAP(convolve8_vert_avx2, 12)
 
 #if HAVE_NEON
 WRAP(convolve8_horiz_neon, 8)
+WRAP(convolve8_vert_neon, 8)
 
 WRAP(convolve8_horiz_neon, 10)
+WRAP(convolve8_vert_neon, 10)
 
 WRAP(convolve8_horiz_neon, 12)
+WRAP(convolve8_vert_neon, 12)
 #endif  // HAVE_NEON
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
@@ -876,11 +879,11 @@ INSTANTIATE_TEST_SUITE_P(AVX2, LowbdConvolveTest,
 #if HAVE_NEON
 #if CONFIG_AV1_HIGHBITDEPTH
 const ConvolveFunctions wrap_convolve8_neon(wrap_convolve8_horiz_neon_8,
-                                            wrap_convolve8_vert_c_8, 8);
+                                            wrap_convolve8_vert_neon_8, 8);
 const ConvolveFunctions wrap_convolve10_neon(wrap_convolve8_horiz_neon_10,
-                                             wrap_convolve8_vert_c_10, 10);
+                                             wrap_convolve8_vert_neon_10, 10);
 const ConvolveFunctions wrap_convolve12_neon(wrap_convolve8_horiz_neon_12,
-                                             wrap_convolve8_vert_c_12, 12);
+                                             wrap_convolve8_vert_neon_12, 12);
 const ConvolveParam kArray_HighbdConvolve8_neon[] = {
   ALL_SIZES_64(wrap_convolve8_neon), ALL_SIZES_64(wrap_convolve10_neon),
   ALL_SIZES_64(wrap_convolve12_neon)
