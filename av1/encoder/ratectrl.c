@@ -3003,10 +3003,12 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   // Flag to check light change or not.
   const int check_light_change = 0;
   // TODO(marpan): There seems some difference along the bottom border when
-  // using the source_last_tl0 for last_source (when previous frame is dropped).
-  // Remove this bord parameter when issue is resolved: differene is that
+  // using the source_last_tl0 for last_source (used for temporal layers or
+  // when previous frame is dropped).
+  // Remove this bord parameter when issue is resolved: difference is that
   // non-zero sad exists along bottom border even though source is static.
-  const int border = rc->prev_frame_is_dropped;
+  const int border =
+      rc->prev_frame_is_dropped || cpi->svc.number_temporal_layers > 1;
   // Store blkwise SAD for later use
   if (width == cm->render_width && height == cm->render_height) {
     if (cpi->src_sad_blk_64x64 == NULL) {

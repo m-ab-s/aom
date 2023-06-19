@@ -606,11 +606,19 @@ void av1_svc_set_last_source(AV1_COMP *const cpi, EncodeFrameInput *frame_input,
       // For base spatial layer: if the LAST reference (index 0) is not
       // the previous (super)frame set the last_source to the source
       // corresponding to the last TL0, otherwise keep it at prev_source.
+      // Always use source_last_TL0 if previous base TL0 was dropped.
       if (cpi->svc.current_superframe > 0) {
         const int buffslot_last = rtc_ref->ref_idx[0];
-        if (rtc_ref->buffer_time_index[buffslot_last] <
-            cpi->svc.current_superframe - 1)
+        // Check if previous frame was dropped on base TL0 layer.
+        const int layer =
+            LAYER_IDS_TO_IDX(0, 0, cpi->svc.number_temporal_layers);
+        LAYER_CONTEXT *lc = &cpi->svc.layer_context[layer];
+        RATE_CONTROL *lrc = &lc->rc;
+        if (lrc->prev_frame_is_dropped ||
+            rtc_ref->buffer_time_index[buffslot_last] <
+                cpi->svc.current_superframe - 1) {
           frame_input->last_source = &cpi->svc.source_last_TL0;
+        }
       }
     } else if (cpi->svc.spatial_layer_id > 0) {
       // For spatial enhancement layers: the previous source (prev_source)
