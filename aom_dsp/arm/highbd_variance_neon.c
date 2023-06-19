@@ -529,3 +529,71 @@ HIGHBD_MSE_WXH_NEON(8, 16)
 HIGHBD_MSE_WXH_NEON(8, 8)
 
 #undef HIGHBD_MSE_WXH_NEON
+
+void aom_highbd_dist_wtd_comp_avg_pred_neon(
+    uint8_t *comp_pred8, const uint8_t *pred8, int width, int height,
+    const uint8_t *ref8, int ref_stride,
+    const DIST_WTD_COMP_PARAMS *jcp_param) {
+  const uint16_t *pred = CONVERT_TO_SHORTPTR(pred8);
+  const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
+  uint16_t *comp_pred = CONVERT_TO_SHORTPTR(comp_pred8);
+  const uint16x4_t fwd_offset_u16 = vdup_n_u16(jcp_param->fwd_offset);
+  const uint16x4_t bck_offset_u16 = vdup_n_u16(jcp_param->bck_offset);
+
+  int i = height;
+  if (width > 8) {
+    do {
+      int j = 0;
+      do {
+        const uint16x8_t p = vld1q_u16(pred + j);
+        const uint16x8_t r = vld1q_u16(ref + j);
+
+        uint32x4_t cp0 = vmull_u16(vget_low_u16(p), bck_offset_u16);
+        uint32x4_t cp1 = vmull_u16(vget_high_u16(p), bck_offset_u16);
+        cp0 = vmlal_u16(cp0, vget_low_u16(r), fwd_offset_u16);
+        cp1 = vmlal_u16(cp1, vget_high_u16(r), fwd_offset_u16);
+        uint16x8_t avg = vcombine_u16(vrshrn_n_u32(cp0, DIST_PRECISION_BITS),
+                                      vrshrn_n_u32(cp1, DIST_PRECISION_BITS));
+        vst1q_u16(comp_pred + j, avg);
+
+        j += 8;
+      } while (j < width);
+
+      comp_pred += width;
+      pred += width;
+      ref += ref_stride;
+    } while (--i != 0);
+  } else if (width == 8) {
+    do {
+      const uint16x8_t p = vld1q_u16(pred);
+      const uint16x8_t r = vld1q_u16(ref);
+
+      uint32x4_t cp0 = vmull_u16(vget_low_u16(p), bck_offset_u16);
+      uint32x4_t cp1 = vmull_u16(vget_high_u16(p), bck_offset_u16);
+      cp0 = vmlal_u16(cp0, vget_low_u16(r), fwd_offset_u16);
+      cp1 = vmlal_u16(cp1, vget_high_u16(r), fwd_offset_u16);
+      uint16x8_t avg = vcombine_u16(vrshrn_n_u32(cp0, DIST_PRECISION_BITS),
+                                    vrshrn_n_u32(cp1, DIST_PRECISION_BITS));
+      vst1q_u16(comp_pred, avg);
+
+      comp_pred += width;
+      pred += width;
+      ref += ref_stride;
+    } while (--i != 0);
+  } else {
+    assert(width == 4);
+    do {
+      const uint16x4_t p = vld1_u16(pred);
+      const uint16x4_t r = vld1_u16(ref);
+
+      uint32x4_t cp = vmull_u16(p, bck_offset_u16);
+      cp = vmlal_u16(cp, r, fwd_offset_u16);
+      uint16x4_t avg = vrshrn_n_u32(cp, DIST_PRECISION_BITS);
+      vst1_u16(comp_pred, avg);
+
+      comp_pred += width;
+      pred += width;
+      ref += ref_stride;
+    } while (--i != 0);
+  }
+}

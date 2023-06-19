@@ -67,6 +67,12 @@ INSTANTIATE_TEST_SUITE_P(SSE2, AV1HighBDDISTWTDCOMPAVGTest,
                              aom_highbd_dist_wtd_comp_avg_pred_sse2, 1));
 #endif
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV1HighBDDISTWTDCOMPAVGTest,
+                         libaom_test::AV1DISTWTDCOMPAVG::BuildParams(
+                             aom_highbd_dist_wtd_comp_avg_pred_neon, 1));
+#endif
+
 TEST_P(AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(1));
 }
