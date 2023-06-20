@@ -1467,6 +1467,7 @@ typedef struct ThreadData {
   int32_t num_64x64_blocks;
   PICK_MODE_CONTEXT *firstpass_ctx;
   TemporalFilterData tf_data;
+  TplBuffers tpl_tmp_buffers;
   TplTxfmStats tpl_txfm_stats;
   // Pointer to the array of structures to store gradient information of each
   // pixel in a superblock. The buffer constitutes of MAX_SB_SQUARE pixel level

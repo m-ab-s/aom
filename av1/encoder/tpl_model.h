@@ -24,6 +24,7 @@ struct AV1_SEQ_CODING_TOOLS;
 struct EncodeFrameParams;
 struct EncodeFrameInput;
 struct GF_GROUP;
+struct ThreadData;
 struct TPL_INFO;
 
 #include "config/aom_config.h"
@@ -102,6 +103,14 @@ typedef struct TplTxfmStats {
   int txfm_block_count;
   int coeff_num;
 } TplTxfmStats;
+
+typedef struct {
+  uint8_t *predictor8;
+  int16_t *src_diff;
+  tran_low_t *coeff;
+  tran_low_t *qcoeff;
+  tran_low_t *dqcoeff;
+} TplBuffers;
 
 typedef struct TplDepStats {
   int64_t srcrf_sse;
@@ -393,6 +402,40 @@ void av1_setup_tpl_buffers(struct AV1_PRIMARY *const ppi,
                            CommonModeInfoParams *const mi_params, int width,
                            int height, int byte_alignment, int lag_in_frames);
 
+static AOM_INLINE void tpl_dealloc_temp_buffers(TplBuffers *tpl_tmp_buffers) {
+  aom_free(tpl_tmp_buffers->predictor8);
+  aom_free(tpl_tmp_buffers->src_diff);
+  aom_free(tpl_tmp_buffers->coeff);
+  aom_free(tpl_tmp_buffers->qcoeff);
+  aom_free(tpl_tmp_buffers->dqcoeff);
+}
+
+static AOM_INLINE bool tpl_alloc_temp_buffers(TplBuffers *tpl_tmp_buffers,
+                                              uint8_t tpl_bsize_1d) {
+  // Number of pixels in a tpl block
+  const int tpl_block_pels = tpl_bsize_1d * tpl_bsize_1d;
+
+  // Allocate temporary buffers used in mode estimation.
+  tpl_tmp_buffers->predictor8 = (uint8_t *)aom_memalign(
+      32, tpl_block_pels * 2 * sizeof(*tpl_tmp_buffers->predictor8));
+  tpl_tmp_buffers->src_diff = (int16_t *)aom_memalign(
+      32, tpl_block_pels * sizeof(*tpl_tmp_buffers->src_diff));
+  tpl_tmp_buffers->coeff = (tran_low_t *)aom_memalign(
+      32, tpl_block_pels * sizeof(*tpl_tmp_buffers->coeff));
+  tpl_tmp_buffers->qcoeff = (tran_low_t *)aom_memalign(
+      32, tpl_block_pels * sizeof(*tpl_tmp_buffers->qcoeff));
+  tpl_tmp_buffers->dqcoeff = (tran_low_t *)aom_memalign(
+      32, tpl_block_pels * sizeof(*tpl_tmp_buffers->dqcoeff));
+
+  if (!(tpl_tmp_buffers->predictor8 && tpl_tmp_buffers->src_diff &&
+        tpl_tmp_buffers->coeff && tpl_tmp_buffers->qcoeff &&
+        tpl_tmp_buffers->dqcoeff)) {
+    tpl_dealloc_temp_buffers(tpl_tmp_buffers);
+    return false;
+  }
+  return true;
+}
+
 /*!\brief Implements temporal dependency modelling for a GOP (GF/ARF
  * group) and selects between 16 and 32 frame GOP structure.
  *
@@ -424,7 +467,8 @@ void av1_tpl_rdmult_setup_sb(struct AV1_COMP *cpi, MACROBLOCK *const x,
                              BLOCK_SIZE sb_size, int mi_row, int mi_col);
 
 void av1_mc_flow_dispenser_row(struct AV1_COMP *cpi,
-                               TplTxfmStats *tpl_txfm_stats, MACROBLOCK *x,
+                               TplTxfmStats *tpl_txfm_stats,
+                               TplBuffers *tpl_tmp_buffers, MACROBLOCK *x,
                                int mi_row, BLOCK_SIZE bsize, TX_SIZE tx_size);
 
 /*!\brief  Compute the entropy of an exponential probability distribution

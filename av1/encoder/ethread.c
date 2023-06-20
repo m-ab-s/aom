@@ -1928,6 +1928,7 @@ static int tpl_worker_hook(void *arg1, void *unused) {
   MACROBLOCK *x = &thread_data->td->mb;
   MACROBLOCKD *xd = &x->e_mbd;
   TplTxfmStats *tpl_txfm_stats = &thread_data->td->tpl_txfm_stats;
+  TplBuffers *tpl_tmp_buffers = &thread_data->td->tpl_tmp_buffers;
   CommonModeInfoParams *mi_params = &cm->mi_params;
   BLOCK_SIZE bsize = convert_length_to_bsize(cpi->ppi->tpl_data.tpl_bsize_1d);
   TX_SIZE tx_size = max_txsize_lookup[bsize];
@@ -1944,7 +1945,8 @@ static int tpl_worker_hook(void *arg1, void *unused) {
     xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
     xd->mb_to_bottom_edge =
         GET_MV_SUBPEL((mi_params->mi_rows - mi_height - mi_row) * MI_SIZE);
-    av1_mc_flow_dispenser_row(cpi, tpl_txfm_stats, x, mi_row, bsize, tx_size);
+    av1_mc_flow_dispenser_row(cpi, tpl_txfm_stats, tpl_tmp_buffers, x, mi_row,
+                              bsize, tx_size);
   }
   return 1;
 }
@@ -2030,6 +2032,11 @@ static AOM_INLINE void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       // OBMC buffers are used only to init MS params and remain unused when
       // called from tpl, hence set the buffers to defaults.
       av1_init_obmc_buffer(&thread_data->td->mb.obmc_buffer);
+      if (!tpl_alloc_temp_buffers(&thread_data->td->tpl_tmp_buffers,
+                                  cpi->ppi->tpl_data.tpl_bsize_1d)) {
+        aom_internal_error(cpi->common.error, AOM_CODEC_MEM_ERROR,
+                           "Error allocating tpl data");
+      }
       thread_data->td->mb.tmp_conv_dst = thread_data->td->tmp_conv_dst;
       thread_data->td->mb.e_mbd.tmp_conv_dst = thread_data->td->mb.tmp_conv_dst;
     }
@@ -2081,6 +2088,11 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
 #if CONFIG_BITRATE_ACCURACY
   tpl_accumulate_txfm_stats(&cpi->td, &cpi->mt_info, num_workers);
 #endif  // CONFIG_BITRATE_ACCURACY
+  for (int i = num_workers - 1; i >= 0; i--) {
+    EncWorkerData *thread_data = &mt_info->tile_thr_data[i];
+    ThreadData *td = thread_data->td;
+    if (td != &cpi->td) tpl_dealloc_temp_buffers(&td->tpl_tmp_buffers);
+  }
 }
 
 // Deallocate memory for temporal filter multi-thread synchronization.

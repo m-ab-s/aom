@@ -455,6 +455,7 @@ static void get_rate_distortion(
 
 static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                                        TplTxfmStats *tpl_txfm_stats,
+                                       TplBuffers *tpl_tmp_buffers,
                                        MACROBLOCK *x, int mi_row, int mi_col,
                                        BLOCK_SIZE bsize, TX_SIZE tx_size,
                                        TplDepStats *tpl_stats) {
@@ -509,28 +510,15 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
     pd->subsampling_y = xd->cur_buf->subsampling_y;
   }
 
-  // Number of pixels in a tpl block
-  const int tpl_block_pels = tpl_data->tpl_bsize_1d * tpl_data->tpl_bsize_1d;
-  // Allocate temporary buffers used in motion estimation.
-  uint8_t *predictor8 = aom_memalign(32, tpl_block_pels * 2 * sizeof(uint8_t));
-  int16_t *src_diff = aom_memalign(32, tpl_block_pels * sizeof(int16_t));
-  tran_low_t *coeff = aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
-  tran_low_t *qcoeff = aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
-  tran_low_t *dqcoeff = aom_memalign(32, tpl_block_pels * sizeof(tran_low_t));
+  uint8_t *predictor8 = tpl_tmp_buffers->predictor8;
+  int16_t *src_diff = tpl_tmp_buffers->src_diff;
+  tran_low_t *coeff = tpl_tmp_buffers->coeff;
+  tran_low_t *qcoeff = tpl_tmp_buffers->qcoeff;
+  tran_low_t *dqcoeff = tpl_tmp_buffers->dqcoeff;
   uint8_t *predictor =
       is_cur_buf_hbd(xd) ? CONVERT_TO_BYTEPTR(predictor8) : predictor8;
   int64_t recon_error = 1;
   int64_t pred_error = 1;
-
-  if (!(predictor8 && src_diff && coeff && qcoeff && dqcoeff)) {
-    aom_free(predictor8);
-    aom_free(src_diff);
-    aom_free(coeff);
-    aom_free(qcoeff);
-    aom_free(dqcoeff);
-    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
-                       "Error allocating tpl data");
-  }
 
   memset(tpl_stats, 0, sizeof(*tpl_stats));
   tpl_stats->ref_frame_index[0] = -1;
@@ -1041,13 +1029,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
       }
     }
   }
-
-  // Free temporary buffers.
-  aom_free(predictor8);
-  aom_free(src_diff);
-  aom_free(coeff);
-  aom_free(qcoeff);
-  aom_free(dqcoeff);
 }
 
 static int round_floor(int ref_pos, int bsize_pix) {
@@ -1353,8 +1334,8 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
 // This function stores the motion estimation dependencies of all the blocks in
 // a row
 void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
-                               MACROBLOCK *x, int mi_row, BLOCK_SIZE bsize,
-                               TX_SIZE tx_size) {
+                               TplBuffers *tpl_tmp_buffers, MACROBLOCK *x,
+                               int mi_row, BLOCK_SIZE bsize, TX_SIZE tx_size) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1TplRowMultiThreadInfo *const tpl_row_mt = &mt_info->tpl_row_mt;
@@ -1382,8 +1363,8 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
     xd->mb_to_left_edge = -GET_MV_SUBPEL(mi_col * MI_SIZE);
     xd->mb_to_right_edge =
         GET_MV_SUBPEL(mi_params->mi_cols - mi_width - mi_col);
-    mode_estimation(cpi, tpl_txfm_stats, x, mi_row, mi_col, bsize, tx_size,
-                    &tpl_stats);
+    mode_estimation(cpi, tpl_txfm_stats, tpl_tmp_buffers, x, mi_row, mi_col,
+                    bsize, tx_size, &tpl_stats);
 
     // Motion flow dependency dispenser.
     tpl_model_store(tpl_frame->tpl_stats_ptr, mi_row, mi_col, tpl_frame->stride,
@@ -1410,8 +1391,8 @@ static AOM_INLINE void mc_flow_dispenser(AV1_COMP *cpi) {
     xd->mb_to_top_edge = -GET_MV_SUBPEL(mi_row * MI_SIZE);
     xd->mb_to_bottom_edge =
         GET_MV_SUBPEL((mi_params->mi_rows - mi_height - mi_row) * MI_SIZE);
-    av1_mc_flow_dispenser_row(cpi, &td->tpl_txfm_stats, x, mi_row, bsize,
-                              tx_size);
+    av1_mc_flow_dispenser_row(cpi, &td->tpl_txfm_stats, &td->tpl_tmp_buffers, x,
+                              mi_row, bsize, tx_size);
   }
 }
 
@@ -1753,6 +1734,12 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   av1_init_tpl_stats(tpl_data);
 
+  TplBuffers *tpl_tmp_buffers = &cpi->td.tpl_tmp_buffers;
+  if (!tpl_alloc_temp_buffers(tpl_tmp_buffers, tpl_data->tpl_bsize_1d)) {
+    aom_internal_error(cpi->common.error, AOM_CODEC_MEM_ERROR,
+                       "Error allocating tpl data");
+  }
+
   tpl_row_mt->sync_read_ptr = av1_tpl_row_mt_sync_read_dummy;
   tpl_row_mt->sync_write_ptr = av1_tpl_row_mt_sync_write_dummy;
 
@@ -1832,6 +1819,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
       !gop_eval)
     end_timing(cpi, av1_tpl_setup_stats_time);
 #endif
+
+  tpl_dealloc_temp_buffers(tpl_tmp_buffers);
 
   if (!approx_gop_eval) {
     tpl_data->ready = 1;
