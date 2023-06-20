@@ -266,6 +266,30 @@ class HadamardTestBase
     EXPECT_EQ(memcmp(b, b_ref, sizeof(b)), 0);
   }
 
+  void CompareReferenceExtreme() {
+    const int kMaxBlockSize = 32 * 32;
+    const int block_size = bw_ * bh_;
+    const int kBitDepth = 8;
+    DECLARE_ALIGNED(16, int16_t, a[kMaxBlockSize]);
+    DECLARE_ALIGNED(16, OutputType, b[kMaxBlockSize]);
+    memset(b, 0, sizeof(b));
+
+    OutputType b_ref[kMaxBlockSize];
+    memset(b_ref, 0, sizeof(b_ref));
+    for (int i = 0; i < 2; ++i) {
+      const int sign = (i == 0) ? 1 : -1;
+      for (int j = 0; j < block_size; ++j) a[j] = sign * ((1 << kBitDepth) - 1);
+
+      ReferenceHadamard(a, bw_, b_ref, bw_, bh_, shift_);
+      API_REGISTER_STATE_CHECK(h_func_(a, bw_, b));
+
+      // The order of the output is not important. Sort before checking.
+      std::sort(b, b + block_size);
+      std::sort(b_ref, b_ref + block_size);
+      EXPECT_EQ(memcmp(b, b_ref, sizeof(b)), 0);
+    }
+  }
+
   void VaryStride() {
     const int kMaxBlockSize = 32 * 32;
     const int block_size_ = bw_ * bh_;
@@ -324,6 +348,10 @@ class HadamardLowbdTest : public HadamardTestBase<tran_low_t, HadamardFunc> {
 };
 
 TEST_P(HadamardLowbdTest, CompareReferenceRandom) { CompareReferenceRandom(); }
+
+TEST_P(HadamardLowbdTest, CompareReferenceExtreme) {
+  CompareReferenceExtreme();
+}
 
 TEST_P(HadamardLowbdTest, VaryStride) { VaryStride(); }
 
