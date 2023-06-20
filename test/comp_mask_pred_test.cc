@@ -390,7 +390,7 @@ void AV1CompAvgPredTest::RunSpeedTest(comp_avg_pred_func test_impl,
     const double time = static_cast<double>(aom_usec_timer_elapsed(&timer));
     elapsed_time[i] = 1000.0 * time;
   }
-  printf("compMask %3dx%-3d: %7.2f/%7.2fns", w, h, elapsed_time[0],
+  printf("CompAvgPred %3dx%-3d: %7.2f/%7.2fns", w, h, elapsed_time[0],
          elapsed_time[1]);
   printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
 }
@@ -711,6 +711,122 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kValidBlockSize),
                        ::testing::Range(8, 13, 2)));
 #endif
+
+typedef void (*highbd_comp_avg_pred_func)(uint8_t *comp_pred,
+                                          const uint8_t *pred, int width,
+                                          int height, const uint8_t *ref,
+                                          int ref_stride);
+
+typedef std::tuple<highbd_comp_avg_pred_func, BLOCK_SIZE, int>
+    HighbdCompAvgPredParam;
+
+class AV1HighbdCompAvgPredTest
+    : public ::testing::TestWithParam<HighbdCompAvgPredParam> {
+ public:
+  ~AV1HighbdCompAvgPredTest() override;
+  void SetUp() override;
+
+ protected:
+  void RunCheckOutput(highbd_comp_avg_pred_func test_impl, BLOCK_SIZE bsize);
+  void RunSpeedTest(highbd_comp_avg_pred_func test_impl, BLOCK_SIZE bsize);
+  bool CheckResult(int width, int height) const {
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) {
+        const int idx = y * width + x;
+        if (comp_pred1_[idx] != comp_pred2_[idx]) {
+          printf("%dx%d mismatch @%d(%d,%d) ", width, height, idx, x, y);
+          printf("%d != %d ", comp_pred1_[idx], comp_pred2_[idx]);
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  libaom_test::ACMRandom rnd_;
+  uint16_t *comp_pred1_;
+  uint16_t *comp_pred2_;
+  uint16_t *pred_;
+  uint16_t *ref_;
+};
+
+AV1HighbdCompAvgPredTest::~AV1HighbdCompAvgPredTest() {
+  aom_free(comp_pred1_);
+  aom_free(comp_pred2_);
+  aom_free(pred_);
+  aom_free(ref_);
+}
+
+void AV1HighbdCompAvgPredTest::SetUp() {
+  int bd_ = GET_PARAM(2);
+  rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
+
+  comp_pred1_ =
+      (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred1_));
+  ASSERT_NE(comp_pred1_, nullptr);
+  comp_pred2_ =
+      (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*comp_pred2_));
+  ASSERT_NE(comp_pred2_, nullptr);
+  pred_ = (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*pred_));
+  ASSERT_NE(pred_, nullptr);
+  ref_ = (uint16_t *)aom_memalign(16, MAX_SB_SQUARE * sizeof(*ref_));
+  ASSERT_NE(ref_, nullptr);
+  for (int i = 0; i < MAX_SB_SQUARE; ++i) {
+    pred_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
+  }
+  for (int i = 0; i < MAX_SB_SQUARE; ++i) {
+    ref_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
+  }
+}
+
+void AV1HighbdCompAvgPredTest::RunCheckOutput(
+    highbd_comp_avg_pred_func test_impl, BLOCK_SIZE bsize) {
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+  aom_highbd_comp_avg_pred_c(CONVERT_TO_BYTEPTR(comp_pred1_),
+                             CONVERT_TO_BYTEPTR(pred_), w, h,
+                             CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE);
+  test_impl(CONVERT_TO_BYTEPTR(comp_pred2_), CONVERT_TO_BYTEPTR(pred_), w, h,
+            CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE);
+
+  ASSERT_EQ(CheckResult(w, h), true);
+}
+
+void AV1HighbdCompAvgPredTest::RunSpeedTest(highbd_comp_avg_pred_func test_impl,
+                                            BLOCK_SIZE bsize) {
+  const int w = block_size_wide[bsize];
+  const int h = block_size_high[bsize];
+  const int num_loops = 1000000000 / (w + h);
+
+  highbd_comp_avg_pred_func functions[2] = { aom_highbd_comp_avg_pred_c,
+                                             test_impl };
+  double elapsed_time[2] = { 0.0 };
+  for (int i = 0; i < 2; ++i) {
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    highbd_comp_avg_pred_func func = functions[i];
+    for (int j = 0; j < num_loops; ++j) {
+      func(CONVERT_TO_BYTEPTR(comp_pred1_), CONVERT_TO_BYTEPTR(pred_), w, h,
+           CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    elapsed_time[i] = 1000.0 * time;
+  }
+  printf("HighbdCompAvg %3dx%-3d: %7.2f/%7.2fns", w, h, elapsed_time[0],
+         elapsed_time[1]);
+  printf("(%3.2f)\n", elapsed_time[0] / elapsed_time[1]);
+}
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighbdCompAvgPredTest);
+
+TEST_P(AV1HighbdCompAvgPredTest, CheckOutput) {
+  RunCheckOutput(GET_PARAM(0), GET_PARAM(1));
+}
+
+TEST_P(AV1HighbdCompAvgPredTest, DISABLED_Speed) {
+  RunSpeedTest(GET_PARAM(0), GET_PARAM(1));
+}
 
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace
