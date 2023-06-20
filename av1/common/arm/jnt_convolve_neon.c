@@ -286,7 +286,18 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
       src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
-    } while (height > 0);
+    } while (height > 4);
+
+    do {
+      uint8x16_t s0 = vld1q_u8(src_ptr);
+
+      int16x4_t d0 = convolve4_4_2d_h(s0, x_filter, permute_tbl, horiz_const);
+
+      vst1_s16(dst_ptr, d0);
+
+      src_ptr += src_stride;
+      dst_ptr += dst_stride;
+    } while (--height != 0);
   } else {
     const uint8x16x3_t permute_tbl = vld1q_u8_x3(dot_prod_permute_tbl);
     // Filter values are even, so halve to reduce intermediate precision reqs.
@@ -315,7 +326,27 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
       src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
-    } while (height > 0);
+    } while (height > 4);
+
+    do {
+      const uint8_t *s = src_ptr;
+      int16_t *d = dst_ptr;
+      int width = w;
+
+      do {
+        uint8x16_t s0 = vld1q_u8(s);
+
+        int16x8_t d0 = convolve8_8_2d_h(s0, x_filter, permute_tbl, horiz_const);
+
+        vst1q_s16(d, d0);
+
+        s += 8;
+        d += 8;
+        width -= 8;
+      } while (width > 0);
+      src_ptr += src_stride;
+      dst_ptr += dst_stride;
+    } while (--height != 0);
   }
 }
 
@@ -423,7 +454,19 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
       src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
-    } while (height > 0);
+    } while (height > 4);
+
+    do {
+      uint8x16_t s0 = vld1q_u8(src_ptr);
+
+      int16x4_t d0 =
+          convolve4_4_2d_h(s0, x_filter, correction, range_limit, permute_tbl);
+
+      vst1_s16(dst_ptr, d0);
+
+      src_ptr += src_stride;
+      dst_ptr += dst_stride;
+    } while (--height != 0);
   } else {
     const uint8x16x3_t permute_tbl = vld1q_u8_x3(dot_prod_permute_tbl);
     // Filter values are even, so halve to reduce intermediate precision reqs.
@@ -456,7 +499,28 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
       src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
-    } while (height > 0);
+    } while (height > 4);
+
+    do {
+      const uint8_t *s = src_ptr;
+      int16_t *d = dst_ptr;
+      int width = w;
+
+      do {
+        uint8x16_t s0 = vld1q_u8(s);
+
+        int16x8_t d0 = convolve8_8_2d_h(s0, x_filter, correction, range_limit,
+                                        permute_tbl);
+
+        vst1q_s16(d, d0);
+
+        s += 8;
+        d += 8;
+        width -= 8;
+      } while (width > 0);
+      src_ptr += src_stride;
+      dst_ptr += dst_stride;
+    } while (--height != 0);
   }
 }
 
@@ -521,9 +585,9 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
 
     src_ptr += 2;
 
+#if AOM_ARCH_AARCH64
     do {
       __builtin_prefetch(src_ptr + 0 * src_stride);
-#if AOM_ARCH_AARCH64
       __builtin_prefetch(src_ptr + 1 * src_stride);
       __builtin_prefetch(src_ptr + 2 * src_stride);
       __builtin_prefetch(src_ptr + 3 * src_stride);
@@ -556,7 +620,10 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
       src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
-#else   // !AOM_ARCH_AARCH64
+    } while (height > 4);
+#endif  // AOM_ARCH_AARCH64
+
+    do {
       uint8x8_t t0 = vld1_u8(src_ptr);  // a0 a1 a2 a3 a4 a5 a6 a7
       int16x4_t s0 =
           vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));  // a0 a1 a2 a3
@@ -575,9 +642,7 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
 
       src_ptr += src_stride;
       dst_ptr += dst_stride;
-      height--;
-#endif  // AOM_ARCH_AARCH64
-    } while (height > 0);
+    } while (--height != 0);
   } else {
     // A shim of 1 << ((ROUND0_BITS - 1) - 1) enables us to use non-rounding
     // shifts - which are generally faster than rounding shifts on modern CPUs.
@@ -587,12 +652,12 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
     // Filter values are even, so halve to reduce intermediate precision reqs.
     const int16x8_t x_filter = vshrq_n_s16(vld1q_s16(x_filter_ptr), 1);
 
+#if AOM_ARCH_AARCH64
     do {
       const uint8_t *s;
       int16_t *d = dst_ptr;
       int width = w;
 
-#if AOM_ARCH_AARCH64
       __builtin_prefetch(src_ptr + 0 * src_stride);
       __builtin_prefetch(src_ptr + 1 * src_stride);
       __builtin_prefetch(src_ptr + 2 * src_stride);
@@ -672,7 +737,14 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
       src_ptr += 8 * src_stride;
       dst_ptr += 8 * dst_stride;
       height -= 8;
-#else   // !AOM_ARCH_AARCH64
+    } while (height > 8);
+#endif  // AOM_ARCH_AARCH64
+
+    do {
+      const uint8_t *s;
+      int16_t *d = dst_ptr;
+      int width = w;
+
       uint8x8_t t0 = vld1_u8(src_ptr);
       int16x8_t s0 =
           vreinterpretq_s16_u16(vmovl_u8(t0));  // a0 a1 a2 a3 a4 a5 a6 a7
@@ -703,9 +775,7 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
       } while (width > 0);
       src_ptr += src_stride;
       dst_ptr += dst_stride;
-      height--;
-#endif  // AOM_ARCH_AARCH64
-    } while (height > 0);
+    } while (--height != 0);
   }
 }
 
@@ -1702,9 +1772,9 @@ void av1_dist_wtd_convolve_2d_neon(const uint8_t *src, int src_stride,
   const int y_filter_taps = get_filter_tap(filter_params_y, subpel_y_qn);
   const int clamped_y_taps = y_filter_taps < 6 ? 6 : y_filter_taps;
 
-  const int im_h = h + filter_params_y->taps - 1;
+  const int im_h = h + clamped_y_taps - 1;
   const int im_stride = MAX_SB_SIZE;
-  const int vert_offset = filter_params_y->taps / 2 - 1;
+  const int vert_offset = clamped_y_taps / 2 - 1;
   const int horiz_offset = filter_params_x->taps / 2 - 1;
   const uint8_t *src_ptr = src - vert_offset * src_stride - horiz_offset;
   const int16_t *x_filter_ptr = av1_get_interp_filter_subpel_kernel(
@@ -1721,16 +1791,16 @@ void av1_dist_wtd_convolve_2d_neon(const uint8_t *src, int src_stride,
     if (conv_params->do_average) {
       if (UNLIKELY(conv_params->use_dist_wtd_comp_avg)) {
         dist_wtd_convolve_2d_vert_6tap_dist_wtd_avg_neon(
-            im_block + im_stride, im_stride, dst8, dst8_stride, conv_params,
-            y_filter, h, w);
+            im_block, im_stride, dst8, dst8_stride, conv_params, y_filter, h,
+            w);
       } else {
-        dist_wtd_convolve_2d_vert_6tap_avg_neon(im_block + im_stride, im_stride,
-                                                dst8, dst8_stride, conv_params,
+        dist_wtd_convolve_2d_vert_6tap_avg_neon(im_block, im_stride, dst8,
+                                                dst8_stride, conv_params,
                                                 y_filter, h, w);
       }
     } else {
-      dist_wtd_convolve_2d_vert_6tap_neon(im_block + im_stride, im_stride,
-                                          conv_params, y_filter, h, w);
+      dist_wtd_convolve_2d_vert_6tap_neon(im_block, im_stride, conv_params,
+                                          y_filter, h, w);
     }
   } else {
     if (conv_params->do_average) {
