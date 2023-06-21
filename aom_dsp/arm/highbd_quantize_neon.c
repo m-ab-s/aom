@@ -117,6 +117,7 @@ static INLINE uint16_t get_max_eob(int16x8_t v_eobmax) {
 #endif
 }
 
+#if SKIP_EOB_FACTOR_ADJUST
 static INLINE uint16_t get_min_eob(int16x8_t v_eobmin) {
 #if AOM_ARCH_AARCH64
   return (uint16_t)vminvq_s16(v_eobmin);
@@ -134,6 +135,7 @@ static INLINE uint16_t get_min_eob(int16x8_t v_eobmin) {
   return (uint16_t)vget_lane_s16(v_eobmin_final, 0);
 #endif
 }
+#endif  // SKIP_EOB_FACTOR_ADJUST
 
 static void highbd_quantize_b_neon(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
