@@ -469,6 +469,14 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    * 1: Calculate weight using a lookup table that approximates exp().
    */
   int weight_calc_level_in_tf;
+
+  /*!
+   * Decide whether to perform motion estimation at split block (i.e. 16x16)
+   * level or not.
+   * 0: Always allow motion estimation.
+   * 1: Conditionally allow motion estimation based on 4x4 sub-blocks variance.
+   */
+  int allow_sub_blk_me_in_tf;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!

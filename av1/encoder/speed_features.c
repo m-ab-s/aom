@@ -867,6 +867,10 @@ static void set_good_speed_feature_framesize_dependent(
       sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
     }
 
+    if (is_480p_or_larger) {
+      sf->hl_sf.allow_sub_blk_me_in_tf = 1;
+    }
+
     if (is_1080p_or_larger) {
       sf->part_sf.default_min_partition_size = BLOCK_8X8;
     }
@@ -1894,6 +1898,7 @@ static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->adjust_num_frames_for_arf_filtering = 0;
   hl_sf->accurate_bit_estimate = 0;
   hl_sf->weight_calc_level_in_tf = 0;
+  hl_sf->allow_sub_blk_me_in_tf = 0;
 }
 
 static AOM_INLINE void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {
