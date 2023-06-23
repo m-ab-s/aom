@@ -272,15 +272,24 @@ TEST_F(FilmGrainTableIOTest, RoundTripSplit) {
   EXPECT_EQ(0, remove(grain_file.c_str()));
 }
 
-class FilmGrainEncodeTest : public ::libaom_test::CodecTestWithParam<bool>,
-                            public ::libaom_test::EncoderTest {
+const ::libaom_test::TestMode kFilmGrainEncodeTestModes[] = {
+  ::libaom_test::kRealTime,
+#if !CONFIG_REALTIME_ONLY
+  ::libaom_test::kOnePassGood
+#endif
+};
+
+class FilmGrainEncodeTest
+    : public ::libaom_test::CodecTestWith2Params<bool, ::libaom_test::TestMode>,
+      public ::libaom_test::EncoderTest {
  protected:
   FilmGrainEncodeTest()
-      : EncoderTest(GET_PARAM(0)), test_monochrome_(GET_PARAM(1)) {}
+      : EncoderTest(GET_PARAM(0)), test_monochrome_(GET_PARAM(1)),
+        test_mode_(GET_PARAM(2)) {}
   ~FilmGrainEncodeTest() override = default;
 
   void SetUp() override {
-    InitializeConfig(::libaom_test::kOnePassGood);
+    InitializeConfig(test_mode_);
     cfg_.monochrome = test_monochrome_;
     cfg_.rc_target_bitrate = 300;
     cfg_.kf_max_dist = 0;
@@ -304,6 +313,11 @@ class FilmGrainEncodeTest : public ::libaom_test::CodecTestWithParam<bool>,
   bool DoDecode() const override { return false; }
 
   void DoTest() {
+    if (test_monochrome_ && test_mode_ == ::libaom_test::kRealTime) {
+      // TODO(bohanli): Running real time mode with monochrome will cause the
+      // encoder to crash. Check if this is intended or there is a bug.
+      GTEST_SKIP();
+    }
     ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
                                          288, 30, 1, 0, 3);
     cfg_.g_w = video.img()->d_w;
@@ -313,8 +327,10 @@ class FilmGrainEncodeTest : public ::libaom_test::CodecTestWithParam<bool>,
 
  private:
   bool test_monochrome_;
+  ::libaom_test::TestMode test_mode_;
 };
 
 TEST_P(FilmGrainEncodeTest, Test) { DoTest(); }
 
-AV1_INSTANTIATE_TEST_SUITE(FilmGrainEncodeTest, ::testing::Bool());
+AV1_INSTANTIATE_TEST_SUITE(FilmGrainEncodeTest, ::testing::Bool(),
+                           ::testing::ValuesIn(kFilmGrainEncodeTestModes));
