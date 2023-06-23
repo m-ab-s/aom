@@ -830,6 +830,11 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1ConvolveCopyHighbdTest,
                          BuildHighbdParams(aom_highbd_convolve_copy_avx2));
 #endif
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveCopyHighbdTest,
+                         BuildHighbdParams(aom_highbd_convolve_copy_neon));
+#endif
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 /////////////////////////////////////////////////////////
