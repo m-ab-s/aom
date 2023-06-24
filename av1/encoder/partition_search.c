@@ -40,7 +40,6 @@
 #endif
 
 #define COLLECT_MOTION_SEARCH_FEATURE_SB 0
-#define ML_PARTITION_WHOLE_TREE_DECISION 0
 
 void av1_reset_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_type = SEARCH_PARTITION;
@@ -4400,6 +4399,7 @@ static void write_partition_tree(AV1_COMP *const cpi,
   fclose(pfile);
 }
 
+#if CONFIG_PARTITION_SEARCH_ORDER
 static void verify_write_partition_tree(const AV1_COMP *const cpi,
                                         const PC_TREE *const pc_tree,
                                         const BLOCK_SIZE bsize,
@@ -5148,6 +5148,7 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
 
   return true;
 }
+#endif  // CONFIG_PARTITION_SEARCH_ORDER
 
 static AOM_INLINE bool should_do_dry_run_encode_for_current_block(
     BLOCK_SIZE sb_size, BLOCK_SIZE max_partition_size, int curr_block_index,
