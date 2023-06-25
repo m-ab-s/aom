@@ -195,15 +195,15 @@ void aom_highbd_hadamard_32x32_neon(const int16_t *src_diff,
     int32x4_t a2 = vld1q_s32(coeff + 4 * i + 512);
     int32x4_t a3 = vld1q_s32(coeff + 4 * i + 768);
 
-    int32x4_t b0 = vhaddq_s32(a0, a1);
-    int32x4_t b1 = vhsubq_s32(a0, a1);
-    int32x4_t b2 = vhaddq_s32(a2, a3);
-    int32x4_t b3 = vhsubq_s32(a2, a3);
+    int32x4_t b0 = vshrq_n_s32(vaddq_s32(a0, a1), 2);
+    int32x4_t b1 = vshrq_n_s32(vsubq_s32(a0, a1), 2);
+    int32x4_t b2 = vshrq_n_s32(vaddq_s32(a2, a3), 2);
+    int32x4_t b3 = vshrq_n_s32(vsubq_s32(a2, a3), 2);
 
-    int32x4_t c0 = vhaddq_s32(b0, b2);
-    int32x4_t c1 = vhaddq_s32(b1, b3);
-    int32x4_t c2 = vhsubq_s32(b0, b2);
-    int32x4_t c3 = vhsubq_s32(b1, b3);
+    int32x4_t c0 = vaddq_s32(b0, b2);
+    int32x4_t c1 = vaddq_s32(b1, b3);
+    int32x4_t c2 = vsubq_s32(b0, b2);
+    int32x4_t c3 = vsubq_s32(b1, b3);
 
     vst1q_s32(coeff + 4 * i, c0);
     vst1q_s32(coeff + 4 * i + 256, c1);
