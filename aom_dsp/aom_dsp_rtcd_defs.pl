@@ -1692,7 +1692,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       foreach (@encoder_block_sizes) {
         ($w, $h) = @$_;
         add_proto qw/unsigned int/, "aom_highbd${bd}masked_sub_pixel_variance${w}x${h}", "const uint8_t *src, int src_stride, int xoffset, int yoffset, const uint8_t *ref, int ref_stride, const uint8_t *second_pred, const uint8_t *msk, int msk_stride, int invert_mask, unsigned int *sse";
-        specialize "aom_highbd${bd}masked_sub_pixel_variance${w}x${h}", qw/ssse3/;
+        specialize "aom_highbd${bd}masked_sub_pixel_variance${w}x${h}", qw/ssse3 neon/;
       }
     }
   }
