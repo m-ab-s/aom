@@ -86,6 +86,13 @@ INSTANTIATE_TEST_SUITE_P(SSE2, AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest,
                          libaom_test::AV1DISTWTDCOMPAVG::BuildParams(
                              aom_highbd_dist_wtd_comp_avg_upsampled_pred_sse2));
 #endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest,
+                         libaom_test::AV1DISTWTDCOMPAVG::BuildParams(
+                             aom_highbd_dist_wtd_comp_avg_upsampled_pred_neon));
+#endif
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 }  // namespace
