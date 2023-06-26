@@ -3044,7 +3044,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
              rc->projected_frame_size, psnr.sse[0]);
       ++rd_command->frame_index;
       if (rd_command->frame_index == rd_command->frame_count) {
-        exit(0);
+        return AOM_CODEC_ERROR;
       }
 #endif  // CONFIG_RD_COMMAND
 
