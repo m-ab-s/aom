@@ -252,7 +252,7 @@ class HadamardTestBase
 
   void CompareReferenceRandom() {
     const int kMaxBlockSize = 32 * 32;
-    const int block_size_ = bw_ * bh_;
+    const int block_size = bw_ * bh_;
 
     DECLARE_ALIGNED(16, int16_t, a[kMaxBlockSize]);
     DECLARE_ALIGNED(16, OutputType, b[kMaxBlockSize]);
@@ -262,13 +262,13 @@ class HadamardTestBase
     OutputType b_ref[kMaxBlockSize];
     memset(b_ref, 0, sizeof(b_ref));
 
-    for (int i = 0; i < block_size_; ++i) a[i] = Rand();
+    for (int i = 0; i < block_size; ++i) a[i] = Rand();
     ReferenceHadamard(a, bw_, b_ref, bw_, bh_, shift_);
     API_REGISTER_STATE_CHECK(h_func_(a, bw_, b));
 
     // The order of the output is not important. Sort before checking.
-    std::sort(b, b + block_size_);
-    std::sort(b_ref, b_ref + block_size_);
+    std::sort(b, b + block_size);
+    std::sort(b_ref, b_ref + block_size);
     EXPECT_EQ(memcmp(b, b_ref, sizeof(b)), 0);
   }
 
@@ -298,12 +298,12 @@ class HadamardTestBase
 
   void VaryStride() {
     const int kMaxBlockSize = 32 * 32;
-    const int block_size_ = bw_ * bh_;
+    const int block_size = bw_ * bh_;
 
     DECLARE_ALIGNED(16, int16_t, a[kMaxBlockSize * 8]);
     DECLARE_ALIGNED(16, OutputType, b[kMaxBlockSize]);
     memset(a, 0, sizeof(a));
-    for (int i = 0; i < block_size_ * 8; ++i) a[i] = Rand();
+    for (int i = 0; i < block_size * 8; ++i) a[i] = Rand();
 
     OutputType b_ref[kMaxBlockSize];
     for (int i = 8; i < 64; i += 8) {
@@ -314,8 +314,8 @@ class HadamardTestBase
       API_REGISTER_STATE_CHECK(h_func_(a, i, b));
 
       // The order of the output is not important. Sort before checking.
-      std::sort(b, b + block_size_);
-      std::sort(b_ref, b_ref + block_size_);
+      std::sort(b, b + block_size);
+      std::sort(b_ref, b_ref + block_size);
       EXPECT_EQ(0, memcmp(b, b_ref, sizeof(b)));
     }
   }
@@ -338,6 +338,7 @@ class HadamardTestBase
     printf("Hadamard%dx%d[%12d runs]: %d us\n", bw_, bh_, times, elapsed_time);
   }
 
+ protected:
   ACMRandom rnd_;
 
  private:
