@@ -16,6 +16,7 @@
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/arm/sum_neon.h"
+#include "aom_dsp/arm/transpose_neon.h"
 #include "aom_ports/mem.h"
 #include "config/av1_rtcd.h"
 #include "av1/common/warped_motion.h"
@@ -56,12 +57,12 @@ static INLINE void horizontal_filter_neon(const uint8x16_t in,
   int16x8_t in16_hi = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(in)));
 
   int16x8_t m0 = vmulq_s16(f0, in16_lo);
-  int16x8_t m1 = vmulq_s16(f2, vextq_s16(in16_lo, in16_hi, 2));
-  int16x8_t m2 = vmulq_s16(f4, vextq_s16(in16_lo, in16_hi, 4));
-  int16x8_t m3 = vmulq_s16(f6, vextq_s16(in16_lo, in16_hi, 6));
-  int16x8_t m4 = vmulq_s16(f1, vextq_s16(in16_lo, in16_hi, 1));
-  int16x8_t m5 = vmulq_s16(f3, vextq_s16(in16_lo, in16_hi, 3));
-  int16x8_t m6 = vmulq_s16(f5, vextq_s16(in16_lo, in16_hi, 5));
+  int16x8_t m1 = vmulq_s16(f1, vextq_s16(in16_lo, in16_hi, 1));
+  int16x8_t m2 = vmulq_s16(f2, vextq_s16(in16_lo, in16_hi, 2));
+  int16x8_t m3 = vmulq_s16(f3, vextq_s16(in16_lo, in16_hi, 3));
+  int16x8_t m4 = vmulq_s16(f4, vextq_s16(in16_lo, in16_hi, 4));
+  int16x8_t m5 = vmulq_s16(f5, vextq_s16(in16_lo, in16_hi, 5));
+  int16x8_t m6 = vmulq_s16(f6, vextq_s16(in16_lo, in16_hi, 6));
   int16x8_t m7 = vmulq_s16(f7, vextq_s16(in16_lo, in16_hi, 7));
 
   int32x4_t m0123_pairs[] = { vpaddlq_s16(m0), vpaddlq_s16(m1), vpaddlq_s16(m2),
@@ -83,164 +84,63 @@ static INLINE void horizontal_filter_neon(const uint8x16_t in,
 static INLINE void vertical_filter_neon(const int16x8_t *src,
                                         int32x4_t *res_low, int32x4_t *res_high,
                                         int sy, int gamma) {
-  int16x4_t src_0, src_1, fltr_0, fltr_1;
-  int32x4_t res_0, res_1;
-  int32x2_t res_0_im, res_1_im;
-  int32x4_t res_even, res_odd, im_res_0, im_res_1;
+  int16x8_t s0 = src[0];
+  int16x8_t s1 = src[1];
+  int16x8_t s2 = src[2];
+  int16x8_t s3 = src[3];
+  int16x8_t s4 = src[4];
+  int16x8_t s5 = src[5];
+  int16x8_t s6 = src[6];
+  int16x8_t s7 = src[7];
+  transpose_s16_8x8(&s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
 
-  int16x8_t f0, f1, f2, f3, f4, f5, f6, f7;
-  int16x8x2_t b0, b1, b2, b3;
-  int32x4x2_t c0, c1, c2, c3;
-  int32x4x2_t d0, d1, d2, d3;
+  int16x8_t f0 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sy + 0 * gamma) >> WARPEDDIFF_PREC_BITS)));
+  int16x8_t f1 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sy + 1 * gamma) >> WARPEDDIFF_PREC_BITS)));
+  int16x8_t f2 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sy + 2 * gamma) >> WARPEDDIFF_PREC_BITS)));
+  int16x8_t f3 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sy + 3 * gamma) >> WARPEDDIFF_PREC_BITS)));
+  int16x8_t f4 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sy + 4 * gamma) >> WARPEDDIFF_PREC_BITS)));
+  int16x8_t f5 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sy + 5 * gamma) >> WARPEDDIFF_PREC_BITS)));
+  int16x8_t f6 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sy + 6 * gamma) >> WARPEDDIFF_PREC_BITS)));
+  int16x8_t f7 =
+      vld1q_s16((int16_t *)(av1_warped_filter +
+                            ((sy + 7 * gamma) >> WARPEDDIFF_PREC_BITS)));
 
-  b0 = vtrnq_s16(src[0], src[1]);
-  b1 = vtrnq_s16(src[2], src[3]);
-  b2 = vtrnq_s16(src[4], src[5]);
-  b3 = vtrnq_s16(src[6], src[7]);
+  int32x4_t m0 = vmull_s16(vget_low_s16(s0), vget_low_s16(f0));
+  m0 = vmlal_s16(m0, vget_high_s16(s0), vget_high_s16(f0));
+  int32x4_t m1 = vmull_s16(vget_low_s16(s1), vget_low_s16(f1));
+  m1 = vmlal_s16(m1, vget_high_s16(s1), vget_high_s16(f1));
+  int32x4_t m2 = vmull_s16(vget_low_s16(s2), vget_low_s16(f2));
+  m2 = vmlal_s16(m2, vget_high_s16(s2), vget_high_s16(f2));
+  int32x4_t m3 = vmull_s16(vget_low_s16(s3), vget_low_s16(f3));
+  m3 = vmlal_s16(m3, vget_high_s16(s3), vget_high_s16(f3));
+  int32x4_t m4 = vmull_s16(vget_low_s16(s4), vget_low_s16(f4));
+  m4 = vmlal_s16(m4, vget_high_s16(s4), vget_high_s16(f4));
+  int32x4_t m5 = vmull_s16(vget_low_s16(s5), vget_low_s16(f5));
+  m5 = vmlal_s16(m5, vget_high_s16(s5), vget_high_s16(f5));
+  int32x4_t m6 = vmull_s16(vget_low_s16(s6), vget_low_s16(f6));
+  m6 = vmlal_s16(m6, vget_high_s16(s6), vget_high_s16(f6));
+  int32x4_t m7 = vmull_s16(vget_low_s16(s7), vget_low_s16(f7));
+  m7 = vmlal_s16(m7, vget_high_s16(s7), vget_high_s16(f7));
 
-  c0 = vtrnq_s32(vreinterpretq_s32_s16(b0.val[0]),
-                 vreinterpretq_s32_s16(b0.val[1]));
-  c1 = vtrnq_s32(vreinterpretq_s32_s16(b1.val[0]),
-                 vreinterpretq_s32_s16(b1.val[1]));
-  c2 = vtrnq_s32(vreinterpretq_s32_s16(b2.val[0]),
-                 vreinterpretq_s32_s16(b2.val[1]));
-  c3 = vtrnq_s32(vreinterpretq_s32_s16(b3.val[0]),
-                 vreinterpretq_s32_s16(b3.val[1]));
+  int32x4_t m0123_pairs[] = { m0, m1, m2, m3 };
+  int32x4_t m4567_pairs[] = { m4, m5, m6, m7 };
 
-  f0 = vld1q_s16((int16_t *)(av1_warped_filter +
-                             ((sy + 0 * gamma) >> WARPEDDIFF_PREC_BITS)));
-  f1 = vld1q_s16((int16_t *)(av1_warped_filter +
-                             ((sy + 1 * gamma) >> WARPEDDIFF_PREC_BITS)));
-  f2 = vld1q_s16((int16_t *)(av1_warped_filter +
-                             ((sy + 2 * gamma) >> WARPEDDIFF_PREC_BITS)));
-  f3 = vld1q_s16((int16_t *)(av1_warped_filter +
-                             ((sy + 3 * gamma) >> WARPEDDIFF_PREC_BITS)));
-  f4 = vld1q_s16((int16_t *)(av1_warped_filter +
-                             ((sy + 4 * gamma) >> WARPEDDIFF_PREC_BITS)));
-  f5 = vld1q_s16((int16_t *)(av1_warped_filter +
-                             ((sy + 5 * gamma) >> WARPEDDIFF_PREC_BITS)));
-  f6 = vld1q_s16((int16_t *)(av1_warped_filter +
-                             ((sy + 6 * gamma) >> WARPEDDIFF_PREC_BITS)));
-  f7 = vld1q_s16((int16_t *)(av1_warped_filter +
-                             ((sy + 7 * gamma) >> WARPEDDIFF_PREC_BITS)));
-
-  d0 = vtrnq_s32(vreinterpretq_s32_s16(f0), vreinterpretq_s32_s16(f2));
-  d1 = vtrnq_s32(vreinterpretq_s32_s16(f4), vreinterpretq_s32_s16(f6));
-  d2 = vtrnq_s32(vreinterpretq_s32_s16(f1), vreinterpretq_s32_s16(f3));
-  d3 = vtrnq_s32(vreinterpretq_s32_s16(f5), vreinterpretq_s32_s16(f7));
-
-  // row:0,1 even_col:0,2
-  src_0 = vget_low_s16(vreinterpretq_s16_s32(c0.val[0]));
-  fltr_0 = vget_low_s16(vreinterpretq_s16_s32(d0.val[0]));
-  res_0 = vmull_s16(src_0, fltr_0);
-
-  // row:0,1,2,3 even_col:0,2
-  src_0 = vget_low_s16(vreinterpretq_s16_s32(c1.val[0]));
-  fltr_0 = vget_low_s16(vreinterpretq_s16_s32(d0.val[1]));
-  res_0 = vmlal_s16(res_0, src_0, fltr_0);
-  res_0_im = vpadd_s32(vget_low_s32(res_0), vget_high_s32(res_0));
-
-  // row:0,1 even_col:4,6
-  src_1 = vget_low_s16(vreinterpretq_s16_s32(c0.val[1]));
-  fltr_1 = vget_low_s16(vreinterpretq_s16_s32(d1.val[0]));
-  res_1 = vmull_s16(src_1, fltr_1);
-
-  // row:0,1,2,3 even_col:4,6
-  src_1 = vget_low_s16(vreinterpretq_s16_s32(c1.val[1]));
-  fltr_1 = vget_low_s16(vreinterpretq_s16_s32(d1.val[1]));
-  res_1 = vmlal_s16(res_1, src_1, fltr_1);
-  res_1_im = vpadd_s32(vget_low_s32(res_1), vget_high_s32(res_1));
-
-  // row:0,1,2,3 even_col:0,2,4,6
-  im_res_0 = vcombine_s32(res_0_im, res_1_im);
-
-  // row:4,5 even_col:0,2
-  src_0 = vget_low_s16(vreinterpretq_s16_s32(c2.val[0]));
-  fltr_0 = vget_high_s16(vreinterpretq_s16_s32(d0.val[0]));
-  res_0 = vmull_s16(src_0, fltr_0);
-
-  // row:4,5,6,7 even_col:0,2
-  src_0 = vget_low_s16(vreinterpretq_s16_s32(c3.val[0]));
-  fltr_0 = vget_high_s16(vreinterpretq_s16_s32(d0.val[1]));
-  res_0 = vmlal_s16(res_0, src_0, fltr_0);
-  res_0_im = vpadd_s32(vget_low_s32(res_0), vget_high_s32(res_0));
-
-  // row:4,5 even_col:4,6
-  src_1 = vget_low_s16(vreinterpretq_s16_s32(c2.val[1]));
-  fltr_1 = vget_high_s16(vreinterpretq_s16_s32(d1.val[0]));
-  res_1 = vmull_s16(src_1, fltr_1);
-
-  // row:4,5,6,7 even_col:4,6
-  src_1 = vget_low_s16(vreinterpretq_s16_s32(c3.val[1]));
-  fltr_1 = vget_high_s16(vreinterpretq_s16_s32(d1.val[1]));
-  res_1 = vmlal_s16(res_1, src_1, fltr_1);
-  res_1_im = vpadd_s32(vget_low_s32(res_1), vget_high_s32(res_1));
-
-  // row:4,5,6,7 even_col:0,2,4,6
-  im_res_1 = vcombine_s32(res_0_im, res_1_im);
-
-  // row:0-7 even_col:0,2,4,6
-  res_even = vaddq_s32(im_res_0, im_res_1);
-
-  // row:0,1 odd_col:1,3
-  src_0 = vget_high_s16(vreinterpretq_s16_s32(c0.val[0]));
-  fltr_0 = vget_low_s16(vreinterpretq_s16_s32(d2.val[0]));
-  res_0 = vmull_s16(src_0, fltr_0);
-
-  // row:0,1,2,3 odd_col:1,3
-  src_0 = vget_high_s16(vreinterpretq_s16_s32(c1.val[0]));
-  fltr_0 = vget_low_s16(vreinterpretq_s16_s32(d2.val[1]));
-  res_0 = vmlal_s16(res_0, src_0, fltr_0);
-  res_0_im = vpadd_s32(vget_low_s32(res_0), vget_high_s32(res_0));
-
-  // row:0,1 odd_col:5,7
-  src_1 = vget_high_s16(vreinterpretq_s16_s32(c0.val[1]));
-  fltr_1 = vget_low_s16(vreinterpretq_s16_s32(d3.val[0]));
-  res_1 = vmull_s16(src_1, fltr_1);
-
-  // row:0,1,2,3 odd_col:5,7
-  src_1 = vget_high_s16(vreinterpretq_s16_s32(c1.val[1]));
-  fltr_1 = vget_low_s16(vreinterpretq_s16_s32(d3.val[1]));
-  res_1 = vmlal_s16(res_1, src_1, fltr_1);
-  res_1_im = vpadd_s32(vget_low_s32(res_1), vget_high_s32(res_1));
-
-  // row:0,1,2,3 odd_col:1,3,5,7
-  im_res_0 = vcombine_s32(res_0_im, res_1_im);
-
-  // row:4,5 odd_col:1,3
-  src_0 = vget_high_s16(vreinterpretq_s16_s32(c2.val[0]));
-  fltr_0 = vget_high_s16(vreinterpretq_s16_s32(d2.val[0]));
-  res_0 = vmull_s16(src_0, fltr_0);
-
-  // row:4,5,6,7 odd_col:1,3
-  src_0 = vget_high_s16(vreinterpretq_s16_s32(c3.val[0]));
-  fltr_0 = vget_high_s16(vreinterpretq_s16_s32(d2.val[1]));
-  res_0 = vmlal_s16(res_0, src_0, fltr_0);
-  res_0_im = vpadd_s32(vget_low_s32(res_0), vget_high_s32(res_0));
-
-  // row:4,5 odd_col:5,7
-  src_1 = vget_high_s16(vreinterpretq_s16_s32(c2.val[1]));
-  fltr_1 = vget_high_s16(vreinterpretq_s16_s32(d3.val[0]));
-  res_1 = vmull_s16(src_1, fltr_1);
-
-  // row:4,5,6,7 odd_col:5,7
-  src_1 = vget_high_s16(vreinterpretq_s16_s32(c3.val[1]));
-  fltr_1 = vget_high_s16(vreinterpretq_s16_s32(d3.val[1]));
-  res_1 = vmlal_s16(res_1, src_1, fltr_1);
-  res_1_im = vpadd_s32(vget_low_s32(res_1), vget_high_s32(res_1));
-
-  // row:4,5,6,7 odd_col:1,3,5,7
-  im_res_1 = vcombine_s32(res_0_im, res_1_im);
-
-  // row:0-7 odd_col:1,3,5,7
-  res_odd = vaddq_s32(im_res_0, im_res_1);
-
-  // reordering as 0 1 2 3 | 4 5 6 7
-  c0 = vtrnq_s32(res_even, res_odd);
-
-  // Final store
-  *res_low = vcombine_s32(vget_low_s32(c0.val[0]), vget_low_s32(c0.val[1]));
-  *res_high = vcombine_s32(vget_high_s32(c0.val[0]), vget_high_s32(c0.val[1]));
+  *res_low = horizontal_add_4d_s32x4(m0123_pairs);
+  *res_high = horizontal_add_4d_s32x4(m4567_pairs);
 }
 
 void av1_warp_affine_neon(const int32_t *mat, const uint8_t *ref, int width,
