@@ -3725,19 +3725,14 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
     cpi->num_tg = DEFAULT_MAX_NUM_TG;
   }
 
-  // For 1 pass CBR, check if we are dropping this frame.
-  // Never drop on key frame, or for frame whose base layer is key.
-  if (has_no_stats_stage(cpi) && oxcf->rc_cfg.mode == AOM_CBR &&
-      current_frame->frame_type != KEY_FRAME &&
-      !(cpi->ppi->use_svc &&
-        cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame)) {
-    FRAME_UPDATE_TYPE update_type =
-        cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
-    (void)update_type;
-    assert(
-        IMPLIES(cpi->is_dropped_frame, (update_type == OVERLAY_UPDATE ||
-                                        update_type == INTNL_OVERLAY_UPDATE)));
-    if (av1_rc_drop_frame(cpi)) {
+  // For 1 pass CBR mode: check if we are dropping this frame.
+  if (has_no_stats_stage(cpi) && oxcf->rc_cfg.mode == AOM_CBR) {
+    // Always drop for spatial enhancement layer if layer bandwidth is 0.
+    // Otherwise check for frame-dropping based on buffer level in
+    // av1_rc_drop_frame().
+    if ((cpi->svc.spatial_layer_id > 0 &&
+         cpi->oxcf.rc_cfg.target_bandwidth == 0) ||
+        av1_rc_drop_frame(cpi)) {
       cpi->is_dropped_frame = true;
     }
     if (cpi->is_dropped_frame) {

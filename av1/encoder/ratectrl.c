@@ -453,8 +453,11 @@ int av1_rc_drop_frame(AV1_COMP *cpi) {
 #else
   int64_t buffer_level = p_rc->buffer_level;
 #endif
-
-  if (!oxcf->rc_cfg.drop_frames_water_mark) {
+  // Never drop on key frame, or for frame whose base layer is key.
+  if (cpi->common.current_frame.frame_type == KEY_FRAME ||
+      (cpi->ppi->use_svc &&
+       cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame) ||
+      !oxcf->rc_cfg.drop_frames_water_mark) {
     return 0;
   } else {
     if (buffer_level < 0) {
