@@ -53,6 +53,29 @@ static INLINE void horizontal_filter_neon(const uint8x16_t in,
       vld1q_s16((int16_t *)(av1_warped_filter +
                             ((sx + 7 * alpha) >> WARPEDDIFF_PREC_BITS)));
 
+#if AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_MATMUL_INT8)
+  int8x16_t f01_u8 = vcombine_s8(vmovn_s16(f0), vmovn_s16(f1));
+  int8x16_t f23_u8 = vcombine_s8(vmovn_s16(f2), vmovn_s16(f3));
+  int8x16_t f45_u8 = vcombine_s8(vmovn_s16(f4), vmovn_s16(f5));
+  int8x16_t f67_u8 = vcombine_s8(vmovn_s16(f6), vmovn_s16(f7));
+
+  uint8x8_t in0 = vget_low_u8(in);
+  uint8x8_t in1 = vget_low_u8(vextq_u8(in, in, 1));
+  uint8x8_t in2 = vget_low_u8(vextq_u8(in, in, 2));
+  uint8x8_t in3 = vget_low_u8(vextq_u8(in, in, 3));
+  uint8x8_t in4 = vget_low_u8(vextq_u8(in, in, 4));
+  uint8x8_t in5 = vget_low_u8(vextq_u8(in, in, 5));
+  uint8x8_t in6 = vget_low_u8(vextq_u8(in, in, 6));
+  uint8x8_t in7 = vget_low_u8(vextq_u8(in, in, 7));
+
+  int32x4_t m01 = vusdotq_s32(vdupq_n_s32(0), vcombine_u8(in0, in1), f01_u8);
+  int32x4_t m23 = vusdotq_s32(vdupq_n_s32(0), vcombine_u8(in2, in3), f23_u8);
+  int32x4_t m45 = vusdotq_s32(vdupq_n_s32(0), vcombine_u8(in4, in5), f45_u8);
+  int32x4_t m67 = vusdotq_s32(vdupq_n_s32(0), vcombine_u8(in6, in7), f67_u8);
+
+  int32x4_t tmp_res_low = vpaddq_s32(m01, m23);
+  int32x4_t tmp_res_high = vpaddq_s32(m45, m67);
+#else   // !(AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_MATMUL_INT8))
   int16x8_t in16_lo = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(in)));
   int16x8_t in16_hi = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(in)));
 
@@ -72,6 +95,7 @@ static INLINE void horizontal_filter_neon(const uint8x16_t in,
 
   int32x4_t tmp_res_low = horizontal_add_4d_s32x4(m0123_pairs);
   int32x4_t tmp_res_high = horizontal_add_4d_s32x4(m4567_pairs);
+#endif  // AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_MATMUL_INT8)
 
   tmp_res_low = vaddq_s32(tmp_res_low, add_const);
   tmp_res_high = vaddq_s32(tmp_res_high, add_const);
