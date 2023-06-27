@@ -22,6 +22,34 @@
 #include "av1/common/warped_motion.h"
 #include "av1/common/scale.h"
 
+#ifndef __has_include
+#define __has_include(path) 0
+#endif
+
+#if AOM_ARCH_AARCH64 && defined(__ARM_NEON_SVE_BRIDGE) && \
+    defined(__ARM_FEATURE_SVE) && __has_include(<arm_neon_sve_bridge.h>)
+#include <arm_neon_sve_bridge.h>
+#define AOM_HAVE_NEON_SVE_BRIDGE 1
+#else
+#define AOM_HAVE_NEON_SVE_BRIDGE 0
+#endif
+
+#if AOM_HAVE_NEON_SVE_BRIDGE
+static INLINE int64x2_t aom_sdotq_s16(int64x2_t acc, int16x8_t x, int16x8_t y) {
+  // The 16-bit dot product instructions only exist in SVE and not Neon.
+  // We can get away without rewriting the existing Neon code by making use of
+  // the Neon-SVE bridge intrinsics to reinterpret a Neon vector as a SVE
+  // vector with the high part of the vector being "don't care", and then
+  // operating on that instead.
+  // This is clearly suboptimal in machines with a SVE vector length above
+  // 128-bits as the remainder of the vector is wasted, however this appears to
+  // still be beneficial compared to not using the instruction.
+  return svget_neonq_s64(svdot_s64(svset_neonq_s64(svundef_s64(), acc),
+                                   svset_neonq_s16(svundef_s16(), x),
+                                   svset_neonq_s16(svundef_s16(), y)));
+}
+#endif  // AOM_HAVE_NEON_SVE_BRIDGE
+
 static INLINE void horizontal_filter_neon(const uint8x16_t in,
                                           int16x8_t *tmp_dst, int sx, int alpha,
                                           int k) {
@@ -143,6 +171,24 @@ static INLINE void vertical_filter_neon(const int16x8_t *src,
       vld1q_s16((int16_t *)(av1_warped_filter +
                             ((sy + 7 * gamma) >> WARPEDDIFF_PREC_BITS)));
 
+#if AOM_HAVE_NEON_SVE_BRIDGE
+  int64x2_t m0 = aom_sdotq_s16(vdupq_n_s64(0), s0, f0);
+  int64x2_t m1 = aom_sdotq_s16(vdupq_n_s64(0), s1, f1);
+  int64x2_t m2 = aom_sdotq_s16(vdupq_n_s64(0), s2, f2);
+  int64x2_t m3 = aom_sdotq_s16(vdupq_n_s64(0), s3, f3);
+  int64x2_t m4 = aom_sdotq_s16(vdupq_n_s64(0), s4, f4);
+  int64x2_t m5 = aom_sdotq_s16(vdupq_n_s64(0), s5, f5);
+  int64x2_t m6 = aom_sdotq_s16(vdupq_n_s64(0), s6, f6);
+  int64x2_t m7 = aom_sdotq_s16(vdupq_n_s64(0), s7, f7);
+
+  int64x2_t m01 = vpaddq_s64(m0, m1);
+  int64x2_t m23 = vpaddq_s64(m2, m3);
+  int64x2_t m45 = vpaddq_s64(m4, m5);
+  int64x2_t m67 = vpaddq_s64(m6, m7);
+
+  *res_low = vcombine_s32(vmovn_s64(m01), vmovn_s64(m23));
+  *res_high = vcombine_s32(vmovn_s64(m45), vmovn_s64(m67));
+#else   // !AOM_HAVE_NEON_SVE_BRIDGE
   int32x4_t m0 = vmull_s16(vget_low_s16(s0), vget_low_s16(f0));
   m0 = vmlal_s16(m0, vget_high_s16(s0), vget_high_s16(f0));
   int32x4_t m1 = vmull_s16(vget_low_s16(s1), vget_low_s16(f1));
@@ -165,6 +211,7 @@ static INLINE void vertical_filter_neon(const int16x8_t *src,
 
   *res_low = horizontal_add_4d_s32x4(m0123_pairs);
   *res_high = horizontal_add_4d_s32x4(m4567_pairs);
+#endif  // AOM_HAVE_NEON_SVE_BRIDGE
 }
 
 void av1_warp_affine_neon(const int32_t *mat, const uint8_t *ref, int width,
