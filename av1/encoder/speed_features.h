@@ -1798,6 +1798,11 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // A flag that controls if we check or bypass GLOBALMV in rtc single ref frame
   // case.
   bool check_globalmv_on_single_ref;
+
+  // Allows for increasing the color_threshold for palette prediction.
+  // This generally leads to better coding efficiency but with some speed loss.
+  // Only used for screen content and for nonrd_pickmode.
+  bool increase_color_thresh_palette;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

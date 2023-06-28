@@ -1322,6 +1322,8 @@ typedef struct macroblock {
   uint8_t color_sensitivity_sb_alt[MAX_MB_PLANE - 1];
   //! Color sensitivity flag for the coding block.
   uint8_t color_sensitivity[MAX_MB_PLANE - 1];
+  //! Coding block distortion value for uv/color, minimum over the inter modes.
+  int64_t min_dist_inter_uv;
   /**@}*/
 
   /*****************************************************************************

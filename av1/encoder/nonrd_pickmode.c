@@ -2782,6 +2782,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
       // Compute sse for chroma planes.
       const int64_t sse_uv = av1_model_rd_for_sb_uv(
           cpi, uv_bsize, x, xd, &rdc_uv, AOM_PLANE_U, AOM_PLANE_V);
+      if (rdc_uv.dist < x->min_dist_inter_uv)
+        x->min_dist_inter_uv = rdc_uv.dist;
       search_state->this_rdc.sse += sse_uv;
       // Restore Y rdc if UV rdc disallows txfm skip
       if (search_state->this_rdc.skip_txfm && !rdc_uv.skip_txfm &&
@@ -2956,6 +2958,8 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
       }
       av1_model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv, AOM_PLANE_U,
                              AOM_PLANE_V);
+      if (rdc_uv.dist < x->min_dist_inter_uv)
+        x->min_dist_inter_uv = rdc_uv.dist;
       idtx_rdc.rate += rdc_uv.rate;
       idtx_rdc.dist += rdc_uv.dist;
       idtx_rdc.skip_txfm = idtx_rdc.skip_txfm && rdc_uv.skip_txfm;
@@ -3203,6 +3207,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   inter_pred_params_sr.conv_params =
       get_conv_params(/*do_average=*/0, AOM_PLANE_Y, xd->bd);
 
+  x->min_dist_inter_uv = INT64_MAX;
   for (int idx = 0; idx < num_inter_modes + tot_num_comp_modes; ++idx) {
     // If we are at the first compound mode, and the single modes already
     // perform well, then end the search.
@@ -3288,8 +3293,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       x->content_state_sb.source_sad_nonrd != kZeroSad &&
       bsize <= BLOCK_16X16) {
-    unsigned int thresh_sse = cpi->rc.high_source_sad ? 15000 : 250000;
-    unsigned int thresh_source_var = cpi->rc.high_source_sad ? 50 : 1000;
+    unsigned int thresh_sse = cpi->rc.high_source_sad ? 15000 : 200000;
+    unsigned int thresh_source_var = cpi->rc.high_source_sad ? 50 : 200;
     unsigned int best_sse_inter_motion =
         (unsigned int)(search_state.best_rdc.sse >>
                        (b_width_log2_lookup[bsize] +
@@ -3320,7 +3325,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       try_palette &&
       (is_mode_intra(best_pickmode->best_mode) || force_palette_test) &&
       x->source_variance > 0 && !x->force_zeromv_skip_for_blk &&
-      (cpi->rc.high_source_sad || x->source_variance > 500);
+      (cpi->rc.high_source_sad || x->source_variance > 300);
 
   if (rt_sf->prune_palette_nonrd && bsize > BLOCK_16X16) try_palette = 0;
 
