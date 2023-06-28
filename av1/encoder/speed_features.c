@@ -2510,23 +2510,36 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
 
   if (speed >= 2) {
     // Disable extended partitions for lower quantizers
-    const int aggr = AOMMIN(3, speed - 2);
+    const int aggr = AOMMIN(4, speed - 2);
     const int qindex_thresh1[4] = { 50, 50, 80, 100 };
     const int qindex_thresh2[4] = { 80, 100, 120, 160 };
     int qindex_thresh;
-    int disable_ext_part;
     if (aggr <= 1) {
       const int qthresh2 =
           (!aggr && !is_480p_or_larger) ? 70 : qindex_thresh2[aggr];
       qindex_thresh = cm->features.allow_screen_content_tools
                           ? qindex_thresh1[aggr]
                           : qthresh2;
-      disable_ext_part = !boosted;
-    } else {
+      if (cm->quant_params.base_qindex <= qindex_thresh && !boosted)
+        sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
+    } else if (aggr <= 2) {
       qindex_thresh = boosted ? qindex_thresh1[aggr] : qindex_thresh2[aggr];
-      disable_ext_part = !frame_is_intra_only(cm);
-    }
-    if (cm->quant_params.base_qindex <= qindex_thresh && disable_ext_part) {
+      if (cm->quant_params.base_qindex <= qindex_thresh &&
+          !frame_is_intra_only(cm))
+        sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
+    } else if (aggr <= 3) {
+      if (!is_480p_or_larger) {
+        sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
+      } else if (!is_720p_or_larger && !frame_is_intra_only(cm) &&
+                 !cm->features.allow_screen_content_tools) {
+        sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
+      } else {
+        qindex_thresh = boosted ? qindex_thresh1[aggr] : qindex_thresh2[aggr];
+        if (cm->quant_params.base_qindex <= qindex_thresh &&
+            !frame_is_intra_only(cm))
+          sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
+      }
+    } else {
       sf->part_sf.ext_partition_eval_thresh = BLOCK_128X128;
     }
   }
