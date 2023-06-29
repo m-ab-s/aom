@@ -1805,10 +1805,10 @@ static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
   use_ref_frame[ALTREF_FRAME] = use_alt_ref_frame;
   use_ref_frame[GOLDEN_FRAME] = use_golden_ref_frame;
   use_ref_frame[LAST_FRAME] = use_last_ref_frame;
-  // For now keep this assert on, but we should remove it for svc mode,
-  // as the user may want to generate an intra-only frame (no inter-modes).
-  // Remove this assert in subsequent CL when nonrd_pickmode is tested for the
-  // case of intra-only frame (no references enabled).
+  // Keep this assert on, as only 3 references are used in nonrd_pickmode
+  // (LAST, GOLDEN, ALTREF), and if all 3 are not set by user then this
+  // frame must be an intra-only frame and hence should never enter the
+  // pickmode here for inter frames.
   assert(use_last_ref_frame || use_golden_ref_frame || use_alt_ref_frame);
 }
 
