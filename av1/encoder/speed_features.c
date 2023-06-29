@@ -972,6 +972,9 @@ static void set_good_speed_features_framesize_independent(
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
 
   if (speed >= 1) {
+    sf->hl_sf.adjust_num_frames_for_arf_filtering =
+        allow_screen_content_tools ? 0 : 1;
+
     sf->part_sf.intra_cnn_based_part_prune_level =
         allow_screen_content_tools ? 0 : 2;
     sf->part_sf.simple_motion_search_early_term_none = 1;
@@ -1214,7 +1217,7 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 5) {
     sf->hl_sf.weight_calc_level_in_tf = 1;
     sf->hl_sf.adjust_num_frames_for_arf_filtering =
-        allow_screen_content_tools ? 0 : 1;
+        allow_screen_content_tools ? 0 : 2;
 
     sf->fp_sf.reduce_mv_step_param = 4;
 

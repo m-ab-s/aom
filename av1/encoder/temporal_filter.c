@@ -1050,11 +1050,13 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
   // change the number of frames for key frame filtering, which is to avoid
   // visual quality drop.
   int adjust_num = 6;
+  const int adjust_num_frames_for_arf_filtering =
+      cpi->sf.hl_sf.adjust_num_frames_for_arf_filtering;
   if (num_frames == 1) {  // `arnr_max_frames = 1` is used to disable filtering.
     adjust_num = 0;
   } else if ((update_type == KF_UPDATE) && q <= 10) {
     adjust_num = 0;
-  } else if (cpi->sf.hl_sf.adjust_num_frames_for_arf_filtering &&
+  } else if (adjust_num_frames_for_arf_filtering > 0 &&
              update_type != KF_UPDATE && (cpi->rc.frames_since_key > 0)) {
     // Since screen content detection happens after temporal filtering,
     // 'frames_since_key' check is added to ensure the sf is disabled for the
@@ -1063,12 +1065,17 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
     // level of the current frame. For low-noise frame, use more frames to
     // filter such that the filtered frame can provide better predictions for
     // subsequent frames and vice versa.
+    const uint8_t av1_adjust_num_using_noise_lvl[2][3] = { { 6, 4, 2 },
+                                                           { 4, 2, 0 } };
+    const uint8_t *adjust_num_frames =
+        av1_adjust_num_using_noise_lvl[adjust_num_frames_for_arf_filtering - 1];
+
     if (noise_levels[AOM_PLANE_Y] < 0.5)
-      adjust_num = 4;
+      adjust_num = adjust_num_frames[0];
     else if (noise_levels[AOM_PLANE_Y] < 1.0)
-      adjust_num = 2;
+      adjust_num = adjust_num_frames[1];
     else
-      adjust_num = 0;
+      adjust_num = adjust_num_frames[2];
   }
   num_frames = AOMMIN(num_frames + adjust_num, lookahead_depth);
 

@@ -448,7 +448,11 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
 
   /*!
    * The number of frames to be used during temporal filtering of an ARF frame
-   * is adjusted based on noise level of the current frame.
+   * is adjusted based on noise level of the current frame. The sf has three
+   * levels to decide number of frames to be considered for filtering:
+   * 0       : Use default number of frames
+   * 1 and 2 : Reduce the number of frames based on noise level with varied
+   * aggressiveness
    */
   int adjust_num_frames_for_arf_filtering;
 
