@@ -6009,6 +6009,10 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
       update_search_state(&search_state, rd_cost, ctx, &rd_stats, &rd_stats_y,
                           &rd_stats_uv, mode_enum, x, do_tx_search);
       if (do_tx_search) search_state.best_skip_rd[0] = skip_rd[0];
+      // skip_rd[0] is the best total rd for a skip mode so far.
+      // skip_rd[1] is the best total rd for a skip mode so far in luma.
+      // When do_tx_search = 1, both skip_rd[0] and skip_rd[1] are updated.
+      // When do_tx_search = 0, skip_rd[1] is updated.
       search_state.best_skip_rd[1] = skip_rd[1];
     }
     if (sf->winner_mode_sf.motion_mode_for_winner_cand) {
