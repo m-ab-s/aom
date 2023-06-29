@@ -186,7 +186,9 @@ static INLINE void vertical_filter_neon(const int16x8_t *src,
   int64x2_t m67 = vpaddq_s64(m6, m7);
 
   *res_low = vcombine_s32(vmovn_s64(m01), vmovn_s64(m23));
-  *res_high = vcombine_s32(vmovn_s64(m45), vmovn_s64(m67));
+  if (res_high) {
+    *res_high = vcombine_s32(vmovn_s64(m45), vmovn_s64(m67));
+  }
 #else   // !AOM_HAVE_NEON_SVE_BRIDGE
   int32x4_t m0 = vmull_s16(vget_low_s16(s0), vget_low_s16(f0));
   m0 = vmlal_s16(m0, vget_high_s16(s0), vget_high_s16(f0));
@@ -209,7 +211,9 @@ static INLINE void vertical_filter_neon(const int16x8_t *src,
   int32x4_t m4567_pairs[] = { m4, m5, m6, m7 };
 
   *res_low = horizontal_add_4d_s32x4(m0123_pairs);
-  *res_high = horizontal_add_4d_s32x4(m4567_pairs);
+  if (res_high) {
+    *res_high = horizontal_add_4d_s32x4(m4567_pairs);
+  }
 #endif  // AOM_HAVE_NEON_SVE_BRIDGE
 }
 
@@ -304,100 +308,115 @@ static void warp_affine_vertical_neon(
   const int bd = 8;
   const int reduce_bits_horiz = ROUND0_BITS;
   const int offset_bits_vert = bd + 2 * FILTER_BITS - reduce_bits_horiz;
-  int32x4_t add_const_vert;
+  int add_const_vert;
   if (is_compound) {
-    add_const_vert = vdupq_n_s32((1 << offset_bits_vert) +
-                                 (1 << (COMPOUND_ROUND1_BITS - 1)));
+    add_const_vert =
+        (1 << offset_bits_vert) + (1 << (COMPOUND_ROUND1_BITS - 1));
   } else {
-    add_const_vert = vdupq_n_s32((1 << offset_bits_vert) +
-                                 (1 << (2 * FILTER_BITS - ROUND0_BITS - 1)));
+    add_const_vert =
+        (1 << offset_bits_vert) + (1 << (2 * FILTER_BITS - ROUND0_BITS - 1));
   }
-  const int16x8_t sub_constant = vdupq_n_s16((1 << (bd - 1)) + (1 << bd));
+  const int sub_constant = (1 << (bd - 1)) + (1 << bd);
 
   const int offset_bits = bd + 2 * FILTER_BITS - ROUND0_BITS;
-  const int16x4_t res_sub_const = vdup_n_s16(
+  const int res_sub_const =
       (1 << (2 * FILTER_BITS - ROUND0_BITS - COMPOUND_ROUND1_BITS - 1)) -
       (1 << (offset_bits - COMPOUND_ROUND1_BITS)) -
-      (1 << (offset_bits - COMPOUND_ROUND1_BITS - 1)));
+      (1 << (offset_bits - COMPOUND_ROUND1_BITS - 1));
 
   int32_t sy4 = y4 & ((1 << WARPEDMODEL_PREC_BITS) - 1);
   sy4 += gamma * (-4) + delta * (-4) + (1 << (WARPEDDIFF_PREC_BITS - 1)) +
          (WARPEDPIXEL_PREC_SHIFTS << WARPEDDIFF_PREC_BITS);
   sy4 &= ~((1 << WARP_PARAM_REDUCE_BITS) - 1);
 
-  for (int k = -4; k < AOMMIN(4, p_height - i - 4); ++k) {
-    int sy = sy4 + delta * (k + 4);
+  if (p_width > 4) {
+    for (int k = -4; k < AOMMIN(4, p_height - i - 4); ++k) {
+      int sy = sy4 + delta * (k + 4);
 
-    const int16x8_t *v_src = tmp + (k + 4);
+      const int16x8_t *v_src = tmp + (k + 4);
 
-    int32x4_t res_lo, res_hi;
-    vertical_filter_neon(v_src, &res_lo, &res_hi, sy, gamma);
+      int32x4_t res_lo, res_hi;
+      vertical_filter_neon(v_src, &res_lo, &res_hi, sy, gamma);
 
-    res_lo = vaddq_s32(res_lo, add_const_vert);
-    res_hi = vaddq_s32(res_hi, add_const_vert);
+      res_lo = vaddq_s32(res_lo, vdupq_n_s32(add_const_vert));
+      res_hi = vaddq_s32(res_hi, vdupq_n_s32(add_const_vert));
 
-    if (is_compound) {
-      uint16_t *const p = (uint16_t *)&dst[(i + k + 4) * dst_stride + j];
-
-      int16x4_t res_lo_s16 = vshrn_n_s32(res_lo, COMPOUND_ROUND1_BITS);
-      if (do_average) {
-        uint8_t *const dst8 = &pred[(i + k + 4) * p_stride + j];
-        int16x4_t tmp16_lo = vreinterpret_s16_u16(vld1_u16(p));
-        if (use_dist_wtd_comp_avg) {
-          int32x4_t tmp32_lo = vmull_n_s16(tmp16_lo, fwd);
-          tmp32_lo = vmlal_n_s16(tmp32_lo, res_lo_s16, bwd);
-          tmp16_lo = vshrn_n_s32(tmp32_lo, DIST_PRECISION_BITS);
-        } else {
-          tmp16_lo = vhadd_s16(tmp16_lo, res_lo_s16);
-        }
-        int16x4_t res_low = vadd_s16(tmp16_lo, res_sub_const);
-        uint8x8_t res8_low =
-            vqshrun_n_s16(vcombine_s16(res_low, vdup_n_s16(0)),
-                          2 * FILTER_BITS - ROUND0_BITS - COMPOUND_ROUND1_BITS);
-        vst1_lane_u32((uint32_t *)dst8, vreinterpret_u32_u8(res8_low), 0);
-      } else {
-        uint16x4_t res_u16_low = vreinterpret_u16_s16(res_lo_s16);
-        vst1_u16(p, res_u16_low);
-      }
-      if (p_width > 4) {
-        uint16_t *const p4 = (uint16_t *)&dst[(i + k + 4) * dst_stride + j + 4];
-
-        int16x4_t res_hi_s16 = vshrn_n_s32(res_hi, COMPOUND_ROUND1_BITS);
+      if (is_compound) {
+        uint16_t *const p = (uint16_t *)&dst[(i + k + 4) * dst_stride + j];
+        int16x8_t res_s16 =
+            vcombine_s16(vshrn_n_s32(res_lo, COMPOUND_ROUND1_BITS),
+                         vshrn_n_s32(res_hi, COMPOUND_ROUND1_BITS));
         if (do_average) {
-          uint8_t *const dst8_4 = &pred[(i + k + 4) * p_stride + j + 4];
-
-          int16x4_t tmp16_hi = vreinterpret_s16_u16(vld1_u16(p4));
+          int16x8_t tmp16 = vreinterpretq_s16_u16(vld1q_u16(p));
           if (use_dist_wtd_comp_avg) {
-            int32x4_t tmp32_hi = vmull_n_s16(tmp16_hi, fwd);
-            tmp32_hi = vmlal_n_s16(tmp32_hi, res_hi_s16, bwd);
-            tmp16_hi = vshrn_n_s32(tmp32_hi, DIST_PRECISION_BITS);
+            int32x4_t tmp32_lo = vmull_n_s16(vget_low_s16(tmp16), fwd);
+            int32x4_t tmp32_hi = vmull_n_s16(vget_high_s16(tmp16), fwd);
+            tmp32_lo = vmlal_n_s16(tmp32_lo, vget_low_s16(res_s16), bwd);
+            tmp32_hi = vmlal_n_s16(tmp32_hi, vget_high_s16(res_s16), bwd);
+            tmp16 = vcombine_s16(vshrn_n_s32(tmp32_lo, DIST_PRECISION_BITS),
+                                 vshrn_n_s32(tmp32_hi, DIST_PRECISION_BITS));
           } else {
-            tmp16_hi = vhadd_s16(tmp16_hi, res_hi_s16);
+            tmp16 = vhaddq_s16(tmp16, res_s16);
           }
-          int16x4_t res_high = vadd_s16(tmp16_hi, res_sub_const);
-          uint8x8_t res8_high = vqshrun_n_s16(
-              vcombine_s16(res_high, vdup_n_s16(0)),
-              2 * FILTER_BITS - ROUND0_BITS - COMPOUND_ROUND1_BITS);
-
-          vst1_lane_u32((uint32_t *)dst8_4, vreinterpret_u32_u8(res8_high), 0);
+          int16x8_t res = vaddq_s16(tmp16, vdupq_n_s16(res_sub_const));
+          uint8x8_t res8 = vqshrun_n_s16(
+              res, 2 * FILTER_BITS - ROUND0_BITS - COMPOUND_ROUND1_BITS);
+          vst1_u8(&pred[(i + k + 4) * p_stride + j], res8);
         } else {
-          uint16x4_t res_u16_high = vreinterpret_u16_s16(res_hi_s16);
-          vst1_u16(p4, res_u16_high);
+          vst1q_u16(p, vreinterpretq_u16_s16(res_s16));
         }
-      }
-    } else {
-      int16x8_t result_final =
-          vcombine_s16(vshrn_n_s32(res_lo, 2 * FILTER_BITS - ROUND0_BITS),
-                       vshrn_n_s32(res_hi, 2 * FILTER_BITS - ROUND0_BITS));
-      result_final = vsubq_s16(result_final, sub_constant);
-
-      uint8_t *const p = (uint8_t *)&pred[(i + k + 4) * p_stride + j];
-      uint8x8_t val = vqmovun_s16(result_final);
-
-      if (p_width == 4) {
-        vst1_lane_u32((uint32_t *)p, vreinterpret_u32_u8(val), 0);
       } else {
-        vst1_u8(p, val);
+        int16x8_t res16 =
+            vcombine_s16(vshrn_n_s32(res_lo, 2 * FILTER_BITS - ROUND0_BITS),
+                         vshrn_n_s32(res_hi, 2 * FILTER_BITS - ROUND0_BITS));
+        res16 = vsubq_s16(res16, vdupq_n_s16(sub_constant));
+
+        uint8_t *const p = (uint8_t *)&pred[(i + k + 4) * p_stride + j];
+        vst1_u8(p, vqmovun_s16(res16));
+      }
+    }
+  } else {
+    // p_width == 4
+    for (int k = -4; k < AOMMIN(4, p_height - i - 4); ++k) {
+      int sy = sy4 + delta * (k + 4);
+
+      const int16x8_t *v_src = tmp + (k + 4);
+
+      int32x4_t res_lo;
+      vertical_filter_neon(v_src, &res_lo, NULL, sy, gamma);
+
+      res_lo = vaddq_s32(res_lo, vdupq_n_s32(add_const_vert));
+
+      if (is_compound) {
+        uint16_t *const p = (uint16_t *)&dst[(i + k + 4) * dst_stride + j];
+
+        int16x4_t res_lo_s16 = vshrn_n_s32(res_lo, COMPOUND_ROUND1_BITS);
+        if (do_average) {
+          uint8_t *const dst8 = &pred[(i + k + 4) * p_stride + j];
+          int16x4_t tmp16_lo = vreinterpret_s16_u16(vld1_u16(p));
+          if (use_dist_wtd_comp_avg) {
+            int32x4_t tmp32_lo = vmull_n_s16(tmp16_lo, fwd);
+            tmp32_lo = vmlal_n_s16(tmp32_lo, res_lo_s16, bwd);
+            tmp16_lo = vshrn_n_s32(tmp32_lo, DIST_PRECISION_BITS);
+          } else {
+            tmp16_lo = vhadd_s16(tmp16_lo, res_lo_s16);
+          }
+          int16x4_t res = vadd_s16(tmp16_lo, vdup_n_s16(res_sub_const));
+          uint8x8_t res8 = vqshrun_n_s16(
+              vcombine_s16(res, vdup_n_s16(0)),
+              2 * FILTER_BITS - ROUND0_BITS - COMPOUND_ROUND1_BITS);
+          vst1_lane_u32((uint32_t *)dst8, vreinterpret_u32_u8(res8), 0);
+        } else {
+          uint16x4_t res_u16_low = vreinterpret_u16_s16(res_lo_s16);
+          vst1_u16(p, res_u16_low);
+        }
+      } else {
+        int16x4_t res16 = vshrn_n_s32(res_lo, 2 * FILTER_BITS - ROUND0_BITS);
+        res16 = vsub_s16(res16, vdup_n_s16(sub_constant));
+
+        uint8_t *const p = (uint8_t *)&pred[(i + k + 4) * p_stride + j];
+        uint8x8_t val = vqmovun_s16(vcombine_s16(res16, vdup_n_s16(0)));
+        vst1_lane_u32((uint32_t *)p, vreinterpret_u32_u8(val), 0);
       }
     }
   }
