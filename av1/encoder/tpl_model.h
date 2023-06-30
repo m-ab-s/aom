@@ -236,6 +236,10 @@ typedef struct TplParams {
    */
   int border_in_pixels;
 
+  /*!
+   * When set, SAD metric is used for intra and inter mode decision.
+   */
+  int use_pred_sad;
 } TplParams;
 
 #if CONFIG_BITRATE_ACCURACY || CONFIG_RATECTRL_LOG

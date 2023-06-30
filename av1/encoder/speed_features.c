@@ -1252,6 +1252,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.use_y_only_rate_distortion = 1;
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.gop_length_decision_method = 2;
+    sf->tpl_sf.use_sad_for_mode_decision = 1;
 
     sf->winner_mode_sf.dc_blk_pred_level = 2;
 
@@ -1908,6 +1909,7 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
   tpl_sf->prune_ref_frames_in_tpl = 0;
   tpl_sf->allow_compound_pred = 1;
   tpl_sf->use_y_only_rate_distortion = 0;
+  tpl_sf->use_sad_for_mode_decision = 0;
 }
 
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {

@@ -540,6 +540,9 @@ typedef struct TPL_SPEED_FEATURES {
 
   // Calculate rate and distortion based on Y plane only.
   int use_y_only_rate_distortion;
+
+  // Use SAD instead of SATD during intra/inter mode search.
+  int use_sad_for_mode_decision;
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
