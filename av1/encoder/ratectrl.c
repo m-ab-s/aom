@@ -530,14 +530,20 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
       (width != cm->prev_frame->width || height != cm->prev_frame->height ||
        change_avg_frame_bandwidth);
   // Apply some control/clamp to QP under certain conditions.
-  if (cm->current_frame.frame_type != KEY_FRAME && rc->frames_since_key > 1 &&
+  // Delay the use of the clamping for svc until after num_temporal_layers,
+  // to make they have been set for each temporal layer.
+  if (!frame_is_intra_only(cm) && rc->frames_since_key > 1 &&
+      (!cpi->ppi->use_svc ||
+       svc->current_superframe > (unsigned int)svc->number_temporal_layers) &&
       !change_target_bits_mb && !cpi->rc.rtc_external_ratectrl &&
       (!cpi->oxcf.rc_cfg.gf_cbr_boost_pct ||
        !(refresh_frame->alt_ref_frame || refresh_frame->golden_frame))) {
     // If in the previous two frames we have seen both overshoot and undershoot
-    // clamp Q between the two.
+    // clamp Q between the two. Check for rc->q_1/2_frame > 0 in case they have
+    // not been set due to dropped frames.
     if (rc->rc_1_frame * rc->rc_2_frame == -1 &&
-        rc->q_1_frame != rc->q_2_frame) {
+        rc->q_1_frame != rc->q_2_frame && rc->q_1_frame > 0 &&
+        rc->q_2_frame > 0) {
       int qclamp = clamp(q, AOMMIN(rc->q_1_frame, rc->q_2_frame),
                          AOMMAX(rc->q_1_frame, rc->q_2_frame));
       // If the previous frame had overshoot and the current q needs to
@@ -769,7 +775,7 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
   // recorded as INTRA only key frames.
   if ((cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) &&
       (cpi->cyclic_refresh->counter_encode_maxq_scene_change == 0) &&
-      (cm->current_frame.frame_type != KEY_FRAME) && (!cpi->ppi->use_svc)) {
+      !frame_is_intra_only(cm) && !cpi->ppi->use_svc) {
     cpi->rc.q_2_frame = cm->quant_params.base_qindex;
     cpi->rc.q_1_frame = cm->quant_params.base_qindex;
     cpi->rc.rc_2_frame = 0;
