@@ -298,7 +298,7 @@ if(CONFIG_AV1_ENCODER)
                 "${AOM_ROOT}/aom_dsp/arm/highbd_masked_sad_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_quantize_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_sad_neon.c"
-                "${AOM_ROOT}/aom_dsp/arm/highbd_sad4d_neon.c"
+                "${AOM_ROOT}/aom_dsp/arm/highbd_sadxd_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_subpel_variance_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_variance_neon.c")
   endif()
