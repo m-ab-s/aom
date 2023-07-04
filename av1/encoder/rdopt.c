@@ -2055,6 +2055,9 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
                                 HandleInterModeArgs *const args,
                                 int64_t ref_best_rd, BLOCK_SIZE bsize,
                                 const int ref_set) {
+  // If the number of ref mv count is equal to 1, do not prune the same. It
+  // is better to evaluate the same than to prune it.
+  if (ref_set == 1) return 1;
   AV1_COMMON *const cm = &cpi->common;
   const MACROBLOCKD *const xd = &x->e_mbd;
   const MB_MODE_INFO *const mbmi = xd->mi[0];
