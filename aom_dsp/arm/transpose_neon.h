@@ -805,4 +805,59 @@ static INLINE int64x2_t aom_vtrn2q_s64(int64x2_t a, int64x2_t b) {
 #endif
 }
 
+static INLINE void transpose_s32_8x8(int32x4x2_t *a0, int32x4x2_t *a1,
+                                     int32x4x2_t *a2, int32x4x2_t *a3,
+                                     int32x4x2_t *a4, int32x4x2_t *a5,
+                                     int32x4x2_t *a6, int32x4x2_t *a7) {
+  // Perform an 8 x 8 matrix transpose by building on top of the existing 4 x 4
+  // matrix transpose implementation:
+  // [ A B ]^T => [ A^T C^T ]
+  // [ C D ]      [ B^T D^T ]
+
+  int32x4_t q0_v1 = a0->val[0];
+  int32x4_t q0_v2 = a1->val[0];
+  int32x4_t q0_v3 = a2->val[0];
+  int32x4_t q0_v4 = a3->val[0];
+
+  int32x4_t q1_v1 = a0->val[1];
+  int32x4_t q1_v2 = a1->val[1];
+  int32x4_t q1_v3 = a2->val[1];
+  int32x4_t q1_v4 = a3->val[1];
+
+  int32x4_t q2_v1 = a4->val[0];
+  int32x4_t q2_v2 = a5->val[0];
+  int32x4_t q2_v3 = a6->val[0];
+  int32x4_t q2_v4 = a7->val[0];
+
+  int32x4_t q3_v1 = a4->val[1];
+  int32x4_t q3_v2 = a5->val[1];
+  int32x4_t q3_v3 = a6->val[1];
+  int32x4_t q3_v4 = a7->val[1];
+
+  transpose_s32_4x4(&q0_v1, &q0_v2, &q0_v3, &q0_v4);  // A^T
+  transpose_s32_4x4(&q1_v1, &q1_v2, &q1_v3, &q1_v4);  // B^T
+  transpose_s32_4x4(&q2_v1, &q2_v2, &q2_v3, &q2_v4);  // C^T
+  transpose_s32_4x4(&q3_v1, &q3_v2, &q3_v3, &q3_v4);  // D^T
+
+  a0->val[0] = q0_v1;
+  a1->val[0] = q0_v2;
+  a2->val[0] = q0_v3;
+  a3->val[0] = q0_v4;
+
+  a0->val[1] = q2_v1;
+  a1->val[1] = q2_v2;
+  a2->val[1] = q2_v3;
+  a3->val[1] = q2_v4;
+
+  a4->val[0] = q1_v1;
+  a5->val[0] = q1_v2;
+  a6->val[0] = q1_v3;
+  a7->val[0] = q1_v4;
+
+  a4->val[1] = q3_v1;
+  a5->val[1] = q3_v2;
+  a6->val[1] = q3_v3;
+  a7->val[1] = q3_v4;
+}
+
 #endif  // AOM_AOM_DSP_ARM_TRANSPOSE_NEON_H_
