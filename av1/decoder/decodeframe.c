@@ -1277,7 +1277,7 @@ static AOM_INLINE void decode_partition(AV1Decoder *const pbi,
       int rcol0, rcol1, rrow0, rrow1;
       if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                              &rcol0, &rcol1, &rrow0, &rrow1)) {
-        const int rstride = cm->rst_info[plane].horz_units_per_tile;
+        const int rstride = cm->rst_info[plane].horz_units;
         for (int rrow = rrow0; rrow < rrow1; ++rrow) {
           for (int rcol = rcol0; rcol < rcol1; ++rcol) {
             const int runit_idx = rcol + rrow * rstride;
