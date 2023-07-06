@@ -208,12 +208,13 @@ TEST_P(NnPredictTest, DISABLED_Speed) {
                             10000000);
 }
 
-#if HAVE_SSE3 && !CONFIG_EXCLUDE_SIMD_MISMATCH
+#if !CONFIG_EXCLUDE_SIMD_MISMATCH
+#if HAVE_SSE3
 INSTANTIATE_TEST_SUITE_P(SSE3, NnPredictTest,
                          ::testing::Values(av1_nn_predict_sse3));
 #endif
 
-#if HAVE_AVX2 && !CONFIG_EXCLUDE_SIMD_MISMATCH
+#if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(AVX2, NnPredictTest,
                          ::testing::Values(av1_nn_predict_avx2));
 #endif
@@ -222,5 +223,6 @@ INSTANTIATE_TEST_SUITE_P(AVX2, NnPredictTest,
 INSTANTIATE_TEST_SUITE_P(NEON, NnPredictTest,
                          ::testing::Values(av1_nn_predict_neon));
 #endif
+#endif  // !CONFIG_EXCLUDE_SIMD_MISMATCH
 
 }  // namespace
