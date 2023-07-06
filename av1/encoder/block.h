@@ -1332,6 +1332,8 @@ typedef struct macroblock {
   /**@{*/
   //! Variance of the source frame.
   unsigned int source_variance;
+  //! Flag to indicate coding block is zero sad.
+  int block_is_zero_sad;
   //! SSE of the current predictor.
   unsigned int pred_sse[REF_FRAMES];
   //! Prediction for ML based partition.
