@@ -29,8 +29,8 @@ set_aom_detect_var(AOM_ARCH_PPC 0 "Enables PPC architecture.")
 set_aom_detect_var(AOM_ARCH_X86 0 "Enables X86 architecture.")
 set_aom_detect_var(AOM_ARCH_X86_64 0 "Enables X86_64 architecture.")
 
-# ARM feature flags.
-set_aom_detect_var(HAVE_NEON 0 "Enables NEON intrinsics optimizations.")
+# Arm/AArch64 feature flags.
+set_aom_detect_var(HAVE_NEON 0 "Enables Neon intrinsics optimizations.")
 set_aom_detect_var(HAVE_ARM_CRC32 0 "Enables Arm CRC32 optimizations.")
 
 # PPC feature flags.
@@ -189,8 +189,10 @@ set_aom_option_var(ENABLE_TOOLS "Enable applications in tools sub directory."
 set_aom_option_var(ENABLE_WERROR "Converts warnings to errors at compile time."
                    OFF)
 
-# ARM assembly/intrinsics flags.
-set_aom_option_var(ENABLE_NEON "Enables NEON optimizations on ARM targets." ON)
+# Arm/AArch64 assembly/intrinsics flags.
+set_aom_option_var(ENABLE_NEON
+                   "Enables Neon optimizations on Arm/AArch64 targets." ON)
+set_aom_option_var(ENABLE_ARM_CRC32 "Enables Arm CRC32 optimizations." ON)
 
 # VSX intrinsics flags.
 set_aom_option_var(ENABLE_VSX "Enables VSX optimizations on PowerPC targets."

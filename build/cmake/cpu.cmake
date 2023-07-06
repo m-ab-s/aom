@@ -9,11 +9,34 @@
 # can obtain it at www.aomedia.org/license/patent.
 #
 
-if("${AOM_TARGET_CPU}" MATCHES "^arm")
+if("${AOM_TARGET_CPU}" STREQUAL "arm64")
   set(AOM_ARCH_ARM 1)
-  if("${AOM_TARGET_CPU}" STREQUAL "arm64")
-    set(AOM_ARCH_AARCH64 1)
+  set(AOM_ARCH_AARCH64 1)
+  set(RTCD_ARCH_ARM "yes")
+
+  if(NOT DEFINED AOM_ARM_CRC32_FLAG)
+    set(AOM_ARM_CRC32_FLAG "-march=armv8-a+crc")
+    unset(FLAG_SUPPORTED)
+    check_c_compiler_flag(${AOM_ARM_CRC32_FLAG} FLAG_SUPPORTED)
+    if(NOT ${FLAG_SUPPORTED})
+      set(ENABLE_ARM_CRC32 0)
+    endif()
   endif()
+
+  set(ARM64_FLAVORS "NEON;ARM_CRC32")
+  foreach(flavor ${ARM64_FLAVORS})
+    if(ENABLE_${flavor})
+      set(HAVE_${flavor} 1)
+      set(RTCD_HAVE_${flavor} "yes")
+    else()
+      set(HAVE_${flavor} 0)
+      string(TOLOWER ${flavor} flavor)
+      set(AOM_RTCD_FLAGS ${AOM_RTCD_FLAGS} --disable-${flavor})
+    endif()
+  endforeach()
+
+elseif("${AOM_TARGET_CPU}" MATCHES "^arm")
+  set(AOM_ARCH_ARM 1)
   set(RTCD_ARCH_ARM "yes")
 
   if(ENABLE_NEON)
@@ -22,18 +45,6 @@ if("${AOM_TARGET_CPU}" MATCHES "^arm")
   else()
     set(HAVE_NEON 0)
     set(AOM_RTCD_FLAGS ${AOM_RTCD_FLAGS} --disable-neon)
-  endif()
-
-  check_c_source_compiles("
-    #if !defined(__ARM_FEATURE_CRC32) || __ARM_FEATURE_CRC32 != 1
-    #error \"CRC32 is unavailable.\"
-    #endif
-    int main(void) { return 0; }" HAVE_CRC32)
-  if(HAVE_CRC32)
-    set(HAVE_ARM_CRC32 1)
-  else()
-    set(HAVE_ARM_CRC32 0)
-    set(AOM_RTCD_FLAGS ${AOM_RTCD_FLAGS} --disable-arm_crc32)
   endif()
 
 elseif("${AOM_TARGET_CPU}" MATCHES "ppc")
