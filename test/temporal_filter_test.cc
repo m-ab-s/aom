@@ -664,6 +664,16 @@ INSTANTIATE_TEST_SUITE_P(AVX2, HBDTemporalFilterTest,
                          Combine(ValuesIn(HBDtemporal_filter_test_avx2),
                                  Values(0, 1)));
 #endif  // HAVE_AVX2
+
+#if HAVE_NEON
+HBDTemporalFilterFuncParam HBDtemporal_filter_test_neon[] = {
+  HBDTemporalFilterFuncParam(&av1_highbd_apply_temporal_filter_c,
+                             &av1_highbd_apply_temporal_filter_neon)
+};
+INSTANTIATE_TEST_SUITE_P(NEON, HBDTemporalFilterTest,
+                         Combine(ValuesIn(HBDtemporal_filter_test_neon),
+                                 Values(0, 1)));
+#endif  // HAVE_NEON
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace
 #endif
