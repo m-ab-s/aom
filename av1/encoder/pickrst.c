@@ -1814,16 +1814,86 @@ static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
     rui->sgrproj_info = rusi->sgrproj;
 }
 
-static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
+static double search_rest_type(AV1_COMMON *cm, int plane, RestSearchCtxt *rsc,
+                               RestorationType rtype) {
+  const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
+  const int mib_size_log2 = cm->seq_params->mib_size_log2;
+  const CommonTileParams *tiles = &cm->tiles;
+  const int is_uv = plane > 0;
+  const int ss_y = is_uv && cm->seq_params->subsampling_y;
+  RestorationInfo *rsi = &cm->rst_info[plane];
+  const int ru_size = rsi->restoration_unit_size;
+  const int ext_size = ru_size * 3 / 2;
+
+  int plane_w, plane_h;
+  av1_get_upsampled_plane_size(cm, is_uv, &plane_w, &plane_h);
+
   static const rest_unit_visitor_t funs[RESTORE_TYPES] = {
     search_norestore, search_wiener, search_sgrproj, search_switchable
   };
 
   reset_rsc(rsc);
-  rsc_on_tile(rsc);
 
-  av1_foreach_rest_unit_in_plane(rsc->cm, rsc->plane, funs[rtype], rsc,
-                                 rsc->cm->rst_tmpbuf, NULL);
+  // Iterate over restoration units in encoding order, so that each RU gets
+  // the correct reference parameters when we cost it up. This is effectively
+  // a nested iteration over:
+  // * Each tile, order does not matter
+  //   * Each superblock within that tile, in raster order
+  //     * Each LR unit which is coded within that superblock, in raster order
+  for (int tile_row = 0; tile_row < tiles->rows; tile_row++) {
+    int sb_row_start = tiles->row_start_sb[tile_row];
+    int sb_row_end = tiles->row_start_sb[tile_row + 1];
+    for (int tile_col = 0; tile_col < tiles->cols; tile_col++) {
+      int sb_col_start = tiles->col_start_sb[tile_col];
+      int sb_col_end = tiles->col_start_sb[tile_col + 1];
+
+      // Reset reference parameters for delta-coding at the start of each tile
+      rsc_on_tile(rsc);
+
+      for (int sb_row = sb_row_start; sb_row < sb_row_end; sb_row++) {
+        int mi_row = sb_row << mib_size_log2;
+        for (int sb_col = sb_col_start; sb_col < sb_col_end; sb_col++) {
+          int mi_col = sb_col << mib_size_log2;
+
+          int rcol0, rcol1, rrow0, rrow1;
+          int has_lr_info = av1_loop_restoration_corners_in_sb(
+              cm, plane, mi_row, mi_col, sb_size, &rcol0, &rcol1, &rrow0,
+              &rrow1);
+
+          if (!has_lr_info) continue;
+
+          RestorationTileLimits limits;
+          for (int rrow = rrow0; rrow < rrow1; rrow++) {
+            int y0 = rrow * ru_size;
+            int remaining_h = plane_h - y0;
+            int h = (remaining_h < ext_size) ? remaining_h : ru_size;
+
+            limits.v_start = y0;
+            limits.v_end = y0 + h;
+            assert(limits.v_end <= plane_h);
+            // Offset upwards to align with the restoration processing stripe
+            const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
+            limits.v_start = AOMMAX(0, limits.v_start - voffset);
+            if (limits.v_end < plane_h) limits.v_end -= voffset;
+
+            for (int rcol = rcol0; rcol < rcol1; rcol++) {
+              int x0 = rcol * ru_size;
+              int remaining_w = plane_w - x0;
+              int w = (remaining_w < ext_size) ? remaining_w : ru_size;
+
+              limits.h_start = x0;
+              limits.h_end = x0 + w;
+              assert(limits.h_end <= plane_w);
+
+              const int unit_idx = rrow * rsi->horz_units + rcol;
+              funs[rtype](&limits, unit_idx, rsc, rsc->cm->rst_tmpbuf, NULL);
+            }
+          }
+        }
+      }
+    }
+  }
+
   return RDCOST_DBL_WITH_NATIVE_BD_DIST(
       rsc->x->rdmult, rsc->bits >> 4, rsc->sse, rsc->cm->seq_params->bit_depth);
 }
@@ -1947,7 +2017,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
         // feature 'disable_wiener_filter' and 'disable_sgr_filter'.
         if (disable_lr_filter[r]) continue;
 
-        double cost = search_rest_type(&rsc, r);
+        double cost = search_rest_type(cm, plane, &rsc, r);
 
         if (r == 0 || cost < best_cost) {
           best_cost = cost;

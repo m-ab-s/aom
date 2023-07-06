@@ -1622,6 +1622,10 @@ static AOM_INLINE void write_modes_sb(
   const int num_planes = av1_num_planes(cm);
   for (int plane = 0; plane < num_planes; ++plane) {
     int rcol0, rcol1, rrow0, rrow1;
+
+    // Skip some unnecessary work if loop restoration is disabled
+    if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
+
     if (av1_loop_restoration_corners_in_sb(cm, plane, mi_row, mi_col, bsize,
                                            &rcol0, &rcol1, &rrow0, &rrow1)) {
       const int rstride = cm->rst_info[plane].horz_units;
