@@ -619,11 +619,8 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
     const int is_uv = plane > 0;
     const int ss_y = is_uv && cm->seq_params->subsampling_y;
-
-    PixelRect plane_rect = ctxt[plane].plane_rect;
     const int unit_size = ctxt[plane].rsi->restoration_unit_size;
-
-    const int plane_h = plane_rect.bottom - plane_rect.top;
+    const int plane_h = ctxt[plane].plane_h;
     const int ext_size = unit_size * 3 / 2;
 
     int y0 = 0, i = 0;
@@ -632,13 +629,13 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
       int h = (remaining_h < ext_size) ? remaining_h : unit_size;
 
       RestorationTileLimits limits;
-      limits.v_start = plane_rect.top + y0;
-      limits.v_end = plane_rect.top + y0 + h;
-      assert(limits.v_end <= plane_rect.bottom);
+      limits.v_start = y0;
+      limits.v_end = y0 + h;
+      assert(limits.v_end <= plane_h);
       // Offset upwards to align with the restoration processing stripe
       const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
-      limits.v_start = AOMMAX(plane_rect.top, limits.v_start - voffset);
-      if (limits.v_end < plane_rect.bottom) limits.v_end -= voffset;
+      limits.v_start = AOMMAX(0, limits.v_start - voffset);
+      if (limits.v_end < plane_h) limits.v_end -= voffset;
 
       assert(lr_job_counter[0] <= num_even_lr_jobs);
 
@@ -653,18 +650,18 @@ static void enqueue_lr_jobs(AV1LrSync *lr_sync, AV1LrStruct *lr_ctxt,
         lr_job_queue[lr_job_counter[i & 1]].v_copy_end =
             limits.v_end - RESTORATION_BORDER;
         if (i == 0) {
-          assert(limits.v_start == plane_rect.top);
-          lr_job_queue[lr_job_counter[i & 1]].v_copy_start = plane_rect.top;
+          assert(limits.v_start == 0);
+          lr_job_queue[lr_job_counter[i & 1]].v_copy_start = 0;
         }
         if (i == (ctxt[plane].rsi->vert_units - 1)) {
-          assert(limits.v_end == plane_rect.bottom);
-          lr_job_queue[lr_job_counter[i & 1]].v_copy_end = plane_rect.bottom;
+          assert(limits.v_end == plane_h);
+          lr_job_queue[lr_job_counter[i & 1]].v_copy_end = plane_h;
         }
       } else {
         lr_job_queue[lr_job_counter[i & 1]].v_copy_start =
-            AOMMAX(limits.v_start - RESTORATION_BORDER, plane_rect.top);
+            AOMMAX(limits.v_start - RESTORATION_BORDER, 0);
         lr_job_queue[lr_job_counter[i & 1]].v_copy_end =
-            AOMMIN(limits.v_end + RESTORATION_BORDER, plane_rect.bottom);
+            AOMMIN(limits.v_end + RESTORATION_BORDER, plane_h);
       }
       lr_job_counter[i & 1]++;
       lr_sync->jobs_enqueued++;
@@ -702,6 +699,7 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
   int lr_unit_row;
   int plane;
+  int plane_w;
   typedef void (*copy_fun)(const YV12_BUFFER_CONFIG *src_ybc,
                            YV12_BUFFER_CONFIG *dst_ybc, int hstart, int hend,
                            int vstart, int vend);
@@ -719,6 +717,7 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
       limits.v_end = cur_job_info->v_end;
       lr_unit_row = cur_job_info->lr_unit_row;
       plane = cur_job_info->plane;
+      plane_w = ctxt[plane].plane_w;
 
       // sync_mode == 1 implies only sync read is required in LR Multi-threading
       // sync_mode == 0 implies only sync write is required.
@@ -728,16 +727,14 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
                                                    : av1_lr_sync_write_dummy;
 
       av1_foreach_rest_unit_in_row(
-          &limits, &(ctxt[plane].plane_rect), lr_ctxt->on_rest_unit,
-          lr_unit_row, ctxt[plane].rsi->restoration_unit_size,
-          ctxt[plane].rsi->horz_units, ctxt[plane].rsi->vert_units, plane,
-          &ctxt[plane], lrworkerdata->rst_tmpbuf, lrworkerdata->rlbs,
-          on_sync_read, on_sync_write, lr_sync);
+          &limits, plane_w, lr_ctxt->on_rest_unit, lr_unit_row,
+          ctxt[plane].rsi->restoration_unit_size, ctxt[plane].rsi->horz_units,
+          ctxt[plane].rsi->vert_units, plane, &ctxt[plane],
+          lrworkerdata->rst_tmpbuf, lrworkerdata->rlbs, on_sync_read,
+          on_sync_write, lr_sync);
 
-      copy_funs[plane](lr_ctxt->dst, lr_ctxt->frame,
-                       ctxt[plane].plane_rect.left,
-                       ctxt[plane].plane_rect.right, cur_job_info->v_copy_start,
-                       cur_job_info->v_copy_end);
+      copy_funs[plane](lr_ctxt->dst, lr_ctxt->frame, 0, plane_w,
+                       cur_job_info->v_copy_start, cur_job_info->v_copy_end);
 
       if (lrworkerdata->do_extend_border) {
         aom_extend_frame_borders_plane_row(lr_ctxt->frame, plane,
@@ -765,9 +762,7 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
   for (int plane = 0; plane < num_planes; plane++) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
 
-    const PixelRect plane_rect = ctxt[plane].plane_rect;
-    const int plane_h = plane_rect.bottom - plane_rect.top;
-
+    const int plane_h = ctxt[plane].plane_h;
     const int unit_size = cm->rst_info[plane].restoration_unit_size;
 
     num_rows_lr = AOMMAX(num_rows_lr, av1_lr_count_units(unit_size, plane_h));

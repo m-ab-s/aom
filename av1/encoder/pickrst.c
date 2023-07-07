@@ -123,8 +123,8 @@ typedef struct {
   const AV1_COMMON *cm;
   const MACROBLOCK *x;
   int plane;
-  int plane_width;
-  int plane_height;
+  int plane_w;
+  int plane_h;
   RestUnitSearchInfo *rusi;
 
   // Speed features
@@ -143,8 +143,6 @@ typedef struct {
   // tile in the frame.
   SgrprojInfo sgrproj;
   WienerInfo wiener;
-
-  PixelRect plane_rect;
 
   // Buffers used to hold dgd-avg and src-avg data respectively during SIMD
   // call of Wiener filter.
@@ -178,20 +176,23 @@ static AOM_INLINE void init_rsc(const YV12_BUFFER_CONFIG *src,
 
   const YV12_BUFFER_CONFIG *dgd = &cm->cur_frame->buf;
   const int is_uv = plane != AOM_PLANE_Y;
-  rsc->plane_width = src->crop_widths[is_uv];
-  rsc->plane_height = src->crop_heights[is_uv];
+  int plane_w, plane_h;
+  av1_get_upsampled_plane_size(cm, is_uv, &plane_w, &plane_h);
+  assert(plane_w == src->crop_widths[is_uv]);
+  assert(plane_h == src->crop_heights[is_uv]);
+  assert(src->crop_widths[is_uv] == dgd->crop_widths[is_uv]);
+  assert(src->crop_heights[is_uv] == dgd->crop_heights[is_uv]);
+
+  rsc->plane_w = plane_w;
+  rsc->plane_h = plane_h;
   rsc->src_buffer = src->buffers[plane];
   rsc->src_stride = src->strides[is_uv];
   rsc->dgd_buffer = dgd->buffers[plane];
   rsc->dgd_stride = dgd->strides[is_uv];
-  rsc->plane_rect = av1_get_plane_rect(cm, is_uv);
-  assert(src->crop_widths[is_uv] == dgd->crop_widths[is_uv]);
-  assert(src->crop_heights[is_uv] == dgd->crop_heights[is_uv]);
 }
 
 static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
                                     const RestorationTileLimits *limits,
-                                    const PixelRect *plane_rect,
                                     const RestorationUnitInfo *rui) {
   const AV1_COMMON *const cm = rsc->cm;
   const int plane = rsc->plane;
@@ -207,7 +208,7 @@ static int64_t try_restoration_unit(const RestSearchCtxt *rsc,
   const int optimized_lr = 0;
 
   av1_loop_restoration_filter_unit(
-      limits, rui, &rsi->boundaries, &rlbs, plane_rect,
+      limits, rui, &rsi->boundaries, &rlbs, rsc->plane_w, rsc->plane_h,
       is_uv && cm->seq_params->subsampling_x,
       is_uv && cm->seq_params->subsampling_y, highbd, bit_depth,
       fts->buffers[plane], fts->strides[is_uv], rsc->dst->buffers[plane],
@@ -873,7 +874,6 @@ static int count_sgrproj_bits(SgrprojInfo *sgrproj_info,
 }
 
 static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
-                                      const PixelRect *plane_rect,
                                       int rest_unit_idx, void *priv,
                                       int32_t *tmpbuf,
                                       RestorationLineBuffers *rlbs) {
@@ -917,8 +917,7 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
   rui.restoration_type = RESTORE_SGRPROJ;
   rui.sgrproj_info = rusi->sgrproj;
 
-  rusi->sse[RESTORE_SGRPROJ] =
-      try_restoration_unit(rsc, limits, plane_rect, &rui);
+  rusi->sse[RESTORE_SGRPROJ] = try_restoration_unit(rsc, limits, &rui);
 
   const int64_t bits_sgr = x->mode_costs.sgrproj_restore_cost[1] +
                            (count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj)
@@ -1458,10 +1457,9 @@ static int count_wiener_bits(int wiener_win, WienerInfo *wiener_info,
 
 static int64_t finer_search_wiener(const RestSearchCtxt *rsc,
                                    const RestorationTileLimits *limits,
-                                   const PixelRect *plane_rect,
                                    RestorationUnitInfo *rui, int wiener_win) {
   const int plane_off = (WIENER_WIN - wiener_win) >> 1;
-  int64_t err = try_restoration_unit(rsc, limits, plane_rect, rui);
+  int64_t err = try_restoration_unit(rsc, limits, rui);
 
   if (rsc->lpf_sf->disable_wiener_coeff_refine_search) return err;
 
@@ -1484,7 +1482,7 @@ static int64_t finer_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->hfilter[p] -= s;
           plane_wiener->hfilter[WIENER_WIN - p - 1] -= s;
           plane_wiener->hfilter[WIENER_HALFWIN] += 2 * s;
-          err2 = try_restoration_unit(rsc, limits, plane_rect, rui);
+          err2 = try_restoration_unit(rsc, limits, rui);
           if (err2 > err) {
             plane_wiener->hfilter[p] += s;
             plane_wiener->hfilter[WIENER_WIN - p - 1] += s;
@@ -1504,7 +1502,7 @@ static int64_t finer_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->hfilter[p] += s;
           plane_wiener->hfilter[WIENER_WIN - p - 1] += s;
           plane_wiener->hfilter[WIENER_HALFWIN] -= 2 * s;
-          err2 = try_restoration_unit(rsc, limits, plane_rect, rui);
+          err2 = try_restoration_unit(rsc, limits, rui);
           if (err2 > err) {
             plane_wiener->hfilter[p] -= s;
             plane_wiener->hfilter[WIENER_WIN - p - 1] -= s;
@@ -1525,7 +1523,7 @@ static int64_t finer_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->vfilter[p] -= s;
           plane_wiener->vfilter[WIENER_WIN - p - 1] -= s;
           plane_wiener->vfilter[WIENER_HALFWIN] += 2 * s;
-          err2 = try_restoration_unit(rsc, limits, plane_rect, rui);
+          err2 = try_restoration_unit(rsc, limits, rui);
           if (err2 > err) {
             plane_wiener->vfilter[p] += s;
             plane_wiener->vfilter[WIENER_WIN - p - 1] += s;
@@ -1545,7 +1543,7 @@ static int64_t finer_search_wiener(const RestSearchCtxt *rsc,
           plane_wiener->vfilter[p] += s;
           plane_wiener->vfilter[WIENER_WIN - p - 1] += s;
           plane_wiener->vfilter[WIENER_HALFWIN] -= 2 * s;
-          err2 = try_restoration_unit(rsc, limits, plane_rect, rui);
+          err2 = try_restoration_unit(rsc, limits, rui);
           if (err2 > err) {
             plane_wiener->vfilter[p] -= s;
             plane_wiener->vfilter[WIENER_WIN - p - 1] -= s;
@@ -1565,7 +1563,6 @@ static int64_t finer_search_wiener(const RestSearchCtxt *rsc,
 }
 
 static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
-                                     const PixelRect *plane_rect,
                                      int rest_unit_idx, void *priv,
                                      int32_t *tmpbuf,
                                      RestorationLineBuffers *rlbs) {
@@ -1663,7 +1660,7 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
   }
 
   rusi->sse[RESTORE_WIENER] =
-      finer_search_wiener(rsc, limits, plane_rect, &rui, reduced_wiener_win);
+      finer_search_wiener(rsc, limits, &rui, reduced_wiener_win);
   rusi->wiener = rui.wiener_info;
 
   if (reduced_wiener_win != WIENER_WIN) {
@@ -1703,11 +1700,9 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
 }
 
 static AOM_INLINE void search_norestore(const RestorationTileLimits *limits,
-                                        const PixelRect *plane_rect,
                                         int rest_unit_idx, void *priv,
                                         int32_t *tmpbuf,
                                         RestorationLineBuffers *rlbs) {
-  (void)plane_rect;
   (void)tmpbuf;
   (void)rlbs;
 
@@ -1722,12 +1717,10 @@ static AOM_INLINE void search_norestore(const RestorationTileLimits *limits,
 }
 
 static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
-                                         const PixelRect *plane_rect,
                                          int rest_unit_idx, void *priv,
                                          int32_t *tmpbuf,
                                          RestorationLineBuffers *rlbs) {
   (void)limits;
-  (void)plane_rect;
   (void)tmpbuf;
   (void)rlbs;
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
@@ -1805,7 +1798,7 @@ static double search_rest_type(RestSearchCtxt *rsc, RestorationType rtype) {
   rsc_on_tile(rsc);
 
   av1_foreach_rest_unit_in_plane(rsc->cm, rsc->plane, funs[rtype], rsc,
-                                 &rsc->plane_rect, rsc->cm->rst_tmpbuf, NULL);
+                                 rsc->cm->rst_tmpbuf, NULL);
   return RDCOST_DBL_WITH_NATIVE_BD_DIST(
       rsc->x->rdmult, rsc->bits >> 4, rsc->sse, rsc->cm->seq_params->bit_depth);
 }
@@ -1921,9 +1914,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     const int highbd = rsc.cm->seq_params->use_highbitdepth;
     if ((plane && !lpf_sf->disable_loop_restoration_chroma) ||
         (!plane && !lpf_sf->disable_loop_restoration_luma)) {
-      av1_extend_frame(rsc.dgd_buffer, rsc.plane_width, rsc.plane_height,
-                       rsc.dgd_stride, RESTORATION_BORDER, RESTORATION_BORDER,
-                       highbd);
+      av1_extend_frame(rsc.dgd_buffer, rsc.plane_w, rsc.plane_h, rsc.dgd_stride,
+                       RESTORATION_BORDER, RESTORATION_BORDER, highbd);
 
       for (RestorationType r = 0; r < num_rtypes; ++r) {
         // Disable Loop restoration filter based on the flags set using speed

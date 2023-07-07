@@ -39,17 +39,12 @@ const sgr_params_type av1_sgr_params[SGRPROJ_PARAMS] = {
   { { 2, 0 }, { 56, -1 } },    { { 2, 0 }, { 22, -1 } },
 };
 
-PixelRect av1_get_plane_rect(const AV1_COMMON *cm, int is_uv) {
-  PixelRect rect;
-
+void av1_get_upsampled_plane_size(const AV1_COMMON *cm, int is_uv, int *plane_w,
+                                  int *plane_h) {
   int ss_x = is_uv && cm->seq_params->subsampling_x;
   int ss_y = is_uv && cm->seq_params->subsampling_y;
-
-  rect.top = 0;
-  rect.bottom = ROUND_POWER_OF_TWO(cm->height, ss_y);
-  rect.left = 0;
-  rect.right = ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
-  return rect;
+  *plane_w = ROUND_POWER_OF_TWO(cm->superres_upscaled_width, ss_x);
+  *plane_h = ROUND_POWER_OF_TWO(cm->height, ss_y);
 }
 
 // Count horizontal or vertical units in a plane (use a width or height for
@@ -66,9 +61,8 @@ int av1_lr_count_units(int unit_size, int plane_size) {
 
 void av1_alloc_restoration_struct(AV1_COMMON *cm, RestorationInfo *rsi,
                                   int is_uv) {
-  const PixelRect plane_rect = av1_get_plane_rect(cm, is_uv);
-  const int plane_w = plane_rect.right - plane_rect.left;
-  const int plane_h = plane_rect.bottom - plane_rect.top;
+  int plane_w, plane_h;
+  av1_get_upsampled_plane_size(cm, is_uv, &plane_w, &plane_h);
 
   const int unit_size = rsi->restoration_unit_size;
   const int horz_units = av1_lr_count_units(unit_size, plane_w);
@@ -216,19 +210,21 @@ static void copy_rest_unit(int width, int height, const uint8_t *src,
 // * All other boundaries are stripe boundaries within the frame. In that case,
 //   we take 2 rows of deblocked pixels and extend them to 3 rows of context.
 static void get_stripe_boundary_info(const RestorationTileLimits *limits,
-                                     const PixelRect *plane_rect, int ss_y,
+                                     int plane_w, int plane_h, int ss_y,
                                      int *copy_above, int *copy_below) {
+  (void)plane_w;
+
   *copy_above = 1;
   *copy_below = 1;
 
   const int full_stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
   const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
 
-  const int first_stripe_in_plane = (limits->v_start == plane_rect->top);
+  const int first_stripe_in_plane = (limits->v_start == 0);
   const int this_stripe_height =
       full_stripe_height - (first_stripe_in_plane ? runit_offset : 0);
   const int last_stripe_in_plane =
-      (limits->v_start + this_stripe_height >= plane_rect->bottom);
+      (limits->v_start + this_stripe_height >= plane_h);
 
   if (first_stripe_in_plane) *copy_above = 0;
   if (last_stripe_in_plane) *copy_below = 0;
@@ -243,8 +239,6 @@ static void get_stripe_boundary_info(const RestorationTileLimits *limits,
 // limits gives the rectangular limits of the remaining stripes for the current
 // restoration unit. rsb is the stored stripe boundaries (taken from either
 // deblock or CDEF output as necessary).
-//
-// plane_rect is the limits of the current plane
 static void setup_processing_stripe_boundary(
     const RestorationTileLimits *limits, const RestorationStripeBoundaries *rsb,
     int rsb_row, int use_highbd, int h, uint8_t *data8, int data_stride,
@@ -970,12 +964,14 @@ static const stripe_filter_fun stripe_filters[NUM_STRIPE_FILTERS] = {
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // Filter one restoration unit
-void av1_loop_restoration_filter_unit(
-    const RestorationTileLimits *limits, const RestorationUnitInfo *rui,
-    const RestorationStripeBoundaries *rsb, RestorationLineBuffers *rlbs,
-    const PixelRect *plane_rect, int ss_x, int ss_y, int highbd, int bit_depth,
-    uint8_t *data8, int stride, uint8_t *dst8, int dst_stride, int32_t *tmpbuf,
-    int optimized_lr) {
+void av1_loop_restoration_filter_unit(const RestorationTileLimits *limits,
+                                      const RestorationUnitInfo *rui,
+                                      const RestorationStripeBoundaries *rsb,
+                                      RestorationLineBuffers *rlbs, int plane_w,
+                                      int plane_h, int ss_x, int ss_y,
+                                      int highbd, int bit_depth, uint8_t *data8,
+                                      int stride, uint8_t *dst8, int dst_stride,
+                                      int32_t *tmpbuf, int optimized_lr) {
   RestorationType unit_rtype = rui->restoration_type;
 
   int unit_h = limits->v_end - limits->v_start;
@@ -1002,8 +998,8 @@ void av1_loop_restoration_filter_unit(
     int copy_above, copy_below;
     remaining_stripes.v_start = limits->v_start + i;
 
-    get_stripe_boundary_info(&remaining_stripes, plane_rect, ss_y, &copy_above,
-                             &copy_below);
+    get_stripe_boundary_info(&remaining_stripes, plane_w, plane_h, ss_y,
+                             &copy_above, &copy_below);
 
     const int full_stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
     const int runit_offset = RESTORATION_UNIT_OFFSET >> ss_y;
@@ -1011,8 +1007,7 @@ void av1_loop_restoration_filter_unit(
     // Work out where this stripe's boundaries are within
     // rsb->stripe_boundary_{above,below}
     const int frame_stripe =
-        (remaining_stripes.v_start - plane_rect->top + runit_offset) /
-        full_stripe_height;
+        (remaining_stripes.v_start + runit_offset) / full_stripe_height;
     const int rsb_row = RESTORATION_CTX_VERT * frame_stripe;
 
     // Calculate this stripe's height, based on two rules:
@@ -1039,17 +1034,16 @@ void av1_loop_restoration_filter_unit(
 }
 
 static void filter_frame_on_unit(const RestorationTileLimits *limits,
-                                 const PixelRect *plane_rect, int rest_unit_idx,
-                                 void *priv, int32_t *tmpbuf,
+                                 int rest_unit_idx, void *priv, int32_t *tmpbuf,
                                  RestorationLineBuffers *rlbs) {
   FilterFrameCtxt *ctxt = (FilterFrameCtxt *)priv;
   const RestorationInfo *rsi = ctxt->rsi;
 
   av1_loop_restoration_filter_unit(
       limits, &rsi->unit_info[rest_unit_idx], &rsi->boundaries, rlbs,
-      plane_rect, ctxt->ss_x, ctxt->ss_y, ctxt->highbd, ctxt->bit_depth,
-      ctxt->data8, ctxt->data_stride, ctxt->dst8, ctxt->dst_stride, tmpbuf,
-      rsi->optimized_lr);
+      ctxt->plane_w, ctxt->plane_h, ctxt->ss_x, ctxt->ss_y, ctxt->highbd,
+      ctxt->bit_depth, ctxt->data8, ctxt->data_stride, ctxt->dst8,
+      ctxt->dst_stride, tmpbuf, rsi->optimized_lr);
 }
 
 void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
@@ -1082,24 +1076,27 @@ void av1_loop_restoration_filter_frame_init(AV1LrStruct *lr_ctxt,
     }
 
     const int is_uv = plane > 0;
-    const int plane_width = frame->crop_widths[is_uv];
-    const int plane_height = frame->crop_heights[is_uv];
-    FilterFrameCtxt *lr_plane_ctxt = &lr_ctxt->ctxt[plane];
+    int plane_w, plane_h;
+    av1_get_upsampled_plane_size(cm, is_uv, &plane_w, &plane_h);
+    assert(plane_w == frame->crop_widths[is_uv]);
+    assert(plane_h == frame->crop_heights[is_uv]);
 
-    av1_extend_frame(frame->buffers[plane], plane_width, plane_height,
+    av1_extend_frame(frame->buffers[plane], plane_w, plane_h,
                      frame->strides[is_uv], RESTORATION_BORDER,
                      RESTORATION_BORDER, highbd);
 
+    FilterFrameCtxt *lr_plane_ctxt = &lr_ctxt->ctxt[plane];
     lr_plane_ctxt->rsi = rsi;
     lr_plane_ctxt->ss_x = is_uv && seq_params->subsampling_x;
     lr_plane_ctxt->ss_y = is_uv && seq_params->subsampling_y;
+    lr_plane_ctxt->plane_w = plane_w;
+    lr_plane_ctxt->plane_h = plane_h;
     lr_plane_ctxt->highbd = highbd;
     lr_plane_ctxt->bit_depth = bit_depth;
     lr_plane_ctxt->data8 = frame->buffers[plane];
     lr_plane_ctxt->dst8 = lr_ctxt->dst->buffers[plane];
     lr_plane_ctxt->data_stride = frame->strides[is_uv];
     lr_plane_ctxt->dst_stride = lr_ctxt->dst->strides[is_uv];
-    lr_plane_ctxt->plane_rect = av1_get_plane_rect(cm, is_uv);
   }
 }
 
@@ -1114,10 +1111,9 @@ void av1_loop_restoration_copy_planes(AV1LrStruct *loop_rest_ctxt,
   assert(num_planes <= 3);
   for (int plane = 0; plane < num_planes; ++plane) {
     if (cm->rst_info[plane].frame_restoration_type == RESTORE_NONE) continue;
-    PixelRect plane_rect = loop_rest_ctxt->ctxt[plane].plane_rect;
-    copy_funs[plane](loop_rest_ctxt->dst, loop_rest_ctxt->frame,
-                     plane_rect.left, plane_rect.right, plane_rect.top,
-                     plane_rect.bottom);
+    FilterFrameCtxt *lr_plane_ctxt = &loop_rest_ctxt->ctxt[plane];
+    copy_funs[plane](loop_rest_ctxt->dst, loop_rest_ctxt->frame, 0,
+                     lr_plane_ctxt->plane_w, 0, lr_plane_ctxt->plane_h);
   }
 }
 
@@ -1131,8 +1127,7 @@ static void foreach_rest_unit_in_planes(AV1LrStruct *lr_ctxt, AV1_COMMON *cm,
     }
 
     av1_foreach_rest_unit_in_plane(cm, plane, lr_ctxt->on_rest_unit,
-                                   &ctxt[plane], &ctxt[plane].plane_rect,
-                                   cm->rst_tmpbuf, cm->rlbs);
+                                   &ctxt[plane], cm->rst_tmpbuf, cm->rlbs);
   }
 }
 
@@ -1153,21 +1148,20 @@ void av1_loop_restoration_filter_frame(YV12_BUFFER_CONFIG *frame,
 }
 
 void av1_foreach_rest_unit_in_row(
-    RestorationTileLimits *limits, const PixelRect *plane_rect,
+    RestorationTileLimits *limits, int plane_w,
     rest_unit_visitor_t on_rest_unit, int row_number, int unit_size,
     int hnum_rest_units, int vnum_rest_units, int plane, void *priv,
     int32_t *tmpbuf, RestorationLineBuffers *rlbs, sync_read_fn_t on_sync_read,
     sync_write_fn_t on_sync_write, struct AV1LrSyncData *const lr_sync) {
-  const int plane_w = plane_rect->right - plane_rect->left;
   const int ext_size = unit_size * 3 / 2;
   int x0 = 0, j = 0;
   while (x0 < plane_w) {
     int remaining_w = plane_w - x0;
     int w = (remaining_w < ext_size) ? remaining_w : unit_size;
 
-    limits->h_start = plane_rect->left + x0;
-    limits->h_end = plane_rect->left + x0 + w;
-    assert(limits->h_end <= plane_rect->right);
+    limits->h_start = x0;
+    limits->h_end = x0 + w;
+    assert(limits->h_end <= plane_w);
 
     const int unit_idx = row_number * hnum_rest_units + j;
 
@@ -1181,7 +1175,7 @@ void av1_foreach_rest_unit_in_row(
       // bottom-right sync
       on_sync_read(lr_sync, row_number + 2, j, plane);
 
-    on_rest_unit(limits, plane_rect, unit_idx, priv, tmpbuf, rlbs);
+    on_rest_unit(limits, unit_idx, priv, tmpbuf, rlbs);
 
     on_sync_write(lr_sync, row_number, j, hnum_rest_units, plane);
 
@@ -1208,8 +1202,7 @@ void av1_lr_sync_write_dummy(void *const lr_sync, int r, int c,
 
 void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
                                     rest_unit_visitor_t on_rest_unit,
-                                    void *priv, PixelRect *plane_rect,
-                                    int32_t *tmpbuf,
+                                    void *priv, int32_t *tmpbuf,
                                     RestorationLineBuffers *rlbs) {
   const RestorationInfo *rsi = &cm->rst_info[plane];
   const int hnum_rest_units = rsi->horz_units;
@@ -1218,8 +1211,9 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
 
   const int is_uv = plane > 0;
   const int ss_y = is_uv && cm->seq_params->subsampling_y;
-  const int plane_h = plane_rect->bottom - plane_rect->top;
   const int ext_size = unit_size * 3 / 2;
+  int plane_w, plane_h;
+  av1_get_upsampled_plane_size(cm, is_uv, &plane_w, &plane_h);
 
   int y0 = 0, i = 0;
   while (y0 < plane_h) {
@@ -1227,18 +1221,18 @@ void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
     int h = (remaining_h < ext_size) ? remaining_h : unit_size;
 
     RestorationTileLimits limits;
-    limits.v_start = plane_rect->top + y0;
-    limits.v_end = plane_rect->top + y0 + h;
-    assert(limits.v_end <= plane_rect->bottom);
+    limits.v_start = y0;
+    limits.v_end = y0 + h;
+    assert(limits.v_end <= plane_h);
     // Offset upwards to align with the restoration processing stripe
     const int voffset = RESTORATION_UNIT_OFFSET >> ss_y;
-    limits.v_start = AOMMAX(plane_rect->top, limits.v_start - voffset);
-    if (limits.v_end < plane_rect->bottom) limits.v_end -= voffset;
+    limits.v_start = AOMMAX(0, limits.v_start - voffset);
+    if (limits.v_end < plane_h) limits.v_end -= voffset;
 
-    av1_foreach_rest_unit_in_row(
-        &limits, plane_rect, on_rest_unit, i, unit_size, hnum_rest_units,
-        vnum_rest_units, plane, priv, tmpbuf, rlbs, av1_lr_sync_read_dummy,
-        av1_lr_sync_write_dummy, NULL);
+    av1_foreach_rest_unit_in_row(&limits, plane_w, on_rest_unit, i, unit_size,
+                                 hnum_rest_units, vnum_rest_units, plane, priv,
+                                 tmpbuf, rlbs, av1_lr_sync_read_dummy,
+                                 av1_lr_sync_write_dummy, NULL);
 
     y0 += h;
     ++i;
@@ -1418,7 +1412,8 @@ static void save_boundary_lines(const YV12_BUFFER_CONFIG *frame, int use_highbd,
   const int stripe_height = RESTORATION_PROC_UNIT_SIZE >> ss_y;
   const int stripe_off = RESTORATION_UNIT_OFFSET >> ss_y;
 
-  const PixelRect plane_rect = av1_get_plane_rect(cm, is_uv);
+  int plane_w, plane_h;
+  av1_get_upsampled_plane_size(cm, is_uv, &plane_w, &plane_h);
 
   RestorationStripeBoundaries *boundaries = &cm->rst_info[plane].boundaries;
 
@@ -1427,11 +1422,11 @@ static void save_boundary_lines(const YV12_BUFFER_CONFIG *frame, int use_highbd,
   int stripe_idx;
   for (stripe_idx = 0;; ++stripe_idx) {
     const int rel_y0 = AOMMAX(0, stripe_idx * stripe_height - stripe_off);
-    const int y0 = plane_rect.top + rel_y0;
-    if (y0 >= plane_rect.bottom) break;
+    const int y0 = rel_y0;
+    if (y0 >= plane_h) break;
 
     const int rel_y1 = (stripe_idx + 1) * stripe_height - stripe_off;
-    const int y1 = AOMMIN(plane_rect.top + rel_y1, plane_rect.bottom);
+    const int y1 = AOMMIN(rel_y1, plane_h);
 
     // Extend using CDEF pixels at the top and bottom of the frame,
     // and deblocked pixels at internal stripe boundaries
