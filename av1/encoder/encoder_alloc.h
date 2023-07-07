@@ -257,6 +257,13 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
   cpi->td.firstpass_ctx = NULL;
 
+  const int is_highbitdepth = cpi->tf_ctx.is_highbitdepth;
+  // This call ensures that the buffers allocated by tf_alloc_and_reset_data()
+  // in av1_temporal_filter() for single-threaded encode are freed in case an
+  // error is encountered during temporal filtering (due to early termination
+  // tf_dealloc_data() in av1_temporal_filter() would not be invoked).
+  tf_dealloc_data(&cpi->td.tf_data, is_highbitdepth);
+
   av1_free_txb_buf(cpi);
   av1_free_context_buffers(cm);
 
@@ -407,6 +414,9 @@ static AOM_INLINE YV12_BUFFER_CONFIG *realloc_and_scale_source(
 // Deallocate allocated thread_data.
 static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
   PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
+  const int num_tf_workers =
+      AOMMIN(p_mt_info->num_mod_workers[MOD_TF], p_mt_info->num_workers);
+  const int is_highbitdepth = ppi->seq_params.use_highbitdepth;
   for (int t = 1; t < p_mt_info->num_workers; ++t) {
     EncWorkerData *const thread_data = &p_mt_info->tile_thr_data[t];
     thread_data->td = thread_data->original_td;
@@ -434,6 +444,13 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
     thread_data->td->firstpass_ctx = NULL;
     av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
     av1_free_sms_tree(thread_data->td);
+    // This call ensures that the buffers allocated by tf_alloc_and_reset_data()
+    // in prepare_tf_workers() for MT encode are freed in case an error is
+    // encountered during temporal filtering (due to early termination
+    // tf_dealloc_thread_data() in av1_tf_do_filtering_mt() would not be
+    // invoked).
+    if (t < num_tf_workers)
+      tf_dealloc_data(&thread_data->td->tf_data, is_highbitdepth);
     aom_free(thread_data->td);
   }
 }
