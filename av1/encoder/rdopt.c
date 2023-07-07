@@ -2844,7 +2844,7 @@ static int64_t handle_inter_mode(
   const int skip_interp_search_modelrd_calc =
       cpi->oxcf.mode == REALTIME &&
       cm->current_frame.reference_mode == SINGLE_REFERENCE &&
-      (cpi->sf.rt_sf.skip_interp_filter_search ||
+      (cpi->sf.interp_sf.skip_interp_filter_search ||
        cpi->sf.winner_mode_sf.winner_mode_ifs);
 
   for (i = 0; i < MAX_REF_MV_SEARCH - 1; ++i) {

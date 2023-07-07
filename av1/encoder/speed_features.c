@@ -1608,6 +1608,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
   sf->inter_sf.disable_interinter_wedge_var_thresh = 100;
   sf->interp_sf.cb_pred_filter_search = 0;
+  sf->interp_sf.skip_interp_filter_search = 1;
   sf->part_sf.ml_prune_partition = 1;
   sf->part_sf.reuse_prev_rd_results_for_part_ab = 1;
   sf->part_sf.prune_ext_partition_types_search_level = 2;
@@ -1619,7 +1620,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   // Disable Wiener and Self-guided Loop restoration filters.
   sf->lpf_sf.disable_wiener_filter = true;
   sf->lpf_sf.disable_sgr_filter = true;
-  sf->rt_sf.skip_interp_filter_search = 1;
   sf->intra_sf.prune_palette_search_level = 2;
   sf->intra_sf.prune_luma_palette_size_search_level = 2;
   sf->intra_sf.early_term_chroma_palette_size_search = 1;
@@ -1785,6 +1785,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     // This sf is not applicable in non-rd path.
     sf->inter_sf.skip_newmv_in_drl = 0;
 
+    sf->interp_sf.skip_interp_filter_search = 0;
+
     // Disable intra_y_mode_mask pruning since the performance at speed 7 isn't
     // good. May need more study.
     for (int i = 0; i < TX_SIZES; ++i) {
@@ -1810,7 +1812,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.reuse_inter_pred_nonrd = (cpi->oxcf.noise_sensitivity == 0);
 #endif
     sf->rt_sf.short_circuit_low_temp_var = 0;
-    sf->rt_sf.skip_interp_filter_search = 0;
     // For spatial layers, only LAST and GOLDEN are currently used in the SVC
     // for nonrd. The flag use_nonrd_altref_frame can disable GOLDEN in the
     // get_ref_frame_flags() for some patterns, so disable it here for
@@ -2042,6 +2043,7 @@ static AOM_INLINE void init_interp_sf(INTERP_FILTER_SPEED_FEATURES *interp_sf) {
   interp_sf->skip_sharp_interp_filter_search = 0;
   interp_sf->use_fast_interpolation_filter_search = 0;
   interp_sf->use_interp_filter = 0;
+  interp_sf->skip_interp_filter_search = 0;
 }
 
 static AOM_INLINE void init_intra_sf(INTRA_MODE_SPEED_FEATURES *intra_sf) {
@@ -2172,7 +2174,6 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->num_inter_modes_for_tx_search = INT_MAX;
   rt_sf->use_nonrd_filter_search = 0;
   rt_sf->use_simple_rd_model = 0;
-  rt_sf->skip_interp_filter_search = 0;
   rt_sf->hybrid_intra_pickmode = 0;
   rt_sf->source_metrics_sb_nonrd = 0;
   rt_sf->overshoot_detection_cbr = NO_DETECTION;

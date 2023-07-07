@@ -1127,6 +1127,10 @@ typedef struct INTERP_FILTER_SPEED_FEATURES {
 
   // adaptive interp_filter search to allow skip of certain filter types.
   int adaptive_interp_filter_search;
+
+  // Forces interpolation filter to EIGHTTAP_REGULAR and skips interpolation
+  // filter search.
+  int skip_interp_filter_search;
 } INTERP_FILTER_SPEED_FEATURES;
 
 typedef struct INTRA_MODE_SPEED_FEATURES {
@@ -1544,9 +1548,6 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Use simplified RD model for interpolation search and Intra
   int use_simple_rd_model;
-
-  // If set forces interpolation filter to EIGHTTAP_REGULAR
-  int skip_interp_filter_search;
 
   // For nonrd mode: use hybrid intra mode search for intra only frames based on
   // block properties.
