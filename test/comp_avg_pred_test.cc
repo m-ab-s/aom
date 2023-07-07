@@ -165,6 +165,38 @@ INSTANTIATE_TEST_SUITE_P(SSSE3, DistWtdCompAvgTest,
                          ::testing::ValuesIn(dist_wtd_comp_avg_ssse3_tests));
 #endif  // HAVE_SSSE3
 
+#if HAVE_NEON
+const DistWtdCompAvgParam dist_wtd_comp_avg_neon_tests[] = {
+  make_tuple(128, 128, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(128, 64, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(64, 128, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(64, 64, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(64, 32, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(32, 64, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(32, 32, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(32, 16, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(16, 32, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(16, 16, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(16, 8, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(8, 16, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(8, 8, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(8, 4, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(4, 8, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(4, 4, &aom_dist_wtd_comp_avg_pred_neon, -1),
+#if !CONFIG_REALTIME_ONLY
+  make_tuple(64, 16, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(16, 64, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(32, 8, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(8, 32, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(16, 4, &aom_dist_wtd_comp_avg_pred_neon, -1),
+  make_tuple(4, 16, &aom_dist_wtd_comp_avg_pred_neon, -1),
+#endif  // !CONFIG_REALTIME_ONLY
+};
+
+INSTANTIATE_TEST_SUITE_P(NEON, DistWtdCompAvgTest,
+                         ::testing::ValuesIn(dist_wtd_comp_avg_neon_tests));
+#endif  // HAVE_NEON
+
 #if CONFIG_AV1_HIGHBITDEPTH
 TEST_P(AV1HighBDDISTWTDCOMPAVGTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(1));
