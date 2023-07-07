@@ -1237,6 +1237,8 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_DEFAULT] = boosted ? 0 : 4;
     sf->inter_sf.enable_fast_compound_mode_search = 2;
 
+    sf->interp_sf.skip_interp_filter_search = boosted ? 0 : 1;
+
     sf->intra_sf.chroma_intra_pruning_with_hog = 3;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames

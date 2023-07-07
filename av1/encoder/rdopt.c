@@ -2836,17 +2836,6 @@ static int64_t handle_inter_mode(
   const int base_rate =
       args->ref_frame_cost + args->single_comp_cost + ref_mv_cost;
 
-  // As per the experiments, in real-time preset impact of model rd based
-  // breakouts is less on encoding time if the following conditions are true.
-  //    (1) compound mode is disabled
-  //    (2) interpolation filter search is disabled
-  // TODO(any): Check the impact of model rd based breakouts in other presets
-  const int skip_interp_search_modelrd_calc =
-      cpi->oxcf.mode == REALTIME &&
-      cm->current_frame.reference_mode == SINGLE_REFERENCE &&
-      (cpi->sf.interp_sf.skip_interp_filter_search ||
-       cpi->sf.winner_mode_sf.winner_mode_ifs);
-
   for (i = 0; i < MAX_REF_MV_SEARCH - 1; ++i) {
     save_mv[i][0].as_int = INVALID_MV;
     save_mv[i][1].as_int = INVALID_MV;
@@ -2996,7 +2985,7 @@ static int64_t handle_inter_mode(
       if (not_best_mode) continue;
     }
 
-    if (!skip_interp_search_modelrd_calc) {
+    if (!args->skip_ifs) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
       start_timing(cpi, interpolation_filter_search_time);
 #endif
@@ -5000,8 +4989,16 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
   *(args->skip_motion_mode) = (ret == 2);
 
   // We've reached the first compound prediction mode, get stats from the
-  // single reference predictors to help with pruning
-  if (sf->inter_sf.prune_comp_search_by_single_result > 0 && comp_pred &&
+  // single reference predictors to help with pruning.
+  // Disable this pruning logic if interpolation filter search was skipped for
+  // single prediction modes as it can result in aggressive pruning of compound
+  // prediction modes due to the absence of modelled_rd populated by
+  // av1_interpolation_filter_search().
+  // TODO(Remya): Check the impact of the sf
+  // 'prune_comp_search_by_single_result' if compound prediction modes are
+  // enabled in future for REALTIME encode.
+  if (!sf->interp_sf.skip_interp_filter_search &&
+      sf->inter_sf.prune_comp_search_by_single_result > 0 && comp_pred &&
       args->reach_first_comp_mode == 0) {
     analyze_single_states(cpi, args->search_state);
     args->reach_first_comp_mode = 1;
@@ -5019,7 +5016,8 @@ static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
 
   // Skip this compound mode based on the RD results from the single prediction
   // modes
-  if (sf->inter_sf.prune_comp_search_by_single_result > 0 && comp_pred) {
+  if (!sf->interp_sf.skip_interp_filter_search &&
+      sf->inter_sf.prune_comp_search_by_single_result > 0 && comp_pred) {
     if (compound_skip_by_single_states(cpi, args->search_state, this_mode,
                                        ref_frame, second_ref_frame, x))
       return 1;
@@ -5670,6 +5668,20 @@ static AOM_INLINE void skip_intra_modes_in_interframe(
   }
 }
 
+static AOM_INLINE bool skip_interp_filter_search(const AV1_COMP *cpi,
+                                                 int is_single_pred) {
+  const MODE encoding_mode = cpi->oxcf.mode;
+  if (encoding_mode == REALTIME) {
+    return (cpi->common.current_frame.reference_mode == SINGLE_REFERENCE &&
+            (cpi->sf.interp_sf.skip_interp_filter_search ||
+             cpi->sf.winner_mode_sf.winner_mode_ifs));
+  } else if (encoding_mode == GOOD) {
+    // Skip interpolation filter search for single prediction modes.
+    return (cpi->sf.interp_sf.skip_interp_filter_search && is_single_pred);
+  }
+  return false;
+}
+
 static AOM_INLINE int get_block_temp_var(const AV1_COMP *cpi,
                                          const MACROBLOCK *x,
                                          BLOCK_SIZE bsize) {
@@ -5732,6 +5744,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
                                INT_MAX,
                                search_state.simple_rd,
                                0,
+                               false,
                                interintra_modes,
                                { { { 0 }, { { 0 } }, { 0 }, 0, 0, 0, 0 } },
                                { { 0, 0 } },
@@ -5965,6 +5978,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     args.single_comp_cost = real_compmode_cost;
     args.ref_frame_cost = ref_frame_cost;
     args.best_pred_sse = search_state.best_pred_sse;
+    args.skip_ifs = skip_interp_filter_search(cpi, is_single_pred);
 
     int64_t skip_rd[2] = { search_state.best_skip_rd[0],
                            search_state.best_skip_rd[1] };
@@ -5981,7 +5995,8 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     end_timing(cpi, handle_inter_mode_time);
 #endif
     if (current_frame->reference_mode != SINGLE_REFERENCE) {
-      if (sf->inter_sf.prune_comp_search_by_single_result > 0 &&
+      if (!args.skip_ifs &&
+          sf->inter_sf.prune_comp_search_by_single_result > 0 &&
           is_inter_singleref_mode(this_mode)) {
         collect_single_states(x, &search_state, mbmi);
       }
