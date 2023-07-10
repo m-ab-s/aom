@@ -38,7 +38,7 @@ static int arm_cpu_env_mask(void) {
   return env && *env ? (int)strtol(env, NULL, 0) : ~0;
 }
 
-#if !CONFIG_RUNTIME_CPU_DETECT || defined(__APPLE__)
+#if !CONFIG_RUNTIME_CPU_DETECT
 
 int aom_arm_cpu_caps(void) {
   /* This function should actually be a no-op. There is no way to adjust any of
@@ -56,7 +56,47 @@ int aom_arm_cpu_caps(void) {
   return flags & mask;
 }
 
-#elif defined(_MSC_VER) /* end !CONFIG_RUNTIME_CPU_DETECT || __APPLE__ */
+#elif defined(__APPLE__) && AOM_ARCH_AARCH64  // end !CONFIG_RUNTIME_CPU_DETECT
+#include <stdbool.h>
+#include <sys/sysctl.h>
+
+// sysctlbyname() parameter documentation for instruction set characteristics:
+// https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics
+static INLINE bool have_feature(const char *feature) {
+  int64_t feature_present = 0;
+  size_t size = sizeof(feature_present);
+
+  if (sysctlbyname(feature, &feature_present, &size, NULL, 0) != 0) {
+    return false;
+  }
+
+  return feature_present;
+}
+
+int aom_arm_cpu_caps(void) {
+  int flags;
+  int mask;
+  if (!arm_cpu_env_flags(&flags)) {
+    return flags;
+  }
+  mask = arm_cpu_env_mask();
+
+#if HAVE_NEON
+  flags |= HAS_NEON;
+#endif  // HAVE_NEON
+#if HAVE_ARM_CRC32
+  if (have_feature("hw.optional.armv8_crc32")) flags |= HAS_ARM_CRC32;
+#endif  // HAVE_ARM_CRC32
+#if HAVE_NEON_DOTPROD
+  if (have_feature("hw.optional.arm.FEAT_DotProd")) flags |= HAS_NEON_DOTPROD;
+#endif  // HAVE_NEON_DOTPROD
+#if HAVE_NEON_I8MM
+  if (have_feature("hw.optional.arm.FEAT_I8MM")) flags |= HAS_NEON_I8MM;
+#endif  // HAVE_NEON_I8MM
+  return flags & mask;
+}
+
+#elif defined(_MSC_VER)  // end __APPLE__ && AOM_ARCH_AARCH64
 #if HAVE_NEON && !AOM_ARCH_AARCH64
 /*For GetExceptionCode() and EXCEPTION_ILLEGAL_INSTRUCTION.*/
 #undef WIN32_LEAN_AND_MEAN
