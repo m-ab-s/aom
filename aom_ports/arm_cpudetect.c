@@ -124,8 +124,8 @@ int aom_arm_cpu_caps(void) {
     return flags;
   }
   int mask = arm_cpu_env_mask();
-#if AOM_ARCH_AARCH64
   unsigned long hwcap = getauxval(AT_HWCAP);
+#if AOM_ARCH_AARCH64
 #if HAVE_NEON
   flags |= HAS_NEON;  // Neon is mandatory in Armv8.0-A.
 #endif  // HAVE_NEON
@@ -133,7 +133,9 @@ int aom_arm_cpu_caps(void) {
   if (hwcap & HWCAP_CRC32) flags |= HAS_ARM_CRC32;
 #endif  // HAVE_ARM_CRC32
 #else   // !AOM_ARCH_AARCH64
-  // No runtime feature detection for Armv7 on Linux (yet).
+#if HAVE_NEON
+  if (hwcap & HWCAP_ARM_NEON) flags |= HAS_NEON;
+#endif  // HAVE_NEON
 #endif  // AOM_ARCH_AARCH64
   return flags & mask;
 }
