@@ -43,6 +43,7 @@
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/mcomp.h"
 #include "av1/encoder/palette.h"
+#include "av1/encoder/pickrst.h"
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/tokenize.h"
 
@@ -64,7 +65,7 @@ static INLINE void write_uniform(aom_writer *w, int n, int v) {
 
 #if !CONFIG_REALTIME_ONLY
 static AOM_INLINE void loop_restoration_write_sb_coeffs(
-    const AV1_COMMON *const cm, MACROBLOCKD *xd, const RestorationUnitInfo *rui,
+    const AV1_COMMON *const cm, MACROBLOCKD *xd, int runit_idx,
     aom_writer *const w, int plane, FRAME_COUNTS *counts);
 #endif
 
@@ -1627,9 +1628,8 @@ static AOM_INLINE void write_modes_sb(
       for (int rrow = rrow0; rrow < rrow1; ++rrow) {
         for (int rcol = rcol0; rcol < rcol1; ++rcol) {
           const int runit_idx = rcol + rrow * rstride;
-          const RestorationUnitInfo *rui =
-              &cm->rst_info[plane].unit_info[runit_idx];
-          loop_restoration_write_sb_coeffs(cm, xd, rui, w, plane, td->counts);
+          loop_restoration_write_sb_coeffs(cm, xd, runit_idx, w, plane,
+                                           td->counts);
         }
       }
     }
@@ -1913,8 +1913,9 @@ static AOM_INLINE void write_sgrproj_filter(const SgrprojInfo *sgrproj_info,
 }
 
 static AOM_INLINE void loop_restoration_write_sb_coeffs(
-    const AV1_COMMON *const cm, MACROBLOCKD *xd, const RestorationUnitInfo *rui,
+    const AV1_COMMON *const cm, MACROBLOCKD *xd, int runit_idx,
     aom_writer *const w, int plane, FRAME_COUNTS *counts) {
+  const RestorationUnitInfo *rui = &cm->rst_info[plane].unit_info[runit_idx];
   const RestorationInfo *rsi = cm->rst_info + plane;
   RestorationType frame_rtype = rsi->frame_restoration_type;
   assert(frame_rtype != RESTORE_NONE);
@@ -1935,9 +1936,21 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
 #endif
     switch (unit_rtype) {
       case RESTORE_WIENER:
+#if DEBUG_LR_COSTING
+        assert(!memcmp(
+            ref_wiener_info,
+            &lr_ref_params[RESTORE_SWITCHABLE][plane][runit_idx].wiener_info,
+            sizeof(*ref_wiener_info)));
+#endif
         write_wiener_filter(wiener_win, &rui->wiener_info, ref_wiener_info, w);
         break;
       case RESTORE_SGRPROJ:
+#if DEBUG_LR_COSTING
+        assert(!memcmp(&ref_sgrproj_info->xqd,
+                       &lr_ref_params[RESTORE_SWITCHABLE][plane][runit_idx]
+                            .sgrproj_info.xqd,
+                       sizeof(ref_sgrproj_info->xqd)));
+#endif
         write_sgrproj_filter(&rui->sgrproj_info, ref_sgrproj_info, w);
         break;
       default: assert(unit_rtype == RESTORE_NONE); break;
@@ -1949,6 +1962,12 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     ++counts->wiener_restore[unit_rtype != RESTORE_NONE];
 #endif
     if (unit_rtype != RESTORE_NONE) {
+#if DEBUG_LR_COSTING
+      assert(
+          !memcmp(ref_wiener_info,
+                  &lr_ref_params[RESTORE_WIENER][plane][runit_idx].wiener_info,
+                  sizeof(*ref_wiener_info)));
+#endif
       write_wiener_filter(wiener_win, &rui->wiener_info, ref_wiener_info, w);
     }
   } else if (frame_rtype == RESTORE_SGRPROJ) {
@@ -1958,6 +1977,12 @@ static AOM_INLINE void loop_restoration_write_sb_coeffs(
     ++counts->sgrproj_restore[unit_rtype != RESTORE_NONE];
 #endif
     if (unit_rtype != RESTORE_NONE) {
+#if DEBUG_LR_COSTING
+      assert(!memcmp(
+          &ref_sgrproj_info->xqd,
+          &lr_ref_params[RESTORE_SGRPROJ][plane][runit_idx].sgrproj_info.xqd,
+          sizeof(ref_sgrproj_info->xqd)));
+#endif
       write_sgrproj_filter(&rui->sgrproj_info, ref_sgrproj_info, w);
     }
   }

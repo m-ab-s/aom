@@ -52,6 +52,11 @@ static const int sgproj_ep_grp2_3[SGRPROJ_EP_GRP2_3_SEARCH_COUNT][14] = {
   { 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15 }
 };
 
+#if DEBUG_LR_COSTING
+RestorationUnitInfo lr_ref_params[RESTORE_TYPES][MAX_MB_PLANE]
+                                 [MAX_LR_UNITS_W * MAX_LR_UNITS_H];
+#endif  // DEBUG_LR_COSTING
+
 typedef int64_t (*sse_extractor_type)(const YV12_BUFFER_CONFIG *a,
                                       const YV12_BUFFER_CONFIG *b);
 typedef int64_t (*sse_part_extractor_type)(const YV12_BUFFER_CONFIG *a,
@@ -934,6 +939,12 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
       (cost_sgr < cost_none) ? RESTORE_SGRPROJ : RESTORE_NONE;
   rusi->best_rtype[RESTORE_SGRPROJ - 1] = rtype;
 
+#if DEBUG_LR_COSTING
+  // Store ref params for later checking
+  lr_ref_params[RESTORE_SGRPROJ][rsc->plane][rest_unit_idx].sgrproj_info =
+      rsc->sgrproj;
+#endif  // DEBUG_LR_COSTING
+
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_sgr < cost_none) ? bits_sgr : bits_none;
   if (cost_sgr < cost_none) rsc->sgrproj = rusi->sgrproj;
@@ -1694,6 +1705,12 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
     rusi->skip_sgr_eval = rusi->best_rtype[RESTORE_WIENER - 1] == RESTORE_NONE;
   }
 
+#if DEBUG_LR_COSTING
+  // Store ref params for later checking
+  lr_ref_params[RESTORE_WIENER][rsc->plane][rest_unit_idx].wiener_info =
+      rsc->wiener;
+#endif  // DEBUG_LR_COSTING
+
   rsc->sse += rusi->sse[rtype];
   rsc->bits += (cost_wiener < cost_none) ? bits_wiener : bits_none;
   if (cost_wiener < cost_none) rsc->wiener = rusi->wiener;
@@ -1771,6 +1788,14 @@ static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
   }
 
   rusi->best_rtype[RESTORE_SWITCHABLE - 1] = best_rtype;
+
+#if DEBUG_LR_COSTING
+  // Store ref params for later checking
+  lr_ref_params[RESTORE_SWITCHABLE][rsc->plane][rest_unit_idx].wiener_info =
+      rsc->wiener;
+  lr_ref_params[RESTORE_SWITCHABLE][rsc->plane][rest_unit_idx].sgrproj_info =
+      rsc->sgrproj;
+#endif  // DEBUG_LR_COSTING
 
   rsc->sse += rusi->sse[best_rtype];
   rsc->bits += best_bits;
