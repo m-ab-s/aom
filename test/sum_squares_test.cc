@@ -20,6 +20,7 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "aom_ports/mem.h"
+#include "av1/common/common_data.h"
 #include "test/acm_random.h"
 #include "test/register_state_check.h"
 #include "test/util.h"
@@ -442,21 +443,20 @@ typedef void (*sse_sum_func)(const int16_t *data, int stride, int bw, int bh,
                              int *x_sum, int64_t *x2_sum);
 typedef libaom_test::FuncParam<sse_sum_func> TestSSE_SumFuncs;
 
-typedef std::tuple<TestSSE_SumFuncs, int> SSE_SumTestParam;
+typedef std::tuple<TestSSE_SumFuncs, TX_SIZE> SSE_SumTestParam;
 
 class SSE_Sum_Test : public ::testing::TestWithParam<SSE_SumTestParam> {
  public:
   virtual ~SSE_Sum_Test() {}
   virtual void SetUp() {
     params_ = GET_PARAM(0);
-    width_ = GET_PARAM(1);
     rnd_.Reset(ACMRandom::DeterministicSeed());
     src_ = reinterpret_cast<int16_t *>(aom_memalign(32, 256 * 256 * 2));
     ASSERT_NE(src_, nullptr);
   }
 
   virtual void TearDown() { aom_free(src_); }
-  void RunTest(int isRandom, int width, int height, int run_times);
+  void RunTest(int isRandom, int tx_size, int run_times);
 
   void GenRandomData(int width, int height, int stride) {
     const int msb = 11;  // Up to 12 bit input
@@ -478,15 +478,16 @@ class SSE_Sum_Test : public ::testing::TestWithParam<SSE_SumTestParam> {
   }
 
  protected:
-  int width_;
   TestSSE_SumFuncs params_;
   int16_t *src_;
   ACMRandom rnd_;
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SSE_Sum_Test);
 
-void SSE_Sum_Test::RunTest(int isRandom, int width, int height, int run_times) {
+void SSE_Sum_Test::RunTest(int isRandom, int tx_size, int run_times) {
   aom_usec_timer ref_timer, test_timer;
+  int width = tx_size_wide[tx_size];
+  int height = tx_size_high[tx_size];
   for (int k = 0; k < 3; k++) {
     int stride = 4 << rnd_(7);  // Up to 256 stride
     while (stride < width) {    // Make sure it's valid
@@ -547,35 +548,35 @@ void SSE_Sum_Test::RunTest(int isRandom, int width, int height, int run_times) {
 }
 
 TEST_P(SSE_Sum_Test, OperationCheck) {
-  for (int height = 4; height <= 64; height = height * 2) {
-    RunTest(1, width_, height, 1);  // GenRandomData
-  }
+  RunTest(1, GET_PARAM(1), 1);  // GenRandomData
 }
 
-TEST_P(SSE_Sum_Test, ExtremeValues) {
-  for (int height = 4; height <= 64; height = height * 2) {
-    RunTest(0, width_, height, 1);
-  }
-}
+TEST_P(SSE_Sum_Test, ExtremeValues) { RunTest(0, GET_PARAM(1), 1); }
 
-TEST_P(SSE_Sum_Test, DISABLED_Speed) {
-  for (int height = 4; height <= 64; height = height * 2) {
-    RunTest(1, width_, height, 10000);
-  }
-}
+TEST_P(SSE_Sum_Test, DISABLED_Speed) { RunTest(1, GET_PARAM(1), 10000); }
+
+#if HAVE_SSE2 || HAVE_AVX2
+const TX_SIZE kValidBlockSize[] = { TX_4X4,   TX_8X8,   TX_16X16, TX_32X32,
+                                    TX_64X64, TX_4X8,   TX_8X4,   TX_8X16,
+                                    TX_16X8,  TX_16X32, TX_32X16, TX_64X32,
+                                    TX_32X64, TX_4X16,  TX_16X4,  TX_8X32,
+                                    TX_32X8,  TX_16X64, TX_64X16 };
+#endif
 
 #if HAVE_SSE2
 TestSSE_SumFuncs sse_sum_sse2[] = { TestSSE_SumFuncs(
     &aom_get_blk_sse_sum_c, &aom_get_blk_sse_sum_sse2) };
 INSTANTIATE_TEST_SUITE_P(SSE2, SSE_Sum_Test,
-                         Combine(ValuesIn(sse_sum_sse2), Range(4, 65, 4)));
+                         Combine(ValuesIn(sse_sum_sse2),
+                                 ValuesIn(kValidBlockSize)));
 #endif  // HAVE_SSE2
 
 #if HAVE_AVX2
 TestSSE_SumFuncs sse_sum_avx2[] = { TestSSE_SumFuncs(
     &aom_get_blk_sse_sum_c, &aom_get_blk_sse_sum_avx2) };
 INSTANTIATE_TEST_SUITE_P(AVX2, SSE_Sum_Test,
-                         Combine(ValuesIn(sse_sum_avx2), Range(4, 65, 4)));
+                         Combine(ValuesIn(sse_sum_avx2),
+                                 ValuesIn(kValidBlockSize)));
 #endif  // HAVE_AVX2
 
 //////////////////////////////////////////////////////////////////////////////
