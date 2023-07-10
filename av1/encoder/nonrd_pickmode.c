@@ -2416,8 +2416,8 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
            x->content_state_sb.source_sad_nonrd == kZeroSad) ||
           (search_state->frame_mv[*this_mode][*ref_frame].as_int == 0 &&
            x->block_is_zero_sad == 0 &&
-           ((x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] == 0 &&
-             x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)] == 0) ||
+           ((x->color_sensitivity_sb[COLOR_SENS_IDX(AOM_PLANE_U)] == 0 &&
+             x->color_sensitivity_sb[COLOR_SENS_IDX(AOM_PLANE_V)] == 0) ||
             cpi->rc.high_source_sad) &&
            x->source_variance == 0))
         return true;
@@ -2483,9 +2483,9 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
 #if CONFIG_AV1_TEMPORAL_DENOISING
     int64_t *zero_last_cost_orig, int denoise_svc_pickmode,
 #endif
-    int idx, int force_mv_inter_layer, int is_single_pred, int skip_pred_mv,
-    int gf_temporal_ref, int use_model_yrd_large, int filter_search_enabled_blk,
-    BLOCK_SIZE bsize, PREDICTION_MODE this_mode, InterpFilter filt_select,
+    int idx, int force_mv_inter_layer, int is_single_pred, int gf_temporal_ref,
+    int use_model_yrd_large, int filter_search_enabled_blk, BLOCK_SIZE bsize,
+    PREDICTION_MODE this_mode, InterpFilter filt_select,
     int cb_pred_filter_search, int reuse_inter_pred) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
@@ -2560,8 +2560,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
   if (this_mode == NEWMV && cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       cpi->svc.spatial_layer_id == 0 && rt_sf->source_metrics_sb_nonrd) {
     if (this_mv->as_int == 0 && x->block_is_zero_sad == 0 &&
-        ((x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] == 0 &&
-          x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)] == 0) ||
+        ((x->color_sensitivity_sb[COLOR_SENS_IDX(AOM_PLANE_U)] == 0 &&
+          x->color_sensitivity_sb[COLOR_SENS_IDX(AOM_PLANE_V)] == 0) ||
          cpi->rc.high_source_sad) &&
         x->source_variance == 0)
       return true;
@@ -2581,32 +2581,6 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
       *this_mode_pred = &tmp_buffer[get_pred_buffer(tmp_buffer, 3)];
       pd->dst.buf = (*this_mode_pred)->data;
       pd->dst.stride = bw;
-    }
-  }
-
-  if (idx == 0 && !skip_pred_mv) {
-    // Set color sensitivity on first tested mode only.
-    // Use y-sad already computed in find_predictors: take the sad with motion
-    // vector closest to 0; the uv-sad computed below in set_color_sensitivity
-    // is for zeromv.
-    // For screen: first check if golden reference is being used, if so,
-    // force color_sensitivity on if the color sensitivity for sb_g is on.
-    if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-        search_state->use_ref_frame_mask[GOLDEN_FRAME]) {
-      if (x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_U)] == 1)
-        x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] = 1;
-      if (x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_V)] == 1)
-        x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)] = 1;
-    } else {
-      int y_sad = x->pred_mv0_sad[LAST_FRAME];
-      if (x->pred_mv1_sad[LAST_FRAME] != INT_MAX &&
-          (abs(search_state->frame_mv[NEARMV][LAST_FRAME].as_mv.col) +
-           abs(search_state->frame_mv[NEARMV][LAST_FRAME].as_mv.row)) <
-              (abs(search_state->frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
-               abs(search_state->frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
-        y_sad = x->pred_mv1_sad[LAST_FRAME];
-      set_color_sensitivity(cpi, x, bsize, y_sad, x->source_variance,
-                            search_state->yv12_mb[LAST_FRAME]);
     }
   }
 
@@ -3234,6 +3208,32 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     int is_single_pred = 1;
     PREDICTION_MODE this_mode;
 
+    if (idx == 0 && !skip_pred_mv) {
+      // Set color sensitivity on first tested mode only.
+      // Use y-sad already computed in find_predictors: take the sad with motion
+      // vector closest to 0; the uv-sad computed below in set_color_sensitivity
+      // is for zeromv.
+      // For screen: first check if golden reference is being used, if so,
+      // force color_sensitivity on if the color sensitivity for sb_g is on.
+      if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+          search_state.use_ref_frame_mask[GOLDEN_FRAME]) {
+        if (x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_U)] == 1)
+          x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] = 1;
+        if (x->color_sensitivity_sb_g[COLOR_SENS_IDX(AOM_PLANE_V)] == 1)
+          x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)] = 1;
+      } else if (search_state.use_ref_frame_mask[LAST_FRAME]) {
+        int y_sad = x->pred_mv0_sad[LAST_FRAME];
+        if (x->pred_mv1_sad[LAST_FRAME] != INT_MAX &&
+            (abs(search_state.frame_mv[NEARMV][LAST_FRAME].as_mv.col) +
+             abs(search_state.frame_mv[NEARMV][LAST_FRAME].as_mv.row)) <
+                (abs(search_state.frame_mv[NEARESTMV][LAST_FRAME].as_mv.col) +
+                 abs(search_state.frame_mv[NEARESTMV][LAST_FRAME].as_mv.row)))
+          y_sad = x->pred_mv1_sad[LAST_FRAME];
+        set_color_sensitivity(cpi, x, bsize, y_sad, x->source_variance,
+                              search_state.yv12_mb[LAST_FRAME]);
+      }
+    }
+
     // Check the inter mode can be skipped based on mode statistics and speed
     // features settings.
     if (skip_inter_mode_nonrd(cpi, x, &search_state, &thresh_sad_pred,
@@ -3263,10 +3263,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #if CONFIG_AV1_TEMPORAL_DENOISING
             &zero_last_cost_orig, denoise_svc_pickmode,
 #endif
-            idx, force_mv_inter_layer, is_single_pred, skip_pred_mv,
-            gf_temporal_ref, use_model_yrd_large, filter_search_enabled_blk,
-            bsize, this_mode, filt_select, cb_pred_filter_search,
-            reuse_inter_pred)) {
+            idx, force_mv_inter_layer, is_single_pred, gf_temporal_ref,
+            use_model_yrd_large, filter_search_enabled_blk, bsize, this_mode,
+            filt_select, cb_pred_filter_search, reuse_inter_pred)) {
       break;
     }
   }
