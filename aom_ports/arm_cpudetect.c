@@ -97,14 +97,12 @@ int aom_arm_cpu_caps(void) {
 }
 
 #elif defined(_MSC_VER)  // end __APPLE__ && AOM_ARCH_AARCH64
-#if HAVE_NEON && !AOM_ARCH_AARCH64
-/*For GetExceptionCode() and EXCEPTION_ILLEGAL_INSTRUCTION.*/
 #undef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #undef WIN32_EXTRA_LEAN
 #define WIN32_EXTRA_LEAN
+
 #include <windows.h>
-#endif  // HAVE_NEON && !AOM_ARCH_AARCH64
 
 int aom_arm_cpu_caps(void) {
   int flags;
@@ -113,26 +111,45 @@ int aom_arm_cpu_caps(void) {
     return flags;
   }
   mask = arm_cpu_env_mask();
+
 #if AOM_ARCH_AARCH64
-  return HAS_NEON & mask;
-#else
-/* MSVC has no inline __asm support for ARM, but it does let you __emit
- *  instructions via their assembled hex code.
- * All of these instructions should be essentially nops.
- */
+// IsProcessorFeaturePresent() parameter documentation:
+// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-isprocessorfeaturepresent#parameters
 #if HAVE_NEON
+  flags |= HAS_NEON;  // Neon is mandatory in Armv8.0-A.
+#endif  // HAVE_NEON
+#if HAVE_ARM_CRC32
+  if (IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE)) {
+    flags |= HAS_ARM_CRC32;
+  }
+#endif  // HAVE_ARM_CRC32
+#if HAVE_NEON_DOTPROD
+// Support for PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE was added in Windows SDK
+// 20348, supported by Windows 11 and Windows Server 2022.
+#if defined(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE)
+  if (IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE)) {
+    flags |= HAS_NEON_DOTPROD;
+  }
+#endif  // defined(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE)
+#endif  // HAVE_NEON_DOTPROD
+// No I8MM feature detection available on Windows at time of writing.
+#else   // !AOM_ARCH_AARCH64
+#if HAVE_NEON
+  // MSVC has no inline __asm support for Arm, but it does let you __emit
+  // instructions via their assembled hex code.
+  // All of these instructions should be essentially nops.
   if (mask & HAS_NEON) {
     __try {
-      /*VORR q0,q0,q0*/
+      // VORR q0,q0,q0
       __emit(0xF2200150);
       flags |= HAS_NEON;
     } __except (GetExceptionCode() == EXCEPTION_ILLEGAL_INSTRUCTION) {
-      /*Ignore exception.*/
+      // Ignore exception.
     }
   }
-#endif  /* HAVE_NEON */
-  return flags & mask;
+#endif  // HAVE_NEON
 #endif  // AOM_ARCH_AARCH64
+  return flags & mask;
 }
 
 #elif defined(__ANDROID__) && (__ANDROID_API__ < 18)  // end _MSC_VER
