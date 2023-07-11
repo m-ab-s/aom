@@ -94,13 +94,13 @@ void aom_upsampled_pred_neon(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   } else if (!subpel_y_q3) {
     const int16_t *const filter_x =
         av1_get_interp_filter_subpel_kernel(filter_params, subpel_x_q3 << 1);
-    aom_convolve8_horiz_neon(ref, ref_stride, comp_pred, width, filter_x, 16,
-                             NULL, -1, width, height);
+    aom_convolve8_horiz(ref, ref_stride, comp_pred, width, filter_x, 16, NULL,
+                        -1, width, height);
   } else if (!subpel_x_q3) {
     const int16_t *const filter_y =
         av1_get_interp_filter_subpel_kernel(filter_params, subpel_y_q3 << 1);
-    aom_convolve8_vert_neon(ref, ref_stride, comp_pred, width, NULL, -1,
-                            filter_y, 16, width, height);
+    aom_convolve8_vert(ref, ref_stride, comp_pred, width, NULL, -1, filter_y,
+                       16, width, height);
   } else {
     DECLARE_ALIGNED(16, uint8_t,
                     im_block[((MAX_SB_SIZE * 2 + 16) + 16) * MAX_SB_SIZE]);
@@ -117,11 +117,10 @@ void aom_upsampled_pred_neon(MACROBLOCKD *xd, const AV1_COMMON *const cm,
     const int im_vert_offset = im_stride * ((filter_params->taps >> 1) - 1);
 
     assert(im_height <= (MAX_SB_SIZE * 2 + 16) + 16);
-    aom_convolve8_horiz_neon(ref - ref_vert_offset, ref_stride, im_block,
-                             MAX_SB_SIZE, filter_x, 16, NULL, -1, width,
-                             im_height);
-    aom_convolve8_vert_neon(im_block + im_vert_offset, MAX_SB_SIZE, comp_pred,
-                            width, NULL, -1, filter_y, 16, width, height);
+    aom_convolve8_horiz(ref - ref_vert_offset, ref_stride, im_block,
+                        MAX_SB_SIZE, filter_x, 16, NULL, -1, width, im_height);
+    aom_convolve8_vert(im_block + im_vert_offset, MAX_SB_SIZE, comp_pred, width,
+                       NULL, -1, filter_y, 16, width, height);
   }
 }
 
