@@ -23,6 +23,10 @@ extern "C" {
 #define HAS_NEON (1 << 0)
 // Armv8.0-A optional CRC32 instructions, mandatory from Armv8.1-A.
 #define HAS_ARM_CRC32 (1 << 1)
+// Armv8.2-A optional Neon dot-product instructions, mandatory from Armv8.4-A.
+#define HAS_NEON_DOTPROD (1 << 2)
+// Armv8.2-A optional Neon i8mm instructions, mandatory from Armv8.6-A.
+#define HAS_NEON_I8MM (1 << 3)
 
 int aom_arm_cpu_caps(void);
 

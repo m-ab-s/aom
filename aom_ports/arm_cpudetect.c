@@ -118,6 +118,13 @@ int aom_arm_cpu_caps(void) {
 
 #include <sys/auxv.h>
 
+// Define hwcap values ourselves: building with an old auxv header where these
+// hwcap values are not defined should not prevent features from being enabled.
+#define AOM_AARCH32_HWCAP_NEON (1 << 12)
+#define AOM_AARCH64_HWCAP_CRC32 (1 << 7)
+#define AOM_AARCH64_HWCAP_ASIMDDP (1 << 20)
+#define AOM_AARCH64_HWCAP2_I8MM (1 << 13)
+
 int aom_arm_cpu_caps(void) {
   int flags;
   if (!arm_cpu_env_flags(&flags)) {
@@ -126,15 +133,22 @@ int aom_arm_cpu_caps(void) {
   int mask = arm_cpu_env_mask();
   unsigned long hwcap = getauxval(AT_HWCAP);
 #if AOM_ARCH_AARCH64
+  unsigned long hwcap2 = getauxval(AT_HWCAP2);
 #if HAVE_NEON
   flags |= HAS_NEON;  // Neon is mandatory in Armv8.0-A.
 #endif  // HAVE_NEON
 #if HAVE_ARM_CRC32
-  if (hwcap & HWCAP_CRC32) flags |= HAS_ARM_CRC32;
+  if (hwcap & AOM_AARCH64_HWCAP_CRC32) flags |= HAS_ARM_CRC32;
 #endif  // HAVE_ARM_CRC32
+#if HAVE_NEON_DOTPROD
+  if (hwcap & AOM_AARCH64_HWCAP_ASIMDDP) flags |= HAS_NEON_DOTPROD;
+#endif  // HAVE_NEON_DOTPROD
+#if HAVE_NEON_I8MM
+  if (hwcap2 & AOM_AARCH64_HWCAP2_I8MM) flags |= HAS_NEON_I8MM;
+#endif  // HAVE_NEON_I8MM
 #else   // !AOM_ARCH_AARCH64
 #if HAVE_NEON
-  if (hwcap & HWCAP_ARM_NEON) flags |= HAS_NEON;
+  if (hwcap & AOM_AARCH32_HWCAP_NEON) flags |= HAS_NEON;
 #endif  // HAVE_NEON
 #endif  // AOM_ARCH_AARCH64
   return flags & mask;

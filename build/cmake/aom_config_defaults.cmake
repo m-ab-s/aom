@@ -32,6 +32,10 @@ set_aom_detect_var(AOM_ARCH_X86_64 0 "Enables X86_64 architecture.")
 # Arm/AArch64 feature flags.
 set_aom_detect_var(HAVE_NEON 0 "Enables Neon intrinsics optimizations.")
 set_aom_detect_var(HAVE_ARM_CRC32 0 "Enables Arm CRC32 optimizations.")
+set_aom_detect_var(HAVE_NEON_DOTPROD 0
+                   "Enables Armv8.2-A Neon dotprod intrinsics optimizations.")
+set_aom_detect_var(HAVE_NEON_I8MM 0
+                   "Enables Armv8.2-A Neon i8mm intrinsics optimizations.")
 
 # PPC feature flags.
 set_aom_detect_var(HAVE_VSX 0 "Enables VSX optimizations.")
@@ -193,6 +197,12 @@ set_aom_option_var(ENABLE_WERROR "Converts warnings to errors at compile time."
 set_aom_option_var(ENABLE_NEON
                    "Enables Neon optimizations on Arm/AArch64 targets." ON)
 set_aom_option_var(ENABLE_ARM_CRC32 "Enables Arm CRC32 optimizations." ON)
+set_aom_option_var(
+  ENABLE_NEON_DOTPROD
+  "Enables Armv8.2-A Neon dotprod optimizations on AArch64 targets." ON)
+set_aom_option_var(
+  ENABLE_NEON_I8MM
+  "Enables Armv8.2-A Neon i8mm optimizations on AArch64 targets." ON)
 
 # VSX intrinsics flags.
 set_aom_option_var(ENABLE_VSX "Enables VSX optimizations on PowerPC targets."
