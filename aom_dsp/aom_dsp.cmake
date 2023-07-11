@@ -304,6 +304,7 @@ if(CONFIG_AV1_ENCODER)
                 "${AOM_ROOT}/aom_dsp/arm/highbd_hadamard_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_masked_sad_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_obmc_sad_neon.c"
+                "${AOM_ROOT}/aom_dsp/arm/highbd_obmc_variance_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_quantize_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_sad_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_sadxd_neon.c"
@@ -338,6 +339,10 @@ if(CONFIG_AV1_ENCODER)
 
     list(REMOVE_ITEM AOM_DSP_ENCODER_INTRIN_SSE2
                      "${AOM_ROOT}/aom_dsp/x86/adaptive_quantize_sse2.c")
+
+    list(REMOVE_ITEM AOM_DSP_ENCODER_INTRIN_NEON
+                     "${AOM_ROOT}/aom_dsp/arm/highbd_obmc_variance_neon.c"
+                     "${AOM_ROOT}/aom_dsp/arm/obmc_variance_neon.c")
   endif()
 endif()
 
