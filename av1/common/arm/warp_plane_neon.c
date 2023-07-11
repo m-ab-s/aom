@@ -296,9 +296,48 @@ static INLINE int16x8_t horizontal_filter_8x1_f1_neon(const uint8x16_t in,
   return vreinterpretq_s16_u16(res);
 }
 
-static INLINE void vertical_filter_neon(const int16x8_t *src,
-                                        int32x4_t *res_low, int32x4_t *res_high,
-                                        int sy, int gamma) {
+static INLINE void vertical_filter_4x1_f4_neon(const int16x8_t *src,
+                                               int32x4_t *res, int sy,
+                                               int gamma) {
+  int16x8_t s0, s1, s2, s3;
+  transpose_s16_4x8(
+      vget_low_s16(src[0]), vget_low_s16(src[1]), vget_low_s16(src[2]),
+      vget_low_s16(src[3]), vget_low_s16(src[4]), vget_low_s16(src[5]),
+      vget_low_s16(src[6]), vget_low_s16(src[7]), &s0, &s1, &s2, &s3);
+
+  int16x8_t f[4];
+  load_filters_4(f, sy, gamma);
+
+#if AOM_HAVE_NEON_SVE_BRIDGE
+  int64x2_t m0 = aom_sdotq_s16(vdupq_n_s64(0), s0, f[0]);
+  int64x2_t m1 = aom_sdotq_s16(vdupq_n_s64(0), s1, f[1]);
+  int64x2_t m2 = aom_sdotq_s16(vdupq_n_s64(0), s2, f[2]);
+  int64x2_t m3 = aom_sdotq_s16(vdupq_n_s64(0), s3, f[3]);
+
+  int64x2_t m01 = vpaddq_s64(m0, m1);
+  int64x2_t m23 = vpaddq_s64(m2, m3);
+
+  *res = vcombine_s32(vmovn_s64(m01), vmovn_s64(m23));
+#else   // !AOM_HAVE_NEON_SVE_BRIDGE
+  int32x4_t m0 = vmull_s16(vget_low_s16(s0), vget_low_s16(f[0]));
+  m0 = vmlal_s16(m0, vget_high_s16(s0), vget_high_s16(f[0]));
+  int32x4_t m1 = vmull_s16(vget_low_s16(s1), vget_low_s16(f[1]));
+  m1 = vmlal_s16(m1, vget_high_s16(s1), vget_high_s16(f[1]));
+  int32x4_t m2 = vmull_s16(vget_low_s16(s2), vget_low_s16(f[2]));
+  m2 = vmlal_s16(m2, vget_high_s16(s2), vget_high_s16(f[2]));
+  int32x4_t m3 = vmull_s16(vget_low_s16(s3), vget_low_s16(f[3]));
+  m3 = vmlal_s16(m3, vget_high_s16(s3), vget_high_s16(f[3]));
+
+  int32x4_t m0123_pairs[] = { m0, m1, m2, m3 };
+
+  *res = horizontal_add_4d_s32x4(m0123_pairs);
+#endif  // AOM_HAVE_NEON_SVE_BRIDGE
+}
+
+static INLINE void vertical_filter_8x1_f8_neon(const int16x8_t *src,
+                                               int32x4_t *res_low,
+                                               int32x4_t *res_high, int sy,
+                                               int gamma) {
   int16x8_t s0 = src[0];
   int16x8_t s1 = src[1];
   int16x8_t s2 = src[2];
@@ -328,9 +367,7 @@ static INLINE void vertical_filter_neon(const int16x8_t *src,
   int64x2_t m67 = vpaddq_s64(m6, m7);
 
   *res_low = vcombine_s32(vmovn_s64(m01), vmovn_s64(m23));
-  if (res_high) {
-    *res_high = vcombine_s32(vmovn_s64(m45), vmovn_s64(m67));
-  }
+  *res_high = vcombine_s32(vmovn_s64(m45), vmovn_s64(m67));
 #else   // !AOM_HAVE_NEON_SVE_BRIDGE
   int32x4_t m0 = vmull_s16(vget_low_s16(s0), vget_low_s16(f[0]));
   m0 = vmlal_s16(m0, vget_high_s16(s0), vget_high_s16(f[0]));
@@ -353,9 +390,7 @@ static INLINE void vertical_filter_neon(const int16x8_t *src,
   int32x4_t m4567_pairs[] = { m4, m5, m6, m7 };
 
   *res_low = horizontal_add_4d_s32x4(m0123_pairs);
-  if (res_high) {
-    *res_high = horizontal_add_4d_s32x4(m4567_pairs);
-  }
+  *res_high = horizontal_add_4d_s32x4(m4567_pairs);
 #endif  // AOM_HAVE_NEON_SVE_BRIDGE
 }
 
@@ -520,7 +555,7 @@ static void warp_affine_vertical_neon(
       const int16x8_t *v_src = tmp + (k + 4);
 
       int32x4_t res_lo, res_hi;
-      vertical_filter_neon(v_src, &res_lo, &res_hi, sy, gamma);
+      vertical_filter_8x1_f8_neon(v_src, &res_lo, &res_hi, sy, gamma);
 
       res_lo = vaddq_s32(res_lo, vdupq_n_s32(add_const_vert));
       res_hi = vaddq_s32(res_hi, vdupq_n_s32(add_const_vert));
@@ -567,7 +602,7 @@ static void warp_affine_vertical_neon(
       const int16x8_t *v_src = tmp + (k + 4);
 
       int32x4_t res_lo;
-      vertical_filter_neon(v_src, &res_lo, NULL, sy, gamma);
+      vertical_filter_4x1_f4_neon(v_src, &res_lo, sy, gamma);
 
       res_lo = vaddq_s32(res_lo, vdupq_n_s32(add_const_vert));
 
