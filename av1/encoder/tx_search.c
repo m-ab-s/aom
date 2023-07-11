@@ -641,7 +641,7 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x) {
         get_plane_block_size(mbmi->bsize, pd->subsampling_x, pd->subsampling_y);
     unsigned int sse;
 
-    if (x->skip_chroma_rd && plane) continue;
+    if (plane) continue;
 
     cpi->ppi->fn_ptr[bs].vf(p->src.buf, p->src.stride, pd->dst.buf,
                             pd->dst.stride, &sse);
