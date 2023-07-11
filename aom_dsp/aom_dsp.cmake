@@ -270,7 +270,8 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/arm/obmc_variance_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/obmc_sad_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/sse_neon.c"
-              "${AOM_ROOT}/aom_dsp/arm/sum_squares_neon.c")
+              "${AOM_ROOT}/aom_dsp/arm/sum_squares_neon.c"
+              "${AOM_ROOT}/aom_dsp/arm/blk_sse_sum_neon.c")
 
   if(CONFIG_AV1_HIGHBITDEPTH)
     list(APPEND AOM_DSP_ENCODER_ASM_SSE2

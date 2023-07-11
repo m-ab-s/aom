@@ -555,7 +555,7 @@ TEST_P(SSE_Sum_Test, ExtremeValues) { RunTest(0, GET_PARAM(1), 1); }
 
 TEST_P(SSE_Sum_Test, DISABLED_Speed) { RunTest(1, GET_PARAM(1), 10000); }
 
-#if HAVE_SSE2 || HAVE_AVX2
+#if HAVE_SSE2 || HAVE_AVX2 || HAVE_NEON
 const TX_SIZE kValidBlockSize[] = { TX_4X4,   TX_8X8,   TX_16X16, TX_32X32,
                                     TX_64X64, TX_4X8,   TX_8X4,   TX_8X16,
                                     TX_16X8,  TX_16X32, TX_32X16, TX_64X32,
@@ -578,6 +578,14 @@ INSTANTIATE_TEST_SUITE_P(AVX2, SSE_Sum_Test,
                          Combine(ValuesIn(sse_sum_avx2),
                                  ValuesIn(kValidBlockSize)));
 #endif  // HAVE_AVX2
+
+#if HAVE_NEON
+TestSSE_SumFuncs sse_sum_neon[] = { TestSSE_SumFuncs(
+    &aom_get_blk_sse_sum_c, &aom_get_blk_sse_sum_neon) };
+INSTANTIATE_TEST_SUITE_P(NEON, SSE_Sum_Test,
+                         Combine(ValuesIn(sse_sum_neon),
+                                 ValuesIn(kValidBlockSize)));
+#endif  // HAVE_NEON
 
 //////////////////////////////////////////////////////////////////////////////
 // 2D Variance test functions
