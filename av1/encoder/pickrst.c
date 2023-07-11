@@ -109,16 +109,9 @@ typedef struct {
   WienerInfo wiener;
   SgrprojInfo sgrproj;
 
-  // The sum of squared errors for this rtype.
-  int64_t sse[RESTORE_SWITCHABLE_TYPES];
-
   // The rtype to use for this unit given a frame rtype as
   // index. Indices: WIENER, SGRPROJ, SWITCHABLE.
   RestorationType best_rtype[RESTORE_TYPES - 1];
-
-  // This flag will be set based on the speed feature
-  // 'prune_sgr_based_on_wiener'. 0 implies no pruning and 1 implies pruning.
-  uint8_t skip_sgr_eval;
 } RestUnitSearchInfo;
 
 typedef struct {
@@ -140,14 +133,32 @@ typedef struct {
   const uint8_t *src_buffer;
   int src_stride;
 
-  // sse and bits are initialised by reset_rsc in search_rest_type
-  int64_t sse;
-  int64_t bits;
+  // SSE values for each restoration mode for the current RU
+  // These are saved by each search function for use in search_switchable()
+  int64_t sse[RESTORE_SWITCHABLE_TYPES];
 
-  // sgrproj and wiener are initialised by rsc_on_tile when starting the first
-  // tile in the frame.
-  SgrprojInfo sgrproj;
-  WienerInfo wiener;
+  // This flag will be set based on the speed feature
+  // 'prune_sgr_based_on_wiener'. 0 implies no pruning and 1 implies pruning.
+  uint8_t skip_sgr_eval;
+
+  // Total rate and distortion so far for each restoration type
+  // These are initialised by reset_rsc in search_rest_type
+  int64_t total_sse[RESTORE_TYPES];
+  int64_t total_bits[RESTORE_TYPES];
+
+  // Reference parameters for delta-coding
+  //
+  // For each restoration type, we need to store the latest parameter set which
+  // has been used, so that we can properly cost up the next parameter set.
+  // Note that we have two sets of these - one for the single-restoration-mode
+  // search (ie, frame_restoration_type = RESTORE_WIENER or RESTORE_SGRPROJ)
+  // and one for the switchable mode. This is because these two cases can lead
+  // to different sets of parameters being signaled, but we don't know which
+  // we will pick for sure until the end of the search process.
+  WienerInfo ref_wiener;
+  SgrprojInfo ref_sgrproj;
+  WienerInfo switchable_ref_wiener;
+  SgrprojInfo switchable_ref_sgrproj;
 
   // Buffers used to hold dgd-avg and src-avg data respectively during SIMD
   // call of Wiener filter.
@@ -157,13 +168,15 @@ typedef struct {
 
 static AOM_INLINE void rsc_on_tile(void *priv) {
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
-  set_default_sgrproj(&rsc->sgrproj);
-  set_default_wiener(&rsc->wiener);
+  set_default_wiener(&rsc->ref_wiener);
+  set_default_sgrproj(&rsc->ref_sgrproj);
+  set_default_wiener(&rsc->switchable_ref_wiener);
+  set_default_sgrproj(&rsc->switchable_ref_sgrproj);
 }
 
 static AOM_INLINE void reset_rsc(RestSearchCtxt *rsc) {
-  rsc->sse = 0;
-  rsc->bits = 0;
+  memset(rsc->total_sse, 0, sizeof(rsc->total_sse));
+  memset(rsc->total_bits, 0, sizeof(rsc->total_bits));
 }
 
 static AOM_INLINE void init_rsc(const YV12_BUFFER_CONFIG *src,
@@ -893,11 +906,11 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
 
   const int64_t bits_none = x->mode_costs.sgrproj_restore_cost[0];
   // Prune evaluation of RESTORE_SGRPROJ if 'skip_sgr_eval' is set
-  if (rusi->skip_sgr_eval) {
-    rsc->bits += bits_none;
-    rsc->sse += rusi->sse[RESTORE_NONE];
+  if (rsc->skip_sgr_eval) {
+    rsc->total_bits[RESTORE_SGRPROJ] += bits_none;
+    rsc->total_sse[RESTORE_SGRPROJ] += rsc->sse[RESTORE_NONE];
     rusi->best_rtype[RESTORE_SGRPROJ - 1] = RESTORE_NONE;
-    rusi->sse[RESTORE_SGRPROJ] = INT64_MAX;
+    rsc->sse[RESTORE_SGRPROJ] = INT64_MAX;
     return;
   }
 
@@ -922,15 +935,16 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
   rui.restoration_type = RESTORE_SGRPROJ;
   rui.sgrproj_info = rusi->sgrproj;
 
-  rusi->sse[RESTORE_SGRPROJ] = try_restoration_unit(rsc, limits, &rui);
+  rsc->sse[RESTORE_SGRPROJ] = try_restoration_unit(rsc, limits, &rui);
 
-  const int64_t bits_sgr = x->mode_costs.sgrproj_restore_cost[1] +
-                           (count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj)
-                            << AV1_PROB_COST_SHIFT);
+  const int64_t bits_sgr =
+      x->mode_costs.sgrproj_restore_cost[1] +
+      (count_sgrproj_bits(&rusi->sgrproj, &rsc->ref_sgrproj)
+       << AV1_PROB_COST_SHIFT);
   double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE], bit_depth);
+      x->rdmult, bits_none >> 4, rsc->sse[RESTORE_NONE], bit_depth);
   double cost_sgr = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult, bits_sgr >> 4, rusi->sse[RESTORE_SGRPROJ], bit_depth);
+      x->rdmult, bits_sgr >> 4, rsc->sse[RESTORE_SGRPROJ], bit_depth);
   if (rusi->sgrproj.ep < 10)
     cost_sgr *=
         (1 + DUAL_SGR_PENALTY_MULT * rsc->lpf_sf->dual_sgr_penalty_level);
@@ -942,12 +956,13 @@ static AOM_INLINE void search_sgrproj(const RestorationTileLimits *limits,
 #if DEBUG_LR_COSTING
   // Store ref params for later checking
   lr_ref_params[RESTORE_SGRPROJ][rsc->plane][rest_unit_idx].sgrproj_info =
-      rsc->sgrproj;
+      rsc->ref_sgrproj;
 #endif  // DEBUG_LR_COSTING
 
-  rsc->sse += rusi->sse[rtype];
-  rsc->bits += (cost_sgr < cost_none) ? bits_sgr : bits_none;
-  if (cost_sgr < cost_none) rsc->sgrproj = rusi->sgrproj;
+  rsc->total_sse[RESTORE_SGRPROJ] += rsc->sse[rtype];
+  rsc->total_bits[RESTORE_SGRPROJ] +=
+      (cost_sgr < cost_none) ? bits_sgr : bits_none;
+  if (cost_sgr < cost_none) rsc->ref_sgrproj = rusi->sgrproj;
 }
 
 static void acc_stat_one_line(const uint8_t *dgd, const uint8_t *src,
@@ -1600,13 +1615,13 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
         var_restoration_unit(limits, rsc->src, rsc->plane, highbd);
     // Do not perform Wiener search if source variance is lower than threshold
     // or if the reconstruction error is zero
-    int prune_wiener = (src_var < thresh) || (rusi->sse[RESTORE_NONE] == 0);
+    int prune_wiener = (src_var < thresh) || (rsc->sse[RESTORE_NONE] == 0);
     if (prune_wiener) {
-      rsc->bits += bits_none;
-      rsc->sse += rusi->sse[RESTORE_NONE];
+      rsc->total_bits[RESTORE_WIENER] += bits_none;
+      rsc->total_sse[RESTORE_WIENER] += rsc->sse[RESTORE_NONE];
       rusi->best_rtype[RESTORE_WIENER - 1] = RESTORE_NONE;
-      rusi->sse[RESTORE_WIENER] = INT64_MAX;
-      if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) rusi->skip_sgr_eval = 1;
+      rsc->sse[RESTORE_WIENER] = INT64_MAX;
+      if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) rsc->skip_sgr_eval = 1;
       return;
     }
   }
@@ -1662,15 +1677,15 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
   // reduction in the function, the filter is reverted back to identity
   if (compute_score(reduced_wiener_win, M, H, rui.wiener_info.vfilter,
                     rui.wiener_info.hfilter) > 0) {
-    rsc->bits += bits_none;
-    rsc->sse += rusi->sse[RESTORE_NONE];
+    rsc->total_bits[RESTORE_WIENER] += bits_none;
+    rsc->total_sse[RESTORE_WIENER] += rsc->sse[RESTORE_NONE];
     rusi->best_rtype[RESTORE_WIENER - 1] = RESTORE_NONE;
-    rusi->sse[RESTORE_WIENER] = INT64_MAX;
-    if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) rusi->skip_sgr_eval = 1;
+    rsc->sse[RESTORE_WIENER] = INT64_MAX;
+    if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) rsc->skip_sgr_eval = 1;
     return;
   }
 
-  rusi->sse[RESTORE_WIENER] =
+  rsc->sse[RESTORE_WIENER] =
       finer_search_wiener(rsc, limits, &rui, reduced_wiener_win);
   rusi->wiener = rui.wiener_info;
 
@@ -1683,14 +1698,14 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
 
   const int64_t bits_wiener =
       x->mode_costs.wiener_restore_cost[1] +
-      (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener)
+      (count_wiener_bits(wiener_win, &rusi->wiener, &rsc->ref_wiener)
        << AV1_PROB_COST_SHIFT);
 
   double cost_none = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult, bits_none >> 4, rusi->sse[RESTORE_NONE],
+      x->rdmult, bits_none >> 4, rsc->sse[RESTORE_NONE],
       rsc->cm->seq_params->bit_depth);
   double cost_wiener = RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      x->rdmult, bits_wiener >> 4, rusi->sse[RESTORE_WIENER],
+      x->rdmult, bits_wiener >> 4, rsc->sse[RESTORE_WIENER],
       rsc->cm->seq_params->bit_depth);
 
   RestorationType rtype =
@@ -1700,37 +1715,38 @@ static AOM_INLINE void search_wiener(const RestorationTileLimits *limits,
   // Set 'skip_sgr_eval' based on rdcost ratio of RESTORE_WIENER and
   // RESTORE_NONE or based on best_rtype
   if (rsc->lpf_sf->prune_sgr_based_on_wiener == 1) {
-    rusi->skip_sgr_eval = cost_wiener > (1.01 * cost_none);
+    rsc->skip_sgr_eval = cost_wiener > (1.01 * cost_none);
   } else if (rsc->lpf_sf->prune_sgr_based_on_wiener == 2) {
-    rusi->skip_sgr_eval = rusi->best_rtype[RESTORE_WIENER - 1] == RESTORE_NONE;
+    rsc->skip_sgr_eval = rusi->best_rtype[RESTORE_WIENER - 1] == RESTORE_NONE;
   }
 
 #if DEBUG_LR_COSTING
   // Store ref params for later checking
   lr_ref_params[RESTORE_WIENER][rsc->plane][rest_unit_idx].wiener_info =
-      rsc->wiener;
+      rsc->ref_wiener;
 #endif  // DEBUG_LR_COSTING
 
-  rsc->sse += rusi->sse[rtype];
-  rsc->bits += (cost_wiener < cost_none) ? bits_wiener : bits_none;
-  if (cost_wiener < cost_none) rsc->wiener = rusi->wiener;
+  rsc->total_sse[RESTORE_WIENER] += rsc->sse[rtype];
+  rsc->total_bits[RESTORE_WIENER] +=
+      (cost_wiener < cost_none) ? bits_wiener : bits_none;
+  if (cost_wiener < cost_none) rsc->ref_wiener = rusi->wiener;
 }
 
 static AOM_INLINE void search_norestore(const RestorationTileLimits *limits,
                                         int rest_unit_idx, void *priv,
                                         int32_t *tmpbuf,
                                         RestorationLineBuffers *rlbs) {
+  (void)rest_unit_idx;
   (void)tmpbuf;
   (void)rlbs;
 
   RestSearchCtxt *rsc = (RestSearchCtxt *)priv;
-  RestUnitSearchInfo *rusi = &rsc->rusi[rest_unit_idx];
 
   const int highbd = rsc->cm->seq_params->use_highbitdepth;
-  rusi->sse[RESTORE_NONE] = sse_restoration_unit(
+  rsc->sse[RESTORE_NONE] = sse_restoration_unit(
       limits, rsc->src, &rsc->cm->cur_frame->buf, rsc->plane, highbd);
 
-  rsc->sse += rusi->sse[RESTORE_NONE];
+  rsc->total_sse[RESTORE_NONE] += rsc->sse[RESTORE_NONE];
 }
 
 static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
@@ -1761,16 +1777,17 @@ static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
       if (rusi->best_rtype[r - 1] == RESTORE_NONE) continue;
     }
 
-    const int64_t sse = rusi->sse[r];
+    const int64_t sse = rsc->sse[r];
     int64_t coeff_pcost = 0;
     switch (r) {
       case RESTORE_NONE: coeff_pcost = 0; break;
       case RESTORE_WIENER:
-        coeff_pcost =
-            count_wiener_bits(wiener_win, &rusi->wiener, &rsc->wiener);
+        coeff_pcost = count_wiener_bits(wiener_win, &rusi->wiener,
+                                        &rsc->switchable_ref_wiener);
         break;
       case RESTORE_SGRPROJ:
-        coeff_pcost = count_sgrproj_bits(&rusi->sgrproj, &rsc->sgrproj);
+        coeff_pcost =
+            count_sgrproj_bits(&rusi->sgrproj, &rsc->switchable_ref_sgrproj);
         break;
       default: assert(0); break;
     }
@@ -1792,15 +1809,16 @@ static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
 #if DEBUG_LR_COSTING
   // Store ref params for later checking
   lr_ref_params[RESTORE_SWITCHABLE][rsc->plane][rest_unit_idx].wiener_info =
-      rsc->wiener;
+      rsc->switchable_ref_wiener;
   lr_ref_params[RESTORE_SWITCHABLE][rsc->plane][rest_unit_idx].sgrproj_info =
-      rsc->sgrproj;
+      rsc->switchable_ref_sgrproj;
 #endif  // DEBUG_LR_COSTING
 
-  rsc->sse += rusi->sse[best_rtype];
-  rsc->bits += best_bits;
-  if (best_rtype == RESTORE_WIENER) rsc->wiener = rusi->wiener;
-  if (best_rtype == RESTORE_SGRPROJ) rsc->sgrproj = rusi->sgrproj;
+  rsc->total_sse[RESTORE_SWITCHABLE] += rsc->sse[best_rtype];
+  rsc->total_bits[RESTORE_SWITCHABLE] += best_bits;
+  if (best_rtype == RESTORE_WIENER) rsc->switchable_ref_wiener = rusi->wiener;
+  if (best_rtype == RESTORE_SGRPROJ)
+    rsc->switchable_ref_sgrproj = rusi->sgrproj;
 }
 
 static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
@@ -1814,8 +1832,8 @@ static AOM_INLINE void copy_unit_info(RestorationType frame_rtype,
     rui->sgrproj_info = rusi->sgrproj;
 }
 
-static double search_rest_type(AV1_COMMON *cm, int plane, RestSearchCtxt *rsc,
-                               RestorationType rtype) {
+static void restoration_search(AV1_COMMON *cm, int plane, RestSearchCtxt *rsc,
+                               bool *disable_lr_filter) {
   const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
   const int mib_size_log2 = cm->seq_params->mib_size_log2;
   const CommonTileParams *tiles = &cm->tiles;
@@ -1886,16 +1904,19 @@ static double search_rest_type(AV1_COMMON *cm, int plane, RestSearchCtxt *rsc,
               assert(limits.h_end <= plane_w);
 
               const int unit_idx = rrow * rsi->horz_units + rcol;
-              funs[rtype](&limits, unit_idx, rsc, rsc->cm->rst_tmpbuf, NULL);
+
+              rsc->skip_sgr_eval = 0;
+              for (RestorationType r = RESTORE_NONE; r < RESTORE_TYPES; r++) {
+                if (disable_lr_filter[r]) continue;
+
+                funs[r](&limits, unit_idx, rsc, rsc->cm->rst_tmpbuf, NULL);
+              }
             }
           }
         }
       }
     }
   }
-
-  return RDCOST_DBL_WITH_NATIVE_BD_DIST(
-      rsc->x->rdmult, rsc->bits >> 4, rsc->sse, rsc->cm->seq_params->bit_depth);
 }
 
 static INLINE void av1_derive_flags_for_lr_processing(
@@ -2012,12 +2033,16 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
       av1_extend_frame(rsc.dgd_buffer, rsc.plane_w, rsc.plane_h, rsc.dgd_stride,
                        RESTORATION_BORDER, RESTORATION_BORDER, highbd);
 
+      restoration_search(cm, plane, &rsc, disable_lr_filter);
+
       for (RestorationType r = 0; r < num_rtypes; ++r) {
         // Disable Loop restoration filter based on the flags set using speed
         // feature 'disable_wiener_filter' and 'disable_sgr_filter'.
         if (disable_lr_filter[r]) continue;
 
-        double cost = search_rest_type(cm, plane, &rsc, r);
+        double cost = RDCOST_DBL_WITH_NATIVE_BD_DIST(
+            x->rdmult, rsc.total_bits[r] >> 4, rsc.total_sse[r],
+            cm->seq_params->bit_depth);
 
         if (r == 0 || cost < best_cost) {
           best_cost = cost;
