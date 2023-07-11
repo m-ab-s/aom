@@ -1769,12 +1769,19 @@ static AOM_INLINE void search_switchable(const RestorationTileLimits *limits,
   RestorationType best_rtype = RESTORE_NONE;
 
   for (RestorationType r = 0; r < RESTORE_SWITCHABLE_TYPES; ++r) {
-    // Check for the condition that wiener or sgrproj search could not
-    // find a solution or the solution was worse than RESTORE_NONE.
-    // In either case the best_rtype will be set as RESTORE_NONE. These
-    // should be skipped from the test below.
+    // If this restoration mode was skipped, or could not find a solution
+    // that was better than RESTORE_NONE, then we can't select it here either.
+    //
+    // Note: It is possible for the restoration search functions to find a
+    // filter which is better than RESTORE_NONE when looking purely at SSE, but
+    // for it to be rejected overall due to its rate cost. In this case, there
+    // is a chance that it may be have a lower rate cost when looking at
+    // RESTORE_SWITCHABLE, and so it might be acceptable here.
+    //
+    // Therefore we prune based on SSE, rather than on whether or not the
+    // previous search function selected this mode.
     if (r > RESTORE_NONE) {
-      if (rusi->best_rtype[r - 1] == RESTORE_NONE) continue;
+      if (rsc->sse[r] > rsc->sse[RESTORE_NONE]) continue;
     }
 
     const int64_t sse = rsc->sse[r];
