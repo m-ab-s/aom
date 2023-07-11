@@ -676,3 +676,16 @@ uint64_t aom_mse_wxh_16bit_neon(uint8_t *dst, int dstride, uint16_t *src,
     default: assert(0 && "unsupported width"); return -1;
   }
 }
+
+uint32_t aom_get_mb_ss_neon(const int16_t *a) {
+  int32x4_t sse[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
+
+  for (int i = 0; i < 256; i = i + 8) {
+    int16x8_t a_s16 = vld1q_s16(a + i);
+
+    sse[0] = vmlal_s16(sse[0], vget_low_s16(a_s16), vget_low_s16(a_s16));
+    sse[1] = vmlal_s16(sse[1], vget_high_s16(a_s16), vget_high_s16(a_s16));
+  }
+
+  return horizontal_add_s32x4(vaddq_s32(sse[0], sse[1]));
+}

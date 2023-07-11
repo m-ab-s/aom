@@ -1365,7 +1365,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   #
   #
   add_proto qw/unsigned int aom_get_mb_ss/, "const int16_t *";
-  specialize qw/aom_get_mb_ss sse2/;
+  specialize qw/aom_get_mb_ss sse2 neon/;
 
   #
   # Variance / Subpixel Variance / Subpixel Avg Variance
