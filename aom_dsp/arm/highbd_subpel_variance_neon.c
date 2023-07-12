@@ -950,72 +950,172 @@ HBD_SPECIALIZED_MASKED_SUBPEL_VARIANCE_WXH_NEON(12, 64, 16)
 #endif  // !CONFIG_REALTIME_ONLY
 
 #if !CONFIG_REALTIME_ONLY
-#define HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(w, h)                          \
-  unsigned int aom_highbd_8_obmc_sub_pixel_variance##w##x##h##_neon(        \
-      const uint8_t *pre, int pre_stride, int xoffset, int yoffset,         \
-      const int32_t *wsrc, const int32_t *mask, unsigned int *sse) {        \
+#define HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(bitdepth, w, h)                \
+  unsigned int                                                              \
+      aom_highbd_##bitdepth##_obmc_sub_pixel_variance##w##x##h##_neon(      \
+          const uint8_t *pre, int pre_stride, int xoffset, int yoffset,     \
+          const int32_t *wsrc, const int32_t *mask, unsigned int *sse) {    \
+    uint16_t *pre_ptr = CONVERT_TO_SHORTPTR(pre);                           \
     uint16_t tmp0[w * (h + 1)];                                             \
     uint16_t tmp1[w * h];                                                   \
-    uint16_t *pre_ptr = CONVERT_TO_SHORTPTR(pre);                           \
     highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp0, pre_stride, 1, h + 1, \
                                        xoffset);                            \
     highbd_var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);       \
-    return aom_highbd_8_obmc_variance##w##x##h##_neon(                      \
-        CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                      \
-  }                                                                         \
-                                                                            \
-  unsigned int aom_highbd_10_obmc_sub_pixel_variance##w##x##h##_neon(       \
-      const uint8_t *pre, int pre_stride, int xoffset, int yoffset,         \
-      const int32_t *wsrc, const int32_t *mask, unsigned int *sse) {        \
-    uint16_t tmp0[w * (h + 1)];                                             \
-    uint16_t tmp1[w * h];                                                   \
-    uint16_t *pre_ptr = CONVERT_TO_SHORTPTR(pre);                           \
-    highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp0, pre_stride, 1, h + 1, \
-                                       xoffset);                            \
-    highbd_var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);       \
-    return aom_highbd_10_obmc_variance##w##x##h##_neon(                     \
-        CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                      \
-  }                                                                         \
-                                                                            \
-  unsigned int aom_highbd_12_obmc_sub_pixel_variance##w##x##h##_neon(       \
-      const uint8_t *pre, int pre_stride, int xoffset, int yoffset,         \
-      const int32_t *wsrc, const int32_t *mask, unsigned int *sse) {        \
-    uint16_t tmp0[w * (h + 1)];                                             \
-    uint16_t tmp1[w * h];                                                   \
-    uint16_t *pre_ptr = CONVERT_TO_SHORTPTR(pre);                           \
-    highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp0, pre_stride, 1, h + 1, \
-                                       xoffset);                            \
-    highbd_var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);       \
-    return aom_highbd_12_obmc_variance##w##x##h##_neon(                     \
+    return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(           \
         CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                      \
   }
 
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(4, 4)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(4, 8)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(4, 16)
+#define SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(bitdepth, w, h)       \
+  unsigned int                                                                 \
+      aom_highbd_##bitdepth##_obmc_sub_pixel_variance##w##x##h##_neon(         \
+          const uint8_t *pre, int pre_stride, int xoffset, int yoffset,        \
+          const int32_t *wsrc, const int32_t *mask, unsigned int *sse) {       \
+    uint16_t *pre_ptr = CONVERT_TO_SHORTPTR(pre);                              \
+    if (xoffset == 0) {                                                        \
+      if (yoffset == 0) {                                                      \
+        return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(          \
+            pre, pre_stride, wsrc, mask, sse);                                 \
+      } else if (yoffset == 4) {                                               \
+        uint16_t tmp[w * h];                                                   \
+        highbd_var_filter_block2d_avg(pre_ptr, tmp, pre_stride, pre_stride, w, \
+                                      h);                                      \
+        return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(          \
+            CONVERT_TO_BYTEPTR(tmp), w, wsrc, mask, sse);                      \
+      } else {                                                                 \
+        uint16_t tmp[w * h];                                                   \
+        highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp, pre_stride,           \
+                                           pre_stride, h, yoffset);            \
+        return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(          \
+            CONVERT_TO_BYTEPTR(tmp), w, wsrc, mask, sse);                      \
+      }                                                                        \
+    } else if (xoffset == 4) {                                                 \
+      uint16_t tmp0[w * (h + 1)];                                              \
+      if (yoffset == 0) {                                                      \
+        highbd_var_filter_block2d_avg(pre_ptr, tmp0, pre_stride, 1, w, h);     \
+        return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(          \
+            CONVERT_TO_BYTEPTR(tmp0), w, wsrc, mask, sse);                     \
+      } else if (yoffset == 4) {                                               \
+        uint16_t tmp1[w * (h + 1)];                                            \
+        highbd_var_filter_block2d_avg(pre_ptr, tmp0, pre_stride, 1, w, h + 1); \
+        highbd_var_filter_block2d_avg(tmp0, tmp1, w, w, w, h);                 \
+        return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(          \
+            CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                     \
+      } else {                                                                 \
+        uint16_t tmp1[w * (h + 1)];                                            \
+        highbd_var_filter_block2d_avg(pre_ptr, tmp0, pre_stride, 1, w, h + 1); \
+        highbd_var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);      \
+        return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(          \
+            CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                     \
+      }                                                                        \
+    } else {                                                                   \
+      uint16_t tmp0[w * (h + 1)];                                              \
+      if (yoffset == 0) {                                                      \
+        highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp0, pre_stride, 1, h,    \
+                                           xoffset);                           \
+        return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(          \
+            CONVERT_TO_BYTEPTR(tmp0), w, wsrc, mask, sse);                     \
+      } else if (yoffset == 4) {                                               \
+        uint16_t tmp1[w * h];                                                  \
+        highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp0, pre_stride, 1,       \
+                                           h + 1, xoffset);                    \
+        highbd_var_filter_block2d_avg(tmp0, tmp1, w, w, w, h);                 \
+        return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(          \
+            CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                     \
+      } else {                                                                 \
+        uint16_t tmp1[w * h];                                                  \
+        highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp0, pre_stride, 1,       \
+                                           h + 1, xoffset);                    \
+        highbd_var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);      \
+        return aom_highbd_##bitdepth##_obmc_variance##w##x##h##_neon(          \
+            CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                     \
+      }                                                                        \
+    }                                                                          \
+  }
 
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 4)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 8)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 16)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 32)
+// 8-bit
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 4, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 4, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 4, 16)
 
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 4)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 8)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 16)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 32)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 64)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 8, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 8, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 8, 16)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 8, 32)
 
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 8)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 16)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 32)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 64)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 16, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 16, 8)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 16, 16)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 16, 32)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 16, 64)
 
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 16)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 32)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 64)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 128)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 32, 8)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 32, 16)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 32, 32)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 32, 64)
 
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(128, 64)
-HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(128, 128)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 64, 16)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 64, 32)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 64, 64)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 64, 128)
 
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 128, 64)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 128, 128)
+
+// 10-bit
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 4, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 4, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 4, 16)
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 8, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 8, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 8, 16)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 8, 32)
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 16, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 16, 8)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 16, 16)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 16, 32)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 16, 64)
+
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 32, 8)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 32, 16)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 32, 32)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 32, 64)
+
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 64, 16)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 64, 32)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 64, 64)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 64, 128)
+
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 128, 64)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(10, 128, 128)
+
+// 12-bit
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 4, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 4, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 4, 16)
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 8, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 8, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 8, 16)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 8, 32)
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 16, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 16, 8)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 16, 16)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 16, 32)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 16, 64)
+
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 32, 8)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 32, 16)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 32, 32)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 32, 64)
+
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 64, 16)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 64, 32)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 64, 64)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 64, 128)
+
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 128, 64)
+SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 128, 128)
 #endif  // !CONFIG_REALTIME_ONLY
