@@ -1200,6 +1200,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->tpl_sf.subpel_force_stop = HALF_PEL;
     sf->tpl_sf.search_method = FAST_BIGDIA;
+    sf->tpl_sf.use_sad_for_mode_decision = 1;
 
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
 
@@ -1254,7 +1255,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.use_y_only_rate_distortion = 1;
     sf->tpl_sf.subpel_force_stop = FULL_PEL;
     sf->tpl_sf.gop_length_decision_method = 2;
-    sf->tpl_sf.use_sad_for_mode_decision = 1;
+    sf->tpl_sf.use_sad_for_mode_decision = 2;
 
     sf->winner_mode_sf.dc_blk_pred_level = 2;
 

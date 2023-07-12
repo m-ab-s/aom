@@ -453,6 +453,71 @@ static void get_rate_distortion(
   }
 }
 
+static AOM_INLINE int32_t get_inter_cost(const AV1_COMP *cpi, MACROBLOCKD *xd,
+                                         const uint8_t *src_mb_buffer,
+                                         int src_stride,
+                                         TplBuffers *tpl_tmp_buffers,
+                                         BLOCK_SIZE bsize, TX_SIZE tx_size,
+                                         int mi_row, int mi_col, int rf_idx,
+                                         MV *rfidx_mv, int use_pred_sad) {
+  const BitDepthInfo bd_info = get_bit_depth_info(xd);
+  TplParams *tpl_data = &cpi->ppi->tpl_data;
+  const YV12_BUFFER_CONFIG *const ref_frame_ptr =
+      tpl_data->src_ref_frame[rf_idx];
+  int16_t *src_diff = tpl_tmp_buffers->src_diff;
+  tran_low_t *coeff = tpl_tmp_buffers->coeff;
+  const int bw = 4 << mi_size_wide_log2[bsize];
+  const int bh = 4 << mi_size_high_log2[bsize];
+  int32_t inter_cost;
+
+  if (cpi->sf.tpl_sf.subpel_force_stop != FULL_PEL) {
+    const int_interpfilters kernel =
+        av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
+    uint8_t *predictor8 = tpl_tmp_buffers->predictor8;
+    uint8_t *predictor =
+        is_cur_buf_hbd(xd) ? CONVERT_TO_BYTEPTR(predictor8) : predictor8;
+    struct buf_2d ref_buf = { NULL, ref_frame_ptr->y_buffer,
+                              ref_frame_ptr->y_width, ref_frame_ptr->y_height,
+                              ref_frame_ptr->y_stride };
+    InterPredParams inter_pred_params;
+    av1_init_inter_params(&inter_pred_params, bw, bh, mi_row * MI_SIZE,
+                          mi_col * MI_SIZE, 0, 0, xd->bd, is_cur_buf_hbd(xd), 0,
+                          &tpl_data->sf, &ref_buf, kernel);
+    inter_pred_params.conv_params = get_conv_params(0, 0, xd->bd);
+
+    av1_enc_build_one_inter_predictor(predictor, bw, rfidx_mv,
+                                      &inter_pred_params);
+
+    if (use_pred_sad) {
+      inter_cost = (int)cpi->ppi->fn_ptr[bsize].sdf(src_mb_buffer, src_stride,
+                                                    predictor, bw);
+    } else {
+      inter_cost =
+          tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
+                            predictor, bw, coeff, bw, bh, tx_size);
+    }
+  } else {
+    int ref_mb_offset =
+        mi_row * MI_SIZE * ref_frame_ptr->y_stride + mi_col * MI_SIZE;
+    uint8_t *ref_mb = ref_frame_ptr->y_buffer + ref_mb_offset;
+    int ref_stride = ref_frame_ptr->y_stride;
+    const FULLPEL_MV fullmv = get_fullmv_from_mv(rfidx_mv);
+    // Since sub-pel motion search is not performed, use the prediction pixels
+    // directly from the reference block ref_mb
+    if (use_pred_sad) {
+      inter_cost = (int)cpi->ppi->fn_ptr[bsize].sdf(
+          src_mb_buffer, src_stride,
+          &ref_mb[fullmv.row * ref_stride + fullmv.col], ref_stride);
+    } else {
+      inter_cost =
+          tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
+                            &ref_mb[fullmv.row * ref_stride + fullmv.col],
+                            ref_stride, coeff, bw, bh, tx_size);
+    }
+  }
+  return inter_cost;
+}
+
 static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                                        TplTxfmStats *tpl_txfm_stats,
                                        TplBuffers *tpl_tmp_buffers,
@@ -473,8 +538,6 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
 
   const int bw = 4 << mi_size_wide_log2[bsize];
   const int bh = 4 << mi_size_high_log2[bsize];
-  const int_interpfilters kernel =
-      av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
 
   int frame_offset = tpl_data->frame_idx - cpi->gf_frame_index;
 
@@ -566,7 +629,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
                             tx_size, mode, 0, 0, FILTER_INTRA_MODES, dst_buffer,
                             dst_buffer_stride, predictor, bw, 0, 0, 0);
 
-    if (tpl_data->use_pred_sad) {
+    if (tpl_frame->use_pred_sad) {
       intra_cost = (int32_t)cpi->ppi->fn_ptr[bsize].sdf(
           src_mb_buffer, src_stride, predictor, bw);
     } else {
@@ -582,7 +645,7 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   }
   // Calculate SATD of the best intra mode if SAD was used for mode decision
   // as best_intra_cost is used in ML model to skip intra mode evaluation.
-  if (tpl_data->use_pred_sad) {
+  if (tpl_frame->use_pred_sad) {
     av1_predict_intra_block(
         xd, seq_params->sb_size, seq_params->enable_intra_edge_filter,
         block_size_wide[bsize], block_size_high[bsize], tx_size, best_mode, 0,
@@ -763,38 +826,9 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
     tpl_stats->mv[rf_idx].as_int = best_rfidx_mv.as_int;
     single_mv[rf_idx] = best_rfidx_mv;
 
-    if (tpl_sf->subpel_force_stop != FULL_PEL) {
-      struct buf_2d ref_buf = { NULL, ref_frame_ptr->y_buffer,
-                                ref_frame_ptr->y_width, ref_frame_ptr->y_height,
-                                ref_frame_ptr->y_stride };
-      InterPredParams inter_pred_params;
-      av1_init_inter_params(&inter_pred_params, bw, bh, mi_row * MI_SIZE,
-                            mi_col * MI_SIZE, 0, 0, xd->bd, is_cur_buf_hbd(xd),
-                            0, &tpl_data->sf, &ref_buf, kernel);
-      inter_pred_params.conv_params = get_conv_params(0, 0, xd->bd);
-
-      av1_enc_build_one_inter_predictor(predictor, bw, &best_rfidx_mv.as_mv,
-                                        &inter_pred_params);
-
-      inter_cost =
-          tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
-                            predictor, bw, coeff, bw, bh, tx_size);
-    } else {
-      const FULLPEL_MV best_fullmv = get_fullmv_from_mv(&best_rfidx_mv.as_mv);
-      // Since sub-pel motion search is not performed, use the prediction pixels
-      // directly from the reference block ref_mb
-      if (tpl_data->use_pred_sad) {
-        inter_cost = (int)cpi->ppi->fn_ptr[bsize].sdf(
-            src_mb_buffer, src_stride,
-            &ref_mb[best_fullmv.row * ref_stride + best_fullmv.col],
-            ref_stride);
-      } else {
-        inter_cost = tpl_get_satd_cost(
-            bd_info, src_diff, bw, src_mb_buffer, src_stride,
-            &ref_mb[best_fullmv.row * ref_stride + best_fullmv.col], ref_stride,
-            coeff, bw, bh, tx_size);
-      }
-    }
+    inter_cost = get_inter_cost(
+        cpi, xd, src_mb_buffer, src_stride, tpl_tmp_buffers, bsize, tx_size,
+        mi_row, mi_col, rf_idx, &best_rfidx_mv.as_mv, tpl_frame->use_pred_sad);
     // Store inter cost for each ref frame. This is used to prune inter modes.
     tpl_stats->pred_error[rf_idx] = AOMMAX(1, inter_cost);
 
@@ -807,20 +841,11 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   }
   // Calculate SATD of the best inter mode if SAD was used for mode decision
   // as best_inter_cost is used in ML model to skip intra mode evaluation.
-  if (best_inter_cost < INT32_MAX && tpl_data->use_pred_sad) {
-    assert(tpl_sf->subpel_force_stop == FULL_PEL);
+  if (best_inter_cost < INT32_MAX && tpl_frame->use_pred_sad) {
     assert(best_rf_idx != -1);
-    const YV12_BUFFER_CONFIG *const ref_frame_ptr =
-        tpl_data->src_ref_frame[best_rf_idx];
-    const int ref_mb_offset =
-        mi_row * MI_SIZE * ref_frame_ptr->y_stride + mi_col * MI_SIZE;
-    const uint8_t *const ref_mb = ref_frame_ptr->y_buffer + ref_mb_offset;
-    const int ref_stride = ref_frame_ptr->y_stride;
-    const FULLPEL_MV best_fullmv = get_fullmv_from_mv(&best_mv[0].as_mv);
-    best_inter_cost = tpl_get_satd_cost(
-        bd_info, src_diff, bw, src_mb_buffer, src_stride,
-        &ref_mb[best_fullmv.row * ref_stride + best_fullmv.col], ref_stride,
-        coeff, bw, bh, tx_size);
+    best_inter_cost = get_inter_cost(
+        cpi, xd, src_mb_buffer, src_stride, tpl_tmp_buffers, bsize, tx_size,
+        mi_row, mi_col, best_rf_idx, &best_mv[0].as_mv, 0 /* use_pred_sad */);
   }
 
   if (best_rf_idx != -1 && best_inter_cost < best_intra_cost) {
@@ -872,6 +897,8 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   xd->mi_row = mi_row;
   xd->mi_col = mi_col;
   int best_cmp_rf_idx = -1;
+  const int_interpfilters kernel =
+      av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
   for (int cmp_rf_idx = start_rf; cmp_rf_idx < end_rf; ++cmp_rf_idx) {
     int rf_idx0 = comp_ref_frames[cmp_rf_idx][0];
     int rf_idx1 = comp_ref_frames[cmp_rf_idx][1];
@@ -1255,9 +1282,10 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   const YV12_BUFFER_CONFIG *ref_frames_ordered[INTER_REFS_PER_FRAME];
   uint32_t ref_frame_display_indices[INTER_REFS_PER_FRAME];
   const GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  TPL_SPEED_FEATURES *tpl_sf = &cpi->sf.tpl_sf;
   int ref_pruning_enabled = is_frame_eligible_for_ref_pruning(
       gf_group, cpi->sf.inter_sf.selective_ref_frame,
-      cpi->sf.tpl_sf.prune_ref_frames_in_tpl, frame_idx);
+      tpl_sf->prune_ref_frames_in_tpl, frame_idx);
   int gop_length = get_gop_length(gf_group);
   int ref_frame_flags;
   AV1_COMMON *cm = &cpi->common;
@@ -1365,11 +1393,20 @@ static AOM_INLINE void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   av1_init_tpl_txfm_stats(tpl_txfm_stats);
 
   // Initialize x->mbmi_ext when compound predictions are enabled.
-  if (cpi->sf.tpl_sf.allow_compound_pred) av1_zero(x->mbmi_ext);
+  if (tpl_sf->allow_compound_pred) av1_zero(x->mbmi_ext);
 
   // Set the pointer to null since mbmi is only allocated inside this function.
   assert(xd->mi == &mbmi_ptr);
   xd->mi = NULL;
+
+  // Tpl module is called before the setting of speed features at frame level.
+  // Thus, turning off this speed feature for key frame is done here and not
+  // integrated into the speed feature setting itself.
+  const int layer_depth_th = (tpl_sf->use_sad_for_mode_decision == 1) ? 5 : 0;
+  tpl_frame->use_pred_sad =
+      tpl_sf->use_sad_for_mode_decision &&
+      gf_group->update_type[cpi->gf_frame_index] != KF_UPDATE &&
+      gf_group->layer_depth[frame_idx] >= layer_depth_th;
 }
 
 // This function stores the motion estimation dependencies of all the blocks in
@@ -1796,9 +1833,6 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   const int gop_length = get_gop_length(gf_group);
   const int num_planes =
       cpi->sf.tpl_sf.use_y_only_rate_distortion ? 1 : av1_num_planes(cm);
-  tpl_data->use_pred_sad =
-      cpi->sf.tpl_sf.use_sad_for_mode_decision &&
-      gf_group->update_type[cpi->gf_frame_index] != KF_UPDATE;
   // Backward propagation from tpl_group_frames to 1.
   for (int frame_idx = cpi->gf_frame_index; frame_idx < tpl_gf_group_frames;
        ++frame_idx) {

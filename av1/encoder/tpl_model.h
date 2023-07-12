@@ -146,6 +146,8 @@ typedef struct TplDepFrame {
   int mi_cols;
   int base_rdmult;
   uint32_t frame_display_index;
+  // When set, SAD metric is used for intra and inter mode decision.
+  int use_pred_sad;
 } TplDepFrame;
 
 /*!\endcond */
@@ -235,11 +237,6 @@ typedef struct TplParams {
    * Frame border for tpl frame.
    */
   int border_in_pixels;
-
-  /*!
-   * When set, SAD metric is used for intra and inter mode decision.
-   */
-  int use_pred_sad;
 } TplParams;
 
 #if CONFIG_BITRATE_ACCURACY || CONFIG_RATECTRL_LOG

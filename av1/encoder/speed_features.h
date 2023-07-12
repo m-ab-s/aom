@@ -542,6 +542,10 @@ typedef struct TPL_SPEED_FEATURES {
   int use_y_only_rate_distortion;
 
   // Use SAD instead of SATD during intra/inter mode search.
+  // If set to 0, use SATD always.
+  // If set to 1, use SAD during intra/inter mode search for frames in the
+  // higher temporal layers of the hierarchical prediction structure.
+  // If set to 2, use SAD during intra/inter mode search for all frames.
   int use_sad_for_mode_decision;
 } TPL_SPEED_FEATURES;
 
