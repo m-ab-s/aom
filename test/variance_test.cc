@@ -3694,6 +3694,146 @@ const SubpelAvgVarianceParams kArrayHBDSubpelAvgVariance_neon[] = {
 INSTANTIATE_TEST_SUITE_P(NEON, AvxHBDSubpelAvgVarianceTest,
                          ::testing::ValuesIn(kArrayHBDSubpelAvgVariance_neon));
 
+#if !CONFIG_REALTIME_ONLY
+const ObmcSubpelVarianceParams kArrayHBDObmcSubpelVariance_neon[] = {
+  ObmcSubpelVarianceParams(
+      7, 7, &aom_highbd_12_obmc_sub_pixel_variance128x128_neon, 12),
+  ObmcSubpelVarianceParams(
+      7, 6, &aom_highbd_12_obmc_sub_pixel_variance128x64_neon, 12),
+  ObmcSubpelVarianceParams(
+      6, 7, &aom_highbd_12_obmc_sub_pixel_variance64x128_neon, 12),
+  ObmcSubpelVarianceParams(
+      6, 6, &aom_highbd_12_obmc_sub_pixel_variance64x64_neon, 12),
+  ObmcSubpelVarianceParams(
+      6, 5, &aom_highbd_12_obmc_sub_pixel_variance64x32_neon, 12),
+  ObmcSubpelVarianceParams(
+      5, 6, &aom_highbd_12_obmc_sub_pixel_variance32x64_neon, 12),
+  ObmcSubpelVarianceParams(
+      5, 5, &aom_highbd_12_obmc_sub_pixel_variance32x32_neon, 12),
+  ObmcSubpelVarianceParams(
+      5, 4, &aom_highbd_12_obmc_sub_pixel_variance32x16_neon, 12),
+  ObmcSubpelVarianceParams(
+      4, 5, &aom_highbd_12_obmc_sub_pixel_variance16x32_neon, 12),
+  ObmcSubpelVarianceParams(
+      4, 4, &aom_highbd_12_obmc_sub_pixel_variance16x16_neon, 12),
+  ObmcSubpelVarianceParams(4, 3,
+                           &aom_highbd_12_obmc_sub_pixel_variance16x8_neon, 12),
+  ObmcSubpelVarianceParams(3, 4,
+                           &aom_highbd_12_obmc_sub_pixel_variance8x16_neon, 12),
+  ObmcSubpelVarianceParams(3, 3, &aom_highbd_12_obmc_sub_pixel_variance8x8_neon,
+                           12),
+  ObmcSubpelVarianceParams(3, 2, &aom_highbd_12_obmc_sub_pixel_variance8x4_neon,
+                           12),
+  ObmcSubpelVarianceParams(2, 3, &aom_highbd_12_obmc_sub_pixel_variance4x8_neon,
+                           12),
+  ObmcSubpelVarianceParams(2, 2, &aom_highbd_12_obmc_sub_pixel_variance4x4_neon,
+                           12),
+  ObmcSubpelVarianceParams(
+      6, 4, &aom_highbd_12_obmc_sub_pixel_variance64x16_neon, 12),
+  ObmcSubpelVarianceParams(
+      4, 6, &aom_highbd_12_obmc_sub_pixel_variance16x64_neon, 12),
+  ObmcSubpelVarianceParams(5, 3,
+                           &aom_highbd_12_obmc_sub_pixel_variance32x8_neon, 12),
+  ObmcSubpelVarianceParams(3, 5,
+                           &aom_highbd_12_obmc_sub_pixel_variance8x32_neon, 12),
+  ObmcSubpelVarianceParams(4, 2,
+                           &aom_highbd_12_obmc_sub_pixel_variance16x4_neon, 12),
+  ObmcSubpelVarianceParams(2, 4,
+                           &aom_highbd_12_obmc_sub_pixel_variance4x16_neon, 12),
+  ObmcSubpelVarianceParams(
+      7, 7, &aom_highbd_10_obmc_sub_pixel_variance128x128_neon, 10),
+  ObmcSubpelVarianceParams(
+      7, 6, &aom_highbd_10_obmc_sub_pixel_variance128x64_neon, 10),
+  ObmcSubpelVarianceParams(
+      6, 7, &aom_highbd_10_obmc_sub_pixel_variance64x128_neon, 10),
+  ObmcSubpelVarianceParams(
+      6, 6, &aom_highbd_10_obmc_sub_pixel_variance64x64_neon, 10),
+  ObmcSubpelVarianceParams(
+      6, 5, &aom_highbd_10_obmc_sub_pixel_variance64x32_neon, 10),
+  ObmcSubpelVarianceParams(
+      5, 6, &aom_highbd_10_obmc_sub_pixel_variance32x64_neon, 10),
+  ObmcSubpelVarianceParams(
+      5, 5, &aom_highbd_10_obmc_sub_pixel_variance32x32_neon, 10),
+  ObmcSubpelVarianceParams(
+      5, 4, &aom_highbd_10_obmc_sub_pixel_variance32x16_neon, 10),
+  ObmcSubpelVarianceParams(
+      4, 5, &aom_highbd_10_obmc_sub_pixel_variance16x32_neon, 10),
+  ObmcSubpelVarianceParams(
+      4, 4, &aom_highbd_10_obmc_sub_pixel_variance16x16_neon, 10),
+  ObmcSubpelVarianceParams(4, 3,
+                           &aom_highbd_10_obmc_sub_pixel_variance16x8_neon, 10),
+  ObmcSubpelVarianceParams(3, 4,
+                           &aom_highbd_10_obmc_sub_pixel_variance8x16_neon, 10),
+  ObmcSubpelVarianceParams(3, 3, &aom_highbd_10_obmc_sub_pixel_variance8x8_neon,
+                           10),
+  ObmcSubpelVarianceParams(3, 2, &aom_highbd_10_obmc_sub_pixel_variance8x4_neon,
+                           10),
+  ObmcSubpelVarianceParams(2, 3, &aom_highbd_10_obmc_sub_pixel_variance4x8_neon,
+                           10),
+  ObmcSubpelVarianceParams(2, 2, &aom_highbd_10_obmc_sub_pixel_variance4x4_neon,
+                           10),
+  ObmcSubpelVarianceParams(
+      6, 4, &aom_highbd_10_obmc_sub_pixel_variance64x16_neon, 10),
+  ObmcSubpelVarianceParams(
+      4, 6, &aom_highbd_10_obmc_sub_pixel_variance16x64_neon, 10),
+  ObmcSubpelVarianceParams(5, 3,
+                           &aom_highbd_10_obmc_sub_pixel_variance32x8_neon, 10),
+  ObmcSubpelVarianceParams(3, 5,
+                           &aom_highbd_10_obmc_sub_pixel_variance8x32_neon, 10),
+  ObmcSubpelVarianceParams(4, 2,
+                           &aom_highbd_10_obmc_sub_pixel_variance16x4_neon, 10),
+  ObmcSubpelVarianceParams(2, 4,
+                           &aom_highbd_10_obmc_sub_pixel_variance4x16_neon, 10),
+  ObmcSubpelVarianceParams(
+      7, 7, &aom_highbd_8_obmc_sub_pixel_variance128x128_neon, 8),
+  ObmcSubpelVarianceParams(7, 6,
+                           &aom_highbd_8_obmc_sub_pixel_variance128x64_neon, 8),
+  ObmcSubpelVarianceParams(6, 7,
+                           &aom_highbd_8_obmc_sub_pixel_variance64x128_neon, 8),
+  ObmcSubpelVarianceParams(6, 6,
+                           &aom_highbd_8_obmc_sub_pixel_variance64x64_neon, 8),
+  ObmcSubpelVarianceParams(6, 5,
+                           &aom_highbd_8_obmc_sub_pixel_variance64x32_neon, 8),
+  ObmcSubpelVarianceParams(5, 6,
+                           &aom_highbd_8_obmc_sub_pixel_variance32x64_neon, 8),
+  ObmcSubpelVarianceParams(5, 5,
+                           &aom_highbd_8_obmc_sub_pixel_variance32x32_neon, 8),
+  ObmcSubpelVarianceParams(5, 4,
+                           &aom_highbd_8_obmc_sub_pixel_variance32x16_neon, 8),
+  ObmcSubpelVarianceParams(4, 5,
+                           &aom_highbd_8_obmc_sub_pixel_variance16x32_neon, 8),
+  ObmcSubpelVarianceParams(4, 4,
+                           &aom_highbd_8_obmc_sub_pixel_variance16x16_neon, 8),
+  ObmcSubpelVarianceParams(4, 3, &aom_highbd_8_obmc_sub_pixel_variance16x8_neon,
+                           8),
+  ObmcSubpelVarianceParams(3, 4, &aom_highbd_8_obmc_sub_pixel_variance8x16_neon,
+                           8),
+  ObmcSubpelVarianceParams(3, 3, &aom_highbd_8_obmc_sub_pixel_variance8x8_neon,
+                           8),
+  ObmcSubpelVarianceParams(3, 2, &aom_highbd_8_obmc_sub_pixel_variance8x4_neon,
+                           8),
+  ObmcSubpelVarianceParams(2, 3, &aom_highbd_8_obmc_sub_pixel_variance4x8_neon,
+                           8),
+  ObmcSubpelVarianceParams(2, 2, &aom_highbd_8_obmc_sub_pixel_variance4x4_neon,
+                           8),
+  ObmcSubpelVarianceParams(6, 4,
+                           &aom_highbd_8_obmc_sub_pixel_variance64x16_neon, 8),
+  ObmcSubpelVarianceParams(4, 6,
+                           &aom_highbd_8_obmc_sub_pixel_variance16x64_neon, 8),
+  ObmcSubpelVarianceParams(5, 3, &aom_highbd_8_obmc_sub_pixel_variance32x8_neon,
+                           8),
+  ObmcSubpelVarianceParams(3, 5, &aom_highbd_8_obmc_sub_pixel_variance8x32_neon,
+                           8),
+  ObmcSubpelVarianceParams(4, 2, &aom_highbd_8_obmc_sub_pixel_variance16x4_neon,
+                           8),
+  ObmcSubpelVarianceParams(2, 4, &aom_highbd_8_obmc_sub_pixel_variance4x16_neon,
+                           8),
+};
+
+INSTANTIATE_TEST_SUITE_P(NEON, AvxHBDObmcSubpelVarianceTest,
+                         ::testing::ValuesIn(kArrayHBDObmcSubpelVariance_neon));
+#endif  // !CONFIG_REALTIME_ONLY
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #endif  // HAVE_NEON

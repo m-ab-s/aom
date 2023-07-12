@@ -948,3 +948,74 @@ HBD_SPECIALIZED_MASKED_SUBPEL_VARIANCE_WXH_NEON(12, 32, 8)
 
 HBD_SPECIALIZED_MASKED_SUBPEL_VARIANCE_WXH_NEON(12, 64, 16)
 #endif  // !CONFIG_REALTIME_ONLY
+
+#if !CONFIG_REALTIME_ONLY
+#define HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(w, h)                          \
+  unsigned int aom_highbd_8_obmc_sub_pixel_variance##w##x##h##_neon(        \
+      const uint8_t *pre, int pre_stride, int xoffset, int yoffset,         \
+      const int32_t *wsrc, const int32_t *mask, unsigned int *sse) {        \
+    uint16_t tmp0[w * (h + 1)];                                             \
+    uint16_t tmp1[w * h];                                                   \
+    uint16_t *pre_ptr = CONVERT_TO_SHORTPTR(pre);                           \
+    highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp0, pre_stride, 1, h + 1, \
+                                       xoffset);                            \
+    highbd_var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);       \
+    return aom_highbd_8_obmc_variance##w##x##h##_neon(                      \
+        CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                      \
+  }                                                                         \
+                                                                            \
+  unsigned int aom_highbd_10_obmc_sub_pixel_variance##w##x##h##_neon(       \
+      const uint8_t *pre, int pre_stride, int xoffset, int yoffset,         \
+      const int32_t *wsrc, const int32_t *mask, unsigned int *sse) {        \
+    uint16_t tmp0[w * (h + 1)];                                             \
+    uint16_t tmp1[w * h];                                                   \
+    uint16_t *pre_ptr = CONVERT_TO_SHORTPTR(pre);                           \
+    highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp0, pre_stride, 1, h + 1, \
+                                       xoffset);                            \
+    highbd_var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);       \
+    return aom_highbd_10_obmc_variance##w##x##h##_neon(                     \
+        CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                      \
+  }                                                                         \
+                                                                            \
+  unsigned int aom_highbd_12_obmc_sub_pixel_variance##w##x##h##_neon(       \
+      const uint8_t *pre, int pre_stride, int xoffset, int yoffset,         \
+      const int32_t *wsrc, const int32_t *mask, unsigned int *sse) {        \
+    uint16_t tmp0[w * (h + 1)];                                             \
+    uint16_t tmp1[w * h];                                                   \
+    uint16_t *pre_ptr = CONVERT_TO_SHORTPTR(pre);                           \
+    highbd_var_filter_block2d_bil_w##w(pre_ptr, tmp0, pre_stride, 1, h + 1, \
+                                       xoffset);                            \
+    highbd_var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);       \
+    return aom_highbd_12_obmc_variance##w##x##h##_neon(                     \
+        CONVERT_TO_BYTEPTR(tmp1), w, wsrc, mask, sse);                      \
+  }
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(4, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(4, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(4, 16)
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 16)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(8, 32)
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 4)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 16)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 32)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(16, 64)
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 8)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 16)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 32)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(32, 64)
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 16)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 32)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 64)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(64, 128)
+
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(128, 64)
+HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(128, 128)
+
+#endif  // !CONFIG_REALTIME_ONLY
