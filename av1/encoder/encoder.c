@@ -362,9 +362,9 @@ void av1_update_frame_size(AV1_COMP *cpi) {
 static INLINE int does_level_match(int width, int height, double fps,
                                    int lvl_width, int lvl_height,
                                    double lvl_fps, int lvl_dim_mult) {
-  const int64_t lvl_luma_pels = lvl_width * lvl_height;
+  const int64_t lvl_luma_pels = (int64_t)lvl_width * lvl_height;
   const double lvl_display_sample_rate = lvl_luma_pels * lvl_fps;
-  const int64_t luma_pels = width * height;
+  const int64_t luma_pels = (int64_t)width * height;
   const double display_sample_rate = luma_pels * fps;
   return luma_pels <= lvl_luma_pels &&
          display_sample_rate <= lvl_display_sample_rate &&
