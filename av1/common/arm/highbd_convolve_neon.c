@@ -1131,7 +1131,8 @@ static INLINE void highbd_convolve_2d_x_scale_8tap_neon(
     int w, int h, const int subpel_x_qn, const int x_step_qn,
     const InterpFilterParams *filter_params, ConvolveParams *conv_params,
     const int offset) {
-  const uint32x4_t idx = { 0, 1, 2, 3 };
+  static const uint32_t kIdx[4] = { 0, 1, 2, 3 };
+  const uint32x4_t idx = vld1q_u32(kIdx);
   const uint32x4_t subpel_mask = vdupq_n_u32(SCALE_SUBPEL_MASK);
   const int32x4_t shift_s32 = vdupq_n_s32(-conv_params->round_0);
   const int32x4_t offset_s32 = vdupq_n_s32(offset);
@@ -2137,7 +2138,8 @@ void av1_highbd_convolve_horiz_rs_neon(const uint16_t *src, int src_stride,
                                        int x0_qn, int x_step_qn, int bd) {
   const int horiz_offset = UPSCALE_NORMATIVE_TAPS / 2 - 1;
 
-  const int32x4_t idx = { 0, 1, 2, 3 };
+  static const int32_t kIdx[4] = { 0, 1, 2, 3 };
+  const int32x4_t idx = vld1q_s32(kIdx);
   const int32x4_t subpel_mask = vdupq_n_s32(RS_SCALE_SUBPEL_MASK);
   const int32x4_t shift_s32 = vdupq_n_s32(-FILTER_BITS);
   const int32x4_t offset_s32 = vdupq_n_s32(0);
@@ -2388,7 +2390,8 @@ static void highbd_convolve_add_src_horiz_hip(
     int h, int round0_bits, int bd) {
   const int extraprec_clamp_limit = WIENER_CLAMP_LIMIT(round0_bits, bd);
 
-  const int32x4_t idx = { 0, 1, 2, 3 };
+  static const int32_t kIdx[4] = { 0, 1, 2, 3 };
+  const int32x4_t idx = vld1q_s32(kIdx);
   const int32x4_t shift_s32 = vdupq_n_s32(-round0_bits);
   const uint16x4_t max = vdup_n_u16(extraprec_clamp_limit - 1);
   const int32x4_t rounding0 = vdupq_n_s32(1 << (bd + FILTER_BITS - 1));
@@ -2468,7 +2471,8 @@ static void highbd_convolve_add_src_vert_hip(
     const uint16_t *src_ptr, ptrdiff_t src_stride, uint16_t *dst_ptr,
     ptrdiff_t dst_stride, const int16_t *y_filter_ptr, int y_step_q4, int w,
     int h, int round1_bits, int bd) {
-  const int32x4_t idx = { 0, 1, 2, 3 };
+  static const int32_t kIdx[4] = { 0, 1, 2, 3 };
+  const int32x4_t idx = vld1q_s32(kIdx);
   const int32x4_t shift_s32 = vdupq_n_s32(-round1_bits);
   const uint16x4_t max = vdup_n_u16((1 << bd) - 1);
   const int32x4_t rounding0 = vdupq_n_s32(1 << (bd + round1_bits - 1));
