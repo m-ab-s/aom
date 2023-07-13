@@ -1322,7 +1322,8 @@ static int64_t motion_mode_rd(
   const int mi_col = xd->mi_col;
   int mode_index_start, mode_index_end;
   const int txfm_rd_gate_level =
-      get_txfm_rd_gate_level(cpi->sf.inter_sf.txfm_rd_gate_level, bsize,
+      get_txfm_rd_gate_level(cm->seq_params->enable_masked_compound,
+                             cpi->sf.inter_sf.txfm_rd_gate_level, bsize,
                              TX_SEARCH_MOTION_MODE, eval_motion_mode);
 
   // Modify the start and end index according to speed features. For example,
@@ -5237,6 +5238,7 @@ static void tx_search_best_inter_candidates(
     const int mode_rate = inter_modes_info->mode_rate_arr[data_idx];
     int64_t skip_rd = INT64_MAX;
     const int txfm_rd_gate_level = get_txfm_rd_gate_level(
+        cm->seq_params->enable_masked_compound,
         cpi->sf.inter_sf.txfm_rd_gate_level, bsize, TX_SEARCH_DEFAULT,
         /*eval_motion_mode=*/0);
     if (txfm_rd_gate_level) {
