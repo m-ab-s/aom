@@ -1553,7 +1553,7 @@ class ObmcVarianceTest
           aom_memalign(32, block_size() + width() + height() + 1));
     } else {
       pre_ = CONVERT_TO_BYTEPTR(reinterpret_cast<uint16_t *>(aom_memalign(
-          32, block_size() + width() + height() + 1 * sizeof(uint16_t))));
+          32, (block_size() + width() + height() + 1) * sizeof(uint16_t))));
     }
     wsrc_ = reinterpret_cast<int32_t *>(
         aom_memalign(32, block_size() * sizeof(uint32_t)));
@@ -1635,7 +1635,8 @@ void ObmcVarianceTest<ObmcSubpelVarFunc>::ExtremeRefTest() {
         memset(pre_ + half, 0, half + width() + height() + 1);
       } else {
         aom_memset16(CONVERT_TO_SHORTPTR(pre_), bd_mask(), half);
-        aom_memset16(CONVERT_TO_SHORTPTR(pre_) + half, 0, half);
+        aom_memset16(CONVERT_TO_SHORTPTR(pre_) + half, 0,
+                     half + width() + height() + 1);
       }
       for (int j = 0; j < half; j++) {
         wsrc_[j] = bd_mask() * kMaskMax * kMaskMax;
@@ -2081,6 +2082,11 @@ TEST_P(AvxHBDSubpelVarianceTest, Ref) { RefTest(); }
 TEST_P(AvxHBDSubpelVarianceTest, ExtremeRef) { ExtremeRefTest(); }
 TEST_P(AvxHBDSubpelVarianceTest, DISABLED_Speed) { SpeedTest(); }
 TEST_P(AvxHBDSubpelAvgVarianceTest, Ref) { RefTest(); }
+#if !CONFIG_REALTIME_ONLY
+TEST_P(AvxHBDObmcSubpelVarianceTest, Ref) { RefTest(); }
+TEST_P(AvxHBDObmcSubpelVarianceTest, ExtremeRef) { ExtremeRefTest(); }
+TEST_P(AvxHBDObmcSubpelVarianceTest, DISABLED_Speed) { SpeedTest(); }
+#endif
 
 INSTANTIATE_TEST_SUITE_P(
     C, MseHBDWxHTest,
