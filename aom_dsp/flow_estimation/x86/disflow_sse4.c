@@ -24,7 +24,7 @@
 // If you set this to 1 and compile in debug mode, then the outputs of the two
 // convolution stages will be checked against the plain C version of the code,
 // and an assertion will be fired if the results differ.
-#define CHECK_RESULTS 1
+#define CHECK_RESULTS 0
 
 // Note: Max sum(+ve coefficients) = 1.125 * scale
 static INLINE void get_cubic_kernel_dbl(double x, double *kernel) {
@@ -259,7 +259,9 @@ static INLINE void sobel_filter_x(const uint8_t *src, int src_stride,
                                   int16_t *dst, int dst_stride) {
   int16_t tmp_[DISFLOW_PATCH_SIZE * (DISFLOW_PATCH_SIZE + 2)];
   int16_t *tmp = tmp_ + DISFLOW_PATCH_SIZE;
+#if CHECK_RESULTS
   const int taps = 3;
+#endif  // CHECK_RESULTS
 
   // Horizontal filter
   // As the kernel is simply {1, 0, -1}, we implement this as simply
@@ -330,7 +332,9 @@ static INLINE void sobel_filter_y(const uint8_t *src, int src_stride,
                                   int16_t *dst, int dst_stride) {
   int16_t tmp_[DISFLOW_PATCH_SIZE * (DISFLOW_PATCH_SIZE + 2)];
   int16_t *tmp = tmp_ + DISFLOW_PATCH_SIZE;
+#if CHECK_RESULTS
   const int taps = 3;
+#endif  // CHECK_RESULTS
 
   // Horizontal filter
   // Here the kernel is {1, 2, 1}, which can be implemented
