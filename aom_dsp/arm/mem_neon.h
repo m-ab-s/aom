@@ -43,6 +43,11 @@ static INLINE uint8x16x2_t vld1q_u8_x2(const uint8_t *ptr) {
   return res;
 }
 
+static INLINE uint16x8x2_t vld1q_u16_x2(const uint16_t *ptr) {
+  uint16x8x2_t res = { { vld1q_u16(ptr + 0), vld1q_u16(ptr + 8) } };
+  return res;
+}
+
 static INLINE uint16x8x4_t vld1q_u16_x4(const uint16_t *ptr) {
   uint16x8x4_t res = { { vld1q_u16(ptr + 0 * 8), vld1q_u16(ptr + 1 * 8),
                          vld1q_u16(ptr + 2 * 8), vld1q_u16(ptr + 3 * 8) } };
