@@ -1679,6 +1679,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Prune the use of paletter mode in nonrd pickmode.
   int prune_palette_nonrd;
 
+  // Force to only use dct for palette search in nonrd pickmode.
+  int dct_only_palette_nonrd;
+
   // Skip loopfilter, for static content after slide change
   // or key frame, once quality has ramped up.
   // 0: disabled

@@ -1515,6 +1515,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->mv_sf.use_bsize_dependent_search_method = 0;
       sf->rt_sf.skip_cdef_sb = 1;
       sf->rt_sf.increase_color_thresh_palette = 1;
+      if (!frame_is_intra_only(cm)) sf->rt_sf.dct_only_palette_nonrd = 1;
     }
     if (speed >= 8) {
       sf->rt_sf.nonrd_check_partition_merge_mode = 3;
@@ -2205,6 +2206,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->use_rtc_tf = 0;
   rt_sf->prune_idtx_nonrd = 0;
   rt_sf->prune_palette_nonrd = 0;
+  rt_sf->dct_only_palette_nonrd = 0;
   rt_sf->part_early_exit_zeromv = 0;
   rt_sf->sse_early_term_inter_search = EARLY_TERM_DISABLED;
   rt_sf->skip_lf_screen = 0;

@@ -2077,7 +2077,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   uint16_t tx_mask;
 
   // Use DCT_DCT transform for DC only block.
-  if (dc_only_blk)
+  if (dc_only_blk || cpi->sf.rt_sf.dct_only_palette_nonrd == 1)
     tx_mask = 1 << DCT_DCT;
   else
     tx_mask = get_tx_mask(cpi, x, plane, block, blk_row, blk_col, plane_bsize,
