@@ -1710,7 +1710,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     }
 
     if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
-      foreach $bd ("_", "_10_", "_12_") {
+      foreach $bd ("_8_", "_10_", "_12_") {
         foreach (@encoder_block_sizes) {
           ($w, $h) = @$_;
           add_proto qw/unsigned int/, "aom_highbd${bd}obmc_variance${w}x${h}", "const uint8_t *pre, int pre_stride, const int32_t *wsrc, const int32_t *mask, unsigned int *sse";
