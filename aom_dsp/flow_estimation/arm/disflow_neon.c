@@ -15,6 +15,7 @@
 #include <math.h>
 
 #include "aom_dsp/arm/mem_neon.h"
+#include "aom_dsp/arm/sum_neon.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
@@ -236,17 +237,25 @@ static INLINE void sobel_filter_y(const uint8_t *src, int src_stride,
 //       |sum(dy * dt)|
 static INLINE void compute_flow_matrix(const int16_t *dx, int dx_stride,
                                        const int16_t *dy, int dy_stride,
-                                       double *M) {
-  int tmp[4] = { 0 };
+                                       double *M_inv) {
+  int32x4_t sum[4] = { vdupq_n_s32(0), vdupq_n_s32(0), vdupq_n_s32(0),
+                       vdupq_n_s32(0) };
 
   for (int i = 0; i < DISFLOW_PATCH_SIZE; i++) {
-    for (int j = 0; j < DISFLOW_PATCH_SIZE; j++) {
-      tmp[0] += dx[i * dx_stride + j] * dx[i * dx_stride + j];
-      tmp[1] += dx[i * dx_stride + j] * dy[i * dy_stride + j];
-      // Don't compute tmp[2], as it should be equal to tmp[1]
-      tmp[3] += dy[i * dy_stride + j] * dy[i * dy_stride + j];
-    }
+    int16x8_t x = vld1q_s16(dx + i * dx_stride);
+    int16x8_t y = vld1q_s16(dy + i * dy_stride);
+    sum[0] = vmlal_s16(sum[0], vget_low_s16(x), vget_low_s16(x));
+    sum[0] = vmlal_s16(sum[0], vget_high_s16(x), vget_high_s16(x));
+
+    sum[1] = vmlal_s16(sum[1], vget_low_s16(x), vget_low_s16(y));
+    sum[1] = vmlal_s16(sum[1], vget_high_s16(x), vget_high_s16(y));
+
+    sum[3] = vmlal_s16(sum[3], vget_low_s16(y), vget_low_s16(y));
+    sum[3] = vmlal_s16(sum[3], vget_high_s16(y), vget_high_s16(y));
   }
+  sum[2] = sum[1];
+
+  int32x4_t res = horizontal_add_4d_s32x4(sum);
 
   // Apply regularization
   // We follow the standard regularization method of adding `k * I` before
@@ -257,15 +266,21 @@ static INLINE void compute_flow_matrix(const int16_t *dx, int dx_stride,
   // 1e6, with an upper limit of around 6e7, at the time of writing).
   // It also preserves the property that all matrix values are whole numbers,
   // which is convenient for integerized SIMD implementation.
-  tmp[0] += 1;
-  tmp[3] += 1;
 
-  tmp[2] = tmp[1];
+  double M0 = (double)vgetq_lane_s32(res, 0) + 1;
+  double M1 = (double)vgetq_lane_s32(res, 1);
+  double M2 = (double)vgetq_lane_s32(res, 2);
+  double M3 = (double)vgetq_lane_s32(res, 3) + 1;
 
-  M[0] = (double)tmp[0];
-  M[1] = (double)tmp[1];
-  M[2] = (double)tmp[2];
-  M[3] = (double)tmp[3];
+  // Invert matrix M.
+  double det = (M0 * M3) - (M1 * M2);
+  assert(det >= 1);
+  const double det_inv = 1 / det;
+
+  M_inv[0] = M3 * det_inv;
+  M_inv[1] = -M1 * det_inv;
+  M_inv[2] = -M2 * det_inv;
+  M_inv[3] = M0 * det_inv;
 }
 
 static INLINE void compute_flow_vector(const int16_t *dx, int dx_stride,
@@ -282,27 +297,9 @@ static INLINE void compute_flow_vector(const int16_t *dx, int dx_stride,
   }
 }
 
-// Try to invert the matrix M
-// Note: Due to the nature of how a least-squares matrix is constructed, all of
-// the eigenvalues will be >= 0, and therefore det M >= 0 as well.
-// The regularization term `+ k * I` further ensures that det M >= k^2.
-// As mentioned in compute_flow_matrix(), here we use k = 1, so det M >= 1.
-// So we don't have to worry about non-invertible matrices here.
-static INLINE void invert_2x2(const double *M, double *M_inv) {
-  double det = (M[0] * M[3]) - (M[1] * M[2]);
-  assert(det >= 1);
-  const double det_inv = 1 / det;
-
-  M_inv[0] = M[3] * det_inv;
-  M_inv[1] = -M[1] * det_inv;
-  M_inv[2] = -M[2] * det_inv;
-  M_inv[3] = M[0] * det_inv;
-}
-
 void aom_compute_flow_at_point_neon(const uint8_t *src, const uint8_t *ref,
                                     int x, int y, int width, int height,
                                     int stride, double *u, double *v) {
-  double M[4];
   double M_inv[4];
   int b[2];
   int16_t dt[DISFLOW_PATCH_SIZE * DISFLOW_PATCH_SIZE];
@@ -314,8 +311,7 @@ void aom_compute_flow_at_point_neon(const uint8_t *src, const uint8_t *ref,
   sobel_filter_x(src_patch, stride, dx, DISFLOW_PATCH_SIZE);
   sobel_filter_y(src_patch, stride, dy, DISFLOW_PATCH_SIZE);
 
-  compute_flow_matrix(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M);
-  invert_2x2(M, M_inv);
+  compute_flow_matrix(dx, DISFLOW_PATCH_SIZE, dy, DISFLOW_PATCH_SIZE, M_inv);
 
   for (int itr = 0; itr < DISFLOW_MAX_ITR; itr++) {
     compute_flow_error(src, ref, width, height, stride, x, y, *u, *v, dt);
