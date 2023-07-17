@@ -186,6 +186,7 @@ int aom_arm_cpu_caps(void) {
 #define AOM_AARCH32_HWCAP_NEON (1 << 12)
 #define AOM_AARCH64_HWCAP_CRC32 (1 << 7)
 #define AOM_AARCH64_HWCAP_ASIMDDP (1 << 20)
+#define AOM_AARCH64_HWCAP_SVE (1 << 22)
 #define AOM_AARCH64_HWCAP2_I8MM (1 << 13)
 
 int aom_arm_cpu_caps(void) {
@@ -209,6 +210,9 @@ int aom_arm_cpu_caps(void) {
 #if HAVE_NEON_I8MM
   if (hwcap2 & AOM_AARCH64_HWCAP2_I8MM) flags |= HAS_NEON_I8MM;
 #endif  // HAVE_NEON_I8MM
+#if HAVE_SVE
+  if (hwcap & AOM_AARCH64_HWCAP_SVE) flags |= HAS_SVE;
+#endif  // HAVE_SVE
 #else   // !AOM_ARCH_AARCH64
 #if HAVE_NEON
   if (hwcap & AOM_AARCH32_HWCAP_NEON) flags |= HAS_NEON;

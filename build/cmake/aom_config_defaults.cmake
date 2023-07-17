@@ -36,6 +36,7 @@ set_aom_detect_var(HAVE_NEON_DOTPROD 0
                    "Enables Armv8.2-A Neon dotprod intrinsics optimizations.")
 set_aom_detect_var(HAVE_NEON_I8MM 0
                    "Enables Armv8.2-A Neon i8mm intrinsics optimizations.")
+set_aom_detect_var(HAVE_SVE 0 "Enables Armv8.2-A SVE intrinsics optimizations.")
 
 # PPC feature flags.
 set_aom_detect_var(HAVE_VSX 0 "Enables VSX optimizations.")
@@ -203,6 +204,8 @@ set_aom_option_var(
 set_aom_option_var(
   ENABLE_NEON_I8MM
   "Enables Armv8.2-A Neon i8mm optimizations on AArch64 targets." ON)
+set_aom_option_var(ENABLE_SVE
+                   "Enables Armv8.2-A SVE optimizations on AArch64 targets." ON)
 
 # VSX intrinsics flags.
 set_aom_option_var(ENABLE_VSX "Enables VSX optimizations on PowerPC targets."
