@@ -1877,6 +1877,10 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_split_threshold_shift = 10;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
   }
+  if (speed >= 11 && !frame_is_intra_only(cm) &&
+      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+    sf->winner_mode_sf.dc_blk_pred_level = 3;
+  }
 }
 
 static AOM_INLINE void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
