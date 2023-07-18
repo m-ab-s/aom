@@ -2408,6 +2408,52 @@ INSTANTIATE_TEST_SUITE_P(NEON, SADx3Test, ::testing::ValuesIn(x3d_neon_tests));
 
 #endif  // HAVE_NEON
 
+#if HAVE_NEON_DOTPROD
+const SadMxNParam neon_dotprod_tests[] = {
+  make_tuple(128, 128, &aom_sad128x128_neon_dotprod, -1),
+  make_tuple(128, 64, &aom_sad128x64_neon_dotprod, -1),
+  make_tuple(64, 128, &aom_sad64x128_neon_dotprod, -1),
+  make_tuple(64, 64, &aom_sad64x64_neon_dotprod, -1),
+  make_tuple(64, 32, &aom_sad64x32_neon_dotprod, -1),
+  make_tuple(32, 64, &aom_sad32x64_neon_dotprod, -1),
+  make_tuple(32, 32, &aom_sad32x32_neon_dotprod, -1),
+  make_tuple(32, 16, &aom_sad32x16_neon_dotprod, -1),
+  make_tuple(16, 32, &aom_sad16x32_neon_dotprod, -1),
+  make_tuple(16, 16, &aom_sad16x16_neon_dotprod, -1),
+  make_tuple(16, 8, &aom_sad16x8_neon_dotprod, -1),
+#if !CONFIG_REALTIME_ONLY
+  make_tuple(64, 16, &aom_sad64x16_neon_dotprod, -1),
+  make_tuple(32, 8, &aom_sad32x8_neon_dotprod, -1),
+  make_tuple(16, 64, &aom_sad16x64_neon_dotprod, -1),
+  make_tuple(16, 4, &aom_sad16x4_neon_dotprod, -1),
+#endif  // !CONFIG_REALTIME_ONLY
+};
+INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, SADTest,
+                         ::testing::ValuesIn(neon_dotprod_tests));
+
+const SadMxNParam skip_neon_dotprod_tests[] = {
+  make_tuple(128, 128, &aom_sad_skip_128x128_neon_dotprod, -1),
+  make_tuple(128, 64, &aom_sad_skip_128x64_neon_dotprod, -1),
+  make_tuple(64, 128, &aom_sad_skip_64x128_neon_dotprod, -1),
+  make_tuple(64, 64, &aom_sad_skip_64x64_neon_dotprod, -1),
+  make_tuple(64, 32, &aom_sad_skip_64x32_neon_dotprod, -1),
+  make_tuple(32, 64, &aom_sad_skip_32x64_neon_dotprod, -1),
+  make_tuple(32, 32, &aom_sad_skip_32x32_neon_dotprod, -1),
+  make_tuple(32, 16, &aom_sad_skip_32x16_neon_dotprod, -1),
+  make_tuple(16, 32, &aom_sad_skip_16x32_neon_dotprod, -1),
+  make_tuple(16, 16, &aom_sad_skip_16x16_neon_dotprod, -1),
+  make_tuple(16, 8, &aom_sad_skip_16x8_neon_dotprod, -1),
+#if !CONFIG_REALTIME_ONLY
+  make_tuple(64, 16, &aom_sad_skip_64x16_neon_dotprod, -1),
+  make_tuple(32, 8, &aom_sad_skip_32x8_neon_dotprod, -1),
+  make_tuple(16, 64, &aom_sad_skip_16x64_neon_dotprod, -1),
+  make_tuple(16, 4, &aom_sad_skip_16x4_neon_dotprod, -1),
+#endif  // !CONFIG_REALTIME_ONLY
+};
+INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, SADSkipTest,
+                         ::testing::ValuesIn(skip_neon_dotprod_tests));
+#endif  // HAVE_NEON_DOTPROD
+
 //------------------------------------------------------------------------------
 // x86 functions
 #if HAVE_SSE2
