@@ -847,6 +847,10 @@ static void set_good_speed_feature_framesize_dependent(
     } else {
       sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL2;
     }
+
+    if (is_720p_or_larger)
+      sf->part_sf.ext_part_eval_based_on_cur_best =
+          (allow_screen_content_tools || frame_is_intra_only(cm)) ? 0 : 1;
   }
 
   if (speed >= 6) {
@@ -1952,6 +1956,7 @@ static AOM_INLINE void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->intra_cnn_based_part_prune_level = 0;
   part_sf->ext_partition_eval_thresh = BLOCK_8X8;
   part_sf->rect_partition_eval_thresh = BLOCK_128X128;
+  part_sf->ext_part_eval_based_on_cur_best = 0;
   part_sf->prune_ext_part_using_split_info = 0;
   part_sf->prune_rectangular_split_based_on_qidx = 0;
   part_sf->prune_rect_part_using_4x4_var_deviation = false;
