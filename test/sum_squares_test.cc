@@ -412,6 +412,14 @@ INSTANTIATE_TEST_SUITE_P(NEON, SSETest,
                          Combine(ValuesIn(sse_neon), Range(4, 129, 4)));
 #endif  // HAVE_NEON
 
+#if HAVE_NEON_DOTPROD
+TestSSEFuncs sse_neon_dotprod[] = {
+  TestSSEFuncs(&aom_sse_c, &aom_sse_neon_dotprod),
+};
+INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, SSETest,
+                         Combine(ValuesIn(sse_neon_dotprod), Range(4, 129, 4)));
+#endif  // HAVE_NEON_DOTPROD
+
 #if HAVE_SSE4_1
 TestSSEFuncs sse_sse4[] = {
   TestSSEFuncs(&aom_sse_c, &aom_sse_sse4_1),

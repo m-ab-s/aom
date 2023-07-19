@@ -773,7 +773,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_subtract_block neon sse2 avx2/;
 
   add_proto qw/int64_t/, "aom_sse", "const uint8_t *a, int a_stride, const uint8_t *b,int b_stride, int width, int height";
-  specialize qw/aom_sse  sse4_1 avx2 neon/;
+  specialize qw/aom_sse  sse4_1 avx2 neon neon_dotprod/;
 
   add_proto qw/void/, "aom_get_blk_sse_sum", "const int16_t *data, int stride, int bw, int bh, int *x_sum, int64_t *x2_sum";
   specialize qw/aom_get_blk_sse_sum sse2 avx2 neon/;
