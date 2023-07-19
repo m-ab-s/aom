@@ -220,3 +220,11 @@ static INLINE int32x4_t horizontal_add_2d_s32(int32x4_t a, int32x4_t b) {
   return vcombine_s32(a0, b0);
 #endif
 }
+
+static INLINE int32x2_t add_pairwise_s32x4(int32x4_t a) {
+#if AOM_ARCH_AARCH64
+  return vget_low_s32(vpaddq_s32(a, a));
+#else
+  return vpadd_s32(vget_low_s32(a), vget_high_s32(a));
+#endif
+}

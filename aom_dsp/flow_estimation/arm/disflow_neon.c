@@ -287,14 +287,22 @@ static INLINE void compute_flow_vector(const int16_t *dx, int dx_stride,
                                        const int16_t *dy, int dy_stride,
                                        const int16_t *dt, int dt_stride,
                                        int *b) {
-  memset(b, 0, 2 * sizeof(*b));
+  int32x4_t b_s32[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
 
   for (int i = 0; i < DISFLOW_PATCH_SIZE; i++) {
-    for (int j = 0; j < DISFLOW_PATCH_SIZE; j++) {
-      b[0] += dx[i * dx_stride + j] * dt[i * dt_stride + j];
-      b[1] += dy[i * dy_stride + j] * dt[i * dt_stride + j];
-    }
+    int16x8_t dx16 = vld1q_s16(dx + i * dx_stride);
+    int16x8_t dy16 = vld1q_s16(dy + i * dy_stride);
+    int16x8_t dt16 = vld1q_s16(dt + i * dt_stride);
+
+    b_s32[0] = vmlal_s16(b_s32[0], vget_low_s16(dx16), vget_low_s16(dt16));
+    b_s32[0] = vmlal_s16(b_s32[0], vget_high_s16(dx16), vget_high_s16(dt16));
+
+    b_s32[1] = vmlal_s16(b_s32[1], vget_low_s16(dy16), vget_low_s16(dt16));
+    b_s32[1] = vmlal_s16(b_s32[1], vget_high_s16(dy16), vget_high_s16(dt16));
   }
+
+  int32x4_t b_red = horizontal_add_2d_s32(b_s32[0], b_s32[1]);
+  vst1_s32(b, add_pairwise_s32x4(b_red));
 }
 
 void aom_compute_flow_at_point_neon(const uint8_t *src, const uint8_t *ref,
