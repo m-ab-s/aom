@@ -224,7 +224,8 @@ static INLINE uint8_t find_average_neon(const uint8_t *src, int src_stride,
       h_limit += h_overflow;
       h_limit = height > h_overflow ? h_overflow : height;
     } while (h < height);
-    return (horizontal_long_add_u32x2(avg_u32) + sum) / (width * height);
+    return (uint8_t)((horizontal_long_add_u32x2(avg_u32) + sum) /
+                     (width * height));
   }
   int i = height;
   do {
