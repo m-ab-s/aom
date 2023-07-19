@@ -3802,13 +3802,13 @@ static INLINE void lowbd_inv_txfm2d_add_4x4_neon(const int32_t *input,
     if (ud_flip == 0) {
       for (r = 0; r < txfm_size_row; ++r) {
         output[r * stride + c] =
-            highbd_clip_pixel_add(output[r * stride + c], temp_out[r], bd);
+            clip_pixel(output[r * stride + c] + temp_out[r]);
       }
     } else {
       // flip upside down
       for (r = 0; r < txfm_size_row; ++r) {
-        output[r * stride + c] = highbd_clip_pixel_add(
-            output[r * stride + c], temp_out[txfm_size_row - r - 1], bd);
+        output[r * stride + c] = clip_pixel(output[r * stride + c] +
+                                            temp_out[txfm_size_row - r - 1]);
       }
     }
   }
@@ -3867,13 +3867,13 @@ void lowbd_inv_txfm2d_add_4x8_neon(const int32_t *input, uint8_t *output,
     if (ud_flip == 0) {
       for (r = 0; r < txfm_size_row; ++r) {
         output[r * stride + c] =
-            highbd_clip_pixel_add(output[r * stride + c], temp_out[r], bd);
+            clip_pixel(output[r * stride + c] + temp_out[r]);
       }
     } else {
       // flip upside down
       for (r = 0; r < txfm_size_row; ++r) {
-        output[r * stride + c] = highbd_clip_pixel_add(
-            output[r * stride + c], temp_out[txfm_size_row - r - 1], bd);
+        output[r * stride + c] = clip_pixel(output[r * stride + c] +
+                                            temp_out[txfm_size_row - r - 1]);
       }
     }
   }
@@ -3932,13 +3932,13 @@ void lowbd_inv_txfm2d_add_8x4_neon(const int32_t *input, uint8_t *output,
     if (ud_flip == 0) {
       for (r = 0; r < txfm_size_row; ++r) {
         output[r * stride + c] =
-            highbd_clip_pixel_add(output[r * stride + c], temp_out[r], bd);
+            clip_pixel(output[r * stride + c] + temp_out[r]);
       }
     } else {
       // flip upside down
       for (r = 0; r < txfm_size_row; ++r) {
-        output[r * stride + c] = highbd_clip_pixel_add(
-            output[r * stride + c], temp_out[txfm_size_row - r - 1], bd);
+        output[r * stride + c] = clip_pixel(output[r * stride + c] +
+                                            temp_out[txfm_size_row - r - 1]);
       }
     }
   }
@@ -3996,13 +3996,13 @@ void lowbd_inv_txfm2d_add_4x16_neon(const int32_t *input, uint8_t *output,
     if (ud_flip == 0) {
       for (r = 0; r < txfm_size_row; ++r) {
         output[r * stride + c] =
-            highbd_clip_pixel_add(output[r * stride + c], temp_out[r], bd);
+            clip_pixel(output[r * stride + c] + temp_out[r]);
       }
     } else {
       // flip upside down
       for (r = 0; r < txfm_size_row; ++r) {
-        output[r * stride + c] = highbd_clip_pixel_add(
-            output[r * stride + c], temp_out[txfm_size_row - r - 1], bd);
+        output[r * stride + c] = clip_pixel(output[r * stride + c] +
+                                            temp_out[txfm_size_row - r - 1]);
       }
     }
   }
@@ -4060,13 +4060,13 @@ void lowbd_inv_txfm2d_add_16x4_neon(const int32_t *input, uint8_t *output,
     if (ud_flip == 0) {
       for (r = 0; r < txfm_size_row; ++r) {
         output[r * stride + c] =
-            highbd_clip_pixel_add(output[r * stride + c], temp_out[r], bd);
+            clip_pixel(output[r * stride + c] + temp_out[r]);
       }
     } else {
       // flip upside down
       for (r = 0; r < txfm_size_row; ++r) {
-        output[r * stride + c] = highbd_clip_pixel_add(
-            output[r * stride + c], temp_out[txfm_size_row - r - 1], bd);
+        output[r * stride + c] = clip_pixel(output[r * stride + c] +
+                                            temp_out[txfm_size_row - r - 1]);
       }
     }
   }
