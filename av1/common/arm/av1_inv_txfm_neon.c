@@ -3768,7 +3768,7 @@ static INLINE void lowbd_inv_txfm2d_add_4x4_neon(const int32_t *input,
   int32_t *buf = temp_out + buf_offset;
   int32_t *buf_ptr = buf;
   const int8_t stage_range[MAX_TXFM_STAGE_NUM] = { 16, 16, 16, 16, 16, 16, 16 };
-  int r, bd = 8;
+  int r;
   const transform_1d_neon row_txfm =
       lowbd_txfm_all_1d_arr[txw_idx][hitx_1d_tab[tx_type]];
   const transform_1d_neon col_txfm =
@@ -3795,7 +3795,7 @@ static INLINE void lowbd_inv_txfm2d_add_4x4_neon(const int32_t *input,
       for (r = 0; r < txfm_size_row; ++r)
         temp_in[r] = buf[r * txfm_size_col + (txfm_size_col - c - 1)];
     }
-    clamp_buf(temp_in, txfm_size_row, bd + 8);
+    clamp_buf(temp_in, txfm_size_row, 16);
     col_txfm(temp_in, temp_out, INV_COS_BIT, stage_range);
     av1_round_shift_array(temp_out, txfm_size_row, -shift[1]);
 
@@ -3832,7 +3832,7 @@ void lowbd_inv_txfm2d_add_4x8_neon(const int32_t *input, uint8_t *output,
   int32_t *buf_ptr = buf;
   const int8_t stage_range[MAX_TXFM_STAGE_NUM] = { 16, 16, 16, 16,
                                                    16, 16, 16, 16 };
-  int r, bd = 8;
+  int r;
   const transform_1d_neon row_txfm =
       lowbd_txfm_all_1d_arr[txw_idx][hitx_1d_tab[tx_type]];
   const transform_1d_neon col_txfm =
@@ -3860,7 +3860,7 @@ void lowbd_inv_txfm2d_add_4x8_neon(const int32_t *input, uint8_t *output,
       for (r = 0; r < txfm_size_row; ++r)
         temp_in[r] = buf[r * txfm_size_col + (txfm_size_col - c - 1)];
     }
-    clamp_buf(temp_in, txfm_size_row, bd + 8);
+    clamp_buf(temp_in, txfm_size_row, 16);
     col_txfm(temp_in, temp_out, INV_COS_BIT, stage_range);
     av1_round_shift_array(temp_out, txfm_size_row, -shift[1]);
 
@@ -3897,7 +3897,7 @@ void lowbd_inv_txfm2d_add_8x4_neon(const int32_t *input, uint8_t *output,
   int32_t *buf_ptr = buf;
   const int8_t stage_range[MAX_TXFM_STAGE_NUM] = { 16, 16, 16, 16,
                                                    16, 16, 16, 16 };
-  int r, bd = 8;
+  int r;
   const transform_1d_neon row_txfm =
       lowbd_txfm_all_1d_arr[txw_idx][hitx_1d_tab[tx_type]];
   const transform_1d_neon col_txfm =
@@ -3925,7 +3925,7 @@ void lowbd_inv_txfm2d_add_8x4_neon(const int32_t *input, uint8_t *output,
       for (r = 0; r < txfm_size_row; ++r)
         temp_in[r] = buf[r * txfm_size_col + (txfm_size_col - c - 1)];
     }
-    clamp_buf(temp_in, txfm_size_row, bd + 8);
+    clamp_buf(temp_in, txfm_size_row, 16);
     col_txfm(temp_in, temp_out, INV_COS_BIT, stage_range);
     av1_round_shift_array(temp_out, txfm_size_row, -shift[1]);
 
@@ -3962,7 +3962,7 @@ void lowbd_inv_txfm2d_add_4x16_neon(const int32_t *input, uint8_t *output,
   int32_t *buf_ptr = buf;
   const int8_t stage_range[MAX_TXFM_STAGE_NUM] = { 16, 16, 16, 16, 16,
                                                    16, 16, 16, 16, 16 };
-  int r, bd = 8;
+  int r;
   const transform_1d_neon row_txfm =
       lowbd_txfm_all_1d_arr[txw_idx][hitx_1d_tab[tx_type]];
   const transform_1d_neon col_txfm =
@@ -3989,7 +3989,7 @@ void lowbd_inv_txfm2d_add_4x16_neon(const int32_t *input, uint8_t *output,
       for (r = 0; r < txfm_size_row; ++r)
         temp_in[r] = buf[r * txfm_size_col + (txfm_size_col - c - 1)];
     }
-    clamp_buf(temp_in, txfm_size_row, bd + 8);
+    clamp_buf(temp_in, txfm_size_row, 16);
     col_txfm(temp_in, temp_out, INV_COS_BIT, stage_range);
     av1_round_shift_array(temp_out, txfm_size_row, -shift[1]);
 
@@ -4026,7 +4026,7 @@ void lowbd_inv_txfm2d_add_16x4_neon(const int32_t *input, uint8_t *output,
   int32_t *buf_ptr = buf;
   const int8_t stage_range[MAX_TXFM_STAGE_NUM] = { 16, 16, 16, 16, 16,
                                                    16, 16, 16, 16, 16 };
-  int r, bd = 8;
+  int r;
   const transform_1d_neon row_txfm =
       lowbd_txfm_all_1d_arr[txw_idx][hitx_1d_tab[tx_type]];
   const transform_1d_neon col_txfm =
@@ -4053,7 +4053,7 @@ void lowbd_inv_txfm2d_add_16x4_neon(const int32_t *input, uint8_t *output,
       for (r = 0; r < txfm_size_row; ++r)
         temp_in[r] = buf[r * txfm_size_col + (txfm_size_col - c - 1)];
     }
-    clamp_buf(temp_in, txfm_size_row, bd + 8);
+    clamp_buf(temp_in, txfm_size_row, 16);
     col_txfm(temp_in, temp_out, INV_COS_BIT, stage_range);
     av1_round_shift_array(temp_out, txfm_size_row, -shift[1]);
 
