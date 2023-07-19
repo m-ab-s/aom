@@ -68,6 +68,12 @@ INSTANTIATE_TEST_SUITE_P(SSSE3, AV1DISTWTDCOMPAVGUPSAMPLEDTest,
                              aom_dist_wtd_comp_avg_upsampled_pred_ssse3));
 #endif
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV1DISTWTDCOMPAVGUPSAMPLEDTest,
+                         libaom_test::AV1DISTWTDCOMPAVG::BuildParams(
+                             aom_dist_wtd_comp_avg_upsampled_pred_neon));
+#endif  // HAVE_NEON
+
 TEST_P(DistWtdCompAvgTest, MaxRef) {
   FillConstant(reference_data_, reference_stride_, mask_);
   FillConstant(second_pred_, width_, 0);
