@@ -740,6 +740,14 @@ INSTANTIATE_TEST_SUITE_P(NEON, Lowbd2dVarTest,
 
 #endif  // HAVE_NEON
 
+#if HAVE_NEON_DOTPROD
+
+INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, Lowbd2dVarTest,
+                         ::testing::Values(TestFuncVar2D(
+                             &aom_var_2d_u8_c, &aom_var_2d_u8_neon_dotprod)));
+
+#endif  // HAVE_NEON_DOTPROD
+
 class Highbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
  public:
   virtual ~Highbd2dVarTest() {}
