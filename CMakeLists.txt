@@ -863,7 +863,7 @@ set_user_flags()
 # Aomedia documentation rule.
 set(DOXYGEN_VERSION_VALUE 0)
 if(ENABLE_DOCS)
-  include(FindDoxygen)
+  find_package(Doxygen)
   if(DOXYGEN_FOUND)
     # Check if Doxygen version is >= minimum required version(i.e. 1.8.10).
     set(MINIMUM_DOXYGEN_VERSION 1008010)
