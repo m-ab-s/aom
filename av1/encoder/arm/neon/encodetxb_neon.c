@@ -282,7 +282,7 @@ static INLINE void get_4_nz_map_contexts_2d(const uint8_t *levels,
   const uint8x16_t pos_to_offset_large = vdupq_n_u8(21);
 
   uint8x16_t pos_to_offset =
-      vld1q_u8((width == 4) ? c_4_po_2d[0] : c_4_po_2d[1]);
+      (width == 4) ? vld1q_u8(c_4_po_2d[0]) : vld1q_u8(c_4_po_2d[1]);
 
   uint8x16_t count;
   uint8x16_t level[5];
