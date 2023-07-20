@@ -3871,6 +3871,26 @@ const VarianceParams kArrayVariance_neon_dotprod[] = {
 INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, AvxVarianceTest,
                          ::testing::ValuesIn(kArrayVariance_neon_dotprod));
 
+const GetSseSumParams kArrayGetSseSum8x8Quad_neon_dotprod[] = {
+  GetSseSumParams(7, 7, &aom_get_var_sse_sum_8x8_quad_neon_dotprod, 0),
+  GetSseSumParams(6, 6, &aom_get_var_sse_sum_8x8_quad_neon_dotprod, 0),
+  GetSseSumParams(5, 5, &aom_get_var_sse_sum_8x8_quad_neon_dotprod, 0),
+  GetSseSumParams(5, 4, &aom_get_var_sse_sum_8x8_quad_neon_dotprod, 0)
+};
+INSTANTIATE_TEST_SUITE_P(
+    NEON_DOTPROD, GetSseSum8x8QuadTest,
+    ::testing::ValuesIn(kArrayGetSseSum8x8Quad_neon_dotprod));
+
+const GetSseSumParamsDual kArrayGetSseSum16x16Dual_neon_dotprod[] = {
+  GetSseSumParamsDual(7, 7, &aom_get_var_sse_sum_16x16_dual_neon_dotprod, 0),
+  GetSseSumParamsDual(6, 6, &aom_get_var_sse_sum_16x16_dual_neon_dotprod, 0),
+  GetSseSumParamsDual(5, 5, &aom_get_var_sse_sum_16x16_dual_neon_dotprod, 0),
+  GetSseSumParamsDual(5, 4, &aom_get_var_sse_sum_16x16_dual_neon_dotprod, 0)
+};
+INSTANTIATE_TEST_SUITE_P(
+    NEON_DOTPROD, GetSseSum16x16DualTest,
+    ::testing::ValuesIn(kArrayGetSseSum16x16Dual_neon_dotprod));
+
 #endif  // HAVE_NEON_DOTPROD
 
 }  // namespace
