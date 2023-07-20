@@ -709,6 +709,8 @@ static int firstpass_inter_prediction(
   // Compute the motion error of the 0,0 motion using the last source
   // frame as the reference. Skip the further motion search on
   // reconstructed frame if this error is small.
+  // TODO(chiyotsai): The unscaled last source might be different dimension
+  // as the current source. See BUG=aomedia:3413
   struct buf_2d unscaled_last_source_buf_2d;
   unscaled_last_source_buf_2d.buf =
       cpi->unscaled_last_source->y_buffer + src_yoffset;
@@ -745,6 +747,7 @@ static int firstpass_inter_prediction(
     // Assume 0,0 motion with no mv overhead.
     xd->plane[0].pre[0].buf = golden_frame->y_buffer + recon_yoffset;
     xd->plane[0].pre[0].stride = golden_frame->y_stride;
+    xd->plane[0].pre[0].width = golden_frame->y_width;
     gf_motion_error =
         get_prediction_error_bitdepth(is_high_bitdepth, bitdepth, bsize,
                                       &x->plane[0].src, &xd->plane[0].pre[0]);
@@ -1121,10 +1124,16 @@ void av1_first_pass_row(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
   AV1EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;
 
-  const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf(cm, LAST_FRAME);
+  const YV12_BUFFER_CONFIG *last_frame =
+      av1_get_scaled_ref_frame(cpi, LAST_FRAME);
+  if (!last_frame) {
+    last_frame = get_ref_frame_yv12_buf(cm, LAST_FRAME);
+  }
   const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+      av1_get_scaled_ref_frame(cpi, GOLDEN_FRAME);
+  if (!golden_frame) {
+    golden_frame = get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+  }
   YV12_BUFFER_CONFIG *const this_frame = &cm->cur_frame->buf;
 
   PICK_MODE_CONTEXT *ctx = td->firstpass_ctx;
@@ -1252,6 +1261,9 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *const xd = &x->e_mbd;
   const int qindex = find_fp_qindex(seq_params->bit_depth);
+  const int ref_frame_flags_backup = cpi->ref_frame_flags;
+  cpi->ref_frame_flags = av1_ref_frame_flag_list[LAST_FRAME] |
+                         av1_ref_frame_flag_list[GOLDEN_FRAME];
 
   // Detect if the key frame is screen content type.
   if (frame_is_intra_only(cm)) {
@@ -1303,10 +1315,18 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
 
   av1_init_tile_data(cpi);
 
-  const YV12_BUFFER_CONFIG *const last_frame =
-      get_ref_frame_yv12_buf(cm, LAST_FRAME);
-  const YV12_BUFFER_CONFIG *golden_frame =
-      get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+  const YV12_BUFFER_CONFIG *last_frame = NULL;
+  const YV12_BUFFER_CONFIG *golden_frame = NULL;
+  if (!frame_is_intra_only(cm)) {
+    av1_scale_references(cpi, EIGHTTAP_REGULAR, 0, 0);
+    last_frame = av1_is_scaled(get_ref_scale_factors_const(cm, LAST_FRAME))
+                     ? av1_get_scaled_ref_frame(cpi, LAST_FRAME)
+                     : get_ref_frame_yv12_buf(cm, LAST_FRAME);
+    golden_frame = av1_is_scaled(get_ref_scale_factors_const(cm, GOLDEN_FRAME))
+                       ? av1_get_scaled_ref_frame(cpi, GOLDEN_FRAME)
+                       : get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+  }
+
   YV12_BUFFER_CONFIG *const this_frame = &cm->cur_frame->buf;
   // First pass code requires valid last and new frame buffers.
   assert(this_frame != NULL);
@@ -1428,6 +1448,10 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
                              /*do_print=*/0);
 
   ++current_frame->frame_number;
+  cpi->ref_frame_flags = ref_frame_flags_backup;
+  if (!frame_is_intra_only(cm)) {
+    release_scaled_references(cpi);
+  }
 }
 
 aom_codec_err_t av1_firstpass_info_init(FIRSTPASS_INFO *firstpass_info,
