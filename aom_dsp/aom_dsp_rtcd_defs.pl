@@ -1359,6 +1359,11 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       specialize "aom_highbd_${bd}_mse8x16", qw/neon/;
       specialize "aom_highbd_${bd}_mse8x8", qw/sse2 neon/;
     }
+
+    specialize "aom_highbd_8_mse16x16", qw/neon_dotprod/;
+    specialize "aom_highbd_8_mse16x8", qw/neon_dotprod/;
+    specialize "aom_highbd_8_mse8x16", qw/neon_dotprod/;
+    specialize "aom_highbd_8_mse8x8", qw/neon_dotprod/;
   }
 
   #

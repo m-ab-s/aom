@@ -320,6 +320,9 @@ if(CONFIG_AV1_ENCODER)
                 "${AOM_ROOT}/aom_dsp/arm/highbd_sadxd_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_subpel_variance_neon.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_variance_neon.c")
+
+    list(APPEND AOM_DSP_ENCODER_INTRIN_NEON_DOTPROD
+                "${AOM_ROOT}/aom_dsp/arm/highbd_variance_neon_dotprod.c")
   endif()
 
   if(CONFIG_INTERNAL_STATS)
