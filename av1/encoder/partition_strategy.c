@@ -1655,8 +1655,10 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
         num_neighbors_lt_8x8 += (xd->left_mbmi->bsize <= BLOCK_8X8);
       if (xd->up_available)
         num_neighbors_lt_8x8 += (xd->above_mbmi->bsize <= BLOCK_8X8);
-      // Evaluate only if both left and above blocks are of size <= BLOCK_8X8.
-      if (num_neighbors_lt_8x8 == 2) {
+      // Avoid pruning if either of the neighbors is not available or if both
+      // the available neighbors are of size <= BLOCK_8X8.
+      if (!xd->left_available || !xd->up_available ||
+          num_neighbors_lt_8x8 == 2) {
         prune_sub_8x8 = 0;
       }
     }
