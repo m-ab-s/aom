@@ -1229,8 +1229,7 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.ext_partition_eval_thresh =
         allow_screen_content_tools ? BLOCK_8X8 : BLOCK_16X16;
     sf->part_sf.prune_sub_8x8_partition_level =
-        (allow_screen_content_tools || frame_is_intra_only(&cpi->common)) ? 0
-                                                                          : 2;
+        allow_screen_content_tools ? 1 : 2;
 
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
 
@@ -1280,10 +1279,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->part_sf.prune_rectangular_split_based_on_qidx =
         boosted || allow_screen_content_tools ? 0 : 2;
-    sf->part_sf.prune_sub_8x8_partition_level =
-        allow_screen_content_tools          ? 0
-        : frame_is_intra_only(&cpi->common) ? 1
-                                            : 2;
+
     sf->part_sf.prune_part4_search = 3;
 
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
@@ -2467,6 +2463,7 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   SPEED_FEATURES *const sf = &cpi->sf;
   WinnerModeParams *const winner_mode_params = &cpi->winner_mode_params;
   const int boosted = frame_is_boosted(cpi);
+  const int is_480p_or_lesser = AOMMIN(cm->width, cm->height) <= 480;
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
@@ -2616,6 +2613,15 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       // for higher resolutions with low quantizers.
       if (cm->quant_params.base_qindex < qindex[is_480p_or_larger])
         sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 3;
+    }
+  }
+
+  if (speed >= 5) {
+    // Disable the sf for low quantizers in case of low resolution screen
+    // contents.
+    if (cm->features.allow_screen_content_tools &&
+        cm->quant_params.base_qindex < 128 && is_480p_or_lesser) {
+      sf->part_sf.prune_sub_8x8_partition_level = 0;
     }
   }
 
