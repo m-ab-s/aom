@@ -243,3 +243,72 @@ void aom_get_var_sse_sum_16x16_dual_neon_dotprod(
         sse16x16[i] - (uint32_t)(((int64_t)sum16x16[i] * sum16x16[i]) >> 8);
   }
 }
+
+static INLINE unsigned int mse8xh_neon_dotprod(const uint8_t *src,
+                                               int src_stride,
+                                               const uint8_t *ref,
+                                               int ref_stride,
+                                               unsigned int *sse, int h) {
+  uint32x4_t sse_u32 = vdupq_n_u32(0);
+
+  int i = h;
+  do {
+    uint8x16_t s = vcombine_u8(vld1_u8(src), vld1_u8(src + src_stride));
+    uint8x16_t r = vcombine_u8(vld1_u8(ref), vld1_u8(ref + ref_stride));
+
+    uint8x16_t abs_diff = vabdq_u8(s, r);
+
+    sse_u32 = vdotq_u32(sse_u32, abs_diff, abs_diff);
+
+    src += 2 * src_stride;
+    ref += 2 * ref_stride;
+    i -= 2;
+  } while (i != 0);
+
+  *sse = horizontal_add_u32x4(sse_u32);
+  return horizontal_add_u32x4(sse_u32);
+}
+
+static INLINE unsigned int mse16xh_neon_dotprod(const uint8_t *src,
+                                                int src_stride,
+                                                const uint8_t *ref,
+                                                int ref_stride,
+                                                unsigned int *sse, int h) {
+  uint32x4_t sse_u32[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
+
+  int i = h;
+  do {
+    uint8x16_t s0 = vld1q_u8(src);
+    uint8x16_t s1 = vld1q_u8(src + src_stride);
+    uint8x16_t r0 = vld1q_u8(ref);
+    uint8x16_t r1 = vld1q_u8(ref + ref_stride);
+
+    uint8x16_t abs_diff0 = vabdq_u8(s0, r0);
+    uint8x16_t abs_diff1 = vabdq_u8(s1, r1);
+
+    sse_u32[0] = vdotq_u32(sse_u32[0], abs_diff0, abs_diff0);
+    sse_u32[1] = vdotq_u32(sse_u32[1], abs_diff1, abs_diff1);
+
+    src += 2 * src_stride;
+    ref += 2 * ref_stride;
+    i -= 2;
+  } while (i != 0);
+
+  *sse = horizontal_add_u32x4(vaddq_u32(sse_u32[0], sse_u32[1]));
+  return horizontal_add_u32x4(vaddq_u32(sse_u32[0], sse_u32[1]));
+}
+
+#define MSE_WXH_NEON_DOTPROD(w, h)                                            \
+  unsigned int aom_mse##w##x##h##_neon_dotprod(                               \
+      const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride, \
+      unsigned int *sse) {                                                    \
+    return mse##w##xh_neon_dotprod(src, src_stride, ref, ref_stride, sse, h); \
+  }
+
+MSE_WXH_NEON_DOTPROD(8, 8)
+MSE_WXH_NEON_DOTPROD(8, 16)
+
+MSE_WXH_NEON_DOTPROD(16, 8)
+MSE_WXH_NEON_DOTPROD(16, 16)
+
+#undef MSE_WXH_NEON_DOTPROD

@@ -3891,6 +3891,13 @@ INSTANTIATE_TEST_SUITE_P(
     NEON_DOTPROD, GetSseSum16x16DualTest,
     ::testing::ValuesIn(kArrayGetSseSum16x16Dual_neon_dotprod));
 
+INSTANTIATE_TEST_SUITE_P(
+    NEON_DOTPROD, AvxMseTest,
+    ::testing::Values(MseParams(3, 3, &aom_mse8x8_neon_dotprod),
+                      MseParams(3, 4, &aom_mse8x16_neon_dotprod),
+                      MseParams(4, 4, &aom_mse16x16_neon_dotprod),
+                      MseParams(4, 3, &aom_mse16x8_neon_dotprod)));
+
 #endif  // HAVE_NEON_DOTPROD
 
 }  // namespace
