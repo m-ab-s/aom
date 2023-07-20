@@ -286,7 +286,8 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/arm/sad_neon_dotprod.c"
               "${AOM_ROOT}/aom_dsp/arm/sadxd_neon_dotprod.c"
               "${AOM_ROOT}/aom_dsp/arm/sse_neon_dotprod.c"
-              "${AOM_ROOT}/aom_dsp/arm/sum_squares_neon_dotprod.c")
+              "${AOM_ROOT}/aom_dsp/arm/sum_squares_neon_dotprod.c"
+              "${AOM_ROOT}/aom_dsp/arm/variance_neon_dotprod.c")
 
   if(CONFIG_AV1_HIGHBITDEPTH)
     list(APPEND AOM_DSP_ENCODER_ASM_SSE2
