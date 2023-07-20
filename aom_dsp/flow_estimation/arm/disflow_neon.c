@@ -39,11 +39,6 @@ static INLINE void get_cubic_kernel_int(double x, int *kernel) {
   kernel[3] = (int)rint(kernel_dbl[3] * (1 << DISFLOW_INTERP_BITS));
 }
 
-static INLINE int get_cubic_value_int(const int *p, const int *kernel) {
-  return kernel[0] * p[0] + kernel[1] * p[1] + kernel[2] * p[2] +
-         kernel[3] * p[3];
-}
-
 // Compare two regions of width x height pixels, one rooted at position
 // (x, y) in src and the other at (x + u, y + v) in ref.
 // This function returns the sum of squared pixel differences between
@@ -63,9 +58,7 @@ static INLINE void compute_flow_error(const uint8_t *src, const uint8_t *ref,
   get_cubic_kernel_int(u_frac, h_kernel);
   get_cubic_kernel_int(v_frac, v_kernel);
 
-  // Storage for intermediate values between the two convolution directions
-  int tmp_[DISFLOW_PATCH_SIZE * (DISFLOW_PATCH_SIZE + 3)];
-  int *tmp = tmp_ + DISFLOW_PATCH_SIZE;  // Offset by one row
+  int16_t tmp_[DISFLOW_PATCH_SIZE * (DISFLOW_PATCH_SIZE + 3)];
 
   // Clamp coordinates so that all pixels we fetch will remain within the
   // allocated border region, but allow them to go far enough out that
@@ -81,52 +74,79 @@ static INLINE void compute_flow_error(const uint8_t *src, const uint8_t *ref,
   const int x0 = clamp(x + u_int, -9, width);
   const int y0 = clamp(y + v_int, -9, height);
 
-  // Horizontal convolution
-  for (int i = -1; i < DISFLOW_PATCH_SIZE + 2; ++i) {
-    const int y_w = y0 + i;
-    for (int j = 0; j < DISFLOW_PATCH_SIZE; ++j) {
-      const int x_w = x0 + j;
-      int arr[4];
+  // Horizontal convolution.
+  const uint8_t *ref_start = ref + (y0 - 1) * stride + (x0 - 1);
+  int16x4_t h_filter = vmovn_s32(vld1q_s32(h_kernel));
 
-      arr[0] = (int)ref[y_w * stride + (x_w - 1)];
-      arr[1] = (int)ref[y_w * stride + (x_w + 0)];
-      arr[2] = (int)ref[y_w * stride + (x_w + 1)];
-      arr[3] = (int)ref[y_w * stride + (x_w + 2)];
+  for (int i = 0; i < DISFLOW_PATCH_SIZE + 3; ++i) {
+    uint8x16_t r = vld1q_u8(ref_start + i * stride);
+    uint16x8_t r0 = vmovl_u8(vget_low_u8(r));
+    uint16x8_t r1 = vmovl_u8(vget_high_u8(r));
 
-      // Apply kernel and round, keeping 6 extra bits of precision.
-      //
-      // 6 is the maximum allowable number of extra bits which will avoid
-      // the intermediate values overflowing an int16_t. The most extreme
-      // intermediate value occurs when:
-      // * The input pixels are [0, 255, 255, 0]
-      // * u_frac = 0.5
-      // In this case, the un-scaled output is 255 * 1.125 = 286.875.
-      // As an integer with 6 fractional bits, that is 18360, which fits
-      // in an int16_t. But with 7 fractional bits it would be 36720,
-      // which is too large.
-      tmp[i * DISFLOW_PATCH_SIZE + j] = ROUND_POWER_OF_TWO(
-          get_cubic_value_int(arr, h_kernel), DISFLOW_INTERP_BITS - 6);
-    }
+    int16x8_t s0 = vreinterpretq_s16_u16(r0);
+    int16x8_t s1 = vreinterpretq_s16_u16(vextq_u16(r0, r1, 1));
+    int16x8_t s2 = vreinterpretq_s16_u16(vextq_u16(r0, r1, 2));
+    int16x8_t s3 = vreinterpretq_s16_u16(vextq_u16(r0, r1, 3));
+
+    int32x4_t sum_lo = vmull_lane_s16(vget_low_s16(s0), h_filter, 0);
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s1), h_filter, 1);
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s2), h_filter, 2);
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s3), h_filter, 3);
+
+    int32x4_t sum_hi = vmull_lane_s16(vget_high_s16(s0), h_filter, 0);
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s1), h_filter, 1);
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s2), h_filter, 2);
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s3), h_filter, 3);
+
+    // 6 is the maximum allowable number of extra bits which will avoid
+    // the intermediate values overflowing an int16_t. The most extreme
+    // intermediate value occurs when:
+    // * The input pixels are [0, 255, 255, 0]
+    // * u_frac = 0.5
+    // In this case, the un-scaled output is 255 * 1.125 = 286.875.
+    // As an integer with 6 fractional bits, that is 18360, which fits
+    // in an int16_t. But with 7 fractional bits it would be 36720,
+    // which is too large.
+
+    int16x8_t sum = vcombine_s16(vrshrn_n_s32(sum_lo, DISFLOW_INTERP_BITS - 6),
+                                 vrshrn_n_s32(sum_hi, DISFLOW_INTERP_BITS - 6));
+    vst1q_s16(tmp_ + i * DISFLOW_PATCH_SIZE, sum);
   }
 
-  // Vertical convolution
-  for (int i = 0; i < DISFLOW_PATCH_SIZE; ++i) {
-    for (int j = 0; j < DISFLOW_PATCH_SIZE; ++j) {
-      const int *p = &tmp[i * DISFLOW_PATCH_SIZE + j];
-      const int arr[4] = { p[-DISFLOW_PATCH_SIZE], p[0], p[DISFLOW_PATCH_SIZE],
-                           p[2 * DISFLOW_PATCH_SIZE] };
-      const int result = get_cubic_value_int(arr, v_kernel);
+  // Vertical convolution.
+  int16x4_t v_filter = vmovn_s32(vld1q_s32(v_kernel));
+  int16_t *tmp_start = tmp_ + DISFLOW_PATCH_SIZE;
 
-      // Apply kernel and round.
-      // This time, we have to round off the 6 extra bits which were kept
-      // earlier, but we also want to keep DISFLOW_DERIV_SCALE_LOG2 extra bits
-      // of precision to match the scale of the dx and dy arrays.
-      const int round_bits = DISFLOW_INTERP_BITS + 6 - DISFLOW_DERIV_SCALE_LOG2;
-      const int warped = ROUND_POWER_OF_TWO(result, round_bits);
-      const int src_px = src[(x + j) + (y + i) * stride] << 3;
-      const int err = warped - src_px;
-      dt[i * DISFLOW_PATCH_SIZE + j] = err;
-    }
+  for (int i = 0; i < DISFLOW_PATCH_SIZE; ++i) {
+    int16x8_t t0 = vld1q_s16(tmp_start + (i - 1) * DISFLOW_PATCH_SIZE);
+    int16x8_t t1 = vld1q_s16(tmp_start + i * DISFLOW_PATCH_SIZE);
+    int16x8_t t2 = vld1q_s16(tmp_start + (i + 1) * DISFLOW_PATCH_SIZE);
+    int16x8_t t3 = vld1q_s16(tmp_start + (i + 2) * DISFLOW_PATCH_SIZE);
+
+    int32x4_t sum_lo = vmull_lane_s16(vget_low_s16(t0), v_filter, 0);
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(t1), v_filter, 1);
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(t2), v_filter, 2);
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(t3), v_filter, 3);
+
+    int32x4_t sum_hi = vmull_lane_s16(vget_high_s16(t0), v_filter, 0);
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(t1), v_filter, 1);
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(t2), v_filter, 2);
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(t3), v_filter, 3);
+
+    uint8x8_t s = vld1_u8(src + (i + y) * stride + x);
+    int16x8_t s_s16 = vreinterpretq_s16_u16(vshll_n_u8(s, 3));
+
+    // This time, we have to round off the 6 extra bits which were kept
+    // earlier, but we also want to keep DISFLOW_DERIV_SCALE_LOG2 extra bits
+    // of precision to match the scale of the dx and dy arrays.
+    sum_lo = vrshrq_n_s32(sum_lo,
+                          DISFLOW_INTERP_BITS + 6 - DISFLOW_DERIV_SCALE_LOG2);
+    sum_hi = vrshrq_n_s32(sum_hi,
+                          DISFLOW_INTERP_BITS + 6 - DISFLOW_DERIV_SCALE_LOG2);
+    int32x4_t err_lo = vsubw_s16(sum_lo, vget_low_s16(s_s16));
+    int32x4_t err_hi = vsubw_s16(sum_hi, vget_high_s16(s_s16));
+    vst1q_s16(dt + i * DISFLOW_PATCH_SIZE,
+              vcombine_s16(vmovn_s32(err_lo), vmovn_s32(err_hi)));
   }
 }
 
