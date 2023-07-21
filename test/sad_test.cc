@@ -39,12 +39,6 @@ typedef uint32_t (*SadMxNAvgFunc)(const uint8_t *src_ptr, int src_stride,
                                   const uint8_t *second_pred);
 typedef std::tuple<int, int, SadMxNAvgFunc, int> SadMxNAvgParam;
 
-typedef void (*DistWtdCompAvgFunc)(uint8_t *comp_pred, const uint8_t *pred,
-                                   int width, int height, const uint8_t *ref,
-                                   int ref_stride,
-                                   const DIST_WTD_COMP_PARAMS *jcp_param);
-typedef std::tuple<int, int, DistWtdCompAvgFunc, int> DistWtdCompAvgParam;
-
 typedef unsigned int (*DistWtdSadMxhFunc)(const uint8_t *src_ptr,
                                           int src_stride,
                                           const uint8_t *ref_ptr,
@@ -253,31 +247,6 @@ class SADTestBase : public ::testing::Test {
       }
     }
     return sad;
-  }
-
-  void ReferenceDistWtdCompAvg(int block_idx) {
-    const uint8_t *const reference8 = GetReference(block_idx);
-    const uint8_t *const second_pred8 = second_pred_;
-    uint8_t *const comp_pred8 = comp_pred_;
-    const uint16_t *const reference16 =
-        CONVERT_TO_SHORTPTR(GetReference(block_idx));
-    const uint16_t *const second_pred16 = CONVERT_TO_SHORTPTR(second_pred_);
-    uint16_t *const comp_pred16 = CONVERT_TO_SHORTPTR(comp_pred_);
-    for (int h = 0; h < height_; ++h) {
-      for (int w = 0; w < width_; ++w) {
-        if (!use_high_bit_depth_) {
-          const int tmp =
-              second_pred8[h * width_ + w] * jcp_param_.bck_offset +
-              reference8[h * reference_stride_ + w] * jcp_param_.fwd_offset;
-          comp_pred8[h * width_ + w] = ROUND_POWER_OF_TWO(tmp, 4);
-        } else {
-          const int tmp =
-              second_pred16[h * width_ + w] * jcp_param_.bck_offset +
-              reference16[h * reference_stride_ + w] * jcp_param_.fwd_offset;
-          comp_pred16[h * width_ + w] = ROUND_POWER_OF_TWO(tmp, 4);
-        }
-      }
-    }
   }
 
   unsigned int ReferenceDistWtdSADavg(int block_idx) {
@@ -565,40 +534,6 @@ class SADavgTest : public ::testing::WithParamInterface<SadMxNAvgParam>,
   }
 };
 
-class DistWtdCompAvgTest
-    : public ::testing::WithParamInterface<DistWtdCompAvgParam>,
-      public SADTestBase {
- public:
-  DistWtdCompAvgTest()
-      : SADTestBase(GET_PARAM(0), GET_PARAM(1), GET_PARAM(3)) {}
-
- protected:
-  void dist_wtd_comp_avg(int block_idx) {
-    const uint8_t *const reference = GetReference(block_idx);
-
-    API_REGISTER_STATE_CHECK(GET_PARAM(2)(comp_pred_test_, second_pred_, width_,
-                                          height_, reference, reference_stride_,
-                                          &jcp_param_));
-  }
-
-  void CheckCompAvg() {
-    for (int j = 0; j < 2; ++j) {
-      for (int i = 0; i < 4; ++i) {
-        jcp_param_.fwd_offset = quant_dist_lookup_table[i][j];
-        jcp_param_.bck_offset = quant_dist_lookup_table[i][1 - j];
-
-        ReferenceDistWtdCompAvg(0);
-        dist_wtd_comp_avg(0);
-
-        for (int y = 0; y < height_; ++y)
-          for (int x = 0; x < width_; ++x)
-            ASSERT_EQ(comp_pred_[y * width_ + x],
-                      comp_pred_test_[y * width_ + x]);
-      }
-    }
-  }
-};
-
 class DistWtdSADavgTest
     : public ::testing::WithParamInterface<DistWtdSadMxNAvgParam>,
       public SADTestBase {
@@ -805,38 +740,6 @@ TEST_P(SADavgTest, ShortSrc) {
     test_count -= 1;
   }
   source_stride_ = tmp_stride;
-}
-
-TEST_P(DistWtdCompAvgTest, MaxRef) {
-  FillConstant(reference_data_, reference_stride_, mask_);
-  FillConstant(second_pred_, width_, 0);
-  CheckCompAvg();
-}
-
-TEST_P(DistWtdCompAvgTest, MaxSecondPred) {
-  FillConstant(reference_data_, reference_stride_, 0);
-  FillConstant(second_pred_, width_, mask_);
-  CheckCompAvg();
-}
-
-TEST_P(DistWtdCompAvgTest, ShortRef) {
-  const int tmp_stride = reference_stride_;
-  reference_stride_ >>= 1;
-  FillRandom(reference_data_, reference_stride_);
-  FillRandom(second_pred_, width_);
-  CheckCompAvg();
-  reference_stride_ = tmp_stride;
-}
-
-TEST_P(DistWtdCompAvgTest, UnalignedRef) {
-  // The reference frame, but not the source frame, may be unaligned for
-  // certain types of searches.
-  const int tmp_stride = reference_stride_;
-  reference_stride_ -= 1;
-  FillRandom(reference_data_, reference_stride_);
-  FillRandom(second_pred_, width_);
-  CheckCompAvg();
-  reference_stride_ = tmp_stride;
 }
 
 TEST_P(DistWtdSADavgTest, MaxRef) {
@@ -1444,38 +1347,6 @@ const SadMxNAvgParam avg_c_tests[] = {
 #endif  // !CONFIG_REALTIME_ONLY
 };
 INSTANTIATE_TEST_SUITE_P(C, SADavgTest, ::testing::ValuesIn(avg_c_tests));
-
-// TODO(chengchen): add highbd tests
-const DistWtdCompAvgParam dist_wtd_comp_avg_c_tests[] = {
-  make_tuple(128, 128, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(128, 64, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(64, 128, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(64, 64, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(64, 32, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(32, 64, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(32, 32, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(32, 16, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(16, 32, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(16, 16, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(16, 8, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(8, 16, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(8, 8, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(8, 4, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(4, 8, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(4, 4, &aom_dist_wtd_comp_avg_pred_c, -1),
-
-#if !CONFIG_REALTIME_ONLY
-  make_tuple(64, 16, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(16, 64, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(32, 8, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(8, 32, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(16, 4, &aom_dist_wtd_comp_avg_pred_c, -1),
-  make_tuple(4, 16, &aom_dist_wtd_comp_avg_pred_c, -1),
-#endif
-};
-
-INSTANTIATE_TEST_SUITE_P(C, DistWtdCompAvgTest,
-                         ::testing::ValuesIn(dist_wtd_comp_avg_c_tests));
 
 const DistWtdSadMxNAvgParam dist_wtd_avg_c_tests[] = {
   make_tuple(128, 128, &aom_dist_wtd_sad128x128_avg_c, -1),
@@ -3023,39 +2894,6 @@ INSTANTIATE_TEST_SUITE_P(sse2, DistWtdSADavgTest,
 #if HAVE_SSE3
 // Only functions are x3, which do not have tests.
 #endif  // HAVE_SSE3
-
-#if HAVE_SSSE3
-const DistWtdCompAvgParam dist_wtd_comp_avg_ssse3_tests[] = {
-  make_tuple(128, 128, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(128, 64, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(64, 128, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(64, 64, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(64, 32, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(32, 64, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(32, 32, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(32, 16, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(16, 32, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(16, 16, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(16, 8, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(8, 16, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(8, 8, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(8, 4, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(4, 8, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(4, 4, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(16, 16, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-#if !CONFIG_REALTIME_ONLY
-  make_tuple(64, 16, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(16, 64, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(32, 8, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(8, 32, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(16, 4, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-  make_tuple(4, 16, &aom_dist_wtd_comp_avg_pred_ssse3, -1),
-#endif
-};
-
-INSTANTIATE_TEST_SUITE_P(SSSE3, DistWtdCompAvgTest,
-                         ::testing::ValuesIn(dist_wtd_comp_avg_ssse3_tests));
-#endif  // HAVE_SSSE3
 
 #if HAVE_SSE4_1
 // Only functions are x8, which do not have tests.
