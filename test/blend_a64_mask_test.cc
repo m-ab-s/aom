@@ -259,6 +259,12 @@ INSTANTIATE_TEST_SUITE_P(AVX2, BlendA64MaskTest8B,
                                                      aom_blend_a64_mask_avx2)));
 #endif  // HAVE_AVX2
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, BlendA64MaskTest8B,
+                         ::testing::Values(TestFuncs(aom_blend_a64_mask_c,
+                                                     aom_blend_a64_mask_neon)));
+#endif  // HAVE_NEON
+
 //////////////////////////////////////////////////////////////////////////////
 // 8 bit _d16 version
 //////////////////////////////////////////////////////////////////////////////

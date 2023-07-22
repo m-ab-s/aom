@@ -1113,4 +1113,11 @@ static INLINE void store_s16_to_tran_low(tran_low_t *buf, const int16x4_t a) {
   vst1q_s32(buf, v0);
 }
 
+static INLINE void store_unaligned_u8_4x2(uint8_t *dst, uint32_t dst_stride,
+                                          uint8x8_t src) {
+  store_unaligned_u8_4x1(dst, src, 0);
+  dst += dst_stride;
+  store_unaligned_u8_4x1(dst, src, 1);
+}
+
 #endif  // AOM_AOM_DSP_ARM_MEM_NEON_H_

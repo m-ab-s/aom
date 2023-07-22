@@ -75,4 +75,51 @@ static INLINE uint16x4_t alpha_blend_a64_u16x4(uint16x4_t m, uint16x4_t a,
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
+static INLINE uint8x8_t avg_blend_u8x8(uint8x8_t a, uint8x8_t b) {
+  return vrhadd_u8(a, b);
+}
+
+static INLINE uint8x16_t avg_blend_u8x16(uint8x16_t a, uint8x16_t b) {
+  return vrhaddq_u8(a, b);
+}
+
+static INLINE uint8x8_t avg_blend_pairwise_u8x8(uint8x8_t a, uint8x8_t b) {
+  return vrshr_n_u8(vpadd_u8(a, b), 1);
+}
+
+static INLINE uint8x16_t avg_blend_pairwise_u8x16(uint8x16_t a, uint8x16_t b) {
+#if AOM_ARCH_AARCH64
+  return vrshrq_n_u8(vpaddq_u8(a, b), 1);
+#else
+  uint8x8_t sum_pairwise_a = vpadd_u8(vget_low_u8(a), vget_high_u8(a));
+  uint8x8_t sum_pairwise_b = vpadd_u8(vget_low_u8(b), vget_high_u8(b));
+  return vrshrq_n_u8(vcombine_u8(sum_pairwise_a, sum_pairwise_b), 1);
+#endif  // AOM_ARCH_AARCH64
+}
+
+static INLINE uint8x8_t avg_blend_pairwise_u8x8_4(uint8x8_t a, uint8x8_t b,
+                                                  uint8x8_t c, uint8x8_t d) {
+  uint8x8_t a_c = vpadd_u8(a, c);
+  uint8x8_t b_d = vpadd_u8(b, d);
+  return vrshr_n_u8(vqadd_u8(a_c, b_d), 2);
+}
+
+static INLINE uint8x16_t avg_blend_pairwise_u8x16_4(uint8x16_t a, uint8x16_t b,
+                                                    uint8x16_t c,
+                                                    uint8x16_t d) {
+#if AOM_ARCH_AARCH64
+  uint8x16_t a_c = vpaddq_u8(a, c);
+  uint8x16_t b_d = vpaddq_u8(b, d);
+  return vrshrq_n_u8(vqaddq_u8(a_c, b_d), 2);
+#else
+  uint8x8_t sum_pairwise_a = vpadd_u8(vget_low_u8(a), vget_high_u8(a));
+  uint8x8_t sum_pairwise_b = vpadd_u8(vget_low_u8(b), vget_high_u8(b));
+  uint8x8_t sum_pairwise_c = vpadd_u8(vget_low_u8(c), vget_high_u8(c));
+  uint8x8_t sum_pairwise_d = vpadd_u8(vget_low_u8(d), vget_high_u8(d));
+  uint8x16_t a_c = vcombine_u8(sum_pairwise_a, sum_pairwise_c);
+  uint8x16_t b_d = vcombine_u8(sum_pairwise_b, sum_pairwise_d);
+  return vrshrq_n_u8(vqaddq_u8(a_c, b_d), 2);
+#endif  // AOM_ARCH_AARCH64
+}
+
 #endif  // AOM_AOM_DSP_ARM_BLEND_NEON_H_
