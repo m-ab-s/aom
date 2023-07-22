@@ -17,6 +17,7 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "aom_dsp/arm/mem_neon.h"
+#include "aom_dsp/arm/blend_neon.h"
 #include "aom_dsp/blend.h"
 
 void aom_highbd_comp_avg_pred_neon(uint8_t *comp_pred8, const uint8_t *pred8,
@@ -86,7 +87,6 @@ void aom_highbd_comp_mask_pred_neon(uint8_t *comp_pred8, const uint8_t *pred8,
   const int src_stride1 = invert_mask ? ref_stride : width;
 
   if (width >= 8) {
-    const uint16x8_t max_alpha = vdupq_n_u16(AOM_BLEND_A64_MAX_ALPHA);
     do {
       int j = 0;
 
@@ -95,22 +95,7 @@ void aom_highbd_comp_mask_pred_neon(uint8_t *comp_pred8, const uint8_t *pred8,
         const uint16x8_t s1 = vld1q_u16(src1 + j);
         const uint16x8_t m0 = vmovl_u8(vld1_u8(mask + j));
 
-        uint16x8_t m0_inv = vsubq_u16(max_alpha, m0);
-
-        uint32x4_t blend_u32_lo = vmull_u16(vget_low_u16(s0), vget_low_u16(m0));
-        uint32x4_t blend_u32_hi =
-            vmull_u16(vget_high_u16(s0), vget_high_u16(m0));
-
-        blend_u32_lo =
-            vmlal_u16(blend_u32_lo, vget_low_u16(s1), vget_low_u16(m0_inv));
-        blend_u32_hi =
-            vmlal_u16(blend_u32_hi, vget_high_u16(s1), vget_high_u16(m0_inv));
-
-        uint16x4_t blend_u16_lo =
-            vrshrn_n_u32(blend_u32_lo, AOM_BLEND_A64_ROUND_BITS);
-        uint16x4_t blend_u16_hi =
-            vrshrn_n_u32(blend_u32_hi, AOM_BLEND_A64_ROUND_BITS);
-        uint16x8_t blend_u16 = vcombine_u16(blend_u16_lo, blend_u16_hi);
+        uint16x8_t blend_u16 = alpha_blend_a64_u16x8(m0, s0, s1);
 
         vst1q_u16(comp_pred + j, blend_u16);
 
@@ -124,18 +109,13 @@ void aom_highbd_comp_mask_pred_neon(uint8_t *comp_pred8, const uint8_t *pred8,
     } while (--height != 0);
   } else {
     assert(width == 4);
-    const uint16x4_t max_alpha = vdup_n_u16(AOM_BLEND_A64_MAX_ALPHA);
 
     do {
       const uint16x4_t s0 = vld1_u16(src0);
       const uint16x4_t s1 = vld1_u16(src1);
       const uint16x4_t m0 = vget_low_u16(vmovl_u8(load_unaligned_u8_4x1(mask)));
 
-      uint16x4_t m0_inv = vsub_u16(max_alpha, m0);
-      uint32x4_t blend_u32 = vmull_u16(s0, m0);
-      blend_u32 = vmlal_u16(blend_u32, s1, m0_inv);
-
-      uint16x4_t blend_u16 = vrshrn_n_u32(blend_u32, AOM_BLEND_A64_ROUND_BITS);
+      uint16x4_t blend_u16 = alpha_blend_a64_u16x4(m0, s0, s1);
 
       vst1_u16(comp_pred, blend_u16);
 
