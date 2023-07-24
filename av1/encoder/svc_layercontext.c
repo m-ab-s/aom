@@ -30,6 +30,10 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
   int mi_cols = cpi->common.mi_params.mi_cols;
   svc->base_framerate = 30.0;
   svc->current_superframe = 0;
+  // TODO(chiyotsai@google.com,marpan@google.com): Currently SVC fails the
+  // assertion added in BUG=aomedia:3348 if force_zero_mode_spatial_ref is
+  // enabled. The encoder is doing unintended motion search even when this is
+  // on. We need to address it before turning htis back on.
   svc->force_zero_mode_spatial_ref = 1;
   svc->num_encoded_top_layer = 0;
   svc->use_flexible_mode = 0;

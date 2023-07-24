@@ -2631,10 +2631,14 @@ static int encode_without_recode(AV1_COMP *cpi) {
     // force_zero_mode_spatial_ref is set for SVC mode.
     // Also add condition for dynamic_resize: for dynamic_resize we always
     // check for scaling references for now.
-    if (!frame_is_intra_only(cm) &&
-        (!cpi->ppi->use_svc || !cpi->svc.force_zero_mode_spatial_ref ||
-         cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC))
+    //
+    // TODO(chiyotsai@google.com,marpan@google.com): Currently SVC fails the
+    // assertion added in BUG=aomedia:3348 if force_zero_mode_spatial_ref is
+    // enabled due to unintended motion search. We need to investigate why
+    // scaling is needed when cpi->svc.force_zero_mode_spatial_ref == 1.
+    if (!frame_is_intra_only(cm)) {
       av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
+    }
   }
 
   av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,

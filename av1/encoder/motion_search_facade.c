@@ -239,14 +239,16 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
   // the stride of the reference frame can be different from indicated by
   // MotionVectorSearchParams::search_site_cfg. When this happens, we need to
   // readjust the stride.
-  const SEARCH_METHODS search_method = cpi->sf.mv_sf.search_method;
+  const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
+  const SEARCH_METHODS search_method =
+      av1_get_default_mv_search_method(x, mv_sf, bsize);
   const search_site_config *src_search_site_cfg =
       av1_get_search_site_config(cpi, x, search_method);
 
   // Further reduce the search range.
   if (search_range < INT_MAX) {
     const search_site_config *search_site_cfg =
-        &src_search_site_cfg[search_method_lookup[cpi->sf.mv_sf.search_method]];
+        &src_search_site_cfg[search_method_lookup[search_method]];
     // Max step_param is search_site_cfg->num_search_steps.
     if (search_range < 1) {
       step_param = search_site_cfg->num_search_steps;
@@ -280,7 +282,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
         av1_make_default_fullpel_ms_params(
             &full_ms_params, cpi, x, bsize, &ref_mv, smv.as_fullmv,
-            src_search_site_cfg, fine_search_interval);
+            src_search_site_cfg, search_method, fine_search_interval);
 
         const int thissme =
             av1_full_pixel_search(smv.as_fullmv, &full_ms_params, step_param,
@@ -301,7 +303,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
     case OBMC_CAUSAL:
       av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
                                          &ref_mv, start_mv, src_search_site_cfg,
-                                         fine_search_interval);
+                                         search_method, fine_search_interval);
 
       bestsme = av1_obmc_full_pixel_search(start_mv, &full_ms_params,
                                            step_param, &best_mv->as_fullmv);
@@ -388,10 +390,10 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     switch (mbmi->motion_mode) {
       case SIMPLE_TRANSLATION:
-        if (cpi->sf.mv_sf.use_accurate_subpel_search) {
+        if (mv_sf->use_accurate_subpel_search) {
           const int try_second = second_best_mv.as_int != INVALID_MV &&
                                  second_best_mv.as_int != best_mv->as_int &&
-                                 (cpi->sf.mv_sf.disable_second_mv <= 1);
+                                 (mv_sf->disable_second_mv <= 1);
           const int best_mv_var = mv_search_params->find_fractional_mv_step(
               xd, cm, &ms_params, subpel_start_mv, &best_mv_stats,
               &best_mv->as_mv, &dis, &x->pred_sse[ref], fractional_ms_list);
@@ -403,7 +405,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
               { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
             };
             int64_t rd = INT64_MAX;
-            if (!cpi->sf.mv_sf.disable_second_mv) {
+            if (!mv_sf->disable_second_mv) {
               // Calculate actual rd cost.
               mbmi->mv[0].as_mv = best_mv->as_mv;
               av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, &orig_dst,
@@ -429,7 +431,7 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
                   xd, cm, &ms_params, subpel_start_mv, NULL, &this_best_mv,
                   &dis, &sse, fractional_ms_list);
 
-              if (!cpi->sf.mv_sf.disable_second_mv) {
+              if (!mv_sf->disable_second_mv) {
                 // If cpi->sf.mv_sf.disable_second_mv is 0, use actual rd cost
                 // to choose the better MV.
                 mbmi->mv[0].as_mv = this_best_mv;
@@ -625,21 +627,23 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     // Make motion search params
     FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
     FULLPEL_MV_STATS best_mv_stats;
-    const SEARCH_METHODS search_method = cpi->sf.mv_sf.search_method;
+    const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
+    const SEARCH_METHODS search_method =
+        av1_get_default_mv_search_method(x, mv_sf, bsize);
     const search_site_config *src_search_sites =
         av1_get_search_site_config(cpi, x, search_method);
     // Use the mv result from the single mode as mv predictor.
     const FULLPEL_MV start_fullmv = get_fullmv_from_mv(&cur_mv[id].as_mv);
     av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
                                        &ref_mv[id].as_mv, start_fullmv,
-                                       src_search_sites,
+                                       src_search_sites, search_method,
                                        /*fine_search_interval=*/0);
 
     av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,
                              mask_stride, id);
 
     // Small-range full-pixel motion search.
-    if (!cpi->sf.mv_sf.disable_extensive_joint_motion_search &&
+    if (!mv_sf->disable_extensive_joint_motion_search &&
         mbmi->interinter_comp.type != COMPOUND_WEDGE) {
       bestsme = av1_full_pixel_search(start_fullmv, &full_ms_params, 5, NULL,
                                       &best_mv.as_fullmv, &best_mv_stats,
@@ -780,14 +784,15 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   // Make motion search params
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   FULLPEL_MV_STATS best_mv_stats;
-  const SEARCH_METHODS search_method = cpi->sf.mv_sf.search_method;
+  const SEARCH_METHODS search_method =
+      av1_get_default_mv_search_method(x, &cpi->sf.mv_sf, bsize);
   const search_site_config *src_search_sites =
       av1_get_search_site_config(cpi, x, search_method);
   // Use the mv result from the single mode as mv predictor.
   const FULLPEL_MV start_fullmv = get_fullmv_from_mv(this_mv);
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
                                      &ref_mv.as_mv, start_fullmv,
-                                     src_search_sites,
+                                     src_search_sites, search_method,
                                      /*fine_search_interval=*/0);
 
   av1_set_ms_compound_refs(&full_ms_params.ms_buffers, second_pred, mask,
@@ -1010,11 +1015,13 @@ int_mv av1_simple_motion_search_sse_var(AV1_COMP *const cpi, MACROBLOCK *x,
   // Allow more mesh searches for screen content type on the ARF.
   const int fine_search_interval = use_fine_search_interval(cpi);
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
-  const SEARCH_METHODS search_method = cpi->sf.mv_sf.search_method;
+  const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
+  const SEARCH_METHODS search_method =
+      av1_get_default_mv_search_method(x, mv_sf, bsize);
   const search_site_config *src_search_sites =
       av1_get_search_site_config(cpi, x, search_method);
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &ref_mv,
-                                     start_mv, src_search_sites,
+                                     start_mv, src_search_sites, search_method,
                                      fine_search_interval);
 
   bestsme = av1_full_pixel_search(start_mv, &full_ms_params, step_param,
@@ -1035,7 +1042,7 @@ int_mv av1_simple_motion_search_sse_var(AV1_COMP *const cpi, MACROBLOCK *x,
     av1_make_default_subpel_ms_params(&ms_params, cpi, x, bsize, &ref_mv,
                                       cost_list);
     // TODO(yunqing): integrate this into av1_make_default_subpel_ms_params().
-    ms_params.forced_stop = cpi->sf.mv_sf.simple_motion_subpel_force_stop;
+    ms_params.forced_stop = mv_sf->simple_motion_subpel_force_stop;
 
     MV subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, subpel_start_mv));

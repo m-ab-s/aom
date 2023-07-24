@@ -259,6 +259,35 @@ static int get_search_range(const InitialDimensions *initial_dimensions) {
   return sr;
 }
 
+static AOM_INLINE const search_site_config *
+av1_get_first_pass_search_site_config(const AV1_COMP *cpi, MACROBLOCK *x,
+                                      SEARCH_METHODS search_method) {
+  const int ref_stride = x->e_mbd.plane[0].pre[0].stride;
+
+  // For AVIF applications, even the source frames can have changing resolution,
+  // so we need to manually check for the strides :(
+  // AV1_COMP::mv_search_params.search_site_config is a compressor level cache
+  // that's shared by multiple threads. In most cases where all frames have the
+  // same resolution, the cache contains the search site config that we need.
+  const MotionVectorSearchParams *mv_search_params = &cpi->mv_search_params;
+  if (ref_stride == mv_search_params->search_site_cfg[SS_CFG_FPF]->stride) {
+    return mv_search_params->search_site_cfg[SS_CFG_FPF];
+  }
+
+  // If the cache does not contain the correct stride, then we will need to rely
+  // on the thread level config MACROBLOCK::search_site_cfg_buf. If even the
+  // thread level config doesn't match, then we need to update it.
+  search_method = search_method_lookup[search_method];
+  assert(search_method_lookup[search_method] == search_method &&
+         "The search_method_lookup table should be idempotent.");
+  if (ref_stride != x->search_site_cfg_buf[search_method].stride) {
+    av1_refresh_search_site_config(x->search_site_cfg_buf, search_method,
+                                   ref_stride);
+  }
+
+  return x->search_site_cfg_buf;
+}
+
 static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
                                                 const MV *ref_mv,
                                                 FULLPEL_MV *best_mv,
@@ -272,14 +301,13 @@ static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
   const int step_param = cpi->sf.fp_sf.reduce_mv_step_param + sr;
 
   const search_site_config *first_pass_search_sites =
-      cpi->mv_search_params.search_site_cfg[SS_CFG_FPF];
+      av1_get_first_pass_search_site_config(cpi, x, NSTEP);
   const int fine_search_interval =
       cpi->is_screen_content_type && cpi->common.features.allow_intrabc;
   FULLPEL_MOTION_SEARCH_PARAMS ms_params;
   av1_make_default_fullpel_ms_params(&ms_params, cpi, x, bsize, ref_mv,
-                                     start_mv, first_pass_search_sites,
+                                     start_mv, first_pass_search_sites, NSTEP,
                                      fine_search_interval);
-  av1_set_mv_search_method(&ms_params, first_pass_search_sites, NSTEP);
 
   FULLPEL_MV this_best_mv;
   FULLPEL_MV_STATS best_mv_stats;

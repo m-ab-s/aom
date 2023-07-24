@@ -252,8 +252,9 @@ static AOM_INLINE void txfm_quant_rdcost(
 static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
                                   uint8_t *cur_frame_buf,
                                   uint8_t *ref_frame_buf, int stride,
-                                  int stride_ref, BLOCK_SIZE bsize,
-                                  MV center_mv, int_mv *best_mv) {
+                                  int ref_stride, int width, int ref_width,
+                                  BLOCK_SIZE bsize, MV center_mv,
+                                  int_mv *best_mv) {
   AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   TPL_SPEED_FEATURES *tpl_sf = &cpi->sf.tpl_sf;
@@ -268,24 +269,25 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   // Setup frame pointers
   x->plane[0].src.buf = cur_frame_buf;
   x->plane[0].src.stride = stride;
+  x->plane[0].src.width = width;
   xd->plane[0].pre[0].buf = ref_frame_buf;
-  xd->plane[0].pre[0].stride = stride_ref;
+  xd->plane[0].pre[0].stride = ref_stride;
+  xd->plane[0].pre[0].width = ref_width;
 
   step_param = tpl_sf->reduce_first_step_size;
   step_param = AOMMIN(step_param, MAX_MVSEARCH_STEPS - 2);
 
   const search_site_config *search_site_cfg =
       cpi->mv_search_params.search_site_cfg[SS_CFG_SRC];
-  if (search_site_cfg->stride != stride_ref)
+  if (search_site_cfg->stride != ref_stride)
     search_site_cfg = cpi->mv_search_params.search_site_cfg[SS_CFG_LOOKAHEAD];
-  assert(search_site_cfg->stride == stride_ref);
+  assert(search_site_cfg->stride == ref_stride);
 
   FULLPEL_MOTION_SEARCH_PARAMS full_ms_params;
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize, &center_mv,
                                      start_mv, search_site_cfg,
+                                     tpl_sf->search_method,
                                      /*fine_search_interval=*/0);
-  av1_set_mv_search_method(&full_ms_params, search_site_cfg,
-                           tpl_sf->search_method);
 
   bestsme = av1_full_pixel_search(start_mv, &full_ms_params, step_param,
                                   cond_cost_list(cpi, cost_list),
@@ -545,9 +547,11 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
   int32_t intra_cost;
   PREDICTION_MODE best_mode = DC_PRED;
 
-  int mb_y_offset = mi_row * MI_SIZE * xd->cur_buf->y_stride + mi_col * MI_SIZE;
+  const int mb_y_offset =
+      mi_row * MI_SIZE * xd->cur_buf->y_stride + mi_col * MI_SIZE;
   uint8_t *src_mb_buffer = xd->cur_buf->y_buffer + mb_y_offset;
-  int src_stride = xd->cur_buf->y_stride;
+  const int src_stride = xd->cur_buf->y_stride;
+  const int src_width = xd->cur_buf->y_width;
 
   int dst_mb_offset =
       mi_row * MI_SIZE * tpl_frame->rec_picture->y_stride + mi_col * MI_SIZE;
@@ -723,10 +727,11 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
     }
 
     const YV12_BUFFER_CONFIG *ref_frame_ptr = tpl_data->src_ref_frame[rf_idx];
-    int ref_mb_offset =
+    const int ref_mb_offset =
         mi_row * MI_SIZE * ref_frame_ptr->y_stride + mi_col * MI_SIZE;
     uint8_t *ref_mb = ref_frame_ptr->y_buffer + ref_mb_offset;
-    int ref_stride = ref_frame_ptr->y_stride;
+    const int ref_stride = ref_frame_ptr->y_stride;
+    const int ref_width = ref_frame_ptr->y_width;
 
     int_mv best_rfidx_mv = { 0 };
     uint32_t bestsme = UINT32_MAX;
@@ -813,9 +818,9 @@ static AOM_INLINE void mode_estimation(AV1_COMP *cpi,
 
     for (idx = 0; idx < refmv_count; ++idx) {
       int_mv this_mv;
-      uint32_t thissme = motion_estimation(cpi, x, src_mb_buffer, ref_mb,
-                                           src_stride, ref_stride, bsize,
-                                           center_mvs[idx].mv.as_mv, &this_mv);
+      uint32_t thissme = motion_estimation(
+          cpi, x, src_mb_buffer, ref_mb, src_stride, ref_stride, src_width,
+          ref_width, bsize, center_mvs[idx].mv.as_mv, &this_mv);
 
       if (thissme < bestsme) {
         bestsme = thissme;

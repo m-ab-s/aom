@@ -61,30 +61,6 @@ static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
   ms_buffers->obmc_mask = x->obmc_buffer.mask;
 }
 
-static AOM_INLINE SEARCH_METHODS
-get_faster_search_method(SEARCH_METHODS search_method) {
-  // Note on search method's accuracy:
-  //  1. NSTEP
-  //  2. DIAMOND
-  //  3. BIGDIA \approx SQUARE
-  //  4. HEX.
-  //  5. FAST_HEX \approx FAST_DIAMOND
-  switch (search_method) {
-    case NSTEP: return DIAMOND;
-    case NSTEP_8PT: return DIAMOND;
-    case DIAMOND: return BIGDIA;
-    case CLAMPED_DIAMOND: return BIGDIA;
-    case BIGDIA: return HEX;
-    case SQUARE: return HEX;
-    case HEX: return FAST_HEX;
-    case FAST_HEX: return FAST_HEX;
-    case FAST_DIAMOND: return VFAST_DIAMOND;
-    case FAST_BIGDIA: return FAST_BIGDIA;
-    case VFAST_DIAMOND: return VFAST_DIAMOND;
-    default: assert(0 && "Invalid search method!"); return DIAMOND;
-  }
-}
-
 void av1_init_obmc_buffer(OBMCBuffer *obmc_buffer) {
   obmc_buffer->wsrc = NULL;
   obmc_buffer->mask = NULL;
@@ -96,7 +72,7 @@ void av1_make_default_fullpel_ms_params(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const struct AV1_COMP *cpi,
     MACROBLOCK *x, BLOCK_SIZE bsize, const MV *ref_mv, FULLPEL_MV start_mv,
     const search_site_config search_sites[NUM_DISTINCT_SEARCH_METHODS],
-    int fine_search_interval) {
+    SEARCH_METHODS search_method, int fine_search_interval) {
   const MV_SPEED_FEATURES *mv_sf = &cpi->sf.mv_sf;
   const int is_key_frame =
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == KF_UPDATE;
@@ -106,28 +82,6 @@ void av1_make_default_fullpel_ms_params(
   ms_params->vfp = &cpi->ppi->fn_ptr[bsize];
 
   init_ms_buffers(&ms_params->ms_buffers, x);
-
-  SEARCH_METHODS search_method = mv_sf->search_method;
-  const int sf_blk_search_method = mv_sf->use_bsize_dependent_search_method;
-  const int min_dim = AOMMIN(block_size_wide[bsize], block_size_high[bsize]);
-  const int qband = x->qindex >> (QINDEX_BITS - 2);
-  const bool use_faster_search_method =
-      (sf_blk_search_method == 1 && min_dim >= 32) ||
-      (sf_blk_search_method >= 2 && min_dim >= 16 &&
-       x->content_state_sb.source_sad_nonrd <= kMedSad && qband < 3);
-
-  if (use_faster_search_method) {
-    search_method = get_faster_search_method(search_method);
-
-    // We might need to update the search site config since search_method
-    // is changed here.
-    const int ref_stride = ms_params->ms_buffers.ref->stride;
-    if (ref_stride != search_sites[search_method].stride) {
-      av1_refresh_search_site_config(x->search_site_cfg_buf, search_method,
-                                     ref_stride);
-      search_sites = x->search_site_cfg_buf;
-    }
-  }
 
   av1_set_mv_search_method(ms_params, search_sites, search_method);
 
@@ -1845,6 +1799,7 @@ int av1_full_pixel_search(const FULLPEL_MV start_mv,
   }
 
   assert(ms_params->ms_buffers.ref->stride == ms_params->search_sites->stride);
+  assert(ms_params->ms_buffers.ref->width == ms_params->ms_buffers.src->width);
 
   switch (search_method) {
     case FAST_BIGDIA:

@@ -99,7 +99,10 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   const int mb_width = block_size_wide[block_size];
   const int mb_pels = mb_height * mb_width;
   const int y_stride = frame_to_filter->y_stride;
+  const int src_width = frame_to_filter->y_width;
+  const int ref_width = ref_frame->y_width;
   assert(y_stride == ref_frame->y_stride);
+  assert(src_width == ref_width);
   const int y_offset = mb_row * mb_height * y_stride + mb_col * mb_width;
 
   // Save input state.
@@ -127,8 +130,10 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   // Setup.
   mb->plane[0].src.buf = frame_to_filter->y_buffer + y_offset;
   mb->plane[0].src.stride = y_stride;
+  mb->plane[0].src.width = src_width;
   mbd->plane[0].pre[0].buf = ref_frame->y_buffer + y_offset;
   mbd->plane[0].pre[0].stride = y_stride;
+  mbd->plane[0].pre[0].width = ref_width;
 
   const SEARCH_METHODS search_method = NSTEP;
   const search_site_config *search_site_cfg =
@@ -148,8 +153,8 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
 
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb, block_size,
                                      &baseline_mv, start_mv, search_site_cfg,
+                                     search_method,
                                      /*fine_search_interval=*/0);
-  av1_set_mv_search_method(&full_ms_params, search_site_cfg, search_method);
   full_ms_params.run_mesh_search = 1;
   full_ms_params.mv_cost_params.mv_cost_type = mv_cost_type;
 
@@ -205,12 +210,10 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
         const int offset = i * y_stride + j;
         mb->plane[0].src.buf = frame_to_filter->y_buffer + y_offset + offset;
         mbd->plane[0].pre[0].buf = ref_frame->y_buffer + y_offset + offset;
-        av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb,
-                                           subblock_size, &baseline_mv,
-                                           start_mv, search_site_cfg,
-                                           /*fine_search_interval=*/0);
-        av1_set_mv_search_method(&full_ms_params, search_site_cfg,
-                                 search_method);
+        av1_make_default_fullpel_ms_params(
+            &full_ms_params, cpi, mb, subblock_size, &baseline_mv, start_mv,
+            search_site_cfg, search_method,
+            /*fine_search_interval=*/0);
         full_ms_params.run_mesh_search = 1;
         full_ms_params.mv_cost_params.mv_cost_type = mv_cost_type;
 
@@ -890,8 +893,9 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
                 filter_strength, weight_calc_level_in_tf, pred, accum, count);
 #if CONFIG_AV1_HIGHBITDEPTH
           }
-#endif            // CONFIG_AV1_HIGHBITDEPTH
-        } else {  // for 8-bit
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+        } else {
+          // for 8-bit
           if (TF_BLOCK_SIZE == BLOCK_32X32 && TF_WINDOW_LENGTH == 5) {
             av1_apply_temporal_filter(
                 frame_to_filter, mbd, block_size, mb_row, mb_col, num_planes,
