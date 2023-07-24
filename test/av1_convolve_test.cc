@@ -1309,6 +1309,18 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveXCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_x_neon));
 #endif
 
+#if HAVE_NEON_DOTPROD
+INSTANTIATE_TEST_SUITE_P(
+    NEON_DOTPROD, AV1ConvolveXCompoundTest,
+    BuildLowbdLumaParams(av1_dist_wtd_convolve_x_neon_dotprod));
+#endif
+
+#if HAVE_NEON_I8MM
+INSTANTIATE_TEST_SUITE_P(
+    NEON_I8MM, AV1ConvolveXCompoundTest,
+    BuildLowbdLumaParams(av1_dist_wtd_convolve_x_neon_i8mm));
+#endif
+
 #if CONFIG_AV1_HIGHBITDEPTH
 /////////////////////////////////////////////////
 // Compound convolve-x functions (high bit-depth)

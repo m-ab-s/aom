@@ -390,6 +390,12 @@ list(APPEND AOM_AV1_COMMON_INTRIN_NEON
             "${AOM_ROOT}/av1/common/arm/warp_plane_neon.c"
             "${AOM_ROOT}/av1/common/arm/wiener_convolve_neon.c")
 
+list(APPEND AOM_AV1_COMMON_INTRIN_NEON_DOTPROD
+            "${AOM_ROOT}/av1/common/arm/compound_convolve_neon_dotprod.c")
+
+list(APPEND AOM_AV1_COMMON_INTRIN_NEON_I8MM
+            "${AOM_ROOT}/av1/common/arm/compound_convolve_neon_i8mm.c")
+
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_2
             "${AOM_ROOT}/av1/encoder/x86/hash_sse42.c")
 
@@ -638,6 +644,22 @@ function(setup_av1_targets)
       add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
                                     "aom_av1_common"
                                     "AOM_AV1_COMMON_INTRIN_NEON")
+    endif()
+
+    if(HAVE_NEON_DOTPROD)
+      if(AOM_AV1_COMMON_INTRIN_NEON_DOTPROD)
+        add_intrinsics_object_library("${AOM_NEON_DOTPROD_FLAG}" "neon_dotprod"
+                                      "aom_av1_common"
+                                      "AOM_AV1_COMMON_INTRIN_NEON_DOTPROD")
+      endif()
+    endif()
+
+    if(HAVE_NEON_I8MM)
+      if(AOM_AV1_COMMON_INTRIN_NEON_I8MM)
+        add_intrinsics_object_library("${AOM_NEON_I8MM_FLAG}" "neon_i8mm"
+                                      "aom_av1_common"
+                                      "AOM_AV1_COMMON_INTRIN_NEON_I8MM")
+      endif()
     endif()
 
     if(CONFIG_AV1_ENCODER)
