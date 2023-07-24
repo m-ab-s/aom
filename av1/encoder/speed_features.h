@@ -546,6 +546,8 @@ typedef struct TPL_SPEED_FEATURES {
   // If set to 1, use SAD during intra/inter mode search for frames in the
   // higher temporal layers of the hierarchical prediction structure.
   // If set to 2, use SAD during intra/inter mode search for all frames.
+  // This sf is disabled for the first GF group of the key-frame interval,
+  // i.e., SATD is used during intra/inter mode search of the first GF group.
   int use_sad_for_mode_decision;
 } TPL_SPEED_FEATURES;
 
