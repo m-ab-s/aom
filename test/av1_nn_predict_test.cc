@@ -65,8 +65,8 @@ class NnPredictTest : public ::testing::TestWithParam<NnPredictTestParam> {
  private:
   NnPredict_Func target_func_;
   libaom_test::ACMRandom rng_;
-  float *weights[NN_MAX_HIDDEN_LAYERS + 1] = { 0 };
-  float *bias[NN_MAX_HIDDEN_LAYERS + 1] = { 0 };
+  float *weights[NN_MAX_HIDDEN_LAYERS + 1] = {};
+  float *bias[NN_MAX_HIDDEN_LAYERS + 1] = {};
   float *weights_buf = nullptr, *bias_buf = nullptr;
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NnPredictTest);
@@ -176,15 +176,15 @@ void NnPredictTest::RunNnPredictSpeedTest(const NN_CONFIG *const shape,
 // runs of the encoder.  It also conveniently covers all the kernels
 // implemented.
 static const NN_CONFIG kShapes[] = {
-  { 37, 1, 2, { 16, 24 }, { 0 }, { 0 } }, { 24, 24, 1, { 12 }, { 0 }, { 0 } },
-  { 10, 16, 1, { 64 }, { 0 }, { 0 } },    { 12, 1, 1, { 12 }, { 0 }, { 0 } },
-  { 12, 1, 1, { 24 }, { 0 }, { 0 } },     { 12, 1, 1, { 32 }, { 0 }, { 0 } },
-  { 18, 4, 1, { 24 }, { 0 }, { 0 } },     { 18, 4, 1, { 32 }, { 0 }, { 0 } },
-  { 4, 1, 1, { 16 }, { 0 }, { 0 } },      { 8, 1, 0, { 0 }, { 0 }, { 0 } },
-  { 8, 4, 1, { 16 }, { 0 }, { 0 } },      { 8, 1, 1, { 32 }, { 0 }, { 0 } },
-  { 9, 3, 1, { 32 }, { 0 }, { 0 } },      { 8, 4, 0, { 0 }, { 0 }, { 0 } },
-  { 8, 8, 0, { 0 }, { 0 }, { 0 } },       { 4, 4, 1, { 8 }, { 0 }, { 0 } },
-  { 4, 3, 0, { 64 }, { 0 }, { 0 } },
+  { 37, 1, 2, { 16, 24 }, {}, {} }, { 24, 24, 1, { 12 }, {}, {} },
+  { 10, 16, 1, { 64 }, {}, {} },    { 12, 1, 1, { 12 }, {}, {} },
+  { 12, 1, 1, { 24 }, {}, {} },     { 12, 1, 1, { 32 }, {}, {} },
+  { 18, 4, 1, { 24 }, {}, {} },     { 18, 4, 1, { 32 }, {}, {} },
+  { 4, 1, 1, { 16 }, {}, {} },      { 8, 1, 0, { 0 }, {}, {} },
+  { 8, 4, 1, { 16 }, {}, {} },      { 8, 1, 1, { 32 }, {}, {} },
+  { 9, 3, 1, { 32 }, {}, {} },      { 8, 4, 0, { 0 }, {}, {} },
+  { 8, 8, 0, { 0 }, {}, {} },       { 4, 4, 1, { 8 }, {}, {} },
+  { 4, 3, 0, { 64 }, {}, {} },
 };
 
 void NnPredictTest::RunNnPredictTest_all(const NN_CONFIG *const shapes,

@@ -101,7 +101,7 @@ TEST(EncodeAPI, SetSFrameOnFirstFrame) {
   // One of these aom_codec_encode() calls should fail.
   if (aom_codec_encode(&enc, &img, 0, 1, AOM_EFLAG_SET_S_FRAME) ==
       AOM_CODEC_OK) {
-    EXPECT_NE(aom_codec_encode(&enc, NULL, 0, 0, 0), AOM_CODEC_OK);
+    EXPECT_NE(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
   }
   EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }

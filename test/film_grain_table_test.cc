@@ -91,7 +91,7 @@ TEST(FilmGrainTableTest, AddAndLookupSingleSegment) {
 
   // Extend the existing segment
   aom_film_grain_table_append(&table, 2000, 3000, film_grain_test_vectors + 0);
-  EXPECT_EQ(0, table.head->next);
+  EXPECT_EQ(nullptr, table.head->next);
 
   // Lookup and remove and check that the entry is no longer there
   EXPECT_TRUE(aom_film_grain_table_lookup(&table, 1000, 2000, true, &grain));
@@ -100,8 +100,8 @@ TEST(FilmGrainTableTest, AddAndLookupSingleSegment) {
   EXPECT_TRUE(aom_film_grain_table_lookup(&table, 2000, 3000, true, &grain));
   EXPECT_FALSE(aom_film_grain_table_lookup(&table, 2000, 3000, false, &grain));
 
-  EXPECT_EQ(0, table.head);
-  EXPECT_EQ(0, table.tail);
+  EXPECT_EQ(nullptr, table.head);
+  EXPECT_EQ(nullptr, table.tail);
   aom_film_grain_table_free(&table);
 }
 
@@ -114,8 +114,8 @@ TEST(FilmGrainTableTest, AddSingleSegmentRemoveBiggerSegment) {
   aom_film_grain_table_append(&table, 0, 1000, film_grain_test_vectors + 0);
   EXPECT_TRUE(aom_film_grain_table_lookup(&table, 0, 1100, true, &grain));
 
-  EXPECT_EQ(0, table.head);
-  EXPECT_EQ(0, table.tail);
+  EXPECT_EQ(nullptr, table.head);
+  EXPECT_EQ(nullptr, table.tail);
   aom_film_grain_table_free(&table);
 }
 

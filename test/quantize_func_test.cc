@@ -149,8 +149,8 @@ class QuantizeTestBase
     // Testing uses luminance quantization table
     const int16_t *zbin = qtab_->quant.y_zbin[q];
 
-    const int16_t *round = 0;
-    const int16_t *quant = 0;
+    const int16_t *round = nullptr;
+    const int16_t *quant = nullptr;
     if (type_ == TYPE_B) {
       round = qtab_->quant.y_round[q];
       quant = qtab_->quant.y_quant[q];
