@@ -60,7 +60,7 @@ if(CONFIG_TUNE_BUTTERAUGLI)
 endif()
 file(APPEND "${pkgconfig_file}" "\nConflicts:\n")
 file(APPEND "${pkgconfig_file}" "Libs: -L\${libdir} -l${pkg_name}\n")
-if(CONFIG_MULTITHREAD)
+if(CONFIG_MULTITHREAD AND CMAKE_THREAD_LIBS_INIT)
   file(APPEND "${pkgconfig_file}"
        "Libs.private: -lm ${CMAKE_THREAD_LIBS_INIT}\n")
 else()
