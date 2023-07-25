@@ -368,6 +368,9 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/neon/reconinter_enc_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/temporal_filter_neon.c")
 
+list(APPEND AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD
+            "${AOM_ROOT}/av1/encoder/arm/neon/temporal_filter_neon_dotprod.c")
+
 list(APPEND AOM_AV1_ENCODER_INTRIN_ARM_CRC32
             "${AOM_ROOT}/av1/encoder/arm/crc32/hash_crc32.c")
 
@@ -667,6 +670,14 @@ function(setup_av1_targets)
         add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
                                       "aom_av1_encoder"
                                       "AOM_AV1_ENCODER_INTRIN_NEON")
+      endif()
+
+      if(HAVE_NEON_DOTPROD)
+        if(AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD)
+          add_intrinsics_object_library("${AOM_NEON_DOTPROD_FLAG}"
+                                        "neon_dotprod" "aom_av1_encoder"
+                                        "AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD")
+        endif()
       endif()
     endif()
 

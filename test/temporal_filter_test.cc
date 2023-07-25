@@ -308,6 +308,16 @@ INSTANTIATE_TEST_SUITE_P(NEON, TemporalFilterTest,
                                  Values(0, 1)));
 #endif  // HAVE_NEON
 
+#if HAVE_NEON_DOTPROD
+TemporalFilterFuncParam temporal_filter_test_neon_dotprod[] = {
+  TemporalFilterFuncParam(&av1_apply_temporal_filter_c,
+                          &av1_apply_temporal_filter_neon_dotprod)
+};
+INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, TemporalFilterTest,
+                         Combine(ValuesIn(temporal_filter_test_neon_dotprod),
+                                 Values(0, 1)));
+#endif  // HAVE_NEON_DOTPROD
+
 typedef double (*EstimateNoiseFunc)(const uint8_t *src, int height, int width,
                                     int stride, int edge_thresh);
 
