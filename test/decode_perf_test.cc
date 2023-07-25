@@ -106,8 +106,7 @@ class AV1NewEncodeDecodePerfTest
   virtual ~AV1NewEncodeDecodePerfTest() {}
 
   virtual void SetUp() {
-    InitializeConfig();
-    SetMode(encoding_mode_);
+    InitializeConfig(encoding_mode_);
 
     cfg_.g_lag_in_frames = 25;
     cfg_.rc_min_quantizer = 2;
