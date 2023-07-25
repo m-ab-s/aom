@@ -16,7 +16,7 @@
 #include "av1/common/av1_inv_txfm1d.h"
 #include "av1/encoder/av1_fwd_txfm1d.h"
 
-typedef TX_SIZE TxSize;
+using TxSize = TX_SIZE;
 
 using libaom_test::ACMRandom;
 using libaom_test::input_base;

@@ -38,14 +38,14 @@ using ::testing::Values;
 
 using std::vector;
 
-typedef TX_TYPE TxType;
-typedef TX_SIZE TxSize;
+using TxType = TX_TYPE;
+using TxSize = TX_SIZE;
 
 namespace {
 
 // AV1InvTxfm2dParam argument list:
 // tx_type_, tx_size_, max_error_, max_avg_error_
-typedef std::tuple<TxType, TxSize, int, double> AV1InvTxfm2dParam;
+using AV1InvTxfm2dParam = std::tuple<TxType, TxSize, int, double>;
 
 class AV1InvTxfm2d : public ::testing::TestWithParam<AV1InvTxfm2dParam> {
  public:
@@ -246,7 +246,7 @@ TEST(AV1InvTxfm2d, CfgTest) {
   }
 }
 
-typedef std::tuple<const LbdInvTxfm2dFunc> AV1LbdInvTxfm2dParam;
+using AV1LbdInvTxfm2dParam = std::tuple<const LbdInvTxfm2dFunc>;
 class AV1LbdInvTxfm2d : public ::testing::TestWithParam<AV1LbdInvTxfm2dParam> {
  public:
   void SetUp() override { target_func_ = GET_PARAM(0); }

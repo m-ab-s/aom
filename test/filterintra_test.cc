@@ -25,15 +25,15 @@ namespace {
 using libaom_test::ACMRandom;
 using std::tuple;
 
-typedef void (*Predictor)(uint8_t *dst, ptrdiff_t stride, TX_SIZE tx_size,
-                          const uint8_t *above, const uint8_t *left, int mode);
+using Predictor = void (*)(uint8_t *dst, ptrdiff_t stride, TX_SIZE tx_size,
+                           const uint8_t *above, const uint8_t *left, int mode);
 
 // Note:
 //  Test parameter list:
 //  Reference predictor, optimized predictor, prediction mode, tx size
 //
-typedef tuple<Predictor, Predictor, int> PredFuncMode;
-typedef tuple<PredFuncMode, TX_SIZE> PredParams;
+using PredFuncMode = tuple<Predictor, Predictor, int>;
+using PredParams = tuple<PredFuncMode, TX_SIZE>;
 
 const int MaxTxSize = 32;
 
