@@ -41,7 +41,7 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
     memset(&layer_id_, 0, sizeof(layer_id_));
   }
 
-  ~RcInterfaceTest() override {}
+  ~RcInterfaceTest() override = default;
 
  protected:
   void SetUp() override { InitializeConfig(::libaom_test::kRealTime); }

@@ -56,7 +56,7 @@ class AllIntraEndToEndTest
         deltaq_mode_(GET_PARAM(3)), threads_(GET_PARAM(4)),
         tile_columns_(GET_PARAM(5)), enable_tx_size_search_(GET_PARAM(6)) {}
 
-  ~AllIntraEndToEndTest() override {}
+  ~AllIntraEndToEndTest() override = default;
 
   void SetUp() override {
     InitializeConfig(::libaom_test::kAllIntra);

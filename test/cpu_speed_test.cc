@@ -28,7 +28,7 @@ class CpuSpeedTest
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         set_cpu_used_(GET_PARAM(2)), min_psnr_(kMaxPSNR),
         tune_content_(AOM_CONTENT_DEFAULT) {}
-  ~CpuSpeedTest() override {}
+  ~CpuSpeedTest() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

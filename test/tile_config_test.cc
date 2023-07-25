@@ -82,7 +82,7 @@ class UniformTileConfigTestLarge
     max_tile_cols_log2_ = tile_log2(1, AOM_MAX_TILE_COLS);
     max_tile_rows_log2_ = tile_log2(1, AOM_MAX_TILE_ROWS);
   }
-  ~UniformTileConfigTestLarge() override {}
+  ~UniformTileConfigTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);
@@ -148,7 +148,7 @@ class NonUniformTileConfigTestLarge
         tile_config_param_(GET_PARAM(2)), rc_end_usage_(GET_PARAM(3)) {
     tile_config_violated_ = false;
   }
-  ~NonUniformTileConfigTestLarge() override {}
+  ~NonUniformTileConfigTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);
@@ -302,7 +302,7 @@ class TileGroupTestLarge
         tile_group_config_params_(GET_PARAM(2)) {
     tile_group_config_violated_ = false;
   }
-  ~TileGroupTestLarge() override {}
+  ~TileGroupTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

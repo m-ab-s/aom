@@ -56,7 +56,7 @@ class MetadataEncodeTest
  protected:
   MetadataEncodeTest() : EncoderTest(GET_PARAM(0)) {}
 
-  ~MetadataEncodeTest() override {}
+  ~MetadataEncodeTest() override = default;
 
   void SetUp() override { InitializeConfig(GET_PARAM(1)); }
 

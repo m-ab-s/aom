@@ -43,7 +43,7 @@ class AV1DenoiserTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<AV1DenoiserTestParam> {
  public:
-  ~AV1DenoiserTest() override {}
+  ~AV1DenoiserTest() override = default;
 
   void SetUp() override { bs_ = GET_PARAM(1); }
 

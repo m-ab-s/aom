@@ -56,7 +56,7 @@ class AV1CompRoundShiftTest
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1CompRoundShiftTest);
 
-AV1CompRoundShiftTest::~AV1CompRoundShiftTest() {}
+AV1CompRoundShiftTest::~AV1CompRoundShiftTest() = default;
 
 void AV1CompRoundShiftTest::RunCheckOutput(
     comp_round_shift_array_func test_impl, BLOCK_SIZE bsize, int bit) {

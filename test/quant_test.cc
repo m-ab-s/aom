@@ -32,7 +32,7 @@ class QMTest
       public ::libaom_test::EncoderTest {
  protected:
   QMTest() : EncoderTest(GET_PARAM(0)) {}
-  ~QMTest() override {}
+  ~QMTest() override = default;
 
   void SetUp() override {
     InitializeConfig(GET_PARAM(1));
@@ -119,7 +119,7 @@ class QuantizerBoundsCheckTestLarge
         quant_param_(GET_PARAM(2)), rc_end_usage_(GET_PARAM(3)) {
     quant_bound_violated_ = false;
   }
-  ~QuantizerBoundsCheckTestLarge() override {}
+  ~QuantizerBoundsCheckTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

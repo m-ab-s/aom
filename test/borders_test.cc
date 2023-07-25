@@ -24,7 +24,7 @@ class BordersTestLarge
       public ::libaom_test::EncoderTest {
  protected:
   BordersTestLarge() : EncoderTest(GET_PARAM(0)) {}
-  ~BordersTestLarge() override {}
+  ~BordersTestLarge() override = default;
 
   void SetUp() override { InitializeConfig(GET_PARAM(1)); }
 

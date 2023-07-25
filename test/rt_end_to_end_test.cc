@@ -94,7 +94,7 @@ class RTEndToEndTest
         aq_mode_(GET_PARAM(3)), threads_(GET_PARAM(4)),
         tile_columns_(GET_PARAM(5)), tile_rows_(GET_PARAM(6)) {}
 
-  ~RTEndToEndTest() override {}
+  ~RTEndToEndTest() override = default;
 
   void SetUp() override {
     InitializeConfig(::libaom_test::kRealTime);

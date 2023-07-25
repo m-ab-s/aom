@@ -47,7 +47,7 @@ class KeyFrameIntervalTestLarge
     kf_dist_ = -1;
     is_kf_interval_violated_ = false;
   }
-  ~KeyFrameIntervalTestLarge() override {}
+  ~KeyFrameIntervalTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);
@@ -149,7 +149,7 @@ class ForcedKeyTestLarge
     frame_num_ = 0;
     is_kf_placement_violated_ = false;
   }
-  ~ForcedKeyTestLarge() override {}
+  ~ForcedKeyTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

@@ -67,7 +67,7 @@ void iwht4x4_12_sse4_1(const tran_low_t *in, uint8_t *out, int stride) {
 class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
                     public ::testing::TestWithParam<Dct4x4Param> {
  public:
-  ~Trans4x4WHT() override {}
+  ~Trans4x4WHT() override = default;
 
   void SetUp() override {
     fwd_txfm_ = GET_PARAM(0);

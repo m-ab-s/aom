@@ -39,7 +39,7 @@ typedef std::tuple<frame_error_func, int, int> FrameErrorParam;
 
 class AV1FrameErrorTest : public ::testing::TestWithParam<FrameErrorParam> {
  public:
-  ~AV1FrameErrorTest() override {}
+  ~AV1FrameErrorTest() override = default;
   void SetUp() override {
     rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   }

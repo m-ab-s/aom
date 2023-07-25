@@ -41,7 +41,7 @@ typedef libaom_test::FuncParam<SSI16Func> TestFuncs;
 
 class SumSSETest : public ::testing::TestWithParam<TestFuncs> {
  public:
-  ~SumSSETest() override {}
+  ~SumSSETest() override = default;
   void SetUp() override {
     params_ = this->GetParam();
     rnd_.Reset(ACMRandom::DeterministicSeed());

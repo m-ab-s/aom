@@ -63,7 +63,7 @@ typedef tuple<HbdHtFunc, IHbdHtFunc, IHbdHtFunc, int, TX_TYPE, int> IHbdHtParam;
 
 class AV1HighbdInvHTNxN : public ::testing::TestWithParam<IHbdHtParam> {
  public:
-  ~AV1HighbdInvHTNxN() override {}
+  ~AV1HighbdInvHTNxN() override = default;
 
   void SetUp() override {
     txfm_ref_ = GET_PARAM(0);

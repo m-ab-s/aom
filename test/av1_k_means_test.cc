@@ -75,7 +75,7 @@ class AV1KmeansTest1
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1KmeansTest1);
 
-AV1KmeansTest1::~AV1KmeansTest1() {}
+AV1KmeansTest1::~AV1KmeansTest1() = default;
 
 void AV1KmeansTest1::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
@@ -185,7 +185,7 @@ class AV1KmeansTest2
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1KmeansTest2);
 
-AV1KmeansTest2::~AV1KmeansTest2() {}
+AV1KmeansTest2::~AV1KmeansTest2() = default;
 
 void AV1KmeansTest2::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());

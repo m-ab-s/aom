@@ -187,7 +187,7 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
 
   void TearDown() override {}
 
-  ~AV1QuantizeTest() override {}
+  ~AV1QuantizeTest() override = default;
 
  private:
   TX_SIZE getTxSize(int count) {

@@ -162,7 +162,7 @@ template <typename Pixel>
 class ConvolveHorizRSTestBase : public ::testing::Test {
  public:
   ConvolveHorizRSTestBase() : image_(nullptr) {}
-  ~ConvolveHorizRSTestBase() override {}
+  ~ConvolveHorizRSTestBase() override = default;
   void TearDown() override {}
 
   // Implemented by subclasses (SetUp depends on the parameters passed
@@ -261,7 +261,7 @@ class LowBDConvolveHorizRSTest
     : public ConvolveHorizRSTestBase<uint8_t>,
       public ::testing::WithParamInterface<LowBDParams> {
  public:
-  ~LowBDConvolveHorizRSTest() override {}
+  ~LowBDConvolveHorizRSTest() override = default;
 
   void SetUp() override {
     tst_fun_ = GET_PARAM(0);
@@ -322,7 +322,7 @@ class HighBDConvolveHorizRSTest
     : public ConvolveHorizRSTestBase<uint16_t>,
       public ::testing::WithParamInterface<HighBDParams> {
  public:
-  ~HighBDConvolveHorizRSTest() override {}
+  ~HighBDConvolveHorizRSTest() override = default;
 
   void SetUp() override {
     tst_fun_ = GET_PARAM(0);

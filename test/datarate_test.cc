@@ -36,7 +36,7 @@ class DatarateTestLarge
   }
 
  protected:
-  ~DatarateTestLarge() override {}
+  ~DatarateTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(GET_PARAM(1));
@@ -312,7 +312,7 @@ class DatarateTestFrameDropLarge
   }
 
  protected:
-  ~DatarateTestFrameDropLarge() override {}
+  ~DatarateTestFrameDropLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(GET_PARAM(1));
@@ -433,7 +433,7 @@ class DatarateTestSpeedChangeRealtime
   }
 
  protected:
-  ~DatarateTestSpeedChangeRealtime() override {}
+  ~DatarateTestSpeedChangeRealtime() override = default;
 
   void SetUp() override {
     InitializeConfig(GET_PARAM(1));
@@ -540,7 +540,7 @@ class DatarateTestSetFrameQpRealtime
   DatarateTestSetFrameQpRealtime() : DatarateTest(GetParam()), frame_(0) {}
 
  protected:
-  ~DatarateTestSetFrameQpRealtime() override {}
+  ~DatarateTestSetFrameQpRealtime() override = default;
 
   void SetUp() override {
     InitializeConfig(libaom_test::kRealTime);

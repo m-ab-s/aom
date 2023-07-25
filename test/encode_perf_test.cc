@@ -63,7 +63,7 @@ class AV1EncodePerfTest
       : EncoderTest(GET_PARAM(0)), min_psnr_(kMaxPsnr), nframes_(0),
         encoding_mode_(GET_PARAM(1)), speed_(0), threads_(1) {}
 
-  ~AV1EncodePerfTest() override {}
+  ~AV1EncodePerfTest() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

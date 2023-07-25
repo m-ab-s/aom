@@ -38,7 +38,7 @@ typedef std::tuple<CdefFilterBlockFunctions, CdefFilterBlockFunctions,
 
 class CDEFBlockTest : public ::testing::TestWithParam<cdef_dir_param_t> {
  public:
-  ~CDEFBlockTest() override {}
+  ~CDEFBlockTest() override = default;
   void SetUp() override {
     cdef = GET_PARAM(0);
     ref_cdef = GET_PARAM(1);
@@ -213,7 +213,7 @@ typedef std::tuple<find_dir_t, find_dir_t> find_dir_param_t;
 
 class CDEFFindDirTest : public ::testing::TestWithParam<find_dir_param_t> {
  public:
-  ~CDEFFindDirTest() override {}
+  ~CDEFFindDirTest() override = default;
   void SetUp() override {
     finddir = GET_PARAM(0);
     ref_finddir = GET_PARAM(1);
@@ -304,7 +304,7 @@ typedef std::tuple<find_dir_dual_t, find_dir_dual_t> find_dir_dual_param_t;
 class CDEFFindDirDualTest
     : public ::testing::TestWithParam<find_dir_dual_param_t> {
  public:
-  ~CDEFFindDirDualTest() override {}
+  ~CDEFFindDirDualTest() override = default;
   void SetUp() override {
     finddir = GET_PARAM(0);
     ref_finddir = GET_PARAM(1);

@@ -27,7 +27,7 @@ class StillPicturePresenceTest
         enable_full_header_(GET_PARAM(2)) {
     still_picture_coding_violated_ = false;
   }
-  ~StillPicturePresenceTest() override {}
+  ~StillPicturePresenceTest() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

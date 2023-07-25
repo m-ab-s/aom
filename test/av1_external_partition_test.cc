@@ -559,7 +559,7 @@ class ExternalPartitionTestDfsAPI
   ExternalPartitionTestDfsAPI()
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         cpu_used_(GET_PARAM(2)), psnr_(0.0), nframes_(0) {}
-  ~ExternalPartitionTestDfsAPI() override {}
+  ~ExternalPartitionTestDfsAPI() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

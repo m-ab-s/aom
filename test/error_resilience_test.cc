@@ -37,7 +37,7 @@ class ErrorResilienceTestLarge
     Reset();
   }
 
-  ~ErrorResilienceTestLarge() override {}
+  ~ErrorResilienceTestLarge() override = default;
 
   void Reset() {
     error_nframes_ = 0;

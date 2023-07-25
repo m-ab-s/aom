@@ -41,7 +41,7 @@ typedef tuple<SgrFunc> FilterTestParam;
 class AV1SelfguidedFilterTest
     : public ::testing::TestWithParam<FilterTestParam> {
  public:
-  ~AV1SelfguidedFilterTest() override {}
+  ~AV1SelfguidedFilterTest() override = default;
   void SetUp() override {}
 
   void TearDown() override {}
@@ -234,7 +234,7 @@ typedef tuple<SgrFunc, int> HighbdFilterTestParam;
 class AV1HighbdSelfguidedFilterTest
     : public ::testing::TestWithParam<HighbdFilterTestParam> {
  public:
-  ~AV1HighbdSelfguidedFilterTest() override {}
+  ~AV1HighbdSelfguidedFilterTest() override = default;
   void SetUp() override {}
 
   void TearDown() override {}

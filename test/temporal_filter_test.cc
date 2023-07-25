@@ -57,7 +57,7 @@ typedef std::tuple<TemporalFilterFuncParam, int> TemporalFilterWithParam;
 class TemporalFilterTest
     : public ::testing::TestWithParam<TemporalFilterWithParam> {
  public:
-  ~TemporalFilterTest() override {}
+  ~TemporalFilterTest() override = default;
   void SetUp() override {
     params_ = GET_PARAM(0);
     tf_wgt_calc_lvl_ = GET_PARAM(1);
@@ -327,7 +327,7 @@ typedef std::tuple<EstimateNoiseFunc, EstimateNoiseFunc, int, int>
 class EstimateNoiseTest
     : public ::testing::TestWithParam<EstimateNoiseWithParam> {
  public:
-  ~EstimateNoiseTest() override {}
+  ~EstimateNoiseTest() override = default;
   void SetUp() override {
     ref_func = GET_PARAM(0);
     tst_func = GET_PARAM(1);
@@ -426,7 +426,7 @@ typedef std::tuple<HBDTemporalFilterFuncParam, int> HBDTemporalFilterWithParam;
 class HBDTemporalFilterTest
     : public ::testing::TestWithParam<HBDTemporalFilterWithParam> {
  public:
-  ~HBDTemporalFilterTest() override {}
+  ~HBDTemporalFilterTest() override = default;
   void SetUp() override {
     params_ = GET_PARAM(0);
     tf_wgt_calc_lvl_ = GET_PARAM(1);

@@ -43,7 +43,7 @@ typedef std::tuple<MaskedSubPixelVarianceFunc, MaskedSubPixelVarianceFunc>
 class MaskedSubPixelVarianceTest
     : public ::testing::TestWithParam<MaskedSubPixelVarianceParam> {
  public:
-  ~MaskedSubPixelVarianceTest() override {}
+  ~MaskedSubPixelVarianceTest() override = default;
   void SetUp() override {
     opt_func_ = GET_PARAM(0);
     ref_func_ = GET_PARAM(1);
@@ -179,7 +179,7 @@ typedef std::tuple<MaskedSubPixelVarianceFunc, MaskedSubPixelVarianceFunc,
 class HighbdMaskedSubPixelVarianceTest
     : public ::testing::TestWithParam<HighbdMaskedSubPixelVarianceParam> {
  public:
-  ~HighbdMaskedSubPixelVarianceTest() override {}
+  ~HighbdMaskedSubPixelVarianceTest() override = default;
   void SetUp() override {
     opt_func_ = GET_PARAM(0);
     ref_func_ = GET_PARAM(1);

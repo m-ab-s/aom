@@ -582,8 +582,8 @@ TEST_P(IntProColTest, DISABLED_Speed) {
 class VectorVarTestBase : public ::testing::Test {
  public:
   explicit VectorVarTestBase(int bwl) { m_bwl = bwl; }
-  VectorVarTestBase() {}
-  ~VectorVarTestBase() override {}
+  VectorVarTestBase() = default;
+  ~VectorVarTestBase() override = default;
 
  protected:
   static const int kDataAlignment = 16;

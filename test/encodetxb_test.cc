@@ -42,7 +42,7 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
  public:
   EncodeTxbTest() : get_nz_map_contexts_func_(GetParam()) {}
 
-  ~EncodeTxbTest() override {}
+  ~EncodeTxbTest() override = default;
 
   void SetUp() override {
     coeff_contexts_ref_ = reinterpret_cast<int8_t *>(
@@ -211,7 +211,7 @@ typedef std::tuple<av1_txb_init_levels_func, int> TxbInitLevelParam;
 class EncodeTxbInitLevelTest
     : public ::testing::TestWithParam<TxbInitLevelParam> {
  public:
-  ~EncodeTxbInitLevelTest() override {}
+  ~EncodeTxbInitLevelTest() override = default;
   void TearDown() override {}
   void RunTest(av1_txb_init_levels_func test_func, int tx_size, int is_speed);
 };

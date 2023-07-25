@@ -100,7 +100,7 @@ class HorzSuperresEndToEndTest
       : EncoderTest(GET_PARAM(0)), test_video_param_(GET_PARAM(1)),
         superres_mode_(GET_PARAM(2)), psnr_(0.0), frame_count_(0) {}
 
-  ~HorzSuperresEndToEndTest() override {}
+  ~HorzSuperresEndToEndTest() override = default;
 
   void SetUp() override {
     InitializeConfig(::libaom_test::kTwoPassGood);
@@ -203,7 +203,7 @@ class HorzSuperresFixedEndToEndTest
     superres_kf_denom_ = std::get<1>(denoms);
   }
 
-  ~HorzSuperresFixedEndToEndTest() override {}
+  ~HorzSuperresFixedEndToEndTest() override = default;
 
   void SetUp() override {
     InitializeConfig(::libaom_test::kTwoPassGood);
@@ -313,7 +313,7 @@ class HorzSuperresQThreshEndToEndTest
     superres_kf_qthresh_ = std::get<1>(qthresholds);
   }
 
-  ~HorzSuperresQThreshEndToEndTest() override {}
+  ~HorzSuperresQThreshEndToEndTest() override = default;
 
   void SetUp() override {
     InitializeConfig(::libaom_test::kTwoPassGood);

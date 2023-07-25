@@ -50,7 +50,7 @@ class AV1CornerMatchTest : public ::testing::TestWithParam<CornerMatchParam> {
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1CornerMatchTest);
 
-AV1CornerMatchTest::~AV1CornerMatchTest() {}
+AV1CornerMatchTest::~AV1CornerMatchTest() = default;
 void AV1CornerMatchTest::SetUp() {
   rnd_.Reset(ACMRandom::DeterministicSeed());
   target_func = GET_PARAM(1);

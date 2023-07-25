@@ -42,7 +42,7 @@ class MonochromeTest
       : EncoderTest(GET_PARAM(0)), lossless_(GET_PARAM(2)),
         frame0_psnr_y_(0.0) {}
 
-  ~MonochromeTest() override {}
+  ~MonochromeTest() override = default;
 
   void SetUp() override { InitializeConfig(GET_PARAM(1)); }
 

@@ -86,7 +86,7 @@ class EndToEndTest
         cpu_used_(GET_PARAM(3)), psnr_(0.0), nframes_(0),
         encoding_mode_(GET_PARAM(1)) {}
 
-  ~EndToEndTest() override {}
+  ~EndToEndTest() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

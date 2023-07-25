@@ -41,7 +41,7 @@ class BlendA64Mask1DTest : public FunctionEquivalenceTest<F> {
   static const int kMaxMaskWidth = 2 * MAX_SB_SIZE;
   static const int kMaxMaskSize = kMaxMaskWidth;
 
-  ~BlendA64Mask1DTest() override {}
+  ~BlendA64Mask1DTest() override = default;
 
   virtual void Execute(const T *p_src0, const T *p_src1) = 0;
 

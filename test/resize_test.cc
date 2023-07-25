@@ -186,7 +186,7 @@ class ResizingVideoSource : public ::libaom_test::DummyVideoSource {
   }
   int flag_codec_;
   bool change_start_resln_;
-  ~ResizingVideoSource() override {}
+  ~ResizingVideoSource() override = default;
 
  protected:
   void Begin() override {
@@ -215,7 +215,7 @@ class ResizeTest
  protected:
   ResizeTest() : EncoderTest(GET_PARAM(0)) {}
 
-  ~ResizeTest() override {}
+  ~ResizeTest() override = default;
 
   void SetUp() override { InitializeConfig(GET_PARAM(1)); }
 
@@ -279,7 +279,7 @@ class ResizeInternalTestLarge : public ResizeTest {
   ResizeInternalTestLarge() : ResizeTest(), frame0_psnr_(0.0) {}
 #endif
 
-  ~ResizeInternalTestLarge() override {}
+  ~ResizeInternalTestLarge() override = default;
 
   void BeginPassHook(unsigned int /*pass*/) override {
 #if WRITE_COMPRESSED_STREAM
@@ -403,7 +403,7 @@ class ResizeRealtimeTest
   ResizeRealtimeTest()
       : EncoderTest(GET_PARAM(0)), num_threads_(GET_PARAM(3)),
         set_scale_mode_(false), set_scale_mode2_(false) {}
-  ~ResizeRealtimeTest() override {}
+  ~ResizeRealtimeTest() override = default;
 
   void PreEncodeFrameHook(libaom_test::VideoSource *video,
                           libaom_test::Encoder *encoder) override {
@@ -757,7 +757,7 @@ class ResizeCspTest : public ResizeTest {
   ResizeCspTest() : ResizeTest(), frame0_psnr_(0.0) {}
 #endif
 
-  ~ResizeCspTest() override {}
+  ~ResizeCspTest() override = default;
 
   void BeginPassHook(unsigned int /*pass*/) override {
 #if WRITE_COMPRESSED_STREAM
@@ -809,7 +809,7 @@ class ResizingCspVideoSource : public ::libaom_test::DummyVideoSource {
     limit_ = 30;
   }
 
-  ~ResizingCspVideoSource() override {}
+  ~ResizingCspVideoSource() override = default;
 };
 
 #if (defined(DISABLE_TRELLISQ_SEARCH) && DISABLE_TRELLISQ_SEARCH) || \
@@ -845,7 +845,7 @@ class ResizeModeTestLarge
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         resize_mode_(GET_PARAM(2)), resize_denominator_(GET_PARAM(3)),
         resize_kf_denominator_(GET_PARAM(4)), cpu_used_(GET_PARAM(5)) {}
-  ~ResizeModeTestLarge() override {}
+  ~ResizeModeTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

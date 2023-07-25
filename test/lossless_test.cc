@@ -33,7 +33,7 @@ class LosslessTestLarge
         encoding_mode_(GET_PARAM(1)), rc_end_usage_(GET_PARAM(2)),
         cpu_used_(GET_PARAM(3)) {}
 
-  ~LosslessTestLarge() override {}
+  ~LosslessTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

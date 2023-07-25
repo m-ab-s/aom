@@ -140,7 +140,7 @@ class SuperBlockSizeTestLarge
         superblock_size_(GET_PARAM(2)), rc_end_usage_(GET_PARAM(3)) {
     sb_size_violated_ = false;
   }
-  ~SuperBlockSizeTestLarge() override {}
+  ~SuperBlockSizeTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

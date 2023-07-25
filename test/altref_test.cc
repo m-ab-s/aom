@@ -58,7 +58,7 @@ class AltRefFramePresenceTestLarge
         rc_end_usage_(GET_PARAM(2)) {
     is_arf_frame_present_ = 0;
   }
-  ~AltRefFramePresenceTestLarge() override {}
+  ~AltRefFramePresenceTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(altref_test_params_.encoding_mode);
@@ -149,7 +149,7 @@ class GoldenFrameIntervalTestLarge
     limit_ = 60;
     frame_num_ = 0;
   }
-  ~GoldenFrameIntervalTestLarge() override {}
+  ~GoldenFrameIntervalTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(gf_interval_param_.encoding_mode);

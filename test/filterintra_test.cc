@@ -41,7 +41,7 @@ const int MaxTestNum = 100;
 
 class AV1FilterIntraPredTest : public ::testing::TestWithParam<PredParams> {
  public:
-  ~AV1FilterIntraPredTest() override {}
+  ~AV1FilterIntraPredTest() override = default;
   void SetUp() override {
     PredFuncMode funcMode = GET_PARAM(0);
     predFuncRef_ = std::get<0>(funcMode);

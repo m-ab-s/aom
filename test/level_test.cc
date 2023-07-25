@@ -40,7 +40,7 @@ class LevelTest
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         cpu_used_(GET_PARAM(2)), target_level_(31) {}
 
-  ~LevelTest() override {}
+  ~LevelTest() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

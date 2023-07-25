@@ -37,7 +37,7 @@ class UpsampleTest : public FunctionEquivalenceTest<F> {
   static const int kBufSize = 2 * 64 + 32;
   static const int kOffset = 16;
 
-  ~UpsampleTest() override {}
+  ~UpsampleTest() override = default;
 
   virtual void Execute(T *edge_tst) = 0;
 
@@ -166,7 +166,7 @@ class FilterEdgeTest : public FunctionEquivalenceTest<F> {
   static const int kBufSize = kMaxEdge + 32;
   static const int kOffset = 15;
 
-  ~FilterEdgeTest() override {}
+  ~FilterEdgeTest() override = default;
 
   virtual void Execute(T *edge_tst) = 0;
 

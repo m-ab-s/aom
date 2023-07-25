@@ -79,7 +79,7 @@ class LFControlEndToEndTest
         aq_mode_(GET_PARAM(3)), threads_(GET_PARAM(4)),
         tile_columns_(GET_PARAM(5)) {}
 
-  ~LFControlEndToEndTest() override {}
+  ~LFControlEndToEndTest() override = default;
 
   void SetUp() override {
     InitializeConfig(::libaom_test::kRealTime);

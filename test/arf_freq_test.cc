@@ -80,7 +80,7 @@ class ArfFreqTestLarge
       : EncoderTest(GET_PARAM(0)), test_video_param_(GET_PARAM(1)),
         test_encode_param_(GET_PARAM(2)), min_arf_requested_(GET_PARAM(3)) {}
 
-  ~ArfFreqTestLarge() override {}
+  ~ArfFreqTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(test_encode_param_.mode);

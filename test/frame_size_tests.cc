@@ -24,7 +24,7 @@ class AV1FrameSizeTests : public ::testing::Test,
  protected:
   AV1FrameSizeTests()
       : EncoderTest(&::libaom_test::kAV1), expected_res_(AOM_CODEC_OK) {}
-  ~AV1FrameSizeTests() override {}
+  ~AV1FrameSizeTests() override = default;
 
   void SetUp() override { InitializeConfig(::libaom_test::kRealTime); }
 
@@ -211,7 +211,7 @@ class AV1LosslessFrameSizeTests
   AV1LosslessFrameSizeTests()
       : EncoderTest(GET_PARAM(0)), frame_size_param_(GET_PARAM(1)),
         encoding_mode_(GET_PARAM(2)) {}
-  ~AV1LosslessFrameSizeTests() override {}
+  ~AV1LosslessFrameSizeTests() override = default;
 
   void SetUp() override { InitializeConfig(encoding_mode_); }
 

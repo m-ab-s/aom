@@ -32,7 +32,7 @@ class AqSegmentTest
       public ::libaom_test::EncoderTest {
  protected:
   AqSegmentTest() : EncoderTest(GET_PARAM(0)) {}
-  ~AqSegmentTest() override {}
+  ~AqSegmentTest() override = default;
 
   void SetUp() override {
     InitializeConfig(GET_PARAM(1));

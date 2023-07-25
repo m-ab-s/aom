@@ -94,7 +94,7 @@ double compute_aomssim(const YV12_BUFFER_CONFIG *source,
 
 class HBDMetricsTestBase {
  public:
-  virtual ~HBDMetricsTestBase() {}
+  virtual ~HBDMetricsTestBase() = default;
 
  protected:
   void RunAccuracyCheck() {

@@ -59,7 +59,7 @@ template <typename OutputType>
 class Trans4x4FDCT : public libaom_test::TransformTestBase<OutputType>,
                      public ::testing::TestWithParam<Fdct4x4Param<OutputType>> {
  public:
-  ~Trans4x4FDCT() override {}
+  ~Trans4x4FDCT() override = default;
 
   using TxfmBaseOutType = libaom_test::TransformTestBase<OutputType>;
   void SetUp() override {

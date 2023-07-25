@@ -127,7 +127,7 @@ namespace AV1WarpFilter {
                             ::testing::Values(0, 1), ::testing::Values(0, 1));
 }
 
-AV1WarpFilterTest::~AV1WarpFilterTest() {}
+AV1WarpFilterTest::~AV1WarpFilterTest() = default;
 void AV1WarpFilterTest::SetUp() { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
 void AV1WarpFilterTest::TearDown() {}
@@ -319,7 +319,7 @@ namespace AV1HighbdWarpFilter {
                             ::testing::Values(0, 1), ::testing::Values(0, 1));
 }
 
-AV1HighbdWarpFilterTest::~AV1HighbdWarpFilterTest() {}
+AV1HighbdWarpFilterTest::~AV1HighbdWarpFilterTest() = default;
 void AV1HighbdWarpFilterTest::SetUp() {
   rnd_.Reset(ACMRandom::DeterministicSeed());
 }

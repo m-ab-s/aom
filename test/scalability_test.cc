@@ -26,7 +26,7 @@ class ScalabilityTest
       public ::libaom_test::EncoderTest {
  protected:
   ScalabilityTest() : EncoderTest(GET_PARAM(0)) {}
-  ~ScalabilityTest() override {}
+  ~ScalabilityTest() override = default;
 
   void SetUp() override {
     InitializeConfig(GET_PARAM(1));

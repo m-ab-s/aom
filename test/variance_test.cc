@@ -348,7 +348,7 @@ class SumOfSquaresTest : public ::testing::TestWithParam<SumOfSquaresFunction> {
  public:
   SumOfSquaresTest() : func_(GetParam()) {}
 
-  ~SumOfSquaresTest() override {}
+  ~SumOfSquaresTest() override = default;
 
  protected:
   void ConstTest();

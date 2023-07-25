@@ -72,7 +72,7 @@ class TimestampTest
       public ::libaom_test::CodecTestWithParam<libaom_test::TestMode> {
  protected:
   TimestampTest() : EncoderTest(GET_PARAM(0)) {}
-  ~TimestampTest() override {}
+  ~TimestampTest() override = default;
 
   void SetUp() override { InitializeConfig(GET_PARAM(1)); }
 };

@@ -65,7 +65,7 @@ int64_t BlockErrorLpWrapper(const tran_low_t *coeff, const tran_low_t *dqcoeff,
 
 class ErrorBlockTest : public ::testing::TestWithParam<ErrorBlockParam> {
  public:
-  ~ErrorBlockTest() override {}
+  ~ErrorBlockTest() override = default;
   void SetUp() override {
     error_block_op_ = GET_PARAM(0);
     ref_error_block_op_ = GET_PARAM(1);

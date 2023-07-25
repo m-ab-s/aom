@@ -27,7 +27,7 @@ class CpuUsedFirstpassTest
  protected:
   CpuUsedFirstpassTest()
       : EncoderTest(GET_PARAM(0)), second_pass_cpu_used_(GET_PARAM(2)) {}
-  ~CpuUsedFirstpassTest() override {}
+  ~CpuUsedFirstpassTest() override = default;
 
   void SetUp() override {
     InitializeConfig(::libaom_test::kTwoPassGood);

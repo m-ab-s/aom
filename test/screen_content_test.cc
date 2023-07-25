@@ -29,7 +29,7 @@ class ScreenContentToolsTestLarge
     is_screen_content_violated_ = true;
     tune_content_ = AOM_CONTENT_DEFAULT;
   }
-  ~ScreenContentToolsTestLarge() override {}
+  ~ScreenContentToolsTestLarge() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

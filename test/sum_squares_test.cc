@@ -44,7 +44,7 @@ typedef libaom_test::FuncParam<SSI16Func> TestFuncs;
 
 class SumSquaresTest : public ::testing::TestWithParam<TestFuncs> {
  public:
-  ~SumSquaresTest() override {}
+  ~SumSquaresTest() override = default;
   void SetUp() override {
     params_ = this->GetParam();
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -254,7 +254,7 @@ typedef std::tuple<TestSSEFuncs, int> SSETestParam;
 
 class SSETest : public ::testing::TestWithParam<SSETestParam> {
  public:
-  ~SSETest() override {}
+  ~SSETest() override = default;
   void SetUp() override {
     params_ = GET_PARAM(0);
     width_ = GET_PARAM(1);
@@ -455,7 +455,7 @@ typedef std::tuple<TestSSE_SumFuncs, TX_SIZE> SSE_SumTestParam;
 
 class SSE_Sum_Test : public ::testing::TestWithParam<SSE_SumTestParam> {
  public:
-  ~SSE_Sum_Test() override {}
+  ~SSE_Sum_Test() override = default;
   void SetUp() override {
     params_ = GET_PARAM(0);
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -606,7 +606,7 @@ const uint16_t test_block_size[2] = { 128, 256 };
 
 class Lowbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
  public:
-  ~Lowbd2dVarTest() override {}
+  ~Lowbd2dVarTest() override = default;
   void SetUp() override {
     params_ = this->GetParam();
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -750,7 +750,7 @@ INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, Lowbd2dVarTest,
 
 class Highbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
  public:
-  ~Highbd2dVarTest() override {}
+  ~Highbd2dVarTest() override = default;
   void SetUp() override {
     params_ = this->GetParam();
     rnd_.Reset(ACMRandom::DeterministicSeed());

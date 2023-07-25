@@ -407,7 +407,7 @@ class LowBDConvolveScaleTest
     : public ConvolveScaleTestBase<uint8_t>,
       public ::testing::WithParamInterface<LowBDParams> {
  public:
-  ~LowBDConvolveScaleTest() override {}
+  ~LowBDConvolveScaleTest() override = default;
 
   void SetUp() override {
     tst_fun_ = GET_PARAM(0);
@@ -490,7 +490,7 @@ class HighBDConvolveScaleTest
     : public ConvolveScaleTestBase<uint16_t>,
       public ::testing::WithParamInterface<HighBDParams> {
  public:
-  ~HighBDConvolveScaleTest() override {}
+  ~HighBDConvolveScaleTest() override = default;
 
   void SetUp() override {
     tst_fun_ = GET_PARAM(0);

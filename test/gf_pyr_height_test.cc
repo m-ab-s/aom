@@ -79,7 +79,7 @@ class GFPyrHeightTest
     gf_max_pyr_height_ = GET_PARAM(3).gf_max_pyr_height;
     psnr_threshold_ = GET_PARAM(3).psnr_thresh;
   }
-  ~GFPyrHeightTest() override {}
+  ~GFPyrHeightTest() override = default;
 
   void SetUp() override {
     InitializeConfig(encoding_mode_);

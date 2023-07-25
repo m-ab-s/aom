@@ -178,7 +178,7 @@ class DrPredTest : public ::testing::TestWithParam<DrPredFunc<FuncType> > {
     }
   }
 
-  ~DrPredTest() override {}
+  ~DrPredTest() override = default;
 
   void Predict(bool speedtest, int tx) {
     const int kNumTests = speedtest ? kMaxNumTests : 1;

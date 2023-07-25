@@ -45,7 +45,7 @@ typedef std::tuple<MaskedSADx4Func, MaskedSADx4Func> MaskedSADx4Param;
 
 class MaskedSADTestBase : public ::testing::Test {
  public:
-  ~MaskedSADTestBase() override {}
+  ~MaskedSADTestBase() override = default;
   void SetUp() override = 0;
   virtual void runRef(const uint8_t *src_ptr, int src_stride,
                       const uint8_t *ref_ptr[], int ref_stride,
@@ -65,7 +65,7 @@ class MaskedSADTestBase : public ::testing::Test {
 class MaskedSADTest : public MaskedSADTestBase,
                       public ::testing::WithParamInterface<MaskedSADParam> {
  public:
-  ~MaskedSADTest() override {}
+  ~MaskedSADTest() override = default;
   void SetUp() override {
     maskedSAD_op_ = GET_PARAM(0);
     ref_maskedSAD_op_ = GET_PARAM(1);
@@ -89,7 +89,7 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MaskedSADTest);
 class MaskedSADx4Test : public MaskedSADTestBase,
                         public ::testing::WithParamInterface<MaskedSADx4Param> {
  public:
-  ~MaskedSADx4Test() override {}
+  ~MaskedSADx4Test() override = default;
   void SetUp() override {
     maskedSAD_op_ = GET_PARAM(0);
     ref_maskedSAD_op_ = GET_PARAM(1);
@@ -262,7 +262,7 @@ typedef std::tuple<HighbdMaskedSADFunc, HighbdMaskedSADFunc>
 class HighbdMaskedSADTest
     : public ::testing::TestWithParam<HighbdMaskedSADParam> {
  public:
-  ~HighbdMaskedSADTest() override {}
+  ~HighbdMaskedSADTest() override = default;
   void SetUp() override {
     maskedSAD_op_ = GET_PARAM(0);
     ref_maskedSAD_op_ = GET_PARAM(1);

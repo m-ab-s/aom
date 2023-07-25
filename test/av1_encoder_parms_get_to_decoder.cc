@@ -85,7 +85,7 @@ class AVxEncoderParmsGetToDecoder
   AVxEncoderParmsGetToDecoder()
       : EncoderTest(GET_PARAM(0)), encode_parms(GET_PARAM(1)) {}
 
-  ~AVxEncoderParmsGetToDecoder() override {}
+  ~AVxEncoderParmsGetToDecoder() override = default;
 
   void SetUp() override {
     InitializeConfig(::libaom_test::kTwoPassGood);

@@ -88,7 +88,7 @@ static void printSpeed(int ref_elapsed_time, int elapsed_time, int width,
 
 class CFLTest {
  public:
-  virtual ~CFLTest() {}
+  virtual ~CFLTest() = default;
   void init(TX_SIZE tx) {
     tx_size = tx;
     width = tx_size_wide[tx_size];
@@ -106,7 +106,7 @@ class CFLTest {
 template <typename I>
 class CFLTestWithData : public CFLTest {
  public:
-  ~CFLTestWithData() override {}
+  ~CFLTestWithData() override = default;
 
  protected:
   I data[CFL_BUF_SQUARE];
@@ -182,7 +182,7 @@ class CFLSubAvgTest : public ::testing::TestWithParam<sub_avg_param>,
     sub_avg = std::get<1>(this->GetParam())(tx_size);
     sub_avg_ref = cfl_get_subtract_average_fn_c(tx_size);
   }
-  ~CFLSubAvgTest() override {}
+  ~CFLSubAvgTest() override = default;
 
  protected:
   cfl_subtract_average_fn sub_avg;
@@ -284,7 +284,7 @@ class CFLSubsampleLBDTest
     : public CFLSubsampleTest<subsample_lbd_param, cfl_subsample_lbd_fn,
                               uint8_t> {
  public:
-  ~CFLSubsampleLBDTest() override {}
+  ~CFLSubsampleLBDTest() override = default;
   void SetUp() override {
     CFLSubsampleTest::SetUp();
     fun_420_ref = cfl_get_luma_subsampling_420_lbd_c(tx_size);
@@ -328,7 +328,7 @@ class CFLSubsampleHBDTest
     : public CFLSubsampleTest<subsample_hbd_param, cfl_subsample_hbd_fn,
                               uint16_t> {
  public:
-  ~CFLSubsampleHBDTest() override {}
+  ~CFLSubsampleHBDTest() override = default;
   void SetUp() override {
     CFLSubsampleTest::SetUp();
     fun_420_ref = cfl_get_luma_subsampling_420_hbd_c(tx_size);
@@ -375,7 +375,7 @@ class CFLPredictTest : public ::testing::TestWithParam<predict_param>,
     predict = std::get<1>(this->GetParam())(tx_size);
     predict_ref = cfl_get_predict_lbd_fn_c(tx_size);
   }
-  ~CFLPredictTest() override {}
+  ~CFLPredictTest() override = default;
 
  protected:
   cfl_predict_lbd_fn predict;
@@ -424,7 +424,7 @@ class CFLPredictHBDTest : public ::testing::TestWithParam<predict_param_hbd>,
     predict = std::get<1>(this->GetParam())(tx_size);
     predict_ref = cfl_get_predict_hbd_fn_c(tx_size);
   }
-  ~CFLPredictHBDTest() override {}
+  ~CFLPredictHBDTest() override = default;
 
  protected:
   cfl_predict_hbd_fn predict;

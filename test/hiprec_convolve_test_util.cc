@@ -83,7 +83,7 @@ namespace AV1HiprecConvolve {
   return ::testing::ValuesIn(params);
 }
 
-AV1HiprecConvolveTest::~AV1HiprecConvolveTest() {}
+AV1HiprecConvolveTest::~AV1HiprecConvolveTest() = default;
 void AV1HiprecConvolveTest::SetUp() {
   rnd_.Reset(ACMRandom::DeterministicSeed());
 }
@@ -217,7 +217,7 @@ namespace AV1HighbdHiprecConvolve {
   return ::testing::ValuesIn(params);
 }
 
-AV1HighbdHiprecConvolveTest::~AV1HighbdHiprecConvolveTest() {}
+AV1HighbdHiprecConvolveTest::~AV1HighbdHiprecConvolveTest() = default;
 void AV1HighbdHiprecConvolveTest::SetUp() {
   rnd_.Reset(ACMRandom::DeterministicSeed());
 }

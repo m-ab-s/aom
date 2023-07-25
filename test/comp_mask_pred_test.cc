@@ -76,7 +76,7 @@ class AV1CompMaskPredBase : public ::testing::Test {
   uint8_t *ref_;
 };
 
-AV1CompMaskPredBase::~AV1CompMaskPredBase() {}
+AV1CompMaskPredBase::~AV1CompMaskPredBase() = default;
 
 void AV1CompMaskPredBase::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
@@ -333,7 +333,7 @@ class AV1CompAvgPredTest : public ::testing::TestWithParam<CompAvgPredParam> {
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1CompAvgPredTest);
 
-AV1CompAvgPredTest::~AV1CompAvgPredTest() {}
+AV1CompAvgPredTest::~AV1CompAvgPredTest() = default;
 
 void AV1CompAvgPredTest::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
@@ -448,7 +448,7 @@ class AV1HighbdCompMaskPredTestBase : public ::testing::Test {
   uint16_t *ref_;
 };
 
-AV1HighbdCompMaskPredTestBase::~AV1HighbdCompMaskPredTestBase() {}
+AV1HighbdCompMaskPredTestBase::~AV1HighbdCompMaskPredTestBase() = default;
 
 void AV1HighbdCompMaskPredTestBase::SetUp() {
   rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
@@ -501,7 +501,7 @@ class AV1HighbdCompMaskPredTest
   void RunSpeedTest(comp_mask_pred_func test_impl, BLOCK_SIZE bsize);
 };
 
-AV1HighbdCompMaskPredTest::~AV1HighbdCompMaskPredTest() {}
+AV1HighbdCompMaskPredTest::~AV1HighbdCompMaskPredTest() = default;
 
 void AV1HighbdCompMaskPredTest::RunCheckOutput(
     highbd_comp_mask_pred_func test_impl, BLOCK_SIZE bsize, int inv) {
@@ -628,7 +628,7 @@ class AV1HighbdUpsampledPredTest
                     int havSub);
 };
 
-AV1HighbdUpsampledPredTest::~AV1HighbdUpsampledPredTest() {}
+AV1HighbdUpsampledPredTest::~AV1HighbdUpsampledPredTest() = default;
 
 void AV1HighbdUpsampledPredTest::RunCheckOutput(
     highbd_upsampled_pred_func test_impl, BLOCK_SIZE bsize) {

@@ -100,7 +100,7 @@ class QuantizeTestBase
         tx_size_(GET_TEMPLATE_PARAM(2)), type_(GET_TEMPLATE_PARAM(3)),
         bd_(GET_TEMPLATE_PARAM(4)) {}
 
-  ~QuantizeTestBase() override {}
+  ~QuantizeTestBase() override = default;
 
   void SetUp() override {
     qtab_ = reinterpret_cast<QuanTable *>(aom_memalign(32, sizeof(*qtab_)));
