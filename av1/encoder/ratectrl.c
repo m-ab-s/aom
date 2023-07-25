@@ -496,8 +496,16 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
   const AV1_COMMON *const cm = &cpi->common;
   const SVC *const svc = &cpi->svc;
   const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
+  // Flag to indicate previous frame has overshoot, and buffer level
+  // for current frame is low (less than ~half of optimal). For such
+  // (inter) frames, if the source_sad is non-zero, relax the max_delta_up
+  // and clamp applied below.
+  const bool overshoot_buffer_low =
+      cpi->rc.rc_1_frame == -1 && rc->frame_source_sad > 1000 &&
+      p_rc->buffer_level < (p_rc->optimal_buffer_level >> 1) &&
+      rc->frames_since_key > 4;
   int max_delta_down;
-  int max_delta_up = 20;
+  int max_delta_up = overshoot_buffer_low ? 60 : 20;
   const int change_avg_frame_bandwidth =
       abs(rc->avg_frame_bandwidth - rc->prev_avg_frame_bandwidth) >
       0.1 * (rc->avg_frame_bandwidth);
@@ -546,7 +554,7 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
     // not been set due to dropped frames.
     if (rc->rc_1_frame * rc->rc_2_frame == -1 &&
         rc->q_1_frame != rc->q_2_frame && rc->q_1_frame > 0 &&
-        rc->q_2_frame > 0) {
+        rc->q_2_frame > 0 && !overshoot_buffer_low) {
       int qclamp = clamp(q, AOMMIN(rc->q_1_frame, rc->q_2_frame),
                          AOMMAX(rc->q_1_frame, rc->q_2_frame));
       // If the previous frame had overshoot and the current q needs to
@@ -2993,13 +3001,18 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   }
   int num_zero_temp_sad = 0;
   uint32_t min_thresh = 10000;
-  if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) min_thresh = 100000;
+  if (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) {
+    min_thresh = cm->width * cm->height <= 320 * 240 && cpi->framerate < 10.0
+                     ? 50000
+                     : 100000;
+  }
   const BLOCK_SIZE bsize = BLOCK_64X64;
   // Loop over sub-sample of frame, compute average sad over 64x64 blocks.
   uint64_t avg_sad = 0;
   uint64_t tmp_sad = 0;
   int num_samples = 0;
-  const int thresh = 6;
+  const int thresh =
+      cm->width * cm->height <= 320 * 240 && cpi->framerate < 10.0 ? 5 : 6;
   // SAD is computed on 64x64 blocks
   const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
                                 ? (cm->seq_params->mib_size >> 1)
