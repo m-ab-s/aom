@@ -37,7 +37,7 @@ class UpsampleTest : public FunctionEquivalenceTest<F> {
   static const int kBufSize = 2 * 64 + 32;
   static const int kOffset = 16;
 
-  virtual ~UpsampleTest() {}
+  ~UpsampleTest() override {}
 
   virtual void Execute(T *edge_tst) = 0;
 
@@ -71,7 +71,7 @@ typedef libaom_test::FuncParam<UP8B> TestFuncs;
 
 class UpsampleTest8B : public UpsampleTest<UP8B, uint8_t> {
  protected:
-  void Execute(uint8_t *edge_tst) {
+  void Execute(uint8_t *edge_tst) override {
     params_.ref_func(edge_ref_, size_);
     API_REGISTER_STATE_CHECK(params_.tst_func(edge_tst, size_));
   }
@@ -115,7 +115,7 @@ typedef libaom_test::FuncParam<UPHB> TestFuncsHBD;
 
 class UpsampleTestHB : public UpsampleTest<UPHB, uint16_t> {
  protected:
-  void Execute(uint16_t *edge_tst) {
+  void Execute(uint16_t *edge_tst) override {
     params_.ref_func(edge_ref_, size_, bit_depth_);
     API_REGISTER_STATE_CHECK(params_.tst_func(edge_tst, size_, bit_depth_));
   }
@@ -166,7 +166,7 @@ class FilterEdgeTest : public FunctionEquivalenceTest<F> {
   static const int kBufSize = kMaxEdge + 32;
   static const int kOffset = 15;
 
-  virtual ~FilterEdgeTest() {}
+  ~FilterEdgeTest() override {}
 
   virtual void Execute(T *edge_tst) = 0;
 
@@ -200,7 +200,7 @@ typedef libaom_test::FuncParam<FE8B> FilterEdgeTestFuncs;
 
 class FilterEdgeTest8B : public FilterEdgeTest<FE8B, uint8_t> {
  protected:
-  void Execute(uint8_t *edge_tst) {
+  void Execute(uint8_t *edge_tst) override {
     params_.ref_func(edge_ref_, size_, strength_);
     API_REGISTER_STATE_CHECK(params_.tst_func(edge_tst, size_, strength_));
   }
@@ -238,7 +238,7 @@ typedef libaom_test::FuncParam<FEHB> FilterEdgeTestFuncsHBD;
 
 class FilterEdgeTestHB : public FilterEdgeTest<FEHB, uint16_t> {
  protected:
-  void Execute(uint16_t *edge_tst) {
+  void Execute(uint16_t *edge_tst) override {
     params_.ref_func(edge_ref_, size_, strength_);
     API_REGISTER_STATE_CHECK(params_.tst_func(edge_tst, size_, strength_));
   }

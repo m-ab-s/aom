@@ -39,11 +39,11 @@ typedef std::tuple<frame_error_func, int, int> FrameErrorParam;
 
 class AV1FrameErrorTest : public ::testing::TestWithParam<FrameErrorParam> {
  public:
-  virtual ~AV1FrameErrorTest() {}
-  virtual void SetUp() {
+  ~AV1FrameErrorTest() override {}
+  void SetUp() override {
     rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   }
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   void RandomValues(frame_error_func test_impl, int width, int height);

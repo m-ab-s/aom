@@ -34,7 +34,7 @@ const float epsilon = 1e-3f;  // Error threshold for functional equivalence
 
 class NnPredictTest : public ::testing::TestWithParam<NnPredictTestParam> {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     const int MAX_NODES2 = NN_MAX_NODES_PER_LAYER * NN_MAX_NODES_PER_LAYER;
     // Allocate two massive buffers on the heap for edge weights and node bias
     // Then set-up the double-dimension arrays pointing into the big buffers
@@ -51,7 +51,7 @@ class NnPredictTest : public ::testing::TestWithParam<NnPredictTestParam> {
     }
     target_func_ = GET_PARAM(0);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(weights_buf);
     aom_free(bias_buf);
   }

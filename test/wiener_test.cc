@@ -190,7 +190,7 @@ typedef std::tuple<const compute_stats_Func> WienerTestParam;
 
 class WienerTest : public ::testing::TestWithParam<WienerTestParam> {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     src_buf = (uint8_t *)aom_memalign(
         32, MAX_DATA_BLOCK * MAX_DATA_BLOCK * sizeof(*src_buf));
     ASSERT_NE(src_buf, nullptr);
@@ -204,7 +204,7 @@ class WienerTest : public ::testing::TestWithParam<WienerTestParam> {
     memset(buf, 0, buf_size);
     target_func_ = GET_PARAM(0);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src_buf);
     aom_free(dgd_buf);
     aom_free(buf);
@@ -537,7 +537,7 @@ typedef std::tuple<const compute_stats_Func> WienerTestParam;
 
 class WienerTestHighbd : public ::testing::TestWithParam<WienerTestParam> {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     src_buf = (uint16_t *)aom_memalign(
         32, MAX_DATA_BLOCK * MAX_DATA_BLOCK * sizeof(*src_buf));
     ASSERT_NE(src_buf, nullptr);
@@ -546,7 +546,7 @@ class WienerTestHighbd : public ::testing::TestWithParam<WienerTestParam> {
     ASSERT_NE(dgd_buf, nullptr);
     target_func_ = GET_PARAM(0);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src_buf);
     aom_free(dgd_buf);
   }

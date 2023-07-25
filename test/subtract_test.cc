@@ -57,7 +57,7 @@ class AV1SubtractBlockTestBase : public ::testing::Test {
     }
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     rnd_.Reset(ACMRandom::DeterministicSeed());
 
     const size_t max_width = 128;
@@ -82,7 +82,7 @@ class AV1SubtractBlockTestBase : public ::testing::Test {
     ASSERT_NE(diff_, nullptr);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (hbd_) {
       aom_free(CONVERT_TO_SHORTPTR(src_));
       aom_free(CONVERT_TO_SHORTPTR(pred_));

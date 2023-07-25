@@ -49,7 +49,7 @@ typedef std::tuple<TxType, TxSize, int, double> AV1InvTxfm2dParam;
 
 class AV1InvTxfm2d : public ::testing::TestWithParam<AV1InvTxfm2dParam> {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     tx_type_ = GET_PARAM(0);
     tx_size_ = GET_PARAM(1);
     max_error_ = GET_PARAM(2);
@@ -249,7 +249,7 @@ TEST(AV1InvTxfm2d, CfgTest) {
 typedef std::tuple<const LbdInvTxfm2dFunc> AV1LbdInvTxfm2dParam;
 class AV1LbdInvTxfm2d : public ::testing::TestWithParam<AV1LbdInvTxfm2dParam> {
  public:
-  virtual void SetUp() { target_func_ = GET_PARAM(0); }
+  void SetUp() override { target_func_ = GET_PARAM(0); }
   void RunAV1InvTxfm2dTest(TxType tx_type, TxSize tx_size, int run_times,
                            int gt_int16 = 0);
 

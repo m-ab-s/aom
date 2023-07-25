@@ -37,10 +37,10 @@ typedef tuple<int, ComputeCrossCorrFunc> CornerMatchParam;
 
 class AV1CornerMatchTest : public ::testing::TestWithParam<CornerMatchParam> {
  public:
-  virtual ~AV1CornerMatchTest();
-  virtual void SetUp();
+  ~AV1CornerMatchTest() override;
+  void SetUp() override;
 
-  virtual void TearDown();
+  void TearDown() override;
 
  protected:
   void RunCheckOutput(int run_times);

@@ -57,8 +57,8 @@ typedef std::tuple<TemporalFilterFuncParam, int> TemporalFilterWithParam;
 class TemporalFilterTest
     : public ::testing::TestWithParam<TemporalFilterWithParam> {
  public:
-  virtual ~TemporalFilterTest() {}
-  virtual void SetUp() {
+  ~TemporalFilterTest() override {}
+  void SetUp() override {
     params_ = GET_PARAM(0);
     tf_wgt_calc_lvl_ = GET_PARAM(1);
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -71,7 +71,7 @@ class TemporalFilterTest
     ASSERT_NE(src2_, nullptr);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src1_);
     aom_free(src2_);
   }
@@ -317,8 +317,8 @@ typedef std::tuple<EstimateNoiseFunc, EstimateNoiseFunc, int, int>
 class EstimateNoiseTest
     : public ::testing::TestWithParam<EstimateNoiseWithParam> {
  public:
-  virtual ~EstimateNoiseTest() {}
-  virtual void SetUp() {
+  ~EstimateNoiseTest() override {}
+  void SetUp() override {
     ref_func = GET_PARAM(0);
     tst_func = GET_PARAM(1);
     width_ = GET_PARAM(2);
@@ -330,7 +330,7 @@ class EstimateNoiseTest
     ASSERT_NE(src1_, nullptr);
   }
 
-  virtual void TearDown() { aom_free(src1_); }
+  void TearDown() override { aom_free(src1_); }
 
   void RunTest(int run_times) {
     stride_ = width_;
@@ -416,8 +416,8 @@ typedef std::tuple<HBDTemporalFilterFuncParam, int> HBDTemporalFilterWithParam;
 class HBDTemporalFilterTest
     : public ::testing::TestWithParam<HBDTemporalFilterWithParam> {
  public:
-  virtual ~HBDTemporalFilterTest() {}
-  virtual void SetUp() {
+  ~HBDTemporalFilterTest() override {}
+  void SetUp() override {
     params_ = GET_PARAM(0);
     tf_wgt_calc_lvl_ = GET_PARAM(1);
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -430,7 +430,7 @@ class HBDTemporalFilterTest
     ASSERT_NE(src2_, nullptr);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src1_);
     aom_free(src2_);
   }

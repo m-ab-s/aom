@@ -38,8 +38,8 @@ typedef std::tuple<CdefFilterBlockFunctions, CdefFilterBlockFunctions,
 
 class CDEFBlockTest : public ::testing::TestWithParam<cdef_dir_param_t> {
  public:
-  virtual ~CDEFBlockTest() {}
-  virtual void SetUp() {
+  ~CDEFBlockTest() override {}
+  void SetUp() override {
     cdef = GET_PARAM(0);
     ref_cdef = GET_PARAM(1);
     bsize = GET_PARAM(2);
@@ -47,7 +47,7 @@ class CDEFBlockTest : public ::testing::TestWithParam<cdef_dir_param_t> {
     depth = GET_PARAM(4);
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   int bsize;
@@ -213,13 +213,13 @@ typedef std::tuple<find_dir_t, find_dir_t> find_dir_param_t;
 
 class CDEFFindDirTest : public ::testing::TestWithParam<find_dir_param_t> {
  public:
-  virtual ~CDEFFindDirTest() {}
-  virtual void SetUp() {
+  ~CDEFFindDirTest() override {}
+  void SetUp() override {
     finddir = GET_PARAM(0);
     ref_finddir = GET_PARAM(1);
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   find_dir_t finddir;
@@ -304,13 +304,13 @@ typedef std::tuple<find_dir_dual_t, find_dir_dual_t> find_dir_dual_param_t;
 class CDEFFindDirDualTest
     : public ::testing::TestWithParam<find_dir_dual_param_t> {
  public:
-  virtual ~CDEFFindDirDualTest() {}
-  virtual void SetUp() {
+  ~CDEFFindDirDualTest() override {}
+  void SetUp() override {
     finddir = GET_PARAM(0);
     ref_finddir = GET_PARAM(1);
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   find_dir_dual_t finddir;

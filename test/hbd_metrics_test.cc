@@ -179,14 +179,14 @@ typedef std::tuple<LBDMetricFunc, HBDMetricFunc, int, int, double>
 class HBDMetricsTest : public HBDMetricsTestBase,
                        public ::testing::TestWithParam<MetricTestTParam> {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     lbd_metric_ = GET_PARAM(0);
     hbd_metric_ = GET_PARAM(1);
     input_bit_depth_ = GET_PARAM(2);
     bit_depth_ = GET_PARAM(3);
     threshold_ = GET_PARAM(4);
   }
-  virtual void TearDown() {}
+  void TearDown() override {}
 };
 
 TEST_P(HBDMetricsTest, RunAccuracyCheck) { RunAccuracyCheck(); }

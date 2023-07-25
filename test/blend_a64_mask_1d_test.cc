@@ -41,7 +41,7 @@ class BlendA64Mask1DTest : public FunctionEquivalenceTest<F> {
   static const int kMaxMaskWidth = 2 * MAX_SB_SIZE;
   static const int kMaxMaskSize = kMaxMaskWidth;
 
-  virtual ~BlendA64Mask1DTest() {}
+  ~BlendA64Mask1DTest() override {}
 
   virtual void Execute(const T *p_src0, const T *p_src1) = 0;
 
@@ -121,7 +121,7 @@ typedef libaom_test::FuncParam<F8B> TestFuncs;
 
 class BlendA64Mask1DTest8B : public BlendA64Mask1DTest<F8B, uint8_t> {
  protected:
-  void Execute(const uint8_t *p_src0, const uint8_t *p_src1) {
+  void Execute(const uint8_t *p_src0, const uint8_t *p_src1) override {
     params_.ref_func(dst_ref_ + dst_offset_, dst_stride_, p_src0 + src0_offset_,
                      src0_stride_, p_src1 + src1_offset_, src1_stride_, mask_,
                      w_, h_);
@@ -227,7 +227,7 @@ typedef libaom_test::FuncParam<FHBD> TestFuncsHBD;
 
 class BlendA64Mask1DTestHBD : public BlendA64Mask1DTest<FHBD, uint16_t> {
  protected:
-  void Execute(const uint16_t *p_src0, const uint16_t *p_src1) {
+  void Execute(const uint16_t *p_src0, const uint16_t *p_src1) override {
     params_.ref_func(CONVERT_TO_BYTEPTR(dst_ref_ + dst_offset_), dst_stride_,
                      CONVERT_TO_BYTEPTR(p_src0 + src0_offset_), src0_stride_,
                      CONVERT_TO_BYTEPTR(p_src1 + src1_offset_), src1_stride_,

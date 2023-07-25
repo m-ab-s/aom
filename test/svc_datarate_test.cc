@@ -45,22 +45,22 @@ class DatarateTestSVC
   }
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     InitializeConfig(GET_PARAM(1));
     ResetModel();
   }
 
-  virtual void DecompressedFrameHook(const aom_image_t &img,
-                                     aom_codec_pts_t pts) {
+  void DecompressedFrameHook(const aom_image_t &img,
+                             aom_codec_pts_t pts) override {
     frame_info_list_.push_back(FrameInfo(pts, img.d_w, img.d_h));
     ++decoded_nframes_;
   }
 
   std::vector<FrameInfo> frame_info_list_;
 
-  virtual int GetNumSpatialLayers() { return number_spatial_layers_; }
+  int GetNumSpatialLayers() override { return number_spatial_layers_; }
 
-  virtual void ResetModel() {
+  void ResetModel() override {
     DatarateTest::ResetModel();
     layer_frame_cnt_ = 0;
     superframe_cnt_ = 0;
@@ -97,8 +97,8 @@ class DatarateTestSVC
     simulcast_mode_ = false;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
     int spatial_layer_id = 0;
     current_video_frame_ = video->frame();
     // video->frame() is called every superframe, so we should condition
@@ -228,7 +228,7 @@ class DatarateTestSVC
     }
   }
 
-  virtual void PostEncodeFrameHook(::libaom_test::Encoder *encoder) {
+  void PostEncodeFrameHook(::libaom_test::Encoder *encoder) override {
     int num_operating_points;
     encoder->Control(AV1E_GET_NUM_OPERATING_POINTS, &num_operating_points);
     ASSERT_EQ(num_operating_points,
@@ -243,7 +243,7 @@ class DatarateTestSVC
     }
   }
 
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+  void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {
     const size_t frame_size_in_bits = pkt->data.frame.sz * 8;
     // Update the layer cumulative  bitrate.
     for (int i = layer_id_.temporal_layer_id; i < number_temporal_layers_;
@@ -266,14 +266,14 @@ class DatarateTestSVC
     }
   }
 
-  virtual void EndPassHook() {
+  void EndPassHook() override {
     duration_ = ((last_pts_ + 1) * timebase_);
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       effective_datarate_tl[i] = (effective_datarate_tl[i] / 1000) / duration_;
     }
   }
 
-  virtual bool DoDecode() const {
+  bool DoDecode() const override {
     if (drop_frames_ > 0) {
       for (unsigned int i = 0; i < drop_frames_; ++i) {
         if (drop_frames_list_[i] == (unsigned int)superframe_cnt_) {
@@ -298,7 +298,7 @@ class DatarateTestSVC
     return 1;
   }
 
-  virtual void MismatchHook(const aom_image_t *img1, const aom_image_t *img2) {
+  void MismatchHook(const aom_image_t *img1, const aom_image_t *img2) override {
     double mismatch_psnr = compute_psnr(img1, img2);
     mismatch_psnr_ += mismatch_psnr;
     ++mismatch_nframes_;

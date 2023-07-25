@@ -301,7 +301,7 @@ class ConvolveTestBase : public ::testing::TestWithParam<ConvolveParam> {
     ASSERT_NE(output16_ref_, nullptr);
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
   static void TearDownTestSuite() {
     aom_free(input_ - 1);
@@ -345,7 +345,7 @@ class ConvolveTestBase : public ::testing::TestWithParam<ConvolveParam> {
             i % kOuterBlockSize >= (BorderLeft() + Width()));
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     UUT_ = GET_PARAM(2);
     if (UUT_->use_highbd_ != 0)
       mask_ = (1 << UUT_->use_highbd_) - 1;

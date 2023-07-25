@@ -65,14 +65,14 @@ int64_t BlockErrorLpWrapper(const tran_low_t *coeff, const tran_low_t *dqcoeff,
 
 class ErrorBlockTest : public ::testing::TestWithParam<ErrorBlockParam> {
  public:
-  virtual ~ErrorBlockTest() {}
-  virtual void SetUp() {
+  ~ErrorBlockTest() override {}
+  void SetUp() override {
     error_block_op_ = GET_PARAM(0);
     ref_error_block_op_ = GET_PARAM(1);
     bit_depth_ = GET_PARAM(2);
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   aom_bit_depth_t bit_depth_;

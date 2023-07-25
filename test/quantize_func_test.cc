@@ -100,9 +100,9 @@ class QuantizeTestBase
         tx_size_(GET_TEMPLATE_PARAM(2)), type_(GET_TEMPLATE_PARAM(3)),
         bd_(GET_TEMPLATE_PARAM(4)) {}
 
-  virtual ~QuantizeTestBase() {}
+  ~QuantizeTestBase() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     qtab_ = reinterpret_cast<QuanTable *>(aom_memalign(32, sizeof(*qtab_)));
     ASSERT_NE(qtab_, nullptr);
     const int n_coeffs = coeff_num();
@@ -112,7 +112,7 @@ class QuantizeTestBase
     InitQuantizer();
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(qtab_);
     qtab_ = nullptr;
     aom_free(coeff_);

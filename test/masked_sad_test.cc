@@ -45,8 +45,8 @@ typedef std::tuple<MaskedSADx4Func, MaskedSADx4Func> MaskedSADx4Param;
 
 class MaskedSADTestBase : public ::testing::Test {
  public:
-  virtual ~MaskedSADTestBase() {}
-  virtual void SetUp() = 0;
+  ~MaskedSADTestBase() override {}
+  void SetUp() override = 0;
   virtual void runRef(const uint8_t *src_ptr, int src_stride,
                       const uint8_t *ref_ptr[], int ref_stride,
                       const uint8_t *second_pred, const uint8_t *msk,
@@ -58,28 +58,27 @@ class MaskedSADTestBase : public ::testing::Test {
                        int msk_stride, int inv_mask, unsigned sads[],
                        int times) = 0;
 
-  virtual void TearDown() {}
+  void TearDown() override {}
   void runMaskedSADTest(int run_times);
 };
 
 class MaskedSADTest : public MaskedSADTestBase,
                       public ::testing::WithParamInterface<MaskedSADParam> {
  public:
-  virtual ~MaskedSADTest() {}
-  virtual void SetUp() {
+  ~MaskedSADTest() override {}
+  void SetUp() override {
     maskedSAD_op_ = GET_PARAM(0);
     ref_maskedSAD_op_ = GET_PARAM(1);
   }
 
-  virtual void runRef(const uint8_t *src_ptr, int src_stride,
-                      const uint8_t *ref_ptr[], int ref_stride,
-                      const uint8_t *second_pred, const uint8_t *msk,
-                      int msk_stride, int inv_mask, unsigned sads[], int times);
-  virtual void runTest(const uint8_t *src_ptr, int src_stride,
-                       const uint8_t *ref_ptr[], int ref_stride,
-                       const uint8_t *second_pred, const uint8_t *msk,
-                       int msk_stride, int inv_mask, unsigned sads[],
-                       int times);
+  void runRef(const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr[],
+              int ref_stride, const uint8_t *second_pred, const uint8_t *msk,
+              int msk_stride, int inv_mask, unsigned sads[],
+              int times) override;
+  void runTest(const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr[],
+               int ref_stride, const uint8_t *second_pred, const uint8_t *msk,
+               int msk_stride, int inv_mask, unsigned sads[],
+               int times) override;
 
  protected:
   MaskedSADFunc maskedSAD_op_;
@@ -90,20 +89,19 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MaskedSADTest);
 class MaskedSADx4Test : public MaskedSADTestBase,
                         public ::testing::WithParamInterface<MaskedSADx4Param> {
  public:
-  virtual ~MaskedSADx4Test() {}
-  virtual void SetUp() {
+  ~MaskedSADx4Test() override {}
+  void SetUp() override {
     maskedSAD_op_ = GET_PARAM(0);
     ref_maskedSAD_op_ = GET_PARAM(1);
   }
-  virtual void runRef(const uint8_t *src_ptr, int src_stride,
-                      const uint8_t *ref_ptr[], int ref_stride,
-                      const uint8_t *second_pred, const uint8_t *msk,
-                      int msk_stride, int inv_mask, unsigned sads[], int times);
-  virtual void runTest(const uint8_t *src_ptr, int src_stride,
-                       const uint8_t *ref_ptr[], int ref_stride,
-                       const uint8_t *second_pred, const uint8_t *msk,
-                       int msk_stride, int inv_mask, unsigned sads[],
-                       int times);
+  void runRef(const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr[],
+              int ref_stride, const uint8_t *second_pred, const uint8_t *msk,
+              int msk_stride, int inv_mask, unsigned sads[],
+              int times) override;
+  void runTest(const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr[],
+               int ref_stride, const uint8_t *second_pred, const uint8_t *msk,
+               int msk_stride, int inv_mask, unsigned sads[],
+               int times) override;
 
  protected:
   MaskedSADx4Func maskedSAD_op_;
@@ -264,13 +262,13 @@ typedef std::tuple<HighbdMaskedSADFunc, HighbdMaskedSADFunc>
 class HighbdMaskedSADTest
     : public ::testing::TestWithParam<HighbdMaskedSADParam> {
  public:
-  virtual ~HighbdMaskedSADTest() {}
-  virtual void SetUp() {
+  ~HighbdMaskedSADTest() override {}
+  void SetUp() override {
     maskedSAD_op_ = GET_PARAM(0);
     ref_maskedSAD_op_ = GET_PARAM(1);
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
   void runHighbdMaskedSADTest(int run_times);
 
  protected:

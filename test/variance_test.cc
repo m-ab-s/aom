@@ -348,7 +348,7 @@ class SumOfSquaresTest : public ::testing::TestWithParam<SumOfSquaresFunction> {
  public:
   SumOfSquaresTest() : func_(GetParam()) {}
 
-  virtual ~SumOfSquaresTest() {}
+  ~SumOfSquaresTest() override {}
 
  protected:
   void ConstTest();
@@ -427,7 +427,7 @@ template <typename FunctionType>
 class MseWxHTestClass
     : public ::testing::TestWithParam<TestParams<FunctionType> > {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     params_ = this->GetParam();
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -439,7 +439,7 @@ class MseWxHTestClass
     ASSERT_NE(dst_, nullptr);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src_);
     aom_free(dst_);
     src_ = nullptr;
@@ -528,7 +528,7 @@ class Mse16xHTestClass
   // Memory required to compute mse of two 8x8 and four 4x4 blocks assigned for
   // maximum width 16 and maximum height 8.
   int mem_size = 16 * 8;
-  virtual void SetUp() {
+  void SetUp() override {
     params_ = this->GetParam();
     rnd_.Reset(ACMRandom::DeterministicSeed());
     src_ = reinterpret_cast<uint16_t *>(
@@ -539,7 +539,7 @@ class Mse16xHTestClass
     ASSERT_NE(dst_, nullptr);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src_);
     aom_free(dst_);
     src_ = nullptr;
@@ -659,7 +659,7 @@ template <typename FunctionType>
 class MainTestClass
     : public ::testing::TestWithParam<TestParams<FunctionType> > {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     params_ = this->GetParam();
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -678,7 +678,7 @@ class MainTestClass
     }
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (use_high_bit_depth()) {
       // TODO(skal): remove!
       src_ = reinterpret_cast<uint8_t *>(CONVERT_TO_SHORTPTR(src_));
@@ -1286,7 +1286,7 @@ template <typename FunctionType>
 class SubpelVarianceTest
     : public ::testing::TestWithParam<TestParams<FunctionType> > {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     params_ = this->GetParam();
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -1308,7 +1308,7 @@ class SubpelVarianceTest
     ASSERT_NE(ref_, nullptr);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (!use_high_bit_depth()) {
       aom_free(src_);
       aom_free(ref_);
@@ -1544,7 +1544,7 @@ template <typename FunctionType>
 class ObmcVarianceTest
     : public ::testing::TestWithParam<TestParams<FunctionType> > {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     params_ = this->GetParam();
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -1564,7 +1564,7 @@ class ObmcVarianceTest
     ASSERT_NE(mask_, nullptr);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (!use_high_bit_depth()) {
       aom_free(pre_);
     } else {
@@ -1963,7 +1963,7 @@ template <typename FunctionType>
 class MseHBDWxHTestClass
     : public ::testing::TestWithParam<TestParams<FunctionType> > {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     params_ = this->GetParam();
 
     rnd_.Reset(ACMRandom::DeterministicSeed());
@@ -1975,7 +1975,7 @@ class MseHBDWxHTestClass
     ASSERT_NE(dst_, nullptr);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src_);
     aom_free(dst_);
     src_ = nullptr;

@@ -48,9 +48,9 @@ typedef std::tuple<BLOCK_SIZE, buildcompdiffwtdmaskd_func>
 class BuildCompDiffwtdMaskTest
     : public ::testing::TestWithParam<BuildCompDiffwtdMaskDParam> {
  public:
-  virtual ~BuildCompDiffwtdMaskTest() {}
+  ~BuildCompDiffwtdMaskTest() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
   void RunTest(buildcompdiffwtdmaskd_func test_impl, const int is_speed,
                const DIFFWTD_MASK_TYPE type);
 
@@ -77,9 +77,9 @@ typedef std::tuple<int, buildcompdiffwtdmaskd16_func, BLOCK_SIZE>
 class BuildCompDiffwtdMaskD16Test
     : public ::testing::TestWithParam<BuildCompDiffwtdMaskD16Param> {
  public:
-  ~BuildCompDiffwtdMaskD16Test() {}
-  virtual void TearDown() {}
-  void SetUp() { rnd_.Reset(ACMRandom::DeterministicSeed()); }
+  ~BuildCompDiffwtdMaskD16Test() override {}
+  void TearDown() override {}
+  void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
   void RunCheckOutput(buildcompdiffwtdmaskd16_func test_impl);

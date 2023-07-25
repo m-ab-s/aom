@@ -186,7 +186,7 @@ class ResizingVideoSource : public ::libaom_test::DummyVideoSource {
   }
   int flag_codec_;
   bool change_start_resln_;
-  virtual ~ResizingVideoSource() {}
+  ~ResizingVideoSource() override {}
 
  protected:
   void Begin() override {
@@ -215,12 +215,12 @@ class ResizeTest
  protected:
   ResizeTest() : EncoderTest(GET_PARAM(0)) {}
 
-  virtual ~ResizeTest() {}
+  ~ResizeTest() override {}
 
-  virtual void SetUp() { InitializeConfig(GET_PARAM(1)); }
+  void SetUp() override { InitializeConfig(GET_PARAM(1)); }
 
-  virtual void PreEncodeFrameHook(libaom_test::VideoSource *video,
-                                  libaom_test::Encoder *encoder) {
+  void PreEncodeFrameHook(libaom_test::VideoSource *video,
+                          libaom_test::Encoder *encoder) override {
     if (video->frame() == 0) {
       if (GET_PARAM(1) == ::libaom_test::kRealTime) {
         encoder->Control(AV1E_SET_AQ_MODE, 3);
@@ -230,8 +230,8 @@ class ResizeTest
     }
   }
 
-  virtual void DecompressedFrameHook(const aom_image_t &img,
-                                     aom_codec_pts_t pts) {
+  void DecompressedFrameHook(const aom_image_t &img,
+                             aom_codec_pts_t pts) override {
     frame_info_list_.push_back(FrameInfo(pts, img.d_w, img.d_h));
   }
 
@@ -279,15 +279,15 @@ class ResizeInternalTestLarge : public ResizeTest {
   ResizeInternalTestLarge() : ResizeTest(), frame0_psnr_(0.0) {}
 #endif
 
-  virtual ~ResizeInternalTestLarge() {}
+  ~ResizeInternalTestLarge() override {}
 
-  virtual void BeginPassHook(unsigned int /*pass*/) {
+  void BeginPassHook(unsigned int /*pass*/) override {
 #if WRITE_COMPRESSED_STREAM
     outfile_ = fopen("av10-2-05-resize.ivf", "wb");
 #endif
   }
 
-  virtual void EndPassHook() {
+  void EndPassHook() override {
 #if WRITE_COMPRESSED_STREAM
     if (outfile_) {
       if (!fseek(outfile_, 0, SEEK_SET))
@@ -298,8 +298,8 @@ class ResizeInternalTestLarge : public ResizeTest {
 #endif
   }
 
-  virtual void PreEncodeFrameHook(libaom_test::VideoSource *video,
-                                  libaom_test::Encoder *encoder) {
+  void PreEncodeFrameHook(libaom_test::VideoSource *video,
+                          libaom_test::Encoder *encoder) override {
     if (change_config_) {
       int new_q = 60;
       if (video->frame() == 0) {
@@ -323,7 +323,7 @@ class ResizeInternalTestLarge : public ResizeTest {
     }
   }
 
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+  void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) override {
     if (frame0_psnr_ == 0.) frame0_psnr_ = pkt->data.psnr.psnr[0];
     EXPECT_NEAR(pkt->data.psnr.psnr[0], frame0_psnr_, 4.1);
   }
@@ -403,10 +403,10 @@ class ResizeRealtimeTest
   ResizeRealtimeTest()
       : EncoderTest(GET_PARAM(0)), num_threads_(GET_PARAM(3)),
         set_scale_mode_(false), set_scale_mode2_(false) {}
-  virtual ~ResizeRealtimeTest() {}
+  ~ResizeRealtimeTest() override {}
 
-  virtual void PreEncodeFrameHook(libaom_test::VideoSource *video,
-                                  libaom_test::Encoder *encoder) {
+  void PreEncodeFrameHook(libaom_test::VideoSource *video,
+                          libaom_test::Encoder *encoder) override {
     if (video->frame() == 0) {
       encoder->Control(AV1E_SET_AQ_MODE, 3);
       encoder->Control(AV1E_SET_ALLOW_WARPED_MOTION, 0);
@@ -442,17 +442,17 @@ class ResizeRealtimeTest
     }
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     InitializeConfig(GET_PARAM(1));
     set_cpu_used_ = GET_PARAM(2);
   }
 
-  virtual void DecompressedFrameHook(const aom_image_t &img,
-                                     aom_codec_pts_t pts) {
+  void DecompressedFrameHook(const aom_image_t &img,
+                             aom_codec_pts_t pts) override {
     frame_info_list_.push_back(FrameInfo(pts, img.d_w, img.d_h));
   }
 
-  virtual void MismatchHook(const aom_image_t *img1, const aom_image_t *img2) {
+  void MismatchHook(const aom_image_t *img1, const aom_image_t *img2) override {
     double mismatch_psnr = compute_psnr(img1, img2);
     mismatch_psnr_ += mismatch_psnr;
     ++mismatch_nframes_;
@@ -757,15 +757,15 @@ class ResizeCspTest : public ResizeTest {
   ResizeCspTest() : ResizeTest(), frame0_psnr_(0.0) {}
 #endif
 
-  virtual ~ResizeCspTest() {}
+  ~ResizeCspTest() override {}
 
-  virtual void BeginPassHook(unsigned int /*pass*/) {
+  void BeginPassHook(unsigned int /*pass*/) override {
 #if WRITE_COMPRESSED_STREAM
     outfile_ = fopen("av11-2-05-cspchape.ivf", "wb");
 #endif
   }
 
-  virtual void EndPassHook() {
+  void EndPassHook() override {
 #if WRITE_COMPRESSED_STREAM
     if (outfile_) {
       if (!fseek(outfile_, 0, SEEK_SET))
@@ -776,7 +776,7 @@ class ResizeCspTest : public ResizeTest {
 #endif
   }
 
-  virtual void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) {
+  void PSNRPktHook(const aom_codec_cx_pkt_t *pkt) override {
     if (frame0_psnr_ == 0.) frame0_psnr_ = pkt->data.psnr.psnr[0];
     EXPECT_NEAR(pkt->data.psnr.psnr[0], frame0_psnr_, 2.0);
   }
@@ -809,7 +809,7 @@ class ResizingCspVideoSource : public ::libaom_test::DummyVideoSource {
     limit_ = 30;
   }
 
-  virtual ~ResizingCspVideoSource() {}
+  ~ResizingCspVideoSource() override {}
 };
 
 #if (defined(DISABLE_TRELLISQ_SEARCH) && DISABLE_TRELLISQ_SEARCH) || \
@@ -845,9 +845,9 @@ class ResizeModeTestLarge
       : EncoderTest(GET_PARAM(0)), encoding_mode_(GET_PARAM(1)),
         resize_mode_(GET_PARAM(2)), resize_denominator_(GET_PARAM(3)),
         resize_kf_denominator_(GET_PARAM(4)), cpu_used_(GET_PARAM(5)) {}
-  virtual ~ResizeModeTestLarge() {}
+  ~ResizeModeTestLarge() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     InitializeConfig(encoding_mode_);
     const aom_rational timebase = { 1, 30 };
     cfg_.g_timebase = timebase;
@@ -861,8 +861,8 @@ class ResizeModeTestLarge
     init_flags_ = AOM_CODEC_USE_PSNR;
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);

@@ -180,7 +180,7 @@ TEST(FilmGrainTableTest, AddAndLookupMultipleSegments) {
 
 class FilmGrainTableIOTest : public ::testing::Test {
  protected:
-  void SetUp() { memset(&error_, 0, sizeof(error_)); }
+  void SetUp() override { memset(&error_, 0, sizeof(error_)); }
   struct aom_internal_error_info error_;
 };
 

@@ -36,9 +36,9 @@ class DatarateTestLarge
   }
 
  protected:
-  virtual ~DatarateTestLarge() {}
+  ~DatarateTestLarge() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     InitializeConfig(GET_PARAM(1));
     ResetModel();
   }
@@ -312,9 +312,9 @@ class DatarateTestFrameDropLarge
   }
 
  protected:
-  virtual ~DatarateTestFrameDropLarge() {}
+  ~DatarateTestFrameDropLarge() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     InitializeConfig(GET_PARAM(1));
     ResetModel();
   }
@@ -433,9 +433,9 @@ class DatarateTestSpeedChangeRealtime
   }
 
  protected:
-  virtual ~DatarateTestSpeedChangeRealtime() {}
+  ~DatarateTestSpeedChangeRealtime() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     InitializeConfig(GET_PARAM(1));
     ResetModel();
   }
@@ -540,15 +540,15 @@ class DatarateTestSetFrameQpRealtime
   DatarateTestSetFrameQpRealtime() : DatarateTest(GetParam()), frame_(0) {}
 
  protected:
-  virtual ~DatarateTestSetFrameQpRealtime() {}
+  ~DatarateTestSetFrameQpRealtime() override {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     InitializeConfig(libaom_test::kRealTime);
     ResetModel();
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
     set_cpu_used_ = 7;
     DatarateTest::PreEncodeFrameHook(video, encoder);
     frame_qp_ = rnd_.PseudoUniform(63);
@@ -556,7 +556,7 @@ class DatarateTestSetFrameQpRealtime
     frame_++;
   }
 
-  virtual void PostEncodeFrameHook(::libaom_test::Encoder *encoder) {
+  void PostEncodeFrameHook(::libaom_test::Encoder *encoder) override {
     if (frame_ >= total_frames_) return;
     int qp = 0;
     encoder->Control(AOME_GET_LAST_QUANTIZER_64, &qp);

@@ -41,10 +41,10 @@ typedef tuple<SgrFunc> FilterTestParam;
 class AV1SelfguidedFilterTest
     : public ::testing::TestWithParam<FilterTestParam> {
  public:
-  virtual ~AV1SelfguidedFilterTest() {}
-  virtual void SetUp() {}
+  ~AV1SelfguidedFilterTest() override {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   void RunSpeedTest() {
@@ -234,10 +234,10 @@ typedef tuple<SgrFunc, int> HighbdFilterTestParam;
 class AV1HighbdSelfguidedFilterTest
     : public ::testing::TestWithParam<HighbdFilterTestParam> {
  public:
-  virtual ~AV1HighbdSelfguidedFilterTest() {}
-  virtual void SetUp() {}
+  ~AV1HighbdSelfguidedFilterTest() override {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   void RunSpeedTest() {

@@ -132,7 +132,7 @@ class SADTestBase : public ::testing::Test {
     comp_pred16_test_ = nullptr;
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   // Handle up to 4 128x128 blocks, with stride up to 256
@@ -140,7 +140,7 @@ class SADTestBase : public ::testing::Test {
   static const int kDataBlockSize = 128 * 256;
   static const int kDataBufferSize = 4 * kDataBlockSize;
 
-  virtual void SetUp() {
+  void SetUp() override {
     if (bd_ == -1) {
       use_high_bit_depth_ = false;
       bit_depth_ = AOM_BITS_8;
@@ -370,7 +370,7 @@ class SADx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
   }
 
   void SADForSpeedTest(unsigned int *results,
-                       const uint8_t *const *references) {
+                       const uint8_t *const *references) override {
     GET_PARAM(2)
     (source_data_, source_stride_, references, reference_stride_, results);
   }
@@ -401,7 +401,7 @@ class SADx3Test : public ::testing::WithParamInterface<SadMxNx4Param>,
   }
 
   void SADForSpeedTest(unsigned int *results,
-                       const uint8_t *const *references) {
+                       const uint8_t *const *references) override {
     GET_PARAM(2)
     (source_data_, source_stride_, references, reference_stride_, results);
   }
@@ -444,7 +444,7 @@ class SADSkipx4Test : public ::testing::WithParamInterface<SadMxNx4Param>,
   }
 
   void SADForSpeedTest(unsigned int *results,
-                       const uint8_t *const *references) {
+                       const uint8_t *const *references) override {
     GET_PARAM(2)
     (source_data_, source_stride_, references, reference_stride_, results);
   }
@@ -473,7 +473,7 @@ class SADTest : public ::testing::WithParamInterface<SadMxNParam>,
   }
 
   void SADForSpeedTest(unsigned int *results,
-                       const uint8_t *const *references) {
+                       const uint8_t *const *references) override {
     GET_PARAM(2)
     (source_data_, source_stride_, references[0], reference_stride_);
     (void)results;
@@ -503,7 +503,7 @@ class SADSkipTest : public ::testing::WithParamInterface<SadMxNParam>,
   }
 
   void SADForSpeedTest(unsigned int *results,
-                       const uint8_t *const *references) {
+                       const uint8_t *const *references) override {
     GET_PARAM(2)
     (source_data_, source_stride_, references[0], reference_stride_);
     (void)results;

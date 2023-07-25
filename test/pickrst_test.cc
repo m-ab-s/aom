@@ -43,7 +43,7 @@ typedef std::tuple<const lowbd_pixel_proj_error_func> PixelProjErrorTestParam;
 class PixelProjErrorTest
     : public ::testing::TestWithParam<PixelProjErrorTestParam> {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     target_func_ = GET_PARAM(0);
     src_ = (uint8_t *)(aom_malloc(MAX_DATA_BLOCK * MAX_DATA_BLOCK *
                                   sizeof(*src_)));
@@ -58,7 +58,7 @@ class PixelProjErrorTest
                                    sizeof(*flt1_)));
     ASSERT_NE(flt1_, nullptr);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src_);
     aom_free(dgd_);
     aom_free(flt0_);
@@ -215,7 +215,7 @@ typedef std::tuple<const highbd_pixel_proj_error_func> PixelProjErrorTestParam;
 class PixelProjHighbdErrorTest
     : public ::testing::TestWithParam<PixelProjErrorTestParam> {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     target_func_ = GET_PARAM(0);
     src_ =
         (uint16_t *)aom_malloc(MAX_DATA_BLOCK * MAX_DATA_BLOCK * sizeof(*src_));
@@ -230,7 +230,7 @@ class PixelProjHighbdErrorTest
         (int32_t *)aom_malloc(MAX_DATA_BLOCK * MAX_DATA_BLOCK * sizeof(*flt1_));
     ASSERT_NE(flt1_, nullptr);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src_);
     aom_free(dgd_);
     aom_free(flt0_);
@@ -386,7 +386,7 @@ typedef std::tuple<const set_get_proj_subspace> GetProjSubspaceTestParam;
 class GetProjSubspaceTest
     : public ::testing::TestWithParam<GetProjSubspaceTestParam> {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     target_func_ = GET_PARAM(0);
     src_ = (uint8_t *)(aom_malloc(MAX_DATA_BLOCK * MAX_DATA_BLOCK *
                                   sizeof(*src_)));
@@ -401,7 +401,7 @@ class GetProjSubspaceTest
                                    sizeof(*flt1_)));
     ASSERT_NE(flt1_, nullptr);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src_);
     aom_free(dgd_);
     aom_free(flt0_);
@@ -565,7 +565,7 @@ typedef std::tuple<const set_get_proj_subspace_hbd> GetProjSubspaceHBDTestParam;
 class GetProjSubspaceTestHBD
     : public ::testing::TestWithParam<GetProjSubspaceHBDTestParam> {
  public:
-  virtual void SetUp() {
+  void SetUp() override {
     target_func_ = GET_PARAM(0);
     src_ = (uint16_t *)(aom_malloc(MAX_DATA_BLOCK * MAX_DATA_BLOCK *
                                    sizeof(*src_)));
@@ -580,7 +580,7 @@ class GetProjSubspaceTestHBD
                                    sizeof(*flt1_)));
     ASSERT_NE(flt1_, nullptr);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     aom_free(src_);
     aom_free(dgd_);
     aom_free(flt0_);

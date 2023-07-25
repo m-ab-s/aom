@@ -24,18 +24,18 @@ class AV1FrameSizeTests : public ::testing::Test,
  protected:
   AV1FrameSizeTests()
       : EncoderTest(&::libaom_test::kAV1), expected_res_(AOM_CODEC_OK) {}
-  virtual ~AV1FrameSizeTests() {}
+  ~AV1FrameSizeTests() override {}
 
-  virtual void SetUp() { InitializeConfig(::libaom_test::kRealTime); }
+  void SetUp() override { InitializeConfig(::libaom_test::kRealTime); }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
+  bool HandleDecodeResult(const aom_codec_err_t res_dec,
+                          libaom_test::Decoder *decoder) override {
     EXPECT_EQ(expected_res_, res_dec) << decoder->DecodeError();
     return !::testing::Test::HasFailure();
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 7);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 1);
@@ -211,18 +211,18 @@ class AV1LosslessFrameSizeTests
   AV1LosslessFrameSizeTests()
       : EncoderTest(GET_PARAM(0)), frame_size_param_(GET_PARAM(1)),
         encoding_mode_(GET_PARAM(2)) {}
-  virtual ~AV1LosslessFrameSizeTests() {}
+  ~AV1LosslessFrameSizeTests() override {}
 
-  virtual void SetUp() { InitializeConfig(encoding_mode_); }
+  void SetUp() override { InitializeConfig(encoding_mode_); }
 
-  virtual bool HandleDecodeResult(const aom_codec_err_t res_dec,
-                                  libaom_test::Decoder *decoder) {
+  bool HandleDecodeResult(const aom_codec_err_t res_dec,
+                          libaom_test::Decoder *decoder) override {
     EXPECT_EQ(expected_res_, res_dec) << decoder->DecodeError();
     return !::testing::Test::HasFailure();
   }
 
-  virtual void PreEncodeFrameHook(::libaom_test::VideoSource *video,
-                                  ::libaom_test::Encoder *encoder) {
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
     if (video->frame() == 0) {
       encoder->Control(AOME_SET_CPUUSED, 6);
       encoder->Control(AV1E_SET_LOSSLESS, 1);
