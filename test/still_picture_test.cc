@@ -39,7 +39,7 @@ class StillPicturePresenceTest
     cfg_.g_limit = 1;
   }
 
-  bool DoDecode() const override { return 1; }
+  bool DoDecode() const override { return true; }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                           ::libaom_test::Encoder *encoder) override {

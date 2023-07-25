@@ -93,7 +93,7 @@ class UniformTileConfigTestLarge
     cfg_.g_lag_in_frames = 19;
   }
 
-  bool DoDecode() const override { return 1; }
+  bool DoDecode() const override { return true; }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                           ::libaom_test::Encoder *encoder) override {
@@ -168,7 +168,7 @@ class NonUniformTileConfigTestLarge
                tile_config_param_.tile_height_count);
   }
 
-  bool DoDecode() const override { return 1; }
+  bool DoDecode() const override { return true; }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                           ::libaom_test::Encoder *encoder) override {
@@ -312,7 +312,7 @@ class TileGroupTestLarge
     cfg_.g_threads = 1;
   }
 
-  bool DoDecode() const override { return 1; }
+  bool DoDecode() const override { return true; }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                           ::libaom_test::Encoder *encoder) override {

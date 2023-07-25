@@ -60,7 +60,7 @@ class KeyFrameIntervalTestLarge
     cfg_.g_lag_in_frames = 19;
   }
 
-  bool DoDecode() const override { return 1; }
+  bool DoDecode() const override { return true; }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                           ::libaom_test::Encoder *encoder) override {

@@ -279,23 +279,23 @@ class DatarateTestSVC
         if (drop_frames_list_[i] == (unsigned int)superframe_cnt_) {
           std::cout << "             Skipping decoding frame: "
                     << drop_frames_list_[i] << "\n";
-          return 0;
+          return false;
         }
       }
     } else if (intra_only_ == 1) {
       // Only start decoding at frames_to_start_decoding_.
-      if (current_video_frame_ < frame_to_start_decoding_) return 0;
+      if (current_video_frame_ < frame_to_start_decoding_) return false;
       // Only decode base layer for 3SL, for layer_to_decode_ = 0.
       if (layer_to_decode_ == 0 && frame_sync_ > 0 &&
           (layer_frame_cnt_ - 1) % 3 != 0)
-        return 0;
+        return false;
     } else if (simulcast_mode_) {
       // Only start decoding at frames_to_start_decoding_ and only
       // for top spatial layer SL2 (layer_to_decode_).
-      if (current_video_frame_ < frame_to_start_decoding_) return 0;
-      if (layer_id_.spatial_layer_id < (int)layer_to_decode_) return 0;
+      if (current_video_frame_ < frame_to_start_decoding_) return false;
+      if (layer_id_.spatial_layer_id < (int)layer_to_decode_) return false;
     }
-    return 1;
+    return true;
   }
 
   void MismatchHook(const aom_image_t *img1, const aom_image_t *img2) override {

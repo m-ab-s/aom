@@ -49,10 +49,10 @@ class AV1SubtractBlockTestBase : public ::testing::Test {
     func_ = func;
     ref_func_ = ref_func;
     if (bit_depth == -1) {
-      hbd_ = 0;
+      hbd_ = false;
       bit_depth_ = AOM_BITS_8;
     } else {
-      hbd_ = 1;
+      hbd_ = true;
       bit_depth_ = static_cast<aom_bit_depth_t>(bit_depth);
     }
   }

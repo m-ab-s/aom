@@ -71,7 +71,7 @@ class AltRefFramePresenceTestLarge
     cfg_.g_lag_in_frames = altref_test_params_.lag_in_frames;
   }
 
-  bool DoDecode() const override { return 1; }
+  bool DoDecode() const override { return true; }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                           ::libaom_test::Encoder *encoder) override {
@@ -166,7 +166,7 @@ class GoldenFrameIntervalTestLarge
     cfg_.rc_target_bitrate = 1000;
   }
 
-  bool DoDecode() const override { return 1; }
+  bool DoDecode() const override { return true; }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                           ::libaom_test::Encoder *encoder) override {

@@ -105,7 +105,7 @@ class AV1EncodePerfTest
   }
 
   // for performance reasons don't decode
-  virtual bool DoDecode() { return 0; }
+  virtual bool DoDecode() { return false; }
 
   double min_psnr() const { return min_psnr_; }
 

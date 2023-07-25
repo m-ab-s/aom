@@ -24,7 +24,7 @@ namespace {
 
 // Return normally distrbuted values with standard deviation of sigma.
 double randn(libaom_test::ACMRandom *random, double sigma) {
-  while (1) {
+  while (true) {
     const double u = 2.0 * ((double)random->Rand31() /
                             testing::internal::Random::kMaxRange) -
                      1.0;

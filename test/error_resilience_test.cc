@@ -183,11 +183,11 @@ class ErrorResilienceTestLarge
         if (error_frames_[i] == nframes_ - 1) {
           std::cout << "             Skipping decoding frame: "
                     << error_frames_[i] << "\n";
-          return 0;
+          return false;
         }
       }
     }
-    return 1;
+    return true;
   }
 
   bool DoDecodeInvisible() const override {
@@ -198,11 +198,11 @@ class ErrorResilienceTestLarge
           std::cout << "             Skipping decoding all invisible frames in "
                        "frame pkt: "
                     << invisible_error_frames_[i] << "\n";
-          return 0;
+          return false;
         }
       }
     }
-    return 1;
+    return true;
   }
 
   void MismatchHook(const aom_image_t *img1, const aom_image_t *img2) override {
