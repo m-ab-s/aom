@@ -8,6 +8,8 @@
  * Media Patent License 1.0 was not distributed with this source code in the
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
+#ifndef AOM_AV1_COMMON_ARM_COMPOUND_CONVOLVE_NEON_H_
+#define AOM_AV1_COMMON_ARM_COMPOUND_CONVOLVE_NEON_H_
 
 #include <arm_neon.h>
 
@@ -1168,3 +1170,5 @@ static INLINE void dist_wtd_convolve_2d_vert_8tap_neon(
     } while (w != 0);
   }
 }
+
+#endif  // AOM_AV1_COMMON_ARM_COMPOUND_CONVOLVE_NEON_H_
