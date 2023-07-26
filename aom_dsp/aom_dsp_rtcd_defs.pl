@@ -888,30 +888,30 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sad16x64_avg        sse2 neon neon_dotprod/;
   specialize qw/aom_sad64x16_avg        sse2 neon neon_dotprod/;
 
-  specialize qw/aom_dist_wtd_sad128x128_avg sse2/;
-  specialize qw/aom_dist_wtd_sad128x64_avg  sse2/;
-  specialize qw/aom_dist_wtd_sad64x128_avg  sse2/;
-  specialize qw/aom_dist_wtd_sad64x64_avg   sse2/;
-  specialize qw/aom_dist_wtd_sad64x32_avg   sse2/;
-  specialize qw/aom_dist_wtd_sad32x64_avg   sse2/;
-  specialize qw/aom_dist_wtd_sad32x32_avg   sse2/;
-  specialize qw/aom_dist_wtd_sad32x16_avg   sse2/;
-  specialize qw/aom_dist_wtd_sad16x32_avg   sse2/;
-  specialize qw/aom_dist_wtd_sad16x16_avg   sse2/;
-  specialize qw/aom_dist_wtd_sad16x8_avg    sse2/;
-  specialize qw/aom_dist_wtd_sad8x16_avg    sse2/;
-  specialize qw/aom_dist_wtd_sad8x8_avg     sse2/;
-  specialize qw/aom_dist_wtd_sad8x4_avg     sse2/;
-  specialize qw/aom_dist_wtd_sad4x8_avg     sse2/;
-  specialize qw/aom_dist_wtd_sad4x4_avg     sse2/;
+  specialize qw/aom_dist_wtd_sad128x128_avg sse2 neon/;
+  specialize qw/aom_dist_wtd_sad128x64_avg  sse2 neon/;
+  specialize qw/aom_dist_wtd_sad64x128_avg  sse2 neon/;
+  specialize qw/aom_dist_wtd_sad64x64_avg   sse2 neon/;
+  specialize qw/aom_dist_wtd_sad64x32_avg   sse2 neon/;
+  specialize qw/aom_dist_wtd_sad32x64_avg   sse2 neon/;
+  specialize qw/aom_dist_wtd_sad32x32_avg   sse2 neon/;
+  specialize qw/aom_dist_wtd_sad32x16_avg   sse2 neon/;
+  specialize qw/aom_dist_wtd_sad16x32_avg   sse2 neon/;
+  specialize qw/aom_dist_wtd_sad16x16_avg   sse2 neon/;
+  specialize qw/aom_dist_wtd_sad16x8_avg    sse2 neon/;
+  specialize qw/aom_dist_wtd_sad8x16_avg    sse2 neon/;
+  specialize qw/aom_dist_wtd_sad8x8_avg     sse2 neon/;
+  specialize qw/aom_dist_wtd_sad8x4_avg     sse2 neon/;
+  specialize qw/aom_dist_wtd_sad4x8_avg     sse2 neon/;
+  specialize qw/aom_dist_wtd_sad4x4_avg     sse2 neon/;
 
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
-    specialize qw/aom_dist_wtd_sad4x16_avg     sse2/;
-    specialize qw/aom_dist_wtd_sad16x4_avg     sse2/;
-    specialize qw/aom_dist_wtd_sad8x32_avg     sse2/;
-    specialize qw/aom_dist_wtd_sad32x8_avg     sse2/;
-    specialize qw/aom_dist_wtd_sad16x64_avg    sse2/;
-    specialize qw/aom_dist_wtd_sad64x16_avg    sse2/;
+    specialize qw/aom_dist_wtd_sad4x16_avg     sse2 neon/;
+    specialize qw/aom_dist_wtd_sad16x4_avg     sse2 neon/;
+    specialize qw/aom_dist_wtd_sad8x32_avg     sse2 neon/;
+    specialize qw/aom_dist_wtd_sad32x8_avg     sse2 neon/;
+    specialize qw/aom_dist_wtd_sad16x64_avg    sse2 neon/;
+    specialize qw/aom_dist_wtd_sad64x16_avg    sse2 neon/;
   }
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
