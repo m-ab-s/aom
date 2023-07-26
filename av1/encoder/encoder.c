@@ -946,7 +946,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
 #else
   if (oxcf->tool_cfg.enable_global_motion) {
     cpi->image_pyramid_levels =
-        global_motion_pyr_levels[oxcf->global_motion_method];
+        global_motion_pyr_levels[default_global_motion_method];
   } else {
     cpi->image_pyramid_levels = 0;
   }

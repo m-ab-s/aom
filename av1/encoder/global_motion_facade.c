@@ -97,7 +97,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   assert(ref_buf[frame] != NULL);
   TransformationType model;
   int bit_depth = cpi->common.seq_params->bit_depth;
-  GlobalMotionMethod global_motion_method = cpi->oxcf.global_motion_method;
+  GlobalMotionMethod global_motion_method = default_global_motion_method;
   int num_refinements = cpi->sf.gm_sf.num_refinement_steps;
 
   for (model = ROTZOOM; model < GLOBAL_TRANS_TYPES_ENC; ++model) {
