@@ -643,53 +643,38 @@ function(setup_av1_targets)
   endif()
 
   if(HAVE_NEON)
-    if(AOM_AV1_COMMON_INTRIN_NEON)
-      add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
-                                    "aom_av1_common"
-                                    "AOM_AV1_COMMON_INTRIN_NEON")
-    endif()
-
-    if(HAVE_NEON_DOTPROD)
-      if(AOM_AV1_COMMON_INTRIN_NEON_DOTPROD)
-        add_intrinsics_object_library("${AOM_NEON_DOTPROD_FLAG}" "neon_dotprod"
-                                      "aom_av1_common"
-                                      "AOM_AV1_COMMON_INTRIN_NEON_DOTPROD")
-      endif()
-    endif()
-
-    if(HAVE_NEON_I8MM)
-      if(AOM_AV1_COMMON_INTRIN_NEON_I8MM)
-        add_intrinsics_object_library("${AOM_NEON_I8MM_FLAG}" "neon_i8mm"
-                                      "aom_av1_common"
-                                      "AOM_AV1_COMMON_INTRIN_NEON_I8MM")
-      endif()
-    endif()
-
+    add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
+                                  "aom_av1_common" "AOM_AV1_COMMON_INTRIN_NEON")
     if(CONFIG_AV1_ENCODER)
-      if(AOM_AV1_ENCODER_INTRIN_NEON)
-        add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
-                                      "aom_av1_encoder"
-                                      "AOM_AV1_ENCODER_INTRIN_NEON")
-      endif()
-
-      if(HAVE_NEON_DOTPROD)
-        if(AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD)
-          add_intrinsics_object_library("${AOM_NEON_DOTPROD_FLAG}"
-                                        "neon_dotprod" "aom_av1_encoder"
-                                        "AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD")
-        endif()
-      endif()
+      add_intrinsics_object_library("${AOM_NEON_INTRIN_FLAG}" "neon"
+                                    "aom_av1_encoder"
+                                    "AOM_AV1_ENCODER_INTRIN_NEON")
     endif()
+  endif()
 
-    if(HAVE_ARM_CRC32)
-      if(CONFIG_AV1_ENCODER)
-        if(AOM_AV1_ENCODER_INTRIN_ARM_CRC32)
-          add_intrinsics_object_library("${AOM_ARM_CRC32_FLAG}" "crc32"
-                                        "aom_av1_encoder"
-                                        "AOM_AV1_ENCODER_INTRIN_ARM_CRC32")
-        endif()
-      endif()
+  if(HAVE_ARM_CRC32)
+    if(CONFIG_AV1_ENCODER)
+      add_intrinsics_object_library("${AOM_ARM_CRC32_FLAG}" "crc32"
+                                    "aom_av1_encoder"
+                                    "AOM_AV1_ENCODER_INTRIN_ARM_CRC32")
     endif()
+  endif()
+
+  if(HAVE_NEON_DOTPROD)
+    add_intrinsics_object_library("${AOM_NEON_DOTPROD_FLAG}" "neon_dotprod"
+                                  "aom_av1_common"
+                                  "AOM_AV1_COMMON_INTRIN_NEON_DOTPROD")
+    if(CONFIG_AV1_ENCODER)
+      add_intrinsics_object_library("${AOM_NEON_DOTPROD_FLAG}" "neon_dotprod"
+                                    "aom_av1_encoder"
+                                    "AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD")
+    endif()
+  endif()
+
+  if(HAVE_NEON_I8MM)
+    add_intrinsics_object_library("${AOM_NEON_I8MM_FLAG}" "neon_i8mm"
+                                  "aom_av1_common"
+                                  "AOM_AV1_COMMON_INTRIN_NEON_I8MM")
   endif()
 
   if(HAVE_VSX)
