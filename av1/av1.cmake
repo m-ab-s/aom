@@ -397,7 +397,11 @@ list(APPEND AOM_AV1_COMMON_INTRIN_NEON_DOTPROD
             "${AOM_ROOT}/av1/common/arm/compound_convolve_neon_dotprod.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_NEON_I8MM
-            "${AOM_ROOT}/av1/common/arm/compound_convolve_neon_i8mm.c")
+            "${AOM_ROOT}/av1/common/arm/compound_convolve_neon_i8mm.c"
+            "${AOM_ROOT}/av1/common/arm/warp_plane_neon_i8mm.c")
+
+list(APPEND AOM_AV1_COMMON_INTRIN_SVE
+            "${AOM_ROOT}/av1/common/arm/warp_plane_sve.c")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_2
             "${AOM_ROOT}/av1/encoder/x86/hash_sse42.c")
@@ -675,6 +679,11 @@ function(setup_av1_targets)
     add_intrinsics_object_library("${AOM_NEON_I8MM_FLAG}" "neon_i8mm"
                                   "aom_av1_common"
                                   "AOM_AV1_COMMON_INTRIN_NEON_I8MM")
+  endif()
+
+  if(HAVE_SVE)
+    add_intrinsics_object_library("${AOM_SVE_FLAG}" "sve" "aom_av1_common"
+                                  "AOM_AV1_COMMON_INTRIN_SVE")
   endif()
 
   if(HAVE_VSX)

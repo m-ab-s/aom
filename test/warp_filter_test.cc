@@ -78,4 +78,16 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 #endif  // HAVE_NEON
 
+#if HAVE_NEON_I8MM
+INSTANTIATE_TEST_SUITE_P(
+    NEON_I8MM, AV1WarpFilterTest,
+    libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_neon_i8mm));
+#endif  // HAVE_NEON_I8MM
+
+#if HAVE_SVE
+INSTANTIATE_TEST_SUITE_P(
+    SVE, AV1WarpFilterTest,
+    libaom_test::AV1WarpFilter::BuildParams(av1_warp_affine_sve));
+#endif  // HAVE_SVE
+
 }  // namespace
