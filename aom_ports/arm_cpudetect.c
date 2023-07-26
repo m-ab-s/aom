@@ -9,8 +9,10 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "aom_ports/arm.h"
 #include "config/aom_config.h"
 
@@ -21,43 +23,34 @@
 #endif
 #endif
 
-static int arm_cpu_env_flags(int *flags) {
-  char *env;
-  env = getenv("AOM_SIMD_CAPS");
+static bool arm_cpu_env_flags(int *flags) {
+  const char *env = getenv("AOM_SIMD_CAPS");
   if (env && *env) {
     *flags = (int)strtol(env, NULL, 0);
-    return 0;
+    return true;
   }
-  *flags = 0;
-  return -1;
+  return false;
 }
 
 static int arm_cpu_env_mask(void) {
-  char *env;
-  env = getenv("AOM_SIMD_CAPS_MASK");
+  const char *env = getenv("AOM_SIMD_CAPS_MASK");
   return env && *env ? (int)strtol(env, NULL, 0) : ~0;
 }
 
 #if !CONFIG_RUNTIME_CPU_DETECT
 
-int aom_arm_cpu_caps(void) {
+static int arm_get_cpu_caps(void) {
   /* This function should actually be a no-op. There is no way to adjust any of
    * these because the RTCD tables do not exist: the functions are called
    * statically */
-  int flags;
-  int mask;
-  if (!arm_cpu_env_flags(&flags)) {
-    return flags;
-  }
-  mask = arm_cpu_env_mask();
+  int flags = 0;
 #if HAVE_NEON
   flags |= HAS_NEON;
 #endif /* HAVE_NEON */
-  return flags & mask;
+  return flags;
 }
 
 #elif defined(__APPLE__) && AOM_ARCH_AARCH64  // end !CONFIG_RUNTIME_CPU_DETECT
-#include <stdbool.h>
 #include <sys/sysctl.h>
 
 // sysctlbyname() parameter documentation for instruction set characteristics:
@@ -65,22 +58,14 @@ int aom_arm_cpu_caps(void) {
 static INLINE bool have_feature(const char *feature) {
   int64_t feature_present = 0;
   size_t size = sizeof(feature_present);
-
   if (sysctlbyname(feature, &feature_present, &size, NULL, 0) != 0) {
     return false;
   }
-
   return feature_present;
 }
 
-int aom_arm_cpu_caps(void) {
-  int flags;
-  int mask;
-  if (!arm_cpu_env_flags(&flags)) {
-    return flags;
-  }
-  mask = arm_cpu_env_mask();
-
+static int arm_get_cpu_caps(void) {
+  int flags = 0;
 #if HAVE_NEON
   flags |= HAS_NEON;
 #endif  // HAVE_NEON
@@ -93,7 +78,7 @@ int aom_arm_cpu_caps(void) {
 #if HAVE_NEON_I8MM
   if (have_feature("hw.optional.arm.FEAT_I8MM")) flags |= HAS_NEON_I8MM;
 #endif  // HAVE_NEON_I8MM
-  return flags & mask;
+  return flags;
 }
 
 #elif defined(_MSC_VER)  // end __APPLE__ && AOM_ARCH_AARCH64
@@ -104,14 +89,8 @@ int aom_arm_cpu_caps(void) {
 
 #include <windows.h>
 
-int aom_arm_cpu_caps(void) {
-  int flags;
-  int mask;
-  if (!arm_cpu_env_flags(&flags)) {
-    return flags;
-  }
-  mask = arm_cpu_env_mask();
-
+static int arm_get_cpu_caps(void) {
+  int flags = 0;
 #if AOM_ARCH_AARCH64
 // IsProcessorFeaturePresent() parameter documentation:
 // https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-isprocessorfeaturepresent#parameters
@@ -138,18 +117,16 @@ int aom_arm_cpu_caps(void) {
   // MSVC has no inline __asm support for Arm, but it does let you __emit
   // instructions via their assembled hex code.
   // All of these instructions should be essentially nops.
-  if (mask & HAS_NEON) {
-    __try {
-      // VORR q0,q0,q0
-      __emit(0xF2200150);
-      flags |= HAS_NEON;
-    } __except (GetExceptionCode() == EXCEPTION_ILLEGAL_INSTRUCTION) {
-      // Ignore exception.
-    }
+  __try {
+    // VORR q0,q0,q0
+    __emit(0xF2200150);
+    flags |= HAS_NEON;
+  } __except (GetExceptionCode() == EXCEPTION_ILLEGAL_INSTRUCTION) {
+    // Ignore exception.
   }
 #endif  // HAVE_NEON
 #endif  // AOM_ARCH_AARCH64
-  return flags & mask;
+  return flags;
 }
 
 #elif defined(__ANDROID__) && (__ANDROID_API__ < 18)  // end _MSC_VER
@@ -158,14 +135,8 @@ int aom_arm_cpu_caps(void) {
 // First Android version with 64-bit support was Android 5.x (API level 21).
 #include <cpu-features.h>
 
-int aom_arm_cpu_caps(void) {
-  int flags;
-  int mask;
-  if (!arm_cpu_env_flags(&flags)) {
-    return flags;
-  }
-  mask = arm_cpu_env_mask();
-
+static int arm_get_cpu_caps(void) {
+  int flags = 0;
 #if HAVE_NEON
 #if AOM_ARCH_AARCH64
   flags |= HAS_NEON;  // Neon is mandatory in Armv8.0-A.
@@ -174,7 +145,7 @@ int aom_arm_cpu_caps(void) {
   if (features & ANDROID_CPU_ARM_FEATURE_NEON) flags |= HAS_NEON;
 #endif  // AOM_ARCH_AARCH64
 #endif  // HAVE_NEON
-  return flags & mask;
+  return flags;
 }
 
 #elif defined(__linux__)  // end __ANDROID__ && (__ANDROID_API__ < 18)
@@ -189,12 +160,8 @@ int aom_arm_cpu_caps(void) {
 #define AOM_AARCH64_HWCAP_SVE (1 << 22)
 #define AOM_AARCH64_HWCAP2_I8MM (1 << 13)
 
-int aom_arm_cpu_caps(void) {
-  int flags;
-  if (!arm_cpu_env_flags(&flags)) {
-    return flags;
-  }
-  int mask = arm_cpu_env_mask();
+static int arm_get_cpu_caps(void) {
+  int flags = 0;
   unsigned long hwcap = getauxval(AT_HWCAP);
 #if AOM_ARCH_AARCH64
   unsigned long hwcap2 = getauxval(AT_HWCAP2);
@@ -218,10 +185,18 @@ int aom_arm_cpu_caps(void) {
   if (hwcap & AOM_AARCH32_HWCAP_NEON) flags |= HAS_NEON;
 #endif  // HAVE_NEON
 #endif  // AOM_ARCH_AARCH64
-  return flags & mask;
+  return flags;
 }
 #else   /* end __linux__ */
 #error \
     "Runtime CPU detection selected, but no CPU detection method " \
 "available for your platform. Rerun cmake with -DCONFIG_RUNTIME_CPU_DETECT=0."
 #endif
+
+int aom_arm_cpu_caps(void) {
+  int flags = 0;
+  if (arm_cpu_env_flags(&flags)) {
+    return flags;
+  }
+  return arm_get_cpu_caps() & arm_cpu_env_mask();
+}
