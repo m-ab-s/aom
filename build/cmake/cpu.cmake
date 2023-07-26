@@ -17,8 +17,8 @@ if("${AOM_TARGET_CPU}" STREQUAL "arm64")
   set(ARM64_FLAVORS "NEON;ARM_CRC32;NEON_DOTPROD;NEON_I8MM;SVE")
   set(AOM_ARM_CRC32_DEFAULT_FLAG "-march=armv8-a+crc")
   set(AOM_NEON_DOTPROD_DEFAULT_FLAG "-march=armv8.2-a+dotprod")
-  set(AOM_NEON_I8MM_DEFAULT_FLAG "-march=armv8.2-a+i8mm")
-  set(AOM_SVE_DEFAULT_FLAG "-march=armv8.2-a+sve")
+  set(AOM_NEON_I8MM_DEFAULT_FLAG "-march=armv8.2-a+dotprod+i8mm")
+  set(AOM_SVE_DEFAULT_FLAG "-march=armv8.2-a+dotprod+i8mm+sve")
 
   # Check that the compiler flag to enable each flavor is supported by the
   # compiler. This may not be the case for new architecture features on old

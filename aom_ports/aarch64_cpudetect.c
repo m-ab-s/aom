@@ -135,8 +135,16 @@ static int arm_get_cpu_caps(void) {
 
 int aom_arm_cpu_caps(void) {
   int flags = 0;
-  if (arm_cpu_env_flags(&flags)) {
-    return flags;
+  if (!arm_cpu_env_flags(&flags)) {
+    flags = arm_get_cpu_caps() & arm_cpu_env_mask();
   }
-  return arm_get_cpu_caps() & arm_cpu_env_mask();
+
+  // Restrict flags: FEAT_I8MM assumes that FEAT_DotProd is available.
+  if (!(flags & HAS_NEON_DOTPROD)) flags &= ~HAS_NEON_I8MM;
+
+  // Restrict flags: SVE assumes that FEAT_{DotProd,I8MM} are available.
+  if (!(flags & HAS_NEON_DOTPROD)) flags &= ~HAS_SVE;
+  if (!(flags & HAS_NEON_I8MM)) flags &= ~HAS_SVE;
+
+  return flags;
 }
