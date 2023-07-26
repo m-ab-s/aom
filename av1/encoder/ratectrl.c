@@ -3130,6 +3130,10 @@ static void resize_reset_rc(AV1_COMP *cpi, int resize_width, int resize_height,
   int qindex;
   double tot_scale_change = (double)(resize_width * resize_height) /
                             (double)(prev_width * prev_height);
+  // Disable the skip mv search for svc on resize frame.
+  svc->skip_mvsearch_last = 0;
+  svc->skip_mvsearch_gf = 0;
+  svc->skip_mvsearch_altref = 0;
   // Reset buffer level to optimal, update target size.
   p_rc->buffer_level = p_rc->optimal_buffer_level;
   p_rc->bits_off_target = p_rc->optimal_buffer_level;

@@ -2622,17 +2622,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
 #endif  // CONFIG_FPMT_TEST
   if (scale_references ||
       cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
-    // For SVC the inter-layer/spatial prediction is not done for newmv
-    // (zero_mode is forced), and since the scaled references are only
-    // use for newmv search, we can avoid scaling here when
-    // force_zero_mode_spatial_ref is set for SVC mode.
-    // Also add condition for dynamic_resize: for dynamic_resize we always
-    // check for scaling references for now.
-    //
-    // TODO(chiyotsai@google.com,marpan@google.com): Currently SVC fails the
-    // assertion added in BUG=aomedia:3348 if force_zero_mode_spatial_ref is
-    // enabled due to unintended motion search. We need to investigate why
-    // scaling is needed when cpi->svc.force_zero_mode_spatial_ref == 1.
     if (!frame_is_intra_only(cm)) {
       av1_scale_references(cpi, filter_scaler, phase_scaler, 1);
     }

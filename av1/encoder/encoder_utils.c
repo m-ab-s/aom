@@ -691,6 +691,17 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
         continue;
       }
 
+      // For RTC-SVC: if force_zero_mode_spatial_ref is enabled, check if the
+      // motion search can be skipped for the references: last, golden, altref.
+      // If so, we can skip scaling that reference.
+      if (cpi->ppi->use_svc && cpi->svc.force_zero_mode_spatial_ref &&
+          cpi->ppi->rtc_ref.set_ref_frame_config) {
+        if (ref_frame == LAST_FRAME && cpi->svc.skip_mvsearch_last) continue;
+        if (ref_frame == GOLDEN_FRAME && cpi->svc.skip_mvsearch_gf) continue;
+        if (ref_frame == ALTREF_FRAME && cpi->svc.skip_mvsearch_altref)
+          continue;
+      }
+
       if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height) {
         // Replace the reference buffer with a copy having a thicker border,
         // if the reference buffer is higher resolution than the current
