@@ -804,6 +804,30 @@ static INLINE int64x2_t aom_vtrn2q_s64(int64x2_t a, int64x2_t b) {
 #endif
 }
 
+static INLINE void transpose_s32_4x8(int32x4_t a0, int32x4_t a1, int32x4_t a2,
+                                     int32x4_t a3, int32x4_t a4, int32x4_t a5,
+                                     int32x4_t a6, int32x4_t a7,
+                                     int32x4x2_t *o0, int32x4x2_t *o1,
+                                     int32x4x2_t *o2, int32x4x2_t *o3) {
+  // Perform a 4 x 8 matrix transpose by building on top of the existing 4 x 4
+  // matrix transpose implementation:
+  // [ A ]^T => [ A^T B^T ]
+  // [ B ]
+
+  transpose_s32_4x4(&a0, &a1, &a2, &a3);  // A^T
+  transpose_s32_4x4(&a4, &a5, &a6, &a7);  // B^T
+
+  o0->val[0] = a0;
+  o1->val[0] = a1;
+  o2->val[0] = a2;
+  o3->val[0] = a3;
+
+  o0->val[1] = a4;
+  o1->val[1] = a5;
+  o2->val[1] = a6;
+  o3->val[1] = a7;
+}
+
 static INLINE void transpose_s32_8x8(int32x4x2_t *a0, int32x4x2_t *a1,
                                      int32x4x2_t *a2, int32x4x2_t *a3,
                                      int32x4x2_t *a4, int32x4x2_t *a5,

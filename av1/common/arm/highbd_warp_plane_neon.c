@@ -225,15 +225,10 @@ static INLINE void warp_affine_vertical_step_4x1_f4_neon(
     uint16_t *pred, int p_stride, int bd, uint16_t *dst, int dst_stride,
     int is_compound, int do_average, int use_dist_wtd_comp_avg, int fwd,
     int bwd, int16_t gamma, const int32x4x2_t *tmp, int i, int sy, int j) {
-  int32x4x2_t s0 = tmp[0];
-  int32x4x2_t s1 = tmp[1];
-  int32x4x2_t s2 = tmp[2];
-  int32x4x2_t s3 = tmp[3];
-  int32x4x2_t s4 = tmp[4];
-  int32x4x2_t s5 = tmp[5];
-  int32x4x2_t s6 = tmp[6];
-  int32x4x2_t s7 = tmp[7];
-  transpose_s32_8x8(&s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
+  int32x4x2_t s0, s1, s2, s3;
+  transpose_s32_4x8(tmp[0].val[0], tmp[1].val[0], tmp[2].val[0], tmp[3].val[0],
+                    tmp[4].val[0], tmp[5].val[0], tmp[6].val[0], tmp[7].val[0],
+                    &s0, &s1, &s2, &s3);
 
   int16x8_t f[4];
   load_filters_4(f, sy, gamma);
