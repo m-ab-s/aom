@@ -264,6 +264,10 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   // tf_dealloc_data() in av1_temporal_filter() would not be invoked).
   tf_dealloc_data(&cpi->td.tf_data, is_highbitdepth);
 
+  // This call ensures that tpl_tmp_buffers for single-threaded encode are freed
+  // in case of an error during tpl.
+  tpl_dealloc_temp_buffers(&cpi->td.tpl_tmp_buffers);
+
   av1_free_txb_buf(cpi);
   av1_free_context_buffers(cm);
 
@@ -416,6 +420,8 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
   PrimaryMultiThreadInfo *const p_mt_info = &ppi->p_mt_info;
   const int num_tf_workers =
       AOMMIN(p_mt_info->num_mod_workers[MOD_TF], p_mt_info->num_workers);
+  const int num_tpl_workers =
+      AOMMIN(p_mt_info->num_mod_workers[MOD_TPL], p_mt_info->num_workers);
   const int is_highbitdepth = ppi->seq_params.use_highbitdepth;
   for (int t = 1; t < p_mt_info->num_workers; ++t) {
     EncWorkerData *const thread_data = &p_mt_info->tile_thr_data[t];
@@ -451,6 +457,10 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
     // invoked).
     if (t < num_tf_workers)
       tf_dealloc_data(&thread_data->td->tf_data, is_highbitdepth);
+    // This call ensures that tpl_tmp_buffers for MT encode are freed in case of
+    // an error during tpl.
+    if (t < num_tpl_workers)
+      tpl_dealloc_temp_buffers(&thread_data->td->tpl_tmp_buffers);
     aom_free(thread_data->td);
   }
 }

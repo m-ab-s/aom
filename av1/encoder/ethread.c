@@ -805,6 +805,15 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
       av1_loop_filter_alloc(lf_sync, cm, sb_rows, cm->width, num_lf_workers);
     }
 
+    // Initialize tpl MT object.
+    AV1TplRowMultiThreadInfo *tpl_row_mt = &mt_info->tpl_row_mt;
+    if (tpl_row_mt->mutex_ == NULL) {
+      CHECK_MEM_ERROR(cm, tpl_row_mt->mutex_,
+                      aom_malloc(sizeof(*(tpl_row_mt->mutex_))));
+      if (tpl_row_mt->mutex_) pthread_mutex_init(tpl_row_mt->mutex_, NULL);
+    }
+    tpl_row_mt->tpl_mt_exit = false;
+
 #if !CONFIG_REALTIME_ONLY
     if (is_restoration_used(cm)) {
       // Initialize loop restoration MT object.
@@ -1989,6 +1998,27 @@ void av1_tpl_row_mt_sync_write(AV1TplRowMultiThreadSync *tpl_row_mt_sync, int r,
 #endif  // CONFIG_MULTITHREAD
 }
 
+static AOM_INLINE void set_mode_estimation_done(AV1_COMP *cpi) {
+  const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
+  TplParams *const tpl_data = &cpi->ppi->tpl_data;
+  const BLOCK_SIZE bsize =
+      convert_length_to_bsize(cpi->ppi->tpl_data.tpl_bsize_1d);
+  const int mi_height = mi_size_high[bsize];
+  AV1TplRowMultiThreadInfo *const tpl_row_mt = &cpi->mt_info.tpl_row_mt;
+  const int tplb_cols_in_tile =
+      ROUND_POWER_OF_TWO(mi_params->mi_cols, mi_size_wide_log2[bsize]);
+  // In case of tpl row-multithreading, due to top-right dependency, the worker
+  // on an mb_row waits for the completion of the tpl processing of the top and
+  // top-right blocks. Hence, in case a thread (main/worker) encounters an
+  // error, update that the tpl processing of every mb_row in the frame is
+  // complete in order to avoid dependent workers waiting indefinitely.
+  for (int mi_row = 0, tplb_row = 0; mi_row < mi_params->mi_rows;
+       mi_row += mi_height, tplb_row++) {
+    (*tpl_row_mt->sync_write_ptr)(&tpl_data->tpl_mt_sync, tplb_row,
+                                  tplb_cols_in_tile - 1, tplb_cols_in_tile);
+  }
+}
+
 // Each worker calls tpl_worker_hook() and computes the tpl data.
 static int tpl_worker_hook(void *arg1, void *unused) {
   (void)unused;
@@ -2000,10 +2030,34 @@ static int tpl_worker_hook(void *arg1, void *unused) {
   TplTxfmStats *tpl_txfm_stats = &thread_data->td->tpl_txfm_stats;
   TplBuffers *tpl_tmp_buffers = &thread_data->td->tpl_tmp_buffers;
   CommonModeInfoParams *mi_params = &cm->mi_params;
+  int num_active_workers = cpi->ppi->tpl_data.tpl_mt_sync.num_threads_working;
+
+  struct aom_internal_error_info *const error_info = &thread_data->error_info;
+  xd->error_info = error_info;
+  AV1TplRowMultiThreadInfo *const tpl_row_mt = &cpi->mt_info.tpl_row_mt;
+  (void)tpl_row_mt;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t *tpl_error_mutex_ = tpl_row_mt->mutex_;
+#endif
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(tpl_error_mutex_);
+    tpl_row_mt->tpl_mt_exit = true;
+    pthread_mutex_unlock(tpl_error_mutex_);
+#endif
+    set_mode_estimation_done(cpi);
+    return 0;
+  }
+  error_info->setjmp = 1;
+
   BLOCK_SIZE bsize = convert_length_to_bsize(cpi->ppi->tpl_data.tpl_bsize_1d);
   TX_SIZE tx_size = max_txsize_lookup[bsize];
   int mi_height = mi_size_high[bsize];
-  int num_active_workers = cpi->ppi->tpl_data.tpl_mt_sync.num_threads_working;
 
   av1_init_tpl_txfm_stats(tpl_txfm_stats);
 
@@ -2018,6 +2072,7 @@ static int tpl_worker_hook(void *arg1, void *unused) {
     av1_mc_flow_dispenser_row(cpi, tpl_txfm_stats, tpl_tmp_buffers, x, mi_row,
                               bsize, tx_size);
   }
+  error_info->setjmp = 0;
   return 1;
 }
 

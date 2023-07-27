@@ -1427,6 +1427,9 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_data->frame_idx];
   MACROBLOCKD *xd = &x->e_mbd;
+  bool tpl_mt_enabled = mt_info->num_workers > 1;
+  bool tpl_mt_exit = false;
+  (void)tpl_mt_enabled;
 
   const int tplb_cols_in_tile =
       ROUND_POWER_OF_TWO(mi_params->mi_cols, mi_size_wide_log2[bsize]);
@@ -1438,6 +1441,17 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
        mi_col += mi_width, tplb_col_in_tile++) {
     (*tpl_row_mt->sync_read_ptr)(&tpl_data->tpl_mt_sync, tplb_row,
                                  tplb_col_in_tile);
+
+#if CONFIG_MULTITHREAD
+    if (tpl_mt_enabled) {
+      pthread_mutex_lock(tpl_row_mt->mutex_);
+      tpl_mt_exit = tpl_row_mt->tpl_mt_exit;
+      pthread_mutex_unlock(tpl_row_mt->mutex_);
+    }
+#endif
+    // Exit in case any worker has encountered an error.
+    if (tpl_mt_exit) return;
+
     TplDepStats tpl_stats;
 
     // Motion estimation column boundary
