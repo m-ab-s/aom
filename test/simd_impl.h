@@ -22,14 +22,14 @@ namespace SIMD_NAMESPACE {
 template <typename param_signature>
 class TestIntrinsic : public ::testing::TestWithParam<param_signature> {
  public:
-  virtual ~TestIntrinsic() {}
-  virtual void SetUp() {
+  ~TestIntrinsic() override {}
+  void SetUp() override {
     mask = std::get<0>(this->GetParam());
     maskwidth = std::get<1>(this->GetParam());
     name = std::get<2>(this->GetParam());
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   uint32_t mask, maskwidth;

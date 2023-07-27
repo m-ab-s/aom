@@ -57,9 +57,9 @@ class FunctionEquivalenceTest : public ::testing::TestWithParam<FuncParam<T> > {
 
   virtual ~FunctionEquivalenceTest() {}
 
-  virtual void SetUp() { params_ = this->GetParam(); }
+  void SetUp() override { params_ = this->GetParam(); }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   ACMRandom rng_;

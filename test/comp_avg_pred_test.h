@@ -97,8 +97,8 @@ BuildParams(highbddistwtdcompavgupsampled_func filter) {
 class AV1DISTWTDCOMPAVGTest
     : public ::testing::TestWithParam<DISTWTDCOMPAVGParam> {
  public:
-  ~AV1DISTWTDCOMPAVGTest() {}
-  void SetUp() { rnd_.Reset(ACMRandom::DeterministicSeed()); }
+  ~AV1DISTWTDCOMPAVGTest() override {}
+  void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
   void RunCheckOutput(distwtdcompavg_func test_impl) {
@@ -200,8 +200,8 @@ class AV1DISTWTDCOMPAVGTest
 class AV1DISTWTDCOMPAVGUPSAMPLEDTest
     : public ::testing::TestWithParam<DISTWTDCOMPAVGUPSAMPLEDParam> {
  public:
-  ~AV1DISTWTDCOMPAVGUPSAMPLEDTest() {}
-  void SetUp() { rnd_.Reset(ACMRandom::DeterministicSeed()); }
+  ~AV1DISTWTDCOMPAVGUPSAMPLEDTest() override {}
+  void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
   void RunCheckOutput(distwtdcompavgupsampled_func test_impl) {
@@ -377,7 +377,7 @@ class DistWtdCompAvgTest
     comp_pred16_test_ = nullptr;
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  protected:
   // Handle up to 4 128x128 blocks, with stride up to 256
@@ -385,7 +385,7 @@ class DistWtdCompAvgTest
   static const int kDataBlockSize = 128 * 256;
   static const int kDataBufferSize = 4 * kDataBlockSize;
 
-  virtual void SetUp() {
+  void SetUp() override {
     if (bd_ == -1) {
       use_high_bit_depth_ = false;
       bit_depth_ = AOM_BITS_8;
@@ -516,8 +516,8 @@ class DistWtdCompAvgTest
 class AV1HighBDDISTWTDCOMPAVGTest
     : public ::testing::TestWithParam<HighbdDISTWTDCOMPAVGParam> {
  public:
-  ~AV1HighBDDISTWTDCOMPAVGTest() {}
-  void SetUp() { rnd_.Reset(ACMRandom::DeterministicSeed()); }
+  ~AV1HighBDDISTWTDCOMPAVGTest() override {}
+  void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
   void RunCheckOutput(distwtdcompavg_func test_impl) {
@@ -625,8 +625,8 @@ class AV1HighBDDISTWTDCOMPAVGTest
 class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
     : public ::testing::TestWithParam<HighbdDISTWTDCOMPAVGUPSAMPLEDParam> {
  public:
-  ~AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest() {}
-  void SetUp() { rnd_.Reset(ACMRandom::DeterministicSeed()); }
+  ~AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest() override {}
+  void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
   void RunCheckOutput(highbddistwtdcompavgupsampled_func test_impl) {
