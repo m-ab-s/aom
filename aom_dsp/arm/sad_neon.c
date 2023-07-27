@@ -136,28 +136,25 @@ static INLINE unsigned int sad64xh_neon(const uint8_t *src_ptr, int src_stride,
 static INLINE unsigned int sad32xh_neon(const uint8_t *src_ptr, int src_stride,
                                         const uint8_t *ref_ptr, int ref_stride,
                                         int h) {
-  uint32x4_t sum = vdupq_n_u32(0);
+  uint16x8_t sum[2] = { vdupq_n_u16(0), vdupq_n_u16(0) };
 
   int i = h;
   do {
     uint8x16_t s0 = vld1q_u8(src_ptr);
     uint8x16_t r0 = vld1q_u8(ref_ptr);
     uint8x16_t diff0 = vabdq_u8(s0, r0);
-    uint16x8_t sum0 = vpaddlq_u8(diff0);
+    sum[0] = vpadalq_u8(sum[0], diff0);
 
     uint8x16_t s1 = vld1q_u8(src_ptr + 16);
     uint8x16_t r1 = vld1q_u8(ref_ptr + 16);
     uint8x16_t diff1 = vabdq_u8(s1, r1);
-    uint16x8_t sum1 = vpaddlq_u8(diff1);
-
-    sum = vpadalq_u16(sum, sum0);
-    sum = vpadalq_u16(sum, sum1);
+    sum[1] = vpadalq_u8(sum[1], diff1);
 
     src_ptr += src_stride;
     ref_ptr += ref_stride;
   } while (--i != 0);
 
-  return horizontal_add_u32x4(sum);
+  return horizontal_add_u16x8(vaddq_u16(sum[0], sum[1]));
 }
 
 static INLINE unsigned int sad16xh_neon(const uint8_t *src_ptr, int src_stride,
