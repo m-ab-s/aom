@@ -1934,7 +1934,12 @@ static void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x,
                                   struct buf_2d yv12_mb[MAX_MB_PLANE]) {
   const int subsampling_x = cpi->common.seq_params->subsampling_x;
   const int subsampling_y = cpi->common.seq_params->subsampling_y;
+  const int source_sad_nonrd = x->content_state_sb.source_sad_nonrd;
   int shift = 3;
+  if (source_sad_nonrd >= kMedSad &&
+      cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
+      cpi->common.width * cpi->common.height >= 640 * 360)
+    shift = 4;
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       cpi->rc.high_source_sad) {
     shift = 6;
