@@ -21,6 +21,14 @@
 #include "av1/common/warped_motion.h"
 #include "config/av1_rtcd.h"
 
+static INLINE int16x8_t load_filters_1(int ofs) {
+  const int ofs0 = ROUND_POWER_OF_TWO(ofs, WARPEDDIFF_PREC_BITS);
+
+  const int16_t *base =
+      (int16_t *)av1_warped_filter + WARPEDPIXEL_PREC_SHIFTS * 8;
+  return vld1q_s16(base + ofs0 * 8);
+}
+
 static INLINE void load_filters_4(int16x8_t out[], int ofs, int stride) {
   const int ofs0 = ROUND_POWER_OF_TWO(ofs + stride * 0, WARPEDDIFF_PREC_BITS);
   const int ofs1 = ROUND_POWER_OF_TWO(ofs + stride * 1, WARPEDDIFF_PREC_BITS);
@@ -221,10 +229,55 @@ static INLINE uint16x4_t clip_pixel_highbd_vec(int32x4_t val, int bd) {
   return vqmovun_s32(vminq_s32(val, vdupq_n_s32(limit)));
 }
 
-static INLINE void warp_affine_vertical_step_4x1_f4_neon(
-    uint16_t *pred, int p_stride, int bd, uint16_t *dst, int dst_stride,
-    int is_compound, int do_average, int use_dist_wtd_comp_avg, int fwd,
-    int bwd, int16_t gamma, const int32x4x2_t *tmp, int i, int sy, int j) {
+static INLINE int32x4_t
+warp_affine_vertical_filter_4x1_f1_neon(const int32x4x2_t *tmp, int sy) {
+  const int16x8_t f = load_filters_1(sy);
+  const int32x2_t f01 = vget_low_s32(vmovl_s16(vget_low_s16(f)));
+  const int32x2_t f23 = vget_high_s32(vmovl_s16(vget_low_s16(f)));
+  const int32x2_t f45 = vget_low_s32(vmovl_s16(vget_high_s16(f)));
+  const int32x2_t f67 = vget_high_s32(vmovl_s16(vget_high_s16(f)));
+
+  int32x4_t m0123 = vmulq_lane_s32(tmp[0].val[0], f01, 0);
+  m0123 = vmlaq_lane_s32(m0123, tmp[1].val[0], f01, 1);
+  m0123 = vmlaq_lane_s32(m0123, tmp[2].val[0], f23, 0);
+  m0123 = vmlaq_lane_s32(m0123, tmp[3].val[0], f23, 1);
+  m0123 = vmlaq_lane_s32(m0123, tmp[4].val[0], f45, 0);
+  m0123 = vmlaq_lane_s32(m0123, tmp[5].val[0], f45, 1);
+  m0123 = vmlaq_lane_s32(m0123, tmp[6].val[0], f67, 0);
+  m0123 = vmlaq_lane_s32(m0123, tmp[7].val[0], f67, 1);
+  return m0123;
+}
+
+static INLINE int32x4x2_t
+warp_affine_vertical_filter_8x1_f1_neon(const int32x4x2_t *tmp, int sy) {
+  const int16x8_t f = load_filters_1(sy);
+  const int32x2_t f01 = vget_low_s32(vmovl_s16(vget_low_s16(f)));
+  const int32x2_t f23 = vget_high_s32(vmovl_s16(vget_low_s16(f)));
+  const int32x2_t f45 = vget_low_s32(vmovl_s16(vget_high_s16(f)));
+  const int32x2_t f67 = vget_high_s32(vmovl_s16(vget_high_s16(f)));
+
+  int32x4_t m0123 = vmulq_lane_s32(tmp[0].val[0], f01, 0);
+  m0123 = vmlaq_lane_s32(m0123, tmp[1].val[0], f01, 1);
+  m0123 = vmlaq_lane_s32(m0123, tmp[2].val[0], f23, 0);
+  m0123 = vmlaq_lane_s32(m0123, tmp[3].val[0], f23, 1);
+  m0123 = vmlaq_lane_s32(m0123, tmp[4].val[0], f45, 0);
+  m0123 = vmlaq_lane_s32(m0123, tmp[5].val[0], f45, 1);
+  m0123 = vmlaq_lane_s32(m0123, tmp[6].val[0], f67, 0);
+  m0123 = vmlaq_lane_s32(m0123, tmp[7].val[0], f67, 1);
+
+  int32x4_t m4567 = vmulq_lane_s32(tmp[0].val[1], f01, 0);
+  m4567 = vmlaq_lane_s32(m4567, tmp[1].val[1], f01, 1);
+  m4567 = vmlaq_lane_s32(m4567, tmp[2].val[1], f23, 0);
+  m4567 = vmlaq_lane_s32(m4567, tmp[3].val[1], f23, 1);
+  m4567 = vmlaq_lane_s32(m4567, tmp[4].val[1], f45, 0);
+  m4567 = vmlaq_lane_s32(m4567, tmp[5].val[1], f45, 1);
+  m4567 = vmlaq_lane_s32(m4567, tmp[6].val[1], f67, 0);
+  m4567 = vmlaq_lane_s32(m4567, tmp[7].val[1], f67, 1);
+  return (int32x4x2_t){ { m0123, m4567 } };
+}
+
+static INLINE int32x4_t warp_affine_vertical_filter_4x1_f4_neon(
+    const int32x4x2_t *tmp, int sy, int gamma) {
   int32x4x2_t s0, s1, s2, s3;
   transpose_s32_4x8(tmp[0].val[0], tmp[1].val[0], tmp[2].val[0], tmp[3].val[0],
                     tmp[4].val[0], tmp[5].val[0], tmp[6].val[0], tmp[7].val[0],
@@ -243,7 +296,57 @@ static INLINE void warp_affine_vertical_step_4x1_f4_neon(
   m3 = vmlaq_s32(m3, s3.val[1], vmovl_s16(vget_high_s16(f[3])));
 
   int32x4_t m0123[] = { m0, m1, m2, m3 };
-  int32x4_t sum0 = horizontal_add_4d_s32x4(m0123);
+  return horizontal_add_4d_s32x4(m0123);
+}
+
+static INLINE int32x4x2_t warp_affine_vertical_filter_8x1_f8_neon(
+    const int32x4x2_t *tmp, int sy, int gamma) {
+  int32x4x2_t s0 = tmp[0];
+  int32x4x2_t s1 = tmp[1];
+  int32x4x2_t s2 = tmp[2];
+  int32x4x2_t s3 = tmp[3];
+  int32x4x2_t s4 = tmp[4];
+  int32x4x2_t s5 = tmp[5];
+  int32x4x2_t s6 = tmp[6];
+  int32x4x2_t s7 = tmp[7];
+  transpose_s32_8x8(&s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
+
+  int16x8_t f[8];
+  load_filters_8(f, sy, gamma);
+
+  int32x4_t m0 = vmulq_s32(s0.val[0], vmovl_s16(vget_low_s16(f[0])));
+  m0 = vmlaq_s32(m0, s0.val[1], vmovl_s16(vget_high_s16(f[0])));
+  int32x4_t m1 = vmulq_s32(s1.val[0], vmovl_s16(vget_low_s16(f[1])));
+  m1 = vmlaq_s32(m1, s1.val[1], vmovl_s16(vget_high_s16(f[1])));
+  int32x4_t m2 = vmulq_s32(s2.val[0], vmovl_s16(vget_low_s16(f[2])));
+  m2 = vmlaq_s32(m2, s2.val[1], vmovl_s16(vget_high_s16(f[2])));
+  int32x4_t m3 = vmulq_s32(s3.val[0], vmovl_s16(vget_low_s16(f[3])));
+  m3 = vmlaq_s32(m3, s3.val[1], vmovl_s16(vget_high_s16(f[3])));
+  int32x4_t m4 = vmulq_s32(s4.val[0], vmovl_s16(vget_low_s16(f[4])));
+  m4 = vmlaq_s32(m4, s4.val[1], vmovl_s16(vget_high_s16(f[4])));
+  int32x4_t m5 = vmulq_s32(s5.val[0], vmovl_s16(vget_low_s16(f[5])));
+  m5 = vmlaq_s32(m5, s5.val[1], vmovl_s16(vget_high_s16(f[5])));
+  int32x4_t m6 = vmulq_s32(s6.val[0], vmovl_s16(vget_low_s16(f[6])));
+  m6 = vmlaq_s32(m6, s6.val[1], vmovl_s16(vget_high_s16(f[6])));
+  int32x4_t m7 = vmulq_s32(s7.val[0], vmovl_s16(vget_low_s16(f[7])));
+  m7 = vmlaq_s32(m7, s7.val[1], vmovl_s16(vget_high_s16(f[7])));
+
+  int32x4_t m0123[] = { m0, m1, m2, m3 };
+  int32x4_t m4567[] = { m4, m5, m6, m7 };
+
+  int32x4x2_t ret;
+  ret.val[0] = horizontal_add_4d_s32x4(m0123);
+  ret.val[1] = horizontal_add_4d_s32x4(m4567);
+  return ret;
+}
+
+static INLINE void warp_affine_vertical_step_4x1_f4_neon(
+    uint16_t *pred, int p_stride, int bd, uint16_t *dst, int dst_stride,
+    int is_compound, int do_average, int use_dist_wtd_comp_avg, int fwd,
+    int bwd, int16_t gamma, const int32x4x2_t *tmp, int i, int sy, int j) {
+  int32x4_t sum0 =
+      gamma == 0 ? warp_affine_vertical_filter_4x1_f1_neon(tmp, sy)
+                 : warp_affine_vertical_filter_4x1_f4_neon(tmp, sy, gamma);
 
   const int round0 = (bd == 12) ? ROUND0_BITS + 2 : ROUND0_BITS;
   const int offset_bits_vert = bd + 2 * FILTER_BITS - round0;
@@ -297,41 +400,11 @@ static INLINE void warp_affine_vertical_step_8x1_f8_neon(
     uint16_t *pred, int p_stride, int bd, uint16_t *dst, int dst_stride,
     int is_compound, int do_average, int use_dist_wtd_comp_avg, int fwd,
     int bwd, int16_t gamma, const int32x4x2_t *tmp, int i, int sy, int j) {
-  int32x4x2_t s0 = tmp[0];
-  int32x4x2_t s1 = tmp[1];
-  int32x4x2_t s2 = tmp[2];
-  int32x4x2_t s3 = tmp[3];
-  int32x4x2_t s4 = tmp[4];
-  int32x4x2_t s5 = tmp[5];
-  int32x4x2_t s6 = tmp[6];
-  int32x4x2_t s7 = tmp[7];
-  transpose_s32_8x8(&s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
-
-  int16x8_t f[8];
-  load_filters_8(f, sy, gamma);
-
-  int32x4_t m0 = vmulq_s32(s0.val[0], vmovl_s16(vget_low_s16(f[0])));
-  m0 = vmlaq_s32(m0, s0.val[1], vmovl_s16(vget_high_s16(f[0])));
-  int32x4_t m1 = vmulq_s32(s1.val[0], vmovl_s16(vget_low_s16(f[1])));
-  m1 = vmlaq_s32(m1, s1.val[1], vmovl_s16(vget_high_s16(f[1])));
-  int32x4_t m2 = vmulq_s32(s2.val[0], vmovl_s16(vget_low_s16(f[2])));
-  m2 = vmlaq_s32(m2, s2.val[1], vmovl_s16(vget_high_s16(f[2])));
-  int32x4_t m3 = vmulq_s32(s3.val[0], vmovl_s16(vget_low_s16(f[3])));
-  m3 = vmlaq_s32(m3, s3.val[1], vmovl_s16(vget_high_s16(f[3])));
-  int32x4_t m4 = vmulq_s32(s4.val[0], vmovl_s16(vget_low_s16(f[4])));
-  m4 = vmlaq_s32(m4, s4.val[1], vmovl_s16(vget_high_s16(f[4])));
-  int32x4_t m5 = vmulq_s32(s5.val[0], vmovl_s16(vget_low_s16(f[5])));
-  m5 = vmlaq_s32(m5, s5.val[1], vmovl_s16(vget_high_s16(f[5])));
-  int32x4_t m6 = vmulq_s32(s6.val[0], vmovl_s16(vget_low_s16(f[6])));
-  m6 = vmlaq_s32(m6, s6.val[1], vmovl_s16(vget_high_s16(f[6])));
-  int32x4_t m7 = vmulq_s32(s7.val[0], vmovl_s16(vget_low_s16(f[7])));
-  m7 = vmlaq_s32(m7, s7.val[1], vmovl_s16(vget_high_s16(f[7])));
-
-  int32x4_t m0123[] = { m0, m1, m2, m3 };
-  int32x4_t m4567[] = { m4, m5, m6, m7 };
-
-  int32x4_t sum0 = horizontal_add_4d_s32x4(m0123);
-  int32x4_t sum1 = horizontal_add_4d_s32x4(m4567);
+  int32x4x2_t sums =
+      gamma == 0 ? warp_affine_vertical_filter_8x1_f1_neon(tmp, sy)
+                 : warp_affine_vertical_filter_8x1_f8_neon(tmp, sy, gamma);
+  int32x4_t sum0 = sums.val[0];
+  int32x4_t sum1 = sums.val[1];
 
   const int round0 = (bd == 12) ? ROUND0_BITS + 2 : ROUND0_BITS;
   const int offset_bits_vert = bd + 2 * FILTER_BITS - round0;
