@@ -464,8 +464,12 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c")
 
   list(APPEND AOM_AV1_COMMON_INTRIN_NEON
+              "${AOM_ROOT}/av1/common/arm/highbd_compound_convolve_neon.c"
+              "${AOM_ROOT}/av1/common/arm/highbd_convolve_horiz_rs_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_convolve_neon.c"
-              "${AOM_ROOT}/av1/common/arm/highbd_warp_plane_neon.c")
+              "${AOM_ROOT}/av1/common/arm/highbd_convolve_scale_neon.c"
+              "${AOM_ROOT}/av1/common/arm/highbd_warp_plane_neon.c"
+              "${AOM_ROOT}/av1/common/arm/highbd_wiener_convolve_neon.c")
 
   list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
               "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_sse2.c"
