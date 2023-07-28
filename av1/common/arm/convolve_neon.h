@@ -377,42 +377,4 @@ static INLINE int16x4_t convolve8_4x4_s16(
   return sum;
 }
 
-static INLINE int16x4_t convolve6_4x4(const int16x4_t s0, const int16x4_t s1,
-                                      const int16x4_t s2, const int16x4_t s3,
-                                      const int16x4_t s4, const int16x4_t s5,
-                                      const int16x8_t y_filter_0_7) {
-  const int16x4_t y_filter_0_3 = vget_low_s16(y_filter_0_7);
-  const int16x4_t y_filter_4_7 = vget_high_s16(y_filter_0_7);
-  int16x4_t sum;
-
-  // Filter values at indices 0 and 7 are 0.
-  sum = vmul_lane_s16(s0, y_filter_0_3, 1);
-  sum = vmla_lane_s16(sum, s1, y_filter_0_3, 2);
-  sum = vmla_lane_s16(sum, s2, y_filter_0_3, 3);
-  sum = vmla_lane_s16(sum, s3, y_filter_4_7, 0);
-  sum = vmla_lane_s16(sum, s4, y_filter_4_7, 1);
-  sum = vmla_lane_s16(sum, s5, y_filter_4_7, 2);
-
-  return sum;
-}
-
-static INLINE int16x8_t convolve6_8x4(const int16x8_t s0, const int16x8_t s1,
-                                      const int16x8_t s2, const int16x8_t s3,
-                                      const int16x8_t s4, const int16x8_t s5,
-                                      const int16x8_t y_filters) {
-  const int16x4_t y_filter_lo = vget_low_s16(y_filters);
-  const int16x4_t y_filter_hi = vget_high_s16(y_filters);
-  int16x8_t sum;
-
-  // Filter values at indices 0 and 7 are 0.
-  sum = vmulq_lane_s16(s0, y_filter_lo, 1);
-  sum = vmlaq_lane_s16(sum, s1, y_filter_lo, 2);
-  sum = vmlaq_lane_s16(sum, s2, y_filter_lo, 3);
-  sum = vmlaq_lane_s16(sum, s3, y_filter_hi, 0);
-  sum = vmlaq_lane_s16(sum, s4, y_filter_hi, 1);
-  sum = vmlaq_lane_s16(sum, s5, y_filter_hi, 2);
-
-  return sum;
-}
-
 #endif  // AOM_AV1_COMMON_ARM_CONVOLVE_NEON_H_
