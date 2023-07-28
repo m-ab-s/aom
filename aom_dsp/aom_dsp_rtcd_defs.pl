@@ -1550,11 +1550,12 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
     if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
       foreach $bd (8, 10, 12) {
-        specialize "aom_highbd_${bd}_variance64x16" , qw/sse2 neon/;
-        specialize "aom_highbd_${bd}_variance32x8" , qw/sse2 neon/;
-        specialize "aom_highbd_${bd}_variance16x64" , qw/sse2 neon/;
+        my $avx2 = ($bd == 10) ? "avx2" : "";
+        specialize "aom_highbd_${bd}_variance64x16" , $avx2, qw/sse2 neon/;
+        specialize "aom_highbd_${bd}_variance32x8" , $avx2, qw/sse2 neon/;
+        specialize "aom_highbd_${bd}_variance16x64" , $avx2, qw/sse2 neon/;
         specialize "aom_highbd_${bd}_variance16x4" , qw/neon/;
-        specialize "aom_highbd_${bd}_variance8x32" , qw/sse2 neon/;
+        specialize "aom_highbd_${bd}_variance8x32" , $avx2, qw/sse2 neon/;
         specialize "aom_highbd_${bd}_variance4x16" , qw/neon/;
       }
     }
