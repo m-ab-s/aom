@@ -329,7 +329,7 @@ class ResizeInternalTestLarge : public ResizeTest {
   }
 
 #if WRITE_COMPRESSED_STREAM
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+  void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {
     ++out_frames_;
 
     // Write initial file header if first frame.
@@ -782,7 +782,7 @@ class ResizeCspTest : public ResizeTest {
   }
 
 #if WRITE_COMPRESSED_STREAM
-  virtual void FramePktHook(const aom_codec_cx_pkt_t *pkt) {
+  void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {
     ++out_frames_;
 
     // Write initial file header if first frame.
