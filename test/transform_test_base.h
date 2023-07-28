@@ -41,7 +41,7 @@ using IhtFunc = void (*)(const tran_low_t *in, uint8_t *out, int stride,
 template <typename OutType>
 class TransformTestBase {
  public:
-  virtual ~TransformTestBase() {}
+  virtual ~TransformTestBase() = default;
 
  protected:
   virtual void RunFwdTxfm(const int16_t *in, OutType *out, int stride) = 0;

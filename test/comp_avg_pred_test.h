@@ -97,7 +97,7 @@ BuildParams(highbddistwtdcompavgupsampled_func filter) {
 class AV1DISTWTDCOMPAVGTest
     : public ::testing::TestWithParam<DISTWTDCOMPAVGParam> {
  public:
-  ~AV1DISTWTDCOMPAVGTest() override {}
+  ~AV1DISTWTDCOMPAVGTest() override = default;
   void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
@@ -200,7 +200,7 @@ class AV1DISTWTDCOMPAVGTest
 class AV1DISTWTDCOMPAVGUPSAMPLEDTest
     : public ::testing::TestWithParam<DISTWTDCOMPAVGUPSAMPLEDParam> {
  public:
-  ~AV1DISTWTDCOMPAVGUPSAMPLEDTest() override {}
+  ~AV1DISTWTDCOMPAVGUPSAMPLEDTest() override = default;
   void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
@@ -516,7 +516,7 @@ class DistWtdCompAvgTest
 class AV1HighBDDISTWTDCOMPAVGTest
     : public ::testing::TestWithParam<HighbdDISTWTDCOMPAVGParam> {
  public:
-  ~AV1HighBDDISTWTDCOMPAVGTest() override {}
+  ~AV1HighBDDISTWTDCOMPAVGTest() override = default;
   void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
@@ -625,7 +625,7 @@ class AV1HighBDDISTWTDCOMPAVGTest
 class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
     : public ::testing::TestWithParam<HighbdDISTWTDCOMPAVGUPSAMPLEDParam> {
  public:
-  ~AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest() override {}
+  ~AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest() override = default;
   void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:

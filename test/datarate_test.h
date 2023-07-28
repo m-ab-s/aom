@@ -28,7 +28,7 @@ class DatarateTest : public ::libaom_test::EncoderTest {
         speed_change_test_(false) {}
 
  protected:
-  ~DatarateTest() override {}
+  ~DatarateTest() override = default;
 
   virtual void ResetModel() {
     last_pts_ = 0;

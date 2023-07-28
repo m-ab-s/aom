@@ -32,9 +32,9 @@ const int kCodecFactoryParam = 0;
 
 class CodecFactory {
  public:
-  CodecFactory() {}
+  CodecFactory() = default;
 
-  virtual ~CodecFactory() {}
+  virtual ~CodecFactory() = default;
 
   virtual Decoder *CreateDecoder(aom_codec_dec_cfg_t cfg) const = 0;
 

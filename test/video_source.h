@@ -125,7 +125,7 @@ class TempOutFile {
 // aom_image_t images with associated timestamps and duration.
 class VideoSource {
  public:
-  virtual ~VideoSource() {}
+  virtual ~VideoSource() = default;
 
   // Prepare the stream for reading, rewind/open as necessary.
   virtual void Begin() = 0;
@@ -260,7 +260,7 @@ class RandomVideoSource : public DummyVideoSource {
 // decompressed images to the decoder.
 class CompressedVideoSource {
  public:
-  virtual ~CompressedVideoSource() {}
+  virtual ~CompressedVideoSource() = default;
 
   virtual void Init() = 0;
 
