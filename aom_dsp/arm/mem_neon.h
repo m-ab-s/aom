@@ -224,6 +224,38 @@ static INLINE void load_u16_8x4(const uint16_t *s, const ptrdiff_t p,
   s += p;
 }
 
+static INLINE void load_s16_4x12(const int16_t *s, ptrdiff_t p,
+                                 int16x4_t *const s0, int16x4_t *const s1,
+                                 int16x4_t *const s2, int16x4_t *const s3,
+                                 int16x4_t *const s4, int16x4_t *const s5,
+                                 int16x4_t *const s6, int16x4_t *const s7,
+                                 int16x4_t *const s8, int16x4_t *const s9,
+                                 int16x4_t *const s10, int16x4_t *const s11) {
+  *s0 = vld1_s16(s);
+  s += p;
+  *s1 = vld1_s16(s);
+  s += p;
+  *s2 = vld1_s16(s);
+  s += p;
+  *s3 = vld1_s16(s);
+  s += p;
+  *s4 = vld1_s16(s);
+  s += p;
+  *s5 = vld1_s16(s);
+  s += p;
+  *s6 = vld1_s16(s);
+  s += p;
+  *s7 = vld1_s16(s);
+  s += p;
+  *s8 = vld1_s16(s);
+  s += p;
+  *s9 = vld1_s16(s);
+  s += p;
+  *s10 = vld1_s16(s);
+  s += p;
+  *s11 = vld1_s16(s);
+}
+
 static INLINE void load_s16_4x11(const int16_t *s, ptrdiff_t p,
                                  int16x4_t *const s0, int16x4_t *const s1,
                                  int16x4_t *const s2, int16x4_t *const s3,
@@ -657,6 +689,38 @@ static INLINE void load_s16_8x11(const int16_t *s, ptrdiff_t p,
   *s9 = vld1q_s16(s);
   s += p;
   *s10 = vld1q_s16(s);
+}
+
+static INLINE void load_s16_8x12(const int16_t *s, ptrdiff_t p,
+                                 int16x8_t *const s0, int16x8_t *const s1,
+                                 int16x8_t *const s2, int16x8_t *const s3,
+                                 int16x8_t *const s4, int16x8_t *const s5,
+                                 int16x8_t *const s6, int16x8_t *const s7,
+                                 int16x8_t *const s8, int16x8_t *const s9,
+                                 int16x8_t *const s10, int16x8_t *const s11) {
+  *s0 = vld1q_s16(s);
+  s += p;
+  *s1 = vld1q_s16(s);
+  s += p;
+  *s2 = vld1q_s16(s);
+  s += p;
+  *s3 = vld1q_s16(s);
+  s += p;
+  *s4 = vld1q_s16(s);
+  s += p;
+  *s5 = vld1q_s16(s);
+  s += p;
+  *s6 = vld1q_s16(s);
+  s += p;
+  *s7 = vld1q_s16(s);
+  s += p;
+  *s8 = vld1q_s16(s);
+  s += p;
+  *s9 = vld1q_s16(s);
+  s += p;
+  *s10 = vld1q_s16(s);
+  s += p;
+  *s11 = vld1q_s16(s);
 }
 
 static INLINE void load_u16_8x11(const uint16_t *s, ptrdiff_t p,
