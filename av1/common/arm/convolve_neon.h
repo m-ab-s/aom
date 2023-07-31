@@ -208,30 +208,6 @@ static INLINE uint16x4_t wiener_convolve8_horiz_4x8(
   return res;
 }
 
-static INLINE int16x8_t convolve8_8x8_s16(
-    const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
-    const int16x8_t s3, const int16x8_t s4, const int16x8_t s5,
-    const int16x8_t s6, const int16x8_t s7, const int16x8_t filter,
-    const int16x8_t horiz_const, const int16x8_t shift_round_0) {
-  const int16x4_t filter_lo = vget_low_s16(filter);
-  const int16x4_t filter_hi = vget_high_s16(filter);
-  int16x8_t sum;
-
-  sum = horiz_const;
-  sum = vmlaq_lane_s16(sum, s0, filter_lo, 0);
-  sum = vmlaq_lane_s16(sum, s1, filter_lo, 1);
-  sum = vmlaq_lane_s16(sum, s2, filter_lo, 2);
-  sum = vmlaq_lane_s16(sum, s3, filter_lo, 3);
-  sum = vmlaq_lane_s16(sum, s4, filter_hi, 0);
-  sum = vmlaq_lane_s16(sum, s5, filter_hi, 1);
-  sum = vmlaq_lane_s16(sum, s6, filter_hi, 2);
-  sum = vmlaq_lane_s16(sum, s7, filter_hi, 3);
-
-  sum = vqrshlq_s16(sum, shift_round_0);
-
-  return sum;
-}
-
 // clang versions < 16 did not include the dotprod feature for Arm architecture
 // versions that should have it by default, e.g., armv8.6-a.
 #if AOM_ARCH_AARCH64 && \
@@ -352,29 +328,5 @@ static INLINE int16x8_t convolve8_x_8_sdot(uint8x16_t samples,
 }
 
 #endif  // AOM_ARCH_AARCH64 && defined(__ARM_FEATURE_DOTPROD)
-
-static INLINE int16x4_t convolve8_4x4_s16(
-    const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
-    const int16x4_t s3, const int16x4_t s4, const int16x4_t s5,
-    const int16x4_t s6, const int16x4_t s7, const int16x8_t filter,
-    const int16x4_t horiz_const, const int16x4_t shift_round_0) {
-  const int16x4_t filter_lo = vget_low_s16(filter);
-  const int16x4_t filter_hi = vget_high_s16(filter);
-  int16x4_t sum;
-
-  sum = horiz_const;
-  sum = vmla_lane_s16(sum, s0, filter_lo, 0);
-  sum = vmla_lane_s16(sum, s1, filter_lo, 1);
-  sum = vmla_lane_s16(sum, s2, filter_lo, 2);
-  sum = vmla_lane_s16(sum, s3, filter_lo, 3);
-  sum = vmla_lane_s16(sum, s4, filter_hi, 0);
-  sum = vmla_lane_s16(sum, s5, filter_hi, 1);
-  sum = vmla_lane_s16(sum, s6, filter_hi, 2);
-  sum = vmla_lane_s16(sum, s7, filter_hi, 3);
-
-  sum = vqrshl_s16(sum, shift_round_0);
-
-  return sum;
-}
 
 #endif  // AOM_AV1_COMMON_ARM_CONVOLVE_NEON_H_
