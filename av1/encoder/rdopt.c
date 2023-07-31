@@ -3776,6 +3776,7 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   unsigned char segment_id = mbmi->segment_id;
   const SPEED_FEATURES *const sf = &cpi->sf;
+  const INTER_MODE_SPEED_FEATURES *const inter_sf = &sf->inter_sf;
   REF_SET ref_set = REF_SET_FULL;
 
   if (sf->rt_sf.use_real_time_ref_set)
@@ -3848,7 +3849,7 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
   }
 
   if (cpi->rc.is_src_frame_alt_ref) {
-    if (sf->inter_sf.alt_ref_search_fp &&
+    if (inter_sf->alt_ref_search_fp &&
         (cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME])) {
       mask->pred_modes[ALTREF_FRAME] = 0;
       disable_inter_references_except_altref(mask->ref_combo);
@@ -3856,19 +3857,19 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
     }
   }
 
-  if (sf->inter_sf.alt_ref_search_fp) {
+  if (inter_sf->alt_ref_search_fp) {
     if (!cm->show_frame && x->best_pred_mv_sad[0] < INT_MAX) {
       int sad_thresh = x->best_pred_mv_sad[0] + (x->best_pred_mv_sad[0] >> 3);
       // Conservatively skip the modes w.r.t. BWDREF, ALTREF2 and ALTREF, if
       // those are past frames
       MV_REFERENCE_FRAME start_frame =
-          sf->inter_sf.alt_ref_search_fp == 1 ? ALTREF2_FRAME : BWDREF_FRAME;
+          inter_sf->alt_ref_search_fp == 1 ? ALTREF2_FRAME : BWDREF_FRAME;
       for (ref_frame = start_frame; ref_frame <= ALTREF_FRAME; ref_frame++) {
         if (cpi->ref_frame_dist_info.ref_relative_dist[ref_frame - LAST_FRAME] <
             0) {
           // Prune inter modes when relative dist of ALTREF2 and ALTREF is close
           // to the relative dist of LAST_FRAME.
-          if (sf->inter_sf.alt_ref_search_fp == 1 &&
+          if (inter_sf->alt_ref_search_fp == 1 &&
               (abs(cpi->ref_frame_dist_info
                        .ref_relative_dist[ref_frame - LAST_FRAME]) >
                1.5 * abs(cpi->ref_frame_dist_info
@@ -3909,6 +3910,33 @@ static AOM_INLINE void init_mode_skip_mask(mode_skip_mask_t *mask,
 
   mask->pred_modes[INTRA_FRAME] |=
       ~(uint32_t)sf->intra_sf.intra_y_mode_mask[max_txsize_lookup[bsize]];
+
+  // Prune reference frames which are not the closest to the current
+  // frame and with large pred_mv_sad.
+  if (inter_sf->prune_single_ref) {
+    assert(inter_sf->prune_single_ref > 0 && inter_sf->prune_single_ref < 3);
+    const double prune_threshes[2] = { 1.20, 1.05 };
+
+    for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+      const RefFrameDistanceInfo *const ref_frame_dist_info =
+          &cpi->ref_frame_dist_info;
+      const int is_closest_ref =
+          (ref_frame == ref_frame_dist_info->nearest_past_ref) ||
+          (ref_frame == ref_frame_dist_info->nearest_future_ref);
+
+      if (!is_closest_ref) {
+        const int dir =
+            (ref_frame_dist_info->ref_relative_dist[ref_frame - LAST_FRAME] < 0)
+                ? 0
+                : 1;
+        if (x->best_pred_mv_sad[dir] < INT_MAX &&
+            x->pred_mv_sad[ref_frame] >
+                prune_threshes[inter_sf->prune_single_ref - 1] *
+                    x->best_pred_mv_sad[dir])
+          mask->pred_modes[ref_frame] |= INTER_SINGLE_ALL;
+      }
+    }
+  }
 }
 
 static AOM_INLINE void init_neighbor_pred_buf(
@@ -4021,6 +4049,7 @@ static AOM_INLINE void set_params_rd_pick_inter_mode(
       setup_buffer_ref_mvs_inter(cpi, x, ref_frame, bsize, yv12_mb);
     }
     if (cpi->sf.inter_sf.alt_ref_search_fp ||
+        cpi->sf.inter_sf.prune_single_ref ||
         cpi->sf.rt_sf.prune_inter_modes_wrt_gf_arf_based_on_sad) {
       // Store the best pred_mv_sad across all past frames
       if (cpi->ref_frame_dist_info.ref_relative_dist[ref_frame - LAST_FRAME] <

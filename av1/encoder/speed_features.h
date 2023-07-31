@@ -92,6 +92,8 @@ enum {
                             (1 << NEAREST_NEWMV) | (1 << NEW_NEARESTMV) |
                             (1 << NEW_NEARMV) | (1 << NEAR_NEWMV) |
                             (1 << NEAR_NEARMV),
+  INTER_SINGLE_ALL =
+      (1 << NEARESTMV) | (1 << NEARMV) | (1 << GLOBALMV) | (1 << NEWMV),
 };
 
 enum {
@@ -927,6 +929,12 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // 1 prune inter modes w.r.t ALTREF2 and ALTREF reference frames
   // 2 prune inter modes w.r.t BWDREF, ALTREF2 and ALTREF reference frames
   int alt_ref_search_fp;
+
+  // Prune reference frames for single prediction modes based on temporal
+  // distance and pred MV SAD. Feasible values are 0, 1, 2. The feature is
+  // disabled for 0. An increasing value indicates more aggressive pruning
+  // threshold.
+  int prune_single_ref;
 
   // Prune compound reference frames
   // 0 no pruning
