@@ -8,6 +8,9 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#ifndef AOM_AOM_DSP_ARM_SUM_NEON_H_
+#define AOM_AOM_DSP_ARM_SUM_NEON_H_
+
 #include "config/aom_dsp_rtcd.h"
 #include "config/aom_config.h"
 
@@ -228,3 +231,5 @@ static INLINE int32x2_t add_pairwise_s32x4(int32x4_t a) {
   return vpadd_s32(vget_low_s32(a), vget_high_s32(a));
 #endif
 }
+
+#endif  // AOM_AOM_DSP_ARM_SUM_NEON_H_
