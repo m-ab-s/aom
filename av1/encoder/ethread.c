@@ -2420,15 +2420,34 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
   EncWorkerData *thread_data = (EncWorkerData *)arg1;
   AV1_COMP *cpi = thread_data->cpi;
   GlobalMotionInfo *gm_info = &cpi->gm_info;
-  MultiThreadInfo *mt_info = &cpi->mt_info;
-  JobInfo *job_info = &mt_info->gm_sync.job_info;
+  AV1GlobalMotionSync *gm_sync = &cpi->mt_info.gm_sync;
+  JobInfo *job_info = &gm_sync->job_info;
   int thread_id = thread_data->thread_id;
   GlobalMotionData *gm_thread_data = &thread_data->td->gm_data;
-  int cur_dir = job_info->thread_id_to_dir[thread_id];
 #if CONFIG_MULTITHREAD
-  pthread_mutex_t *gm_mt_mutex_ = mt_info->gm_sync.mutex_;
+  pthread_mutex_t *gm_mt_mutex_ = gm_sync->mutex_;
 #endif
 
+  MACROBLOCKD *const xd = &thread_data->td->mb.e_mbd;
+  struct aom_internal_error_info *const error_info = &thread_data->error_info;
+  xd->error_info = error_info;
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(gm_mt_mutex_);
+    gm_sync->gm_mt_exit = true;
+    pthread_mutex_unlock(gm_mt_mutex_);
+#endif
+    return 0;
+  }
+  error_info->setjmp = 1;
+
+  int cur_dir = job_info->thread_id_to_dir[thread_id];
+  bool gm_mt_exit = false;
   while (1) {
     int ref_buf_idx = -1;
 
@@ -2436,9 +2455,10 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
     pthread_mutex_lock(gm_mt_mutex_);
 #endif
 
+    gm_mt_exit = gm_sync->gm_mt_exit;
     // Populates ref_buf_idx(the reference frame type) for which global motion
     // estimation will be done.
-    if (!get_next_gm_job(cpi, &ref_buf_idx, cur_dir)) {
+    if (!gm_mt_exit && !get_next_gm_job(cpi, &ref_buf_idx, cur_dir)) {
       // No jobs are available for the current direction. Switch
       // to other direction and get the next job, if available.
       switch_direction(cpi, &ref_buf_idx, &cur_dir);
@@ -2447,6 +2467,10 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_unlock(gm_mt_mutex_);
 #endif
+
+    // When gm_mt_exit is set to true, other workers need not pursue any
+    // further jobs.
+    if (gm_mt_exit) return 1;
 
     if (ref_buf_idx == -1) break;
 
@@ -2470,6 +2494,7 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
     pthread_mutex_unlock(gm_mt_mutex_);
 #endif
   }
+  error_info->setjmp = 0;
   return 1;
 }
 
@@ -2477,6 +2502,7 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 static AOM_INLINE void prepare_gm_workers(AV1_COMP *cpi, AVxWorkerHook hook,
                                           int num_workers) {
   MultiThreadInfo *mt_info = &cpi->mt_info;
+  mt_info->gm_sync.gm_mt_exit = false;
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *worker = &mt_info->workers[i];
     EncWorkerData *thread_data = &mt_info->tile_thr_data[i];

@@ -67,6 +67,10 @@ typedef struct {
   // Mutex lock used while dispatching jobs.
   pthread_mutex_t *mutex_;
 #endif
+
+  // Initialized to false, set to true by the worker thread that encounters an
+  // error in order to abort the processing of other worker threads.
+  bool gm_mt_exit;
 } AV1GlobalMotionSync;
 
 void av1_convert_model_to_params(const double *params,
