@@ -499,7 +499,8 @@ void av1_set_svc_fixed_mode(AV1_COMP *const cpi) {
       // Set all buffer_idx to 0.
       // Set GOLDEN to slot 5 and update slot 5.
       for (i = 0; i < INTER_REFS_PER_FRAME; i++) rtc_ref->ref_idx[i] = 0;
-      if (svc->temporal_layer_id < svc->number_temporal_layers - 1) {
+      if (svc->temporal_layer_id < svc->number_temporal_layers - 1 ||
+          svc->spatial_layer_id < svc->number_spatial_layers - 1) {
         rtc_ref->ref_idx[SVC_GOLDEN_FRAME] = 5;
         rtc_ref->refresh[5] = 1;
       }
@@ -509,7 +510,8 @@ void av1_set_svc_fixed_mode(AV1_COMP *const cpi) {
       // Set LAST3 to slot 6 and update slot 6.
       for (i = 0; i < INTER_REFS_PER_FRAME; i++) rtc_ref->ref_idx[i] = 5;
       rtc_ref->ref_idx[SVC_LAST_FRAME] = 1;
-      if (svc->temporal_layer_id < svc->number_temporal_layers - 1) {
+      if (svc->temporal_layer_id < svc->number_temporal_layers - 1 ||
+          svc->spatial_layer_id < svc->number_spatial_layers - 1) {
         rtc_ref->ref_idx[SVC_LAST3_FRAME] = 6;
         rtc_ref->refresh[6] = 1;
       }
