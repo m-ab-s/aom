@@ -14,9 +14,14 @@
 
 #include "aom_dsp/arm/mem_neon.h"
 #include "av1/common/arm/compound_convolve_neon.h"
-#include "av1/common/arm/convolve_neon.h"
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
+
+DECLARE_ALIGNED(16, static const uint8_t, dot_prod_permute_tbl[48]) = {
+  0, 1, 2,  3,  1, 2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6,
+  4, 5, 6,  7,  5, 6,  7,  8,  6,  7,  8,  9,  7,  8,  9,  10,
+  8, 9, 10, 11, 9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14
+};
 
 static INLINE int16x4_t convolve4_4_2d_h(uint8x16_t samples,
                                          const int8x8_t x_filter,
@@ -199,7 +204,7 @@ void av1_dist_wtd_convolve_2d_neon_dotprod(
   assert(h % 4 == 0);
 
   DECLARE_ALIGNED(16, int16_t,
-                  im_block[(MAX_SB_SIZE + HORIZ_EXTRA_ROWS) * MAX_SB_SIZE]);
+                  im_block[(MAX_SB_SIZE + SUBPEL_TAPS - 1) * MAX_SB_SIZE]);
 
   const int y_filter_taps = get_filter_tap(filter_params_y, subpel_y_qn);
   const int clamped_y_taps = y_filter_taps < 6 ? 6 : y_filter_taps;
