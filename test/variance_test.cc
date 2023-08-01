@@ -2130,10 +2130,10 @@ INSTANTIATE_TEST_SUITE_P(
 #if HAVE_NEON_DOTPROD
 INSTANTIATE_TEST_SUITE_P(
     NEON_DOTPROD, AvxHBDMseTest,
-    ::testing::Values(MseParams(4, 4, &aom_highbd_8_mse16x16_neon, 8),
-                      MseParams(4, 3, &aom_highbd_8_mse16x8_neon, 8),
-                      MseParams(3, 4, &aom_highbd_8_mse8x16_neon, 8),
-                      MseParams(3, 3, &aom_highbd_8_mse8x8_neon, 8)));
+    ::testing::Values(MseParams(4, 4, &aom_highbd_8_mse16x16_neon_dotprod, 8),
+                      MseParams(4, 3, &aom_highbd_8_mse16x8_neon_dotprod, 8),
+                      MseParams(3, 4, &aom_highbd_8_mse8x16_neon_dotprod, 8),
+                      MseParams(3, 3, &aom_highbd_8_mse8x8_neon_dotprod, 8)));
 #endif  // HAVE_NEON_DOTPROD
 
 const VarianceParams kArrayHBDVariance_c[] = {
