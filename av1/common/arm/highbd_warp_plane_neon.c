@@ -11,6 +11,7 @@
 
 #include <arm_neon.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/arm/mem_neon.h"
@@ -333,7 +334,7 @@ static INLINE int32x4x2_t warp_affine_vertical_filter_8x1_f8_neon(
 
 static INLINE void warp_affine_vertical_step_4x1_f4_neon(
     uint16_t *pred, int p_stride, int bd, uint16_t *dst, int dst_stride,
-    int is_compound, int do_average, int use_dist_wtd_comp_avg, int fwd,
+    bool is_compound, bool do_average, bool use_dist_wtd_comp_avg, int fwd,
     int bwd, int16_t gamma, const int16x8_t *tmp, int i, int sy, int j) {
   int32x4_t sum0 =
       gamma == 0 ? warp_affine_vertical_filter_4x1_f1_neon(tmp, sy)
@@ -389,7 +390,7 @@ static INLINE void warp_affine_vertical_step_4x1_f4_neon(
 
 static INLINE void warp_affine_vertical_step_8x1_f8_neon(
     uint16_t *pred, int p_stride, int bd, uint16_t *dst, int dst_stride,
-    int is_compound, int do_average, int use_dist_wtd_comp_avg, int fwd,
+    bool is_compound, bool do_average, bool use_dist_wtd_comp_avg, int fwd,
     int bwd, int16_t gamma, const int16x8_t *tmp, int i, int sy, int j) {
   int32x4x2_t sums =
       gamma == 0 ? warp_affine_vertical_filter_8x1_f1_neon(tmp, sy)
@@ -464,8 +465,8 @@ static INLINE void warp_affine_vertical_step_8x1_f8_neon(
 
 static INLINE void warp_affine_vertical_neon(
     uint16_t *pred, int p_width, int p_height, int p_stride, int bd,
-    uint16_t *dst, int dst_stride, int is_compound, int do_average,
-    int use_dist_wtd_comp_avg, int fwd, int bwd, int16_t gamma, int16_t delta,
+    uint16_t *dst, int dst_stride, bool is_compound, bool do_average,
+    bool use_dist_wtd_comp_avg, int fwd, int bwd, int16_t gamma, int16_t delta,
     const int16x8_t *tmp, int i, int sy4, int j) {
   int limit_height = p_height > 4 ? 8 : 4;
 
@@ -497,9 +498,9 @@ void av1_highbd_warp_affine_neon(const int32_t *mat, const uint16_t *ref,
                                  int16_t beta, int16_t gamma, int16_t delta) {
   uint16_t *const dst = conv_params->dst;
   const int dst_stride = conv_params->dst_stride;
-  const int is_compound = conv_params->is_compound;
-  const int do_average = conv_params->do_average;
-  const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
+  const bool is_compound = conv_params->is_compound;
+  const bool do_average = conv_params->do_average;
+  const bool use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
   const int fwd = conv_params->fwd_offset;
   const int bwd = conv_params->bck_offset;
 
