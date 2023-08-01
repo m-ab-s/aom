@@ -3899,13 +3899,14 @@ static INLINE int prune_ext_part_none_skippable(
 static int allow_ab_partition_search(PartitionSearchState *part_search_state,
                                      PARTITION_SPEED_FEATURES *part_sf,
                                      PARTITION_TYPE curr_best_part,
+                                     int must_find_valid_partition,
                                      int prune_ext_part_state) {
   const PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const int bsize = blk_params.bsize;
 
   // Determine min bsize to evaluate ab partitions
   int ab_min_bsize_allowed = part_sf->ext_partition_eval_thresh;
-  if (part_sf->ext_part_eval_based_on_cur_best &&
+  if (part_sf->ext_part_eval_based_on_cur_best && !must_find_valid_partition &&
       !(curr_best_part == PARTITION_HORZ || curr_best_part == PARTITION_VERT))
     ab_min_bsize_allowed = BLOCK_128X128;
 
@@ -3957,7 +3958,7 @@ static void prune_4_way_partition_search(
   // Determine min bsize to evaluate 4-way partitions
   int part4_min_bsize_allowed = cpi->sf.part_sf.ext_partition_eval_thresh;
   if (cpi->sf.part_sf.ext_part_eval_based_on_cur_best &&
-      pc_tree->partitioning == PARTITION_NONE)
+      !x->must_find_valid_partition && pc_tree->partitioning == PARTITION_NONE)
     part4_min_bsize_allowed = BLOCK_128X128;
 
   bool partition4_allowed = part_search_state->do_rectangular_split &&
@@ -5543,9 +5544,9 @@ BEGIN_PARTITION_SEARCH:
       pc_tree->none, x->must_find_valid_partition,
       cpi->sf.part_sf.skip_non_sq_part_based_on_none, bsize);
 
-  const int ab_partition_allowed =
-      allow_ab_partition_search(&part_search_state, &cpi->sf.part_sf,
-                                pc_tree->partitioning, prune_ext_part_state);
+  const int ab_partition_allowed = allow_ab_partition_search(
+      &part_search_state, &cpi->sf.part_sf, pc_tree->partitioning,
+      x->must_find_valid_partition, prune_ext_part_state);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, ab_partitions_search_time);
