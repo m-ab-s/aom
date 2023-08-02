@@ -127,7 +127,31 @@ static int arm_get_cpu_caps(void) {
 #endif  // HAVE_SVE
   return flags;
 }
-#else   // end __linux__
+
+#elif defined(__Fuchsia__)  // end __linux__
+
+#include <zircon/features.h>
+#include <zircon/syscalls.h>
+
+static int arm_get_cpu_caps(void) {
+  int flags = 0;
+#if HAVE_NEON
+  flags |= HAS_NEON;  // Neon is mandatory in Armv8.0-A.
+#endif  // HAVE_NEON
+  uint32_t features;
+  zx_status_t status = zx_system_get_features(ZX_FEATURE_KIND_CPU, &features);
+  if (status != ZX_OK) return flags;
+#if HAVE_ARM_CRC32
+  if (features & ZX_ARM64_FEATURE_ISA_CRC32) flags |= HAS_ARM_CRC32;
+#endif  // HAVE_ARM_CRC32
+#if HAVE_NEON_DOTPROD
+  if (features & ZX_ARM64_FEATURE_ISA_DP) flags |= HAS_NEON_DOTPROD;
+#endif  // HAVE_NEON_DOTPROD
+  // No I8MM or SVE feature detection available on Fuchsia at time of writing.
+  return flags;
+}
+
+#else  // end __Fuchsia__
 #error \
     "Runtime CPU detection selected, but no CPU detection method " \
 "available for your platform. Rerun cmake with -DCONFIG_RUNTIME_CPU_DETECT=0."
