@@ -1783,6 +1783,34 @@ void av1_tpl_preload_rc_estimate(AV1_COMP *cpi,
   }
 }
 
+static AOM_INLINE int skip_tpl_for_frame(const GF_GROUP *gf_group,
+                                         int frame_idx, int gop_eval,
+                                         int approx_gop_eval,
+                                         int reduce_num_frames) {
+  // When gop_eval is set to 2, tpl stats calculation is done for ARFs from base
+  // layer, (base+1) layer and (base+2) layer. When gop_eval is set to 3,
+  // tpl stats calculation is limited to ARFs from base layer and (base+1)
+  // layer.
+  const int num_arf_layers = (gop_eval == 2) ? 3 : 2;
+  const int gop_length = get_gop_length(gf_group);
+
+  if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
+      gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
+    return 1;
+
+  // When approx_gop_eval = 1, skip tpl stats calculation for higher layer
+  // frames and for frames beyond gop length.
+  if (approx_gop_eval && (gf_group->layer_depth[frame_idx] > num_arf_layers ||
+                          frame_idx >= gop_length))
+    return 1;
+
+  if (reduce_num_frames && gf_group->update_type[frame_idx] == LF_UPDATE &&
+      frame_idx < gop_length)
+    return 1;
+
+  return 0;
+}
+
 int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                         const EncodeFrameParams *const frame_params) {
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -1796,13 +1824,6 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   EncodeFrameParams this_frame_params = *frame_params;
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
   int approx_gop_eval = (gop_eval > 1);
-  int num_arf_layers = MAX_ARF_LAYERS;
-
-  // When gop_eval is set to 2, tpl stats calculation is done for ARFs from base
-  // layer, (base+1) layer and (base+2) layer. When gop_eval is set to 3,
-  // tpl stats calculation is limited to ARFs from base layer and (base+1)
-  // layer.
-  if (approx_gop_eval) num_arf_layers = (gop_eval == 2) ? 3 : 2;
 
   if (cpi->superres_mode != AOM_SUPERRES_NONE) {
     assert(cpi->superres_mode != AOM_SUPERRES_AUTO);
@@ -1849,20 +1870,26 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   av1_fill_mv_costs(&cm->fc->nmvc, cm->features.cur_frame_force_integer_mv,
                     cm->features.allow_high_precision_mv, cpi->td.mb.mv_costs);
 
-  const int gop_length = get_gop_length(gf_group);
   const int num_planes =
       cpi->sf.tpl_sf.use_y_only_rate_distortion ? 1 : av1_num_planes(cm);
+  // As tpl module is called before the setting of speed features at frame
+  // level, turning off this speed feature for the first GF group of the
+  // key-frame interval is done here.
+  int reduce_num_frames =
+      cpi->sf.tpl_sf.reduce_num_frames &&
+      gf_group->update_type[cpi->gf_frame_index] != KF_UPDATE &&
+      gf_group->max_layer_depth > 2;
+  // TPL processing is skipped for frames of type LF_UPDATE when
+  // 'reduce_num_frames' is 1, which affects the r0 calcuation. Thus, a factor
+  // to adjust r0 is used. The value of 1.6 corresponds to using ~60% of the
+  // frames in the gf group on an average.
+  tpl_data->r0_adjust_factor = reduce_num_frames ? 1.6 : 1.0;
+
   // Backward propagation from tpl_group_frames to 1.
   for (int frame_idx = cpi->gf_frame_index; frame_idx < tpl_gf_group_frames;
        ++frame_idx) {
-    if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
-        gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
-      continue;
-
-    // When approx_gop_eval = 1, skip tpl stats calculation for higher layer
-    // frames and for frames beyond gop length.
-    if (approx_gop_eval && (gf_group->layer_depth[frame_idx] > num_arf_layers ||
-                            frame_idx >= gop_length))
+    if (skip_tpl_for_frame(gf_group, frame_idx, gop_eval, approx_gop_eval,
+                           reduce_num_frames))
       continue;
 
     init_mc_flow_dispenser(cpi, frame_idx, pframe_qindex);
@@ -1892,12 +1919,8 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   for (int frame_idx = tpl_gf_group_frames - 1;
        frame_idx >= cpi->gf_frame_index; --frame_idx) {
-    if (gf_group->update_type[frame_idx] == INTNL_OVERLAY_UPDATE ||
-        gf_group->update_type[frame_idx] == OVERLAY_UPDATE)
-      continue;
-
-    if (approx_gop_eval && (gf_group->layer_depth[frame_idx] > num_arf_layers ||
-                            frame_idx >= gop_length))
+    if (skip_tpl_for_frame(gf_group, frame_idx, gop_eval, approx_gop_eval,
+                           reduce_num_frames))
       continue;
 
     mc_flow_synthesizer(tpl_data, frame_idx, cm->mi_params.mi_rows,

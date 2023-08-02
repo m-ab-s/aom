@@ -903,6 +903,10 @@ static void set_good_speed_feature_framesize_dependent(
           is_boosted_arf2_bwd_type ? 450 : 150;
     }
 
+    if (is_480p_or_larger) {
+      sf->tpl_sf.reduce_num_frames = 1;
+    }
+
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
 
     sf->hl_sf.recode_tolerance = 55;
@@ -1920,6 +1924,7 @@ static AOM_INLINE void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
   tpl_sf->allow_compound_pred = 1;
   tpl_sf->use_y_only_rate_distortion = 0;
   tpl_sf->use_sad_for_mode_decision = 0;
+  tpl_sf->reduce_num_frames = 0;
 }
 
 static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {

@@ -557,6 +557,10 @@ typedef struct TPL_SPEED_FEATURES {
   // This sf is disabled for the first GF group of the key-frame interval,
   // i.e., SATD is used during intra/inter mode search of the first GF group.
   int use_sad_for_mode_decision;
+
+  // Skip tpl processing for frames of type LF_UPDATE.
+  // This sf is disabled for the first GF group of the key-frame interval.
+  int reduce_num_frames;
 } TPL_SPEED_FEATURES;
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {

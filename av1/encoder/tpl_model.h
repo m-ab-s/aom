@@ -244,6 +244,11 @@ typedef struct TplParams {
    * Frame border for tpl frame.
    */
   int border_in_pixels;
+
+  /*!
+   * Factor to adjust r0 if TPL uses a subset of frames in the gf group.
+   */
+  double r0_adjust_factor;
 } TplParams;
 
 #if CONFIG_BITRATE_ACCURACY || CONFIG_RATECTRL_LOG
