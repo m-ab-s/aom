@@ -77,50 +77,10 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
 
     src_ptr += 2;
 
-#if AOM_ARCH_AARCH64
-    do {
-      __builtin_prefetch(src_ptr + 0 * src_stride);
-      __builtin_prefetch(src_ptr + 1 * src_stride);
-      __builtin_prefetch(src_ptr + 2 * src_stride);
-      __builtin_prefetch(src_ptr + 3 * src_stride);
-
-      uint8x8_t t0, t1, t2, t3;
-      load_u8_8x4(src_ptr, src_stride, &t0, &t1, &t2, &t3);
-      transpose_u8_8x4(&t0, &t1, &t2, &t3);
-
-      int16x4_t s0 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
-      int16x4_t s1 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
-      int16x4_t s2 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
-      int16x4_t s3 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
-      int16x4_t s4 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
-      int16x4_t s5 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
-      int16x4_t s6 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t2)));
-
-      __builtin_prefetch(dst_ptr + 0 * dst_stride);
-      __builtin_prefetch(dst_ptr + 1 * dst_stride);
-      __builtin_prefetch(dst_ptr + 2 * dst_stride);
-      __builtin_prefetch(dst_ptr + 3 * dst_stride);
-
-      int16x4_t d0 = convolve4_4_2d_h(s0, s1, s2, s3, x_filter, horiz_const);
-      int16x4_t d1 = convolve4_4_2d_h(s1, s2, s3, s4, x_filter, horiz_const);
-      int16x4_t d2 = convolve4_4_2d_h(s2, s3, s4, s5, x_filter, horiz_const);
-      int16x4_t d3 = convolve4_4_2d_h(s3, s4, s5, s6, x_filter, horiz_const);
-
-      transpose_s16_4x4d(&d0, &d1, &d2, &d3);
-      store_s16_4x4(dst_ptr, dst_stride, d0, d1, d2, d3);
-
-      src_ptr += 4 * src_stride;
-      dst_ptr += 4 * dst_stride;
-      height -= 4;
-    } while (height > 4);
-#endif  // AOM_ARCH_AARCH64
-
     do {
       uint8x8_t t0 = vld1_u8(src_ptr);  // a0 a1 a2 a3 a4 a5 a6 a7
-      int16x4_t s0 =
-          vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));  // a0 a1 a2 a3
-      int16x4_t s4 =
-          vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));  // a4 a5 a6 a7
+      int16x4_t s0 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
+      int16x4_t s4 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
 
       __builtin_prefetch(dst_ptr);
 
