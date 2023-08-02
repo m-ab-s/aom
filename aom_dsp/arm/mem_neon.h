@@ -945,6 +945,13 @@ static INLINE void load_unaligned_u8_4x8(const uint8_t *buf, int stride,
     memcpy(dst, &a, 2);                                \
   } while (0)
 
+#define store_unaligned_u16_4x1(dst, src, lane)           \
+  do {                                                    \
+    uint64_t a;                                           \
+    a = vgetq_lane_u64(vreinterpretq_u64_u16(src), lane); \
+    memcpy(dst, &a, 8);                                   \
+  } while (0)
+
 static INLINE void load_u8_16x8(const uint8_t *s, ptrdiff_t p,
                                 uint8x16_t *const s0, uint8x16_t *const s1,
                                 uint8x16_t *const s2, uint8x16_t *const s3,
@@ -1118,6 +1125,13 @@ static INLINE void store_unaligned_u8_4x2(uint8_t *dst, uint32_t dst_stride,
   store_unaligned_u8_4x1(dst, src, 0);
   dst += dst_stride;
   store_unaligned_u8_4x1(dst, src, 1);
+}
+
+static INLINE void store_unaligned_u16_4x2(uint16_t *dst, uint32_t dst_stride,
+                                           uint16x8_t src) {
+  store_unaligned_u16_4x1(dst, src, 0);
+  dst += dst_stride;
+  store_unaligned_u16_4x1(dst, src, 1);
 }
 
 #endif  // AOM_AOM_DSP_ARM_MEM_NEON_H_

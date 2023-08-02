@@ -475,6 +475,13 @@ INSTANTIATE_TEST_SUITE_P(
                                    aom_highbd_blend_a64_mask_sse4_1)));
 #endif  // HAVE_SSE4_1
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, BlendA64MaskTestHBD,
+    ::testing::Values(TestFuncsHBD(aom_highbd_blend_a64_mask_c,
+                                   aom_highbd_blend_a64_mask_neon)));
+#endif  // HAVE_NEON
+
 //////////////////////////////////////////////////////////////////////////////
 // HBD _d16 version
 //////////////////////////////////////////////////////////////////////////////
