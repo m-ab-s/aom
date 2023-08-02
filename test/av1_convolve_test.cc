@@ -427,6 +427,16 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveXTest,
                          BuildLowbdParams(av1_convolve_x_sr_neon));
 #endif
 
+#if HAVE_NEON_DOTPROD
+INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, AV1ConvolveXTest,
+                         BuildLowbdParams(av1_convolve_x_sr_neon_dotprod));
+#endif
+
+#if HAVE_NEON_I8MM
+INSTANTIATE_TEST_SUITE_P(NEON_I8MM, AV1ConvolveXTest,
+                         BuildLowbdParams(av1_convolve_x_sr_neon_i8mm));
+#endif
+
 #if CONFIG_AV1_HIGHBITDEPTH
 /////////////////////////////////////////////////////////
 // Single reference convolve-x functions (high bit-depth)
