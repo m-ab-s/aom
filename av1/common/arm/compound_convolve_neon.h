@@ -17,7 +17,6 @@
 #include "av1/common/enums.h"
 #include "av1/common/filter.h"
 
-#if !AOM_ARCH_AARCH64
 static INLINE void compute_dist_wtd_avg_4x1(uint16x4_t dd0, uint16x4_t d0,
                                             const uint16_t fwd_offset,
                                             const uint16_t bck_offset,
@@ -74,7 +73,6 @@ static INLINE void compute_basic_avg_8x1(uint16x8_t dd0, uint16x8_t d0,
 
   *d0_u8 = vqrshrun_n_s16(dst0, FILTER_BITS - ROUND0_BITS);
 }
-#endif  // !AOM_ARCH_AARCH64
 
 static INLINE void compute_dist_wtd_avg_4x4(
     uint16x4_t dd0, uint16x4_t dd1, uint16x4_t dd2, uint16x4_t dd3,
