@@ -29,6 +29,7 @@
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/var_based_part.h"
 #include "av1/encoder/reconinter_enc.h"
+#include "av1/encoder/rdopt_utils.h"
 
 // Possible values for the force_split variable while evaluating variance based
 // partitioning.
@@ -1021,8 +1022,7 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       cpi->rc.high_source_sad) {
     shift_lower_limit = 7;
-  } else if (source_sad_nonrd >= kMedSad &&
-             cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN &&
+  } else if (source_sad_nonrd >= kMedSad && x->source_variance > 500 &&
              cpi->common.width * cpi->common.height >= 640 * 360) {
     shift_upper_limit = 2;
     shift_lower_limit = source_sad_nonrd > kMedSad ? 5 : 4;
@@ -1644,6 +1644,15 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       if (ref_scaled == NULL) is_key_frame = true;
     }
   }
+
+  x->source_variance = UINT_MAX;
+  // For nord_pickmode: compute source_variance, only for superblocks with
+  // some motion for now. This input can then be used to bias the partitioing
+  // or the chroma_check.
+  if (cpi->sf.rt_sf.use_nonrd_pick_mode &&
+      x->content_state_sb.source_sad_nonrd > kLowSad)
+    x->source_variance = av1_get_perpixel_variance_facade(
+        cpi, xd, &x->plane[0].src, cm->seq_params->sb_size, AOM_PLANE_Y);
 
   if (!is_key_frame) {
     setup_planes(cpi, x, &y_sad, &y_sad_g, &y_sad_alt, &y_sad_last,
