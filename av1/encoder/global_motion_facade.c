@@ -361,40 +361,6 @@ static AOM_INLINE void update_valid_ref_frames_for_gm(
   }
 }
 
-// Deallocates segment_map and inliers.
-static AOM_INLINE void dealloc_global_motion_data(MotionModel *motion_models,
-                                                  uint8_t *segment_map) {
-  aom_free(segment_map);
-
-  for (int m = 0; m < RANSAC_NUM_MOTIONS; m++) {
-    aom_free(motion_models[m].inliers);
-  }
-}
-
-// Allocates and initializes memory for segment_map and MotionModel.
-static AOM_INLINE bool alloc_global_motion_data(MotionModel *motion_models,
-                                                uint8_t **segment_map,
-                                                const int segment_map_w,
-                                                const int segment_map_h) {
-  av1_zero_array(motion_models, RANSAC_NUM_MOTIONS);
-  for (int m = 0; m < RANSAC_NUM_MOTIONS; m++) {
-    motion_models[m].inliers =
-        aom_malloc(sizeof(*(motion_models[m].inliers)) * 2 * MAX_CORNERS);
-    if (!motion_models[m].inliers) {
-      dealloc_global_motion_data(motion_models, NULL);
-      return false;
-    }
-  }
-
-  *segment_map = (uint8_t *)aom_calloc(segment_map_w * segment_map_h,
-                                       sizeof(*segment_map));
-  if (!*segment_map) {
-    dealloc_global_motion_data(motion_models, NULL);
-    return false;
-  }
-  return true;
-}
-
 // Initializes parameters used for computing global motion.
 static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
@@ -439,11 +405,7 @@ static AOM_INLINE void setup_global_motion_info_params(AV1_COMP *cpi) {
 // Computes global motion w.r.t. valid reference frames.
 static AOM_INLINE void global_motion_estimation(AV1_COMP *cpi) {
   GlobalMotionInfo *const gm_info = &cpi->gm_info;
-  MotionModel motion_models[RANSAC_NUM_MOTIONS];
-  uint8_t *segment_map = NULL;
-
-  alloc_global_motion_data(motion_models, &segment_map, gm_info->segment_map_w,
-                           gm_info->segment_map_h);
+  GlobalMotionData *gm_data = &cpi->td.gm_data;
 
   // Compute global motion w.r.t. past reference frames and future reference
   // frames
@@ -451,11 +413,9 @@ static AOM_INLINE void global_motion_estimation(AV1_COMP *cpi) {
     if (gm_info->num_ref_frames[dir] > 0)
       compute_global_motion_for_references(
           cpi, gm_info->ref_buf, gm_info->reference_frames[dir],
-          gm_info->num_ref_frames[dir], motion_models, segment_map,
-          gm_info->segment_map_w, gm_info->segment_map_h);
+          gm_info->num_ref_frames[dir], gm_data->motion_models,
+          gm_data->segment_map, gm_info->segment_map_w, gm_info->segment_map_h);
   }
-
-  dealloc_global_motion_data(motion_models, segment_map);
 }
 
 // Global motion estimation for the current frame is computed.This computation
@@ -480,10 +440,12 @@ void av1_compute_global_motion_facade(AV1_COMP *cpi) {
   if (cpi->common.current_frame.frame_type == INTER_FRAME && cpi->source &&
       cpi->oxcf.tool_cfg.enable_global_motion && !gm_info->search_done) {
     setup_global_motion_info_params(cpi);
+    gm_alloc_data(cpi, &cpi->td.gm_data);
     if (cpi->mt_info.num_workers > 1)
       av1_global_motion_estimation_mt(cpi);
     else
       global_motion_estimation(cpi);
+    gm_dealloc_data(&cpi->td.gm_data);
     gm_info->search_done = 1;
   }
   memcpy(cm->cur_frame->global_motion, cm->global_motion,

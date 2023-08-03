@@ -40,7 +40,7 @@ typedef struct {
 
   // Pointer to hold inliers from motion model.
   uint8_t *segment_map;
-} GlobalMotionThreadData;
+} GlobalMotionData;
 
 typedef struct {
   // Holds the mapping of each thread to past/future direction.
@@ -63,21 +63,10 @@ typedef struct {
   // Data related to assigning jobs for global motion multi-threading.
   JobInfo job_info;
 
-  // Data specific to each worker in global motion multi-threading.
-  // thread_data[i] stores the thread specific data for worker 'i'.
-  GlobalMotionThreadData *thread_data;
-
 #if CONFIG_MULTITHREAD
   // Mutex lock used while dispatching jobs.
   pthread_mutex_t *mutex_;
 #endif
-
-  // Width and height for which segment_map is allocated for each thread.
-  int allocated_width;
-  int allocated_height;
-
-  // Number of workers for which thread_data is allocated.
-  int8_t allocated_workers;
 } AV1GlobalMotionSync;
 
 void av1_convert_model_to_params(const double *params,

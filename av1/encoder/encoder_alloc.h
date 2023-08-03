@@ -16,6 +16,7 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/ethread.h"
+#include "av1/encoder/global_motion_facade.h"
 #include "av1/encoder/intra_mode_search_utils.h"
 
 #ifdef __cplusplus
@@ -268,6 +269,10 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   // in case of an error during tpl.
   tpl_dealloc_temp_buffers(&cpi->td.tpl_tmp_buffers);
 
+  // This call ensures that the global motion (gm) data buffers for
+  // single-threaded encode are freed in case of an error during gm.
+  gm_dealloc_data(&cpi->td.gm_data);
+
   av1_free_txb_buf(cpi);
   av1_free_context_buffers(cm);
 
@@ -461,6 +466,9 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
     // an error during tpl.
     if (t < num_tpl_workers)
       tpl_dealloc_temp_buffers(&thread_data->td->tpl_tmp_buffers);
+    // This call ensures that the buffers in gm_data for MT encode are freed in
+    // case of an error during gm.
+    gm_dealloc_data(&thread_data->td->gm_data);
     aom_free(thread_data->td);
   }
 }
