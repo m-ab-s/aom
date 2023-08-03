@@ -133,6 +133,15 @@ static int arm_get_cpu_caps(void) {
 #include <zircon/features.h>
 #include <zircon/syscalls.h>
 
+// Added in https://fuchsia-review.googlesource.com/c/fuchsia/+/894282.
+#ifndef ZX_ARM64_FEATURE_ISA_I8MM
+#define ZX_ARM64_FEATURE_ISA_I8MM ((uint32_t)(1u << 19))
+#endif
+// Added in https://fuchsia-review.googlesource.com/c/fuchsia/+/895083.
+#ifndef ZX_ARM64_FEATURE_ISA_SVE
+#define ZX_ARM64_FEATURE_ISA_SVE ((uint32_t)(1u << 20))
+#endif
+
 static int arm_get_cpu_caps(void) {
   int flags = 0;
 #if HAVE_NEON
@@ -147,7 +156,12 @@ static int arm_get_cpu_caps(void) {
 #if HAVE_NEON_DOTPROD
   if (features & ZX_ARM64_FEATURE_ISA_DP) flags |= HAS_NEON_DOTPROD;
 #endif  // HAVE_NEON_DOTPROD
-  // No I8MM or SVE feature detection available on Fuchsia at time of writing.
+#if HAVE_NEON_I8MM
+  if (features & ZX_ARM64_FEATURE_ISA_I8MM) flags |= HAS_NEON_I8MM;
+#endif  // HAVE_NEON_I8MM
+#if HAVE_SVE
+  if (features & ZX_ARM64_FEATURE_ISA_SVE) flags |= HAS_SVE;
+#endif  // HAVE_SVE
   return flags;
 }
 
