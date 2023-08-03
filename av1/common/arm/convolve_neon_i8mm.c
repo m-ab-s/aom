@@ -106,9 +106,7 @@ static INLINE void convolve_x_sr_12tap_neon_i8mm(const uint8_t *src,
 
       do {
         uint8x8_t d0 = vld1_u8(s);
-        if (w == 2) {
-          store_u8_2x1(d, d0, 0);
-        } else if (w == 4) {
+        if (w == 4) {
           store_u8_4x1(d, d0, 0);
         } else {
           vst1_u8(d, d0);
@@ -142,26 +140,15 @@ static INLINE void convolve_x_sr_12tap_neon_i8mm(const uint8_t *src,
         uint8x8_t d01 = vqmovun_s16(vcombine_s16(d0, d1));
         uint8x8_t d23 = vqmovun_s16(vcombine_s16(d2, d3));
 
-        if (w == 2) {
-          store_u8_2x1(dst + 0 * dst_stride, d01, 0);
-          store_u8_2x1(dst + 1 * dst_stride, d01, 2);
-          if (h != 2) {
-            store_u8_2x1(dst + 2 * dst_stride, d23, 0);
-            store_u8_2x1(dst + 3 * dst_stride, d23, 2);
-          }
-        } else {
-          store_u8_4x1(dst + 0 * dst_stride, d01, 0);
-          store_u8_4x1(dst + 1 * dst_stride, d01, 1);
-          if (h != 2) {
-            store_u8_4x1(dst + 2 * dst_stride, d23, 0);
-            store_u8_4x1(dst + 3 * dst_stride, d23, 1);
-          }
-        }
+        store_u8_4x1(dst + 0 * dst_stride, d01, 0);
+        store_u8_4x1(dst + 1 * dst_stride, d01, 1);
+        store_u8_4x1(dst + 2 * dst_stride, d23, 0);
+        store_u8_4x1(dst + 3 * dst_stride, d23, 1);
 
         dst += 4 * dst_stride;
         src += 4 * src_stride;
         h -= 4;
-      } while (h > 0);
+      } while (h != 0);
     } else {
       do {
         const uint8_t *s = src;
@@ -178,19 +165,16 @@ static INLINE void convolve_x_sr_12tap_neon_i8mm(const uint8_t *src,
           uint8x8_t d2 = convolve12_8_x(s2, filter, permute_tbl, horiz_const);
           uint8x8_t d3 = convolve12_8_x(s3, filter, permute_tbl, horiz_const);
 
-          store_u8_8x2(d + 0 * dst_stride, dst_stride, d0, d1);
-          if (h != 2) {
-            store_u8_8x2(d + 2 * dst_stride, dst_stride, d2, d3);
-          }
+          store_u8_8x4(d + 0 * dst_stride, dst_stride, d0, d1, d2, d3);
 
           s += 8;
           d += 8;
           width -= 8;
-        } while (width > 0);
+        } while (width != 0);
         src += 4 * src_stride;
         dst += 4 * dst_stride;
         h -= 4;
-      } while (h > 0);
+      } while (h != 0);
     }
   }
 }
@@ -240,7 +224,12 @@ void av1_convolve_x_sr_neon_i8mm(const uint8_t *src, int src_stride,
                                  const InterpFilterParams *filter_params_x,
                                  const int subpel_x_qn,
                                  ConvolveParams *conv_params) {
-  (void)conv_params;
+  if (w == 2 || h == 2) {
+    av1_convolve_x_sr_c(src, src_stride, dst, dst_stride, w, h, filter_params_x,
+                        subpel_x_qn, conv_params);
+    return;
+  }
+
   const uint8_t horiz_offset = filter_params_x->taps / 2 - 1;
   src -= horiz_offset;
 
@@ -282,26 +271,15 @@ void av1_convolve_x_sr_neon_i8mm(const uint8_t *src, int src_stride,
       uint8x8_t d01 = vqrshrun_n_s16(vcombine_s16(d0, d1), FILTER_BITS - 1);
       uint8x8_t d23 = vqrshrun_n_s16(vcombine_s16(d2, d3), FILTER_BITS - 1);
 
-      if (w == 2) {
-        store_u8_2x1(dst + 0 * dst_stride, d01, 0);
-        store_u8_2x1(dst + 1 * dst_stride, d01, 2);
-        if (h != 2) {
-          store_u8_2x1(dst + 2 * dst_stride, d23, 0);
-          store_u8_2x1(dst + 3 * dst_stride, d23, 2);
-        }
-      } else {
-        store_u8_4x1(dst + 0 * dst_stride, d01, 0);
-        store_u8_4x1(dst + 1 * dst_stride, d01, 1);
-        if (h != 2) {
-          store_u8_4x1(dst + 2 * dst_stride, d23, 0);
-          store_u8_4x1(dst + 3 * dst_stride, d23, 1);
-        }
-      }
+      store_u8_4x1(dst + 0 * dst_stride, d01, 0);
+      store_u8_4x1(dst + 1 * dst_stride, d01, 1);
+      store_u8_4x1(dst + 2 * dst_stride, d23, 0);
+      store_u8_4x1(dst + 3 * dst_stride, d23, 1);
 
       src += 4 * src_stride;
       dst += 4 * dst_stride;
       h -= 4;
-    } while (h > 0);
+    } while (h != 0);
 
   } else {
     const uint8x16x3_t permute_tbl = vld1q_u8_x3(dot_prod_permute_tbl);
@@ -322,21 +300,16 @@ void av1_convolve_x_sr_neon_i8mm(const uint8_t *src, int src_stride,
         uint8x8_t d2 = convolve8_8_x(s2, x_filter, permute_tbl, horiz_const);
         uint8x8_t d3 = convolve8_8_x(s3, x_filter, permute_tbl, horiz_const);
 
-        vst1_u8(d + 0 * dst_stride, d0);
-        vst1_u8(d + 1 * dst_stride, d1);
-        if (h != 2) {
-          vst1_u8(d + 2 * dst_stride, d2);
-          vst1_u8(d + 3 * dst_stride, d3);
-        }
+        store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
 
         s += 8;
         d += 8;
         width -= 8;
-      } while (width > 0);
+      } while (width != 0);
       src += 4 * src_stride;
       dst += 4 * dst_stride;
       h -= 4;
-    } while (h > 0);
+    } while (h != 0);
   }
 }
 

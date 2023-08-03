@@ -121,21 +121,10 @@ static INLINE void convolve_x_sr_12tap_neon(const uint8_t *src_ptr,
       uint8x8_t d01 = vqmovun_s16(vcombine_s16(d0, d1));
       uint8x8_t d23 = vqmovun_s16(vcombine_s16(d2, d3));
 
-      if (w == 2) {
-        store_u8_2x1(d + 0 * dst_stride, d01, 0);
-        store_u8_2x1(d + 1 * dst_stride, d01, 2);
-        if (h != 2) {
-          store_u8_2x1(d + 2 * dst_stride, d23, 0);
-          store_u8_2x1(d + 3 * dst_stride, d23, 2);
-        }
-      } else {
-        store_u8_4x1(d + 0 * dst_stride, d01, 0);
-        store_u8_4x1(d + 1 * dst_stride, d01, 1);
-        if (h != 2) {
-          store_u8_4x1(d + 2 * dst_stride, d23, 0);
-          store_u8_4x1(d + 3 * dst_stride, d23, 1);
-        }
-      }
+      store_u8_4x1(d + 0 * dst_stride, d01, 0);
+      store_u8_4x1(d + 1 * dst_stride, d01, 1);
+      store_u8_4x1(d + 2 * dst_stride, d23, 0);
+      store_u8_4x1(d + 3 * dst_stride, d23, 1);
 
       s0 = s4;
       s1 = s5;
@@ -151,11 +140,11 @@ static INLINE void convolve_x_sr_12tap_neon(const uint8_t *src_ptr,
       s += 4;
       d += 4;
       width -= 4;
-    } while (width > 0);
+    } while (width != 0);
     src_ptr += 4 * src_stride;
     dst_ptr += 4 * dst_stride;
     h -= 4;
-  } while (h > 0);
+  } while (h != 0);
 
 #else   // !AOM_ARCH_AARCH64
   do {
@@ -189,16 +178,12 @@ static INLINE void convolve_x_sr_12tap_neon(const uint8_t *src_ptr,
 
       uint8x8_t dd0 = vqmovun_s16(vcombine_s16(d0, vdup_n_s16(0)));
 
-      if (w == 2) {
-        store_u8_2x1(d, dd0, 0);
-      } else {
-        store_u8_4x1(d, dd0, 0);
-      }
+      store_u8_4x1(d, dd0, 0);
 
       s += 4;
       d += 4;
       width -= 4;
-    } while (width > 0);
+    } while (width != 0);
     src_ptr += src_stride;
     dst_ptr += dst_stride;
   } while (--h != 0);
@@ -247,7 +232,12 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
                             const InterpFilterParams *filter_params_x,
                             const int subpel_x_qn,
                             ConvolveParams *conv_params) {
-  (void)conv_params;
+  if (w == 2 || h == 2) {
+    av1_convolve_x_sr_c(src, src_stride, dst, dst_stride, w, h, filter_params_x,
+                        subpel_x_qn, conv_params);
+    return;
+  }
+
   const uint8_t horiz_offset = filter_params_x->taps / 2 - 1;
   src -= horiz_offset;
 
@@ -286,11 +276,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
       uint8x8_t d0 =
           convolve4_4_x(s0, s1, s2, s3, x_filter, vget_low_s16(horiz_const));
 
-      if (w == 4) {
-        store_u8_4x1(dst, d0, 0);
-      } else if (w == 2) {
-        store_u8_2x1(dst, d0, 0);
-      }
+      store_u8_4x1(dst, d0, 0);
 
       src += src_stride;
       dst += dst_stride;
@@ -371,7 +357,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
         s += 8;
         d += 8;
         width -= 8;
-      } while (width > 0);
+      } while (width != 0);
       src += 8 * src_stride;
       dst += 8 * dst_stride;
       h -= 8;
