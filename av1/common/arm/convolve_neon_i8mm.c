@@ -458,7 +458,6 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon_i8mm(
         int16x4_t d3 =
             convolve12_4_2d_h(s3, x_filter, permute_tbl, horiz_const);
 
-        // Store 4 elements per row to avoid additional branches. (Safe.)
         store_s16_4x4(dst_ptr, dst_stride, d0, d1, d2, d3);
 
         src_ptr += 4 * src_stride;
@@ -470,7 +469,6 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon_i8mm(
         uint8x16_t s0 = vld1q_u8(src_ptr);
         int16x4_t d0 =
             convolve12_4_2d_h(s0, x_filter, permute_tbl, horiz_const);
-        // Store 4 elements to avoid additional branches. Safe as noted above.
         vst1_s16(dst_ptr, d0);
 
         src_ptr += src_stride;
@@ -502,7 +500,7 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon_i8mm(
           s += 8;
           d += 8;
           width -= 8;
-        } while (width > 0);
+        } while (width != 0);
 
         src_ptr += 4 * src_stride;
         dst_ptr += 4 * dst_stride;
@@ -525,7 +523,7 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon_i8mm(
           s += 8;
           d += 8;
           width -= 8;
-        } while (width > 0);
+        } while (width != 0);
         src_ptr += src_stride;
         dst_ptr += dst_stride;
       } while (--h != 0);
@@ -609,9 +607,6 @@ static INLINE void convolve_2d_sr_horiz_neon_i8mm(
       int16x4_t d2 = convolve4_4_2d_h(s2, x_filter, permute_tbl, horiz_const);
       int16x4_t d3 = convolve4_4_2d_h(s3, x_filter, permute_tbl, horiz_const);
 
-      // Store 4 elements per row to avoid additional branches. This is safe if
-      // the actual block width is < 4 because the intermediate buffer is large
-      // enough to accommodate 128x128 blocks.
       store_s16_4x4(dst_ptr, dst_stride, d0, d1, d2, d3);
 
       src_ptr += 4 * src_stride;
@@ -622,7 +617,6 @@ static INLINE void convolve_2d_sr_horiz_neon_i8mm(
     do {
       uint8x16_t s0 = vld1q_u8(src_ptr);
       int16x4_t d0 = convolve4_4_2d_h(s0, x_filter, permute_tbl, horiz_const);
-      // Store 4 elements to avoid additional branches. (Safe if w == 2.)
       vst1_s16(dst_ptr, d0);
 
       src_ptr += src_stride;
@@ -652,7 +646,7 @@ static INLINE void convolve_2d_sr_horiz_neon_i8mm(
         s += 8;
         d += 8;
         width -= 8;
-      } while (width > 0);
+      } while (width != 0);
       src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
@@ -671,7 +665,7 @@ static INLINE void convolve_2d_sr_horiz_neon_i8mm(
         s += 8;
         d += 8;
         width -= 8;
-      } while (width > 0);
+      } while (width != 0);
       src_ptr += src_stride;
       dst_ptr += dst_stride;
     } while (--height != 0);
@@ -684,7 +678,13 @@ void av1_convolve_2d_sr_neon_i8mm(const uint8_t *src, int src_stride,
                                   const InterpFilterParams *filter_params_y,
                                   const int subpel_x_qn, const int subpel_y_qn,
                                   ConvolveParams *conv_params) {
-  (void)conv_params;
+  if (w == 2 || h == 2) {
+    av1_convolve_2d_sr_c(src, src_stride, dst, dst_stride, w, h,
+                         filter_params_x, filter_params_y, subpel_x_qn,
+                         subpel_y_qn, conv_params);
+    return;
+  }
+
   const int y_filter_taps = get_filter_tap(filter_params_y, subpel_y_qn);
   const int clamped_y_taps = y_filter_taps < 6 ? 6 : y_filter_taps;
   const int im_h = h + clamped_y_taps - 1;

@@ -127,21 +127,10 @@ static INLINE void convolve_2d_sr_vert_12tap_neon(
       uint8x8_t d01 = vqmovun_s16(dd01);
       uint8x8_t d23 = vqmovun_s16(dd23);
 
-      if (w == 2) {
-        store_u8_2x1(dst_ptr + 0 * dst_stride, d01, 0);
-        store_u8_2x1(dst_ptr + 1 * dst_stride, d01, 2);
-        if (h != 2) {
-          store_u8_2x1(dst_ptr + 2 * dst_stride, d23, 0);
-          store_u8_2x1(dst_ptr + 3 * dst_stride, d23, 2);
-        }
-      } else {
-        store_u8_4x1(dst_ptr + 0 * dst_stride, d01, 0);
-        store_u8_4x1(dst_ptr + 1 * dst_stride, d01, 1);
-        if (h != 2) {
-          store_u8_4x1(dst_ptr + 2 * dst_stride, d23, 0);
-          store_u8_4x1(dst_ptr + 3 * dst_stride, d23, 1);
-        }
-      }
+      store_u8_4x1(dst_ptr + 0 * dst_stride, d01, 0);
+      store_u8_4x1(dst_ptr + 1 * dst_stride, d01, 1);
+      store_u8_4x1(dst_ptr + 2 * dst_stride, d23, 0);
+      store_u8_4x1(dst_ptr + 3 * dst_stride, d23, 1);
 
       s0 = s4;
       s1 = s5;
@@ -157,7 +146,7 @@ static INLINE void convolve_2d_sr_vert_12tap_neon(
       src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       h -= 4;
-    } while (h > 0);
+    } while (h != 0);
 
   } else {
     do {
@@ -187,11 +176,7 @@ static INLINE void convolve_2d_sr_vert_12tap_neon(
             convolve12_8_2d_v(s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13,
                               s14, y_filter_0_7, y_filter_8_11, sub_const);
 
-        if (h != 2) {
-          store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
-        } else {
-          store_u8_8x2(d, dst_stride, d0, d1);
-        }
+        store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
 
         s0 = s4;
         s1 = s5;
@@ -207,11 +192,11 @@ static INLINE void convolve_2d_sr_vert_12tap_neon(
         s += 4 * src_stride;
         d += 4 * dst_stride;
         height -= 4;
-      } while (height > 0);
+      } while (height != 0);
       src_ptr += 8;
       dst_ptr += 8;
       w -= 8;
-    } while (w > 0);
+    } while (w != 0);
   }
 }
 
@@ -297,21 +282,10 @@ static INLINE void convolve_2d_sr_vert_8tap_neon(int16_t *src_ptr,
       uint8x8_t d01 = vqmovun_s16(vsubq_s16(vcombine_s16(d0, d1), sub_const));
       uint8x8_t d23 = vqmovun_s16(vsubq_s16(vcombine_s16(d2, d3), sub_const));
 
-      if (w == 2) {
-        store_u8_2x1(dst_ptr + 0 * dst_stride, d01, 0);
-        store_u8_2x1(dst_ptr + 1 * dst_stride, d01, 2);
-        if (h != 2) {
-          store_u8_2x1(dst_ptr + 2 * dst_stride, d23, 0);
-          store_u8_2x1(dst_ptr + 3 * dst_stride, d23, 2);
-        }
-      } else {
-        store_u8_4x1(dst_ptr + 0 * dst_stride, d01, 0);
-        store_u8_4x1(dst_ptr + 1 * dst_stride, d01, 1);
-        if (h != 2) {
-          store_u8_4x1(dst_ptr + 2 * dst_stride, d23, 0);
-          store_u8_4x1(dst_ptr + 3 * dst_stride, d23, 1);
-        }
-      }
+      store_u8_4x1(dst_ptr + 0 * dst_stride, d01, 0);
+      store_u8_4x1(dst_ptr + 1 * dst_stride, d01, 1);
+      store_u8_4x1(dst_ptr + 2 * dst_stride, d23, 0);
+      store_u8_4x1(dst_ptr + 3 * dst_stride, d23, 1);
 
       s0 = s4;
       s1 = s5;
@@ -329,11 +303,7 @@ static INLINE void convolve_2d_sr_vert_8tap_neon(int16_t *src_ptr,
       uint8x8_t d01 =
           vqmovun_s16(vsubq_s16(vcombine_s16(d0, vdup_n_s16(0)), sub_const));
 
-      if (w == 2) {
-        store_u8_2x1(dst_ptr, d01, 0);
-      } else {
-        store_u8_4x1(dst_ptr, d01, 0);
-      }
+      store_u8_4x1(dst_ptr, d01, 0);
 
       s0 = s1;
       s1 = s2;
@@ -346,7 +316,7 @@ static INLINE void convolve_2d_sr_vert_8tap_neon(int16_t *src_ptr,
       dst_ptr += dst_stride;
       h--;
 #endif  // AOM_ARCH_AARCH64
-    } while (h > 0);
+    } while (h != 0);
   } else {
     // Width is a multiple of 8 and height is a multiple of 4.
     do {
@@ -372,11 +342,7 @@ static INLINE void convolve_2d_sr_vert_8tap_neon(int16_t *src_ptr,
         uint8x8_t d3 = convolve8_8_2d_v(s3, s4, s5, s6, s7, s8, s9, s10,
                                         y_filter, sub_const);
 
-        if (h != 2) {
-          store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
-        } else {
-          store_u8_8x2(d, dst_stride, d0, d1);
-        }
+        store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
 
         s0 = s4;
         s1 = s5;
@@ -405,11 +371,11 @@ static INLINE void convolve_2d_sr_vert_8tap_neon(int16_t *src_ptr,
         d += dst_stride;
         height--;
 #endif  // AOM_ARCH_AARCH64
-      } while (height > 0);
+      } while (height != 0);
       src_ptr += 8;
       dst_ptr += 8;
       w -= 8;
-    } while (w > 0);
+    } while (w != 0);
   }
 }
 
@@ -486,21 +452,10 @@ static INLINE void convolve_2d_sr_vert_6tap_neon(int16_t *src_ptr,
       uint8x8_t d01 = vqmovun_s16(vsubq_s16(vcombine_s16(d0, d1), sub_const));
       uint8x8_t d23 = vqmovun_s16(vsubq_s16(vcombine_s16(d2, d3), sub_const));
 
-      if (w == 2) {
-        store_u8_2x1(dst_ptr + 0 * dst_stride, d01, 0);
-        store_u8_2x1(dst_ptr + 1 * dst_stride, d01, 2);
-        if (h != 2) {
-          store_u8_2x1(dst_ptr + 2 * dst_stride, d23, 0);
-          store_u8_2x1(dst_ptr + 3 * dst_stride, d23, 2);
-        }
-      } else {
-        store_u8_4x1(dst_ptr + 0 * dst_stride, d01, 0);
-        store_u8_4x1(dst_ptr + 1 * dst_stride, d01, 1);
-        if (h != 2) {
-          store_u8_4x1(dst_ptr + 2 * dst_stride, d23, 0);
-          store_u8_4x1(dst_ptr + 3 * dst_stride, d23, 1);
-        }
-      }
+      store_u8_4x1(dst_ptr + 0 * dst_stride, d01, 0);
+      store_u8_4x1(dst_ptr + 1 * dst_stride, d01, 1);
+      store_u8_4x1(dst_ptr + 2 * dst_stride, d23, 0);
+      store_u8_4x1(dst_ptr + 3 * dst_stride, d23, 1);
 
       s0 = s4;
       s1 = s5;
@@ -516,11 +471,7 @@ static INLINE void convolve_2d_sr_vert_6tap_neon(int16_t *src_ptr,
       uint8x8_t d01 =
           vqmovun_s16(vsubq_s16(vcombine_s16(d0, vdup_n_s16(0)), sub_const));
 
-      if (w == 2) {
-        store_u8_2x1(dst_ptr, d01, 0);
-      } else {
-        store_u8_4x1(dst_ptr, d01, 0);
-      }
+      store_u8_4x1(dst_ptr, d01, 0);
 
       s0 = s1;
       s1 = s2;
@@ -531,7 +482,7 @@ static INLINE void convolve_2d_sr_vert_6tap_neon(int16_t *src_ptr,
       dst_ptr += dst_stride;
       h--;
 #endif  // AOM_ARCH_AARCH64
-    } while (h > 0);
+    } while (h != 0);
   } else {
     // Width is a multiple of 8 and height is a multiple of 4.
     do {
@@ -557,11 +508,7 @@ static INLINE void convolve_2d_sr_vert_6tap_neon(int16_t *src_ptr,
         uint8x8_t d3 =
             convolve6_8_2d_v(s3, s4, s5, s6, s7, s8, y_filter, sub_const);
 
-        if (h != 2) {
-          store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
-        } else {
-          store_u8_8x2(d, dst_stride, d0, d1);
-        }
+        store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
 
         s0 = s4;
         s1 = s5;
@@ -586,11 +533,11 @@ static INLINE void convolve_2d_sr_vert_6tap_neon(int16_t *src_ptr,
         d += dst_stride;
         height--;
 #endif  // AOM_ARCH_AARCH64
-      } while (height > 0);
+      } while (height != 0);
       src_ptr += 8;
       dst_ptr += 8;
       w -= 8;
-    } while (w > 0);
+    } while (w != 0);
   }
 }
 
