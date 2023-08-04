@@ -73,11 +73,6 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
   return (params_cost << AV1_PROB_COST_SHIFT);
 }
 
-// Calculates the threshold to be used for warp error computation.
-static AOM_INLINE int64_t calc_erroradv_threshold(int64_t ref_frame_error) {
-  return (int64_t)(ref_frame_error * erroradv_tr + 0.5);
-}
-
 // For the given reference frame, computes the global motion parameters for
 // different motion models and finds the best.
 static AOM_INLINE void compute_global_motion_for_ref_frame(
@@ -138,16 +133,12 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
       if (ref_frame_error == 0) continue;
 
-      const int64_t erroradv_threshold =
-          calc_erroradv_threshold(ref_frame_error);
-
       const int64_t warp_error = av1_refine_integerized_param(
           &tmp_wm_params, tmp_wm_params.wmtype, is_cur_buf_hbd(xd), xd->bd,
           ref_buf[frame]->y_buffer, ref_buf[frame]->y_crop_width,
           ref_buf[frame]->y_crop_height, ref_buf[frame]->y_stride,
           cpi->source->y_buffer, src_width, src_height, src_stride,
-          num_refinements, best_warp_error, segment_map, segment_map_w,
-          erroradv_threshold);
+          num_refinements, ref_frame_error, segment_map, segment_map_w);
 
       // av1_refine_integerized_param() can return a simpler model type than
       // its input, so re-check model type here

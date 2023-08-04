@@ -389,24 +389,11 @@ int64_t av1_warp_error(WarpedMotionParams *wm, int use_hbd, int bd,
                     best_error, segment_map, segment_map_stride);
 }
 
-// Factors used to calculate the thresholds for av1_warp_error
-static double thresh_factors[GM_MAX_REFINEMENT_STEPS] = { 1.25, 1.20, 1.15,
-                                                          1.10, 1.05 };
-
-static INLINE int64_t calc_approx_erroradv_threshold(
-    double scaling_factor, int64_t erroradv_threshold) {
-  return erroradv_threshold <
-                 (int64_t)(((double)INT64_MAX / scaling_factor) + 0.5)
-             ? (int64_t)(scaling_factor * erroradv_threshold + 0.5)
-             : INT64_MAX;
-}
-
 int64_t av1_refine_integerized_param(
     WarpedMotionParams *wm, TransformationType wmtype, int use_hbd, int bd,
     uint8_t *ref, int r_width, int r_height, int r_stride, uint8_t *dst,
     int d_width, int d_height, int d_stride, int n_refinements,
-    int64_t best_frame_error, uint8_t *segment_map, int segment_map_stride,
-    int64_t erroradv_threshold) {
+    int64_t ref_frame_error, uint8_t *segment_map, int segment_map_stride) {
   static const int max_trans_model_params[TRANS_TYPES] = { 0, 2, 4, 6 };
   const int border = ERRORADV_BORDER;
   int i = 0, p;
@@ -419,22 +406,36 @@ int64_t av1_refine_integerized_param(
   int32_t best_param;
 
   force_wmtype(wm, wmtype);
+  wm->wmtype = get_wmtype(wm);
+
+  if (n_refinements == 0) {
+    // Compute the maximum error value that will be accepted, so that
+    // av1_warp_error can terminate early if it proves the model will not
+    // be accepted.
+    int64_t selection_threshold = (int64_t)lrint(ref_frame_error * erroradv_tr);
+    return av1_warp_error(wm, use_hbd, bd, ref, r_width, r_height, r_stride,
+                          dst + border * d_stride + border, border, border,
+                          d_width - 2 * border, d_height - 2 * border, d_stride,
+                          0, 0, selection_threshold, segment_map,
+                          segment_map_stride);
+  }
+
+  // When refining, use a slightly higher threshold for the initial error
+  // calculation - see comment above erroradv_early_tr for why.
+  int64_t selection_threshold =
+      (int64_t)lrint(ref_frame_error * erroradv_early_tr);
   best_error =
       av1_warp_error(wm, use_hbd, bd, ref, r_width, r_height, r_stride,
                      dst + border * d_stride + border, border, border,
                      d_width - 2 * border, d_height - 2 * border, d_stride, 0,
-                     0, best_frame_error, segment_map, segment_map_stride);
+                     0, selection_threshold, segment_map, segment_map_stride);
 
-  if (n_refinements == 0) {
-    wm->wmtype = get_wmtype(wm);
-    return best_error;
+  if (best_error > selection_threshold) {
+    return INT64_MAX;
   }
 
-  best_error = AOMMIN(best_error, best_frame_error);
   step = 1 << (n_refinements - 1);
   for (i = 0; i < n_refinements; i++, step >>= 1) {
-    int64_t error_adv_thresh =
-        calc_approx_erroradv_threshold(thresh_factors[i], erroradv_threshold);
     for (p = 0; p < n_params; ++p) {
       int step_dir = 0;
       param = param_mat + p;
@@ -449,8 +450,7 @@ int64_t av1_refine_integerized_param(
           av1_warp_error(wm, use_hbd, bd, ref, r_width, r_height, r_stride,
                          dst + border * d_stride + border, border, border,
                          d_width - 2 * border, d_height - 2 * border, d_stride,
-                         0, 0, AOMMIN(best_error, error_adv_thresh),
-                         segment_map, segment_map_stride);
+                         0, 0, best_error, segment_map, segment_map_stride);
       if (step_error < best_error) {
         best_error = step_error;
         best_param = *param;
@@ -464,8 +464,7 @@ int64_t av1_refine_integerized_param(
           av1_warp_error(wm, use_hbd, bd, ref, r_width, r_height, r_stride,
                          dst + border * d_stride + border, border, border,
                          d_width - 2 * border, d_height - 2 * border, d_stride,
-                         0, 0, AOMMIN(best_error, error_adv_thresh),
-                         segment_map, segment_map_stride);
+                         0, 0, best_error, segment_map, segment_map_stride);
       if (step_error < best_error) {
         best_error = step_error;
         best_param = *param;
@@ -477,12 +476,11 @@ int64_t av1_refine_integerized_param(
       while (step_dir) {
         *param = add_param_offset(p, best_param, step * step_dir);
         force_wmtype(wm, wmtype);
-        step_error =
-            av1_warp_error(wm, use_hbd, bd, ref, r_width, r_height, r_stride,
-                           dst + border * d_stride + border, border, border,
-                           d_width - 2 * border, d_height - 2 * border,
-                           d_stride, 0, 0, AOMMIN(best_error, error_adv_thresh),
-                           segment_map, segment_map_stride);
+        step_error = av1_warp_error(
+            wm, use_hbd, bd, ref, r_width, r_height, r_stride,
+            dst + border * d_stride + border, border, border,
+            d_width - 2 * border, d_height - 2 * border, d_stride, 0, 0,
+            best_error, segment_map, segment_map_stride);
         if (step_error < best_error) {
           best_error = step_error;
           best_param = *param;

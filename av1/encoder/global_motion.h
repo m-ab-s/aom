@@ -72,10 +72,20 @@ typedef struct {
 void av1_convert_model_to_params(const double *params,
                                  WarpedMotionParams *model);
 
-// TODO(sarahparker) These need to be retuned for speed 0 and 1 to
-// maximize gains from segmented error metric
+// Criteria for accepting a global motion model
 static const double erroradv_tr = 0.65;
 static const double erroradv_prod_tr = 20000;
+
+// Early exit threshold for global motion refinement
+// This is set slightly higher than erroradv_tr, as a compromise between
+// two factors:
+//
+// 1) By rejecting un-promising models early, we can reduce the encode time
+//    spent trying to refine them
+//
+// 2) When we refine a model, its error may decrease to below the acceptance
+//    threshold even if the model is initially above the threshold
+static const double erroradv_early_tr = 0.70;
 
 int av1_is_enough_erroradvantage(double best_erroradvantage, int params_cost);
 
@@ -128,8 +138,7 @@ int64_t av1_refine_integerized_param(
     WarpedMotionParams *wm, TransformationType wmtype, int use_hbd, int bd,
     uint8_t *ref, int r_width, int r_height, int r_stride, uint8_t *dst,
     int d_width, int d_height, int d_stride, int n_refinements,
-    int64_t best_frame_error, uint8_t *segment_map, int segment_map_stride,
-    int64_t erroradv_threshold);
+    int64_t ref_frame_error, uint8_t *segment_map, int segment_map_stride);
 
 #ifdef __cplusplus
 }  // extern "C"
