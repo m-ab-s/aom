@@ -761,7 +761,7 @@ if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   add_proto qw/void aom_highbd_blend_a64_d16_mask/, "uint8_t *dst, uint32_t dst_stride, const CONV_BUF_TYPE *src0, uint32_t src0_stride, const CONV_BUF_TYPE *src1, uint32_t src1_stride, const uint8_t *mask, uint32_t mask_stride, int w, int h, int subw, int subh, ConvolveParams *conv_params, const int bd";
   specialize "aom_highbd_blend_a64_mask", qw/sse4_1 neon/;
   specialize "aom_highbd_blend_a64_hmask", qw/sse4_1 neon/;
-  specialize "aom_highbd_blend_a64_vmask", qw/sse4_1/;
+  specialize "aom_highbd_blend_a64_vmask", qw/sse4_1 neon/;
   specialize "aom_highbd_blend_a64_d16_mask", qw/sse4_1 avx2/;
 }
 
