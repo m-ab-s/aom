@@ -328,5 +328,13 @@ INSTANTIATE_TEST_SUITE_P(
                       TestFuncsHBD(highbd_blend_a64_vmask_ref,
                                    aom_highbd_blend_a64_vmask_sse4_1)));
 #endif  // HAVE_SSE4_1
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, BlendA64Mask1DTestHBD,
+    ::testing::Values(TestFuncsHBD(highbd_blend_a64_hmask_ref,
+                                   aom_highbd_blend_a64_hmask_neon)));
+#endif  // HAVE_NEON
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace

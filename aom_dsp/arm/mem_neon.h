@@ -894,6 +894,24 @@ static INLINE uint8x8_t load_unaligned_u8_4x1(const uint8_t *buf) {
   return vreinterpret_u8_u32(a_u32);
 }
 
+static INLINE uint8x8_t load_unaligned_dup_u8_4x2(const uint8_t *buf) {
+  uint32_t a;
+  uint32x2_t a_u32;
+
+  memcpy(&a, buf, 4);
+  a_u32 = vdup_n_u32(a);
+  return vreinterpret_u8_u32(a_u32);
+}
+
+static INLINE uint8x8_t load_unaligned_dup_u8_2x4(const uint8_t *buf) {
+  uint16_t a;
+  uint16x4_t a_u32;
+
+  memcpy(&a, buf, 2);
+  a_u32 = vdup_n_u16(a);
+  return vreinterpret_u8_u16(a_u32);
+}
+
 static INLINE uint8x8_t load_unaligned_u8_4x2(const uint8_t *buf, int stride) {
   uint32_t a;
   uint32x2_t a_u32;
@@ -943,6 +961,13 @@ static INLINE void load_unaligned_u8_4x8(const uint8_t *buf, int stride,
     uint16_t a;                                        \
     a = vget_lane_u16(vreinterpret_u16_u8(src), lane); \
     memcpy(dst, &a, 2);                                \
+  } while (0)
+
+#define store_unaligned_u16_2x1(dst, src, lane)         \
+  do {                                                  \
+    uint32_t a;                                         \
+    a = vget_lane_u32(vreinterpret_u32_u16(src), lane); \
+    memcpy(dst, &a, 4);                                 \
   } while (0)
 
 #define store_unaligned_u16_4x1(dst, src, lane)           \
@@ -1023,6 +1048,19 @@ static INLINE void load_u16_16x4(const uint16_t *s, ptrdiff_t p,
   s += p;
   *s6 = vld1q_u16(s);
   *s7 = vld1q_u16(s + 8);
+}
+
+static INLINE uint16x4_t load_unaligned_u16_2x2(const uint16_t *buf,
+                                                int stride) {
+  uint32_t a;
+  uint32x2_t a_u32;
+
+  memcpy(&a, buf, 4);
+  buf += stride;
+  a_u32 = vdup_n_u32(a);
+  memcpy(&a, buf, 4);
+  a_u32 = vset_lane_u32(a, a_u32, 1);
+  return vreinterpret_u16_u32(a_u32);
 }
 
 static INLINE uint16x4_t load_unaligned_u16_4x1(const uint16_t *buf) {
@@ -1125,6 +1163,13 @@ static INLINE void store_unaligned_u8_4x2(uint8_t *dst, uint32_t dst_stride,
   store_unaligned_u8_4x1(dst, src, 0);
   dst += dst_stride;
   store_unaligned_u8_4x1(dst, src, 1);
+}
+
+static INLINE void store_unaligned_u16_2x2(uint16_t *dst, uint32_t dst_stride,
+                                           uint16x4_t src) {
+  store_unaligned_u16_2x1(dst, src, 0);
+  dst += dst_stride;
+  store_unaligned_u16_2x1(dst, src, 1);
 }
 
 static INLINE void store_unaligned_u16_4x2(uint16_t *dst, uint32_t dst_stride,
