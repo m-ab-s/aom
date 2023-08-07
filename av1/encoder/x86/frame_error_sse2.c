@@ -23,7 +23,7 @@ int64_t av1_calc_frame_error_sse2(const uint8_t *const ref, int ref_stride,
   int i, j;
   __m128i row_error, col_error;
   __m128i zero = _mm_setzero_si128();
-  __m128i dup_255 = _mm_set1_epi16(255);
+  __m128i dup_256 = _mm_set1_epi16(256);
   col_error = zero;
   for (i = 0; i < (p_height); i++) {
     row_error = zero;
@@ -38,9 +38,9 @@ int64_t av1_calc_frame_error_sse2(const uint8_t *const ref, int ref_stride,
       __m128i dst_16_hi = _mm_unpackhi_epi8(dst_8, zero);
 
       __m128i diff_1 =
-          _mm_add_epi16(_mm_sub_epi16(dst_16_lo, ref_16_lo), dup_255);
+          _mm_add_epi16(_mm_sub_epi16(dst_16_lo, ref_16_lo), dup_256);
       __m128i diff_2 =
-          _mm_add_epi16(_mm_sub_epi16(dst_16_hi, ref_16_hi), dup_255);
+          _mm_add_epi16(_mm_sub_epi16(dst_16_hi, ref_16_hi), dup_256);
 
       __m128i error_1_lo =
           _mm_set_epi32(error_measure_lut[_mm_extract_epi16(diff_1, 3)],

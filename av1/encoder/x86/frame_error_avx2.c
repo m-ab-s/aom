@@ -22,7 +22,7 @@ int64_t av1_calc_frame_error_avx2(const uint8_t *const ref, int ref_stride,
   int i, j;
   __m256i row_error, col_error;
   __m256i zero = _mm256_setzero_si256();
-  __m256i dup_255 = _mm256_set1_epi16(255);
+  __m256i dup_256 = _mm256_set1_epi16(256);
   col_error = zero;
 
   for (i = 0; i < (p_height / 4); i++) {
@@ -46,13 +46,13 @@ int64_t av1_calc_frame_error_avx2(const uint8_t *const ref, int ref_stride,
           (__m128i *)(dst + (j * 16) + (((i * 4) + 3) * dst_stride))));
 
       __m256i diff_1 =
-          _mm256_add_epi16(_mm256_sub_epi16(dst_1_16, ref_1_16), dup_255);
+          _mm256_add_epi16(_mm256_sub_epi16(dst_1_16, ref_1_16), dup_256);
       __m256i diff_2 =
-          _mm256_add_epi16(_mm256_sub_epi16(dst_2_16, ref_2_16), dup_255);
+          _mm256_add_epi16(_mm256_sub_epi16(dst_2_16, ref_2_16), dup_256);
       __m256i diff_3 =
-          _mm256_add_epi16(_mm256_sub_epi16(dst_3_16, ref_3_16), dup_255);
+          _mm256_add_epi16(_mm256_sub_epi16(dst_3_16, ref_3_16), dup_256);
       __m256i diff_4 =
-          _mm256_add_epi16(_mm256_sub_epi16(dst_4_16, ref_4_16), dup_255);
+          _mm256_add_epi16(_mm256_sub_epi16(dst_4_16, ref_4_16), dup_256);
 
       __m256i diff_1_lo = _mm256_unpacklo_epi16(diff_1, zero);
       __m256i diff_1_hi = _mm256_unpackhi_epi16(diff_1, zero);
