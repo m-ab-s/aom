@@ -73,7 +73,7 @@ static INLINE void highbd_convolve_y_sr_6tap_neon(
   const uint16x8_t max = vdupq_n_u16((1 << bd) - 1);
   const int16x8_t y_filter_0_7 = vld1q_s16(y_filter_ptr);
 
-  if (w <= 4) {
+  if (w == 4) {
     const int16_t *s = (const int16_t *)(src_ptr + src_stride);
     uint16_t *d = dst_ptr;
 
@@ -94,27 +94,12 @@ static INLINE void highbd_convolve_y_sr_6tap_neon(
       uint16x4_t d3 =
           highbd_convolve6_4_y(s3, s4, s5, s6, s7, s8, y_filter_0_7);
 
-      uint16x8_t d01 = vcombine_u16(d0, d1);
-      uint16x8_t d23 = vcombine_u16(d2, d3);
+      d0 = vmin_u16(d0, vget_low_u16(max));
+      d1 = vmin_u16(d1, vget_low_u16(max));
+      d2 = vmin_u16(d2, vget_low_u16(max));
+      d3 = vmin_u16(d3, vget_low_u16(max));
 
-      d01 = vminq_u16(d01, max);
-      d23 = vminq_u16(d23, max);
-
-      if (w == 2) {
-        store_u16q_2x1(d + 0 * dst_stride, d01, 0);
-        store_u16q_2x1(d + 1 * dst_stride, d01, 2);
-        if (h != 2) {
-          store_u16q_2x1(d + 2 * dst_stride, d23, 0);
-          store_u16q_2x1(d + 3 * dst_stride, d23, 2);
-        }
-      } else {
-        vst1_u16(d + 0 * dst_stride, vget_low_u16(d01));
-        vst1_u16(d + 1 * dst_stride, vget_high_u16(d01));
-        if (h != 2) {
-          vst1_u16(d + 2 * dst_stride, vget_low_u16(d23));
-          vst1_u16(d + 3 * dst_stride, vget_high_u16(d23));
-        }
-      }
+      store_u16_4x4(d, dst_stride, d0, d1, d2, d3);
 
       s0 = s4;
       s1 = s5;
@@ -124,7 +109,7 @@ static INLINE void highbd_convolve_y_sr_6tap_neon(
       s += 4 * src_stride;
       d += 4 * dst_stride;
       h -= 4;
-    } while (h > 0);
+    } while (h != 0);
   } else {
     // Width is a multiple of 8 and height is a multiple of 4.
     do {
@@ -154,11 +139,7 @@ static INLINE void highbd_convolve_y_sr_6tap_neon(
         d2 = vminq_u16(d2, max);
         d3 = vminq_u16(d3, max);
 
-        if (h == 2) {
-          store_u16_8x2(d, dst_stride, d0, d1);
-        } else {
-          store_u16_8x4(d, dst_stride, d0, d1, d2, d3);
-        }
+        store_u16_8x4(d, dst_stride, d0, d1, d2, d3);
 
         s0 = s4;
         s1 = s5;
@@ -168,12 +149,12 @@ static INLINE void highbd_convolve_y_sr_6tap_neon(
         s += 4 * src_stride;
         d += 4 * dst_stride;
         height -= 4;
-      } while (height > 0);
+      } while (height != 0);
 
       src_ptr += 8;
       dst_ptr += 8;
       w -= 8;
-    } while (w > 0);
+    } while (w != 0);
   }
 }
 
@@ -231,7 +212,7 @@ static INLINE void highbd_convolve_y_sr_8tap_neon(
   const uint16x8_t max = vdupq_n_u16((1 << bd) - 1);
   const int16x8_t y_filter = vld1q_s16(y_filter_ptr);
 
-  if (w <= 4) {
+  if (w == 4) {
     const int16_t *s = (const int16_t *)src_ptr;
     uint16_t *d = dst_ptr;
 
@@ -252,27 +233,12 @@ static INLINE void highbd_convolve_y_sr_8tap_neon(
       uint16x4_t d3 =
           highbd_convolve8_4_y(s3, s4, s5, s6, s7, s8, s9, s10, y_filter);
 
-      uint16x8_t d01 = vcombine_u16(d0, d1);
-      uint16x8_t d23 = vcombine_u16(d2, d3);
+      d0 = vmin_u16(d0, vget_low_u16(max));
+      d1 = vmin_u16(d1, vget_low_u16(max));
+      d2 = vmin_u16(d2, vget_low_u16(max));
+      d3 = vmin_u16(d3, vget_low_u16(max));
 
-      d01 = vminq_u16(d01, max);
-      d23 = vminq_u16(d23, max);
-
-      if (w == 2) {
-        store_u16q_2x1(d + 0 * dst_stride, d01, 0);
-        store_u16q_2x1(d + 1 * dst_stride, d01, 2);
-        if (h != 2) {
-          store_u16q_2x1(d + 2 * dst_stride, d23, 0);
-          store_u16q_2x1(d + 3 * dst_stride, d23, 2);
-        }
-      } else {
-        vst1_u16(d + 0 * dst_stride, vget_low_u16(d01));
-        vst1_u16(d + 1 * dst_stride, vget_high_u16(d01));
-        if (h != 2) {
-          vst1_u16(d + 2 * dst_stride, vget_low_u16(d23));
-          vst1_u16(d + 3 * dst_stride, vget_high_u16(d23));
-        }
-      }
+      store_u16_4x4(d, dst_stride, d0, d1, d2, d3);
 
       s0 = s4;
       s1 = s5;
@@ -284,7 +250,7 @@ static INLINE void highbd_convolve_y_sr_8tap_neon(
       s += 4 * src_stride;
       d += 4 * dst_stride;
       h -= 4;
-    } while (h > 0);
+    } while (h != 0);
   } else {
     do {
       int height = h;
@@ -313,11 +279,7 @@ static INLINE void highbd_convolve_y_sr_8tap_neon(
         d2 = vminq_u16(d2, max);
         d3 = vminq_u16(d3, max);
 
-        if (h == 2) {
-          store_u16_8x2(d, dst_stride, d0, d1);
-        } else {
-          store_u16_8x4(d, dst_stride, d0, d1, d2, d3);
-        }
+        store_u16_8x4(d, dst_stride, d0, d1, d2, d3);
 
         s0 = s4;
         s1 = s5;
@@ -329,11 +291,11 @@ static INLINE void highbd_convolve_y_sr_8tap_neon(
         s += 4 * src_stride;
         d += 4 * dst_stride;
         height -= 4;
-      } while (height > 0);
+      } while (height != 0);
       src_ptr += 8;
       dst_ptr += 8;
       w -= 8;
-    } while (w > 0);
+    } while (w != 0);
   }
 }
 
@@ -408,7 +370,7 @@ static INLINE void highbd_convolve_y_sr_12tap_neon(
   const int16x8_t y_filter_0_7 = vld1q_s16(y_filter_ptr);
   const int16x4_t y_filter_8_11 = vld1_s16(y_filter_ptr + 8);
 
-  if (w <= 4) {
+  if (w == 4) {
     const int16_t *s = (const int16_t *)src_ptr;
     uint16_t *d = dst_ptr;
 
@@ -434,27 +396,12 @@ static INLINE void highbd_convolve_y_sr_12tap_neon(
           highbd_convolve12_4_y(s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13,
                                 s14, y_filter_0_7, y_filter_8_11);
 
-      uint16x8_t d01 = vcombine_u16(d0, d1);
-      uint16x8_t d23 = vcombine_u16(d2, d3);
+      d0 = vmin_u16(d0, vget_low_u16(max));
+      d1 = vmin_u16(d1, vget_low_u16(max));
+      d2 = vmin_u16(d2, vget_low_u16(max));
+      d3 = vmin_u16(d3, vget_low_u16(max));
 
-      d01 = vminq_u16(d01, max);
-      d23 = vminq_u16(d23, max);
-
-      if (w == 2) {
-        store_u16q_2x1(d + 0 * dst_stride, d01, 0);
-        store_u16q_2x1(d + 1 * dst_stride, d01, 2);
-        if (h != 2) {
-          store_u16q_2x1(d + 2 * dst_stride, d23, 0);
-          store_u16q_2x1(d + 3 * dst_stride, d23, 2);
-        }
-      } else {
-        vst1_u16(d + 0 * dst_stride, vget_low_u16(d01));
-        vst1_u16(d + 1 * dst_stride, vget_high_u16(d01));
-        if (h != 2) {
-          vst1_u16(d + 2 * dst_stride, vget_low_u16(d23));
-          vst1_u16(d + 3 * dst_stride, vget_high_u16(d23));
-        }
-      }
+      store_u16_4x4(d, dst_stride, d0, d1, d2, d3);
 
       s0 = s4;
       s1 = s5;
@@ -470,7 +417,7 @@ static INLINE void highbd_convolve_y_sr_12tap_neon(
       s += 4 * src_stride;
       d += 4 * dst_stride;
       h -= 4;
-    } while (h > 0);
+    } while (h != 0);
   } else {
     do {
       int height = h;
@@ -504,11 +451,7 @@ static INLINE void highbd_convolve_y_sr_12tap_neon(
         d2 = vminq_u16(d2, max);
         d3 = vminq_u16(d3, max);
 
-        if (h == 2) {
-          store_u16_8x2(d, dst_stride, d0, d1);
-        } else {
-          store_u16_8x4(d, dst_stride, d0, d1, d2, d3);
-        }
+        store_u16_8x4(d, dst_stride, d0, d1, d2, d3);
 
         s0 = s4;
         s1 = s5;
@@ -524,12 +467,12 @@ static INLINE void highbd_convolve_y_sr_12tap_neon(
         s += 4 * src_stride;
         d += 4 * dst_stride;
         height -= 4;
-      } while (height > 0);
+      } while (height != 0);
 
       src_ptr += 8;
       dst_ptr += 8;
       w -= 8;
-    } while (w > 0);
+    } while (w != 0);
   }
 }
 
@@ -537,6 +480,11 @@ void av1_highbd_convolve_y_sr_neon(const uint16_t *src, int src_stride,
                                    uint16_t *dst, int dst_stride, int w, int h,
                                    const InterpFilterParams *filter_params_y,
                                    const int subpel_y_qn, int bd) {
+  if (w == 2 || h == 2) {
+    av1_highbd_convolve_y_sr_c(src, src_stride, dst, dst_stride, w, h,
+                               filter_params_y, subpel_y_qn, bd);
+    return;
+  }
   const int y_filter_taps = get_filter_tap(filter_params_y, subpel_y_qn);
   const int vert_offset = filter_params_y->taps / 2 - 1;
   const int16_t *y_filter_ptr = av1_get_interp_filter_subpel_kernel(
