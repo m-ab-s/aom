@@ -129,8 +129,8 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
       int64_t ref_frame_error = av1_segmented_frame_error(
           is_cur_buf_hbd(xd), xd->bd, ref_buf[frame]->y_buffer,
-          ref_buf[frame]->y_stride, cpi->source->y_buffer, src_width,
-          src_height, src_stride, segment_map, segment_map_w);
+          ref_buf[frame]->y_stride, cpi->source->y_buffer, src_stride,
+          src_width, src_height, segment_map, segment_map_w);
 
       if (ref_frame_error == 0) continue;
 

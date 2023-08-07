@@ -24,9 +24,9 @@
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 namespace {
-typedef int64_t (*frame_error_func)(const uint8_t *const ref, int stride,
-                                    const uint8_t *const dst, int p_width,
-                                    int p_height, int p_stride);
+typedef int64_t (*frame_error_func)(const uint8_t *const ref, int ref_stride,
+                                    const uint8_t *const dst, int dst_stride,
+                                    int p_width, int p_height);
 #if HAVE_AVX2 || HAVE_SSE2
 const int kBlockWidth[] = {
   832, 834, 640, 1280, 1920,
@@ -68,8 +68,8 @@ void AV1FrameErrorTest::RandomValues(frame_error_func test_impl, int width,
     ref[i] = rnd_.Rand8();
   }
   const int64_t ref_error =
-      av1_calc_frame_error_c(ref, stride, dst, width, height, stride);
-  const int64_t test_error = test_impl(ref, stride, dst, width, height, stride);
+      av1_calc_frame_error_c(ref, stride, dst, stride, width, height);
+  const int64_t test_error = test_impl(ref, stride, dst, stride, width, height);
   ASSERT_EQ(test_error, ref_error) << width << "x" << height;
   aom_free(dst);
   aom_free(ref);
@@ -94,9 +94,9 @@ void AV1FrameErrorTest::ExtremeValues(frame_error_func test_impl, int width,
       memset(ref, 0, max_blk_size);
     }
     const int64_t ref_error =
-        av1_calc_frame_error_c(ref, stride, dst, width, height, stride);
+        av1_calc_frame_error_c(ref, stride, dst, stride, width, height);
     const int64_t test_error =
-        test_impl(ref, stride, dst, width, height, stride);
+        test_impl(ref, stride, dst, stride, width, height);
     ASSERT_EQ(test_error, ref_error) << width << "x" << height;
   }
   aom_free(dst);
@@ -124,7 +124,7 @@ void AV1FrameErrorTest::RunSpeedTest(frame_error_func test_impl, int width,
     aom_usec_timer_start(&timer);
     frame_error_func func = funcs[i];
     for (int j = 0; j < num_loops; ++j) {
-      func(ref, stride, dst, width, height, stride);
+      func(ref, stride, dst, stride, width, height);
     }
     aom_usec_timer_mark(&timer);
     double time = static_cast<double>(aom_usec_timer_elapsed(&timer));

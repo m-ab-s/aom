@@ -17,8 +17,8 @@
 #include "config/av1_rtcd.h"
 
 int64_t av1_calc_frame_error_sse2(const uint8_t *const ref, int ref_stride,
-                                  const uint8_t *const dst, int p_width,
-                                  int p_height, int dst_stride) {
+                                  const uint8_t *const dst, int dst_stride,
+                                  int p_width, int p_height) {
   int64_t sum_error = 0;
   int i, j;
   __m128i row_error, col_error;
