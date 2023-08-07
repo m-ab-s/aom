@@ -20,8 +20,6 @@
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
-#define custom_packs_s32(w0, w1) vcombine_s16(vqmovn_s32(w0), vqmovn_s32(w1))
-
 static INLINE void transpose_16bit_4x4(const int16x8_t *const in,
                                        int16x8_t *const out) {
 #if AOM_ARCH_AARCH64
@@ -414,11 +412,10 @@ void av1_fadst4x4_neon(const int16x8_t *input, int16x8_t *output,
   u[2] = vrshlq_s32(u[2], vshift);
   u[3] = vrshlq_s32(u[5], vshift);
 
-  output[0] = custom_packs_s32(u[0], u[2]);
-
-  output[1] = custom_packs_s32(u[1], u[3]);
-  output[2] = vextq_s16(output[0], output[0], 4);
-  output[3] = vextq_s16(output[1], output[1], 4);
+  output[0] = vcombine_s16(vmovn_s32(u[0]), vmovn_s32(u[2]));
+  output[1] = vcombine_s16(vmovn_s32(u[1]), vmovn_s32(u[3]));
+  output[2] = vcombine_s16(vmovn_s32(u[2]), vmovn_s32(u[0]));
+  output[3] = vcombine_s16(vmovn_s32(u[3]), vmovn_s32(u[1]));
 }
 
 #define btf_16_w4_neon(w0_l, w0_h, w1_l, w1_h, in0, in1, out0, out1, \
@@ -607,10 +604,10 @@ static void fadst8x4_neon(const int16x8_t *input, int16x8_t *output,
   u_lo[3] = vrshlq_s32(u_lo[6], v_cos_bit);
   u_hi[3] = vrshlq_s32(u_hi[6], v_cos_bit);
 
-  output[0] = custom_packs_s32(u_lo[0], u_hi[0]);
-  output[1] = custom_packs_s32(u_lo[1], u_hi[1]);
-  output[2] = custom_packs_s32(u_lo[2], u_hi[2]);
-  output[3] = custom_packs_s32(u_lo[3], u_hi[3]);
+  output[0] = vcombine_s16(vmovn_s32(u_lo[0]), vmovn_s32(u_hi[0]));
+  output[1] = vcombine_s16(vmovn_s32(u_lo[1]), vmovn_s32(u_hi[1]));
+  output[2] = vcombine_s16(vmovn_s32(u_lo[2]), vmovn_s32(u_hi[2]));
+  output[3] = vcombine_s16(vmovn_s32(u_lo[3]), vmovn_s32(u_hi[3]));
 }
 
 void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
@@ -641,10 +638,10 @@ void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
   u[2] = vrshlq_s32(u[2], v_cos_bit);
   u[3] = vrshlq_s32(u[3], v_cos_bit);
 
-  output[0] = custom_packs_s32(u[0], u[1]);
-  output[1] = custom_packs_s32(u[2], u[3]);
-  output[2] = vextq_s16(output[0], output[0], 4);
-  output[3] = vextq_s16(output[1], output[1], 4);
+  output[0] = vcombine_s16(vmovn_s32(u[0]), vmovn_s32(u[1]));
+  output[1] = vcombine_s16(vmovn_s32(u[2]), vmovn_s32(u[3]));
+  output[2] = vcombine_s16(vmovn_s32(u[1]), vmovn_s32(u[0]));
+  output[3] = vcombine_s16(vmovn_s32(u[3]), vmovn_s32(u[2]));
 }
 
 #define btf_16_neon(w0_l, w0_h, w1_l, w1_h, in0, in1, out0, out1) \
@@ -665,8 +662,8 @@ void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
     int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                     \
     int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                     \
     int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                     \
-    out0 = custom_packs_s32(c0, c1);                              \
-    out1 = custom_packs_s32(d0, d1);                              \
+    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));            \
+    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));            \
   } while (0)
 
 #define btf_16_neon_mode0(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
@@ -687,8 +684,8 @@ void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
     int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                          \
     int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                          \
     int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                          \
-    out0 = custom_packs_s32(c0, c1);                                   \
-    out1 = custom_packs_s32(d0, d1);                                   \
+    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                 \
+    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                 \
   } while (0)
 
 #define btf_16_neon_mode1(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
@@ -709,8 +706,8 @@ void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
     int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                          \
     int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                          \
     int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                          \
-    out0 = custom_packs_s32(c0, c1);                                   \
-    out1 = custom_packs_s32(d0, d1);                                   \
+    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                 \
+    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                 \
   } while (0)
 
 #define btf_16_neon_mode02(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
@@ -731,8 +728,8 @@ void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
     int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                           \
     int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                           \
     int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                           \
-    out0 = custom_packs_s32(c0, c1);                                    \
-    out1 = custom_packs_s32(d0, d1);                                    \
+    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                  \
+    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                  \
   } while (0)
 
 #define btf_16_neon_mode2(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
@@ -753,8 +750,8 @@ void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
     int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                          \
     int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                          \
     int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                          \
-    out0 = custom_packs_s32(c0, c1);                                   \
-    out1 = custom_packs_s32(d0, d1);                                   \
+    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                 \
+    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                 \
   } while (0)
 
 #define btf_16_neon_mode3(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
@@ -775,8 +772,8 @@ void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
     int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                          \
     int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                          \
     int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                          \
-    out0 = custom_packs_s32(c0, c1);                                   \
-    out1 = custom_packs_s32(d0, d1);                                   \
+    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                 \
+    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                 \
   } while (0)
 
 static void fdct8x4_neon(const int16x8_t *input, int16x8_t *output,
