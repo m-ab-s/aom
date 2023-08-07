@@ -20,8 +20,9 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/global_motion_facade.h"
 
-// Highest motion model to search.
-#define GLOBAL_TRANS_TYPES_ENC 3
+// Range of model types to search
+#define FIRST_GLOBAL_TRANS_TYPE ROTZOOM
+#define LAST_GLOBAL_TRANS_TYPE ROTZOOM
 
 // Computes the cost for the warp parameters.
 static int gm_get_params_cost(const WarpedMotionParams *gm,
@@ -83,32 +84,32 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   MACROBLOCK *const x = &td->mb;
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
-  int i;
   int src_width = cpi->source->y_crop_width;
   int src_height = cpi->source->y_crop_height;
   int src_stride = cpi->source->y_stride;
-  WarpedMotionParams tmp_wm_params;
-  const double *params_this_motion;
   assert(ref_buf[frame] != NULL);
-  TransformationType model;
   int bit_depth = cpi->common.seq_params->bit_depth;
   GlobalMotionMethod global_motion_method = default_global_motion_method;
   int num_refinements = cpi->sf.gm_sf.num_refinement_steps;
 
-  for (model = ROTZOOM; model < GLOBAL_TRANS_TYPES_ENC; ++model) {
+  // Select the best model based on fractional error reduction.
+  // By initializing this to erroradv_tr, the same logic which is used to
+  // select the best model will automatically filter out any model which
+  // doesn't meet the required quality threshold
+  double best_erroradv = erroradv_tr;
+  for (TransformationType model = FIRST_GLOBAL_TRANS_TYPE;
+       model <= LAST_GLOBAL_TRANS_TYPE; ++model) {
     if (!aom_compute_global_motion(model, cpi->source, ref_buf[frame],
                                    bit_depth, global_motion_method,
                                    motion_models, RANSAC_NUM_MOTIONS)) {
       continue;
     }
 
-    int64_t best_ref_frame_error = 0;
-    int64_t best_warp_error = INT64_MAX;
-    for (i = 0; i < RANSAC_NUM_MOTIONS; ++i) {
+    for (int i = 0; i < RANSAC_NUM_MOTIONS; ++i) {
       if (motion_models[i].num_inliers == 0) continue;
 
-      params_this_motion = motion_models[i].params;
-      av1_convert_model_to_params(params_this_motion, &tmp_wm_params);
+      WarpedMotionParams tmp_wm_params;
+      av1_convert_model_to_params(motion_models[i].params, &tmp_wm_params);
 
       // Skip models that we won't use (IDENTITY or TRANSLATION)
       //
@@ -144,9 +145,10 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       // its input, so re-check model type here
       if (tmp_wm_params.wmtype <= TRANSLATION) continue;
 
-      if (warp_error < best_warp_error) {
-        best_ref_frame_error = ref_frame_error;
-        best_warp_error = warp_error;
+      double erroradvantage = (double)warp_error / ref_frame_error;
+
+      if (erroradvantage < best_erroradv) {
+        best_erroradv = erroradvantage;
         // Save the wm_params modified by
         // av1_refine_integerized_param() rather than motion index to
         // avoid rerunning refine() below.
@@ -154,41 +156,34 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
                sizeof(WarpedMotionParams));
       }
     }
+  }
 
-    if (!av1_get_shear_params(&cm->global_motion[frame]))
-      cm->global_motion[frame] = default_warp_params;
+  if (!av1_get_shear_params(&cm->global_motion[frame]))
+    cm->global_motion[frame] = default_warp_params;
 
 #if 0
-    // We never choose translational models, so this code is disabled
-    if (cm->global_motion[frame].wmtype == TRANSLATION) {
-      cm->global_motion[frame].wmmat[0] =
-          convert_to_trans_prec(cm->features.allow_high_precision_mv,
-                                cm->global_motion[frame].wmmat[0]) *
-          GM_TRANS_ONLY_DECODE_FACTOR;
-      cm->global_motion[frame].wmmat[1] =
-          convert_to_trans_prec(cm->features.allow_high_precision_mv,
-                                cm->global_motion[frame].wmmat[1]) *
-          GM_TRANS_ONLY_DECODE_FACTOR;
-    }
+  // We never choose translational models, so this code is disabled
+  if (cm->global_motion[frame].wmtype == TRANSLATION) {
+    cm->global_motion[frame].wmmat[0] =
+        convert_to_trans_prec(cm->features.allow_high_precision_mv,
+                              cm->global_motion[frame].wmmat[0]) *
+        GM_TRANS_ONLY_DECODE_FACTOR;
+    cm->global_motion[frame].wmmat[1] =
+        convert_to_trans_prec(cm->features.allow_high_precision_mv,
+                              cm->global_motion[frame].wmmat[1]) *
+        GM_TRANS_ONLY_DECODE_FACTOR;
+  }
 #endif
 
-    if (cm->global_motion[frame].wmtype == IDENTITY) continue;
+  if (cm->global_motion[frame].wmtype == IDENTITY) return;
 
-    // Once we get here, best_ref_frame_error must be > 0. This is because
-    // of the logic above, which skips  over any models which have
-    // ref_frame_error == 0
-    assert(best_ref_frame_error > 0);
-
-    // If the best error advantage found doesn't meet the threshold for
-    // this motion type, revert to IDENTITY.
-    if (!av1_is_enough_erroradvantage(
-            (double)best_warp_error / best_ref_frame_error,
-            gm_get_params_cost(&cm->global_motion[frame], ref_params,
-                               cm->features.allow_high_precision_mv))) {
-      cm->global_motion[frame] = default_warp_params;
-    }
-
-    if (cm->global_motion[frame].wmtype != IDENTITY) break;
+  // If the best error advantage found doesn't meet the threshold for
+  // this motion type, revert to IDENTITY.
+  if (!av1_is_enough_erroradvantage(
+          best_erroradv,
+          gm_get_params_cost(&cm->global_motion[frame], ref_params,
+                             cm->features.allow_high_precision_mv))) {
+    cm->global_motion[frame] = default_warp_params;
   }
 }
 
