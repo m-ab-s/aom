@@ -629,6 +629,13 @@ INSTANTIATE_TEST_SUITE_P(
                                        aom_highbd_blend_a64_d16_mask_avx2)));
 #endif  // HAVE_AVX2
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, BlendA64MaskTestHBD_d16,
+    ::testing::Values(TestFuncsHBD_d16(aom_highbd_blend_a64_d16_mask_c,
+                                       aom_highbd_blend_a64_d16_mask_neon)));
+#endif  // HAVE_NEON
+
 // TODO(slavarnway): Enable the following in the avx2 commit. (56501)
 #if 0
 #if HAVE_AVX2

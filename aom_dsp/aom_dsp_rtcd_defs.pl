@@ -762,7 +762,7 @@ if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   specialize "aom_highbd_blend_a64_mask", qw/sse4_1 neon/;
   specialize "aom_highbd_blend_a64_hmask", qw/sse4_1 neon/;
   specialize "aom_highbd_blend_a64_vmask", qw/sse4_1 neon/;
-  specialize "aom_highbd_blend_a64_d16_mask", qw/sse4_1 avx2/;
+  specialize "aom_highbd_blend_a64_d16_mask", qw/sse4_1 neon avx2/;
 }
 
 if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
