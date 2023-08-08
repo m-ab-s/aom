@@ -45,9 +45,9 @@ class BlendA64Mask1DTest : public FunctionEquivalenceTest<F> {
 
   virtual void Execute(const T *p_src0, const T *p_src1) = 0;
 
-  void Common() {
-    w_ = 2 << this->rng_(MAX_SB_SIZE_LOG2);
-    h_ = 2 << this->rng_(MAX_SB_SIZE_LOG2);
+  void Common(int block_size) {
+    w_ = block_size_wide[block_size];
+    h_ = block_size_high[block_size];
 
     dst_offset_ = this->rng_(33);
     dst_stride_ = this->rng_(kMaxWidth + 1 - w_) + w_;
@@ -132,7 +132,7 @@ class BlendA64Mask1DTest8B : public BlendA64Mask1DTest<F8B, uint8_t> {
 };
 
 TEST_P(BlendA64Mask1DTest8B, RandomValues) {
-  for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
+  for (int bsize = 0; bsize < BLOCK_SIZES_ALL; ++bsize) {
     for (int i = 0; i < kBufSize; ++i) {
       dst_ref_[i] = rng_.Rand8();
       dst_tst_[i] = rng_.Rand8();
@@ -144,23 +144,23 @@ TEST_P(BlendA64Mask1DTest8B, RandomValues) {
     for (int i = 0; i < kMaxMaskSize; ++i)
       mask_[i] = rng_(AOM_BLEND_A64_MAX_ALPHA + 1);
 
-    Common();
+    Common(bsize);
   }
 }
 
 TEST_P(BlendA64Mask1DTest8B, ExtremeValues) {
-  for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
-    for (int i = 0; i < kBufSize; ++i) {
-      dst_ref_[i] = rng_(2) + 254;
-      dst_tst_[i] = rng_(2) + 254;
-      src0_[i] = rng_(2) + 254;
-      src1_[i] = rng_(2) + 254;
-    }
+  for (int i = 0; i < kBufSize; ++i) {
+    dst_ref_[i] = rng_(2) + 254;
+    dst_tst_[i] = rng_(2) + 254;
+    src0_[i] = rng_(2) + 254;
+    src1_[i] = rng_(2) + 254;
+  }
 
-    for (int i = 0; i < kMaxMaskSize; ++i)
-      mask_[i] = rng_(2) + AOM_BLEND_A64_MAX_ALPHA - 1;
+  for (int i = 0; i < kMaxMaskSize; ++i)
+    mask_[i] = rng_(2) + AOM_BLEND_A64_MAX_ALPHA - 1;
 
-    Common();
+  for (int bsize = 0; bsize < BLOCK_SIZES_ALL; ++bsize) {
+    Common(bsize);
   }
 }
 
@@ -243,37 +243,27 @@ class BlendA64Mask1DTestHBD : public BlendA64Mask1DTest<FHBD, uint16_t> {
 };
 
 TEST_P(BlendA64Mask1DTestHBD, RandomValues) {
-  for (int iter = 0; iter < kIterations && !HasFatalFailure(); ++iter) {
-    switch (rng_(3)) {
-      case 0: bit_depth_ = 8; break;
-      case 1: bit_depth_ = 10; break;
-      default: bit_depth_ = 12; break;
+  for (bit_depth_ = 8; bit_depth_ <= 12; bit_depth_ += 2) {
+    for (int bsize = 0; bsize < BLOCK_SIZES_ALL; ++bsize) {
+      const int hi = 1 << bit_depth_;
+
+      for (int i = 0; i < kBufSize; ++i) {
+        dst_ref_[i] = rng_(hi);
+        dst_tst_[i] = rng_(hi);
+        src0_[i] = rng_(hi);
+        src1_[i] = rng_(hi);
+      }
+
+      for (int i = 0; i < kMaxMaskSize; ++i)
+        mask_[i] = rng_(AOM_BLEND_A64_MAX_ALPHA + 1);
+
+      Common(bsize);
     }
-
-    const int hi = 1 << bit_depth_;
-
-    for (int i = 0; i < kBufSize; ++i) {
-      dst_ref_[i] = rng_(hi);
-      dst_tst_[i] = rng_(hi);
-      src0_[i] = rng_(hi);
-      src1_[i] = rng_(hi);
-    }
-
-    for (int i = 0; i < kMaxMaskSize; ++i)
-      mask_[i] = rng_(AOM_BLEND_A64_MAX_ALPHA + 1);
-
-    Common();
   }
 }
 
 TEST_P(BlendA64Mask1DTestHBD, ExtremeValues) {
-  for (int iter = 0; iter < 1000 && !HasFatalFailure(); ++iter) {
-    switch (rng_(3)) {
-      case 0: bit_depth_ = 8; break;
-      case 1: bit_depth_ = 10; break;
-      default: bit_depth_ = 12; break;
-    }
-
+  for (bit_depth_ = 8; bit_depth_ <= 12; bit_depth_ += 2) {
     const int hi = 1 << bit_depth_;
     const int lo = hi - 2;
 
@@ -287,7 +277,9 @@ TEST_P(BlendA64Mask1DTestHBD, ExtremeValues) {
     for (int i = 0; i < kMaxMaskSize; ++i)
       mask_[i] = rng_(2) + AOM_BLEND_A64_MAX_ALPHA - 1;
 
-    Common();
+    for (int bsize = 0; bsize < BLOCK_SIZES_ALL; ++bsize) {
+      Common(bsize);
+    }
   }
 }
 
