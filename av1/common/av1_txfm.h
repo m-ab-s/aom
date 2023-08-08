@@ -52,6 +52,21 @@ static INLINE const int32_t *sinpi_arr(int n) {
   return av1_sinpi_arr_data[n - cos_bit_min];
 }
 
+// The reduced bit-width arrays are only used in the Arm Neon implementations
+// in av1_fwd_txfm2d_neon.c for now.
+#if HAVE_NEON
+extern const int16_t av1_cospi_arr_s16_data[4][64];
+extern const int16_t av1_sinpi_arr_s16_data[4][5];
+
+static INLINE const int16_t *cospi_arr_s16(int n) {
+  return av1_cospi_arr_s16_data[n - cos_bit_min];
+}
+
+static INLINE const int16_t *sinpi_arr_s16(int n) {
+  return av1_sinpi_arr_s16_data[n - cos_bit_min];
+}
+#endif  // HAVE_NEON
+
 static INLINE int32_t range_check_value(int32_t value, int8_t bit) {
 #if CONFIG_COEFFICIENT_RANGE_CHECKING
   const int64_t max_value = (1LL << (bit - 1)) - 1;

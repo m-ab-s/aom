@@ -382,7 +382,7 @@ static INLINE void round_shift_16bit_vector(int16x8_t *in, int size,
 void av1_fadst4x4_neon(const int16x8_t *input, int16x8_t *output,
                        int8_t cos_bit, const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *sinpi = sinpi_arr(cos_bit);
+  const int16_t *sinpi = sinpi_arr_s16(cos_bit);
 
   int32x4_t u[6], v[6];
 
@@ -469,7 +469,7 @@ void av1_fadst4x4_neon(const int16x8_t *input, int16x8_t *output,
 static void fadst4x8_neon(const int16x8_t *input, int16x8_t *output,
                           int8_t cos_bit, const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // stage 1-2
@@ -523,7 +523,7 @@ static void fadst4x8_neon(const int16x8_t *input, int16x8_t *output,
 static void fadst8x4_neon(const int16x8_t *input, int16x8_t *output,
                           int8_t cos_bit, const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *sinpi = sinpi_arr(cos_bit);
+  const int16_t *sinpi = sinpi_arr_s16(cos_bit);
 
   const int16x8_t in7 = vaddq_s16(input[0], input[1]);
   int32x4_t u_lo[8], u_hi[8], v_hi[8];
@@ -596,7 +596,7 @@ static void fadst8x4_neon(const int16x8_t *input, int16x8_t *output,
 void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
                       const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   int32x4_t u[4];
@@ -762,7 +762,7 @@ void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
 static void fdct8x4_neon(const int16x8_t *input, int16x8_t *output,
                          int8_t cos_bit, const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // stage 1
@@ -789,7 +789,7 @@ static void fdct8x4_neon(const int16x8_t *input, int16x8_t *output,
 static void fdct4x8_neon(const int16x8_t *input, int16x8_t *output,
                          int8_t cos_bit, const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // stage 1
@@ -835,7 +835,7 @@ static void fdct4x8_neon(const int16x8_t *input, int16x8_t *output,
 void fdct8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
                   const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // stage 1
@@ -879,7 +879,7 @@ void fdct8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
 static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
                           int8_t cos_bit, const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // stage 1
@@ -981,7 +981,7 @@ static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
 void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
                        int8_t cos_bit, const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // stage 1
@@ -1208,7 +1208,7 @@ void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
 }
 
 void av1_fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
-                                  int16x8_t *x4, const int32_t *cospi32,
+                                  int16x8_t *x4, const int16_t *cospi32,
                                   const int32x4_t *v_cos_bit) {
   int16x8_t x1[64];
   int16x8_t x2[64];
@@ -1429,7 +1429,7 @@ void av1_fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
 void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
                        int8_t cos_bit, const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   int16x8_t x3[64];
@@ -1806,7 +1806,7 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
 void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
                     const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // stage 1
@@ -1866,7 +1866,7 @@ void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
 static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
                            int8_t cos_bit, const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // stage 1
@@ -2994,8 +2994,7 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   (void)stage_range;
   int32x4_t buf0[32];
   int32x4_t buf1[32];
-  const int32_t *cospi;
-  cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   int startidx = 0 * stride;
@@ -3100,7 +3099,7 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf0[31] = buf1[31];
 
   // stage 3
-  cospi = cospi_arr(cos_bit);
+  cospi = cospi_arr_s16(cos_bit);
   buf1[0] = vaddq_s32(buf0[0], buf0[7]);
   buf1[7] = vsubq_s32(buf0[0], buf0[7]);
   buf1[1] = vaddq_s32(buf0[1], buf0[6]);
@@ -3135,7 +3134,7 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf1[28] = vaddq_s32(buf0[28], buf0[27]);
 
   // stage 4
-  cospi = cospi_arr(cos_bit);
+  cospi = cospi_arr_s16(cos_bit);
   buf0[0] = vaddq_s32(buf1[0], buf1[3]);
   buf0[3] = vsubq_s32(buf1[0], buf1[3]);
   buf0[1] = vaddq_s32(buf1[1], buf1[2]);
@@ -3170,7 +3169,7 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf0[31] = buf1[31];
 
   // stage 5
-  cospi = cospi_arr(cos_bit);
+  cospi = cospi_arr_s16(cos_bit);
   btf_32_neon(cospi[32], cospi[32], buf0[0], buf0[1], buf1[0], buf1[1],
               v_cos_bit);
   btf_32_type1_neon(cospi[48], cospi[16], buf0[2], buf0[3], buf1[2], buf1[3],
@@ -3205,7 +3204,7 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf1[30] = vaddq_s32(buf0[30], buf0[29]);
 
   // stage 6
-  cospi = cospi_arr(cos_bit);
+  cospi = cospi_arr_s16(cos_bit);
   buf0[0] = buf1[0];
   buf0[1] = buf1[1];
   buf0[2] = buf1[2];
@@ -3240,7 +3239,7 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf0[31] = buf1[31];
 
   // stage 7
-  cospi = cospi_arr(cos_bit);
+  cospi = cospi_arr_s16(cos_bit);
   buf1[0] = buf0[0];
   buf1[1] = buf0[1];
   buf1[2] = buf0[2];
@@ -3276,7 +3275,7 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf1[31] = vaddq_s32(buf0[31], buf0[30]);
 
   // stage 8
-  cospi = cospi_arr(cos_bit);
+  cospi = cospi_arr_s16(cos_bit);
   buf0[0] = buf1[0];
   buf0[1] = buf1[1];
   buf0[2] = buf1[2];
@@ -3380,7 +3379,7 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
 
 static void av1_fdct64_new_stage1234_neon(int32x4_t *input, const int instride,
                                           int32x4_t *x3, int32x4_t *x4,
-                                          const int32_t *cospi,
+                                          const int16_t *cospi,
                                           const int32x4_t *v_cos_bit,
                                           int *startidx, int *endidx) {
   // stage 1
@@ -3679,7 +3678,7 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
                                 const int outstride,
                                 const int8_t *stage_range) {
   (void)stage_range;
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int16_t *cospi = cospi_arr_s16(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   int startidx = 0 * instride;
