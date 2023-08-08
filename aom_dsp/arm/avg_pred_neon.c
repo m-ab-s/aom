@@ -14,8 +14,9 @@
 
 #include "config/aom_dsp_rtcd.h"
 
-#include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/blend_neon.h"
+#include "aom_dsp/arm/dist_wtd_avg_neon.h"
+#include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/blend.h"
 
 void aom_comp_avg_pred_neon(uint8_t *comp_pred, const uint8_t *pred, int width,
@@ -94,22 +95,8 @@ void aom_dist_wtd_comp_avg_pred_neon(uint8_t *comp_pred, const uint8_t *pred,
         const uint8x16_t p = vld1q_u8(pred_ptr);
         const uint8x16_t r = vld1q_u8(ref_ptr);
 
-        uint16x8_t wtd_sum_lo =
-            vmull_u8(vget_low_u8(p), vget_low_u8(bck_offset));
-        uint16x8_t wtd_sum_hi =
-            vmull_u8(vget_high_u8(p), vget_high_u8(bck_offset));
-
-        wtd_sum_lo =
-            vmlal_u8(wtd_sum_lo, vget_low_u8(r), vget_low_u8(fwd_offset));
-        wtd_sum_hi =
-            vmlal_u8(wtd_sum_hi, vget_high_u8(r), vget_high_u8(fwd_offset));
-
-        const uint8x8_t wtd_avg_lo =
-            vrshrn_n_u16(wtd_sum_lo, DIST_PRECISION_BITS);
-        const uint8x8_t wtd_avg_hi =
-            vrshrn_n_u16(wtd_sum_hi, DIST_PRECISION_BITS);
-
-        const uint8x16_t wtd_avg = vcombine_u8(wtd_avg_lo, wtd_avg_hi);
+        const uint8x16_t wtd_avg =
+            dist_wtd_avg_u8x16(r, p, fwd_offset, bck_offset);
 
         vst1q_u8(comp_pred_ptr, wtd_avg);
 
@@ -130,21 +117,8 @@ void aom_dist_wtd_comp_avg_pred_neon(uint8_t *comp_pred, const uint8_t *pred,
       const uint8x16_t p = vld1q_u8(pred);
       const uint8x16_t r = load_u8_8x2(ref, ref_stride);
 
-      uint16x8_t wtd_sum_lo = vmull_u8(vget_low_u8(p), vget_low_u8(bck_offset));
-      uint16x8_t wtd_sum_hi =
-          vmull_u8(vget_high_u8(p), vget_high_u8(bck_offset));
-
-      wtd_sum_lo =
-          vmlal_u8(wtd_sum_lo, vget_low_u8(r), vget_low_u8(fwd_offset));
-      wtd_sum_hi =
-          vmlal_u8(wtd_sum_hi, vget_high_u8(r), vget_high_u8(fwd_offset));
-
-      const uint8x8_t wtd_avg_lo =
-          vrshrn_n_u16(wtd_sum_lo, DIST_PRECISION_BITS);
-      const uint8x8_t wtd_avg_hi =
-          vrshrn_n_u16(wtd_sum_hi, DIST_PRECISION_BITS);
-
-      const uint8x16_t wtd_avg = vcombine_u8(wtd_avg_lo, wtd_avg_hi);
+      const uint8x16_t wtd_avg =
+          dist_wtd_avg_u8x16(r, p, fwd_offset, bck_offset);
 
       vst1q_u8(comp_pred, wtd_avg);
 
@@ -160,10 +134,8 @@ void aom_dist_wtd_comp_avg_pred_neon(uint8_t *comp_pred, const uint8_t *pred,
       const uint8x8_t p = vld1_u8(pred);
       const uint8x8_t r = load_unaligned_u8_4x2(ref, ref_stride);
 
-      uint16x8_t wtd_sum = vmull_u8(p, vget_low_u8(bck_offset));
-      wtd_sum = vmlal_u8(wtd_sum, r, vget_low_u8(fwd_offset));
-
-      const uint8x8_t wtd_avg = vrshrn_n_u16(wtd_sum, DIST_PRECISION_BITS);
+      const uint8x8_t wtd_avg = dist_wtd_avg_u8x8(r, p, vget_low_u8(fwd_offset),
+                                                  vget_low_u8(bck_offset));
 
       vst1_u8(comp_pred, wtd_avg);
 
