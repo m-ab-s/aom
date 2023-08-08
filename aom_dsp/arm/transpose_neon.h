@@ -608,7 +608,7 @@ static INLINE void transpose_s16_8x8(int16x8_t *a0, int16x8_t *a1,
   *a7 = d3.val[1];
 }
 
-static INLINE void transpose_s16_8x8q(int16x8_t *a, int16x8_t *out) {
+static INLINE void transpose_s16_8x8q(const int16x8_t *a, int16x8_t *out) {
   // Swap 16 bit elements. Goes from:
   // a0: 00 01 02 03 04 05 06 07
   // a1: 10 11 12 13 14 15 16 17
