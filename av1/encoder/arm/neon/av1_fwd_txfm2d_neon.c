@@ -418,23 +418,6 @@ void av1_fadst4x4_neon(const int16x8_t *input, int16x8_t *output,
   output[3] = vcombine_s16(vmovn_s32(u[3]), vmovn_s32(u[1]));
 }
 
-#define btf_16_w4_neon(w0_l, w0_h, w1_l, w1_h, in0, in1, out0, out1, \
-                       v_cos_bit)                                    \
-  do {                                                               \
-    int32x4_t in0_l = vmovl_s16(vget_low_s16(in0));                  \
-    int32x4_t in1_l = vmovl_s16(vget_low_s16(in1));                  \
-    int32x4_t u0 = vmulq_n_s32(in0_l, w0_l);                         \
-    u0 = vmlaq_n_s32(u0, in1_l, w0_h);                               \
-    int32x4_t v0 = vmulq_n_s32(in0_l, w1_l);                         \
-    v0 = vmlaq_n_s32(v0, in1_l, w1_h);                               \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                        \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                        \
-    const int16x4_t c1 = vqmovn_s32(c0);                             \
-    const int16x4_t d1 = vqmovn_s32(d0);                             \
-    out0 = vcombine_s16(c1, c1);                                     \
-    out1 = vcombine_s16(d1, c1);                                     \
-  } while (0)
-
 #define btf_16_w4_neon_mode0(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
   do {                                                                    \
     int32x4_t in0_l = vmovl_s16(vget_low_s16(in0));                       \
@@ -3004,18 +2987,6 @@ void av1_lowbd_fwd_txfm2d_16x64_neon(const int16_t *input, int32_t *output,
     store_buffer_16bit_to_32bit_w8(buf, output + 8 * i, 32, 16);
   }
 }
-
-#define TRANSPOSE_4X4_L32(x0, x1, x2, x3, y0, y1, y2, y3)      \
-  do {                                                         \
-    int32x4x2_t temp01 = vzipq_s32(x0, x1);                    \
-    int32x4x2_t temp23 = vzipq_s32(x2, x3);                    \
-    int32x4x2_t y01 = vzipq_s32(temp01.val[0], temp23.val[0]); \
-    int32x4x2_t y23 = vzipq_s32(temp01.val[1], temp23.val[1]); \
-    y0 = y01.val[0];                                           \
-    y1 = y01.val[1];                                           \
-    y2 = y23.val[0];                                           \
-    y3 = y23.val[1];                                           \
-  } while (0)
 
 static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
                                 int cos_bit, const int stride,
