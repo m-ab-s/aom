@@ -201,40 +201,47 @@ static INLINE void av1_round_shift_array_32_neon(int32x4_t *input,
   for (i = 0; i < size; i++) output[i] = vrshrq_n_s32(input[i], 2);
 }
 
-#define btf_32_neon(w0, w1, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                       \
-    out0 = vmulq_n_s32(in0, w0);                             \
-    out0 = vmlaq_n_s32(out0, in1, w1);                       \
-    out0 = vrshlq_s32(out0, v_cos_bit);                      \
-    out1 = vmulq_n_s32(in0, w1);                             \
-    out1 = vmlsq_n_s32(out1, in1, w0);                       \
-    out1 = vrshlq_s32(out1, v_cos_bit);                      \
-  } while (0)
+static INLINE void btf_32_neon(const int w0, const int w1, const int32x4_t in0,
+                               const int32x4_t in1, int32x4_t *out0,
+                               int32x4_t *out1, const int32x4_t v_cos_bit) {
+  int32x4_t o0 = vmulq_n_s32(in0, w0);
+  int32x4_t o1 = vmulq_n_s32(in0, w1);
+  o0 = vmlaq_n_s32(o0, in1, w1);
+  o1 = vmlsq_n_s32(o1, in1, w0);
+  *out0 = vrshlq_s32(o0, v_cos_bit);
+  *out1 = vrshlq_s32(o1, v_cos_bit);
+}
 
-#define btf_32_type1_neon(w0, w1, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                             \
-    btf_32_neon(w1, w0, in1, in0, out0, out1, v_cos_bit);          \
-  } while (0)
+static INLINE void btf_32_type1_neon(const int w0, const int w1,
+                                     const int32x4_t in0, const int32x4_t in1,
+                                     int32x4_t *out0, int32x4_t *out1,
+                                     const int32x4_t v_cos_bit) {
+  btf_32_neon(w1, w0, in1, in0, out0, out1, v_cos_bit);
+}
 
-#define btf_32_neon_mode0(w0, w1, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                             \
-    out0 = vmulq_n_s32(in1, w1);                                   \
-    out0 = vmlsq_n_s32(out0, in0, w0);                             \
-    out0 = vrshlq_s32(out0, v_cos_bit);                            \
-    out1 = vmulq_n_s32(in0, w1);                                   \
-    out1 = vmlaq_n_s32(out1, in1, w0);                             \
-    out1 = vrshlq_s32(out1, v_cos_bit);                            \
-  } while (0)
+static INLINE void btf_32_neon_mode0(const int w0, const int w1,
+                                     const int32x4_t in0, const int32x4_t in1,
+                                     int32x4_t *out0, int32x4_t *out1,
+                                     const int32x4_t v_cos_bit) {
+  int32x4_t o0 = vmulq_n_s32(in1, w1);
+  int32x4_t o1 = vmulq_n_s32(in0, w1);
+  o0 = vmlsq_n_s32(o0, in0, w0);
+  o1 = vmlaq_n_s32(o1, in1, w0);
+  *out0 = vrshlq_s32(o0, v_cos_bit);
+  *out1 = vrshlq_s32(o1, v_cos_bit);
+}
 
-#define btf_32_neon_mode01(w0, w1, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                              \
-    out0 = vmulq_n_s32(in1, w1);                                    \
-    out0 = vmlaq_n_s32(out0, in0, w0);                              \
-    out0 = vrshlq_s32(vnegq_s32(out0), v_cos_bit);                  \
-    out1 = vmulq_n_s32(in1, w0);                                    \
-    out1 = vmlsq_n_s32(out1, in0, w1);                              \
-    out1 = vrshlq_s32(out1, v_cos_bit);                             \
-  } while (0)
+static INLINE void btf_32_neon_mode01(const int w0, const int w1,
+                                      const int32x4_t in0, const int32x4_t in1,
+                                      int32x4_t *out0, int32x4_t *out1,
+                                      const int32x4_t v_cos_bit) {
+  int32x4_t o0 = vmulq_n_s32(in1, w1);
+  int32x4_t o1 = vmulq_n_s32(in1, w0);
+  o0 = vmlaq_n_s32(o0, in0, w0);
+  o1 = vmlsq_n_s32(o1, in0, w1);
+  *out0 = vrshlq_s32(vnegq_s32(o0), v_cos_bit);
+  *out1 = vrshlq_s32(o1, v_cos_bit);
+}
 
 static INLINE void flip_buf_neon(int16x8_t *in, int16x8_t *out, int size) {
   for (int i = 0; i < size; ++i) {
@@ -418,53 +425,62 @@ void av1_fadst4x4_neon(const int16x8_t *input, int16x8_t *output,
   output[3] = vcombine_s16(vmovn_s32(u[3]), vmovn_s32(u[1]));
 }
 
-#define btf_16_w4_neon_mode0(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                                    \
-    int32x4_t in0_l = vmovl_s16(vget_low_s16(in0));                       \
-    int32x4_t in1_l = vmovl_s16(vget_low_s16(in1));                       \
-    int32x4_t u0 = vmulq_n_s32(in1_l, w0_h);                              \
-    u0 = vmlsq_n_s32(u0, in0_l, w0_l);                                    \
-    int32x4_t v0 = vmulq_n_s32(in0_l, w0_h);                              \
-    v0 = vmlaq_n_s32(v0, in1_l, w0_l);                                    \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                             \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                             \
-    const int16x4_t c1 = vqmovn_s32(c0);                                  \
-    const int16x4_t d1 = vqmovn_s32(d0);                                  \
-    out0 = vcombine_s16(c1, c1);                                          \
-    out1 = vcombine_s16(d1, c1);                                          \
-  } while (0)
+static INLINE void btf_16_w4_neon_mode0(const int w0_l, const int w0_h,
+                                        const int16x8_t in0,
+                                        const int16x8_t in1, int16x8_t *out0,
+                                        int16x8_t *out1,
+                                        const int32x4_t v_cos_bit) {
+  int32x4_t in0_l = vmovl_s16(vget_low_s16(in0));
+  int32x4_t in1_l = vmovl_s16(vget_low_s16(in1));
+  int32x4_t u0 = vmulq_n_s32(in1_l, w0_h);
+  u0 = vmlsq_n_s32(u0, in0_l, w0_l);
+  int32x4_t v0 = vmulq_n_s32(in0_l, w0_h);
+  v0 = vmlaq_n_s32(v0, in1_l, w0_l);
+  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  const int16x4_t c1 = vqmovn_s32(c0);
+  const int16x4_t d1 = vqmovn_s32(d0);
+  *out0 = vcombine_s16(c1, c1);
+  *out1 = vcombine_s16(d1, c1);
+}
 
-#define btf_16_w4_neon_mode2(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                                    \
-    int32x4_t in0_l = vmovl_s16(vget_low_s16(in0));                       \
-    int32x4_t in1_l = vmovl_s16(vget_low_s16(in1));                       \
-    int32x4_t u0 = vmulq_n_s32(in0_l, w0_l);                              \
-    u0 = vmlaq_n_s32(u0, in1_l, w0_h);                                    \
-    int32x4_t v0 = vmulq_n_s32(in1_l, w0_l);                              \
-    v0 = vmlsq_n_s32(v0, in0_l, w0_h);                                    \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                             \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                             \
-    const int16x4_t c1 = vqmovn_s32(c0);                                  \
-    const int16x4_t d1 = vqmovn_s32(d0);                                  \
-    out0 = vcombine_s16(c1, c1);                                          \
-    out1 = vcombine_s16(d1, c1);                                          \
-  } while (0)
+static INLINE void btf_16_w4_neon_mode2(const int w0_l, const int w0_h,
+                                        const int16x8_t in0,
+                                        const int16x8_t in1, int16x8_t *out0,
+                                        int16x8_t *out1,
+                                        const int32x4_t v_cos_bit) {
+  int32x4_t in0_l = vmovl_s16(vget_low_s16(in0));
+  int32x4_t in1_l = vmovl_s16(vget_low_s16(in1));
+  int32x4_t u0 = vmulq_n_s32(in0_l, w0_l);
+  u0 = vmlaq_n_s32(u0, in1_l, w0_h);
+  int32x4_t v0 = vmulq_n_s32(in1_l, w0_l);
+  v0 = vmlsq_n_s32(v0, in0_l, w0_h);
+  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  const int16x4_t c1 = vqmovn_s32(c0);
+  const int16x4_t d1 = vqmovn_s32(d0);
+  *out0 = vcombine_s16(c1, c1);
+  *out1 = vcombine_s16(d1, c1);
+}
 
-#define btf_16_w4_neon_mode3(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                                    \
-    int32x4_t in0_l = vmovl_s16(vget_low_s16(in0));                       \
-    int32x4_t in1_l = vmovl_s16(vget_low_s16(in1));                       \
-    int32x4_t u0 = vmulq_n_s32(in0_l, w0_l);                              \
-    u0 = vmlaq_n_s32(u0, in1_l, w0_h);                                    \
-    int32x4_t v0 = vmulq_n_s32(in0_l, w0_h);                              \
-    v0 = vmlsq_n_s32(v0, in1_l, w0_l);                                    \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                             \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                             \
-    const int16x4_t c1 = vqmovn_s32(c0);                                  \
-    const int16x4_t d1 = vqmovn_s32(d0);                                  \
-    out0 = vcombine_s16(c1, c1);                                          \
-    out1 = vcombine_s16(d1, c1);                                          \
-  } while (0)
+static INLINE void btf_16_w4_neon_mode3(const int w0_l, const int w0_h,
+                                        const int16x8_t in0,
+                                        const int16x8_t in1, int16x8_t *out0,
+                                        int16x8_t *out1,
+                                        const int32x4_t v_cos_bit) {
+  int32x4_t in0_l = vmovl_s16(vget_low_s16(in0));
+  int32x4_t in1_l = vmovl_s16(vget_low_s16(in1));
+  int32x4_t u0 = vmulq_n_s32(in0_l, w0_l);
+  u0 = vmlaq_n_s32(u0, in1_l, w0_h);
+  int32x4_t v0 = vmulq_n_s32(in0_l, w0_h);
+  v0 = vmlsq_n_s32(v0, in1_l, w0_l);
+  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  const int16x4_t c1 = vqmovn_s32(c0);
+  const int16x4_t d1 = vqmovn_s32(d0);
+  *out0 = vcombine_s16(c1, c1);
+  *out1 = vcombine_s16(d1, c1);
+}
 
 static void fadst4x8_neon(const int16x8_t *input, int16x8_t *output,
                           int8_t cos_bit, const int8_t *stage_range) {
@@ -475,9 +491,9 @@ static void fadst4x8_neon(const int16x8_t *input, int16x8_t *output,
   // stage 1-2
   int16x8_t x2[8];
   btf_16_w4_neon_mode3(cospi[32], cospi[32], vqnegq_s16(input[3]), input[4],
-                       x2[2], x2[3], v_cos_bit);
+                       &x2[2], &x2[3], v_cos_bit);
   btf_16_w4_neon_mode3(cospi[32], cospi[32], input[2], vqnegq_s16(input[5]),
-                       x2[6], x2[7], v_cos_bit);
+                       &x2[6], &x2[7], v_cos_bit);
 
   // stage 3
   int16x8_t x3[8];
@@ -493,9 +509,9 @@ static void fadst4x8_neon(const int16x8_t *input, int16x8_t *output,
   // stage 4
   int16x8_t x4[8];
 
-  btf_16_w4_neon_mode3(cospi[16], cospi[48], x3[4], x3[5], x4[4], x4[5],
+  btf_16_w4_neon_mode3(cospi[16], cospi[48], x3[4], x3[5], &x4[4], &x4[5],
                        v_cos_bit);
-  btf_16_w4_neon_mode0(cospi[48], cospi[16], x3[6], x3[7], x4[6], x4[7],
+  btf_16_w4_neon_mode0(cospi[48], cospi[16], x3[6], x3[7], &x4[6], &x4[7],
                        v_cos_bit);
 
   // stage 5
@@ -510,14 +526,14 @@ static void fadst4x8_neon(const int16x8_t *input, int16x8_t *output,
   x5[7] = vqsubq_s16(x3[3], x4[7]);
 
   // stage 6-7
-  btf_16_w4_neon_mode3(cospi[4], cospi[60], x5[0], x5[1], output[7], output[0],
-                       v_cos_bit);
-  btf_16_w4_neon_mode3(cospi[20], cospi[44], x5[2], x5[3], output[5], output[2],
-                       v_cos_bit);
-  btf_16_w4_neon_mode3(cospi[36], cospi[28], x5[4], x5[5], output[3], output[4],
-                       v_cos_bit);
-  btf_16_w4_neon_mode3(cospi[52], cospi[12], x5[6], x5[7], output[1], output[6],
-                       v_cos_bit);
+  btf_16_w4_neon_mode3(cospi[4], cospi[60], x5[0], x5[1], &output[7],
+                       &output[0], v_cos_bit);
+  btf_16_w4_neon_mode3(cospi[20], cospi[44], x5[2], x5[3], &output[5],
+                       &output[2], v_cos_bit);
+  btf_16_w4_neon_mode3(cospi[36], cospi[28], x5[4], x5[5], &output[3],
+                       &output[4], v_cos_bit);
+  btf_16_w4_neon_mode3(cospi[52], cospi[12], x5[6], x5[7], &output[1],
+                       &output[6], v_cos_bit);
 }
 
 static void fadst8x4_neon(const int16x8_t *input, int16x8_t *output,
@@ -627,137 +643,149 @@ void av1_fdct4x4_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
   output[3] = vcombine_s16(vmovn_s32(u[3]), vmovn_s32(u[2]));
 }
 
-#define btf_16_neon(w0_l, w0_h, w1_l, w1_h, in0, in1, out0, out1) \
-  do {                                                            \
-    int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));             \
-    int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));           \
-    int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));             \
-    int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));           \
-    int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);                    \
-    u0 = vmlaq_n_s32(u0, in_low0, w0_l);                          \
-    int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);                   \
-    u1 = vmlaq_n_s32(u1, in_high0, w0_l);                         \
-    int32x4_t v0 = vmulq_n_s32(in_low1, w1_h);                    \
-    v0 = vmlaq_n_s32(v0, in_low0, w1_l);                          \
-    int32x4_t v1 = vmulq_n_s32(in_high1, w1_h);                   \
-    v1 = vmlaq_n_s32(v1, in_high0, w1_l);                         \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                     \
-    int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                     \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                     \
-    int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                     \
-    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));            \
-    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));            \
-  } while (0)
+static INLINE void btf_16_neon(const int w0_l, const int w0_h, const int w1_l,
+                               const int w1_h, const int16x8_t in0,
+                               const int16x8_t in1, int16x8_t *out0,
+                               int16x8_t *out1, const int32x4_t v_cos_bit) {
+  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
+  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
+  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
+  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
+  int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);
+  u0 = vmlaq_n_s32(u0, in_low0, w0_l);
+  int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);
+  u1 = vmlaq_n_s32(u1, in_high0, w0_l);
+  int32x4_t v0 = vmulq_n_s32(in_low1, w1_h);
+  v0 = vmlaq_n_s32(v0, in_low0, w1_l);
+  int32x4_t v1 = vmulq_n_s32(in_high1, w1_h);
+  v1 = vmlaq_n_s32(v1, in_high0, w1_l);
+  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
+  *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
+}
 
-#define btf_16_neon_mode0(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                                 \
-    int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));                  \
-    int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));                \
-    int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));                  \
-    int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));                \
-    int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);                         \
-    u0 = vmlsq_n_s32(u0, in_low0, w0_l);                               \
-    int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);                        \
-    u1 = vmlsq_n_s32(u1, in_high0, w0_l);                              \
-    int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);                         \
-    v0 = vmlaq_n_s32(v0, in_low0, w0_h);                               \
-    int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);                        \
-    v1 = vmlaq_n_s32(v1, in_high0, w0_h);                              \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                          \
-    int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                          \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                          \
-    int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                          \
-    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                 \
-    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                 \
-  } while (0)
+static INLINE void btf_16_neon_mode0(const int w0_l, const int w0_h,
+                                     const int16x8_t in0, const int16x8_t in1,
+                                     int16x8_t *out0, int16x8_t *out1,
+                                     const int32x4_t v_cos_bit) {
+  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
+  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
+  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
+  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
+  int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);
+  u0 = vmlsq_n_s32(u0, in_low0, w0_l);
+  int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);
+  u1 = vmlsq_n_s32(u1, in_high0, w0_l);
+  int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);
+  v0 = vmlaq_n_s32(v0, in_low0, w0_h);
+  int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);
+  v1 = vmlaq_n_s32(v1, in_high0, w0_h);
+  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
+  *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
+}
 
-#define btf_16_neon_mode1(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                                 \
-    int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));                  \
-    int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));                \
-    int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));                  \
-    int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));                \
-    int32x4_t u0 = vmulq_n_s32(in_low0, w0_l);                         \
-    u0 = vmlsq_n_s32(u0, in_low1, w0_h);                               \
-    int32x4_t u1 = vmulq_n_s32(in_high0, w0_l);                        \
-    u1 = vmlsq_n_s32(u1, in_high1, w0_h);                              \
-    int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);                         \
-    v0 = vmlaq_n_s32(v0, in_low0, w0_h);                               \
-    int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);                        \
-    v1 = vmlaq_n_s32(v1, in_high0, w0_h);                              \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                          \
-    int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                          \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                          \
-    int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                          \
-    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                 \
-    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                 \
-  } while (0)
+static INLINE void btf_16_neon_mode1(const int w0_l, const int w0_h,
+                                     const int16x8_t in0, const int16x8_t in1,
+                                     int16x8_t *out0, int16x8_t *out1,
+                                     const int32x4_t v_cos_bit) {
+  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
+  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
+  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
+  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
+  int32x4_t u0 = vmulq_n_s32(in_low0, w0_l);
+  u0 = vmlsq_n_s32(u0, in_low1, w0_h);
+  int32x4_t u1 = vmulq_n_s32(in_high0, w0_l);
+  u1 = vmlsq_n_s32(u1, in_high1, w0_h);
+  int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);
+  v0 = vmlaq_n_s32(v0, in_low0, w0_h);
+  int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);
+  v1 = vmlaq_n_s32(v1, in_high0, w0_h);
+  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
+  *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
+}
 
-#define btf_16_neon_mode02(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                                  \
-    int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));                   \
-    int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));                 \
-    int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));                   \
-    int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));                 \
-    int32x4_t u0 = vmulq_n_s32(in_low1, -w0_h);                         \
-    u0 = vmlsq_n_s32(u0, in_low0, w0_l);                                \
-    int32x4_t u1 = vmulq_n_s32(in_high1, -w0_h);                        \
-    u1 = vmlsq_n_s32(u1, in_high0, w0_l);                               \
-    int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);                          \
-    v0 = vmlsq_n_s32(v0, in_low0, w0_h);                                \
-    int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);                         \
-    v1 = vmlsq_n_s32(v1, in_high0, w0_h);                               \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                           \
-    int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                           \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                           \
-    int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                           \
-    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                  \
-    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                  \
-  } while (0)
+static INLINE void btf_16_neon_mode02(const int w0_l, const int w0_h,
+                                      const int16x8_t in0, const int16x8_t in1,
+                                      int16x8_t *out0, int16x8_t *out1,
+                                      const int32x4_t v_cos_bit) {
+  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
+  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
+  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
+  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
+  int32x4_t u0 = vmulq_n_s32(in_low1, -w0_h);
+  u0 = vmlsq_n_s32(u0, in_low0, w0_l);
+  int32x4_t u1 = vmulq_n_s32(in_high1, -w0_h);
+  u1 = vmlsq_n_s32(u1, in_high0, w0_l);
+  int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);
+  v0 = vmlsq_n_s32(v0, in_low0, w0_h);
+  int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);
+  v1 = vmlsq_n_s32(v1, in_high0, w0_h);
+  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
+  *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
+}
 
-#define btf_16_neon_mode2(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                                 \
-    int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));                  \
-    int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));                \
-    int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));                  \
-    int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));                \
-    int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);                         \
-    u0 = vmlaq_n_s32(u0, in_low0, w0_l);                               \
-    int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);                        \
-    u1 = vmlaq_n_s32(u1, in_high0, w0_l);                              \
-    int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);                         \
-    v0 = vmlsq_n_s32(v0, in_low0, w0_h);                               \
-    int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);                        \
-    v1 = vmlsq_n_s32(v1, in_high0, w0_h);                              \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                          \
-    int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                          \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                          \
-    int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                          \
-    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                 \
-    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                 \
-  } while (0)
+static INLINE void btf_16_neon_mode2(const int w0_l, const int w0_h,
+                                     const int16x8_t in0, const int16x8_t in1,
+                                     int16x8_t *out0, int16x8_t *out1,
+                                     const int32x4_t v_cos_bit) {
+  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
+  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
+  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
+  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
+  int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);
+  u0 = vmlaq_n_s32(u0, in_low0, w0_l);
+  int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);
+  u1 = vmlaq_n_s32(u1, in_high0, w0_l);
+  int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);
+  v0 = vmlsq_n_s32(v0, in_low0, w0_h);
+  int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);
+  v1 = vmlsq_n_s32(v1, in_high0, w0_h);
+  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
+  *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
+}
 
-#define btf_16_neon_mode3(w0_l, w0_h, in0, in1, out0, out1, v_cos_bit) \
-  do {                                                                 \
-    int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));                  \
-    int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));                \
-    int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));                  \
-    int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));                \
-    int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);                         \
-    u0 = vmlaq_n_s32(u0, in_low0, w0_l);                               \
-    int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);                        \
-    u1 = vmlaq_n_s32(u1, in_high0, w0_l);                              \
-    int32x4_t v0 = vmulq_n_s32(in_low0, w0_h);                         \
-    v0 = vmlsq_n_s32(v0, in_low1, w0_l);                               \
-    int32x4_t v1 = vmulq_n_s32(in_high0, w0_h);                        \
-    v1 = vmlsq_n_s32(v1, in_high1, w0_l);                              \
-    int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);                          \
-    int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);                          \
-    int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);                          \
-    int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);                          \
-    out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));                 \
-    out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));                 \
-  } while (0)
+static INLINE void btf_16_neon_mode3(const int w0_l, const int w0_h,
+                                     const int16x8_t in0, const int16x8_t in1,
+                                     int16x8_t *out0, int16x8_t *out1,
+                                     const int32x4_t v_cos_bit) {
+  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
+  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
+  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
+  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
+  int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);
+  u0 = vmlaq_n_s32(u0, in_low0, w0_l);
+  int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);
+  u1 = vmlaq_n_s32(u1, in_high0, w0_l);
+  int32x4_t v0 = vmulq_n_s32(in_low0, w0_h);
+  v0 = vmlsq_n_s32(v0, in_low1, w0_l);
+  int32x4_t v1 = vmulq_n_s32(in_high0, w0_h);
+  v1 = vmlsq_n_s32(v1, in_high1, w0_l);
+  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
+  *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
+}
 
 static void fdct8x4_neon(const int16x8_t *input, int16x8_t *output,
                          int8_t cos_bit, const int8_t *stage_range) {
@@ -774,9 +802,9 @@ static void fdct8x4_neon(const int16x8_t *input, int16x8_t *output,
 
   // stage 2
   int16x8_t x2[4];
-  btf_16_neon_mode3(cospi[32], cospi[32], x1[0], x1[1], x2[0], x2[1],
+  btf_16_neon_mode3(cospi[32], cospi[32], x1[0], x1[1], &x2[0], &x2[1],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[48], cospi[16], x1[2], x1[3], x2[2], x2[3],
+  btf_16_neon_mode2(cospi[48], cospi[16], x1[2], x1[3], &x2[2], &x2[3],
                     v_cos_bit);
 
   // stage 3
@@ -810,26 +838,26 @@ static void fdct4x8_neon(const int16x8_t *input, int16x8_t *output,
   x2[1] = vqaddq_s16(x1[1], x1[2]);
   x2[2] = vqsubq_s16(x1[1], x1[2]);
 
-  btf_16_w4_neon_mode0(cospi[32], cospi[32], x1[5], x1[6], x2[5], x2[6],
+  btf_16_w4_neon_mode0(cospi[32], cospi[32], x1[5], x1[6], &x2[5], &x2[6],
                        v_cos_bit);
 
   // stage 3
   int16x8_t x3[8];
-  btf_16_w4_neon_mode3(cospi[32], cospi[32], x2[0], x2[1], output[0], output[4],
-                       v_cos_bit);
+  btf_16_w4_neon_mode3(cospi[32], cospi[32], x2[0], x2[1], &output[0],
+                       &output[4], v_cos_bit);
 
-  btf_16_w4_neon_mode2(cospi[48], cospi[16], x2[2], x2[3], output[2], output[6],
-                       v_cos_bit);
+  btf_16_w4_neon_mode2(cospi[48], cospi[16], x2[2], x2[3], &output[2],
+                       &output[6], v_cos_bit);
   x3[4] = vqaddq_s16(x1[4], x2[5]);
   x3[5] = vqsubq_s16(x1[4], x2[5]);
   x3[6] = vqsubq_s16(x1[7], x2[6]);
   x3[7] = vqaddq_s16(x1[7], x2[6]);
 
   // stage 4-5
-  btf_16_w4_neon_mode2(cospi[56], cospi[8], x3[4], x3[7], output[1], output[7],
-                       v_cos_bit);
-  btf_16_w4_neon_mode2(cospi[24], cospi[40], x3[5], x3[6], output[5], output[3],
-                       v_cos_bit);
+  btf_16_w4_neon_mode2(cospi[56], cospi[8], x3[4], x3[7], &output[1],
+                       &output[7], v_cos_bit);
+  btf_16_w4_neon_mode2(cospi[24], cospi[40], x3[5], x3[6], &output[5],
+                       &output[3], v_cos_bit);
 }
 
 void fdct8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
@@ -855,14 +883,14 @@ void fdct8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
   x2[3] = vqsubq_s16(x1[0], x1[3]);
   x2[1] = vqaddq_s16(x1[1], x1[2]);
   x2[2] = vqsubq_s16(x1[1], x1[2]);
-  btf_16_neon_mode0(cospi[32], cospi[32], x1[5], x1[6], x2[5], x2[6],
+  btf_16_neon_mode0(cospi[32], cospi[32], x1[5], x1[6], &x2[5], &x2[6],
                     v_cos_bit);
 
   // stage 3
   int16x8_t x3[8];
-  btf_16_neon_mode3(cospi[32], cospi[32], x2[0], x2[1], output[0], output[4],
+  btf_16_neon_mode3(cospi[32], cospi[32], x2[0], x2[1], &output[0], &output[4],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[48], cospi[16], x2[2], x2[3], output[2], output[6],
+  btf_16_neon_mode2(cospi[48], cospi[16], x2[2], x2[3], &output[2], &output[6],
                     v_cos_bit);
   x3[4] = vqaddq_s16(x1[4], x2[5]);
   x3[5] = vqsubq_s16(x1[4], x2[5]);
@@ -870,9 +898,9 @@ void fdct8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
   x3[7] = vqaddq_s16(x1[7], x2[6]);
 
   // stage 4-5
-  btf_16_neon_mode2(cospi[56], cospi[8], x3[4], x3[7], output[1], output[7],
+  btf_16_neon_mode2(cospi[56], cospi[8], x3[4], x3[7], &output[1], &output[7],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[24], cospi[40], x3[5], x3[6], output[5], output[3],
+  btf_16_neon_mode2(cospi[24], cospi[40], x3[5], x3[6], &output[5], &output[3],
                     v_cos_bit);
 }
 
@@ -912,9 +940,9 @@ static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
   x2[3] = vqaddq_s16(x1[3], x1[4]);
   x2[4] = vqsubq_s16(x1[3], x1[4]);
 
-  btf_16_neon_mode0(cospi[32], cospi[32], x1[10], x1[13], x2[10], x2[13],
+  btf_16_neon_mode0(cospi[32], cospi[32], x1[10], x1[13], &x2[10], &x2[13],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[32], cospi[32], x1[11], x1[12], x2[11], x2[12],
+  btf_16_neon_mode0(cospi[32], cospi[32], x1[11], x1[12], &x2[11], &x2[12],
                     v_cos_bit);
 
   // stage 3
@@ -924,7 +952,7 @@ static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
   x3[1] = vqaddq_s16(x2[1], x2[2]);
   x3[2] = vqsubq_s16(x2[1], x2[2]);
 
-  btf_16_neon_mode0(cospi[32], cospi[32], x2[5], x2[6], x3[5], x3[6],
+  btf_16_neon_mode0(cospi[32], cospi[32], x2[5], x2[6], &x3[5], &x3[6],
                     v_cos_bit);
 
   x3[8] = vqaddq_s16(x1[8], x2[11]);
@@ -939,24 +967,24 @@ static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
   // stage 4
   int16x8_t x4[16];
   btf_16_neon(cospi[32], cospi[32], cospi[32], -cospi[32], x3[0], x3[1],
-              output[0], output[8]);
+              &output[0], &output[8], v_cos_bit);
   btf_16_neon(cospi[48], cospi[16], -cospi[16], cospi[48], x3[2], x3[3],
-              output[4], output[12]);
+              &output[4], &output[12], v_cos_bit);
   x4[4] = vqaddq_s16(x2[4], x3[5]);
   x4[5] = vqsubq_s16(x2[4], x3[5]);
   x4[6] = vqsubq_s16(x2[7], x3[6]);
   x4[7] = vqaddq_s16(x2[7], x3[6]);
-  btf_16_neon_mode0(cospi[16], cospi[48], x3[9], x3[14], x4[9], x4[14],
+  btf_16_neon_mode0(cospi[16], cospi[48], x3[9], x3[14], &x4[9], &x4[14],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x3[10], x3[13], x4[10], x4[13],
+  btf_16_neon_mode02(cospi[48], cospi[16], x3[10], x3[13], &x4[10], &x4[13],
                      v_cos_bit);
 
   // stage 5
   int16x8_t x5[16];
 
-  btf_16_neon_mode2(cospi[56], cospi[8], x4[4], x4[7], output[2], output[14],
+  btf_16_neon_mode2(cospi[56], cospi[8], x4[4], x4[7], &output[2], &output[14],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[24], cospi[40], x4[5], x4[6], output[10], output[6],
+  btf_16_neon_mode2(cospi[24], cospi[40], x4[5], x4[6], &output[10], &output[6],
                     v_cos_bit);
   x5[8] = vqaddq_s16(x3[8], x4[9]);
   x5[9] = vqsubq_s16(x3[8], x4[9]);
@@ -968,14 +996,14 @@ static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
   x5[15] = vqaddq_s16(x3[15], x4[14]);
 
   // stage 6-7
-  btf_16_neon_mode2(cospi[60], cospi[4], x5[8], x5[15], output[1], output[15],
+  btf_16_neon_mode2(cospi[60], cospi[4], x5[8], x5[15], &output[1], &output[15],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[28], cospi[36], x5[9], x5[14], output[9], output[7],
+  btf_16_neon_mode2(cospi[28], cospi[36], x5[9], x5[14], &output[9], &output[7],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[44], cospi[20], x5[10], x5[13], output[5], output[11],
-                    v_cos_bit);
-  btf_16_neon_mode2(cospi[12], cospi[52], x5[11], x5[12], output[13], output[3],
-                    v_cos_bit);
+  btf_16_neon_mode2(cospi[44], cospi[20], x5[10], x5[13], &output[5],
+                    &output[11], v_cos_bit);
+  btf_16_neon_mode2(cospi[12], cospi[52], x5[11], x5[12], &output[13],
+                    &output[3], v_cos_bit);
 }
 
 void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
@@ -1038,13 +1066,13 @@ void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x2[7] = vqaddq_s16(x1[7], x1[8]);
   x2[8] = vqsubq_s16(x1[7], x1[8]);
 
-  btf_16_neon_mode0(cospi[32], cospi[32], x1[20], x1[27], x2[20], x2[27],
+  btf_16_neon_mode0(cospi[32], cospi[32], x1[20], x1[27], &x2[20], &x2[27],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[32], cospi[32], x1[21], x1[26], x2[21], x2[26],
+  btf_16_neon_mode0(cospi[32], cospi[32], x1[21], x1[26], &x2[21], &x2[26],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[32], cospi[32], x1[22], x1[25], x2[22], x2[25],
+  btf_16_neon_mode0(cospi[32], cospi[32], x1[22], x1[25], &x2[22], &x2[25],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[32], cospi[32], x1[23], x1[24], x2[23], x2[24],
+  btf_16_neon_mode0(cospi[32], cospi[32], x1[23], x1[24], &x2[23], &x2[24],
                     v_cos_bit);
 
   // stage 3
@@ -1058,9 +1086,9 @@ void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x3[3] = vqaddq_s16(x2[3], x2[4]);
   x3[4] = vqsubq_s16(x2[3], x2[4]);
 
-  btf_16_neon_mode0(cospi[32], cospi[32], x2[10], x2[13], x3[10], x3[13],
+  btf_16_neon_mode0(cospi[32], cospi[32], x2[10], x2[13], &x3[10], &x3[13],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[32], cospi[32], x2[11], x2[12], x3[11], x3[12],
+  btf_16_neon_mode0(cospi[32], cospi[32], x2[11], x2[12], &x3[11], &x3[12],
                     v_cos_bit);
 
   x3[16] = vqaddq_s16(x1[16], x2[23]);
@@ -1086,7 +1114,7 @@ void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x4[3] = vqsubq_s16(x3[0], x3[3]);
   x4[1] = vqaddq_s16(x3[1], x3[2]);
   x4[2] = vqsubq_s16(x3[1], x3[2]);
-  btf_16_neon_mode0(cospi[32], cospi[32], x3[5], x3[6], x4[5], x4[6],
+  btf_16_neon_mode0(cospi[32], cospi[32], x3[5], x3[6], &x4[5], &x4[6],
                     v_cos_bit);
   x4[8] = vqaddq_s16(x2[8], x3[11]);
   x4[11] = vqsubq_s16(x2[8], x3[11]);
@@ -1097,29 +1125,29 @@ void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x4[13] = vqsubq_s16(x2[14], x3[13]);
   x4[14] = vqaddq_s16(x2[14], x3[13]);
 
-  btf_16_neon_mode0(cospi[16], cospi[48], x3[18], x3[29], x4[18], x4[29],
+  btf_16_neon_mode0(cospi[16], cospi[48], x3[18], x3[29], &x4[18], &x4[29],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[16], cospi[48], x3[19], x3[28], x4[19], x4[28],
+  btf_16_neon_mode0(cospi[16], cospi[48], x3[19], x3[28], &x4[19], &x4[28],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x3[20], x3[27], x4[20], x4[27],
+  btf_16_neon_mode02(cospi[48], cospi[16], x3[20], x3[27], &x4[20], &x4[27],
                      v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x3[21], x3[26], x4[21], x4[26],
+  btf_16_neon_mode02(cospi[48], cospi[16], x3[21], x3[26], &x4[21], &x4[26],
                      v_cos_bit);
 
   // stage 5
   int16x8_t x5[32];
-  btf_16_neon_mode3(cospi[32], cospi[32], x4[0], x4[1], output[0], output[16],
+  btf_16_neon_mode3(cospi[32], cospi[32], x4[0], x4[1], &output[0], &output[16],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[48], cospi[16], x4[2], x4[3], output[8], output[24],
+  btf_16_neon_mode2(cospi[48], cospi[16], x4[2], x4[3], &output[8], &output[24],
                     v_cos_bit);
   x5[4] = vqaddq_s16(x3[4], x4[5]);
   x5[5] = vqsubq_s16(x3[4], x4[5]);
   x5[6] = vqsubq_s16(x3[7], x4[6]);
   x5[7] = vqaddq_s16(x3[7], x4[6]);
 
-  btf_16_neon_mode0(cospi[16], cospi[48], x4[9], x4[14], x5[9], x5[14],
+  btf_16_neon_mode0(cospi[16], cospi[48], x4[9], x4[14], &x5[9], &x5[14],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x4[10], x4[13], x5[10], x5[13],
+  btf_16_neon_mode02(cospi[48], cospi[16], x4[10], x4[13], &x5[10], &x5[13],
                      v_cos_bit);
 
   x5[16] = vqaddq_s16(x3[16], x4[19]);
@@ -1141,10 +1169,10 @@ void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
 
   // stage 6
   int16x8_t x6[32];
-  btf_16_neon_mode2(cospi[56], cospi[8], x5[4], x5[7], output[4], output[28],
+  btf_16_neon_mode2(cospi[56], cospi[8], x5[4], x5[7], &output[4], &output[28],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[24], cospi[40], x5[5], x5[6], output[20], output[12],
-                    v_cos_bit);
+  btf_16_neon_mode2(cospi[24], cospi[40], x5[5], x5[6], &output[20],
+                    &output[12], v_cos_bit);
   x6[8] = vqaddq_s16(x4[8], x5[9]);
   x6[9] = vqsubq_s16(x4[8], x5[9]);
   x6[10] = vqsubq_s16(x4[11], x5[10]);
@@ -1153,25 +1181,25 @@ void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x6[13] = vqsubq_s16(x4[12], x5[13]);
   x6[14] = vqsubq_s16(x4[15], x5[14]);
   x6[15] = vqaddq_s16(x4[15], x5[14]);
-  btf_16_neon_mode0(cospi[8], cospi[56], x5[17], x5[30], x6[17], x6[30],
+  btf_16_neon_mode0(cospi[8], cospi[56], x5[17], x5[30], &x6[17], &x6[30],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[56], cospi[8], x5[18], x5[29], x6[18], x6[29],
+  btf_16_neon_mode02(cospi[56], cospi[8], x5[18], x5[29], &x6[18], &x6[29],
                      v_cos_bit);
-  btf_16_neon_mode0(cospi[40], cospi[24], x5[21], x5[26], x6[21], x6[26],
+  btf_16_neon_mode0(cospi[40], cospi[24], x5[21], x5[26], &x6[21], &x6[26],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[24], cospi[40], x5[22], x5[25], x6[22], x6[25],
+  btf_16_neon_mode02(cospi[24], cospi[40], x5[22], x5[25], &x6[22], &x6[25],
                      v_cos_bit);
 
   // stage 7
   int16x8_t x7[32];
-  btf_16_neon_mode2(cospi[60], cospi[4], x6[8], x6[15], output[2], output[30],
+  btf_16_neon_mode2(cospi[60], cospi[4], x6[8], x6[15], &output[2], &output[30],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[28], cospi[36], x6[9], x6[14], output[18], output[14],
-                    v_cos_bit);
-  btf_16_neon_mode2(cospi[44], cospi[20], x6[10], x6[13], output[10],
-                    output[22], v_cos_bit);
-  btf_16_neon_mode2(cospi[12], cospi[52], x6[11], x6[12], output[26], output[6],
-                    v_cos_bit);
+  btf_16_neon_mode2(cospi[28], cospi[36], x6[9], x6[14], &output[18],
+                    &output[14], v_cos_bit);
+  btf_16_neon_mode2(cospi[44], cospi[20], x6[10], x6[13], &output[10],
+                    &output[22], v_cos_bit);
+  btf_16_neon_mode2(cospi[12], cospi[52], x6[11], x6[12], &output[26],
+                    &output[6], v_cos_bit);
   x7[16] = vqaddq_s16(x5[16], x6[17]);
   x7[17] = vqsubq_s16(x5[16], x6[17]);
   x7[18] = vqsubq_s16(x5[19], x6[18]);
@@ -1189,22 +1217,22 @@ void av1_fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x7[30] = vqsubq_s16(x5[31], x6[30]);
   x7[31] = vqaddq_s16(x5[31], x6[30]);
 
-  btf_16_neon_mode2(cospi[62], cospi[2], x7[16], x7[31], output[1], output[31],
-                    v_cos_bit);
-  btf_16_neon_mode2(cospi[30], cospi[34], x7[17], x7[30], output[17],
-                    output[15], v_cos_bit);
-  btf_16_neon_mode2(cospi[46], cospi[18], x7[18], x7[29], output[9], output[23],
-                    v_cos_bit);
-  btf_16_neon_mode2(cospi[14], cospi[50], x7[19], x7[28], output[25], output[7],
-                    v_cos_bit);
-  btf_16_neon_mode2(cospi[54], cospi[10], x7[20], x7[27], output[5], output[27],
-                    v_cos_bit);
-  btf_16_neon_mode2(cospi[22], cospi[42], x7[21], x7[26], output[21],
-                    output[11], v_cos_bit);
-  btf_16_neon_mode2(cospi[38], cospi[26], x7[22], x7[25], output[13],
-                    output[19], v_cos_bit);
-  btf_16_neon_mode2(cospi[6], cospi[58], x7[23], x7[24], output[29], output[3],
-                    v_cos_bit);
+  btf_16_neon_mode2(cospi[62], cospi[2], x7[16], x7[31], &output[1],
+                    &output[31], v_cos_bit);
+  btf_16_neon_mode2(cospi[30], cospi[34], x7[17], x7[30], &output[17],
+                    &output[15], v_cos_bit);
+  btf_16_neon_mode2(cospi[46], cospi[18], x7[18], x7[29], &output[9],
+                    &output[23], v_cos_bit);
+  btf_16_neon_mode2(cospi[14], cospi[50], x7[19], x7[28], &output[25],
+                    &output[7], v_cos_bit);
+  btf_16_neon_mode2(cospi[54], cospi[10], x7[20], x7[27], &output[5],
+                    &output[27], v_cos_bit);
+  btf_16_neon_mode2(cospi[22], cospi[42], x7[21], x7[26], &output[21],
+                    &output[11], v_cos_bit);
+  btf_16_neon_mode2(cospi[38], cospi[26], x7[22], x7[25], &output[13],
+                    &output[19], v_cos_bit);
+  btf_16_neon_mode2(cospi[6], cospi[58], x7[23], x7[24], &output[29],
+                    &output[3], v_cos_bit);
 }
 
 void av1_fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
@@ -1310,21 +1338,21 @@ void av1_fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
   x2[15] = vqaddq_s16(x1[15], x1[16]);
   x2[16] = vqsubq_s16(x1[15], x1[16]);
 
-  btf_16_neon_mode0(*cospi32, *cospi32, x1[40], x1[55], x2[40], x2[55],
+  btf_16_neon_mode0(*cospi32, *cospi32, x1[40], x1[55], &x2[40], &x2[55],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x1[41], x1[54], x2[41], x2[54],
+  btf_16_neon_mode0(*cospi32, *cospi32, x1[41], x1[54], &x2[41], &x2[54],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x1[42], x1[53], x2[42], x2[53],
+  btf_16_neon_mode0(*cospi32, *cospi32, x1[42], x1[53], &x2[42], &x2[53],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x1[43], x1[52], x2[43], x2[52],
+  btf_16_neon_mode0(*cospi32, *cospi32, x1[43], x1[52], &x2[43], &x2[52],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x1[44], x1[51], x2[44], x2[51],
+  btf_16_neon_mode0(*cospi32, *cospi32, x1[44], x1[51], &x2[44], &x2[51],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x1[45], x1[50], x2[45], x2[50],
+  btf_16_neon_mode0(*cospi32, *cospi32, x1[45], x1[50], &x2[45], &x2[50],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x1[46], x1[49], x2[46], x2[49],
+  btf_16_neon_mode0(*cospi32, *cospi32, x1[46], x1[49], &x2[46], &x2[49],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x1[47], x1[48], x2[47], x2[48],
+  btf_16_neon_mode0(*cospi32, *cospi32, x1[47], x1[48], &x2[47], &x2[48],
                     *v_cos_bit);
 
   // stage 3
@@ -1348,13 +1376,13 @@ void av1_fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
   x3[17] = x2[17];
   x3[18] = x2[18];
   x3[19] = x2[19];
-  btf_16_neon_mode0(*cospi32, *cospi32, x2[20], x2[27], x3[20], x3[27],
+  btf_16_neon_mode0(*cospi32, *cospi32, x2[20], x2[27], &x3[20], &x3[27],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x2[21], x2[26], x3[21], x3[26],
+  btf_16_neon_mode0(*cospi32, *cospi32, x2[21], x2[26], &x3[21], &x3[26],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x2[22], x2[25], x3[22], x3[25],
+  btf_16_neon_mode0(*cospi32, *cospi32, x2[22], x2[25], &x3[22], &x3[25],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x2[23], x2[24], x3[23], x3[24],
+  btf_16_neon_mode0(*cospi32, *cospi32, x2[23], x2[24], &x3[23], &x3[24],
                     *v_cos_bit);
   x3[28] = x2[28];
   x3[29] = x2[29];
@@ -1403,9 +1431,9 @@ void av1_fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
   x4[3] = vqaddq_s16(x3[3], x3[4]);
   x4[4] = vqsubq_s16(x3[3], x3[4]);
 
-  btf_16_neon_mode0(*cospi32, *cospi32, x3[10], x3[13], x4[10], x4[13],
+  btf_16_neon_mode0(*cospi32, *cospi32, x3[10], x3[13], &x4[10], &x4[13],
                     *v_cos_bit);
-  btf_16_neon_mode0(*cospi32, *cospi32, x3[11], x3[12], x4[11], x4[12],
+  btf_16_neon_mode0(*cospi32, *cospi32, x3[11], x3[12], &x4[11], &x4[12],
                     *v_cos_bit);
 
   x4[16] = vqaddq_s16(x3[16], x3[23]);
@@ -1437,21 +1465,21 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
 
   av1_fdct8x64_stage_1234_neon(input, x3, x4, &cospi[32], &v_cos_bit);
 
-  btf_16_neon_mode0(cospi[16], cospi[48], x3[36], x3[59], x4[36], x4[59],
+  btf_16_neon_mode0(cospi[16], cospi[48], x3[36], x3[59], &x4[36], &x4[59],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[16], cospi[48], x3[37], x3[58], x4[37], x4[58],
+  btf_16_neon_mode0(cospi[16], cospi[48], x3[37], x3[58], &x4[37], &x4[58],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[16], cospi[48], x3[38], x3[57], x4[38], x4[57],
+  btf_16_neon_mode0(cospi[16], cospi[48], x3[38], x3[57], &x4[38], &x4[57],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[16], cospi[48], x3[39], x3[56], x4[39], x4[56],
+  btf_16_neon_mode0(cospi[16], cospi[48], x3[39], x3[56], &x4[39], &x4[56],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x3[40], x3[55], x4[40], x4[55],
+  btf_16_neon_mode02(cospi[48], cospi[16], x3[40], x3[55], &x4[40], &x4[55],
                      v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x3[41], x3[54], x4[41], x4[54],
+  btf_16_neon_mode02(cospi[48], cospi[16], x3[41], x3[54], &x4[41], &x4[54],
                      v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x3[42], x3[53], x4[42], x4[53],
+  btf_16_neon_mode02(cospi[48], cospi[16], x3[42], x3[53], &x4[42], &x4[53],
                      v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x3[43], x3[52], x4[43], x4[52],
+  btf_16_neon_mode02(cospi[48], cospi[16], x3[43], x3[52], &x4[43], &x4[52],
                      v_cos_bit);
 
   // stage 5
@@ -1461,7 +1489,7 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x5[1] = vqaddq_s16(x4[1], x4[2]);
   x5[2] = vqsubq_s16(x4[1], x4[2]);
 
-  btf_16_neon_mode0(cospi[32], cospi[32], x4[5], x4[6], x5[5], x5[6],
+  btf_16_neon_mode0(cospi[32], cospi[32], x4[5], x4[6], &x5[5], &x5[6],
                     v_cos_bit);
 
   x5[8] = vqaddq_s16(x3[8], x4[11]);
@@ -1473,13 +1501,13 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x5[13] = vqsubq_s16(x3[14], x4[13]);
   x5[14] = vqaddq_s16(x3[14], x4[13]);
 
-  btf_16_neon_mode0(cospi[16], cospi[48], x4[18], x4[29], x5[18], x5[29],
+  btf_16_neon_mode0(cospi[16], cospi[48], x4[18], x4[29], &x5[18], &x5[29],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[16], cospi[48], x4[19], x4[28], x5[19], x5[28],
+  btf_16_neon_mode0(cospi[16], cospi[48], x4[19], x4[28], &x5[19], &x5[28],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x4[20], x4[27], x5[20], x5[27],
+  btf_16_neon_mode02(cospi[48], cospi[16], x4[20], x4[27], &x5[20], &x5[27],
                      v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x4[21], x4[26], x5[21], x5[26],
+  btf_16_neon_mode02(cospi[48], cospi[16], x4[21], x4[26], &x5[21], &x5[26],
                      v_cos_bit);
 
   x5[32] = vqaddq_s16(x3[32], x4[39]);
@@ -1517,18 +1545,18 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
 
   // stage 6
   int16x8_t x6[64];
-  btf_16_neon_mode2(cospi[32], cospi[32], x5[0], x5[1], x6[0], x6[1],
+  btf_16_neon_mode2(cospi[32], cospi[32], x5[0], x5[1], &x6[0], &x6[1],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[48], cospi[16], x5[2], x5[3], x6[2], x6[3],
+  btf_16_neon_mode2(cospi[48], cospi[16], x5[2], x5[3], &x6[2], &x6[3],
                     v_cos_bit);
   x6[4] = vqaddq_s16(x4[4], x5[5]);
   x6[5] = vqsubq_s16(x4[4], x5[5]);
   x6[6] = vqsubq_s16(x4[7], x5[6]);
   x6[7] = vqaddq_s16(x4[7], x5[6]);
 
-  btf_16_neon_mode0(cospi[16], cospi[48], x5[9], x5[14], x6[9], x6[14],
+  btf_16_neon_mode0(cospi[16], cospi[48], x5[9], x5[14], &x6[9], &x6[14],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[48], cospi[16], x5[10], x5[13], x6[10], x6[13],
+  btf_16_neon_mode02(cospi[48], cospi[16], x5[10], x5[13], &x6[10], &x6[13],
                      v_cos_bit);
 
   x6[16] = vqaddq_s16(x4[16], x5[19]);
@@ -1548,28 +1576,29 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x6[29] = vqsubq_s16(x4[30], x5[29]);
   x6[30] = vqaddq_s16(x4[30], x5[29]);
 
-  btf_16_neon_mode0(cospi[8], cospi[56], x5[34], x5[61], x6[34], x6[61],
+  btf_16_neon_mode0(cospi[8], cospi[56], x5[34], x5[61], &x6[34], &x6[61],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[8], cospi[56], x5[35], x5[60], x6[35], x6[60],
+  btf_16_neon_mode0(cospi[8], cospi[56], x5[35], x5[60], &x6[35], &x6[60],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[56], cospi[8], x5[36], x5[59], x6[36], x6[59],
+  btf_16_neon_mode02(cospi[56], cospi[8], x5[36], x5[59], &x6[36], &x6[59],
                      v_cos_bit);
-  btf_16_neon_mode02(cospi[56], cospi[8], x5[37], x5[58], x6[37], x6[58],
+  btf_16_neon_mode02(cospi[56], cospi[8], x5[37], x5[58], &x6[37], &x6[58],
                      v_cos_bit);
-  btf_16_neon_mode0(cospi[40], cospi[24], x5[42], x5[53], x6[42], x6[53],
+  btf_16_neon_mode0(cospi[40], cospi[24], x5[42], x5[53], &x6[42], &x6[53],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[40], cospi[24], x5[43], x5[52], x6[43], x6[52],
+  btf_16_neon_mode0(cospi[40], cospi[24], x5[43], x5[52], &x6[43], &x6[52],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[24], cospi[40], x5[44], x5[51], x6[44], x6[51],
+  btf_16_neon_mode02(cospi[24], cospi[40], x5[44], x5[51], &x6[44], &x6[51],
                      v_cos_bit);
-  btf_16_neon_mode02(cospi[24], cospi[40], x5[45], x5[50], x6[45], x6[50],
+  btf_16_neon_mode02(cospi[24], cospi[40], x5[45], x5[50], &x6[45], &x6[50],
                      v_cos_bit);
 
   // stage 7
   int16x8_t x7[64];
 
-  btf_16_neon_mode2(cospi[56], cospi[8], x6[4], x6[7], x7[4], x7[7], v_cos_bit);
-  btf_16_neon_mode2(cospi[24], cospi[40], x6[5], x6[6], x7[5], x7[6],
+  btf_16_neon_mode2(cospi[56], cospi[8], x6[4], x6[7], &x7[4], &x7[7],
+                    v_cos_bit);
+  btf_16_neon_mode2(cospi[24], cospi[40], x6[5], x6[6], &x7[5], &x7[6],
                     v_cos_bit);
   x7[8] = vqaddq_s16(x5[8], x6[9]);
   x7[9] = vqsubq_s16(x5[8], x6[9]);
@@ -1580,14 +1609,14 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x7[14] = vqsubq_s16(x5[15], x6[14]);
   x7[15] = vqaddq_s16(x5[15], x6[14]);
 
-  btf_16_neon_mode0(cospi[8], cospi[56], x6[17], x6[30], x7[17], x7[30],
+  btf_16_neon_mode0(cospi[8], cospi[56], x6[17], x6[30], &x7[17], &x7[30],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[56], cospi[8], x6[18], x6[29], x7[18], x7[29],
+  btf_16_neon_mode02(cospi[56], cospi[8], x6[18], x6[29], &x7[18], &x7[29],
                      v_cos_bit);
 
-  btf_16_neon_mode0(cospi[40], cospi[24], x6[21], x6[26], x7[21], x7[26],
+  btf_16_neon_mode0(cospi[40], cospi[24], x6[21], x6[26], &x7[21], &x7[26],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[24], cospi[40], x6[22], x6[25], x7[22], x7[25],
+  btf_16_neon_mode02(cospi[24], cospi[40], x6[22], x6[25], &x7[22], &x7[25],
                      v_cos_bit);
 
   x7[32] = vqaddq_s16(x5[32], x6[35]);
@@ -1626,13 +1655,13 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   // stage 8
   int16x8_t x8[64];
 
-  btf_16_neon_mode2(cospi[60], cospi[4], x7[8], x7[15], x8[8], x8[15],
+  btf_16_neon_mode2(cospi[60], cospi[4], x7[8], x7[15], &x8[8], &x8[15],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[28], cospi[36], x7[9], x7[14], x8[9], x8[14],
+  btf_16_neon_mode2(cospi[28], cospi[36], x7[9], x7[14], &x8[9], &x8[14],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[44], cospi[20], x7[10], x7[13], x8[10], x8[13],
+  btf_16_neon_mode2(cospi[44], cospi[20], x7[10], x7[13], &x8[10], &x8[13],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[12], cospi[52], x7[11], x7[12], x8[11], x8[12],
+  btf_16_neon_mode2(cospi[12], cospi[52], x7[11], x7[12], &x8[11], &x8[12],
                     v_cos_bit);
   x8[16] = vqaddq_s16(x6[16], x7[17]);
   x8[17] = vqsubq_s16(x6[16], x7[17]);
@@ -1651,41 +1680,41 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x8[30] = vqsubq_s16(x6[31], x7[30]);
   x8[31] = vqaddq_s16(x6[31], x7[30]);
 
-  btf_16_neon_mode0(cospi[4], cospi[60], x7[33], x7[62], x8[33], x8[62],
+  btf_16_neon_mode0(cospi[4], cospi[60], x7[33], x7[62], &x8[33], &x8[62],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[60], cospi[4], x7[34], x7[61], x8[34], x8[61],
+  btf_16_neon_mode02(cospi[60], cospi[4], x7[34], x7[61], &x8[34], &x8[61],
                      v_cos_bit);
-  btf_16_neon_mode0(cospi[36], cospi[28], x7[37], x7[58], x8[37], x8[58],
+  btf_16_neon_mode0(cospi[36], cospi[28], x7[37], x7[58], &x8[37], &x8[58],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[28], cospi[36], x7[38], x7[57], x8[38], x8[57],
+  btf_16_neon_mode02(cospi[28], cospi[36], x7[38], x7[57], &x8[38], &x8[57],
                      v_cos_bit);
-  btf_16_neon_mode0(cospi[20], cospi[44], x7[41], x7[54], x8[41], x8[54],
+  btf_16_neon_mode0(cospi[20], cospi[44], x7[41], x7[54], &x8[41], &x8[54],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[44], cospi[20], x7[42], x7[53], x8[42], x8[53],
+  btf_16_neon_mode02(cospi[44], cospi[20], x7[42], x7[53], &x8[42], &x8[53],
                      v_cos_bit);
-  btf_16_neon_mode0(cospi[52], cospi[12], x7[45], x7[50], x8[45], x8[50],
+  btf_16_neon_mode0(cospi[52], cospi[12], x7[45], x7[50], &x8[45], &x8[50],
                     v_cos_bit);
-  btf_16_neon_mode02(cospi[12], cospi[52], x7[46], x7[49], x8[46], x8[49],
+  btf_16_neon_mode02(cospi[12], cospi[52], x7[46], x7[49], &x8[46], &x8[49],
                      v_cos_bit);
 
   // stage 9
   int16x8_t x9[64];
 
-  btf_16_neon_mode2(cospi[62], cospi[2], x8[16], x8[31], x9[16], x9[31],
+  btf_16_neon_mode2(cospi[62], cospi[2], x8[16], x8[31], &x9[16], &x9[31],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[30], cospi[34], x8[17], x8[30], x9[17], x9[30],
+  btf_16_neon_mode2(cospi[30], cospi[34], x8[17], x8[30], &x9[17], &x9[30],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[46], cospi[18], x8[18], x8[29], x9[18], x9[29],
+  btf_16_neon_mode2(cospi[46], cospi[18], x8[18], x8[29], &x9[18], &x9[29],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[14], cospi[50], x8[19], x8[28], x9[19], x9[28],
+  btf_16_neon_mode2(cospi[14], cospi[50], x8[19], x8[28], &x9[19], &x9[28],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[54], cospi[10], x8[20], x8[27], x9[20], x9[27],
+  btf_16_neon_mode2(cospi[54], cospi[10], x8[20], x8[27], &x9[20], &x9[27],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[22], cospi[42], x8[21], x8[26], x9[21], x9[26],
+  btf_16_neon_mode2(cospi[22], cospi[42], x8[21], x8[26], &x9[21], &x9[26],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[38], cospi[26], x8[22], x8[25], x9[22], x9[25],
+  btf_16_neon_mode2(cospi[38], cospi[26], x8[22], x8[25], &x9[22], &x9[25],
                     v_cos_bit);
-  btf_16_neon_mode2(cospi[6], cospi[58], x8[23], x8[24], x9[23], x9[24],
+  btf_16_neon_mode2(cospi[6], cospi[58], x8[23], x8[24], &x9[23], &x9[24],
                     v_cos_bit);
   x9[32] = vqaddq_s16(x7[32], x8[33]);
   x9[33] = vqsubq_s16(x7[32], x8[33]);
@@ -1721,53 +1750,38 @@ void av1_fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x9[63] = vqaddq_s16(x7[63], x8[62]);
 
   // stage 10
-  btf_16_neon_mode2(cospi[63], cospi[1], x9[32], x9[63], output[1], output[63],
-                    v_cos_bit);
-
-  btf_16_neon_mode2(cospi[31], cospi[33], x9[33], x9[62], output[33],
-                    output[31], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[47], cospi[17], x9[34], x9[61], output[17],
-                    output[47], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[15], cospi[49], x9[35], x9[60], output[49],
-                    output[15], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[55], cospi[9], x9[36], x9[59], output[9], output[55],
-                    v_cos_bit);
-
-  btf_16_neon_mode2(cospi[23], cospi[41], x9[37], x9[58], output[41],
-                    output[23], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[39], cospi[25], x9[38], x9[57], output[25],
-                    output[39], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[7], cospi[57], x9[39], x9[56], output[57], output[7],
-                    v_cos_bit);
-
-  btf_16_neon_mode2(cospi[59], cospi[5], x9[40], x9[55], output[5], output[59],
-                    v_cos_bit);
-
-  btf_16_neon_mode2(cospi[27], cospi[37], x9[41], x9[54], output[37],
-                    output[27], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[43], cospi[21], x9[42], x9[53], output[21],
-                    output[43], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[11], cospi[53], x9[43], x9[52], output[53],
-                    output[11], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[51], cospi[13], x9[44], x9[51], output[13],
-                    output[51], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[19], cospi[45], x9[45], x9[50], output[45],
-                    output[19], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[35], cospi[29], x9[46], x9[49], output[29],
-                    output[35], v_cos_bit);
-
-  btf_16_neon_mode2(cospi[3], cospi[61], x9[47], x9[48], output[61], output[3],
-                    v_cos_bit);
+  btf_16_neon_mode2(cospi[63], cospi[1], x9[32], x9[63], &output[1],
+                    &output[63], v_cos_bit);
+  btf_16_neon_mode2(cospi[31], cospi[33], x9[33], x9[62], &output[33],
+                    &output[31], v_cos_bit);
+  btf_16_neon_mode2(cospi[47], cospi[17], x9[34], x9[61], &output[17],
+                    &output[47], v_cos_bit);
+  btf_16_neon_mode2(cospi[15], cospi[49], x9[35], x9[60], &output[49],
+                    &output[15], v_cos_bit);
+  btf_16_neon_mode2(cospi[55], cospi[9], x9[36], x9[59], &output[9],
+                    &output[55], v_cos_bit);
+  btf_16_neon_mode2(cospi[23], cospi[41], x9[37], x9[58], &output[41],
+                    &output[23], v_cos_bit);
+  btf_16_neon_mode2(cospi[39], cospi[25], x9[38], x9[57], &output[25],
+                    &output[39], v_cos_bit);
+  btf_16_neon_mode2(cospi[7], cospi[57], x9[39], x9[56], &output[57],
+                    &output[7], v_cos_bit);
+  btf_16_neon_mode2(cospi[59], cospi[5], x9[40], x9[55], &output[5],
+                    &output[59], v_cos_bit);
+  btf_16_neon_mode2(cospi[27], cospi[37], x9[41], x9[54], &output[37],
+                    &output[27], v_cos_bit);
+  btf_16_neon_mode2(cospi[43], cospi[21], x9[42], x9[53], &output[21],
+                    &output[43], v_cos_bit);
+  btf_16_neon_mode2(cospi[11], cospi[53], x9[43], x9[52], &output[53],
+                    &output[11], v_cos_bit);
+  btf_16_neon_mode2(cospi[51], cospi[13], x9[44], x9[51], &output[13],
+                    &output[51], v_cos_bit);
+  btf_16_neon_mode2(cospi[19], cospi[45], x9[45], x9[50], &output[45],
+                    &output[19], v_cos_bit);
+  btf_16_neon_mode2(cospi[35], cospi[29], x9[46], x9[49], &output[29],
+                    &output[35], v_cos_bit);
+  btf_16_neon_mode2(cospi[3], cospi[61], x9[47], x9[48], &output[61],
+                    &output[3], v_cos_bit);
 
   // stage 11
   output[0] = x6[0];
@@ -1820,9 +1834,9 @@ void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
   // stage 2
   int16x8_t x2[8];
 
-  btf_16_neon_mode3(cospi[32], cospi[32], x1[1], input[4], x2[2], x2[3],
+  btf_16_neon_mode3(cospi[32], cospi[32], x1[1], input[4], &x2[2], &x2[3],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[32], cospi[32], input[2], x1[3], x2[6], x2[7],
+  btf_16_neon_mode3(cospi[32], cospi[32], input[2], x1[3], &x2[6], &x2[7],
                     v_cos_bit);
   // stage 3
   int16x8_t x3[8];
@@ -1836,9 +1850,9 @@ void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
   x3[7] = vqsubq_s16(input[6], x2[7]);
 
   // stage 4
-  btf_16_neon_mode3(cospi[16], cospi[48], x3[4], x3[5], x3[4], x3[5],
+  btf_16_neon_mode3(cospi[16], cospi[48], x3[4], x3[5], &x3[4], &x3[5],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[48], cospi[16], x3[6], x3[7], x3[6], x3[7],
+  btf_16_neon_mode0(cospi[48], cospi[16], x3[6], x3[7], &x3[6], &x3[7],
                     v_cos_bit);
 
   // stage 5
@@ -1853,13 +1867,13 @@ void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output, int8_t cos_bit,
   x5[7] = vqsubq_s16(x3[3], x3[7]);
 
   // stage 6
-  btf_16_neon_mode3(cospi[4], cospi[60], x5[0], x5[1], output[7], output[0],
+  btf_16_neon_mode3(cospi[4], cospi[60], x5[0], x5[1], &output[7], &output[0],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[20], cospi[44], x5[2], x5[3], output[5], output[2],
+  btf_16_neon_mode3(cospi[20], cospi[44], x5[2], x5[3], &output[5], &output[2],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[36], cospi[28], x5[4], x5[5], output[3], output[4],
+  btf_16_neon_mode3(cospi[36], cospi[28], x5[4], x5[5], &output[3], &output[4],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[52], cospi[12], x5[6], x5[7], output[1], output[6],
+  btf_16_neon_mode3(cospi[52], cospi[12], x5[6], x5[7], &output[1], &output[6],
                     v_cos_bit);
 }
 
@@ -1878,13 +1892,13 @@ static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
 
   // stage 2
   btf_16_neon(-cospi[32], cospi[32], -cospi[32], -cospi[32], input[7], input[8],
-              x1[4], x1[5]);
-  btf_16_neon_mode1(cospi[32], cospi[32], input[4], input[11], x1[6], x1[7],
+              &x1[4], &x1[5], v_cos_bit);
+  btf_16_neon_mode1(cospi[32], cospi[32], input[4], input[11], &x1[6], &x1[7],
                     v_cos_bit);
-  btf_16_neon_mode1(cospi[32], cospi[32], input[6], input[9], x1[8], x1[9],
+  btf_16_neon_mode1(cospi[32], cospi[32], input[6], input[9], &x1[8], &x1[9],
                     v_cos_bit);
   btf_16_neon(-cospi[32], cospi[32], -cospi[32], -cospi[32], input[5],
-              input[10], x1[10], x1[11]);
+              input[10], &x1[10], &x1[11], v_cos_bit);
   // stage 3
   int16x8_t x3[16];
   x3[0] = vqaddq_s16(input[0], x1[4]);
@@ -1905,13 +1919,13 @@ static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
   x3[15] = vqsubq_s16(x1[3], x1[11]);
 
   // stage 4
-  btf_16_neon_mode3(cospi[16], cospi[48], x3[4], x3[5], x3[4], x3[5],
+  btf_16_neon_mode3(cospi[16], cospi[48], x3[4], x3[5], &x3[4], &x3[5],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[48], cospi[16], x3[6], x3[7], x3[6], x3[7],
+  btf_16_neon_mode0(cospi[48], cospi[16], x3[6], x3[7], &x3[6], &x3[7],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[16], cospi[48], x3[12], x3[13], x3[12], x3[13],
+  btf_16_neon_mode3(cospi[16], cospi[48], x3[12], x3[13], &x3[12], &x3[13],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[48], cospi[16], x3[14], x3[15], x3[14], x3[15],
+  btf_16_neon_mode0(cospi[48], cospi[16], x3[14], x3[15], &x3[14], &x3[15],
                     v_cos_bit);
 
   // stage 5
@@ -1934,12 +1948,13 @@ static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
   x5[15] = vqsubq_s16(x3[11], x3[15]);
 
   // stage 6
-  btf_16_neon_mode3(cospi[8], cospi[56], x5[8], x5[9], x5[8], x5[9], v_cos_bit);
-  btf_16_neon_mode3(cospi[40], cospi[24], x5[10], x5[11], x5[10], x5[11],
+  btf_16_neon_mode3(cospi[8], cospi[56], x5[8], x5[9], &x5[8], &x5[9],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[56], cospi[8], x5[12], x5[13], x5[12], x5[13],
+  btf_16_neon_mode3(cospi[40], cospi[24], x5[10], x5[11], &x5[10], &x5[11],
                     v_cos_bit);
-  btf_16_neon_mode0(cospi[24], cospi[40], x5[14], x5[15], x5[14], x5[15],
+  btf_16_neon_mode0(cospi[56], cospi[8], x5[12], x5[13], &x5[12], &x5[13],
+                    v_cos_bit);
+  btf_16_neon_mode0(cospi[24], cospi[40], x5[14], x5[15], &x5[14], &x5[15],
                     v_cos_bit);
 
   // stage 7
@@ -1962,22 +1977,22 @@ static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
   x7[15] = vqsubq_s16(x5[7], x5[15]);
 
   // stage 8
-  btf_16_neon_mode3(cospi[2], cospi[62], x7[0], x7[1], output[15], output[0],
+  btf_16_neon_mode3(cospi[2], cospi[62], x7[0], x7[1], &output[15], &output[0],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[10], cospi[54], x7[2], x7[3], output[13], output[2],
+  btf_16_neon_mode3(cospi[10], cospi[54], x7[2], x7[3], &output[13], &output[2],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[18], cospi[46], x7[4], x7[5], output[11], output[4],
+  btf_16_neon_mode3(cospi[18], cospi[46], x7[4], x7[5], &output[11], &output[4],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[26], cospi[38], x7[6], x7[7], output[9], output[6],
+  btf_16_neon_mode3(cospi[26], cospi[38], x7[6], x7[7], &output[9], &output[6],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[34], cospi[30], x7[8], x7[9], output[7], output[8],
+  btf_16_neon_mode3(cospi[34], cospi[30], x7[8], x7[9], &output[7], &output[8],
                     v_cos_bit);
-  btf_16_neon_mode3(cospi[42], cospi[22], x7[10], x7[11], output[5], output[10],
-                    v_cos_bit);
-  btf_16_neon_mode3(cospi[50], cospi[14], x7[12], x7[13], output[3], output[12],
-                    v_cos_bit);
-  btf_16_neon_mode3(cospi[58], cospi[6], x7[14], x7[15], output[1], output[14],
-                    v_cos_bit);
+  btf_16_neon_mode3(cospi[42], cospi[22], x7[10], x7[11], &output[5],
+                    &output[10], v_cos_bit);
+  btf_16_neon_mode3(cospi[50], cospi[14], x7[12], x7[13], &output[3],
+                    &output[12], v_cos_bit);
+  btf_16_neon_mode3(cospi[58], cospi[6], x7[14], x7[15], &output[1],
+                    &output[14], v_cos_bit);
 }
 
 void av1_fidentity4x4_neon(const int16x8_t *const input,
@@ -3085,14 +3100,14 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf0[17] = buf1[17];
   buf0[18] = buf1[18];
   buf0[19] = buf1[19];
-  btf_32_neon_mode0(cospi[32], cospi[32], buf1[20], buf1[27], buf0[20],
-                    buf0[27], v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], buf1[21], buf1[26], buf0[21],
-                    buf0[26], v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], buf1[22], buf1[25], buf0[22],
-                    buf0[25], v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], buf1[23], buf1[24], buf0[23],
-                    buf0[24], v_cos_bit);
+  btf_32_neon_mode0(cospi[32], cospi[32], buf1[20], buf1[27], &buf0[20],
+                    &buf0[27], v_cos_bit);
+  btf_32_neon_mode0(cospi[32], cospi[32], buf1[21], buf1[26], &buf0[21],
+                    &buf0[26], v_cos_bit);
+  btf_32_neon_mode0(cospi[32], cospi[32], buf1[22], buf1[25], &buf0[22],
+                    &buf0[25], v_cos_bit);
+  btf_32_neon_mode0(cospi[32], cospi[32], buf1[23], buf1[24], &buf0[23],
+                    &buf0[24], v_cos_bit);
   buf0[28] = buf1[28];
   buf0[29] = buf1[29];
   buf0[30] = buf1[30];
@@ -3110,10 +3125,10 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf1[4] = vsubq_s32(buf0[3], buf0[4]);
   buf1[8] = buf0[8];
   buf1[9] = buf0[9];
-  btf_32_neon_mode0(cospi[32], cospi[32], buf0[10], buf0[13], buf1[10],
-                    buf1[13], v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], buf0[11], buf0[12], buf1[11],
-                    buf1[12], v_cos_bit);
+  btf_32_neon_mode0(cospi[32], cospi[32], buf0[10], buf0[13], &buf1[10],
+                    &buf1[13], v_cos_bit);
+  btf_32_neon_mode0(cospi[32], cospi[32], buf0[11], buf0[12], &buf1[11],
+                    &buf1[12], v_cos_bit);
   buf1[14] = buf0[14];
   buf1[15] = buf0[15];
   buf1[16] = vaddq_s32(buf0[16], buf0[23]);
@@ -3140,7 +3155,7 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf0[1] = vaddq_s32(buf1[1], buf1[2]);
   buf0[2] = vsubq_s32(buf1[1], buf1[2]);
   buf0[4] = buf1[4];
-  btf_32_neon_mode0(cospi[32], cospi[32], buf1[5], buf1[6], buf0[5], buf0[6],
+  btf_32_neon_mode0(cospi[32], cospi[32], buf1[5], buf1[6], &buf0[5], &buf0[6],
                     v_cos_bit);
   buf0[7] = buf1[7];
   buf0[8] = vaddq_s32(buf1[8], buf1[11]);
@@ -3153,14 +3168,14 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf0[14] = vaddq_s32(buf1[14], buf1[13]);
   buf0[16] = buf1[16];
   buf0[17] = buf1[17];
-  btf_32_neon_mode0(cospi[16], cospi[48], buf1[18], buf1[29], buf0[18],
-                    buf0[29], v_cos_bit);
-  btf_32_neon_mode0(cospi[16], cospi[48], buf1[19], buf1[28], buf0[19],
-                    buf0[28], v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], buf1[20], buf1[27], buf0[20],
-                     buf0[27], v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], buf1[21], buf1[26], buf0[21],
-                     buf0[26], v_cos_bit);
+  btf_32_neon_mode0(cospi[16], cospi[48], buf1[18], buf1[29], &buf0[18],
+                    &buf0[29], v_cos_bit);
+  btf_32_neon_mode0(cospi[16], cospi[48], buf1[19], buf1[28], &buf0[19],
+                    &buf0[28], v_cos_bit);
+  btf_32_neon_mode01(cospi[48], cospi[16], buf1[20], buf1[27], &buf0[20],
+                     &buf0[27], v_cos_bit);
+  btf_32_neon_mode01(cospi[48], cospi[16], buf1[21], buf1[26], &buf0[21],
+                     &buf0[26], v_cos_bit);
   buf0[22] = buf1[22];
   buf0[23] = buf1[23];
   buf0[24] = buf1[24];
@@ -3170,19 +3185,19 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
 
   // stage 5
   cospi = cospi_arr_s16(cos_bit);
-  btf_32_neon(cospi[32], cospi[32], buf0[0], buf0[1], buf1[0], buf1[1],
+  btf_32_neon(cospi[32], cospi[32], buf0[0], buf0[1], &buf1[0], &buf1[1],
               v_cos_bit);
-  btf_32_type1_neon(cospi[48], cospi[16], buf0[2], buf0[3], buf1[2], buf1[3],
+  btf_32_type1_neon(cospi[48], cospi[16], buf0[2], buf0[3], &buf1[2], &buf1[3],
                     v_cos_bit);
   buf1[4] = vaddq_s32(buf0[4], buf0[5]);
   buf1[5] = vsubq_s32(buf0[4], buf0[5]);
   buf1[6] = vsubq_s32(buf0[7], buf0[6]);
   buf1[7] = vaddq_s32(buf0[7], buf0[6]);
   buf1[8] = buf0[8];
-  btf_32_neon_mode0(cospi[16], cospi[48], buf0[9], buf0[14], buf1[9], buf1[14],
-                    v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], buf0[10], buf0[13], buf1[10],
-                     buf1[13], v_cos_bit);
+  btf_32_neon_mode0(cospi[16], cospi[48], buf0[9], buf0[14], &buf1[9],
+                    &buf1[14], v_cos_bit);
+  btf_32_neon_mode01(cospi[48], cospi[16], buf0[10], buf0[13], &buf1[10],
+                     &buf1[13], v_cos_bit);
   buf1[11] = buf0[11];
   buf1[12] = buf0[12];
   buf1[15] = buf0[15];
@@ -3209,9 +3224,9 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf0[1] = buf1[1];
   buf0[2] = buf1[2];
   buf0[3] = buf1[3];
-  btf_32_type1_neon(cospi[56], cospi[8], buf1[4], buf1[7], buf0[4], buf0[7],
+  btf_32_type1_neon(cospi[56], cospi[8], buf1[4], buf1[7], &buf0[4], &buf0[7],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[24], cospi[40], buf1[5], buf1[6], buf0[5], buf0[6],
+  btf_32_type1_neon(cospi[24], cospi[40], buf1[5], buf1[6], &buf0[5], &buf0[6],
                     v_cos_bit);
   buf0[8] = vaddq_s32(buf1[8], buf1[9]);
   buf0[9] = vsubq_s32(buf1[8], buf1[9]);
@@ -3222,16 +3237,16 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf0[14] = vsubq_s32(buf1[15], buf1[14]);
   buf0[15] = vaddq_s32(buf1[15], buf1[14]);
   buf0[16] = buf1[16];
-  btf_32_neon_mode0(cospi[8], cospi[56], buf1[17], buf1[30], buf0[17], buf0[30],
-                    v_cos_bit);
-  btf_32_neon_mode01(cospi[56], cospi[8], buf1[18], buf1[29], buf0[18],
-                     buf0[29], v_cos_bit);
+  btf_32_neon_mode0(cospi[8], cospi[56], buf1[17], buf1[30], &buf0[17],
+                    &buf0[30], v_cos_bit);
+  btf_32_neon_mode01(cospi[56], cospi[8], buf1[18], buf1[29], &buf0[18],
+                     &buf0[29], v_cos_bit);
   buf0[19] = buf1[19];
   buf0[20] = buf1[20];
-  btf_32_neon_mode0(cospi[40], cospi[24], buf1[21], buf1[26], buf0[21],
-                    buf0[26], v_cos_bit);
-  btf_32_neon_mode01(cospi[24], cospi[40], buf1[22], buf1[25], buf0[22],
-                     buf0[25], v_cos_bit);
+  btf_32_neon_mode0(cospi[40], cospi[24], buf1[21], buf1[26], &buf0[21],
+                    &buf0[26], v_cos_bit);
+  btf_32_neon_mode01(cospi[24], cospi[40], buf1[22], buf1[25], &buf0[22],
+                     &buf0[25], v_cos_bit);
   buf0[23] = buf1[23];
   buf0[24] = buf1[24];
   buf0[27] = buf1[27];
@@ -3249,14 +3264,14 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf1[6] = buf0[6];
   buf1[7] = buf0[7];
 
-  btf_32_type1_neon(cospi[60], cospi[4], buf0[8], buf0[15], buf1[8], buf1[15],
+  btf_32_type1_neon(cospi[60], cospi[4], buf0[8], buf0[15], &buf1[8], &buf1[15],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[28], cospi[36], buf0[9], buf0[14], buf1[9], buf1[14],
-                    v_cos_bit);
-  btf_32_type1_neon(cospi[44], cospi[20], buf0[10], buf0[13], buf1[10],
-                    buf1[13], v_cos_bit);
-  btf_32_type1_neon(cospi[12], cospi[52], buf0[11], buf0[12], buf1[11],
-                    buf1[12], v_cos_bit);
+  btf_32_type1_neon(cospi[28], cospi[36], buf0[9], buf0[14], &buf1[9],
+                    &buf1[14], v_cos_bit);
+  btf_32_type1_neon(cospi[44], cospi[20], buf0[10], buf0[13], &buf1[10],
+                    &buf1[13], v_cos_bit);
+  btf_32_type1_neon(cospi[12], cospi[52], buf0[11], buf0[12], &buf1[11],
+                    &buf1[12], v_cos_bit);
   buf1[16] = vaddq_s32(buf0[16], buf0[17]);
   buf1[17] = vsubq_s32(buf0[16], buf0[17]);
   buf1[18] = vsubq_s32(buf0[19], buf0[18]);
@@ -3293,22 +3308,22 @@ static void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output,
   buf0[14] = buf1[14];
   buf0[15] = buf1[15];
 
-  btf_32_type1_neon(cospi[62], cospi[2], buf1[16], buf1[31], buf0[16], buf0[31],
-                    v_cos_bit);
-  btf_32_type1_neon(cospi[30], cospi[34], buf1[17], buf1[30], buf0[17],
-                    buf0[30], v_cos_bit);
-  btf_32_type1_neon(cospi[46], cospi[18], buf1[18], buf1[29], buf0[18],
-                    buf0[29], v_cos_bit);
-  btf_32_type1_neon(cospi[14], cospi[50], buf1[19], buf1[28], buf0[19],
-                    buf0[28], v_cos_bit);
-  btf_32_type1_neon(cospi[54], cospi[10], buf1[20], buf1[27], buf0[20],
-                    buf0[27], v_cos_bit);
-  btf_32_type1_neon(cospi[22], cospi[42], buf1[21], buf1[26], buf0[21],
-                    buf0[26], v_cos_bit);
-  btf_32_type1_neon(cospi[38], cospi[26], buf1[22], buf1[25], buf0[22],
-                    buf0[25], v_cos_bit);
-  btf_32_type1_neon(cospi[6], cospi[58], buf1[23], buf1[24], buf0[23], buf0[24],
-                    v_cos_bit);
+  btf_32_type1_neon(cospi[62], cospi[2], buf1[16], buf1[31], &buf0[16],
+                    &buf0[31], v_cos_bit);
+  btf_32_type1_neon(cospi[30], cospi[34], buf1[17], buf1[30], &buf0[17],
+                    &buf0[30], v_cos_bit);
+  btf_32_type1_neon(cospi[46], cospi[18], buf1[18], buf1[29], &buf0[18],
+                    &buf0[29], v_cos_bit);
+  btf_32_type1_neon(cospi[14], cospi[50], buf1[19], buf1[28], &buf0[19],
+                    &buf0[28], v_cos_bit);
+  btf_32_type1_neon(cospi[54], cospi[10], buf1[20], buf1[27], &buf0[20],
+                    &buf0[27], v_cos_bit);
+  btf_32_type1_neon(cospi[22], cospi[42], buf1[21], buf1[26], &buf0[21],
+                    &buf0[26], v_cos_bit);
+  btf_32_type1_neon(cospi[38], cospi[26], buf1[22], buf1[25], &buf0[22],
+                    &buf0[25], v_cos_bit);
+  btf_32_type1_neon(cospi[6], cospi[58], buf1[23], buf1[24], &buf0[23],
+                    &buf0[24], v_cos_bit);
 
   startidx = 0 * stride;
   endidx = 31 * stride;
@@ -3546,21 +3561,21 @@ static void av1_fdct64_new_stage1234_neon(int32x4_t *input, const int instride,
   x2[15] = vaddq_s32(x1[15], x1[16]);
   x2[16] = vsubq_s32(x1[15], x1[16]);
 
-  btf_32_neon_mode0(cospi[32], cospi[32], x1[40], x1[55], x2[40], x2[55],
+  btf_32_neon_mode0(cospi[32], cospi[32], x1[40], x1[55], &x2[40], &x2[55],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x1[41], x1[54], x2[41], x2[54],
+  btf_32_neon_mode0(cospi[32], cospi[32], x1[41], x1[54], &x2[41], &x2[54],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x1[42], x1[53], x2[42], x2[53],
+  btf_32_neon_mode0(cospi[32], cospi[32], x1[42], x1[53], &x2[42], &x2[53],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x1[43], x1[52], x2[43], x2[52],
+  btf_32_neon_mode0(cospi[32], cospi[32], x1[43], x1[52], &x2[43], &x2[52],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x1[44], x1[51], x2[44], x2[51],
+  btf_32_neon_mode0(cospi[32], cospi[32], x1[44], x1[51], &x2[44], &x2[51],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x1[45], x1[50], x2[45], x2[50],
+  btf_32_neon_mode0(cospi[32], cospi[32], x1[45], x1[50], &x2[45], &x2[50],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x1[46], x1[49], x2[46], x2[49],
+  btf_32_neon_mode0(cospi[32], cospi[32], x1[46], x1[49], &x2[46], &x2[49],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x1[47], x1[48], x2[47], x2[48],
+  btf_32_neon_mode0(cospi[32], cospi[32], x1[47], x1[48], &x2[47], &x2[48],
                     *v_cos_bit);
 
   // stage 3
@@ -3581,13 +3596,13 @@ static void av1_fdct64_new_stage1234_neon(int32x4_t *input, const int instride,
   x3[7] = vaddq_s32(x2[7], x2[8]);
   x3[8] = vsubq_s32(x2[7], x2[8]);
 
-  btf_32_neon_mode0(cospi[32], cospi[32], x2[20], x2[27], x3[20], x3[27],
+  btf_32_neon_mode0(cospi[32], cospi[32], x2[20], x2[27], &x3[20], &x3[27],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x2[21], x2[26], x3[21], x3[26],
+  btf_32_neon_mode0(cospi[32], cospi[32], x2[21], x2[26], &x3[21], &x3[26],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x2[22], x2[25], x3[22], x3[25],
+  btf_32_neon_mode0(cospi[32], cospi[32], x2[22], x2[25], &x3[22], &x3[25],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x2[23], x2[24], x3[23], x3[24],
+  btf_32_neon_mode0(cospi[32], cospi[32], x2[23], x2[24], &x3[23], &x3[24],
                     *v_cos_bit);
 
   x3[32] = vaddq_s32(x1[32], x2[47]);
@@ -3633,9 +3648,9 @@ static void av1_fdct64_new_stage1234_neon(int32x4_t *input, const int instride,
   x4[3] = vaddq_s32(x3[3], x3[4]);
   x4[4] = vsubq_s32(x3[3], x3[4]);
 
-  btf_32_neon_mode0(cospi[32], cospi[32], x3[10], x3[13], x4[10], x4[13],
+  btf_32_neon_mode0(cospi[32], cospi[32], x3[10], x3[13], &x4[10], &x4[13],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[32], cospi[32], x3[11], x3[12], x4[11], x4[12],
+  btf_32_neon_mode0(cospi[32], cospi[32], x3[11], x3[12], &x4[11], &x4[12],
                     *v_cos_bit);
 
   x4[16] = vaddq_s32(x2[16], x3[23]);
@@ -3655,21 +3670,21 @@ static void av1_fdct64_new_stage1234_neon(int32x4_t *input, const int instride,
   x4[27] = vsubq_s32(x2[28], x3[27]);
   x4[28] = vaddq_s32(x2[28], x3[27]);
 
-  btf_32_neon_mode0(cospi[16], cospi[48], x3[36], x3[59], x4[36], x4[59],
+  btf_32_neon_mode0(cospi[16], cospi[48], x3[36], x3[59], &x4[36], &x4[59],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[16], cospi[48], x3[37], x3[58], x4[37], x4[58],
+  btf_32_neon_mode0(cospi[16], cospi[48], x3[37], x3[58], &x4[37], &x4[58],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[16], cospi[48], x3[38], x3[57], x4[38], x4[57],
+  btf_32_neon_mode0(cospi[16], cospi[48], x3[38], x3[57], &x4[38], &x4[57],
                     *v_cos_bit);
-  btf_32_neon_mode0(cospi[16], cospi[48], x3[39], x3[56], x4[39], x4[56],
+  btf_32_neon_mode0(cospi[16], cospi[48], x3[39], x3[56], &x4[39], &x4[56],
                     *v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], x3[40], x3[55], x4[40], x4[55],
+  btf_32_neon_mode01(cospi[48], cospi[16], x3[40], x3[55], &x4[40], &x4[55],
                      *v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], x3[41], x3[54], x4[41], x4[54],
+  btf_32_neon_mode01(cospi[48], cospi[16], x3[41], x3[54], &x4[41], &x4[54],
                      *v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], x3[42], x3[53], x4[42], x4[53],
+  btf_32_neon_mode01(cospi[48], cospi[16], x3[42], x3[53], &x4[42], &x4[53],
                      *v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], x3[43], x3[52], x4[43], x4[52],
+  btf_32_neon_mode01(cospi[48], cospi[16], x3[43], x3[52], &x4[43], &x4[52],
                      *v_cos_bit);
 }
 
@@ -3696,7 +3711,7 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
   x5[1] = vaddq_s32(x4[1], x4[2]);
   x5[2] = vsubq_s32(x4[1], x4[2]);
 
-  btf_32_neon_mode0(cospi[32], cospi[32], x4[5], x4[6], x5[5], x5[6],
+  btf_32_neon_mode0(cospi[32], cospi[32], x4[5], x4[6], &x5[5], &x5[6],
                     v_cos_bit);
 
   x5[8] = vaddq_s32(x3[8], x4[11]);
@@ -3708,13 +3723,13 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
   x5[13] = vsubq_s32(x3[14], x4[13]);
   x5[14] = vaddq_s32(x3[14], x4[13]);
 
-  btf_32_neon_mode0(cospi[16], cospi[48], x4[18], x4[29], x5[18], x5[29],
+  btf_32_neon_mode0(cospi[16], cospi[48], x4[18], x4[29], &x5[18], &x5[29],
                     v_cos_bit);
-  btf_32_neon_mode0(cospi[16], cospi[48], x4[19], x4[28], x5[19], x5[28],
+  btf_32_neon_mode0(cospi[16], cospi[48], x4[19], x4[28], &x5[19], &x5[28],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], x4[20], x4[27], x5[20], x5[27],
+  btf_32_neon_mode01(cospi[48], cospi[16], x4[20], x4[27], &x5[20], &x5[27],
                      v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], x4[21], x4[26], x5[21], x5[26],
+  btf_32_neon_mode01(cospi[48], cospi[16], x4[21], x4[26], &x5[21], &x5[26],
                      v_cos_bit);
 
   x5[32] = vaddq_s32(x3[32], x4[39]);
@@ -3752,16 +3767,16 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
 
   // stage 6
   int32x4_t x6[64];
-  btf_32_neon(cospi[32], cospi[32], x5[0], x5[1], x6[0], x6[1], v_cos_bit);
-  btf_32_type1_neon(cospi[48], cospi[16], x5[2], x5[3], x6[2], x6[3],
+  btf_32_neon(cospi[32], cospi[32], x5[0], x5[1], &x6[0], &x6[1], v_cos_bit);
+  btf_32_type1_neon(cospi[48], cospi[16], x5[2], x5[3], &x6[2], &x6[3],
                     v_cos_bit);
   x6[4] = vaddq_s32(x4[4], x5[5]);
   x6[5] = vsubq_s32(x4[4], x5[5]);
   x6[6] = vsubq_s32(x4[7], x5[6]);
   x6[7] = vaddq_s32(x4[7], x5[6]);
-  btf_32_neon_mode0(cospi[16], cospi[48], x5[9], x5[14], x6[9], x6[14],
+  btf_32_neon_mode0(cospi[16], cospi[48], x5[9], x5[14], &x6[9], &x6[14],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[48], cospi[16], x5[10], x5[13], x6[10], x6[13],
+  btf_32_neon_mode01(cospi[48], cospi[16], x5[10], x5[13], &x6[10], &x6[13],
                      v_cos_bit);
 
   x6[16] = vaddq_s32(x4[16], x5[19]);
@@ -3781,28 +3796,29 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
   x6[29] = vsubq_s32(x4[30], x5[29]);
   x6[30] = vaddq_s32(x4[30], x5[29]);
 
-  btf_32_neon_mode0(cospi[8], cospi[56], x5[34], x5[61], x6[34], x6[61],
+  btf_32_neon_mode0(cospi[8], cospi[56], x5[34], x5[61], &x6[34], &x6[61],
                     v_cos_bit);
-  btf_32_neon_mode0(cospi[8], cospi[56], x5[35], x5[60], x6[35], x6[60],
+  btf_32_neon_mode0(cospi[8], cospi[56], x5[35], x5[60], &x6[35], &x6[60],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[56], cospi[8], x5[36], x5[59], x6[36], x6[59],
+  btf_32_neon_mode01(cospi[56], cospi[8], x5[36], x5[59], &x6[36], &x6[59],
                      v_cos_bit);
-  btf_32_neon_mode01(cospi[56], cospi[8], x5[37], x5[58], x6[37], x6[58],
+  btf_32_neon_mode01(cospi[56], cospi[8], x5[37], x5[58], &x6[37], &x6[58],
                      v_cos_bit);
-  btf_32_neon_mode0(cospi[40], cospi[24], x5[42], x5[53], x6[42], x6[53],
+  btf_32_neon_mode0(cospi[40], cospi[24], x5[42], x5[53], &x6[42], &x6[53],
                     v_cos_bit);
-  btf_32_neon_mode0(cospi[40], cospi[24], x5[43], x5[52], x6[43], x6[52],
+  btf_32_neon_mode0(cospi[40], cospi[24], x5[43], x5[52], &x6[43], &x6[52],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[24], cospi[40], x5[44], x5[51], x6[44], x6[51],
+  btf_32_neon_mode01(cospi[24], cospi[40], x5[44], x5[51], &x6[44], &x6[51],
                      v_cos_bit);
-  btf_32_neon_mode01(cospi[24], cospi[40], x5[45], x5[50], x6[45], x6[50],
+  btf_32_neon_mode01(cospi[24], cospi[40], x5[45], x5[50], &x6[45], &x6[50],
                      v_cos_bit);
 
   // stage 7
   int32x4_t x7[64];
 
-  btf_32_type1_neon(cospi[56], cospi[8], x6[4], x6[7], x7[4], x7[7], v_cos_bit);
-  btf_32_type1_neon(cospi[24], cospi[40], x6[5], x6[6], x7[5], x7[6],
+  btf_32_type1_neon(cospi[56], cospi[8], x6[4], x6[7], &x7[4], &x7[7],
+                    v_cos_bit);
+  btf_32_type1_neon(cospi[24], cospi[40], x6[5], x6[6], &x7[5], &x7[6],
                     v_cos_bit);
   x7[8] = vaddq_s32(x5[8], x6[9]);
   x7[9] = vsubq_s32(x5[8], x6[9]);
@@ -3813,14 +3829,14 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
   x7[14] = vsubq_s32(x5[15], x6[14]);
   x7[15] = vaddq_s32(x5[15], x6[14]);
 
-  btf_32_neon_mode0(cospi[8], cospi[56], x6[17], x6[30], x7[17], x7[30],
+  btf_32_neon_mode0(cospi[8], cospi[56], x6[17], x6[30], &x7[17], &x7[30],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[56], cospi[8], x6[18], x6[29], x7[18], x7[29],
+  btf_32_neon_mode01(cospi[56], cospi[8], x6[18], x6[29], &x7[18], &x7[29],
                      v_cos_bit);
 
-  btf_32_neon_mode0(cospi[40], cospi[24], x6[21], x6[26], x7[21], x7[26],
+  btf_32_neon_mode0(cospi[40], cospi[24], x6[21], x6[26], &x7[21], &x7[26],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[24], cospi[40], x6[22], x6[25], x7[22], x7[25],
+  btf_32_neon_mode01(cospi[24], cospi[40], x6[22], x6[25], &x7[22], &x7[25],
                      v_cos_bit);
 
   x7[32] = vaddq_s32(x5[32], x6[35]);
@@ -3859,13 +3875,13 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
   // stage 8
   int32x4_t x8[64];
 
-  btf_32_type1_neon(cospi[60], cospi[4], x7[8], x7[15], x8[8], x8[15],
+  btf_32_type1_neon(cospi[60], cospi[4], x7[8], x7[15], &x8[8], &x8[15],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[28], cospi[36], x7[9], x7[14], x8[9], x8[14],
+  btf_32_type1_neon(cospi[28], cospi[36], x7[9], x7[14], &x8[9], &x8[14],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[44], cospi[20], x7[10], x7[13], x8[10], x8[13],
+  btf_32_type1_neon(cospi[44], cospi[20], x7[10], x7[13], &x8[10], &x8[13],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[12], cospi[52], x7[11], x7[12], x8[11], x8[12],
+  btf_32_type1_neon(cospi[12], cospi[52], x7[11], x7[12], &x8[11], &x8[12],
                     v_cos_bit);
   x8[16] = vaddq_s32(x6[16], x7[17]);
   x8[17] = vsubq_s32(x6[16], x7[17]);
@@ -3884,41 +3900,41 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
   x8[30] = vsubq_s32(x6[31], x7[30]);
   x8[31] = vaddq_s32(x6[31], x7[30]);
 
-  btf_32_neon_mode0(cospi[4], cospi[60], x7[33], x7[62], x8[33], x8[62],
+  btf_32_neon_mode0(cospi[4], cospi[60], x7[33], x7[62], &x8[33], &x8[62],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[60], cospi[4], x7[34], x7[61], x8[34], x8[61],
+  btf_32_neon_mode01(cospi[60], cospi[4], x7[34], x7[61], &x8[34], &x8[61],
                      v_cos_bit);
-  btf_32_neon_mode0(cospi[36], cospi[28], x7[37], x7[58], x8[37], x8[58],
+  btf_32_neon_mode0(cospi[36], cospi[28], x7[37], x7[58], &x8[37], &x8[58],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[28], cospi[36], x7[38], x7[57], x8[38], x8[57],
+  btf_32_neon_mode01(cospi[28], cospi[36], x7[38], x7[57], &x8[38], &x8[57],
                      v_cos_bit);
-  btf_32_neon_mode0(cospi[20], cospi[44], x7[41], x7[54], x8[41], x8[54],
+  btf_32_neon_mode0(cospi[20], cospi[44], x7[41], x7[54], &x8[41], &x8[54],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[44], cospi[20], x7[42], x7[53], x8[42], x8[53],
+  btf_32_neon_mode01(cospi[44], cospi[20], x7[42], x7[53], &x8[42], &x8[53],
                      v_cos_bit);
-  btf_32_neon_mode0(cospi[52], cospi[12], x7[45], x7[50], x8[45], x8[50],
+  btf_32_neon_mode0(cospi[52], cospi[12], x7[45], x7[50], &x8[45], &x8[50],
                     v_cos_bit);
-  btf_32_neon_mode01(cospi[12], cospi[52], x7[46], x7[49], x8[46], x8[49],
+  btf_32_neon_mode01(cospi[12], cospi[52], x7[46], x7[49], &x8[46], &x8[49],
                      v_cos_bit);
 
   // stage 9
   int32x4_t x9[64];
 
-  btf_32_type1_neon(cospi[62], cospi[2], x8[16], x8[31], x9[16], x9[31],
+  btf_32_type1_neon(cospi[62], cospi[2], x8[16], x8[31], &x9[16], &x9[31],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[30], cospi[34], x8[17], x8[30], x9[17], x9[30],
+  btf_32_type1_neon(cospi[30], cospi[34], x8[17], x8[30], &x9[17], &x9[30],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[46], cospi[18], x8[18], x8[29], x9[18], x9[29],
+  btf_32_type1_neon(cospi[46], cospi[18], x8[18], x8[29], &x9[18], &x9[29],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[14], cospi[50], x8[19], x8[28], x9[19], x9[28],
+  btf_32_type1_neon(cospi[14], cospi[50], x8[19], x8[28], &x9[19], &x9[28],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[54], cospi[10], x8[20], x8[27], x9[20], x9[27],
+  btf_32_type1_neon(cospi[54], cospi[10], x8[20], x8[27], &x9[20], &x9[27],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[22], cospi[42], x8[21], x8[26], x9[21], x9[26],
+  btf_32_type1_neon(cospi[22], cospi[42], x8[21], x8[26], &x9[21], &x9[26],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[38], cospi[26], x8[22], x8[25], x9[22], x9[25],
+  btf_32_type1_neon(cospi[38], cospi[26], x8[22], x8[25], &x9[22], &x9[25],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[6], cospi[58], x8[23], x8[24], x9[23], x9[24],
+  btf_32_type1_neon(cospi[6], cospi[58], x8[23], x8[24], &x9[23], &x9[24],
                     v_cos_bit);
   x9[32] = vaddq_s32(x7[32], x8[33]);
   x9[33] = vsubq_s32(x7[32], x8[33]);
@@ -3956,37 +3972,37 @@ static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
   // stage 10
   int32x4_t x10[64];
 
-  btf_32_type1_neon(cospi[63], cospi[1], x9[32], x9[63], x10[32], x10[63],
+  btf_32_type1_neon(cospi[63], cospi[1], x9[32], x9[63], &x10[32], &x10[63],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[31], cospi[33], x9[33], x9[62], x10[33], x10[62],
+  btf_32_type1_neon(cospi[31], cospi[33], x9[33], x9[62], &x10[33], &x10[62],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[47], cospi[17], x9[34], x9[61], x10[34], x10[61],
+  btf_32_type1_neon(cospi[47], cospi[17], x9[34], x9[61], &x10[34], &x10[61],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[15], cospi[49], x9[35], x9[60], x10[35], x10[60],
+  btf_32_type1_neon(cospi[15], cospi[49], x9[35], x9[60], &x10[35], &x10[60],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[55], cospi[9], x9[36], x9[59], x10[36], x10[59],
+  btf_32_type1_neon(cospi[55], cospi[9], x9[36], x9[59], &x10[36], &x10[59],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[23], cospi[41], x9[37], x9[58], x10[37], x10[58],
+  btf_32_type1_neon(cospi[23], cospi[41], x9[37], x9[58], &x10[37], &x10[58],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[39], cospi[25], x9[38], x9[57], x10[38], x10[57],
+  btf_32_type1_neon(cospi[39], cospi[25], x9[38], x9[57], &x10[38], &x10[57],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[7], cospi[57], x9[39], x9[56], x10[39], x10[56],
+  btf_32_type1_neon(cospi[7], cospi[57], x9[39], x9[56], &x10[39], &x10[56],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[59], cospi[5], x9[40], x9[55], x10[40], x10[55],
+  btf_32_type1_neon(cospi[59], cospi[5], x9[40], x9[55], &x10[40], &x10[55],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[27], cospi[37], x9[41], x9[54], x10[41], x10[54],
+  btf_32_type1_neon(cospi[27], cospi[37], x9[41], x9[54], &x10[41], &x10[54],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[43], cospi[21], x9[42], x9[53], x10[42], x10[53],
+  btf_32_type1_neon(cospi[43], cospi[21], x9[42], x9[53], &x10[42], &x10[53],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[11], cospi[53], x9[43], x9[52], x10[43], x10[52],
+  btf_32_type1_neon(cospi[11], cospi[53], x9[43], x9[52], &x10[43], &x10[52],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[51], cospi[13], x9[44], x9[51], x10[44], x10[51],
+  btf_32_type1_neon(cospi[51], cospi[13], x9[44], x9[51], &x10[44], &x10[51],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[19], cospi[45], x9[45], x9[50], x10[45], x10[50],
+  btf_32_type1_neon(cospi[19], cospi[45], x9[45], x9[50], &x10[45], &x10[50],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[35], cospi[29], x9[46], x9[49], x10[46], x10[49],
+  btf_32_type1_neon(cospi[35], cospi[29], x9[46], x9[49], &x10[46], &x10[49],
                     v_cos_bit);
-  btf_32_type1_neon(cospi[3], cospi[61], x9[47], x9[48], x10[47], x10[48],
+  btf_32_type1_neon(cospi[3], cospi[61], x9[47], x9[48], &x10[47], &x10[48],
                     v_cos_bit);
 
   startidx = 0 * outstride;
