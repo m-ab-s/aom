@@ -31,13 +31,12 @@ extern "C" {
 #define DO_RANGE_CHECK_CLAMP 0
 #endif
 
-extern const int32_t av1_cospi_arr_data[7][64];
-extern const int32_t av1_sinpi_arr_data[7][5];
+extern const int32_t av1_cospi_arr_data[4][64];
+extern const int32_t av1_sinpi_arr_data[4][5];
 
 #define MAX_TXFM_STAGE_NUM 12
 
 static const int cos_bit_min = 10;
-static const int cos_bit_max = 16;
 
 #define NewSqrt2Bits ((int32_t)12)
 // 2^12 * sqrt(2)
