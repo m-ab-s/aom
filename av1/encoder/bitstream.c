@@ -3364,7 +3364,7 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
   aom_wb_write_literal(&wb, 0, 1);  // forbidden bit.
   aom_wb_write_literal(&wb, (int)obu_type, 4);
   aom_wb_write_literal(&wb, obu_extension ? 1 : 0, 1);
-  aom_wb_write_literal(&wb, 1, 1);  // obu_has_payload_length_field
+  aom_wb_write_literal(&wb, 1, 1);  // obu_has_size_field
   aom_wb_write_literal(&wb, 0, 1);  // reserved
 
   if (obu_extension) {
