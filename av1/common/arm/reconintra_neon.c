@@ -17,6 +17,8 @@
 #include "aom/aom_integer.h"
 #include "aom_dsp/arm/sum_neon.h"
 
+#define MAX_UPSAMPLE_SZ 16
+
 DECLARE_ALIGNED(16, const int8_t,
                 av1_filter_intra_taps_neon[FILTER_INTRA_MODES][8][8]) = {
   {
@@ -296,4 +298,42 @@ void av1_filter_intra_edge_neon(uint8_t *p, int sz, int strength) {
       vst1_u8(dst, res);
     }
   }
+}
+
+void av1_upsample_intra_edge_neon(uint8_t *p, int sz) {
+  if (!sz) return;
+
+  assert(sz <= MAX_UPSAMPLE_SZ);
+
+  uint8_t edge[MAX_UPSAMPLE_SZ + 3];
+  const uint8_t *src = edge;
+
+  // Copy p[-1..(sz-1)] and pad out both ends.
+  edge[0] = p[-1];
+  edge[1] = p[-1];
+  memcpy(edge + 2, p, sz);
+  edge[sz + 2] = p[sz - 1];
+  p[-2] = p[-1];
+
+  uint8_t *dst = p - 1;
+
+  do {
+    uint8x8_t s0 = vld1_u8(src);
+    uint8x8_t s1 = vld1_u8(src + 1);
+    uint8x8_t s2 = vld1_u8(src + 2);
+    uint8x8_t s3 = vld1_u8(src + 3);
+
+    int16x8_t t0 = vreinterpretq_s16_u16(vaddl_u8(s0, s3));
+    int16x8_t t1 = vreinterpretq_s16_u16(vaddl_u8(s1, s2));
+    t1 = vmulq_n_s16(t1, 9);
+    t1 = vsubq_s16(t1, t0);
+
+    uint8x8x2_t res = { { vqrshrun_n_s16(t1, 4), s2 } };
+
+    vst2_u8(dst, res);
+
+    src += 8;
+    dst += 16;
+    sz -= 8;
+  } while (sz > 0);
 }
