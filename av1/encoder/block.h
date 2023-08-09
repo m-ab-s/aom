@@ -1334,6 +1334,16 @@ typedef struct macroblock {
   unsigned int source_variance;
   //! Flag to indicate coding block is zero sad.
   int block_is_zero_sad;
+  //! Flag to indicate superblock ME in variance partition is determined to be
+  // good/reliable, and so the superblock MV will be tested in the
+  // nonrd_pickmode. This is only used for LAST_FRAME.
+  int sb_me_partition;
+  //! Flag to indicate to test the superblock MV for the coding block in the
+  // nonrd_pickmode.
+  int sb_me_block;
+  //! Motion vector from superblock MV derived from int_pro_motion() in
+  // the variance_partitioning.
+  int_mv sb_me_mv;
   //! SSE of the current predictor.
   unsigned int pred_sse[REF_FRAMES];
   //! Prediction for ML based partition.

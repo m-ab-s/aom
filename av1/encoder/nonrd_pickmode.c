@@ -333,6 +333,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   MB_MODE_INFO *const mi = xd->mi[0];
   AV1_COMMON *cm = &cpi->common;
   int_mv *this_ref_frm_newmv = &frame_mv[NEWMV][ref_frame];
+  unsigned int y_sad_zero;
   if (ref_frame > LAST_FRAME && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       gf_temporal_ref) {
     int tmp_sad;
@@ -342,7 +343,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
 
     tmp_sad = av1_int_pro_motion_estimation(
         cpi, x, bsize, mi_row, mi_col,
-        &x->mbmi_ext.ref_mv_stack[ref_frame][0].this_mv.as_mv);
+        &x->mbmi_ext.ref_mv_stack[ref_frame][0].this_mv.as_mv, &y_sad_zero, 1);
 
     if (tmp_sad > x->pred_mv_sad[LAST_FRAME]) return -1;
 
@@ -2362,6 +2363,27 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
     *ref_frame2 = NONE_FRAME;
   }
 
+  if (x->sb_me_block && *ref_frame == LAST_FRAME) {
+    // We want to make sure to test the superblock MV:
+    // so don't skip (return false) for NEAREST_LAST or NEAR_LAST if they
+    // have this sb MV. And don't skip NEWMV_LAST: this will be set to
+    // sb MV in handle_inter_mode_nonrd(), in case NEAREST or NEAR don't
+    // have it.
+    if (*this_mode == NEARESTMV &&
+        search_state->frame_mv[NEARESTMV][LAST_FRAME].as_int ==
+            x->sb_me_mv.as_int) {
+      return false;
+    }
+    if (*this_mode == NEARMV &&
+        search_state->frame_mv[NEARMV][LAST_FRAME].as_int ==
+            x->sb_me_mv.as_int) {
+      return false;
+    }
+    if (*this_mode == NEWMV) {
+      return false;
+    }
+  }
+
   // Skip the single reference mode for which mode check flag is set.
   if (*is_single_pred && search_state->mode_checked[*this_mode][*ref_frame]) {
     return true;
@@ -2510,7 +2532,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     int idx, int force_mv_inter_layer, int is_single_pred, int gf_temporal_ref,
     int use_model_yrd_large, int filter_search_enabled_blk, BLOCK_SIZE bsize,
     PREDICTION_MODE this_mode, InterpFilter filt_select,
-    int cb_pred_filter_search, int reuse_inter_pred) {
+    int cb_pred_filter_search, int reuse_inter_pred,
+    int *sb_me_has_been_tested) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mi = xd->mi[0];
@@ -2539,7 +2562,10 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
   RD_STATS nonskip_rdc;
   av1_invalid_rd_stats(&nonskip_rdc);
 
-  if (this_mode == NEWMV && !force_mv_inter_layer) {
+  if (x->sb_me_block && this_mode == NEWMV && ref_frame == LAST_FRAME) {
+    // Set the NEWMV_LAST to the sb MV.
+    search_state->frame_mv[NEWMV][LAST_FRAME].as_int = x->sb_me_mv.as_int;
+  } else if (this_mode == NEWMV && !force_mv_inter_layer) {
 #if COLLECT_NONRD_PICK_MODE_STAT
     aom_usec_timer_start(&x->ms_stat_nonrd.timer2);
 #endif
@@ -2878,6 +2904,11 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
       aom_usec_timer_elapsed(&x->ms_stat_nonrd.timer1);
 #endif
 
+  if (x->sb_me_block && ref_frame == LAST_FRAME &&
+      search_state->frame_mv[this_best_mode][ref_frame].as_int ==
+          x->sb_me_mv.as_int)
+    *sb_me_has_been_tested = 1;
+
   // Copy best mode params to search state
   if (search_state->this_rdc.rdcost < search_state->best_rdc.rdcost) {
     search_state->best_rdc = search_state->this_rdc;
@@ -2903,7 +2934,7 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
 
   if (*best_early_term && (idx > 0 || rt_sf->nonrd_aggressive_skip)) {
     txfm_info->skip_txfm = 1;
-    return false;
+    if (!x->sb_me_block || *sb_me_has_been_tested) return false;
   }
   return true;
 }
@@ -3219,6 +3250,17 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     set_block_source_sad(cpi, x, bsize, &search_state.yv12_mb[LAST_FRAME][0]);
   }
 
+  int sb_me_has_been_tested = 0;
+  x->sb_me_block = x->sb_me_partition;
+  // Only use this feature (force testing of superblock motion) if coding
+  // block size is large.
+  if (x->sb_me_block) {
+    if (cm->seq_params->sb_size == BLOCK_128X128 && bsize < BLOCK_64X64)
+      x->sb_me_block = 0;
+    else if (cm->seq_params->sb_size == BLOCK_64X64 && bsize < BLOCK_32X32)
+      x->sb_me_block = 0;
+  }
+
   x->min_dist_inter_uv = INT64_MAX;
   for (int idx = 0; idx < num_inter_modes + tot_num_comp_modes; ++idx) {
     // If we are at the first compound mode, and the single modes already
@@ -3292,7 +3334,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif
             idx, force_mv_inter_layer, is_single_pred, gf_temporal_ref,
             use_model_yrd_large, filter_search_enabled_blk, bsize, this_mode,
-            filt_select, cb_pred_filter_search, reuse_inter_pred)) {
+            filt_select, cb_pred_filter_search, reuse_inter_pred,
+            &sb_me_has_been_tested)) {
       break;
     }
   }

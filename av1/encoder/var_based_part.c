@@ -1243,6 +1243,7 @@ static AOM_INLINE void set_ref_frame_for_partition(
     *y_sad = *y_sad_g;
     *ref_frame_partition = GOLDEN_FRAME;
     x->nonrd_prune_ref_frame_search = 0;
+    x->sb_me_partition = 0;
   } else if (is_set_altref_ref_frame) {
     av1_setup_pre_planes(xd, 0, yv12_alt, mi_row, mi_col,
                          get_ref_scale_factors(cm, ALTREF_FRAME), num_planes);
@@ -1251,6 +1252,7 @@ static AOM_INLINE void set_ref_frame_for_partition(
     *y_sad = *y_sad_alt;
     *ref_frame_partition = ALTREF_FRAME;
     x->nonrd_prune_ref_frame_search = 0;
+    x->sb_me_partition = 0;
   } else {
     *ref_frame_partition = LAST_FRAME;
     x->nonrd_prune_ref_frame_search =
@@ -1411,6 +1413,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
     mi->mv[0].as_int = 0;
     mi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
 
+    int is_screen = cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
     int est_motion = cpi->sf.rt_sf.estimate_motion_for_var_based_partition;
     // TODO(b/290596301): Look into adjusting this condition.
     // There is regression on color content when
@@ -1420,9 +1423,32 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 
     if (est_motion == 1 || est_motion == 2) {
       if (xd->mb_to_right_edge >= 0 && xd->mb_to_bottom_edge >= 0) {
-        const MV dummy_mv = { 0, 0 };
-        *y_sad = av1_int_pro_motion_estimation(cpi, x, cm->seq_params->sb_size,
-                                               mi_row, mi_col, &dummy_mv);
+        // For screen only do int_pro_motion for spatial variance above
+        // threshold and motion level above LowSad.
+        if (!is_screen ||
+            (x->source_variance > 100 && source_sad_nonrd > kLowSad)) {
+          int me_search_par = is_screen ? 2 : 1;
+          unsigned int y_sad_zero;
+          *y_sad = av1_int_pro_motion_estimation(
+              cpi, x, cm->seq_params->sb_size, mi_row, mi_col, &kZeroMv,
+              &y_sad_zero, me_search_par);
+          // The logic below selects whether the motion estimated in the
+          // int_pro_motion() will be used in nonrd_pickmode. Only do this
+          // for screen for now.
+          if (is_screen) {
+            unsigned int thresh_sad =
+                (cm->seq_params->sb_size == BLOCK_128X128) ? 50000 : 20000;
+            if (*y_sad < (y_sad_zero >> 1) && *y_sad < thresh_sad) {
+              x->sb_me_partition = 1;
+              x->sb_me_mv.as_int = mi->mv[0].as_int;
+            } else {
+              x->sb_me_partition = 0;
+              // Fall back to using zero motion.
+              *y_sad = y_sad_zero;
+              mi->mv[0].as_int = 0;
+            }
+          }
+        }
       }
     }
 
