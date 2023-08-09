@@ -3381,6 +3381,52 @@ const SubpelAvgVarianceParams kArraySubpelAvgVariance_neon[] = {
 INSTANTIATE_TEST_SUITE_P(NEON, AvxSubpelAvgVarianceTest,
                          ::testing::ValuesIn(kArraySubpelAvgVariance_neon));
 
+const DistWtdSubpelAvgVarianceParams kArrayDistWtdSubpelAvgVariance_neon[] = {
+  DistWtdSubpelAvgVarianceParams(
+      6, 6, &aom_dist_wtd_sub_pixel_avg_variance64x64_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      6, 5, &aom_dist_wtd_sub_pixel_avg_variance64x32_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      5, 6, &aom_dist_wtd_sub_pixel_avg_variance32x64_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      5, 5, &aom_dist_wtd_sub_pixel_avg_variance32x32_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      5, 4, &aom_dist_wtd_sub_pixel_avg_variance32x16_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      4, 5, &aom_dist_wtd_sub_pixel_avg_variance16x32_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      4, 4, &aom_dist_wtd_sub_pixel_avg_variance16x16_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      4, 3, &aom_dist_wtd_sub_pixel_avg_variance16x8_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      3, 4, &aom_dist_wtd_sub_pixel_avg_variance8x16_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      3, 3, &aom_dist_wtd_sub_pixel_avg_variance8x8_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      3, 2, &aom_dist_wtd_sub_pixel_avg_variance8x4_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      2, 3, &aom_dist_wtd_sub_pixel_avg_variance4x8_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      2, 2, &aom_dist_wtd_sub_pixel_avg_variance4x4_neon, 0),
+#if !CONFIG_REALTIME_ONLY
+  DistWtdSubpelAvgVarianceParams(
+      6, 4, &aom_dist_wtd_sub_pixel_avg_variance64x16_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      4, 6, &aom_dist_wtd_sub_pixel_avg_variance16x64_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      5, 3, &aom_dist_wtd_sub_pixel_avg_variance32x8_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      3, 5, &aom_dist_wtd_sub_pixel_avg_variance8x32_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      4, 2, &aom_dist_wtd_sub_pixel_avg_variance16x4_neon, 0),
+  DistWtdSubpelAvgVarianceParams(
+      2, 4, &aom_dist_wtd_sub_pixel_avg_variance4x16_neon, 0),
+#endif  // !CONFIG_REALTIME_ONLY
+};
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AvxDistWtdSubpelAvgVarianceTest,
+    ::testing::ValuesIn(kArrayDistWtdSubpelAvgVariance_neon));
+
 #if !CONFIG_REALTIME_ONLY
 const ObmcSubpelVarianceParams kArrayObmcSubpelVariance_neon[] = {
   ObmcSubpelVarianceParams(7, 7, &aom_obmc_sub_pixel_variance128x128_neon, 0),

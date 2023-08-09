@@ -1460,31 +1460,31 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_sub_pixel_avg_variance16x64 neon sse2 ssse3/;
     specialize qw/aom_sub_pixel_avg_variance64x16 neon sse2 ssse3/;
 
-    specialize qw/aom_dist_wtd_sub_pixel_avg_variance4x16  ssse3/;
-    specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x4  ssse3/;
-    specialize qw/aom_dist_wtd_sub_pixel_avg_variance8x32  ssse3/;
-    specialize qw/aom_dist_wtd_sub_pixel_avg_variance32x8  ssse3/;
-    specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x64 ssse3/;
-    specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x16 ssse3/;
+    specialize qw/aom_dist_wtd_sub_pixel_avg_variance4x16  neon ssse3/;
+    specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x4  neon ssse3/;
+    specialize qw/aom_dist_wtd_sub_pixel_avg_variance8x32  neon ssse3/;
+    specialize qw/aom_dist_wtd_sub_pixel_avg_variance32x8  neon ssse3/;
+    specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x64 neon ssse3/;
+    specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x16 neon ssse3/;
   }
 
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x64 ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x32 ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance32x64 ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance32x32 ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance32x16 ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x32 ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x16 ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x8  ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance8x16  ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance8x8   ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance8x4   ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance4x8   ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance4x4   ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x64 neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x32 neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance32x64 neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance32x32 neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance32x16 neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x32 neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x16 neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance16x8  neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance8x16  neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance8x8   neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance8x4   neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance4x8   neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance4x4   neon ssse3/;
 
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance128x128  ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance128x64   ssse3/;
-  specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x128   ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance128x128  neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance128x64   neon ssse3/;
+  specialize qw/aom_dist_wtd_sub_pixel_avg_variance64x128   neon ssse3/;
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
     foreach $bd (8, 10, 12) {
