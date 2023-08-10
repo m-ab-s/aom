@@ -3231,7 +3231,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     int is_single_pred = 1;
     PREDICTION_MODE this_mode;
 
-    if (idx == 0) {
+    if (idx == 0 && !x->force_zeromv_skip_for_blk) {
       // Set color sensitivity on first tested mode only.
       // Use y-sad already computed in find_predictors: take the sad with motion
       // vector closest to 0; the uv-sad computed below in set_color_sensitivity
