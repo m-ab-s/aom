@@ -3903,9 +3903,13 @@ static int allow_ab_partition_search(PartitionSearchState *part_search_state,
                                      PARTITION_SPEED_FEATURES *part_sf,
                                      PARTITION_TYPE curr_best_part,
                                      int must_find_valid_partition,
-                                     int prune_ext_part_state) {
+                                     int prune_ext_part_state,
+                                     int64_t best_rdcost) {
   const PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const int bsize = blk_params.bsize;
+
+  // Do not prune if there is no valid partition
+  if (best_rdcost == INT64_MAX) return 1;
 
   // Determine min bsize to evaluate ab partitions
   int ab_min_bsize_allowed = part_sf->ext_partition_eval_thresh;
@@ -3957,6 +3961,9 @@ static void prune_4_way_partition_search(
     int part4_search_allowed[NUM_PART4_TYPES]) {
   const PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const int bsize = blk_params.bsize;
+
+  // Do not prune if there is no valid partition
+  if (best_rdc->rdcost == INT64_MAX) return;
 
   // Determine min bsize to evaluate 4-way partitions
   int part4_min_bsize_allowed = cpi->sf.part_sf.ext_partition_eval_thresh;
@@ -5549,7 +5556,7 @@ BEGIN_PARTITION_SEARCH:
 
   const int ab_partition_allowed = allow_ab_partition_search(
       &part_search_state, &cpi->sf.part_sf, pc_tree->partitioning,
-      x->must_find_valid_partition, prune_ext_part_state);
+      x->must_find_valid_partition, prune_ext_part_state, best_rdc.rdcost);
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, ab_partitions_search_time);
