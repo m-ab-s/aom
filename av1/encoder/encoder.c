@@ -152,8 +152,8 @@ int av1_set_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
     unsigned char *const active_map_4x4 = cpi->active_map.map;
     const int mi_rows = mi_params->mi_rows;
     const int mi_cols = mi_params->mi_cols;
-    const int row_scale = mi_size_high[BLOCK_16X16] == 2 ? 1 : 2;
-    const int col_scale = mi_size_wide[BLOCK_16X16] == 2 ? 1 : 2;
+    const int row_scale = mi_size_high_log2[BLOCK_16X16];
+    const int col_scale = mi_size_wide_log2[BLOCK_16X16];
     cpi->active_map.update = 0;
     assert(mi_rows % 2 == 0);
     assert(mi_cols % 2 == 0);
@@ -185,8 +185,8 @@ int av1_get_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
     unsigned char *const seg_map_8x8 = cpi->enc_seg.map;
     const int mi_rows = mi_params->mi_rows;
     const int mi_cols = mi_params->mi_cols;
-    const int row_scale = mi_size_high[BLOCK_16X16] == 2 ? 1 : 2;
-    const int col_scale = mi_size_wide[BLOCK_16X16] == 2 ? 1 : 2;
+    const int row_scale = mi_size_high_log2[BLOCK_16X16];
+    const int col_scale = mi_size_wide_log2[BLOCK_16X16];
     assert(mi_rows % 2 == 0);
     assert(mi_cols % 2 == 0);
 
