@@ -784,6 +784,129 @@ void av1_highbd_dist_wtd_convolve_2d_copy_neon(const uint16_t *src,
   }
 }
 
+static INLINE uint16x4_t highbd_convolve6_4_2d_v(
+    const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
+    const int16x4_t s3, const int16x4_t s4, const int16x4_t s5,
+    const int16x8_t y_filter, const int32x4_t offset) {
+  // Values at indices 0 and 7 of y_filter are zero.
+  const int16x4_t y_filter_0_3 = vget_low_s16(y_filter);
+  const int16x4_t y_filter_4_7 = vget_high_s16(y_filter);
+
+  int32x4_t sum = vmlal_lane_s16(offset, s0, y_filter_0_3, 1);
+  sum = vmlal_lane_s16(sum, s1, y_filter_0_3, 2);
+  sum = vmlal_lane_s16(sum, s2, y_filter_0_3, 3);
+  sum = vmlal_lane_s16(sum, s3, y_filter_4_7, 0);
+  sum = vmlal_lane_s16(sum, s4, y_filter_4_7, 1);
+  sum = vmlal_lane_s16(sum, s5, y_filter_4_7, 2);
+
+  return vqrshrun_n_s32(sum, COMPOUND_ROUND1_BITS);
+}
+
+static INLINE uint16x8_t highbd_convolve6_8_2d_v(
+    const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
+    const int16x8_t s3, const int16x8_t s4, const int16x8_t s5,
+    const int16x8_t y_filter, const int32x4_t offset) {
+  // Values at indices 0 and 7 of y_filter are zero.
+  const int16x4_t y_filter_0_3 = vget_low_s16(y_filter);
+  const int16x4_t y_filter_4_7 = vget_high_s16(y_filter);
+
+  int32x4_t sum0 = vmlal_lane_s16(offset, vget_low_s16(s0), y_filter_0_3, 1);
+  sum0 = vmlal_lane_s16(sum0, vget_low_s16(s1), y_filter_0_3, 2);
+  sum0 = vmlal_lane_s16(sum0, vget_low_s16(s2), y_filter_0_3, 3);
+  sum0 = vmlal_lane_s16(sum0, vget_low_s16(s3), y_filter_4_7, 0);
+  sum0 = vmlal_lane_s16(sum0, vget_low_s16(s4), y_filter_4_7, 1);
+  sum0 = vmlal_lane_s16(sum0, vget_low_s16(s5), y_filter_4_7, 2);
+
+  int32x4_t sum1 = vmlal_lane_s16(offset, vget_high_s16(s0), y_filter_0_3, 1);
+  sum1 = vmlal_lane_s16(sum1, vget_high_s16(s1), y_filter_0_3, 2);
+  sum1 = vmlal_lane_s16(sum1, vget_high_s16(s2), y_filter_0_3, 3);
+  sum1 = vmlal_lane_s16(sum1, vget_high_s16(s3), y_filter_4_7, 0);
+  sum1 = vmlal_lane_s16(sum1, vget_high_s16(s4), y_filter_4_7, 1);
+  sum1 = vmlal_lane_s16(sum1, vget_high_s16(s5), y_filter_4_7, 2);
+
+  return vcombine_u16(vqrshrun_n_s32(sum0, COMPOUND_ROUND1_BITS),
+                      vqrshrun_n_s32(sum1, COMPOUND_ROUND1_BITS));
+}
+
+static INLINE void highbd_dist_wtd_convolve_2d_vert_6tap_neon(
+    const uint16_t *src_ptr, int src_stride, uint16_t *dst_ptr, int dst_stride,
+    int w, int h, const int16_t *y_filter_ptr, int offset) {
+  const int16x8_t y_filter = vld1q_s16(y_filter_ptr);
+  const int32x4_t offset_vec = vdupq_n_s32(offset);
+
+  if (w == 4) {
+    const int16_t *s = (const int16_t *)src_ptr;
+    uint16_t *d = dst_ptr;
+
+    int16x4_t s0, s1, s2, s3, s4;
+    load_s16_4x5(s, src_stride, &s0, &s1, &s2, &s3, &s4);
+    s += 5 * src_stride;
+
+    do {
+      int16x4_t s5, s6, s7, s8;
+      load_s16_4x4(s, src_stride, &s5, &s6, &s7, &s8);
+
+      uint16x4_t d0 =
+          highbd_convolve6_4_2d_v(s0, s1, s2, s3, s4, s5, y_filter, offset_vec);
+      uint16x4_t d1 =
+          highbd_convolve6_4_2d_v(s1, s2, s3, s4, s5, s6, y_filter, offset_vec);
+      uint16x4_t d2 =
+          highbd_convolve6_4_2d_v(s2, s3, s4, s5, s6, s7, y_filter, offset_vec);
+      uint16x4_t d3 =
+          highbd_convolve6_4_2d_v(s3, s4, s5, s6, s7, s8, y_filter, offset_vec);
+
+      store_u16_4x4(d, dst_stride, d0, d1, d2, d3);
+
+      s0 = s4;
+      s1 = s5;
+      s2 = s6;
+      s3 = s7;
+      s4 = s8;
+      s += 4 * src_stride;
+      d += 4 * dst_stride;
+      h -= 4;
+    } while (h != 0);
+  } else {
+    do {
+      int height = h;
+      const int16_t *s = (const int16_t *)src_ptr;
+      uint16_t *d = dst_ptr;
+
+      int16x8_t s0, s1, s2, s3, s4;
+      load_s16_8x5(s, src_stride, &s0, &s1, &s2, &s3, &s4);
+      s += 5 * src_stride;
+
+      do {
+        int16x8_t s5, s6, s7, s8;
+        load_s16_8x4(s, src_stride, &s5, &s6, &s7, &s8);
+
+        uint16x8_t d0 = highbd_convolve6_8_2d_v(s0, s1, s2, s3, s4, s5,
+                                                y_filter, offset_vec);
+        uint16x8_t d1 = highbd_convolve6_8_2d_v(s1, s2, s3, s4, s5, s6,
+                                                y_filter, offset_vec);
+        uint16x8_t d2 = highbd_convolve6_8_2d_v(s2, s3, s4, s5, s6, s7,
+                                                y_filter, offset_vec);
+        uint16x8_t d3 = highbd_convolve6_8_2d_v(s3, s4, s5, s6, s7, s8,
+                                                y_filter, offset_vec);
+
+        store_u16_8x4(d, dst_stride, d0, d1, d2, d3);
+
+        s0 = s4;
+        s1 = s5;
+        s2 = s6;
+        s3 = s7;
+        s4 = s8;
+        s += 4 * src_stride;
+        d += 4 * dst_stride;
+        height -= 4;
+      } while (height != 0);
+      src_ptr += 8;
+      dst_ptr += 8;
+      w -= 8;
+    } while (w != 0);
+  }
+}
+
 static INLINE uint16x4_t highbd_convolve8_4_2d_v(
     const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
     const int16x4_t s3, const int16x4_t s4, const int16x4_t s5,
@@ -1097,11 +1220,14 @@ void av1_highbd_dist_wtd_convolve_2d_neon(
   CONV_BUF_TYPE *dst16 = conv_params->dst;
   int dst16_stride = conv_params->dst_stride;
   const int x_filter_taps = get_filter_tap(filter_params_x, subpel_x_qn);
+  const int clamped_x_taps = x_filter_taps < 6 ? 6 : x_filter_taps;
+  const int y_filter_taps = get_filter_tap(filter_params_y, subpel_y_qn);
+  const int clamped_y_taps = y_filter_taps < 6 ? 6 : y_filter_taps;
 
-  const int im_h = h + filter_params_y->taps - 1;
+  const int im_h = h + clamped_y_taps - 1;
   const int im_stride = MAX_SB_SIZE;
-  const int vert_offset = filter_params_y->taps / 2 - 1;
-  const int horiz_offset = filter_params_x->taps / 2 - 1;
+  const int vert_offset = clamped_y_taps / 2 - 1;
+  const int horiz_offset = clamped_x_taps / 2 - 1;
   const int round_bits =
       2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
   // The extra shim of (1 << (conv_params->round_0 - 1)) allows us to use a
@@ -1124,7 +1250,7 @@ void av1_highbd_dist_wtd_convolve_2d_neon(
   // horizontal filter
   if (x_filter_taps <= 6) {
     highbd_dist_wtd_convolve_2d_horiz_6tap_neon(
-        src_ptr + 1, src_stride, im_block, im_stride, w, im_h, x_filter_ptr,
+        src_ptr, src_stride, im_block, im_stride, w, im_h, x_filter_ptr,
         conv_params, round_offset_conv_x);
   } else {
     highbd_dist_wtd_convolve_2d_horiz_8tap_neon(
@@ -1133,14 +1259,26 @@ void av1_highbd_dist_wtd_convolve_2d_neon(
   }
 
   // vertical filter
-  if (conv_params->do_average) {
-    highbd_dist_wtd_convolve_2d_vert_8tap_neon(im_block, im_stride, im_block2,
-                                               im_stride, w, h, y_filter_ptr,
-                                               round_offset_conv_y);
+  if (y_filter_taps <= 6) {
+    if (conv_params->do_average) {
+      highbd_dist_wtd_convolve_2d_vert_6tap_neon(im_block, im_stride, im_block2,
+                                                 im_stride, w, h, y_filter_ptr,
+                                                 round_offset_conv_y);
+    } else {
+      highbd_dist_wtd_convolve_2d_vert_6tap_neon(
+          im_block, im_stride, dst16, dst16_stride, w, h, y_filter_ptr,
+          round_offset_conv_y);
+    }
   } else {
-    highbd_dist_wtd_convolve_2d_vert_8tap_neon(im_block, im_stride, dst16,
-                                               dst16_stride, w, h, y_filter_ptr,
-                                               round_offset_conv_y);
+    if (conv_params->do_average) {
+      highbd_dist_wtd_convolve_2d_vert_8tap_neon(im_block, im_stride, im_block2,
+                                                 im_stride, w, h, y_filter_ptr,
+                                                 round_offset_conv_y);
+    } else {
+      highbd_dist_wtd_convolve_2d_vert_8tap_neon(
+          im_block, im_stride, dst16, dst16_stride, w, h, y_filter_ptr,
+          round_offset_conv_y);
+    }
   }
 
   // Do the compound averaging outside the loop, avoids branching within the
