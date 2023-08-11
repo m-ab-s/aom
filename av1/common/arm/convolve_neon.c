@@ -376,7 +376,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
       dst += 8 * dst_stride;
       h -= 8;
     }
-#endif  // !AOM_ARCH_AARCH64
+#endif  // AOM_ARCH_AARCH64
 
     while (h-- != 0) {
       uint8x8_t t0 = vld1_u8(src);  // a0 a1 a2 a3 a4 a5 a6 a7
