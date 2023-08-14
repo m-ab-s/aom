@@ -851,6 +851,10 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_720p_or_larger)
       sf->part_sf.ext_part_eval_based_on_cur_best =
           (allow_screen_content_tools || frame_is_intra_only(cm)) ? 0 : 1;
+
+    if (is_480p_or_larger) {
+      sf->tpl_sf.reduce_num_frames = 1;
+    }
   }
 
   if (speed >= 6) {
@@ -901,10 +905,6 @@ static void set_good_speed_feature_framesize_dependent(
     if (!is_720p_or_larger) {
       sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
           is_boosted_arf2_bwd_type ? 450 : 150;
-    }
-
-    if (is_480p_or_larger) {
-      sf->tpl_sf.reduce_num_frames = 1;
     }
 
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL4;
