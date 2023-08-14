@@ -1014,6 +1014,9 @@ static INLINE void highbd_dist_wtd_convolve_2d_horiz_6tap_neon(
     const uint16_t *src_ptr, int src_stride, uint16_t *dst_ptr, int dst_stride,
     int w, int h, const int16_t *x_filter_ptr, ConvolveParams *conv_params,
     const int offset) {
+  // The smallest block height is 4, and the horizontal convolution needs to
+  // process an extra (filter_taps/2 - 1) lines for the vertical convolution.
+  assert(h >= 5);
   const int32x4_t shift = vdupq_n_s32(-conv_params->round_0);
   const int32x4_t offset_vec = vdupq_n_s32(offset);
 
@@ -1055,13 +1058,37 @@ static INLINE void highbd_dist_wtd_convolve_2d_horiz_6tap_neon(
     src_ptr += 4 * src_stride;
     dst_ptr += 4 * dst_stride;
     height -= 4;
-  } while (height > 0);
+  } while (height > 4);
+
+  do {
+    int width = w;
+    const int16_t *s = (const int16_t *)src_ptr;
+    uint16_t *d = dst_ptr;
+
+    do {
+      int16x8_t s0[6];
+      load_s16_8x6(s, 1, &s0[0], &s0[1], &s0[2], &s0[3], &s0[4], &s0[5]);
+
+      uint16x8_t d0 = highbd_convolve6_8(s0[0], s0[1], s0[2], s0[3], s0[4],
+                                         s0[5], x_filter, shift, offset_vec);
+      vst1q_u16(d, d0);
+
+      s += 8;
+      d += 8;
+      width -= 8;
+    } while (width != 0);
+    src_ptr += src_stride;
+    dst_ptr += dst_stride;
+  } while (--height != 0);
 }
 
 static INLINE void highbd_dist_wtd_convolve_2d_horiz_neon(
     const uint16_t *src_ptr, int src_stride, uint16_t *dst_ptr, int dst_stride,
     int w, int h, const int16_t *x_filter_ptr, ConvolveParams *conv_params,
     const int offset) {
+  // The smallest block height is 4, and the horizontal convolution needs to
+  // process an extra (filter_taps/2 - 1) lines for the vertical convolution.
+  assert(h >= 5);
   const int32x4_t shift = vdupq_n_s32(-conv_params->round_0);
   const int32x4_t offset_vec = vdupq_n_s32(offset);
 
@@ -1088,7 +1115,18 @@ static INLINE void highbd_dist_wtd_convolve_2d_horiz_neon(
       s += 4 * src_stride;
       d += 4 * dst_stride;
       h -= 4;
-    } while (h > 0);
+    } while (h > 4);
+
+    do {
+      int16x4_t s0[4];
+      load_s16_4x4(s, 1, &s0[0], &s0[1], &s0[2], &s0[3]);
+
+      uint16x4_t d0 = highbd_convolve4_4_x(s0, x_filter, shift, offset_vec);
+      vst1_u16(d, d0);
+
+      s += src_stride;
+      d += dst_stride;
+    } while (--h != 0);
   } else {
     const int16x8_t x_filter = vld1q_s16(x_filter_ptr);
     int height = h;
@@ -1131,7 +1169,30 @@ static INLINE void highbd_dist_wtd_convolve_2d_horiz_neon(
       src_ptr += 4 * src_stride;
       dst_ptr += 4 * dst_stride;
       height -= 4;
-    } while (height > 0);
+    } while (height > 4);
+
+    do {
+      int width = w;
+      const int16_t *s = (const int16_t *)src_ptr;
+      uint16_t *d = dst_ptr;
+
+      do {
+        int16x8_t s0[8];
+        load_s16_8x8(s + 0 * src_stride, 1, &s0[0], &s0[1], &s0[2], &s0[3],
+                     &s0[4], &s0[5], &s0[6], &s0[7]);
+
+        uint16x8_t d0 =
+            highbd_convolve8_8(s0[0], s0[1], s0[2], s0[3], s0[4], s0[5], s0[6],
+                               s0[7], x_filter, shift, offset_vec);
+        vst1q_u16(d, d0);
+
+        s += 8;
+        d += 8;
+        width -= 8;
+      } while (width != 0);
+      src_ptr += src_stride;
+      dst_ptr += dst_stride;
+    } while (--height != 0);
   }
 }
 
