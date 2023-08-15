@@ -617,7 +617,7 @@ if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   add_proto qw/void av1_highbd_filter_intra_edge/, "uint16_t *p, int sz, int strength";
   specialize qw/av1_highbd_filter_intra_edge sse4_1 neon/;
   add_proto qw/void av1_highbd_upsample_intra_edge/, "uint16_t *p, int sz, int bd";
-  specialize qw/av1_highbd_upsample_intra_edge sse4_1/;
+  specialize qw/av1_highbd_upsample_intra_edge sse4_1 neon/;
 }
 
 # CFL

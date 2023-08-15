@@ -275,7 +275,10 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // HAVE_SSE4_1
 
 #if HAVE_NEON
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(UpsampleTestHB);
+INSTANTIATE_TEST_SUITE_P(
+    NEON, UpsampleTestHB,
+    ::testing::Values(TestFuncsHBD(av1_highbd_upsample_intra_edge_c,
+                                   av1_highbd_upsample_intra_edge_neon)));
 #endif  // HAVE_NEON
 
 typedef void (*FEHB)(uint16_t *p, int size, int strength);
