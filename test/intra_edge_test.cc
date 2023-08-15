@@ -337,7 +337,10 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, FilterEdgeTestHB,
 #endif  // HAVE_SSE4_1
 
 #if HAVE_NEON
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(FilterEdgeTestHB);
+INSTANTIATE_TEST_SUITE_P(NEON, FilterEdgeTestHB,
+                         ::testing::Values(FilterEdgeTestFuncsHBD(
+                             av1_highbd_filter_intra_edge_c,
+                             av1_highbd_filter_intra_edge_neon)));
 #endif  // HAVE_NEON
 
 #endif  // CONFIG_AV1_HIGHBITDEPTH
