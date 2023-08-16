@@ -327,8 +327,8 @@ AV1CdefInfo AV1RateControlRTC::GetCdefInfo() const {
   return cdef_level;
 }
 
-signed char *AV1RateControlRTC::GetCyclicRefreshMap() const {
-  return cpi_->cyclic_refresh->map;
+unsigned char *AV1RateControlRTC::GetCyclicRefreshMap() const {
+  return cpi_->enc_seg.map;
 }
 
 int *AV1RateControlRTC::GetDeltaQ() const {
