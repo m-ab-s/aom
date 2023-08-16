@@ -3606,7 +3606,7 @@ static INLINE void lowbd_inv_txfm2d_add_idtx_neon(const int32_t *input,
     identity_txfm_round_neon(cur_a, cur_a, txw_idx, buf_size_nonzero_w,
                              -shift[0]);
     for (int j = 0; j < buf_size_w_div8; ++j) {
-      transpose_s16_8x8q(&cur_a[j * 8], &b[temp_b + txfm_size_row * j]);
+      transpose_arrays_s16_8x8(&cur_a[j * 8], &b[temp_b + txfm_size_row * j]);
     }
     temp_b += 8;
   }
@@ -3665,14 +3665,14 @@ static INLINE void lowbd_inv_txfm2d_add_v_identity_neon(
     if (lr_flip == 1) {
       for (int j = 0; j < buf_size_w_div8; ++j) {
         flip_buf_ud_neon(&cur_a[j * 8], 8);
-        transpose_s16_8x8q(
+        transpose_arrays_s16_8x8(
             &cur_a[j * 8],
             &b[temp_b + txfm_size_row * (buf_size_w_div8 - 1 - j)]);
       }
       temp_b += 8;
     } else {
       for (int j = 0; j < buf_size_w_div8; ++j) {
-        transpose_s16_8x8q(&cur_a[j * 8], &b[temp_b + txfm_size_row * j]);
+        transpose_arrays_s16_8x8(&cur_a[j * 8], &b[temp_b + txfm_size_row * j]);
       }
       temp_b += 8;
     }
@@ -3730,7 +3730,7 @@ static INLINE void lowbd_inv_txfm2d_add_h_identity_neon(
     identity_txfm_round_neon(cur_a, cur_a, txw_idx, buf_size_nonzero_w,
                              -shift[0]);
     for (int j = 0; j < buf_size_w_div8; ++j) {
-      transpose_s16_8x8q(&cur_a[j * 8], &b[temp_b + txfm_size_row * j]);
+      transpose_arrays_s16_8x8(&cur_a[j * 8], &b[temp_b + txfm_size_row * j]);
     }
     temp_b += 8;
   }
@@ -4116,14 +4116,14 @@ static INLINE void lowbd_inv_txfm2d_add_no_identity_neon(
     if (lr_flip == 1) {
       for (int j = 0; j < buf_size_w_div8; ++j) {
         flip_buf_ud_neon(&cur_a[j * 8], 8);
-        transpose_s16_8x8q(
+        transpose_arrays_s16_8x8(
             &cur_a[j * 8],
             &b[temp_b + txfm_size_row * (buf_size_w_div8 - 1 - j)]);
       }
       temp_b += 8;
     } else {
       for (int j = 0; j < buf_size_w_div8; ++j) {
-        transpose_s16_8x8q(&cur_a[j * 8], &b[temp_b + txfm_size_row * j]);
+        transpose_arrays_s16_8x8(&cur_a[j * 8], &b[temp_b + txfm_size_row * j]);
       }
       temp_b += 8;
     }

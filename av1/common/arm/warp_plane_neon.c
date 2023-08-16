@@ -164,7 +164,7 @@ static INLINE void vertical_filter_4x1_f1(const int16x8_t *src, int32x4_t *res,
 static INLINE void vertical_filter_4x1_f4(const int16x8_t *src, int32x4_t *res,
                                           int sy, int gamma) {
   int16x8_t s0, s1, s2, s3;
-  transpose_s16_4x8(
+  transpose_elems_s16_4x8(
       vget_low_s16(src[0]), vget_low_s16(src[1]), vget_low_s16(src[2]),
       vget_low_s16(src[3]), vget_low_s16(src[4]), vget_low_s16(src[5]),
       vget_low_s16(src[6]), vget_low_s16(src[7]), &s0, &s1, &s2, &s3);
@@ -235,7 +235,7 @@ static INLINE void vertical_filter_8x1_f8(const int16x8_t *src,
   int16x8_t s5 = src[5];
   int16x8_t s6 = src[6];
   int16x8_t s7 = src[7];
-  transpose_s16_8x8(&s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
+  transpose_elems_inplace_s16_8x8(&s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
 
   int16x8_t f[8];
   load_filters_8(f, sy, gamma);

@@ -132,8 +132,8 @@ void av1_highbd_convolve_horiz_rs_neon(const uint16_t *src, int src_stride,
                                  vget_high_s16(x_filter1),
                                  vget_high_s16(x_filter2),
                                  vget_high_s16(x_filter3) };
-      transpose_u16_4x4((uint16x4_t *)filters_lo);
-      transpose_u16_4x4((uint16x4_t *)filters_hi);
+      transpose_array_inplace_u16_4x4((uint16x4_t *)filters_lo);
+      transpose_array_inplace_u16_4x4((uint16x4_t *)filters_hi);
 
       // Run the 2D Scale convolution
       uint16x4_t d0 = highbd_convolve8_2d_scale_horiz4x8_s32_s16(
@@ -250,8 +250,8 @@ void av1_highbd_convolve_horiz_rs_neon(const uint16_t *src, int src_stride,
                                    vget_high_s16(x_filter1),
                                    vget_high_s16(x_filter2),
                                    vget_high_s16(x_filter3) };
-        transpose_u16_4x4((uint16x4_t *)filters_lo);
-        transpose_u16_4x4((uint16x4_t *)filters_hi);
+        transpose_array_inplace_u16_4x4((uint16x4_t *)filters_lo);
+        transpose_array_inplace_u16_4x4((uint16x4_t *)filters_hi);
 
         // Run the 2D Scale X convolution
         uint16x4_t d0 = highbd_convolve8_2d_scale_horiz4x8_s32_s16(

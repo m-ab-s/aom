@@ -121,7 +121,7 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
 
       uint8x8_t t0, t1, t2, t3, t4, t5, t6, t7;
       load_u8_8x8(src_ptr, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-      transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+      transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
       int16x8_t s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
       int16x8_t s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -144,7 +144,7 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
 
       do {
         load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-        transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+        transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
         int16x8_t s7 = vreinterpretq_s16_u16(vmovl_u8(t0));
         int16x8_t s8 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -172,7 +172,7 @@ static INLINE void dist_wtd_convolve_2d_horiz_neon(
         int16x8_t d7 = convolve8_8_2d_h(s7, s8, s9, s10, s11, s12, s13, s14,
                                         x_filter, horiz_const);
 
-        transpose_s16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
+        transpose_elems_inplace_s16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
         store_s16_8x8(d, dst_stride, d0, d1, d2, d3, d4, d5, d6, d7);
 
         s0 = s8;
@@ -666,7 +666,7 @@ static INLINE void dist_wtd_convolve_x_dist_wtd_avg_neon(
 
       uint8x8_t t0, t1, t2, t3, t4, t5, t6, t7;
       load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-      transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+      transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
       int16x8_t s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
       int16x8_t s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -689,7 +689,7 @@ static INLINE void dist_wtd_convolve_x_dist_wtd_avg_neon(
 
       do {
         load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-        transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+        transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
         int16x8_t s7 = vreinterpretq_s16_u16(vmovl_u8(t0));
         int16x8_t s8 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -717,7 +717,7 @@ static INLINE void dist_wtd_convolve_x_dist_wtd_avg_neon(
         uint16x8_t d7 = convolve8_8_x(s7, s8, s9, s10, s11, s12, s13, s14,
                                       x_filter, round_offset_vec);
 
-        transpose_u16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
+        transpose_elems_inplace_u16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
 
         uint16x8_t dd0, dd1, dd2, dd3;
         load_u16_8x4(d, dst_stride, &dd0, &dd1, &dd2, &dd3);
@@ -879,7 +879,7 @@ static INLINE void dist_wtd_convolve_x_avg_neon(
 
       uint8x8_t t0, t1, t2, t3, t4, t5, t6, t7;
       load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-      transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+      transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
       int16x8_t s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
       int16x8_t s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -902,7 +902,7 @@ static INLINE void dist_wtd_convolve_x_avg_neon(
 
       do {
         load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-        transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+        transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
         int16x8_t s7 = vreinterpretq_s16_u16(vmovl_u8(t0));
         int16x8_t s8 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -930,7 +930,7 @@ static INLINE void dist_wtd_convolve_x_avg_neon(
         uint16x8_t d7 = convolve8_8_x(s7, s8, s9, s10, s11, s12, s13, s14,
                                       x_filter, round_offset_vec);
 
-        transpose_u16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
+        transpose_elems_inplace_u16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
 
         uint16x8_t dd0, dd1, dd2, dd3;
         load_u16_8x4(d, dst_stride, &dd0, &dd1, &dd2, &dd3);
@@ -1080,7 +1080,7 @@ static INLINE void dist_wtd_convolve_x_neon(
 
       uint8x8_t t0, t1, t2, t3, t4, t5, t6, t7;
       load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-      transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+      transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
       int16x8_t s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
       int16x8_t s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -1103,7 +1103,7 @@ static INLINE void dist_wtd_convolve_x_neon(
 
       do {
         load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-        transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+        transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
         int16x8_t s7 = vreinterpretq_s16_u16(vmovl_u8(t0));
         int16x8_t s8 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -1131,7 +1131,7 @@ static INLINE void dist_wtd_convolve_x_neon(
         uint16x8_t d7 = convolve8_8_x(s7, s8, s9, s10, s11, s12, s13, s14,
                                       x_filter, round_offset_vec);
 
-        transpose_u16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
+        transpose_elems_inplace_u16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
 
         store_u16_8x8(d, dst_stride, d0, d1, d2, d3, d4, d5, d6, d7);
 

@@ -267,7 +267,7 @@ void av1_wiener_convolve_add_src_neon(const uint8_t *src, ptrdiff_t src_stride,
       __builtin_prefetch(src_ptr + 7 * src_stride);
 
       load_u8_8x8(src_ptr, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-      transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+      transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
       s = src_ptr + 7;
       d_tmp = dst_ptr;
@@ -286,7 +286,8 @@ void av1_wiener_convolve_add_src_neon(const uint8_t *src, ptrdiff_t src_stride,
         int16x8_t res0, res1, res2, res3;
         uint8x8_t t8, t9, t10, t11, t12, t13, t14;
         load_u8_8x8(s, src_stride, &t7, &t8, &t9, &t10, &t11, &t12, &t13, &t14);
-        transpose_u8_8x8(&t7, &t8, &t9, &t10, &t11, &t12, &t13, &t14);
+        transpose_elems_inplace_u8_8x8(&t7, &t8, &t9, &t10, &t11, &t12, &t13,
+                                       &t14);
 
         HORZ_FILTERING_CORE(t0, t6, t1, t5, t2, t4, t3, res4)
         HORZ_FILTERING_CORE(t1, t7, t2, t6, t3, t5, t4, res5)
@@ -297,8 +298,8 @@ void av1_wiener_convolve_add_src_neon(const uint8_t *src, ptrdiff_t src_stride,
         HORZ_FILTERING_CORE(t6, t12, t7, t11, t8, t10, t9, res10)
         HORZ_FILTERING_CORE(t7, t13, t8, t12, t9, t11, t10, res11)
 
-        transpose_u16_8x8(&res4, &res5, &res6, &res7, &res8, &res9, &res10,
-                          &res11);
+        transpose_elems_inplace_u16_8x8(&res4, &res5, &res6, &res7, &res8,
+                                        &res9, &res10, &res11);
         store_u16_8x8(d_tmp, MAX_SB_SIZE, res4, res5, res6, res7, res8, res9,
                       res10, res11);
 

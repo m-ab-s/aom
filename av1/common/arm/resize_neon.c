@@ -243,15 +243,16 @@ static void scale_plane_2_to_1_general(const uint8_t *src, const int src_stride,
   do {
     load_u8_8x8(src + 2, src_stride, &s[0], &s[1], &s[2], &s[3], &s[4], &s[5],
                 &s[6], &s[7]);
-    transpose_u8_8x8(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
+    transpose_elems_inplace_u8_8x8(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5],
+                                   &s[6], &s[7]);
     x = width_hor;
 
     do {
       src += 8;
       load_u8_8x8(src, src_stride, &s[6], &s[7], &s[8], &s[9], &s[10], &s[11],
                   &s[12], &s[13]);
-      transpose_u8_8x8(&s[6], &s[7], &s[8], &s[9], &s[10], &s[11], &s[12],
-                       &s[13]);
+      transpose_elems_inplace_u8_8x8(&s[6], &s[7], &s[8], &s[9], &s[10], &s[11],
+                                     &s[12], &s[13]);
 
       d[0] = scale_filter_8(&s[0], filters);  // 00 10 20 30 40 50 60 70
       d[1] = scale_filter_8(&s[2], filters);  // 01 11 21 31 41 51 61 71
@@ -261,7 +262,7 @@ static void scale_plane_2_to_1_general(const uint8_t *src, const int src_stride,
       // 10 11 12 13 50 51 52 53
       // 20 21 22 23 60 61 62 63
       // 30 31 32 33 70 71 72 73
-      transpose_u8_8x4(&d[0], &d[1], &d[2], &d[3]);
+      transpose_elems_inplace_u8_8x4(&d[0], &d[1], &d[2], &d[3]);
       vst1_lane_u32((uint32_t *)(t + 0 * width_hor), vreinterpret_u32_u8(d[0]),
                     0);
       vst1_lane_u32((uint32_t *)(t + 1 * width_hor), vreinterpret_u32_u8(d[1]),
@@ -359,7 +360,8 @@ static void scale_plane_4_to_1_general(const uint8_t *src, const int src_stride,
   do {
     load_u8_8x8(src + 4, src_stride, &s[0], &s[1], &s[2], &s[3], &s[4], &s[5],
                 &s[6], &s[7]);
-    transpose_u8_4x8(&s[0], &s[1], &s[2], &s[3], s[4], s[5], s[6], s[7]);
+    transpose_elems_u8_4x8(s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
+                           &s[0], &s[1], &s[2], &s[3]);
     x = width_hor;
 
     do {
@@ -367,8 +369,8 @@ static void scale_plane_4_to_1_general(const uint8_t *src, const int src_stride,
       src += 8;
       load_u8_8x8(src, src_stride, &s[4], &s[5], &s[6], &s[7], &s[8], &s[9],
                   &s[10], &s[11]);
-      transpose_u8_8x8(&s[4], &s[5], &s[6], &s[7], &s[8], &s[9], &s[10],
-                       &s[11]);
+      transpose_elems_inplace_u8_8x8(&s[4], &s[5], &s[6], &s[7], &s[8], &s[9],
+                                     &s[10], &s[11]);
 
       d[0] = scale_filter_8(&s[0], filters);  // 00 10 20 30 40 50 60 70
       d[1] = scale_filter_8(&s[4], filters);  // 01 11 21 31 41 51 61 71
@@ -504,14 +506,16 @@ static void scale_plane_4_to_3_bilinear(const uint8_t *src,
     load_u8_8x8(src, src_stride, &s[0], &s[1], &s[2], &s[3], &s[4], &s[5],
                 &s[6], &s[7]);
     src += 1;
-    transpose_u8_8x8(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
+    transpose_elems_inplace_u8_8x8(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5],
+                                   &s[6], &s[7]);
     x = width_hor;
 
     do {
       load_u8_8x8(src, src_stride, &s[1], &s[2], &s[3], &s[4], &s[5], &s[6],
                   &s[7], &s[8]);
       src += 8;
-      transpose_u8_8x8(&s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7], &s[8]);
+      transpose_elems_inplace_u8_8x8(&s[1], &s[2], &s[3], &s[4], &s[5], &s[6],
+                                     &s[7], &s[8]);
 
       // 00 10 20 30 40 50 60 70
       // 01 11 21 31 41 51 61 71
@@ -538,7 +542,8 @@ static void scale_plane_4_to_3_bilinear(const uint8_t *src,
       // 50 51 52 53 54 55 xx xx
       // 60 61 62 63 64 65 xx xx
       // 70 71 72 73 74 75 xx xx
-      transpose_u8_8x8(&d[0], &d[1], &d[2], &d[3], &d[4], &d[5], &d[6], &d[7]);
+      transpose_elems_inplace_u8_8x8(&d[0], &d[1], &d[2], &d[3], &d[4], &d[5],
+                                     &d[6], &d[7]);
       // store 2 extra pixels
       vst1_u8(t + 0 * stride_hor, d[0]);
       vst1_u8(t + 1 * stride_hor, d[1]);
@@ -637,15 +642,16 @@ static void scale_plane_4_to_3_general(const uint8_t *src, const int src_stride,
   do {
     load_u8_8x8(src + 1, src_stride, &s[0], &s[1], &s[2], &s[3], &s[4], &s[5],
                 &s[6], &s[7]);
-    transpose_u8_8x8(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6], &s[7]);
+    transpose_elems_inplace_u8_8x8(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5],
+                                   &s[6], &s[7]);
     x = width_hor;
 
     do {
       src += 8;
       load_u8_8x8(src, src_stride, &s[7], &s[8], &s[9], &s[10], &s[11], &s[12],
                   &s[13], &s[14]);
-      transpose_u8_8x8(&s[7], &s[8], &s[9], &s[10], &s[11], &s[12], &s[13],
-                       &s[14]);
+      transpose_elems_inplace_u8_8x8(&s[7], &s[8], &s[9], &s[10], &s[11],
+                                     &s[12], &s[13], &s[14]);
 
       // 00 10 20 30 40 50 60 70
       // 01 11 21 31 41 51 61 71
@@ -670,7 +676,8 @@ static void scale_plane_4_to_3_general(const uint8_t *src, const int src_stride,
       // 50 51 52 53 54 55 xx xx
       // 60 61 62 63 64 65 xx xx
       // 70 71 72 73 74 75 xx xx
-      transpose_u8_8x8(&d[0], &d[1], &d[2], &d[3], &d[4], &d[5], &d[6], &d[7]);
+      transpose_elems_inplace_u8_8x8(&d[0], &d[1], &d[2], &d[3], &d[4], &d[5],
+                                     &d[6], &d[7]);
       // store 2 extra pixels
       vst1_u8(t + 0 * stride_hor, d[0]);
       vst1_u8(t + 1 * stride_hor, d[1]);
@@ -904,7 +911,7 @@ static INLINE void scaledconvolve_horiz_w4(
           int16x4_t t[8], tt;
 
           load_u8_8x4(src_x, src_stride, &s[0], &s[1], &s[2], &s[3]);
-          transpose_u8_8x4(&s[0], &s[1], &s[2], &s[3]);
+          transpose_elems_inplace_u8_8x4(&s[0], &s[1], &s[2], &s[3]);
 
           ss[0] = vreinterpretq_s16_u16(vmovl_u8(s[0]));
           ss[1] = vreinterpretq_s16_u16(vmovl_u8(s[1]));
@@ -975,8 +982,8 @@ static INLINE void scaledconvolve_horiz_w8(
           uint8x8_t s[8];
           load_u8_8x8(src_x, src_stride, &s[0], &s[1], &s[2], &s[3], &s[4],
                       &s[5], &s[6], &s[7]);
-          transpose_u8_8x8(&s[0], &s[1], &s[2], &s[3], &s[4], &s[5], &s[6],
-                           &s[7]);
+          transpose_elems_inplace_u8_8x8(&s[0], &s[1], &s[2], &s[3], &s[4],
+                                         &s[5], &s[6], &s[7]);
           d[0] = scale_filter_8(s, filters);
           vst1_u8(&temp[8 * z], d[0]);
         } else {
@@ -991,7 +998,8 @@ static INLINE void scaledconvolve_horiz_w8(
       // transpose the 8x8 filters values back to dst
       load_u8_8x8(temp, 8, &d[0], &d[1], &d[2], &d[3], &d[4], &d[5], &d[6],
                   &d[7]);
-      transpose_u8_8x8(&d[0], &d[1], &d[2], &d[3], &d[4], &d[5], &d[6], &d[7]);
+      transpose_elems_inplace_u8_8x8(&d[0], &d[1], &d[2], &d[3], &d[4], &d[5],
+                                     &d[6], &d[7]);
       store_u8_8x8(dst + x, dst_stride, d[0], d[1], d[2], d[3], d[4], d[5],
                    d[6], d[7]);
       x += 8;

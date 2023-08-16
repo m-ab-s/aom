@@ -37,7 +37,7 @@ void aom_hadamard_4x4_neon(const int16_t *src_diff, ptrdiff_t src_stride,
 
   hadamard_4x4_one_pass(&a0, &a1, &a2, &a3);
 
-  transpose_s16_4x4d(&a0, &a1, &a2, &a3);
+  transpose_elems_inplace_s16_4x4(&a0, &a1, &a2, &a3);
 
   hadamard_4x4_one_pass(&a0, &a1, &a2, &a3);
 
@@ -91,7 +91,7 @@ void aom_hadamard_8x8_neon(const int16_t *src_diff, ptrdiff_t src_stride,
 
   hadamard8x8_one_pass(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
 
-  transpose_s16_8x8(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
+  transpose_elems_inplace_s16_8x8(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
 
   hadamard8x8_one_pass(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
 
@@ -120,7 +120,7 @@ void aom_hadamard_lp_8x8_neon(const int16_t *src_diff, ptrdiff_t src_stride,
 
   hadamard8x8_one_pass(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
 
-  transpose_s16_8x8(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
+  transpose_elems_inplace_s16_8x8(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
 
   hadamard8x8_one_pass(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
 

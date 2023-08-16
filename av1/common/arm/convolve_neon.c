@@ -74,7 +74,7 @@ static INLINE void convolve_x_sr_12tap_neon(const uint8_t *src_ptr,
 
     uint8x8_t t0, t1, t2, t3;
     load_u8_8x4(s, src_stride, &t0, &t1, &t2, &t3);
-    transpose_u8_8x4(&t0, &t1, &t2, &t3);
+    transpose_elems_inplace_u8_8x4(&t0, &t1, &t2, &t3);
 
     int16x4_t s0 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
     int16x4_t s1 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
@@ -86,7 +86,7 @@ static INLINE void convolve_x_sr_12tap_neon(const uint8_t *src_ptr,
     int16x4_t s7 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
 
     load_u8_8x4(s + 8, src_stride, &t0, &t1, &t2, &t3);
-    transpose_u8_8x4(&t0, &t1, &t2, &t3);
+    transpose_elems_inplace_u8_8x4(&t0, &t1, &t2, &t3);
 
     int16x4_t s8 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
     int16x4_t s9 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
@@ -96,7 +96,7 @@ static INLINE void convolve_x_sr_12tap_neon(const uint8_t *src_ptr,
 
     do {
       load_u8_8x4(s, src_stride, &t0, &t1, &t2, &t3);
-      transpose_u8_8x4(&t0, &t1, &t2, &t3);
+      transpose_elems_inplace_u8_8x4(&t0, &t1, &t2, &t3);
 
       int16x4_t s11 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
       int16x4_t s12 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
@@ -116,7 +116,7 @@ static INLINE void convolve_x_sr_12tap_neon(const uint8_t *src_ptr,
           convolve12_4_x(s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14,
                          x_filter_0_7, x_filter_8_11, horiz_const);
 
-      transpose_s16_4x4d(&d0, &d1, &d2, &d3);
+      transpose_elems_inplace_s16_4x4(&d0, &d1, &d2, &d3);
 
       uint8x8_t d01 = vqmovun_s16(vcombine_s16(d0, d1));
       uint8x8_t d23 = vqmovun_s16(vcombine_s16(d2, d3));
@@ -290,7 +290,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
       uint8x8_t t0, t1, t2, t3, t4, t5, t6, t7;
       load_u8_8x8(src, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
-      transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+      transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
       int16x8_t s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
       int16x8_t s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
       int16x8_t s2 = vreinterpretq_s16_u16(vmovl_u8(t2));
@@ -316,7 +316,8 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
         uint8x8_t t8, t9, t10, t11, t12, t13, t14;
         load_u8_8x8(s, src_stride, &t7, &t8, &t9, &t10, &t11, &t12, &t13, &t14);
 
-        transpose_u8_8x8(&t7, &t8, &t9, &t10, &t11, &t12, &t13, &t14);
+        transpose_elems_inplace_u8_8x8(&t7, &t8, &t9, &t10, &t11, &t12, &t13,
+                                       &t14);
         int16x8_t s7 = vreinterpretq_s16_u16(vmovl_u8(t7));
         int16x8_t s8 = vreinterpretq_s16_u16(vmovl_u8(t8));
         int16x8_t s9 = vreinterpretq_s16_u16(vmovl_u8(t9));
@@ -343,7 +344,7 @@ void av1_convolve_x_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
         uint8x8_t d7 = convolve8_8_x(s7, s8, s9, s10, s11, s12, s13, s14,
                                      x_filter, horiz_const);
 
-        transpose_u8_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
+        transpose_elems_inplace_u8_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
 
         store_u8_8x8(d, dst_stride, d0, d1, d2, d3, d4, d5, d6, d7);
 
@@ -1050,7 +1051,7 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon(
 
     uint8x8_t t0, t1, t2, t3;
     load_u8_8x4(s, src_stride, &t0, &t1, &t2, &t3);
-    transpose_u8_8x4(&t0, &t1, &t2, &t3);
+    transpose_elems_inplace_u8_8x4(&t0, &t1, &t2, &t3);
 
     int16x4_t s0 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
     int16x4_t s1 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
@@ -1062,7 +1063,7 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon(
     int16x4_t s7 = vget_high_s16(vreinterpretq_s16_u16(vmovl_u8(t3)));
 
     load_u8_8x4(s + 8, src_stride, &t0, &t1, &t2, &t3);
-    transpose_u8_8x4(&t0, &t1, &t2, &t3);
+    transpose_elems_inplace_u8_8x4(&t0, &t1, &t2, &t3);
 
     int16x4_t s8 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
     int16x4_t s9 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
@@ -1072,7 +1073,7 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon(
 
     do {
       load_u8_8x4(s, src_stride, &t0, &t1, &t2, &t3);
-      transpose_u8_8x4(&t0, &t1, &t2, &t3);
+      transpose_elems_inplace_u8_8x4(&t0, &t1, &t2, &t3);
 
       int16x4_t s11 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t0)));
       int16x4_t s12 = vget_low_s16(vreinterpretq_s16_u16(vmovl_u8(t1)));
@@ -1092,7 +1093,7 @@ static INLINE void convolve_2d_sr_horiz_12tap_neon(
           convolve12_4_2d_h(s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14,
                             x_filter_0_7, x_filter_8_11, horiz_const);
 
-      transpose_s16_4x4d(&d0, &d1, &d2, &d3);
+      transpose_elems_inplace_s16_4x4(&d0, &d1, &d2, &d3);
       store_s16_4x4(d, dst_stride, d0, d1, d2, d3);
 
       s0 = s4;
@@ -1248,7 +1249,7 @@ static INLINE void convolve_2d_sr_horiz_neon(const uint8_t *src, int src_stride,
 
       uint8x8_t t0, t1, t2, t3, t4, t5, t6, t7;
       load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
-      transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+      transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
       int16x8_t s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
       int16x8_t s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -1263,7 +1264,7 @@ static INLINE void convolve_2d_sr_horiz_neon(const uint8_t *src, int src_stride,
       do {
         load_u8_8x8(s, src_stride, &t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
-        transpose_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
+        transpose_elems_inplace_u8_8x8(&t0, &t1, &t2, &t3, &t4, &t5, &t6, &t7);
 
         int16x8_t s7 = vreinterpretq_s16_u16(vmovl_u8(t0));
         int16x8_t s8 = vreinterpretq_s16_u16(vmovl_u8(t1));
@@ -1291,7 +1292,7 @@ static INLINE void convolve_2d_sr_horiz_neon(const uint8_t *src, int src_stride,
         int16x8_t d7 = convolve8_8_2d_h(s7, s8, s9, s10, s11, s12, s13, s14,
                                         x_filter, horiz_const);
 
-        transpose_s16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
+        transpose_elems_inplace_s16_8x8(&d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
 
         store_s16_8x8(d, dst_stride, d0, d1, d2, d3, d4, d5, d6, d7);
 

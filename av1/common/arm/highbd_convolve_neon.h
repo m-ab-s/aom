@@ -226,8 +226,8 @@ static INLINE int32x4_t highbd_convolve8_2d_scale_horiz4x8_s32(
   int16x4_t s_hi[] = { vget_high_s16(s0), vget_high_s16(s1), vget_high_s16(s2),
                        vget_high_s16(s3) };
 
-  transpose_u16_4x4((uint16x4_t *)s_lo);
-  transpose_u16_4x4((uint16x4_t *)s_hi);
+  transpose_array_inplace_u16_4x4((uint16x4_t *)s_lo);
+  transpose_array_inplace_u16_4x4((uint16x4_t *)s_hi);
 
   int32x4_t sum = vmlal_s16(offset, s_lo[0], filters_lo[0]);
   sum = vmlal_s16(sum, s_lo[1], filters_lo[1]);
@@ -261,8 +261,8 @@ static INLINE int32x4_t highbd_convolve8_horiz4x8_s32(
   int16x4_t s_hi[] = { vget_high_s16(s0), vget_high_s16(s1), vget_high_s16(s2),
                        vget_high_s16(s3) };
 
-  transpose_u16_4x4((uint16x4_t *)s_lo);
-  transpose_u16_4x4((uint16x4_t *)s_hi);
+  transpose_array_inplace_u16_4x4((uint16x4_t *)s_lo);
+  transpose_array_inplace_u16_4x4((uint16x4_t *)s_hi);
   const int16x4_t x_filter_0_3 = vget_low_s16(x_filter_0_7);
   const int16x4_t x_filter_4_7 = vget_high_s16(x_filter_0_7);
 

@@ -2370,7 +2370,7 @@ void av1_lowbd_fwd_txfm2d_8x4_neon(const int16_t *input, int32_t *output,
   round_shift_16bit_vector(buf0, height, &v_shift0);
   col_txfm(buf0, buf0, cos_bit_col);
   round_shift_16bit_vector(buf0, height, &v_shift1);
-  transpose_s16_8x8q(buf0, buf1);
+  transpose_arrays_s16_8x8(buf0, buf1);
 
   if (lr_flip) {
     buf = buf0;
@@ -2409,7 +2409,7 @@ void av1_lowbd_fwd_txfm2d_8x8_neon(const int16_t *input, int32_t *output,
   round_shift_16bit_vector(buf0, height, &v_shift0);
   col_txfm(buf0, buf0, cos_bit_col);
   round_shift_16bit_vector(buf0, height, &v_shift1);
-  transpose_s16_8x8q(buf0, buf1);
+  transpose_arrays_s16_8x8(buf0, buf1);
 
   if (lr_flip) {
     buf = buf0;
@@ -2449,8 +2449,8 @@ void av1_lowbd_fwd_txfm2d_8x16_neon(const int16_t *input, int32_t *output,
   round_shift_16bit_vector(buf0, height, &v_shift0);
   col_txfm(buf0, buf0, cos_bit_col);
   round_shift_16bit_vector(buf0, height, &v_shift1);
-  transpose_s16_8x8q(buf0, buf1);
-  transpose_s16_8x8q(buf0 + 8, buf1 + 8);
+  transpose_arrays_s16_8x8(buf0, buf1);
+  transpose_arrays_s16_8x8(buf0 + 8, buf1 + 8);
 
   for (int i = 0; i < 2; i++) {
     int16x8_t *buf;
@@ -2493,10 +2493,10 @@ void av1_lowbd_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *output,
   round_shift_16bit_vector(buf0, height, &v_shift0);
   col_txfm(buf0, buf0, cos_bit_col);
   round_shift_16bit_vector(buf0, height, &v_shift1);
-  transpose_s16_8x8q(buf0, buf1);
-  transpose_s16_8x8q(buf0 + 8, buf1 + 8);
-  transpose_s16_8x8q(buf0 + 16, buf1 + 16);
-  transpose_s16_8x8q(buf0 + 24, buf1 + 24);
+  transpose_arrays_s16_8x8(buf0, buf1);
+  transpose_arrays_s16_8x8(buf0 + 8, buf1 + 8);
+  transpose_arrays_s16_8x8(buf0 + 16, buf1 + 16);
+  transpose_arrays_s16_8x8(buf0 + 24, buf1 + 24);
 
   for (int i = 0; i < 4; i++) {
     int16x8_t *buf;
@@ -2584,7 +2584,7 @@ void av1_lowbd_fwd_txfm2d_16x8_neon(const int16_t *input, int32_t *output,
     round_shift_16bit_vector(buf0, height, &v_shift0);
     col_txfm(buf0, buf0, cos_bit_col);
     round_shift_16bit_vector(buf0, height, &v_shift1);
-    transpose_s16_8x8q(buf0, buf1 + 8 * i);
+    transpose_arrays_s16_8x8(buf0, buf1 + 8 * i);
   }
 
   if (lr_flip) {
@@ -2627,8 +2627,8 @@ void av1_lowbd_fwd_txfm2d_16x16_neon(const int16_t *input, int32_t *output,
     round_shift_16bit_vector(buf0, height, &v_shift0);
     col_txfm(buf0, buf0, cos_bit_col);
     round_shift_16bit_vector(buf0, height, &v_shift1);
-    transpose_s16_8x8q(buf0, buf1 + 0 * width + 8 * i);
-    transpose_s16_8x8q(buf0 + 8, buf1 + 1 * width + 8 * i);
+    transpose_arrays_s16_8x8(buf0, buf1 + 0 * width + 8 * i);
+    transpose_arrays_s16_8x8(buf0 + 8, buf1 + 1 * width + 8 * i);
   }
 
   for (int i = 0; i < 2; i++) {
@@ -2675,10 +2675,10 @@ void av1_lowbd_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *output,
       round_shift_16bit_vector(buf0, height, &v_shift0);
       col_txfm(buf0, buf0, cos_bit_col);
       round_shift_16bit_vector(buf0, height, &v_shift1);
-      transpose_s16_8x8q(buf0 + 0 * 8, buf1 + 0 * width + 8 * i);
-      transpose_s16_8x8q(buf0 + 1 * 8, buf1 + 1 * width + 8 * i);
-      transpose_s16_8x8q(buf0 + 2 * 8, buf1 + 2 * width + 8 * i);
-      transpose_s16_8x8q(buf0 + 3 * 8, buf1 + 3 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + 0 * 8, buf1 + 0 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + 1 * 8, buf1 + 1 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + 2 * 8, buf1 + 2 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + 3 * 8, buf1 + 3 * width + 8 * i);
     }
 
     for (int i = 0; i < 4; i++) {
@@ -2728,7 +2728,7 @@ void av1_lowbd_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *output,
       round_shift_16bit_vector(buf0, height, &v_shift0);
       col_txfm(buf0, buf0, cos_bit_col);
       round_shift_16bit_vector(buf0, height, &v_shift1);
-      transpose_s16_8x8q(buf0, buf1 + 0 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0, buf1 + 0 * width + 8 * i);
     }
 
     for (int i = 0; i < 1; i++) {
@@ -2778,8 +2778,8 @@ void av1_lowbd_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *output,
       round_shift_16bit_vector(buf0, height, &v_shift0);
       col_txfm(buf0, buf0, cos_bit_col);
       round_shift_16bit_vector(buf0, height, &v_shift1);
-      transpose_s16_8x8q(buf0, buf1 + 0 * width + 8 * i);
-      transpose_s16_8x8q(buf0 + 8, buf1 + 1 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0, buf1 + 0 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + 8, buf1 + 1 * width + 8 * i);
     }
 
     for (int i = 0; i < 2; i++) {
@@ -2826,10 +2826,10 @@ void av1_lowbd_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
       round_shift_16bit(buf0, height, shift[0]);
       col_txfm(buf0, buf0, cos_bit_col);
       round_shift_16bit(buf0, height, shift[1]);
-      transpose_s16_8x8q(buf0 + 0 * 8, buf1 + 0 * width + 8 * i);
-      transpose_s16_8x8q(buf0 + 1 * 8, buf1 + 1 * width + 8 * i);
-      transpose_s16_8x8q(buf0 + 2 * 8, buf1 + 2 * width + 8 * i);
-      transpose_s16_8x8q(buf0 + 3 * 8, buf1 + 3 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + 0 * 8, buf1 + 0 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + 1 * 8, buf1 + 1 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + 2 * 8, buf1 + 2 * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + 3 * 8, buf1 + 3 * width + 8 * i);
     }
 
     for (int i = 0; i < 4; i++) {
@@ -2874,7 +2874,7 @@ void av1_lowbd_fwd_txfm2d_64x16_neon(const int16_t *input, int32_t *output,
     col_txfm(buf0, buf0, cos_bit_col);
     round_shift_16bit(buf0, height, shift[1]);
     for (int j = 0; j < height_div8; ++j) {
-      transpose_s16_8x8q(buf0 + j * 8, buf1 + j * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
   }
 
@@ -2913,7 +2913,7 @@ void av1_lowbd_fwd_txfm2d_16x64_neon(const int16_t *input, int32_t *output,
     col_txfm(buf0, buf0, cos_bit_col);
     round_shift_16bit(buf0, height, shift[1]);
     for (int j = 0; j < height_div8; ++j) {
-      transpose_s16_8x8q(buf0 + j * 8, buf1 + j * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
   }
 
@@ -3882,7 +3882,7 @@ static void av1_lowbd_fwd_txfm2d_64x64_neon(const int16_t *input,
     col_txfm(buf0, buf0, cos_bit_col);
     round_shift_16bit(buf0, height, shift[1]);
     for (int j = 0; j < AOMMIN(4, height_div8); ++j) {
-      transpose_s16_8x8q(buf0 + j * 8, buf1 + j * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
   }
   for (int i = 0; i < AOMMIN(4, height_div8); i++) {
@@ -3924,7 +3924,7 @@ static void av1_lowbd_fwd_txfm2d_64x32_neon(const int16_t *input,
     col_txfm(buf0, buf0, cos_bit_col);
     round_shift_16bit(buf0, height, shift[1]);
     for (int j = 0; j < AOMMIN(4, height_div8); ++j) {
-      transpose_s16_8x8q(buf0 + j * 8, buf1 + j * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
   }
   assert(tx_type == DCT_DCT);
@@ -3970,7 +3970,7 @@ static void av1_lowbd_fwd_txfm2d_32x64_neon(const int16_t *input,
     col_txfm(buf0, buf0, cos_bit_col);
     round_shift_16bit(buf0, height, shift[1]);
     for (int j = 0; j < AOMMIN(4, height_div8); ++j) {
-      transpose_s16_8x8q(buf0 + j * 8, buf1 + j * width + 8 * i);
+      transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
   }
 
