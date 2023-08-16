@@ -386,7 +386,7 @@ static INLINE void filter6(const uint16x8_t p2q2, const uint16x8_t p1q1,
   // p1q1 = p2q2 + 2 * (p2q2 + p1q1 + p0q0) + q0p0
   //        ^^^^^^                          ^^^^^^
   // Should dual issue with the left shift.
-  const uint16x8_t q0p0 = transpose64_u16q(p0q0);
+  const uint16x8_t q0p0 = vextq_u16(p0q0, p0q0, 4);
   const uint16x8_t outer_sum = vaddq_u16(p2q2, q0p0);
   sum = vaddq_u16(sum, outer_sum);
 
@@ -401,7 +401,7 @@ static INLINE void filter6(const uint16x8_t p2q2, const uint16x8_t p1q1,
   // p0q0 = p1q1 - (2 * p2q2) + q0p0 + q1p1
   //        ^^^^^^^^
   sum = vsubq_u16(sum, p2q2_double);
-  const uint16x8_t q1p1 = transpose64_u16q(p1q1);
+  const uint16x8_t q1p1 = vextq_u16(p1q1, p1q1, 4);
   sum = vaddq_u16(sum, vaddq_u16(q0p0, q1p1));
 
   *p0q0_output = vrshrq_n_u16(sum, 3);
@@ -626,7 +626,7 @@ static INLINE void filter8(const uint16x8_t p3q3, const uint16x8_t p2q2,
 
   // p2q2 = p3q3 + 2 * (p3q3 + p2q2) + p1q1 + p0q0 + q0p0
   //                                               ^^^^^^
-  const uint16x8_t q0p0 = transpose64_u16q(p0q0);
+  const uint16x8_t q0p0 = vextq_u16(p0q0, p0q0, 4);
   sum = vaddq_u16(sum, q0p0);
 
   *p2q2_output = vrshrq_n_u16(sum, 3);
@@ -635,7 +635,7 @@ static INLINE void filter8(const uint16x8_t p3q3, const uint16x8_t p2q2,
   // p1 = p2 - p3 - p2 + p1 + q1
   // q1 = q2 - q3 - q2 + q0 + p1
   sum = vsubq_u16(sum, p23q23);
-  const uint16x8_t q1p1 = transpose64_u16q(p1q1);
+  const uint16x8_t q1p1 = vextq_u16(p1q1, p1q1, 4);
   sum = vaddq_u16(sum, vaddq_u16(p1q1, q1p1));
 
   *p1q1_output = vrshrq_n_u16(sum, 3);
@@ -644,7 +644,7 @@ static INLINE void filter8(const uint16x8_t p3q3, const uint16x8_t p2q2,
   // p0 = p1 - p3 - p1 + p0 + q2
   // q0 = q1 - q3 - q1 + q0 + p2
   sum = vsubq_u16(sum, vaddq_u16(p3q3, p1q1));
-  const uint16x8_t q2p2 = transpose64_u16q(p2q2);
+  const uint16x8_t q2p2 = vextq_u16(p2q2, p2q2, 4);
   sum = vaddq_u16(sum, vaddq_u16(p0q0, q2p2));
 
   *p0q0_output = vrshrq_n_u16(sum, 3);
@@ -883,7 +883,7 @@ static INLINE void filter14(
   //                                                           ^^
   // q5 = p0 + q0 + q1 + q2 + q3 + (2 * q4) + (2 * q5) + (7 * q6)
   //      ^^
-  const uint16x8_t q0p0 = transpose64_u16q(p0q0);
+  const uint16x8_t q0p0 = vextq_u16(p0q0, p0q0, 4);
   sum = vaddq_u16(sum, q0p0);
 
   *p5q5_output = vrshrq_n_u16(sum, 4);
@@ -892,7 +892,7 @@ static INLINE void filter14(
   // p4 = p5 - (2 * p6) + p3 + q1
   // q4 = q5 - (2 * q6) + q3 + p1
   sum = vsubq_u16(sum, vshlq_n_u16(p6q6, 1));
-  const uint16x8_t q1p1 = transpose64_u16q(p1q1);
+  const uint16x8_t q1p1 = vextq_u16(p1q1, p1q1, 4);
   sum = vaddq_u16(vaddq_u16(p3q3, q1p1), sum);
 
   *p4q4_output = vrshrq_n_u16(sum, 4);
@@ -901,7 +901,7 @@ static INLINE void filter14(
   // p3 = p4 - p6 - p5 + p2 + q2
   // q3 = q4 - q6 - q5 + q2 + p2
   sum = vsubq_u16(sum, vaddq_u16(p6q6, p5q5));
-  const uint16x8_t q2p2 = transpose64_u16q(p2q2);
+  const uint16x8_t q2p2 = vextq_u16(p2q2, p2q2, 4);
   sum = vaddq_u16(vaddq_u16(p2q2, q2p2), sum);
 
   *p3q3_output = vrshrq_n_u16(sum, 4);
@@ -910,7 +910,7 @@ static INLINE void filter14(
   // p2 = p3 - p6 - p4 + p1 + q3
   // q2 = q3 - q6 - q4 + q1 + p3
   sum = vsubq_u16(sum, vaddq_u16(p6q6, p4q4));
-  const uint16x8_t q3p3 = transpose64_u16q(p3q3);
+  const uint16x8_t q3p3 = vextq_u16(p3q3, p3q3, 4);
   sum = vaddq_u16(vaddq_u16(p1q1, q3p3), sum);
 
   *p2q2_output = vrshrq_n_u16(sum, 4);
@@ -919,7 +919,7 @@ static INLINE void filter14(
   // p1 = p2 - p6 - p3 + p0 + q4
   // q1 = q2 - q6 - q3 + q0 + p4
   sum = vsubq_u16(sum, vaddq_u16(p6q6, p3q3));
-  const uint16x8_t q4p4 = transpose64_u16q(p4q4);
+  const uint16x8_t q4p4 = vextq_u16(p4q4, p4q4, 4);
   sum = vaddq_u16(vaddq_u16(p0q0, q4p4), sum);
 
   *p1q1_output = vrshrq_n_u16(sum, 4);
@@ -928,7 +928,7 @@ static INLINE void filter14(
   // p0 = p1 - p6 - p2 + q0 + q5
   // q0 = q1 - q6 - q2 + p0 + p5
   sum = vsubq_u16(sum, vaddq_u16(p6q6, p2q2));
-  const uint16x8_t q5p5 = transpose64_u16q(p5q5);
+  const uint16x8_t q5p5 = vextq_u16(p5q5, p5q5, 4);
   sum = vaddq_u16(vaddq_u16(q0p0, q5p5), sum);
 
   *p0q0_output = vrshrq_n_u16(sum, 4);
