@@ -1513,8 +1513,9 @@ enum aome_enc_control_id {
    */
   AV1E_SET_RATE_DISTRIBUTION_INFO = 161,
 
-  /*!\brief Codec control to get the CDEF strength for Y / luma plane.
-   * Returns an array of CDEF_MAX_STRENGTHS.
+  /*!\brief Codec control to get the CDEF strength for Y / luma plane,
+   * int * parameter.
+   * Returns an integer array of CDEF_MAX_STRENGTHS elements.
    */
   AV1E_GET_LUMA_CDEF_STRENGTH = 162,
 
