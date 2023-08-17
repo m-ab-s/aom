@@ -891,4 +891,109 @@ static INLINE void transpose_elems_inplace_s32_8x8(
   a7->val[1] = q3_v4;
 }
 
+static INLINE void transpose_arrays_s16_4x4(const int16x4_t *const in,
+                                            int16x4_t *const out) {
+  int16x4_t a0 = in[0];
+  int16x4_t a1 = in[1];
+  int16x4_t a2 = in[2];
+  int16x4_t a3 = in[3];
+
+  transpose_elems_inplace_s16_4x4(&a0, &a1, &a2, &a3);
+
+  out[0] = a0;
+  out[1] = a1;
+  out[2] = a2;
+  out[3] = a3;
+}
+
+static INLINE void transpose_arrays_s16_4x8(const int16x8_t *const in,
+                                            int16x8_t *const out) {
+#if AOM_ARCH_AARCH64
+  const int16x8_t a0 = vzip1q_s16(in[0], in[1]);
+  const int16x8_t a1 = vzip1q_s16(in[2], in[3]);
+  const int16x8_t a2 = vzip1q_s16(in[4], in[5]);
+  const int16x8_t a3 = vzip1q_s16(in[6], in[7]);
+#else
+  int16x4x2_t temp;
+  temp = vzip_s16(vget_low_s16(in[0]), vget_low_s16(in[1]));
+  const int16x8_t a0 = vcombine_s16(temp.val[0], temp.val[1]);
+  temp = vzip_s16(vget_low_s16(in[2]), vget_low_s16(in[3]));
+  const int16x8_t a1 = vcombine_s16(temp.val[0], temp.val[1]);
+  temp = vzip_s16(vget_low_s16(in[4]), vget_low_s16(in[5]));
+  const int16x8_t a2 = vcombine_s16(temp.val[0], temp.val[1]);
+  temp = vzip_s16(vget_low_s16(in[6]), vget_low_s16(in[7]));
+  const int16x8_t a3 = vcombine_s16(temp.val[0], temp.val[1]);
+#endif
+
+  const int32x4x2_t b02 =
+      vzipq_s32(vreinterpretq_s32_s16(a0), vreinterpretq_s32_s16(a1));
+  const int32x4x2_t b13 =
+      vzipq_s32(vreinterpretq_s32_s16(a2), vreinterpretq_s32_s16(a3));
+
+#if AOM_ARCH_AARCH64
+  out[0] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b02.val[0]),
+                                            vreinterpretq_s64_s32(b13.val[0])));
+  out[1] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b02.val[0]),
+                                            vreinterpretq_s64_s32(b13.val[0])));
+  out[2] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b02.val[1]),
+                                            vreinterpretq_s64_s32(b13.val[1])));
+  out[3] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b02.val[1]),
+                                            vreinterpretq_s64_s32(b13.val[1])));
+#else
+  out[0] = vreinterpretq_s16_s32(
+      vextq_s32(vextq_s32(b02.val[0], b02.val[0], 2), b13.val[0], 2));
+  out[2] = vreinterpretq_s16_s32(
+      vextq_s32(vextq_s32(b02.val[1], b02.val[1], 2), b13.val[1], 2));
+  out[1] = vreinterpretq_s16_s32(
+      vextq_s32(b02.val[0], vextq_s32(b13.val[0], b13.val[0], 2), 2));
+  out[3] = vreinterpretq_s16_s32(
+      vextq_s32(b02.val[1], vextq_s32(b13.val[1], b13.val[1], 2), 2));
+#endif
+}
+
+static INLINE void transpose_arrays_s16_8x4(const int16x8_t *const in,
+                                            int16x8_t *const out) {
+  const int16x8x2_t a04 = vzipq_s16(in[0], in[1]);
+  const int16x8x2_t a15 = vzipq_s16(in[2], in[3]);
+
+  const int32x4x2_t b01 = vzipq_s32(vreinterpretq_s32_s16(a04.val[0]),
+                                    vreinterpretq_s32_s16(a15.val[0]));
+  const int32x4x2_t b45 = vzipq_s32(vreinterpretq_s32_s16(a04.val[1]),
+                                    vreinterpretq_s32_s16(a15.val[1]));
+
+  const int32x4_t zeros = vdupq_n_s32(0);
+
+#if AOM_ARCH_AARCH64
+  out[0] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b01.val[0]),
+                                            vreinterpretq_s64_s32(zeros)));
+  out[1] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b01.val[0]),
+                                            vreinterpretq_s64_s32(zeros)));
+  out[2] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b01.val[1]),
+                                            vreinterpretq_s64_s32(zeros)));
+  out[3] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b01.val[1]),
+                                            vreinterpretq_s64_s32(zeros)));
+  out[4] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b45.val[0]),
+                                            vreinterpretq_s64_s32(zeros)));
+  out[5] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b45.val[0]),
+                                            vreinterpretq_s64_s32(zeros)));
+  out[6] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b45.val[1]),
+                                            vreinterpretq_s64_s32(zeros)));
+  out[7] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b45.val[1]),
+                                            vreinterpretq_s64_s32(zeros)));
+#else
+  out[0] = vreinterpretq_s16_s32(
+      vextq_s32(vextq_s32(b01.val[0], b01.val[0], 2), zeros, 2));
+  out[1] = vreinterpretq_s16_s32(vextq_s32(b01.val[0], zeros, 2));
+  out[2] = vreinterpretq_s16_s32(
+      vextq_s32(vextq_s32(b01.val[1], b01.val[1], 2), zeros, 2));
+  out[3] = vreinterpretq_s16_s32(vextq_s32(b01.val[1], zeros, 2));
+  out[4] = vreinterpretq_s16_s32(
+      vextq_s32(vextq_s32(b45.val[0], b45.val[0], 2), zeros, 2));
+  out[5] = vreinterpretq_s16_s32(vextq_s32(b45.val[0], zeros, 2));
+  out[6] = vreinterpretq_s16_s32(
+      vextq_s32(vextq_s32(b45.val[1], b45.val[1], 2), zeros, 2));
+  out[7] = vreinterpretq_s16_s32(vextq_s32(b45.val[1], zeros, 2));
+#endif
+}
+
 #endif  // AOM_AOM_DSP_ARM_TRANSPOSE_NEON_H_
