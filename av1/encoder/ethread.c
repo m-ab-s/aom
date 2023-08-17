@@ -1247,27 +1247,6 @@ static AOM_INLINE void launch_fpmt_workers(AV1_PRIMARY *ppi) {
   }
 }
 
-// Synchronize level 1 workers.
-static AOM_INLINE void sync_fpmt_workers(AV1_PRIMARY *ppi) {
-  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
-  int num_workers = ppi->p_mt_info.p_num_workers;
-  int had_error = 0;
-  // Points to error in the earliest display order frame in the parallel set.
-  const struct aom_internal_error_info *error;
-
-  // Encoding ends.
-  for (int i = num_workers - 1; i >= 0; i--) {
-    AVxWorker *const worker = ppi->p_mt_info.p_workers[i];
-    if (!winterface->sync(worker)) {
-      had_error = 1;
-      error = ppi->parallel_cpi[i]->common.error;
-    }
-  }
-
-  if (had_error)
-    aom_internal_error(&ppi->error, error->error_code, "%s", error->detail);
-}
-
 // Restore worker states after parallel encode.
 static AOM_INLINE void restore_workers_after_fpmt(AV1_PRIMARY *ppi,
                                                   int parallel_frame_count) {
@@ -1309,6 +1288,30 @@ static AOM_INLINE void restore_workers_after_fpmt(AV1_PRIMARY *ppi,
   }
 }
 
+// Synchronize level 1 workers.
+static AOM_INLINE void sync_fpmt_workers(AV1_PRIMARY *ppi,
+                                         int frames_in_parallel_set) {
+  const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  int num_workers = ppi->p_mt_info.p_num_workers;
+  int had_error = 0;
+  // Points to error in the earliest display order frame in the parallel set.
+  const struct aom_internal_error_info *error;
+
+  // Encoding ends.
+  for (int i = num_workers - 1; i >= 0; --i) {
+    AVxWorker *const worker = ppi->p_mt_info.p_workers[i];
+    if (!winterface->sync(worker)) {
+      had_error = 1;
+      error = ppi->parallel_cpi[i]->common.error;
+    }
+  }
+
+  restore_workers_after_fpmt(ppi, frames_in_parallel_set);
+
+  if (had_error)
+    aom_internal_error(&ppi->error, error->error_code, "%s", error->detail);
+}
+
 static int get_compressed_data_hook(void *arg1, void *arg2) {
   AV1_COMP *cpi = (AV1_COMP *)arg1;
   AV1_COMP_DATA *cpi_data = (AV1_COMP_DATA *)arg2;
@@ -1330,8 +1333,7 @@ int av1_compress_parallel_frames(AV1_PRIMARY *const ppi,
   prepare_fpmt_workers(ppi, first_cpi_data, get_compressed_data_hook,
                        frames_in_parallel_set);
   launch_fpmt_workers(ppi);
-  sync_fpmt_workers(ppi);
-  restore_workers_after_fpmt(ppi, frames_in_parallel_set);
+  sync_fpmt_workers(ppi, frames_in_parallel_set);
 
   // Release cpi->scaled_ref_buf corresponding to frames in the current parallel
   // encode set.
