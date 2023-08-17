@@ -47,12 +47,10 @@ unsigned int aom_avg_8x8_neon(const uint8_t *p, int stride) {
 
 void aom_avg_8x8_quad_neon(const uint8_t *s, int p, int x16_idx, int y16_idx,
                            int *avg) {
-  for (int k = 0; k < 4; k++) {
-    const int x8_idx = x16_idx + ((k & 1) << 3);
-    const int y8_idx = y16_idx + ((k >> 1) << 3);
-    const uint8_t *s_tmp = s + y8_idx * p + x8_idx;
-    avg[k] = aom_avg_8x8_neon(s_tmp, p);
-  }
+  avg[0] = aom_avg_8x8_neon(s + y16_idx * p + x16_idx, p);
+  avg[1] = aom_avg_8x8_neon(s + y16_idx * p + (x16_idx + 8), p);
+  avg[2] = aom_avg_8x8_neon(s + (y16_idx + 8) * p + x16_idx, p);
+  avg[3] = aom_avg_8x8_neon(s + (y16_idx + 8) * p + (x16_idx + 8), p);
 }
 
 int aom_satd_lp_neon(const int16_t *coeff, int length) {
