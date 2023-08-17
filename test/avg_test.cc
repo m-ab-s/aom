@@ -963,13 +963,13 @@ class SatdTest : public SatdTestBase<tran_low_t, SatdFunc> {
 };
 
 TEST_P(SatdTest, MinValue) {
-  const int kMin = -32640;
+  const int kMin = -524287;
   const int expected = -kMin * satd_size_;
   FillConstant(kMin);
   Check(expected);
 }
 TEST_P(SatdTest, MaxValue) {
-  const int kMax = 32640;
+  const int kMax = 524287;
   const int expected = kMax * satd_size_;
   FillConstant(kMax);
   Check(expected);

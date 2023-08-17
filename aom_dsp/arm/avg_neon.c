@@ -180,8 +180,8 @@ void aom_int_pro_col_neon(int16_t *vbuf, const uint8_t *ref,
   } while (h < height);
 }
 
-// coeff: 16 bits, dynamic range [-32640, 32640].
-// length: value range {16, 64, 256, 1024}.
+// coeff: 20 bits, dynamic range [-524287, 524287].
+// length: value range {16, 32, 64, 128, 256, 512, 1024}.
 int aom_satd_neon(const tran_low_t *coeff, int length) {
   const int32x4_t zero = vdupq_n_s32(0);
   int32x4_t accum = zero;
@@ -198,7 +198,7 @@ int aom_satd_neon(const tran_low_t *coeff, int length) {
     coeff += 16;
   } while (length != 0);
 
-  // satd: 26 bits, dynamic range [-32640 * 1024, 32640 * 1024]
+  // satd: 30 bits, dynamic range [-524287 * 1024, 524287 * 1024]
   return horizontal_add_s32x4(accum);
 }
 
