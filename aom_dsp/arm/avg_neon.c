@@ -19,48 +19,30 @@
 #include "aom_dsp/arm/transpose_neon.h"
 #include "aom_ports/mem.h"
 
-#if !AOM_ARCH_AARCH64
-static INLINE uint32x2_t horizontal_add_u16x8_v(const uint16x8_t a) {
-  const uint32x4_t b = vpaddlq_u16(a);
-  const uint64x2_t c = vpaddlq_u32(b);
-  return vadd_u32(vreinterpret_u32_u64(vget_low_u64(c)),
-                  vreinterpret_u32_u64(vget_high_u64(c)));
-}
-#endif
+unsigned int aom_avg_4x4_neon(const uint8_t *p, int stride) {
+  const uint8x8_t s0 = load_unaligned_u8(p, stride);
+  const uint8x8_t s1 = load_unaligned_u8(p + 2 * stride, stride);
 
-unsigned int aom_avg_4x4_neon(const uint8_t *a, int a_stride) {
-  const uint8x16_t b = load_unaligned_u8q(a, a_stride);
-  const uint16x8_t c = vaddl_u8(vget_low_u8(b), vget_high_u8(b));
-#if AOM_ARCH_AARCH64
-  const uint32_t d = vaddlvq_u16(c);
-  return (d + 8) >> 4;
-#else
-  const uint32x2_t d = horizontal_add_u16x8_v(c);
-  return vget_lane_u32(vrshr_n_u32(d, 4), 0);
-#endif
+  const uint32_t sum = horizontal_add_u16x8(vaddl_u8(s0, s1));
+  return (sum + (1 << 3)) >> 4;
 }
 
-unsigned int aom_avg_8x8_neon(const uint8_t *a, int a_stride) {
-  uint16x8_t sum;
-  uint8x8_t b = vld1_u8(a);
-  a += a_stride;
-  uint8x8_t c = vld1_u8(a);
-  a += a_stride;
-  sum = vaddl_u8(b, c);
+unsigned int aom_avg_8x8_neon(const uint8_t *p, int stride) {
+  uint8x8_t s0 = vld1_u8(p);
+  p += stride;
+  uint8x8_t s1 = vld1_u8(p);
+  p += stride;
+  uint16x8_t acc = vaddl_u8(s0, s1);
 
-  for (int i = 0; i < 6; ++i) {
-    const uint8x8_t e = vld1_u8(a);
-    a += a_stride;
-    sum = vaddw_u8(sum, e);
-  }
+  int i = 0;
+  do {
+    const uint8x8_t si = vld1_u8(p);
+    p += stride;
+    acc = vaddw_u8(acc, si);
+  } while (++i < 6);
 
-#if AOM_ARCH_AARCH64
-  const uint32_t d = vaddlvq_u16(sum);
-  return (d + 32) >> 6;
-#else
-  const uint32x2_t d = horizontal_add_u16x8_v(sum);
-  return vget_lane_u32(vrshr_n_u32(d, 6), 0);
-#endif
+  const uint32_t sum = horizontal_add_u16x8(acc);
+  return (sum + (1 << 5)) >> 6;
 }
 
 void aom_avg_8x8_quad_neon(const uint8_t *s, int p, int x16_idx, int y16_idx,
