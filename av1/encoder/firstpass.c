@@ -33,6 +33,7 @@
 #include "av1/encoder/block.h"
 #include "av1/encoder/dwt.h"
 #include "av1/encoder/encodeframe.h"
+#include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encoder.h"
@@ -1061,9 +1062,11 @@ static void setup_firstpass_data(AV1_COMMON *const cm,
   }
 }
 
-static void free_firstpass_data(FirstPassData *firstpass_data) {
+void av1_free_firstpass_data(FirstPassData *firstpass_data) {
   aom_free(firstpass_data->raw_motion_err_list);
+  firstpass_data->raw_motion_err_list = NULL;
   aom_free(firstpass_data->mb_stats);
+  firstpass_data->mb_stats = NULL;
 }
 
 int av1_get_unit_rows_in_tile(const TileInfo *tile,
@@ -1102,28 +1105,12 @@ static void first_pass_tiles(AV1_COMP *cpi, const BLOCK_SIZE fp_block_size) {
   AV1_COMMON *const cm = &cpi->common;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
-  const int num_planes = av1_num_planes(&cpi->common);
-  for (int plane = 0; plane < num_planes; plane++) {
-    const int subsampling_xy =
-        plane ? cm->seq_params->subsampling_x + cm->seq_params->subsampling_y
-              : 0;
-    const int sb_size = MAX_SB_SQUARE >> subsampling_xy;
-    CHECK_MEM_ERROR(
-        cm, cpi->td.mb.plane[plane].src_diff,
-        (int16_t *)aom_memalign(
-            32, sizeof(*cpi->td.mb.plane[plane].src_diff) * sb_size));
-  }
+
   for (int tile_row = 0; tile_row < tile_rows; ++tile_row) {
     for (int tile_col = 0; tile_col < tile_cols; ++tile_col) {
       TileDataEnc *const tile_data =
           &cpi->tile_data[tile_row * tile_cols + tile_col];
       first_pass_tile(cpi, &cpi->td, tile_data, fp_block_size);
-    }
-  }
-  for (int plane = 0; plane < num_planes; plane++) {
-    if (cpi->td.mb.plane[plane].src_diff) {
-      aom_free(cpi->td.mb.plane[plane].src_diff);
-      cpi->td.mb.plane[plane].src_diff = NULL;
     }
   }
 }
@@ -1275,7 +1262,7 @@ void av1_noop_first_pass_frame(AV1_COMP *cpi, const int64_t ts_duration) {
   setup_firstpass_data(cm, &cpi->firstpass_data, unit_rows, unit_cols);
   FRAME_STATS *mb_stats = cpi->firstpass_data.mb_stats;
   FRAME_STATS stats = accumulate_frame_stats(mb_stats, unit_rows, unit_cols);
-  free_firstpass_data(&cpi->firstpass_data);
+  av1_free_firstpass_data(&cpi->firstpass_data);
   update_firstpass_stats(cpi, &stats, 1.0, current_frame->frame_number,
                          ts_duration, BLOCK_16X16);
 }
@@ -1394,6 +1381,7 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
   av1_init_mode_probs(cm->fc);
   av1_init_mv_probs(cm);
   av1_initialize_rd_consts(cpi);
+  av1_alloc_src_diff_buf(cm, &cpi->td.mb);
 
   enc_row_mt->sync_read_ptr = av1_row_mt_sync_read_dummy;
   enc_row_mt->sync_write_ptr = av1_row_mt_sync_write_dummy;
@@ -1411,7 +1399,8 @@ void av1_first_pass(AV1_COMP *cpi, const int64_t ts_duration) {
       frame_is_intra_only(cm) ? 0 : unit_rows * unit_cols;
   const double raw_err_stdev =
       raw_motion_error_stdev(raw_motion_err_list, total_raw_motion_err_count);
-  free_firstpass_data(&cpi->firstpass_data);
+  av1_free_firstpass_data(&cpi->firstpass_data);
+  av1_dealloc_src_diff_buf(&cpi->td.mb, av1_num_planes(cm));
 
   // Clamp the image start to rows/2. This number of rows is discarded top
   // and bottom as dead data so rows / 2 means the frame is blank.

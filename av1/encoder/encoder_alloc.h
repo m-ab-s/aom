@@ -13,6 +13,7 @@
 #define AOM_AV1_ENCODER_ENCODER_ALLOC_H_
 
 #include "av1/encoder/block.h"
+#include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encodetxb.h"
 #include "av1/encoder/ethread.h"
@@ -273,12 +274,15 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   // single-threaded encode are freed in case of an error during gm.
   gm_dealloc_data(&cpi->td.gm_data);
 
+  av1_dealloc_src_diff_buf(&cpi->td.mb, av1_num_planes(cm));
+
   av1_free_txb_buf(cpi);
   av1_free_context_buffers(cm);
 
   aom_free_frame_buffer(&cpi->last_frame_uf);
 #if !CONFIG_REALTIME_ONLY
   av1_free_restoration_buffers(cm);
+  av1_free_firstpass_data(&cpi->firstpass_data);
 #endif
 
   if (!is_stat_generation_stage(cpi)) {
@@ -428,6 +432,7 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
   const int num_tpl_workers =
       AOMMIN(p_mt_info->num_mod_workers[MOD_TPL], p_mt_info->num_workers);
   const int is_highbitdepth = ppi->seq_params.use_highbitdepth;
+  const int num_planes = ppi->seq_params.monochrome ? 1 : MAX_MB_PLANE;
   for (int t = 1; t < p_mt_info->num_workers; ++t) {
     EncWorkerData *const thread_data = &p_mt_info->tile_thr_data[t];
     thread_data->td = thread_data->original_td;
@@ -450,8 +455,7 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
       }
     }
     aom_free(thread_data->td->counts);
-    av1_free_pmc(thread_data->td->firstpass_ctx,
-                 ppi->seq_params.monochrome ? 1 : MAX_MB_PLANE);
+    av1_free_pmc(thread_data->td->firstpass_ctx, num_planes);
     thread_data->td->firstpass_ctx = NULL;
     av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
     av1_free_sms_tree(thread_data->td);
@@ -469,6 +473,7 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
     // This call ensures that the buffers in gm_data for MT encode are freed in
     // case of an error during gm.
     gm_dealloc_data(&thread_data->td->gm_data);
+    av1_dealloc_src_diff_buf(&thread_data->td->mb, num_planes);
     aom_free(thread_data->td);
   }
 }

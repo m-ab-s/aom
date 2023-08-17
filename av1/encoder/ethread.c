@@ -15,9 +15,9 @@
 #include "av1/encoder/allintra_vis.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encodeframe.h"
+#include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encoder_alloc.h"
-#include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/ethread.h"
 #if !CONFIG_REALTIME_ONLY
 #include "av1/encoder/firstpass.h"
@@ -1544,20 +1544,11 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       thread_data->td = thread_data->original_td;
     }
 
-    // Before encoding a frame, copy the thread data from cpi.
     if (thread_data->td != &cpi->td) {
+      // Before encoding a frame, copy the thread data from cpi.
       thread_data->td->mb = cpi->td.mb;
-      // Keep this conditional expression in sync with the corresponding one
-      // in av1_fp_encode_tiles_row_mt().
-      if (cpi->sf.inter_sf.mv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
-        CHECK_MEM_ERROR(cm, thread_data->td->mb.mv_costs,
-                        (MvCosts *)aom_malloc(sizeof(MvCosts)));
-        memcpy(thread_data->td->mb.mv_costs, cpi->td.mb.mv_costs,
-               sizeof(MvCosts));
-      }
+      av1_alloc_src_diff_buf(cm, &thread_data->td->mb);
     }
-
-    av1_alloc_mb_data(cpi, &thread_data->td->mb);
   }
 }
 #endif
@@ -1858,6 +1849,15 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
 }
 
 #if !CONFIG_REALTIME_ONLY
+static void dealloc_thread_data_src_diff_buf(AV1_COMP *cpi, int num_workers) {
+  for (int i = num_workers - 1; i >= 0; --i) {
+    EncWorkerData *const thread_data = &cpi->mt_info.tile_thr_data[i];
+    if (thread_data->td != &cpi->td)
+      av1_dealloc_src_diff_buf(&thread_data->td->mb,
+                               av1_num_planes(&cpi->common));
+  }
+}
+
 void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
@@ -1920,18 +1920,7 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
   fp_prepare_enc_workers(cpi, fp_enc_row_mt_worker_hook, num_workers);
   launch_workers(&cpi->mt_info, num_workers);
   sync_enc_workers(&cpi->mt_info, cm, num_workers);
-  for (int i = num_workers - 1; i >= 0; i--) {
-    EncWorkerData *const thread_data = &cpi->mt_info.tile_thr_data[i];
-    if (thread_data->td != &cpi->td) {
-      // Keep this conditional expression in sync with the corresponding one
-      // in fp_prepare_enc_workers().
-      if (cpi->sf.inter_sf.mv_cost_upd_level != INTERNAL_COST_UPD_OFF) {
-        aom_free(thread_data->td->mb.mv_costs);
-      }
-      assert(!thread_data->td->mb.dv_costs);
-    }
-    av1_dealloc_mb_data(cm, &thread_data->td->mb);
-  }
+  dealloc_thread_data_src_diff_buf(cpi, num_workers);
 }
 
 void av1_tpl_row_mt_sync_read_dummy(AV1TplRowMultiThreadSync *tpl_mt_sync,
