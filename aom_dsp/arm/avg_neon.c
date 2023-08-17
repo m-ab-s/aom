@@ -54,20 +54,33 @@ void aom_avg_8x8_quad_neon(const uint8_t *s, int p, int x16_idx, int y16_idx,
 }
 
 int aom_satd_lp_neon(const int16_t *coeff, int length) {
-  const int16x4_t zero = vdup_n_s16(0);
-  int32x4_t accum = vdupq_n_s32(0);
+  int16x8_t s0 = vld1q_s16(coeff);
+  int16x8_t s1 = vld1q_s16(coeff + 8);
 
-  do {
-    const int16x8_t src0 = vld1q_s16(coeff);
-    const int16x8_t src8 = vld1q_s16(coeff + 8);
-    accum = vabal_s16(accum, vget_low_s16(src0), zero);
-    accum = vabal_s16(accum, vget_high_s16(src0), zero);
-    accum = vabal_s16(accum, vget_low_s16(src8), zero);
-    accum = vabal_s16(accum, vget_high_s16(src8), zero);
+  int16x8_t abs0 = vabsq_s16(s0);
+  int16x8_t abs1 = vabsq_s16(s1);
+
+  int32x4_t acc0 = vpaddlq_s16(abs0);
+  int32x4_t acc1 = vpaddlq_s16(abs1);
+
+  length -= 16;
+  coeff += 16;
+
+  while (length != 0) {
+    s0 = vld1q_s16(coeff);
+    s1 = vld1q_s16(coeff + 8);
+
+    abs0 = vabsq_s16(s0);
+    abs1 = vabsq_s16(s1);
+
+    acc0 = vpadalq_s16(acc0, abs0);
+    acc1 = vpadalq_s16(acc1, abs1);
+
     length -= 16;
     coeff += 16;
-  } while (length != 0);
+  }
 
+  int32x4_t accum = vaddq_s32(acc0, acc1);
   return horizontal_add_s32x4(accum);
 }
 
