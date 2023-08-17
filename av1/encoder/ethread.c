@@ -265,6 +265,7 @@ static void row_mt_mem_alloc(AV1_COMP *cpi, int max_rows, int max_cols,
   enc_row_mt->allocated_cols = max_cols - 1;
   enc_row_mt->allocated_sb_rows = sb_rows;
   enc_row_mt->row_mt_exit = false;
+  enc_row_mt->firstpass_mt_exit = false;
 }
 
 void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
@@ -392,18 +393,68 @@ static AOM_INLINE void switch_tile_and_get_next_job(
 }
 
 #if !CONFIG_REALTIME_ONLY
+static void set_firstpass_encode_done(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
+  const int tile_cols = cm->tiles.cols;
+  const int tile_rows = cm->tiles.rows;
+  const BLOCK_SIZE fp_block_size = cpi->fp_block_size;
+  const int unit_height = mi_size_high[fp_block_size];
+
+  // In case of multithreading of firstpass encode, due to top-right
+  // dependency, the worker on a firstpass row waits for the completion of the
+  // firstpass processing of the top and top-right fp_blocks. Hence, in case a
+  // thread (main/worker) encounters an error, update the firstpass processing
+  // of every row in the frame to indicate that it is complete in order to avoid
+  // dependent workers waiting indefinitely.
+  for (int tile_row = 0; tile_row < tile_rows; ++tile_row) {
+    for (int tile_col = 0; tile_col < tile_cols; ++tile_col) {
+      TileDataEnc *const tile_data =
+          &cpi->tile_data[tile_row * tile_cols + tile_col];
+      TileInfo *tile = &tile_data->tile_info;
+      AV1EncRowMultiThreadSync *const row_mt_sync = &tile_data->row_mt_sync;
+      const int unit_cols_in_tile =
+          av1_get_unit_cols_in_tile(tile, fp_block_size);
+      for (int mi_row = tile->mi_row_start, unit_row_in_tile = 0;
+           mi_row < tile->mi_row_end;
+           mi_row += unit_height, unit_row_in_tile++) {
+        enc_row_mt->sync_write_ptr(row_mt_sync, unit_row_in_tile,
+                                   unit_cols_in_tile - 1, unit_cols_in_tile);
+      }
+    }
+  }
+}
+
 static int fp_enc_row_mt_worker_hook(void *arg1, void *unused) {
   EncWorkerData *const thread_data = (EncWorkerData *)arg1;
   AV1_COMP *const cpi = thread_data->cpi;
-  AV1_COMMON *const cm = &cpi->common;
   int thread_id = thread_data->thread_id;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
-  int cur_tile_id = enc_row_mt->thread_id_to_tile_id[thread_id];
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *enc_row_mt_mutex_ = enc_row_mt->mutex_;
 #endif
   (void)unused;
+  struct aom_internal_error_info *const error_info = &thread_data->error_info;
+  MACROBLOCKD *const xd = &thread_data->td->mb.e_mbd;
+  xd->error_info = error_info;
 
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(enc_row_mt_mutex_);
+    enc_row_mt->firstpass_mt_exit = true;
+    pthread_mutex_unlock(enc_row_mt_mutex_);
+#endif
+    set_firstpass_encode_done(cpi);
+    return 0;
+  }
+  error_info->setjmp = 1;
+
+  AV1_COMMON *const cm = &cpi->common;
+  int cur_tile_id = enc_row_mt->thread_id_to_tile_id[thread_id];
   assert(cur_tile_id != -1);
 
   const BLOCK_SIZE fp_block_size = cpi->fp_block_size;
@@ -414,8 +465,9 @@ static int fp_enc_row_mt_worker_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(enc_row_mt_mutex_);
 #endif
-    if (!get_next_job(&cpi->tile_data[cur_tile_id], &current_mi_row,
-                      unit_height)) {
+    bool firstpass_mt_exit = enc_row_mt->firstpass_mt_exit;
+    if (!firstpass_mt_exit && !get_next_job(&cpi->tile_data[cur_tile_id],
+                                            &current_mi_row, unit_height)) {
       // No jobs are available for the current tile. Query for the status of
       // other tiles and get the next job if available
       switch_tile_and_get_next_job(cm, cpi->tile_data, &cur_tile_id,
@@ -425,6 +477,9 @@ static int fp_enc_row_mt_worker_hook(void *arg1, void *unused) {
 #if CONFIG_MULTITHREAD
     pthread_mutex_unlock(enc_row_mt_mutex_);
 #endif
+    // When firstpass_mt_exit is set to true, other workers need not pursue any
+    // further jobs.
+    if (firstpass_mt_exit) return 1;
     if (end_of_frame == 1) break;
 
     TileDataEnc *const this_tile = &cpi->tile_data[cur_tile_id];
@@ -445,7 +500,7 @@ static int fp_enc_row_mt_worker_hook(void *arg1, void *unused) {
     pthread_mutex_unlock(enc_row_mt_mutex_);
 #endif
   }
-
+  error_info->setjmp = 0;
   return 1;
 }
 #endif

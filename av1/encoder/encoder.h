@@ -1534,6 +1534,13 @@ typedef struct {
    */
   bool row_mt_exit;
 
+  /*!
+   * Initialized to false, set to true during first pass encoding by the worker
+   * thread that encounters an error in order to abort the processing of other
+   * worker threads.
+   */
+  bool firstpass_mt_exit;
+
 #if CONFIG_MULTITHREAD
   /*!
    * Mutex lock used while dispatching jobs.
