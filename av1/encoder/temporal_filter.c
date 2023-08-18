@@ -900,7 +900,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
 
     // Decide whether to perform motion search at 16x16 sub-block level or not
     // based on 4x4 sub-blocks source variance. Allow motion search for split
-    // partition only if the difference between max and min source varaince of
+    // partition only if the difference between max and min source variance of
     // 4x4 blocks is greater than a threshold (which is derived empirically).
     bool allow_me_for_sub_blks = true;
     if (cpi->sf.hl_sf.allow_sub_blk_me_in_tf) {

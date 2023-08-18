@@ -1673,7 +1673,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   x->source_variance = UINT_MAX;
   // For nord_pickmode: compute source_variance, only for superblocks with
-  // some motion for now. This input can then be used to bias the partitioing
+  // some motion for now. This input can then be used to bias the partitioning
   // or the chroma_check.
   if (cpi->sf.rt_sf.use_nonrd_pick_mode &&
       x->content_state_sb.source_sad_nonrd > kLowSad)

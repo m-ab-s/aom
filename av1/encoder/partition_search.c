@@ -2265,7 +2265,7 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
       get_force_zeromv_skip_flag_for_blk(cpi, x, bsize);
 
   // Source variance may be already compute at superblock level, so no need
-  // to recompute, unless bsize < sb_size or source_varaince is not yet set.
+  // to recompute, unless bsize < sb_size or source_variance is not yet set.
   if (!x->force_zeromv_skip_for_blk &&
       (x->source_variance == UINT_MAX || bsize < cm->seq_params->sb_size))
     x->source_variance = av1_get_perpixel_variance_facade(
