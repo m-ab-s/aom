@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_ENCODER_X86_ML_SEE3_H_
-#define AOM_AV1_ENCODER_X86_ML_SEE3_H_
+#ifndef AOM_AV1_ENCODER_X86_ML_SSE3_H_
+#define AOM_AV1_ENCODER_X86_ML_SSE3_H_
 
 #include <pmmintrin.h>
 
@@ -26,4 +26,4 @@ void av1_nn_propagate_4to8_sse3(const float *const inputs,
                                 const float *const weights, __m128 *const out_h,
                                 __m128 *const out_l, const int num_inputs);
 
-#endif  // AOM_AV1_ENCODER_X86_ML_SEE3_H_
+#endif  // AOM_AV1_ENCODER_X86_ML_SSE3_H_
