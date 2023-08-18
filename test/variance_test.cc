@@ -2112,6 +2112,14 @@ INSTANTIATE_TEST_SUITE_P(
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
+    NEON, MseHBDWxHTest,
+    ::testing::Values(MseHBDWxHParams(3, 3, &aom_mse_wxh_16bit_highbd_neon, 10),
+                      MseHBDWxHParams(3, 2, &aom_mse_wxh_16bit_highbd_neon, 10),
+                      MseHBDWxHParams(2, 3, &aom_mse_wxh_16bit_highbd_neon, 10),
+                      MseHBDWxHParams(2, 2, &aom_mse_wxh_16bit_highbd_neon,
+                                      10)));
+
+INSTANTIATE_TEST_SUITE_P(
     NEON, AvxHBDMseTest,
     ::testing::Values(MseParams(4, 4, &aom_highbd_12_mse16x16_neon, 12),
                       MseParams(4, 3, &aom_highbd_12_mse16x8_neon, 12),

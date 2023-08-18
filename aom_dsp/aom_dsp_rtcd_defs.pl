@@ -1745,7 +1745,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_dist_wtd_comp_avg_pred sse2 neon/;
 
     add_proto qw/uint64_t/, "aom_mse_wxh_16bit_highbd", "uint16_t *dst, int dstride,uint16_t *src, int sstride, int w, int h";
-    specialize qw/aom_mse_wxh_16bit_highbd   sse2 avx2/;
+    specialize qw/aom_mse_wxh_16bit_highbd   sse2 avx2 neon/;
   }
 
   add_proto qw/void aom_comp_mask_pred/, "uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride, const uint8_t *mask, int mask_stride, int invert_mask";
