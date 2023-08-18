@@ -177,22 +177,37 @@ void aom_int_pro_col_neon(int16_t *vbuf, const uint8_t *ref,
 // length: value range {16, 32, 64, 128, 256, 512, 1024}.
 int aom_satd_neon(const tran_low_t *coeff, int length) {
   const int32x4_t zero = vdupq_n_s32(0);
-  int32x4_t accum = zero;
-  do {
-    const int32x4_t src0 = vld1q_s32(&coeff[0]);
-    const int32x4_t src8 = vld1q_s32(&coeff[4]);
-    const int32x4_t src16 = vld1q_s32(&coeff[8]);
-    const int32x4_t src24 = vld1q_s32(&coeff[12]);
-    accum = vabaq_s32(accum, src0, zero);
-    accum = vabaq_s32(accum, src8, zero);
-    accum = vabaq_s32(accum, src16, zero);
-    accum = vabaq_s32(accum, src24, zero);
+
+  int32x4_t s0 = vld1q_s32(&coeff[0]);
+  int32x4_t s1 = vld1q_s32(&coeff[4]);
+  int32x4_t s2 = vld1q_s32(&coeff[8]);
+  int32x4_t s3 = vld1q_s32(&coeff[12]);
+
+  int32x4_t accum0 = vabsq_s32(s0);
+  int32x4_t accum1 = vabsq_s32(s2);
+  accum0 = vabaq_s32(accum0, s1, zero);
+  accum1 = vabaq_s32(accum1, s3, zero);
+
+  length -= 16;
+  coeff += 16;
+
+  while (length != 0) {
+    s0 = vld1q_s32(&coeff[0]);
+    s1 = vld1q_s32(&coeff[4]);
+    s2 = vld1q_s32(&coeff[8]);
+    s3 = vld1q_s32(&coeff[12]);
+
+    accum0 = vabaq_s32(accum0, s0, zero);
+    accum1 = vabaq_s32(accum1, s1, zero);
+    accum0 = vabaq_s32(accum0, s2, zero);
+    accum1 = vabaq_s32(accum1, s3, zero);
+
     length -= 16;
     coeff += 16;
-  } while (length != 0);
+  }
 
   // satd: 30 bits, dynamic range [-524287 * 1024, 524287 * 1024]
-  return horizontal_add_s32x4(accum);
+  return horizontal_add_s32x4(vaddq_s32(accum0, accum1));
 }
 
 int aom_vector_var_neon(const int16_t *ref, const int16_t *src, int bwl) {
