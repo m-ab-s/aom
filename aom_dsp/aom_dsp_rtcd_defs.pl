@@ -1683,6 +1683,36 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
         specialize "aom_highbd_${bd}_sub_pixel_avg_variance4x16" , qw/neon/;
       }
     }
+
+    foreach $bd (8, 10, 12) {
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance128x128", qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance128x64" , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance64x128" , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance64x64"  , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance64x32"  , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance32x64"  , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance32x32"  , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance32x16"  , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance16x32"  , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance16x16"  , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance16x8"   , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance8x16"   , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance8x8"    , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance8x4"    , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance4x8"    , qw/neon/;
+      specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance4x4"    , qw/neon/;
+    }
+
+    if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
+      foreach $bd (8, 10, 12) {
+        specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance64x16", qw/neon/;
+        specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance32x8" , qw/neon/;
+        specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance16x64", qw/neon/;
+        specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance16x4" , qw/neon/;
+        specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance8x32" , qw/neon/;
+        specialize "aom_highbd_${bd}_dist_wtd_sub_pixel_avg_variance4x16" , qw/neon/;
+      }
+    }
   }
   #
   # Masked Variance / Masked Subpixel Variance

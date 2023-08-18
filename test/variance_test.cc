@@ -3914,6 +3914,148 @@ const SubpelAvgVarianceParams kArrayHBDSubpelAvgVariance_neon[] = {
 INSTANTIATE_TEST_SUITE_P(NEON, AvxHBDSubpelAvgVarianceTest,
                          ::testing::ValuesIn(kArrayHBDSubpelAvgVariance_neon));
 
+const DistWtdSubpelAvgVarianceParams
+    kArrayHBDDistWtdSubpelAvgVariance_neon[] = {
+      DistWtdSubpelAvgVarianceParams(
+          7, 7, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance128x128_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          7, 6, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance128x64_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          6, 7, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance64x128_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          6, 6, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance64x64_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          6, 5, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance64x32_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          5, 6, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance32x64_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          5, 5, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance32x32_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          5, 4, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance32x16_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          4, 5, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance16x32_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          4, 4, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance16x16_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          4, 3, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance16x8_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          3, 4, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance8x16_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          3, 3, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance8x8_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          3, 2, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance8x4_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          2, 3, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance4x8_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          2, 2, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance4x4_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          7, 7, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance128x128_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          7, 6, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance128x64_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          6, 7, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance64x128_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          6, 6, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance64x64_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          6, 5, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance64x32_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          5, 6, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance32x64_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          5, 5, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance32x32_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          5, 4, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance32x16_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          4, 5, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance16x32_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          4, 4, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance16x16_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          4, 3, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance16x8_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          3, 4, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance8x16_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          3, 3, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance8x8_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          3, 2, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance8x4_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          2, 3, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance4x8_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          2, 2, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance4x4_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          7, 7, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance128x128_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          7, 6, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance128x64_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          6, 7, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance64x128_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          6, 6, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance64x64_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          6, 5, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance64x32_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          5, 6, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance32x64_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          5, 5, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance32x32_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          5, 4, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance32x16_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          4, 5, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance16x32_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          4, 4, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance16x16_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          4, 3, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance16x8_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          3, 4, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance8x16_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          3, 3, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance8x8_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          3, 2, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance8x4_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          2, 3, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance4x8_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          2, 2, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance4x4_neon, 12),
+
+#if !CONFIG_REALTIME_ONLY
+      DistWtdSubpelAvgVarianceParams(
+          6, 4, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance64x16_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          4, 6, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance16x64_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          5, 3, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance32x8_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          3, 5, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance8x32_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          4, 2, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance16x4_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          2, 4, &aom_highbd_8_dist_wtd_sub_pixel_avg_variance4x16_neon, 8),
+      DistWtdSubpelAvgVarianceParams(
+          6, 4, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance64x16_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          4, 6, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance16x64_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          5, 3, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance32x8_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          3, 5, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance8x32_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          4, 2, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance16x4_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          2, 4, &aom_highbd_10_dist_wtd_sub_pixel_avg_variance4x16_neon, 10),
+      DistWtdSubpelAvgVarianceParams(
+          6, 4, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance64x16_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          4, 6, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance16x64_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          5, 3, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance32x8_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          3, 5, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance8x32_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          4, 2, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance16x4_neon, 12),
+      DistWtdSubpelAvgVarianceParams(
+          2, 4, &aom_highbd_12_dist_wtd_sub_pixel_avg_variance4x16_neon, 12),
+#endif  // !CONFIG_REALTIME_ONLY
+    };
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AvxHBDDistWtdSubpelAvgVarianceTest,
+    ::testing::ValuesIn(kArrayHBDDistWtdSubpelAvgVariance_neon));
+
 #if !CONFIG_REALTIME_ONLY
 const ObmcSubpelVarianceParams kArrayHBDObmcSubpelVariance_neon[] = {
   ObmcSubpelVarianceParams(
