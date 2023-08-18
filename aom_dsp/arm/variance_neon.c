@@ -454,3 +454,17 @@ uint32_t aom_get_mb_ss_neon(const int16_t *a) {
 
   return horizontal_add_s32x4(vaddq_s32(sse[0], sse[1]));
 }
+
+uint64_t aom_mse_16xh_16bit_neon(uint8_t *dst, int dstride, uint16_t *src,
+                                 int w, int h) {
+  uint64x2_t sum = vdupq_n_u64(0);
+
+  int num_blks = 16 / w;
+  do {
+    sum += mse_wxh_16bit(dst, dstride, src, w, w, h);
+    dst += w;
+    src += w * h;
+  } while (--num_blks != 0);
+
+  return horizontal_add_u64x2(sum);
+}

@@ -3283,6 +3283,13 @@ INSTANTIATE_TEST_SUITE_P(
                       MseWxHParams(2, 3, &aom_mse_wxh_16bit_neon, 8),
                       MseWxHParams(2, 2, &aom_mse_wxh_16bit_neon, 8)));
 
+INSTANTIATE_TEST_SUITE_P(
+    NEON, Mse16xHTest,
+    ::testing::Values(Mse16xHParams(3, 3, &aom_mse_16xh_16bit_neon, 8),
+                      Mse16xHParams(3, 2, &aom_mse_16xh_16bit_neon, 8),
+                      Mse16xHParams(2, 3, &aom_mse_16xh_16bit_neon, 8),
+                      Mse16xHParams(2, 2, &aom_mse_16xh_16bit_neon, 8)));
+
 INSTANTIATE_TEST_SUITE_P(NEON, SumOfSquaresTest,
                          ::testing::Values(aom_get_mb_ss_neon));
 
