@@ -16,7 +16,6 @@
 #include "config/aom_dsp_rtcd.h"
 
 #include "aom_dsp/aom_filter.h"
-#include "aom_dsp/arm/dist_wtd_avg_neon.h"
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/sum_neon.h"
 #include "aom_dsp/variance.h"
@@ -518,66 +517,4 @@ uint64_t aom_mse_wxh_16bit_highbd_neon(uint16_t *dst, int dstride,
   }
 
   return horizontal_add_u64x2(sum);
-}
-
-void aom_highbd_dist_wtd_comp_avg_pred_neon(
-    uint8_t *comp_pred8, const uint8_t *pred8, int width, int height,
-    const uint8_t *ref8, int ref_stride,
-    const DIST_WTD_COMP_PARAMS *jcp_param) {
-  const uint16_t *pred = CONVERT_TO_SHORTPTR(pred8);
-  const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
-  uint16_t *comp_pred = CONVERT_TO_SHORTPTR(comp_pred8);
-  const uint16x8_t fwd_offset_u16 = vdupq_n_u16(jcp_param->fwd_offset);
-  const uint16x8_t bck_offset_u16 = vdupq_n_u16(jcp_param->bck_offset);
-
-  int i = height;
-  if (width > 8) {
-    do {
-      int j = 0;
-      do {
-        const uint16x8_t p = vld1q_u16(pred + j);
-        const uint16x8_t r = vld1q_u16(ref + j);
-
-        const uint16x8_t avg =
-            dist_wtd_avg_u16x8(r, p, fwd_offset_u16, bck_offset_u16);
-
-        vst1q_u16(comp_pred + j, avg);
-
-        j += 8;
-      } while (j < width);
-
-      comp_pred += width;
-      pred += width;
-      ref += ref_stride;
-    } while (--i != 0);
-  } else if (width == 8) {
-    do {
-      const uint16x8_t p = vld1q_u16(pred);
-      const uint16x8_t r = vld1q_u16(ref);
-
-      const uint16x8_t avg =
-          dist_wtd_avg_u16x8(r, p, fwd_offset_u16, bck_offset_u16);
-
-      vst1q_u16(comp_pred, avg);
-
-      comp_pred += width;
-      pred += width;
-      ref += ref_stride;
-    } while (--i != 0);
-  } else {
-    assert(width == 4);
-    do {
-      const uint16x4_t p = vld1_u16(pred);
-      const uint16x4_t r = vld1_u16(ref);
-
-      const uint16x4_t avg = dist_wtd_avg_u16x4(
-          r, p, vget_low_u16(fwd_offset_u16), vget_low_u16(bck_offset_u16));
-
-      vst1_u16(comp_pred, avg);
-
-      comp_pred += width;
-      pred += width;
-      ref += ref_stride;
-    } while (--i != 0);
-  }
 }
