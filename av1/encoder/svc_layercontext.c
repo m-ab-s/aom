@@ -245,7 +245,8 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   // This is to skip searching mv for that reference if it was last
   // refreshed (i.e., buffer slot holding that reference was refreshed) on the
   // previous spatial layer(s) at the same time (current_superframe).
-  if (rtc_ref->set_ref_frame_config && svc->force_zero_mode_spatial_ref) {
+  if (rtc_ref->set_ref_frame_config && svc->force_zero_mode_spatial_ref &&
+      cpi->sf.rt_sf.use_nonrd_pick_mode) {
     if (check_ref_is_low_spatial_res_super_frame(LAST_FRAME, svc, rtc_ref)) {
       svc->skip_mvsearch_last = 1;
     }
