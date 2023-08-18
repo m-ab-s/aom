@@ -8,6 +8,7 @@
  * Media Patent License 1.0 was not distributed with this source code in the
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -3555,7 +3556,12 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
         lc->min_q = params->min_quantizers[layer];
         lc->scaling_factor_num = params->scaling_factor_num[sl];
         lc->scaling_factor_den = params->scaling_factor_den[sl];
-        lc->layer_target_bitrate = 1000 * params->layer_target_bitrate[layer];
+        const int layer_target_bitrate = params->layer_target_bitrate[layer];
+        if (layer_target_bitrate > INT_MAX / 1000) {
+          lc->layer_target_bitrate = INT_MAX;
+        } else {
+          lc->layer_target_bitrate = 1000 * layer_target_bitrate;
+        }
         lc->framerate_factor = params->framerate_factor[tl];
         if (tl == ppi->number_temporal_layers - 1)
           target_bandwidth += lc->layer_target_bitrate;

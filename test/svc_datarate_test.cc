@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <climits>
 #include <vector>
 #include "config/aom_config.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
@@ -2630,6 +2631,39 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL3SLDynDisEnabl) {
 // and continue decoding successfully.
 TEST_P(DatarateTestSVC, BasicRateTargetingRPS1TL1SLDropFrames) {
   BasicRateTargetingRPS1TL1SLDropFramesTest();
+}
+
+TEST(SvcParams, BitrateOverflow) {
+  uint8_t buf[6] = { 0 };
+  aom_image_t img;
+  aom_codec_ctx_t enc;
+  aom_codec_enc_cfg_t cfg;
+
+  EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I420, 1, 1, 1, buf));
+
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  EXPECT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = 1;
+  cfg.g_h = 1;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+
+  aom_svc_params_t svc_params = {};
+  svc_params.framerate_factor[0] = 1;
+  svc_params.framerate_factor[1] = 2;
+  svc_params.number_spatial_layers = 1;
+  svc_params.number_temporal_layers = 2;
+  svc_params.layer_target_bitrate[0] = INT_MAX;
+  svc_params.layer_target_bitrate[1] = INT_MAX;
+  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_PARAMS, &svc_params),
+            AOM_CODEC_OK);
+  EXPECT_EQ(
+      aom_codec_encode(&enc, &img, /*pts=*/0, /*duration=*/1, /*flags=*/0),
+      AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_encode(&enc, /*img=*/nullptr, /*pts=*/0, /*duration=*/0,
+                             /*flags=*/0),
+            AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestSVC,
