@@ -1097,7 +1097,6 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   const int mib_size_log2 = cm->seq_params->mib_size_log2;
   const int sb_row = (mi_row - tile_info->mi_row_start) >> mib_size_log2;
   const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
-  bool row_mt_exit = false;
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   start_timing(cpi, encode_sb_row_time);
@@ -1129,12 +1128,12 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_MULTITHREAD
     if (row_mt_enabled) {
       pthread_mutex_lock(enc_row_mt->mutex_);
-      row_mt_exit = enc_row_mt->row_mt_exit;
+      const bool row_mt_exit = enc_row_mt->row_mt_exit;
       pthread_mutex_unlock(enc_row_mt->mutex_);
+      // Exit in case any worker has encountered an error.
+      if (row_mt_exit) return;
     }
 #endif
-    // Exit in case any worker has encountered an error.
-    if (row_mt_exit) return;
 
     const int update_cdf = tile_data->allow_update_cdf && row_mt_enabled;
     if (update_cdf && (tile_info->mi_row_start != mi_row)) {
