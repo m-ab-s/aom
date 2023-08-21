@@ -906,22 +906,26 @@ static INLINE void transpose_arrays_s16_4x4(const int16x4_t *const in,
   out[3] = a3;
 }
 
-static INLINE void transpose_arrays_s16_4x8(const int16x8_t *const in,
+static INLINE void transpose_arrays_s16_4x8(const int16x4_t *const in,
                                             int16x8_t *const out) {
 #if AOM_ARCH_AARCH64
-  const int16x8_t a0 = vzip1q_s16(in[0], in[1]);
-  const int16x8_t a1 = vzip1q_s16(in[2], in[3]);
-  const int16x8_t a2 = vzip1q_s16(in[4], in[5]);
-  const int16x8_t a3 = vzip1q_s16(in[6], in[7]);
+  const int16x8_t a0 = vzip1q_s16(vcombine_s16(in[0], vdup_n_s16(0)),
+                                  vcombine_s16(in[1], vdup_n_s16(0)));
+  const int16x8_t a1 = vzip1q_s16(vcombine_s16(in[2], vdup_n_s16(0)),
+                                  vcombine_s16(in[3], vdup_n_s16(0)));
+  const int16x8_t a2 = vzip1q_s16(vcombine_s16(in[4], vdup_n_s16(0)),
+                                  vcombine_s16(in[5], vdup_n_s16(0)));
+  const int16x8_t a3 = vzip1q_s16(vcombine_s16(in[6], vdup_n_s16(0)),
+                                  vcombine_s16(in[7], vdup_n_s16(0)));
 #else
   int16x4x2_t temp;
-  temp = vzip_s16(vget_low_s16(in[0]), vget_low_s16(in[1]));
+  temp = vzip_s16(in[0], in[1]);
   const int16x8_t a0 = vcombine_s16(temp.val[0], temp.val[1]);
-  temp = vzip_s16(vget_low_s16(in[2]), vget_low_s16(in[3]));
+  temp = vzip_s16(in[2], in[3]);
   const int16x8_t a1 = vcombine_s16(temp.val[0], temp.val[1]);
-  temp = vzip_s16(vget_low_s16(in[4]), vget_low_s16(in[5]));
+  temp = vzip_s16(in[4], in[5]);
   const int16x8_t a2 = vcombine_s16(temp.val[0], temp.val[1]);
-  temp = vzip_s16(vget_low_s16(in[6]), vget_low_s16(in[7]));
+  temp = vzip_s16(in[6], in[7]);
   const int16x8_t a3 = vcombine_s16(temp.val[0], temp.val[1]);
 #endif
 
@@ -952,48 +956,50 @@ static INLINE void transpose_arrays_s16_4x8(const int16x8_t *const in,
 }
 
 static INLINE void transpose_arrays_s16_8x4(const int16x8_t *const in,
-                                            int16x8_t *const out) {
-  const int16x8x2_t a04 = vzipq_s16(in[0], in[1]);
-  const int16x8x2_t a15 = vzipq_s16(in[2], in[3]);
+                                            int16x4_t *const out) {
+  // Swap 16 bit elements. Goes from:
+  // in[0]: 00 01 02 03 04 05 06 07
+  // in[1]: 10 11 12 13 14 15 16 17
+  // in[2]: 20 21 22 23 24 25 26 27
+  // in[3]: 30 31 32 33 34 35 36 37
+  // to:
+  // b0.val[0]: 00 10 02 12 04 14 06 16
+  // b0.val[1]: 01 11 03 13 05 15 07 17
+  // b1.val[0]: 20 30 22 32 24 34 26 36
+  // b1.val[1]: 21 31 23 33 25 35 27 37
 
-  const int32x4x2_t b01 = vzipq_s32(vreinterpretq_s32_s16(a04.val[0]),
-                                    vreinterpretq_s32_s16(a15.val[0]));
-  const int32x4x2_t b45 = vzipq_s32(vreinterpretq_s32_s16(a04.val[1]),
-                                    vreinterpretq_s32_s16(a15.val[1]));
+  const int16x8x2_t b0 = vtrnq_s16(in[0], in[1]);
+  const int16x8x2_t b1 = vtrnq_s16(in[2], in[3]);
 
-  const int32x4_t zeros = vdupq_n_s32(0);
+  // Swap 32 bit elements resulting in:
+  // c0.val[0]: 00 10 20 30 04 14 24 34
+  // c0.val[1]: 02 12 22 32 06 16 26 36
+  // c1.val[0]: 01 11 21 31 05 15 25 35
+  // c1.val[1]: 03 13 23 33 07 17 27 37
 
-#if AOM_ARCH_AARCH64
-  out[0] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b01.val[0]),
-                                            vreinterpretq_s64_s32(zeros)));
-  out[1] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b01.val[0]),
-                                            vreinterpretq_s64_s32(zeros)));
-  out[2] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b01.val[1]),
-                                            vreinterpretq_s64_s32(zeros)));
-  out[3] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b01.val[1]),
-                                            vreinterpretq_s64_s32(zeros)));
-  out[4] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b45.val[0]),
-                                            vreinterpretq_s64_s32(zeros)));
-  out[5] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b45.val[0]),
-                                            vreinterpretq_s64_s32(zeros)));
-  out[6] = vreinterpretq_s16_s64(vzip1q_s64(vreinterpretq_s64_s32(b45.val[1]),
-                                            vreinterpretq_s64_s32(zeros)));
-  out[7] = vreinterpretq_s16_s64(vzip2q_s64(vreinterpretq_s64_s32(b45.val[1]),
-                                            vreinterpretq_s64_s32(zeros)));
-#else
-  out[0] = vreinterpretq_s16_s32(
-      vextq_s32(vextq_s32(b01.val[0], b01.val[0], 2), zeros, 2));
-  out[1] = vreinterpretq_s16_s32(vextq_s32(b01.val[0], zeros, 2));
-  out[2] = vreinterpretq_s16_s32(
-      vextq_s32(vextq_s32(b01.val[1], b01.val[1], 2), zeros, 2));
-  out[3] = vreinterpretq_s16_s32(vextq_s32(b01.val[1], zeros, 2));
-  out[4] = vreinterpretq_s16_s32(
-      vextq_s32(vextq_s32(b45.val[0], b45.val[0], 2), zeros, 2));
-  out[5] = vreinterpretq_s16_s32(vextq_s32(b45.val[0], zeros, 2));
-  out[6] = vreinterpretq_s16_s32(
-      vextq_s32(vextq_s32(b45.val[1], b45.val[1], 2), zeros, 2));
-  out[7] = vreinterpretq_s16_s32(vextq_s32(b45.val[1], zeros, 2));
-#endif
+  const uint32x4x2_t c0 = vtrnq_u32(vreinterpretq_u32_s16(b0.val[0]),
+                                    vreinterpretq_u32_s16(b1.val[0]));
+  const uint32x4x2_t c1 = vtrnq_u32(vreinterpretq_u32_s16(b0.val[1]),
+                                    vreinterpretq_u32_s16(b1.val[1]));
+
+  // Unpack 64 bit elements resulting in:
+  // out[0]: 00 10 20 30
+  // out[1]: 01 11 21 31
+  // out[2]: 02 12 22 32
+  // out[3]: 03 13 23 33
+  // out[4]: 04 14 24 34
+  // out[5]: 05 15 25 35
+  // out[6]: 06 16 26 36
+  // out[7]: 07 17 27 37
+
+  out[0] = vget_low_s16(vreinterpretq_s16_u32(c0.val[0]));
+  out[1] = vget_low_s16(vreinterpretq_s16_u32(c1.val[0]));
+  out[2] = vget_low_s16(vreinterpretq_s16_u32(c0.val[1]));
+  out[3] = vget_low_s16(vreinterpretq_s16_u32(c1.val[1]));
+  out[4] = vget_high_s16(vreinterpretq_s16_u32(c0.val[0]));
+  out[5] = vget_high_s16(vreinterpretq_s16_u32(c1.val[0]));
+  out[6] = vget_high_s16(vreinterpretq_s16_u32(c0.val[1]));
+  out[7] = vget_high_s16(vreinterpretq_s16_u32(c1.val[1]));
 }
 
 #endif  // AOM_AOM_DSP_ARM_TRANSPOSE_NEON_H_
