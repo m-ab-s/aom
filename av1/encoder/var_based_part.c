@@ -1427,7 +1427,11 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
         // threshold and motion level above LowSad.
         if (!is_screen ||
             (x->source_variance > 100 && source_sad_nonrd > kLowSad)) {
-          int me_search_par = is_screen ? 2 : 1;
+          int me_search_par =
+              !is_screen ? 1
+              : (bsize == BLOCK_64X64 && cm->width * cm->height >= 1280 * 720)
+                  ? 3
+                  : 2;
           unsigned int y_sad_zero;
           *y_sad = av1_int_pro_motion_estimation(
               cpi, x, cm->seq_params->sb_size, mi_row, mi_col, &kZeroMv,

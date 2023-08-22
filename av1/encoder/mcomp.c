@@ -2073,6 +2073,8 @@ static int vector_match(int16_t *ref, int16_t *src, int bwl, int scale,
 // The default search window (me_search_par = 1) is
 // +/- 1/2 * sb_size (128 or 64). If me_search_par is set to 2 the
 // search window is increased to +/- 3/2 * sb_size.
+// If me_search_par is set to 3 the search window is increased to
+// +/- 5/2 * sb_size.
 unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
                                            BLOCK_SIZE bsize, int mi_row,
                                            int mi_col, const MV *ref_mv,
@@ -2088,6 +2090,14 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
   int is_screen = cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
   int full_search = is_screen;
   int search_scale = me_search_par;
+  if (search_scale == 3 &&
+      !(mi_col >= 2 * mi_size_wide[bsize] &&
+        mi_row >= 2 * mi_size_high[bsize] &&
+        mi_col < cm->mi_params.mi_cols - 2 * mi_size_wide[bsize] &&
+        mi_row < cm->mi_params.mi_rows - 2 * mi_size_high[bsize])) {
+    // Fall back to level 2 search range near boundary.
+    search_scale = 2;
+  }
   if (search_scale == 2 &&
       !(mi_col >= mi_size_wide[bsize] && mi_row >= mi_size_high[bsize] &&
         mi_col < cm->mi_params.mi_cols - mi_size_wide[bsize] &&
