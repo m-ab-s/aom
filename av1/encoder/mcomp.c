@@ -2136,16 +2136,18 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
     return best_sad;
   }
 
-  int16_t *hbuf;
-  int16_t *vbuf;
-  int16_t *src_hbuf;
-  int16_t *src_vbuf;
-  CHECK_MEM_ERROR(cm, hbuf,
-                  (int16_t *)aom_malloc(search_width * sizeof(*hbuf)));
-  CHECK_MEM_ERROR(cm, vbuf,
-                  (int16_t *)aom_malloc(search_height * sizeof(*vbuf)));
-  CHECK_MEM_ERROR(cm, src_hbuf, (int16_t *)aom_malloc(bw * sizeof(*src_hbuf)));
-  CHECK_MEM_ERROR(cm, src_vbuf, (int16_t *)aom_malloc(bh * sizeof(*src_vbuf)));
+  int16_t *hbuf = (int16_t *)aom_malloc(search_width * sizeof(*hbuf));
+  int16_t *vbuf = (int16_t *)aom_malloc(search_height * sizeof(*vbuf));
+  int16_t *src_hbuf = (int16_t *)aom_malloc(bw * sizeof(*src_hbuf));
+  int16_t *src_vbuf = (int16_t *)aom_malloc(bh * sizeof(*src_vbuf));
+  if (!hbuf || !vbuf || !src_hbuf || !src_vbuf) {
+    aom_free(hbuf);
+    aom_free(vbuf);
+    aom_free(src_hbuf);
+    aom_free(src_vbuf);
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate hbuf, vbuf, src_hbuf, or src_vbuf");
+  }
 
   // Set up prediction 1-D reference set for rows.
   ref_buf = xd->plane[0].pre[0].buf - ((search_scale - 1) * bw + (bw >> 1));
