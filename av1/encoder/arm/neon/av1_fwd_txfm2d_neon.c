@@ -298,14 +298,13 @@ static INLINE void btf_16_w4_neon_mode0(const int w0_l, const int w0_h,
                                         const int16x4_t in1, int16x4_t *out0,
                                         int16x4_t *out1,
                                         const int32x4_t v_cos_bit) {
-  int32x4_t in0_l = vmovl_s16(in0);
-  int32x4_t in1_l = vmovl_s16(in1);
-  int32x4_t u0 = vmulq_n_s32(in1_l, w0_h);
-  u0 = vmlsq_n_s32(u0, in0_l, w0_l);
-  int32x4_t v0 = vmulq_n_s32(in0_l, w0_h);
-  v0 = vmlaq_n_s32(v0, in1_l, w0_l);
-  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
-  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  int32x4_t u0 = vmull_n_s16(in1, w0_h);
+  u0 = vmlsl_n_s16(u0, in0, w0_l);
+  int32x4_t v0 = vmull_n_s16(in0, w0_h);
+  v0 = vmlal_n_s16(v0, in1, w0_l);
+
+  const int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  const int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
   *out0 = vqmovn_s32(c0);
   *out1 = vqmovn_s32(d0);
 }
@@ -315,14 +314,13 @@ static INLINE void btf_16_w4_neon_mode2(const int w0_l, const int w0_h,
                                         const int16x4_t in1, int16x4_t *out0,
                                         int16x4_t *out1,
                                         const int32x4_t v_cos_bit) {
-  int32x4_t in0_l = vmovl_s16(in0);
-  int32x4_t in1_l = vmovl_s16(in1);
-  int32x4_t u0 = vmulq_n_s32(in0_l, w0_l);
-  u0 = vmlaq_n_s32(u0, in1_l, w0_h);
-  int32x4_t v0 = vmulq_n_s32(in1_l, w0_l);
-  v0 = vmlsq_n_s32(v0, in0_l, w0_h);
-  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
-  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  int32x4_t u0 = vmull_n_s16(in0, w0_l);
+  u0 = vmlal_n_s16(u0, in1, w0_h);
+  int32x4_t v0 = vmull_n_s16(in1, w0_l);
+  v0 = vmlsl_n_s16(v0, in0, w0_h);
+
+  const int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  const int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
   *out0 = vqmovn_s32(c0);
   *out1 = vqmovn_s32(d0);
 }
@@ -332,14 +330,13 @@ static INLINE void btf_16_w4_neon_mode3(const int w0_l, const int w0_h,
                                         const int16x4_t in1, int16x4_t *out0,
                                         int16x4_t *out1,
                                         const int32x4_t v_cos_bit) {
-  int32x4_t in0_l = vmovl_s16(in0);
-  int32x4_t in1_l = vmovl_s16(in1);
-  int32x4_t u0 = vmulq_n_s32(in0_l, w0_l);
-  u0 = vmlaq_n_s32(u0, in1_l, w0_h);
-  int32x4_t v0 = vmulq_n_s32(in0_l, w0_h);
-  v0 = vmlsq_n_s32(v0, in1_l, w0_l);
-  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
-  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  int32x4_t u0 = vmull_n_s16(in0, w0_l);
+  u0 = vmlal_n_s16(u0, in1, w0_h);
+  int32x4_t v0 = vmull_n_s16(in0, w0_h);
+  v0 = vmlsl_n_s16(v0, in1, w0_l);
+
+  const int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  const int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
   *out0 = vqmovn_s32(c0);
   *out1 = vqmovn_s32(d0);
 }
@@ -505,22 +502,19 @@ static INLINE void btf_16_neon(const int w0_l, const int w0_h, const int w1_l,
                                const int w1_h, const int16x8_t in0,
                                const int16x8_t in1, int16x8_t *out0,
                                int16x8_t *out1, const int32x4_t v_cos_bit) {
-  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
-  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
-  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
-  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
-  int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);
-  u0 = vmlaq_n_s32(u0, in_low0, w0_l);
-  int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);
-  u1 = vmlaq_n_s32(u1, in_high0, w0_l);
-  int32x4_t v0 = vmulq_n_s32(in_low1, w1_h);
-  v0 = vmlaq_n_s32(v0, in_low0, w1_l);
-  int32x4_t v1 = vmulq_n_s32(in_high1, w1_h);
-  v1 = vmlaq_n_s32(v1, in_high0, w1_l);
-  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
-  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
-  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
-  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  int32x4_t u0 = vmull_n_s16(vget_low_s16(in1), w0_h);
+  u0 = vmlal_n_s16(u0, vget_low_s16(in0), w0_l);
+  int32x4_t u1 = vmull_n_s16(vget_high_s16(in1), w0_h);
+  u1 = vmlal_n_s16(u1, vget_high_s16(in0), w0_l);
+  int32x4_t v0 = vmull_n_s16(vget_low_s16(in1), w1_h);
+  v0 = vmlal_n_s16(v0, vget_low_s16(in0), w1_l);
+  int32x4_t v1 = vmull_n_s16(vget_high_s16(in1), w1_h);
+  v1 = vmlal_n_s16(v1, vget_high_s16(in0), w1_l);
+
+  const int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  const int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  const int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  const int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
   *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
   *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
 }
@@ -529,22 +523,19 @@ static INLINE void btf_16_neon_mode0(const int w0_l, const int w0_h,
                                      const int16x8_t in0, const int16x8_t in1,
                                      int16x8_t *out0, int16x8_t *out1,
                                      const int32x4_t v_cos_bit) {
-  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
-  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
-  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
-  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
-  int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);
-  u0 = vmlsq_n_s32(u0, in_low0, w0_l);
-  int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);
-  u1 = vmlsq_n_s32(u1, in_high0, w0_l);
-  int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);
-  v0 = vmlaq_n_s32(v0, in_low0, w0_h);
-  int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);
-  v1 = vmlaq_n_s32(v1, in_high0, w0_h);
-  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
-  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
-  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
-  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  int32x4_t u0 = vmull_n_s16(vget_low_s16(in1), w0_h);
+  u0 = vmlsl_n_s16(u0, vget_low_s16(in0), w0_l);
+  int32x4_t u1 = vmull_n_s16(vget_high_s16(in1), w0_h);
+  u1 = vmlsl_n_s16(u1, vget_high_s16(in0), w0_l);
+  int32x4_t v0 = vmull_n_s16(vget_low_s16(in1), w0_l);
+  v0 = vmlal_n_s16(v0, vget_low_s16(in0), w0_h);
+  int32x4_t v1 = vmull_n_s16(vget_high_s16(in1), w0_l);
+  v1 = vmlal_n_s16(v1, vget_high_s16(in0), w0_h);
+
+  const int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  const int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  const int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  const int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
   *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
   *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
 }
@@ -553,22 +544,19 @@ static INLINE void btf_16_neon_mode1(const int w0_l, const int w0_h,
                                      const int16x8_t in0, const int16x8_t in1,
                                      int16x8_t *out0, int16x8_t *out1,
                                      const int32x4_t v_cos_bit) {
-  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
-  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
-  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
-  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
-  int32x4_t u0 = vmulq_n_s32(in_low0, w0_l);
-  u0 = vmlsq_n_s32(u0, in_low1, w0_h);
-  int32x4_t u1 = vmulq_n_s32(in_high0, w0_l);
-  u1 = vmlsq_n_s32(u1, in_high1, w0_h);
-  int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);
-  v0 = vmlaq_n_s32(v0, in_low0, w0_h);
-  int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);
-  v1 = vmlaq_n_s32(v1, in_high0, w0_h);
-  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
-  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
-  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
-  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  int32x4_t u0 = vmull_n_s16(vget_low_s16(in0), w0_l);
+  u0 = vmlsl_n_s16(u0, vget_low_s16(in1), w0_h);
+  int32x4_t u1 = vmull_n_s16(vget_high_s16(in0), w0_l);
+  u1 = vmlsl_n_s16(u1, vget_high_s16(in1), w0_h);
+  int32x4_t v0 = vmull_n_s16(vget_low_s16(in1), w0_l);
+  v0 = vmlal_n_s16(v0, vget_low_s16(in0), w0_h);
+  int32x4_t v1 = vmull_n_s16(vget_high_s16(in1), w0_l);
+  v1 = vmlal_n_s16(v1, vget_high_s16(in0), w0_h);
+
+  const int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  const int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  const int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  const int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
   *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
   *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
 }
@@ -577,22 +565,19 @@ static INLINE void btf_16_neon_mode02(const int w0_l, const int w0_h,
                                       const int16x8_t in0, const int16x8_t in1,
                                       int16x8_t *out0, int16x8_t *out1,
                                       const int32x4_t v_cos_bit) {
-  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
-  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
-  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
-  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
-  int32x4_t u0 = vmulq_n_s32(in_low1, -w0_h);
-  u0 = vmlsq_n_s32(u0, in_low0, w0_l);
-  int32x4_t u1 = vmulq_n_s32(in_high1, -w0_h);
-  u1 = vmlsq_n_s32(u1, in_high0, w0_l);
-  int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);
-  v0 = vmlsq_n_s32(v0, in_low0, w0_h);
-  int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);
-  v1 = vmlsq_n_s32(v1, in_high0, w0_h);
-  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
-  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
-  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
-  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  int32x4_t u0 = vmull_n_s16(vget_low_s16(in1), -w0_h);
+  u0 = vmlsl_n_s16(u0, vget_low_s16(in0), w0_l);
+  int32x4_t u1 = vmull_n_s16(vget_high_s16(in1), -w0_h);
+  u1 = vmlsl_n_s16(u1, vget_high_s16(in0), w0_l);
+  int32x4_t v0 = vmull_n_s16(vget_low_s16(in1), w0_l);
+  v0 = vmlsl_n_s16(v0, vget_low_s16(in0), w0_h);
+  int32x4_t v1 = vmull_n_s16(vget_high_s16(in1), w0_l);
+  v1 = vmlsl_n_s16(v1, vget_high_s16(in0), w0_h);
+
+  const int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  const int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  const int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  const int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
   *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
   *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
 }
@@ -601,22 +586,19 @@ static INLINE void btf_16_neon_mode2(const int w0_l, const int w0_h,
                                      const int16x8_t in0, const int16x8_t in1,
                                      int16x8_t *out0, int16x8_t *out1,
                                      const int32x4_t v_cos_bit) {
-  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
-  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
-  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
-  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
-  int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);
-  u0 = vmlaq_n_s32(u0, in_low0, w0_l);
-  int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);
-  u1 = vmlaq_n_s32(u1, in_high0, w0_l);
-  int32x4_t v0 = vmulq_n_s32(in_low1, w0_l);
-  v0 = vmlsq_n_s32(v0, in_low0, w0_h);
-  int32x4_t v1 = vmulq_n_s32(in_high1, w0_l);
-  v1 = vmlsq_n_s32(v1, in_high0, w0_h);
-  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
-  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
-  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
-  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  int32x4_t u0 = vmull_n_s16(vget_low_s16(in1), w0_h);
+  u0 = vmlal_n_s16(u0, vget_low_s16(in0), w0_l);
+  int32x4_t u1 = vmull_n_s16(vget_high_s16(in1), w0_h);
+  u1 = vmlal_n_s16(u1, vget_high_s16(in0), w0_l);
+  int32x4_t v0 = vmull_n_s16(vget_low_s16(in1), w0_l);
+  v0 = vmlsl_n_s16(v0, vget_low_s16(in0), w0_h);
+  int32x4_t v1 = vmull_n_s16(vget_high_s16(in1), w0_l);
+  v1 = vmlsl_n_s16(v1, vget_high_s16(in0), w0_h);
+
+  const int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  const int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  const int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  const int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
   *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
   *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
 }
@@ -625,22 +607,19 @@ static INLINE void btf_16_neon_mode3(const int w0_l, const int w0_h,
                                      const int16x8_t in0, const int16x8_t in1,
                                      int16x8_t *out0, int16x8_t *out1,
                                      const int32x4_t v_cos_bit) {
-  int32x4_t in_low0 = vmovl_s16(vget_low_s16(in0));
-  int32x4_t in_high0 = vmovl_s16(vget_high_s16(in0));
-  int32x4_t in_low1 = vmovl_s16(vget_low_s16(in1));
-  int32x4_t in_high1 = vmovl_s16(vget_high_s16(in1));
-  int32x4_t u0 = vmulq_n_s32(in_low1, w0_h);
-  u0 = vmlaq_n_s32(u0, in_low0, w0_l);
-  int32x4_t u1 = vmulq_n_s32(in_high1, w0_h);
-  u1 = vmlaq_n_s32(u1, in_high0, w0_l);
-  int32x4_t v0 = vmulq_n_s32(in_low0, w0_h);
-  v0 = vmlsq_n_s32(v0, in_low1, w0_l);
-  int32x4_t v1 = vmulq_n_s32(in_high0, w0_h);
-  v1 = vmlsq_n_s32(v1, in_high1, w0_l);
-  int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
-  int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
-  int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
-  int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
+  int32x4_t u0 = vmull_n_s16(vget_low_s16(in1), w0_h);
+  u0 = vmlal_n_s16(u0, vget_low_s16(in0), w0_l);
+  int32x4_t u1 = vmull_n_s16(vget_high_s16(in1), w0_h);
+  u1 = vmlal_n_s16(u1, vget_high_s16(in0), w0_l);
+  int32x4_t v0 = vmull_n_s16(vget_low_s16(in0), w0_h);
+  v0 = vmlsl_n_s16(v0, vget_low_s16(in1), w0_l);
+  int32x4_t v1 = vmull_n_s16(vget_high_s16(in0), w0_h);
+  v1 = vmlsl_n_s16(v1, vget_high_s16(in1), w0_l);
+
+  const int32x4_t c0 = vrshlq_s32(u0, v_cos_bit);
+  const int32x4_t c1 = vrshlq_s32(u1, v_cos_bit);
+  const int32x4_t d0 = vrshlq_s32(v0, v_cos_bit);
+  const int32x4_t d1 = vrshlq_s32(v1, v_cos_bit);
   *out0 = vcombine_s16(vmovn_s32(c0), vmovn_s32(c1));
   *out1 = vcombine_s16(vmovn_s32(d0), vmovn_s32(d1));
 }
