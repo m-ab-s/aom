@@ -2087,8 +2087,10 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
   int idx;
   const int bw = 4 << mi_size_wide_log2[bsize];
   const int bh = 4 << mi_size_high_log2[bsize];
-  int is_screen = cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
-  int full_search = is_screen;
+  const int is_screen = cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
+  const int full_search = is_screen;
+  const bool screen_scroll_superblock =
+      is_screen && bsize == cm->seq_params->sb_size;
   int search_scale = me_search_par;
   if (search_scale == 3 &&
       !(mi_col >= 2 * mi_size_wide[bsize] &&
@@ -2211,7 +2213,7 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
     *y_sad_zero = best_sad;
   }
 
-  {
+  if (!screen_scroll_superblock) {
     const uint8_t *const pos[4] = {
       ref_buf - ref_stride,
       ref_buf - 1,
@@ -2221,33 +2223,33 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
 
     cpi->ppi->fn_ptr[bsize].sdx4df(src_buf, src_stride, pos, ref_stride,
                                    this_sad);
-  }
 
-  for (idx = 0; idx < 4; ++idx) {
-    if (this_sad[idx] < best_sad) {
-      best_sad = this_sad[idx];
-      best_int_mv->as_fullmv.row = search_pos[idx].row + this_mv.row;
-      best_int_mv->as_fullmv.col = search_pos[idx].col + this_mv.col;
+    for (idx = 0; idx < 4; ++idx) {
+      if (this_sad[idx] < best_sad) {
+        best_sad = this_sad[idx];
+        best_int_mv->as_fullmv.row = search_pos[idx].row + this_mv.row;
+        best_int_mv->as_fullmv.col = search_pos[idx].col + this_mv.col;
+      }
     }
-  }
 
-  if (this_sad[0] < this_sad[3])
-    this_mv.row -= 1;
-  else
-    this_mv.row += 1;
+    if (this_sad[0] < this_sad[3])
+      this_mv.row -= 1;
+    else
+      this_mv.row += 1;
 
-  if (this_sad[1] < this_sad[2])
-    this_mv.col -= 1;
-  else
-    this_mv.col += 1;
+    if (this_sad[1] < this_sad[2])
+      this_mv.col -= 1;
+    else
+      this_mv.col += 1;
 
-  ref_buf = get_buf_from_fullmv(&xd->plane[0].pre[0], &this_mv);
+    ref_buf = get_buf_from_fullmv(&xd->plane[0].pre[0], &this_mv);
 
-  tmp_sad =
-      cpi->ppi->fn_ptr[bsize].sdf(src_buf, src_stride, ref_buf, ref_stride);
-  if (best_sad > tmp_sad) {
-    best_int_mv->as_fullmv = this_mv;
-    best_sad = tmp_sad;
+    tmp_sad =
+        cpi->ppi->fn_ptr[bsize].sdf(src_buf, src_stride, ref_buf, ref_stride);
+    if (best_sad > tmp_sad) {
+      best_int_mv->as_fullmv = this_mv;
+      best_sad = tmp_sad;
+    }
   }
 
   FullMvLimits mv_limits = x->mv_limits;
