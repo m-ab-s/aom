@@ -286,6 +286,7 @@ add_library(aom ${target_objs_aom} $<TARGET_OBJECTS:aom_rtcd>)
 
 if(BUILD_SHARED_LIBS)
   add_library(aom_static STATIC ${target_objs_aom} $<TARGET_OBJECTS:aom_rtcd>)
+  set_target_properties(aom_static PROPERTIES OUTPUT_NAME aom)
   if(MSVC OR (WIN32 AND NOT MINGW))
     # Fix race condition on the export library file between the two versions.
     # Affects MSVC in all three flavors (stock, Clang/CL, LLVM-- the latter sets
