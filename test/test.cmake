@@ -175,6 +175,12 @@ if(NOT BUILD_SHARED_LIBS)
     add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_INTRIN_SSSE3)
   endif()
 
+  if(HAVE_SSE4_1)
+    list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_SSE4_1
+                "${AOM_ROOT}/test/simd_cmp_sse4.cc")
+    add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_INTRIN_SSE4_1)
+  endif()
+
   if(HAVE_AVX2)
     list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_AVX2
                 "${AOM_ROOT}/test/simd_cmp_avx2.cc")
@@ -234,10 +240,6 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/warp_filter_test_util.h"
               "${AOM_ROOT}/test/webmenc_test.cc"
               "${AOM_ROOT}/test/wiener_test.cc")
-
-  list(APPEND AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
-              "${AOM_ROOT}/test/simd_cmp_sse4.cc")
-  add_to_libaom_test_srcs(AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1)
 
   if(NOT CONFIG_REALTIME_ONLY)
     list(APPEND AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1
@@ -322,7 +324,7 @@ if(NOT BUILD_SHARED_LIBS)
                 "${AOM_ROOT}/test/simd_ssse3_test.cc")
   endif()
 
-  if(HAVE_SSE4)
+  if(HAVE_SSE4_1)
     list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
                 "${AOM_ROOT}/test/simd_sse4_test.cc")
   endif()
@@ -360,7 +362,6 @@ if(NOT BUILD_SHARED_LIBS)
                 "${AOM_ROOT}/test/av1_convolve_scale_test.cc"
                 "${AOM_ROOT}/test/av1_horz_only_frame_superres_test.cc"
                 "${AOM_ROOT}/test/intra_edge_test.cc")
-
   endif()
 
   if(HAVE_NEON)
