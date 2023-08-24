@@ -2953,6 +2953,11 @@ typedef struct AV1_COMP {
   TemporalFilterCtx tf_ctx;
 
   /*!
+   * Pointer to CDEF search context.
+   */
+  CdefSearchCtx *cdef_search_ctx;
+
+  /*!
    * Variables related to forcing integer mv decisions for the current frame.
    */
   ForceIntegerMVInfo force_intpel_info;

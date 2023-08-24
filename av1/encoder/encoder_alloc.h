@@ -19,6 +19,7 @@
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/global_motion_facade.h"
 #include "av1/encoder/intra_mode_search_utils.h"
+#include "av1/encoder/pickcdef.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -273,6 +274,12 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   // This call ensures that the global motion (gm) data buffers for
   // single-threaded encode are freed in case of an error during gm.
   gm_dealloc_data(&cpi->td.gm_data);
+
+  // This call ensures that CDEF search context buffers are deallocated in case
+  // of an error during cdef search.
+  av1_cdef_dealloc_data(cpi->cdef_search_ctx);
+  aom_free(cpi->cdef_search_ctx);
+  cpi->cdef_search_ctx = NULL;
 
   av1_dealloc_src_diff_buf(&cpi->td.mb, av1_num_planes(cm));
 
