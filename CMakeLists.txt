@@ -293,15 +293,7 @@ if(BUILD_SHARED_LIBS)
     # MSVC and MINGW both to FALSE).
     set_target_properties(aom PROPERTIES ARCHIVE_OUTPUT_NAME "aom_shared")
   endif()
-  # Tests and examples rely on having unexported AV1 symbols visible. This is
-  # not the case on Windows platforms due to enforcement of the module
-  # definition file.
-  set(AOM_LIB aom_static)
-else()
-  set(AOM_LIB aom)
-endif()
 
-if(BUILD_SHARED_LIBS)
   if(NOT MSVC)
     # Extract version string and set VERSION/SOVERSION for the aom target.
     extract_version_string("${AOM_CONFIG_DIR}/config/aom_version.h"
@@ -363,9 +355,9 @@ setup_aom_scale_targets()
 setup_av1_targets()
 
 # Make all library targets depend on aom_rtcd to make sure it builds first.
-foreach(aom_tgt ${AOM_LIB_TARGETS})
-  if(NOT "${aom_tgt}" STREQUAL "aom_rtcd")
-    add_dependencies(${aom_tgt} aom_rtcd)
+foreach(aom_lib ${AOM_LIB_TARGETS})
+  if(NOT "${aom_lib}" STREQUAL "aom_rtcd")
+    add_dependencies(${aom_lib} aom_rtcd)
   endif()
 endforeach()
 
@@ -734,7 +726,7 @@ if(ENABLE_EXAMPLES AND CONFIG_AV1_ENCODER AND CONFIG_AV1_DECODER)
 endif()
 
 foreach(aom_app ${AOM_APP_TARGETS})
-  target_link_libraries(${aom_app} ${AOM_LIB_LINK_TYPE} ${AOM_LIB})
+  target_link_libraries(${aom_app} ${AOM_LIB_LINK_TYPE} aom)
 endforeach()
 
 if(ENABLE_EXAMPLES OR ENABLE_TESTS OR ENABLE_TOOLS)
