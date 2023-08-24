@@ -432,6 +432,15 @@ INSTANTIATE_TEST_SUITE_P(
         HadamardFuncWithSize(&aom_highbd_hadamard_16x16_c, 16, 16),
         HadamardFuncWithSize(&aom_highbd_hadamard_32x32_c, 32, 32)));
 
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, HadamardHighbdTest,
+    ::testing::Values(
+        HadamardFuncWithSize(&aom_highbd_hadamard_8x8_avx2, 8, 8),
+        HadamardFuncWithSize(&aom_highbd_hadamard_16x16_avx2, 16, 16),
+        HadamardFuncWithSize(&aom_highbd_hadamard_32x32_avx2, 32, 32)));
+#endif  // HAVE_AVX2
+
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, HadamardHighbdTest,
