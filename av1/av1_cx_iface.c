@@ -1837,6 +1837,11 @@ static aom_codec_err_t ctrl_set_enable_qm(aom_codec_alg_priv_t *ctx,
                                           va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.enable_qm = CAST(AV1E_SET_ENABLE_QM, args);
+#if !CONFIG_QUANT_MATRIX
+  if (extra_cfg.enable_qm) {
+    ERROR("QM can't be enabled with CONFIG_QUANT_MATRIX=0.");
+  }
+#endif
   return update_extra_cfg(ctx, &extra_cfg);
 }
 static aom_codec_err_t ctrl_set_qm_y(aom_codec_alg_priv_t *ctx, va_list args) {
