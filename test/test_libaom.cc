@@ -30,7 +30,7 @@ extern void aom_dsp_rtcd();
 extern void aom_scale_rtcd();
 }
 
-#if AOM_ARCH_ARM || AOM_ARCH_X86 || AOM_ARCH_X86_64
+#if (!CONFIG_SHARED && AOM_ARCH_ARM) || AOM_ARCH_X86 || AOM_ARCH_X86_64
 static void append_negative_gtest_filter(const char *str) {
   std::string flag_value = GTEST_FLAG_GET(filter);
   // Negative patterns begin with one '-' followed by a ':' separated list.
@@ -48,21 +48,25 @@ static void append_negative_gtest_filter(const char *str) {
   }
   GTEST_FLAG_SET(filter, flag_value);
 }
-#endif  // AOM_ARCH_X86 || AOM_ARCH_X86_64
+#endif  // (!CONFIG_SHARED && AOM_ARCH_ARM) || AOM_ARCH_X86 || AOM_ARCH_X86_64
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
+#if !CONFIG_SHARED
 #if AOM_ARCH_AARCH64
   const int caps = aom_arm_cpu_caps();
   if (!(caps & HAS_ARM_CRC32)) append_negative_gtest_filter("ARM_CRC32");
   if (!(caps & HAS_NEON_DOTPROD)) append_negative_gtest_filter("NEON_DOTPROD");
   if (!(caps & HAS_NEON_I8MM)) append_negative_gtest_filter("NEON_I8MM");
   if (!(caps & HAS_SVE)) append_negative_gtest_filter("SVE");
-#elif AOM_ARCH_ARM                     // end AOM_ARCH_AARCH64
+#elif AOM_ARCH_ARM
   const int caps = aom_arm_cpu_caps();
   if (!(caps & HAS_NEON)) append_negative_gtest_filter("NEON");
-#elif AOM_ARCH_X86 || AOM_ARCH_X86_64  // end AOM_ARCH_ARM
+#endif  // AOM_ARCH_ARM
+#endif  // !CONFIG_SHARED
+
+#if AOM_ARCH_X86 || AOM_ARCH_X86_64
   const int simd_caps = x86_simd_caps();
   if (!(simd_caps & HAS_MMX)) append_negative_gtest_filter("MMX");
   if (!(simd_caps & HAS_SSE)) append_negative_gtest_filter("SSE");
@@ -73,7 +77,7 @@ int main(int argc, char **argv) {
   if (!(simd_caps & HAS_SSE4_2)) append_negative_gtest_filter("SSE4_2");
   if (!(simd_caps & HAS_AVX)) append_negative_gtest_filter("AVX");
   if (!(simd_caps & HAS_AVX2)) append_negative_gtest_filter("AVX2");
-#endif                                 // end AOM_ARCH_X86 || AOM_ARCH_X86_64
+#endif  // AOM_ARCH_X86 || AOM_ARCH_X86_64
 
 // Shared library builds don't support whitebox tests that exercise internal
 // symbols.
