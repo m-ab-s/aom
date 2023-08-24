@@ -495,16 +495,19 @@ function(setup_aom_test_targets)
       target_sources(test_libaom PRIVATE ${AOM_ENCODE_PERF_TEST_SOURCES})
     endif()
 
-    add_executable(test_intra_pred_speed ${AOM_TEST_INTRA_PRED_SPEED_SOURCES}
-                                         $<TARGET_OBJECTS:aom_common_app_util>)
-    set_property(TARGET test_intra_pred_speed
-                 PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
-    target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE} ${AOM_LIB}
-                          aom_gtest)
-    list(APPEND AOM_APP_TARGETS test_intra_pred_speed)
+    if(NOT BUILD_SHARED_LIBS)
+      add_executable(test_intra_pred_speed
+                     ${AOM_TEST_INTRA_PRED_SPEED_SOURCES}
+                     $<TARGET_OBJECTS:aom_common_app_util>)
+      set_property(TARGET test_intra_pred_speed
+                   PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
+      target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE} aom
+                            aom_gtest)
+      list(APPEND AOM_APP_TARGETS test_intra_pred_speed)
+    endif()
   endif()
 
-  target_link_libraries(test_libaom ${AOM_LIB_LINK_TYPE} ${AOM_LIB} aom_gtest)
+  target_link_libraries(test_libaom ${AOM_LIB_LINK_TYPE} aom aom_gtest)
 
   if(CONFIG_WEBM_IO)
     target_sources(test_libaom PRIVATE $<TARGET_OBJECTS:webm>)
