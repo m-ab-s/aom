@@ -215,8 +215,9 @@ static INLINE int cdef_sb_skip(const CommonModeInfoParams *const mi_params,
 
 void av1_cdef_dealloc_data(CdefSearchCtx *cdef_search_ctx);
 
-void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr, int fbc,
-                             int sb_count);
+void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx,
+                             struct aom_internal_error_info *error_info,
+                             int fbr, int fbc, int sb_count);
 /*!\endcond */
 
 /*!\brief AV1 CDEF parameter search

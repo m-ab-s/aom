@@ -3129,15 +3129,15 @@ static AOM_INLINE int cdef_get_next_job(AV1CdefSync *cdef_sync,
 
   // If a block is skip, do not process the block and
   // check the skip condition for the next block.
-  while ((!cdef_sync->end_of_frame) &&
-         (cdef_sb_skip(cdef_search_ctx->mi_params, cdef_sync->fbr,
-                       cdef_sync->fbc))) {
+  while (!cdef_sync->cdef_mt_exit && !cdef_sync->end_of_frame &&
+         cdef_sb_skip(cdef_search_ctx->mi_params, cdef_sync->fbr,
+                      cdef_sync->fbc)) {
     update_next_job_info(cdef_sync, nvfb, nhfb);
   }
 
   // Populates information needed for current job and update the row,
   // column indices of the next block to be processed.
-  if (cdef_sync->end_of_frame == 0) {
+  if (!cdef_sync->cdef_mt_exit && cdef_sync->end_of_frame == 0) {
     do_next_block = 1;
     *cur_fbr = cdef_sync->fbr;
     *cur_fbc = cdef_sync->fbc;
@@ -3153,39 +3153,64 @@ static AOM_INLINE int cdef_get_next_job(AV1CdefSync *cdef_sync,
 
 // Hook function for each thread in CDEF search multi-threading.
 static int cdef_filter_block_worker_hook(void *arg1, void *arg2) {
-  AV1CdefSync *const cdef_sync = (AV1CdefSync *)arg1;
-  CdefSearchCtx *cdef_search_ctx = (CdefSearchCtx *)arg2;
+  EncWorkerData *thread_data = (EncWorkerData *)arg1;
+  AV1CdefSync *const cdef_sync = (AV1CdefSync *)arg2;
+
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t *cdef_mutex_ = cdef_sync->mutex_;
+#endif
+  struct aom_internal_error_info *const error_info = &thread_data->error_info;
+  CdefSearchCtx *cdef_search_ctx = thread_data->cpi->cdef_search_ctx;
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(cdef_mutex_);
+    cdef_sync->cdef_mt_exit = true;
+    pthread_mutex_unlock(cdef_mutex_);
+#endif
+    return 0;
+  }
+  error_info->setjmp = 1;
+
   int cur_fbr, cur_fbc, sb_count;
   while (cdef_get_next_job(cdef_sync, cdef_search_ctx, &cur_fbr, &cur_fbc,
                            &sb_count)) {
-    av1_cdef_mse_calc_block(cdef_search_ctx, cur_fbr, cur_fbc, sb_count);
+    av1_cdef_mse_calc_block(cdef_search_ctx, error_info, cur_fbr, cur_fbc,
+                            sb_count);
   }
+  error_info->setjmp = 0;
   return 1;
 }
 
 // Assigns CDEF search hook function and thread data to each worker.
-static void prepare_cdef_workers(MultiThreadInfo *mt_info,
-                                 CdefSearchCtx *cdef_search_ctx,
-                                 AVxWorkerHook hook, int num_workers) {
+static void prepare_cdef_workers(AV1_COMP *cpi, AVxWorkerHook hook,
+                                 int num_workers) {
+  MultiThreadInfo *mt_info = &cpi->mt_info;
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *worker = &mt_info->workers[i];
+    EncWorkerData *thread_data = &mt_info->tile_thr_data[i];
+
+    thread_data->cpi = cpi;
     worker->hook = hook;
-    worker->data1 = &mt_info->cdef_sync;
-    worker->data2 = cdef_search_ctx;
+    worker->data1 = thread_data;
+    worker->data2 = &mt_info->cdef_sync;
   }
 }
 
 // Implements multi-threading for CDEF search.
-void av1_cdef_mse_calc_frame_mt(AV1_COMMON *cm, MultiThreadInfo *mt_info,
-                                CdefSearchCtx *cdef_search_ctx) {
+void av1_cdef_mse_calc_frame_mt(AV1_COMP *cpi) {
+  MultiThreadInfo *mt_info = &cpi->mt_info;
   AV1CdefSync *cdef_sync = &mt_info->cdef_sync;
   const int num_workers = mt_info->num_mod_workers[MOD_CDEF_SEARCH];
 
   cdef_reset_job_info(cdef_sync);
-  prepare_cdef_workers(mt_info, cdef_search_ctx, cdef_filter_block_worker_hook,
-                       num_workers);
+  prepare_cdef_workers(cpi, cdef_filter_block_worker_hook, num_workers);
   launch_workers(mt_info, num_workers);
-  sync_enc_workers(mt_info, cm, num_workers);
+  sync_enc_workers(mt_info, &cpi->common, num_workers);
 }
 
 // Computes num_workers for temporal filter multi-threading.

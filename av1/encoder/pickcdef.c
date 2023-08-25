@@ -515,8 +515,12 @@ static INLINE uint64_t get_filt_error(
 //   fbc: Column index in units of 64x64 block
 // Returns:
 //   Nothing will be returned. Contents of cdef_search_ctx will be modified.
-void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr, int fbc,
-                             int sb_count) {
+void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx,
+                             struct aom_internal_error_info *error_info,
+                             int fbr, int fbc, int sb_count) {
+  // TODO(aomedia:3276): Pass error_info to the low-level functions as required
+  // in future to handle error propagation.
+  (void)error_info;
   const CommonModeInfoParams *const mi_params = cdef_search_ctx->mi_params;
   const YV12_BUFFER_CONFIG *ref = cdef_search_ctx->ref;
   const int coeff_shift = cdef_search_ctx->coeff_shift;
@@ -614,14 +618,15 @@ void av1_cdef_mse_calc_block(CdefSearchCtx *cdef_search_ctx, int fbr, int fbc,
 //   CDEF search context.
 // Returns:
 //   Nothing will be returned. Contents of cdef_search_ctx will be modified.
-static void cdef_mse_calc_frame(CdefSearchCtx *cdef_search_ctx) {
+static void cdef_mse_calc_frame(CdefSearchCtx *cdef_search_ctx,
+                                struct aom_internal_error_info *error_info) {
   // Loop over each sb.
   for (int fbr = 0; fbr < cdef_search_ctx->nvfb; ++fbr) {
     for (int fbc = 0; fbc < cdef_search_ctx->nhfb; ++fbc) {
       // Checks if cdef processing can be skipped for particular sb.
       if (cdef_sb_skip(cdef_search_ctx->mi_params, fbr, fbc)) continue;
       // Calculate mse for each sb and store the relevant sb index.
-      av1_cdef_mse_calc_block(cdef_search_ctx, fbr, fbc,
+      av1_cdef_mse_calc_block(cdef_search_ctx, error_info, fbr, fbc,
                               cdef_search_ctx->sb_count);
       cdef_search_ctx->sb_count++;
     }
@@ -866,9 +871,9 @@ void av1_cdef_search(AV1_COMP *cpi) {
   cdef_alloc_data(cm, cdef_search_ctx);
   // Frame level mse calculation.
   if (cpi->mt_info.num_workers > 1) {
-    av1_cdef_mse_calc_frame_mt(cm, &cpi->mt_info, cdef_search_ctx);
+    av1_cdef_mse_calc_frame_mt(cpi);
   } else {
-    cdef_mse_calc_frame(cdef_search_ctx);
+    cdef_mse_calc_frame(cdef_search_ctx, cm->error);
   }
 
   /* Search for different number of signaling bits. */

@@ -136,6 +136,9 @@ typedef struct AV1CdefSyncData {
   int fbr;
   // Column index in units of 64x64 block
   int fbc;
+  // Initialized to false, set to true by the worker thread that encounters
+  // an error in order to abort the processing of other worker threads.
+  bool cdef_mt_exit;
 } AV1CdefSync;
 
 void av1_cdef_frame_mt(AV1_COMMON *const cm, MACROBLOCKD *const xd,
