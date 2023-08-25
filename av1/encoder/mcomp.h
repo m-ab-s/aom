@@ -176,14 +176,9 @@ void av1_init_motion_compensation_square(search_site_config *cfg, int stride,
 typedef void (*av1_init_search_site_config)(search_site_config *cfg, int stride,
                                             int level);
 
-/*! Array of function pointer used to set the motion search config. */
-static const av1_init_search_site_config
-    av1_init_motion_compensation[NUM_DISTINCT_SEARCH_METHODS] = {
-      av1_init_dsmotion_compensation,     av1_init_motion_compensation_nstep,
-      av1_init_motion_compensation_nstep, av1_init_dsmotion_compensation,
-      av1_init_motion_compensation_hex,   av1_init_motion_compensation_bigdia,
-      av1_init_motion_compensation_square
-    };
+/*! Array of function pointers used to set the motion search config. */
+extern const av1_init_search_site_config
+    av1_init_motion_compensation[NUM_DISTINCT_SEARCH_METHODS];
 
 // Array to inform which all search methods are having
 // same candidates and different in number of search steps.

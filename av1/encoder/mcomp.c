@@ -682,6 +682,14 @@ void av1_init_motion_compensation_hex(search_site_config *cfg, int stride,
   cfg->num_search_steps = MAX_PATTERN_SCALES;
 }
 
+const av1_init_search_site_config
+    av1_init_motion_compensation[NUM_DISTINCT_SEARCH_METHODS] = {
+      av1_init_dsmotion_compensation,     av1_init_motion_compensation_nstep,
+      av1_init_motion_compensation_nstep, av1_init_dsmotion_compensation,
+      av1_init_motion_compensation_hex,   av1_init_motion_compensation_bigdia,
+      av1_init_motion_compensation_square
+    };
+
 // Checks whether the mv is within range of the mv_limits
 static INLINE int check_bounds(const FullMvLimits *mv_limits, int row, int col,
                                int range) {
