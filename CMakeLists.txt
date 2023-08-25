@@ -291,7 +291,7 @@ if(BUILD_SHARED_LIBS)
     # Fix race condition on the export library file between the two versions.
     # Affects MSVC in all three flavors (stock, Clang/CL, LLVM-- the latter sets
     # MSVC and MINGW both to FALSE).
-    set_target_properties(aom PROPERTIES ARCHIVE_OUTPUT_NAME "aom_shared")
+    set_target_properties(aom PROPERTIES ARCHIVE_OUTPUT_NAME "aom_dll")
   endif()
 
   if(NOT MSVC)
