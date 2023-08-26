@@ -11,14 +11,11 @@
 
 #include <arm_neon.h>
 #include <assert.h>
+#include <string.h>
 
 #include "config/aom_config.h"
 
 #include "aom_dsp/quantize.h"
-#include "aom_dsp/arm/mem_neon.h"
-
-#include "av1/common/quant_common.h"
-#include "av1/encoder/av1_quantize.h"
 
 static INLINE uint32_t sum_abs_coeff(const uint32x4_t a) {
 #if AOM_ARCH_AARCH64
