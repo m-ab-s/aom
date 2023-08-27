@@ -1997,13 +1997,13 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
   return best_hash_cost;
 }
 
-static int vector_match(int16_t *ref, int16_t *src, int bwl, int scale,
+static int vector_match(int16_t *ref, int16_t *src, int bwl, int search_size,
                         int full_search, int *sad) {
   int best_sad = INT_MAX;
   int this_sad;
   int d;
   int center, offset = 0;
-  int bw = scale * (4 << bwl);
+  int bw = search_size << 1;
 
   if (full_search) {
     for (d = 0; d <= bw; d++) {
@@ -2078,45 +2078,36 @@ static int vector_match(int16_t *ref, int16_t *src, int bwl, int scale,
 }
 
 // A special fast version of motion search used in rt mode.
-// The default search window (me_search_par = 1) is
-// +/- 1/2 * sb_size (128 or 64). If me_search_par is set to 2 the
-// search window is increased to +/- 3/2 * sb_size.
-// If me_search_par is set to 3 the search window is increased to
-// +/- 5/2 * sb_size.
+// The search window along columns and row is given by:
+//  +/- me_search_size_col/row.
 unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
                                            BLOCK_SIZE bsize, int mi_row,
                                            int mi_col, const MV *ref_mv,
                                            unsigned int *y_sad_zero,
-                                           int me_search_par) {
+                                           int me_search_size_col,
+                                           int me_search_size_row) {
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mi = xd->mi[0];
   struct buf_2d backup_yv12[MAX_MB_PLANE] = { { 0, 0, 0, 0, 0 } };
   int idx;
-  const int bw = 4 << mi_size_wide_log2[bsize];
-  const int bh = 4 << mi_size_high_log2[bsize];
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
   const int is_screen = cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
   const int full_search = is_screen;
   const bool screen_scroll_superblock =
       is_screen && bsize == cm->seq_params->sb_size;
-  int search_scale = me_search_par;
-  if (search_scale == 3 &&
-      !(mi_col >= 2 * mi_size_wide[bsize] &&
-        mi_row >= 2 * mi_size_high[bsize] &&
-        mi_col < cm->mi_params.mi_cols - 2 * mi_size_wide[bsize] &&
-        mi_row < cm->mi_params.mi_rows - 2 * mi_size_high[bsize])) {
-    // Fall back to level 2 search range near boundary.
-    search_scale = 2;
-  }
-  if (search_scale == 2 &&
-      !(mi_col >= mi_size_wide[bsize] && mi_row >= mi_size_high[bsize] &&
-        mi_col < cm->mi_params.mi_cols - mi_size_wide[bsize] &&
-        mi_row < cm->mi_params.mi_rows - mi_size_high[bsize])) {
-    // Fall back to default search range near boundary.
-    search_scale = 1;
-  }
-  const int search_width = bw << search_scale;
-  const int search_height = bh << search_scale;
+  // Keep border a multiple of 16.
+  const int border = (cpi->oxcf.border_in_pixels >> 4) << 4;
+  int search_size_width = me_search_size_col;
+  int search_size_height = me_search_size_row;
+  // Adjust based on boundary.
+  if (((mi_col << 2) - search_size_width < -border) ||
+      ((mi_col << 2) + search_size_width > cm->width + border))
+    search_size_width = border;
+  if (((mi_row << 2) - search_size_height < -border) ||
+      ((mi_row << 2) + search_size_height > cm->height + border))
+    search_size_height = border;
   const int src_stride = x->plane[0].src.stride;
   const int ref_stride = xd->plane[0].pre[0].stride;
   uint8_t const *ref_buf, *src_buf;
@@ -2155,9 +2146,10 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
     }
     return best_sad;
   }
-
-  int16_t *hbuf = (int16_t *)aom_malloc(search_width * sizeof(*hbuf));
-  int16_t *vbuf = (int16_t *)aom_malloc(search_height * sizeof(*vbuf));
+  const int width_ref_buf = (search_size_width << 1) + bw;
+  const int height_ref_buf = (search_size_height << 1) + bh;
+  int16_t *hbuf = (int16_t *)aom_malloc(width_ref_buf * sizeof(*hbuf));
+  int16_t *vbuf = (int16_t *)aom_malloc(height_ref_buf * sizeof(*vbuf));
   int16_t *src_hbuf = (int16_t *)aom_malloc(bw * sizeof(*src_hbuf));
   int16_t *src_vbuf = (int16_t *)aom_malloc(bh * sizeof(*src_vbuf));
   if (!hbuf || !vbuf || !src_hbuf || !src_vbuf) {
@@ -2170,13 +2162,13 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 
   // Set up prediction 1-D reference set for rows.
-  ref_buf = xd->plane[0].pre[0].buf - ((search_scale - 1) * bw + (bw >> 1));
-  aom_int_pro_row(hbuf, ref_buf, ref_stride, search_width, bh, row_norm_factor);
+  ref_buf = xd->plane[0].pre[0].buf - search_size_width;
+  aom_int_pro_row(hbuf, ref_buf, ref_stride, width_ref_buf, bh,
+                  row_norm_factor);
 
   // Set up prediction 1-D reference set for cols
-  ref_buf = xd->plane[0].pre[0].buf -
-            ((search_scale - 1) * bh + (bh >> 1)) * ref_stride;
-  aom_int_pro_col(vbuf, ref_buf, ref_stride, bw, search_height,
+  ref_buf = xd->plane[0].pre[0].buf - search_size_height * ref_stride;
+  aom_int_pro_col(vbuf, ref_buf, ref_stride, bw, height_ref_buf,
                   col_norm_factor);
 
   // Set up src 1-D reference set
@@ -2186,11 +2178,11 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
 
   // Find the best match per 1-D search
   best_int_mv->as_fullmv.col =
-      vector_match(hbuf, src_hbuf, mi_size_wide_log2[bsize],
-                   2 * search_scale - 1, full_search, &best_sad_col);
+      vector_match(hbuf, src_hbuf, mi_size_wide_log2[bsize], search_size_width,
+                   full_search, &best_sad_col);
   best_int_mv->as_fullmv.row =
-      vector_match(vbuf, src_vbuf, mi_size_high_log2[bsize],
-                   2 * search_scale - 1, full_search, &best_sad_row);
+      vector_match(vbuf, src_vbuf, mi_size_high_log2[bsize], search_size_height,
+                   full_search, &best_sad_row);
 
   // For screen: select between horiz or vert motion.
   if (is_screen) {

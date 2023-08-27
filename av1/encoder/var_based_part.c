@@ -1427,15 +1427,16 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
         // threshold and motion level above LowSad.
         if (!is_screen ||
             (x->source_variance > 100 && source_sad_nonrd > kLowSad)) {
-          int me_search_par =
-              !is_screen ? 1
-              : (bsize == BLOCK_64X64 && cm->width * cm->height >= 1280 * 720)
-                  ? 3
-                  : 2;
+          int me_search_size_col =
+              is_screen ? 96 : block_size_wide[cm->seq_params->sb_size] >> 1;
+          // For screen use larger search size row motion to capture
+          // vertical scroll, which can be larger motion.
+          int me_search_size_row =
+              is_screen ? 192 : block_size_high[cm->seq_params->sb_size] >> 1;
           unsigned int y_sad_zero;
           *y_sad = av1_int_pro_motion_estimation(
               cpi, x, cm->seq_params->sb_size, mi_row, mi_col, &kZeroMv,
-              &y_sad_zero, me_search_par);
+              &y_sad_zero, me_search_size_col, me_search_size_row);
           // The logic below selects whether the motion estimated in the
           // int_pro_motion() will be used in nonrd_pickmode. Only do this
           // for screen for now.

@@ -341,9 +341,12 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
 
     if (bsize < BLOCK_16X16) return -1;
 
+    int me_search_size_col = block_size_wide[bsize] >> 1;
+    int me_search_size_row = block_size_high[bsize] >> 1;
     tmp_sad = av1_int_pro_motion_estimation(
         cpi, x, bsize, mi_row, mi_col,
-        &x->mbmi_ext.ref_mv_stack[ref_frame][0].this_mv.as_mv, &y_sad_zero, 1);
+        &x->mbmi_ext.ref_mv_stack[ref_frame][0].this_mv.as_mv, &y_sad_zero,
+        me_search_size_col, me_search_size_row);
 
     if (tmp_sad > x->pred_mv_sad[LAST_FRAME]) return -1;
 
