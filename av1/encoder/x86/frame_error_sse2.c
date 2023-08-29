@@ -159,56 +159,56 @@ int64_t av1_calc_frame_error_sse2(const uint8_t *const ref, int ref_stride,
   int64_t sum_error = 0;
   int i, j;
   __m128i row_error, col_error;
-  __m128i zero = _mm_setzero_si128();
-  __m128i dup_256 = _mm_set1_epi16(256);
+  const __m128i zero = _mm_setzero_si128();
+  const __m128i dup_256 = _mm_set1_epi16(256);
   col_error = zero;
   for (i = 0; i < (p_height); i++) {
     row_error = zero;
     for (j = 0; j < (p_width / 16); j++) {
-      __m128i ref_8 =
+      const __m128i ref_8 =
           _mm_load_si128((__m128i *)(ref + (j * 16) + (i * ref_stride)));
-      __m128i dst_8 =
+      const __m128i dst_8 =
           _mm_load_si128((__m128i *)(dst + (j * 16) + (i * dst_stride)));
-      __m128i ref_16_lo = _mm_unpacklo_epi8(ref_8, zero);
-      __m128i ref_16_hi = _mm_unpackhi_epi8(ref_8, zero);
-      __m128i dst_16_lo = _mm_unpacklo_epi8(dst_8, zero);
-      __m128i dst_16_hi = _mm_unpackhi_epi8(dst_8, zero);
+      const __m128i ref_16_lo = _mm_unpacklo_epi8(ref_8, zero);
+      const __m128i ref_16_hi = _mm_unpackhi_epi8(ref_8, zero);
+      const __m128i dst_16_lo = _mm_unpacklo_epi8(dst_8, zero);
+      const __m128i dst_16_hi = _mm_unpackhi_epi8(dst_8, zero);
 
-      __m128i diff_1 =
+      const __m128i diff_1 =
           _mm_add_epi16(_mm_sub_epi16(dst_16_lo, ref_16_lo), dup_256);
-      __m128i diff_2 =
+      const __m128i diff_2 =
           _mm_add_epi16(_mm_sub_epi16(dst_16_hi, ref_16_hi), dup_256);
 
-      __m128i error_1_lo =
+      const __m128i error_1_lo =
           _mm_set_epi32(error_measure_lut[_mm_extract_epi16(diff_1, 3)],
                         error_measure_lut[_mm_extract_epi16(diff_1, 2)],
                         error_measure_lut[_mm_extract_epi16(diff_1, 1)],
                         error_measure_lut[_mm_extract_epi16(diff_1, 0)]);
-      __m128i error_1_hi =
+      const __m128i error_1_hi =
           _mm_set_epi32(error_measure_lut[_mm_extract_epi16(diff_1, 7)],
                         error_measure_lut[_mm_extract_epi16(diff_1, 6)],
                         error_measure_lut[_mm_extract_epi16(diff_1, 5)],
                         error_measure_lut[_mm_extract_epi16(diff_1, 4)]);
-      __m128i error_2_lo =
+      const __m128i error_2_lo =
           _mm_set_epi32(error_measure_lut[_mm_extract_epi16(diff_2, 3)],
                         error_measure_lut[_mm_extract_epi16(diff_2, 2)],
                         error_measure_lut[_mm_extract_epi16(diff_2, 1)],
                         error_measure_lut[_mm_extract_epi16(diff_2, 0)]);
-      __m128i error_2_hi =
+      const __m128i error_2_hi =
           _mm_set_epi32(error_measure_lut[_mm_extract_epi16(diff_2, 7)],
                         error_measure_lut[_mm_extract_epi16(diff_2, 6)],
                         error_measure_lut[_mm_extract_epi16(diff_2, 5)],
                         error_measure_lut[_mm_extract_epi16(diff_2, 4)]);
 
-      __m128i error_1 = _mm_add_epi32(error_1_lo, error_1_hi);
-      __m128i error_2 = _mm_add_epi32(error_2_lo, error_2_hi);
-      __m128i error_1_2 = _mm_add_epi32(error_1, error_2);
+      const __m128i error_1 = _mm_add_epi32(error_1_lo, error_1_hi);
+      const __m128i error_2 = _mm_add_epi32(error_2_lo, error_2_hi);
+      const __m128i error_1_2 = _mm_add_epi32(error_1, error_2);
 
       row_error = _mm_add_epi32(row_error, error_1_2);
     }
-    __m128i col_error_lo = _mm_unpacklo_epi32(row_error, zero);
-    __m128i col_error_hi = _mm_unpackhi_epi32(row_error, zero);
-    __m128i col_error_temp = _mm_add_epi64(col_error_lo, col_error_hi);
+    const __m128i col_error_lo = _mm_unpacklo_epi32(row_error, zero);
+    const __m128i col_error_hi = _mm_unpackhi_epi32(row_error, zero);
+    const __m128i col_error_temp = _mm_add_epi64(col_error_lo, col_error_hi);
     col_error = _mm_add_epi64(col_error, col_error_temp);
     // Error summation for remaining width, which is not multiple of 16
     if (p_width & 0xf) {
