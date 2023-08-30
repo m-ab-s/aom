@@ -31,6 +31,7 @@
 // clang-format off
 #ifndef FAST_H
 #define FAST_H
+#include <stdbool.h>
 
 typedef struct { int x, y; } xy;
 typedef unsigned char byte;
@@ -42,7 +43,7 @@ xy* aom_fast9_detect(const byte* im, int xsize, int ysize, int stride, int b, in
 int* aom_fast9_score(const byte* i, int stride, xy* corners, int num_corners, int b);
 
 xy* aom_fast9_detect_nonmax(const byte* im, int xsize, int ysize, int stride, int b,
-                            int** ret_scores, int* ret_num_corners);
+                            int** ret_scores, int* ret_num_corners, bool* mem_alloc_failed);
 
 xy* aom_nonmax_suppression(const xy* corners, const int* scores, int num_corners,
                            int** ret_scores, int* ret_num_nonmax);

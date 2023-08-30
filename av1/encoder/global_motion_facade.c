@@ -77,13 +77,11 @@ static int gm_get_params_cost(const WarpedMotionParams *gm,
 // For the given reference frame, computes the global motion parameters for
 // different motion models and finds the best.
 static AOM_INLINE void compute_global_motion_for_ref_frame(
-    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES], int frame,
+    AV1_COMP *cpi, MACROBLOCKD *const xd,
+    YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES], int frame,
     MotionModel *motion_models, uint8_t *segment_map, const int segment_map_w,
     const int segment_map_h, const WarpedMotionParams *ref_params) {
-  ThreadData *const td = &cpi->td;
-  MACROBLOCK *const x = &td->mb;
   AV1_COMMON *const cm = &cpi->common;
-  MACROBLOCKD *const xd = &x->e_mbd;
   int src_width = cpi->source->y_crop_width;
   int src_height = cpi->source->y_crop_height;
   int src_stride = cpi->source->y_stride;
@@ -91,6 +89,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   int bit_depth = cpi->common.seq_params->bit_depth;
   GlobalMotionMethod global_motion_method = default_global_motion_method;
   int num_refinements = cpi->sf.gm_sf.num_refinement_steps;
+  bool mem_alloc_failed = false;
 
   // Select the best model based on fractional error reduction.
   // By initializing this to erroradv_tr, the same logic which is used to
@@ -99,9 +98,13 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   double best_erroradv = erroradv_tr;
   for (TransformationType model = FIRST_GLOBAL_TRANS_TYPE;
        model <= LAST_GLOBAL_TRANS_TYPE; ++model) {
-    if (!aom_compute_global_motion(model, cpi->source, ref_buf[frame],
-                                   bit_depth, global_motion_method,
-                                   motion_models, RANSAC_NUM_MOTIONS)) {
+    if (!aom_compute_global_motion(
+            model, cpi->source, ref_buf[frame], bit_depth, global_motion_method,
+            motion_models, RANSAC_NUM_MOTIONS, &mem_alloc_failed)) {
+      if (mem_alloc_failed) {
+        aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate global motion buffers");
+      }
       continue;
     }
 
@@ -189,7 +192,8 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
 // Computes global motion for the given reference frame.
 void av1_compute_gm_for_valid_ref_frames(
-    AV1_COMP *cpi, YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES], int frame,
+    AV1_COMP *cpi, MACROBLOCKD *const xd,
+    YV12_BUFFER_CONFIG *ref_buf[REF_FRAMES], int frame,
     MotionModel *motion_models, uint8_t *segment_map, int segment_map_w,
     int segment_map_h) {
   AV1_COMMON *const cm = &cpi->common;
@@ -197,7 +201,7 @@ void av1_compute_gm_for_valid_ref_frames(
       cm->prev_frame ? &cm->prev_frame->global_motion[frame]
                      : &default_warp_params;
 
-  compute_global_motion_for_ref_frame(cpi, ref_buf, frame, motion_models,
+  compute_global_motion_for_ref_frame(cpi, xd, ref_buf, frame, motion_models,
                                       segment_map, segment_map_w, segment_map_h,
                                       ref_params);
 }
@@ -209,13 +213,14 @@ static AOM_INLINE void compute_global_motion_for_references(
     MotionModel *motion_models, uint8_t *segment_map, const int segment_map_w,
     const int segment_map_h) {
   AV1_COMMON *const cm = &cpi->common;
+  MACROBLOCKD *const xd = &cpi->td.mb.e_mbd;
   // Compute global motion w.r.t. reference frames starting from the nearest ref
   // frame in a given direction.
   for (int frame = 0; frame < num_ref_frames; frame++) {
     int ref_frame = reference_frame[frame].frame;
-    av1_compute_gm_for_valid_ref_frames(cpi, ref_buf, ref_frame, motion_models,
-                                        segment_map, segment_map_w,
-                                        segment_map_h);
+    av1_compute_gm_for_valid_ref_frames(cpi, xd, ref_buf, ref_frame,
+                                        motion_models, segment_map,
+                                        segment_map_w, segment_map_h);
     // If global motion w.r.t. current ref frame is
     // INVALID/TRANSLATION/IDENTITY, skip the evaluation of global motion w.r.t
     // the remaining ref frames in that direction.
