@@ -211,33 +211,45 @@ int aom_satd_neon(const tran_low_t *coeff, int length) {
 }
 
 int aom_vector_var_neon(const int16_t *ref, const int16_t *src, int bwl) {
-  int32x4_t v_mean = vdupq_n_s32(0);
-  int32x4_t v_sse = v_mean;
-  int16x8_t v_ref, v_src;
-  int16x4_t v_low;
+  assert(bwl >= 2 && bwl <= 5);
+  int width = 4 << bwl;
 
-  int i, width = 4 << bwl;
-  for (i = 0; i < width; i += 8) {
-    v_ref = vld1q_s16(&ref[i]);
-    v_src = vld1q_s16(&src[i]);
-    const int16x8_t diff = vsubq_s16(v_ref, v_src);
-    // diff: dynamic range [-510, 510], 10 bits.
-    v_mean = vpadalq_s16(v_mean, diff);
-    v_low = vget_low_s16(diff);
-    v_sse = vmlal_s16(v_sse, v_low, v_low);
-#if AOM_ARCH_AARCH64
-    v_sse = vmlal_high_s16(v_sse, diff, diff);
-#else
-    const int16x4_t v_high = vget_high_s16(diff);
-    v_sse = vmlal_s16(v_sse, v_high, v_high);
-#endif
-  }
-  const int mean = horizontal_add_s32x4(v_mean);
-  const int sse = horizontal_add_s32x4(v_sse);
-  const unsigned int mean_abs = mean >= 0 ? mean : -mean;
+  int16x8_t r = vld1q_s16(ref);
+  int16x8_t s = vld1q_s16(src);
+
+  // diff: dynamic range [-510, 510] 10 bits.
+  int16x8_t diff = vsubq_s16(r, s);
+  // v_mean: dynamic range 16 * diff -> [-8160, 8160], 14 bits.
+  int16x8_t v_mean = diff;
+  // v_sse: dynamic range 2 * 16 * diff^2 -> [0, 8,323,200], 24 (signed) bits.
+  int32x4_t v_sse[2];
+  v_sse[0] = vmull_s16(vget_low_s16(diff), vget_low_s16(diff));
+  v_sse[1] = vmull_s16(vget_high_s16(diff), vget_high_s16(diff));
+
+  ref += 8;
+  src += 8;
+  width -= 8;
+
+  do {
+    r = vld1q_s16(ref);
+    s = vld1q_s16(src);
+
+    diff = vsubq_s16(r, s);
+    v_mean = vaddq_s16(v_mean, diff);
+
+    v_sse[0] = vmlal_s16(v_sse[0], vget_low_s16(diff), vget_low_s16(diff));
+    v_sse[1] = vmlal_s16(v_sse[1], vget_high_s16(diff), vget_high_s16(diff));
+
+    ref += 8;
+    src += 8;
+    width -= 8;
+  } while (width != 0);
+
+  const int32_t mean = horizontal_add_s16x8(v_mean);
+  const int32_t sse = horizontal_add_s32x4(vaddq_s32(v_sse[0], v_sse[1]));
+
   // (mean * mean): dynamic range 31 bits.
-  const int var = sse - ((mean_abs * mean_abs) >> (bwl + 2));
-  return var;
+  return sse - ((mean * mean) >> (bwl + 2));
 }
 
 void aom_minmax_8x8_neon(const uint8_t *a, int a_stride, const uint8_t *b,
