@@ -419,7 +419,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # ENCODEMB INVOKE
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
     add_proto qw/int64_t av1_highbd_block_error/, "const tran_low_t *coeff, const tran_low_t *dqcoeff, intptr_t block_size, int64_t *ssz, int bd";
-    specialize qw/av1_highbd_block_error sse2 avx2/;
+    specialize qw/av1_highbd_block_error sse2 avx2 neon/;
   }
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {

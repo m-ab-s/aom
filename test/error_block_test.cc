@@ -289,6 +289,14 @@ INSTANTIATE_TEST_SUITE_P(AVX2, ErrorBlockTest,
 
 #if (HAVE_NEON)
 const ErrorBlockParam kErrorBlockTestParamsNeon[] = {
+#if CONFIG_AV1_HIGHBITDEPTH
+  make_tuple(&av1_highbd_block_error_neon, &av1_highbd_block_error_c,
+             AOM_BITS_10),
+  make_tuple(&av1_highbd_block_error_neon, &av1_highbd_block_error_c,
+             AOM_BITS_12),
+  make_tuple(&av1_highbd_block_error_neon, &av1_highbd_block_error_c,
+             AOM_BITS_8),
+#endif
   make_tuple(&BlockError8BitWrapper<av1_block_error_neon>,
              &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8),
   make_tuple(&BlockErrorLpWrapper<av1_block_error_lp_neon>,
