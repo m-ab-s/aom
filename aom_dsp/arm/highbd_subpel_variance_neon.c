@@ -1121,6 +1121,66 @@ SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 128, 64)
 SPECIALIZED_HIGHBD_OBMC_SUBPEL_VARIANCE_WXH_NEON(12, 128, 128)
 #endif  // !CONFIG_REALTIME_ONLY
 
+static void highbd_dist_wtd_avg_pred(const uint16_t *src_ptr, uint16_t *dst_ptr,
+                                     int src_stride, int dst_width,
+                                     int dst_height,
+                                     const uint16_t *second_pred,
+                                     const DIST_WTD_COMP_PARAMS *jcp_param) {
+  // We only specialise on the filter values for large block sizes (>= 16x16.)
+  assert(dst_width >= 16 && dst_width % 16 == 0);
+  const uint16x8_t fwd_offset = vdupq_n_u16(jcp_param->fwd_offset);
+  const uint16x8_t bck_offset = vdupq_n_u16(jcp_param->bck_offset);
+
+  int i = dst_height;
+  do {
+    int j = 0;
+    do {
+      uint16x8_t s = vld1q_u16(src_ptr + j);
+      uint16x8_t p = vld1q_u16(second_pred);
+
+      uint16x8_t avg = dist_wtd_avg_u16x8(s, p, fwd_offset, bck_offset);
+
+      vst1q_u16(dst_ptr + j, avg);
+
+      second_pred += 8;
+      j += 8;
+    } while (j < dst_width);
+
+    src_ptr += src_stride;
+    dst_ptr += dst_width;
+  } while (--i != 0);
+}
+
+static void highbd_dist_wtd_avg_pred_var_filter_block2d_avg(
+    const uint16_t *src_ptr, uint16_t *dst_ptr, int src_stride, int pixel_step,
+    int dst_width, int dst_height, const uint16_t *second_pred,
+    const DIST_WTD_COMP_PARAMS *jcp_param) {
+  // We only specialise on the filter values for large block sizes (>= 16x16.)
+  assert(dst_width >= 16 && dst_width % 16 == 0);
+  const uint16x8_t fwd_offset = vdupq_n_u16(jcp_param->fwd_offset);
+  const uint16x8_t bck_offset = vdupq_n_u16(jcp_param->bck_offset);
+
+  int i = dst_height;
+  do {
+    int j = 0;
+    do {
+      uint16x8_t s0 = vld1q_u16(src_ptr + j);
+      uint16x8_t s1 = vld1q_u16(src_ptr + j + pixel_step);
+      uint16x8_t p = vld1q_u16(second_pred);
+      uint16x8_t avg = vrhaddq_u16(s0, s1);
+      avg = dist_wtd_avg_u16x8(avg, p, fwd_offset, bck_offset);
+
+      vst1q_u16(dst_ptr + j, avg);
+
+      second_pred += 8;
+      j += 8;
+    } while (j < dst_width);
+
+    src_ptr += src_stride;
+    dst_ptr += dst_width;
+  } while (--i != 0);
+}
+
 static void highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w4(
     const uint16_t *src_ptr, uint16_t *dst_ptr, int src_stride, int pixel_step,
     int dst_height, int filter_offset, const uint16_t *second_pred,
@@ -1234,86 +1294,204 @@ static void highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w128(
       second_pred, jcp_param);
 }
 
-#define HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(w, h)                    \
-  unsigned int aom_highbd_8_dist_wtd_sub_pixel_avg_variance##w##x##h##_neon(  \
-      const uint8_t *src_ptr, int source_stride, int xoffset, int yoffset,    \
-      const uint8_t *ref_ptr, int ref_stride, uint32_t *sse,                  \
-      const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {    \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src_ptr);                             \
-    uint16_t *second = CONVERT_TO_SHORTPTR(second_pred);                      \
-    uint16_t tmp0[w * (h + 1)];                                               \
-    uint16_t tmp1[w * h];                                                     \
-    highbd_var_filter_block2d_bil_w##w(src, tmp0, source_stride, 1, h + 1,    \
-                                       xoffset);                              \
-    highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w##w(                     \
-        tmp0, tmp1, w, w, h, yoffset, second, jcp_param);                     \
-    return aom_highbd_8_variance##w##x##h(CONVERT_TO_BYTEPTR(tmp1), w,        \
-                                          ref_ptr, ref_stride, sse);          \
-  }                                                                           \
-                                                                              \
-  unsigned int aom_highbd_10_dist_wtd_sub_pixel_avg_variance##w##x##h##_neon( \
-      const uint8_t *src_ptr, int source_stride, int xoffset, int yoffset,    \
-      const uint8_t *ref_ptr, int ref_stride, uint32_t *sse,                  \
-      const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {    \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src_ptr);                             \
-    uint16_t *second = CONVERT_TO_SHORTPTR(second_pred);                      \
-    uint16_t tmp0[w * (h + 1)];                                               \
-    uint16_t tmp1[w * h];                                                     \
-    highbd_var_filter_block2d_bil_w##w(src, tmp0, source_stride, 1, h + 1,    \
-                                       xoffset);                              \
-    highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w##w(                     \
-        tmp0, tmp1, w, w, h, yoffset, second, jcp_param);                     \
-    return aom_highbd_10_variance##w##x##h(CONVERT_TO_BYTEPTR(tmp1), w,       \
-                                           ref_ptr, ref_stride, sse);         \
-  }                                                                           \
-                                                                              \
-  unsigned int aom_highbd_12_dist_wtd_sub_pixel_avg_variance##w##x##h##_neon( \
-      const uint8_t *src_ptr, int source_stride, int xoffset, int yoffset,    \
-      const uint8_t *ref_ptr, int ref_stride, uint32_t *sse,                  \
-      const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {    \
-    uint16_t *src = CONVERT_TO_SHORTPTR(src_ptr);                             \
-    uint16_t *second = CONVERT_TO_SHORTPTR(second_pred);                      \
-    uint16_t tmp0[w * (h + 1)];                                               \
-    uint16_t tmp1[w * h];                                                     \
-    highbd_var_filter_block2d_bil_w##w(src, tmp0, source_stride, 1, h + 1,    \
-                                       xoffset);                              \
-    highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w##w(                     \
-        tmp0, tmp1, w, w, h, yoffset, second, jcp_param);                     \
-    return aom_highbd_12_variance##w##x##h(CONVERT_TO_BYTEPTR(tmp1), w,       \
-                                           ref_ptr, ref_stride, sse);         \
+#define HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(bitdepth, w, h)              \
+  unsigned int                                                                 \
+      aom_highbd_##bitdepth##_dist_wtd_sub_pixel_avg_variance##w##x##h##_neon( \
+          const uint8_t *src_ptr, int source_stride, int xoffset, int yoffset, \
+          const uint8_t *ref_ptr, int ref_stride, uint32_t *sse,               \
+          const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) { \
+    uint16_t *src = CONVERT_TO_SHORTPTR(src_ptr);                              \
+    uint16_t *second = CONVERT_TO_SHORTPTR(second_pred);                       \
+    uint16_t tmp0[w * (h + 1)];                                                \
+    uint16_t tmp1[w * h];                                                      \
+    highbd_var_filter_block2d_bil_w##w(src, tmp0, source_stride, 1, h + 1,     \
+                                       xoffset);                               \
+    highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w##w(                      \
+        tmp0, tmp1, w, w, h, yoffset, second, jcp_param);                      \
+    return aom_highbd_##bitdepth##_variance##w##x##h(                          \
+        CONVERT_TO_BYTEPTR(tmp1), w, ref_ptr, ref_stride, sse);                \
   }
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(4, 4)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(4, 8)
+#define SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(bitdepth, w, h)  \
+  unsigned int                                                                 \
+      aom_highbd_##bitdepth##_dist_wtd_sub_pixel_avg_variance##w##x##h##_neon( \
+          const uint8_t *src_ptr, int source_stride, int xoffset, int yoffset, \
+          const uint8_t *ref_ptr, int ref_stride, uint32_t *sse,               \
+          const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) { \
+    uint16_t *src = CONVERT_TO_SHORTPTR(src_ptr);                              \
+    uint16_t *second = CONVERT_TO_SHORTPTR(second_pred);                       \
+    if (xoffset == 0) {                                                        \
+      uint16_t tmp[w * h];                                                     \
+      if (yoffset == 0) {                                                      \
+        highbd_dist_wtd_avg_pred(src, tmp, source_stride, w, h, second,        \
+                                 jcp_param);                                   \
+        return aom_highbd_##bitdepth##_variance##w##x##h(                      \
+            CONVERT_TO_BYTEPTR(tmp), w, ref_ptr, ref_stride, sse);             \
+      } else if (yoffset == 4) {                                               \
+        highbd_dist_wtd_avg_pred_var_filter_block2d_avg(                       \
+            src, tmp, source_stride, source_stride, w, h, second, jcp_param);  \
+        return aom_highbd_##bitdepth##_variance##w##x##h(                      \
+            CONVERT_TO_BYTEPTR(tmp), w, ref_ptr, ref_stride, sse);             \
+      } else {                                                                 \
+        highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w##w(                  \
+            src, tmp, source_stride, source_stride, h, yoffset, second,        \
+            jcp_param);                                                        \
+        return aom_highbd_##bitdepth##_variance##w##x##h(                      \
+            CONVERT_TO_BYTEPTR(tmp), w, ref_ptr, ref_stride, sse);             \
+      }                                                                        \
+    } else if (xoffset == 4) {                                                 \
+      uint16_t tmp0[w * (h + 1)];                                              \
+      if (yoffset == 0) {                                                      \
+        highbd_dist_wtd_avg_pred_var_filter_block2d_avg(                       \
+            src, tmp0, source_stride, 1, w, h, second, jcp_param);             \
+        return aom_highbd_##bitdepth##_variance##w##x##h(                      \
+            CONVERT_TO_BYTEPTR(tmp0), w, ref_ptr, ref_stride, sse);            \
+      } else if (yoffset == 4) {                                               \
+        uint16_t tmp1[w * (h + 1)];                                            \
+        highbd_var_filter_block2d_avg(src, tmp0, source_stride, 1, w, h + 1);  \
+        highbd_dist_wtd_avg_pred_var_filter_block2d_avg(tmp0, tmp1, w, w, w,   \
+                                                        h, second, jcp_param); \
+        return aom_highbd_##bitdepth##_variance##w##x##h(                      \
+            CONVERT_TO_BYTEPTR(tmp1), w, ref_ptr, ref_stride, sse);            \
+      } else {                                                                 \
+        uint16_t tmp1[w * (h + 1)];                                            \
+        highbd_var_filter_block2d_avg(src, tmp0, source_stride, 1, w, h + 1);  \
+        highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w##w(                  \
+            tmp0, tmp1, w, w, h, yoffset, second, jcp_param);                  \
+        return aom_highbd_##bitdepth##_variance##w##x##h(                      \
+            CONVERT_TO_BYTEPTR(tmp1), w, ref_ptr, ref_stride, sse);            \
+      }                                                                        \
+    } else {                                                                   \
+      uint16_t tmp0[w * (h + 1)];                                              \
+      if (yoffset == 0) {                                                      \
+        highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w##w(                  \
+            src, tmp0, source_stride, 1, h, xoffset, second, jcp_param);       \
+        return aom_highbd_##bitdepth##_variance##w##x##h(                      \
+            CONVERT_TO_BYTEPTR(tmp0), w, ref_ptr, ref_stride, sse);            \
+      } else if (yoffset == 4) {                                               \
+        uint16_t tmp1[w * h];                                                  \
+        highbd_var_filter_block2d_bil_w##w(src, tmp0, source_stride, 1, h + 1, \
+                                           xoffset);                           \
+        highbd_dist_wtd_avg_pred_var_filter_block2d_avg(tmp0, tmp1, w, w, w,   \
+                                                        h, second, jcp_param); \
+        return aom_highbd_##bitdepth##_variance##w##x##h(                      \
+            CONVERT_TO_BYTEPTR(tmp1), w, ref_ptr, ref_stride, sse);            \
+      } else {                                                                 \
+        uint16_t tmp1[w * h];                                                  \
+        highbd_var_filter_block2d_bil_w##w(src, tmp0, source_stride, 1, h + 1, \
+                                           xoffset);                           \
+        highbd_dist_wtd_avg_pred_var_filter_block2d_bil_w##w(                  \
+            tmp0, tmp1, w, w, h, yoffset, second, jcp_param);                  \
+        return aom_highbd_##bitdepth##_variance##w##x##h(                      \
+            CONVERT_TO_BYTEPTR(tmp1), w, ref_ptr, ref_stride, sse);            \
+      }                                                                        \
+    }                                                                          \
+  }
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 4)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 8)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 16)
+// 8-bit
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 4, 4)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 4, 8)
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(16, 8)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(16, 16)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(16, 32)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 8, 4)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 8, 8)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 8, 16)
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(32, 16)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(32, 32)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(32, 64)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 16, 8)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 16, 16)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 16, 32)
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(64, 32)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(64, 64)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(64, 128)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 32, 16)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 32, 32)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 32, 64)
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(128, 64)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(128, 128)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 64, 32)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 64, 64)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 64, 128)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 128, 64)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 128, 128)
 
 #if !CONFIG_REALTIME_ONLY
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(4, 16)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 4, 16)
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 32)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 8, 32)
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(16, 4)
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(16, 64)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 16, 4)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 16, 64)
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(32, 8)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 32, 8)
 
-HIGHBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(64, 16)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(8, 64, 16)
+#endif  // !CONFIG_REALTIME_ONLY
+
+// 10-bit
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 4, 4)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 4, 8)
+
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 8, 4)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 8, 8)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 8, 16)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 16, 8)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 16, 16)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 16, 32)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 32, 16)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 32, 32)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 32, 64)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 64, 32)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 64, 64)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 64, 128)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 128, 64)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 128, 128)
+
+#if !CONFIG_REALTIME_ONLY
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 4, 16)
+
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 8, 32)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 16, 4)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 16, 64)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 32, 8)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(10, 64, 16)
+#endif  // !CONFIG_REALTIME_ONLY
+
+// 12-bit
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 4, 4)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 4, 8)
+
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 8, 4)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 8, 8)
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 8, 16)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 16, 8)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 16, 16)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 16, 32)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 32, 16)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 32, 32)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 32, 64)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 64, 32)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 64, 64)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 64, 128)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 128, 64)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 128, 128)
+
+#if !CONFIG_REALTIME_ONLY
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 4, 16)
+
+HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 8, 32)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 16, 4)
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 16, 64)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 32, 8)
+
+SPECIALIZED_HBD_DIST_WTD_SUBPEL_AVG_VARIANCE_WXH_NEON(12, 64, 16)
 #endif  // !CONFIG_REALTIME_ONLY
