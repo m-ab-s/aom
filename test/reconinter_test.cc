@@ -37,7 +37,7 @@ typedef void (*buildcompdiffwtdmaskd_func)(uint8_t *mask,
 typedef std::tuple<BLOCK_SIZE, buildcompdiffwtdmaskd_func>
     BuildCompDiffwtdMaskDParam;
 
-#if HAVE_SSE4_1
+#if HAVE_SSE4_1 || HAVE_NEON
 ::testing::internal::ParamGenerator<BuildCompDiffwtdMaskDParam> BuildParams(
     buildcompdiffwtdmaskd_func filter) {
   return ::testing::Combine(::testing::Range(BLOCK_4X4, BLOCK_SIZES_ALL),
@@ -176,7 +176,7 @@ void BuildCompDiffwtdMaskD16Test::RunSpeedTest(
   printf("av1_build_compound_diffwtd_mask_d16  %3dx%-3d: %7.2f \n", width,
          height, elapsed_time / double(elapsed_time1));
 }
-#if HAVE_SSE4_1
+#if HAVE_SSE4_1 || HAVE_NEON
 void BuildCompDiffwtdMaskTest::RunTest(buildcompdiffwtdmaskd_func test_impl,
                                        const int is_speed,
                                        const DIFFWTD_MASK_TYPE type) {
@@ -254,6 +254,9 @@ INSTANTIATE_TEST_SUITE_P(AVX2, BuildCompDiffwtdMaskD16Test,
 #endif
 
 #if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, BuildCompDiffwtdMaskTest,
+                         BuildParams(av1_build_compound_diffwtd_mask_neon));
+
 INSTANTIATE_TEST_SUITE_P(NEON, BuildCompDiffwtdMaskD16Test,
                          BuildParams(av1_build_compound_diffwtd_mask_d16_neon));
 #endif
