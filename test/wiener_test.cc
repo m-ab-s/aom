@@ -322,9 +322,11 @@ void WienerTest::RunWienerTest_ExtremeValues(const int32_t wiener_win) {
       buf + (3 * RESTORATION_UNITSIZE_MAX * RESTORATION_UNITSIZE_MAX);
 
   for (int iter = 0; iter < iters && !HasFatalFailure(); ++iter) {
+    // Fill with alternating extreme values to maximize difference with
+    // the average.
     for (int i = 0; i < MAX_DATA_BLOCK * MAX_DATA_BLOCK; ++i) {
-      dgd_buf[i] = 255;
-      src_buf[i] = 255;
+      dgd_buf[i] = i & 1 ? 255 : 0;
+      src_buf[i] = i & 1 ? 255 : 0;
     }
     uint8_t *dgd = dgd_buf + wiener_halfwin * MAX_DATA_BLOCK + wiener_halfwin;
     uint8_t *src = src_buf;
@@ -656,9 +658,11 @@ void WienerTestHighbd::RunWienerTest_ExtremeValues(const int32_t wiener_win,
   const int src_stride = MAX_DATA_BLOCK;
   const int iters = 1;
   for (int iter = 0; iter < iters && !HasFatalFailure(); ++iter) {
+    // Fill with alternating extreme values to maximize difference with
+    // the average.
     for (int i = 0; i < MAX_DATA_BLOCK * MAX_DATA_BLOCK; ++i) {
-      dgd_buf[i] = ((uint16_t)1 << bit_depth) - 1;
-      src_buf[i] = ((uint16_t)1 << bit_depth) - 1;
+      dgd_buf[i] = i & 1 ? ((uint16_t)1 << bit_depth) - 1 : 0;
+      src_buf[i] = i & 1 ? ((uint16_t)1 << bit_depth) - 1 : 0;
     }
     const uint8_t *dgd8 = CONVERT_TO_BYTEPTR(
         dgd_buf + wiener_halfwin * MAX_DATA_BLOCK + wiener_halfwin);
