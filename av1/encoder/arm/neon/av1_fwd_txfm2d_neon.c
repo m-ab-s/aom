@@ -100,51 +100,57 @@ static INLINE void butterfly_s16_s32_x8_neon(const int w0, const int w1,
 //                |   ^ 32-bit accumulators internally
 //                ^ 32-bit input/output parameters
 
-static INLINE void butterfly_s32_s32_x4_w2_aaab_neon(const int w0, const int w1,
-                                                     const int32x4_t in0,
-                                                     const int32x4_t in1,
-                                                     int32x4_t *out0,
-                                                     int32x4_t *out1) {
+static INLINE void butterfly_s32_s32_x4_w2_aaab_neon(
+    const int16_t *ws, const int w0_idx, const int32x4_t in0,
+    const int32x4_t in1, int32x4_t *out0, int32x4_t *out1) {
+  int w1_idx = 64 - w0_idx;
+  int16_t w0 = ws[w0_idx];
+  int16_t w1 = ws[w1_idx];
   butterfly_s32_s32_x4_neon(w0, w1, w1, -w0, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s32_s32_x4_w2_abbb_neon(const int w0, const int w1,
-                                                     const int32x4_t in0,
-                                                     const int32x4_t in1,
-                                                     int32x4_t *out0,
-                                                     int32x4_t *out1) {
+static INLINE void butterfly_s32_s32_x4_w2_abbb_neon(
+    const int16_t *ws, const int w0_idx, const int32x4_t in0,
+    const int32x4_t in1, int32x4_t *out0, int32x4_t *out1) {
+  int w1_idx = 64 - w0_idx;
+  int16_t w0 = ws[w0_idx];
+  int16_t w1 = ws[w1_idx];
   butterfly_s32_s32_x4_neon(w0, -w1, -w1, -w0, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x4_w2_aaab_neon(const int w0, const int w1,
-                                                     const int16x4_t in0,
-                                                     const int16x4_t in1,
-                                                     int16x4_t *out0,
-                                                     int16x4_t *out1) {
+static INLINE void butterfly_s16_s32_x4_w2_aaab_neon(
+    const int16_t *ws, const int w0_idx, const int16x4_t in0,
+    const int16x4_t in1, int16x4_t *out0, int16x4_t *out1) {
+  int w1_idx = 64 - w0_idx;
+  int16_t w0 = ws[w0_idx];
+  int16_t w1 = ws[w1_idx];
   butterfly_s16_s32_x4_neon(w0, w1, w1, -w0, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x4_w2_abbb_neon(const int w0, const int w1,
-                                                     const int16x4_t in0,
-                                                     const int16x4_t in1,
-                                                     int16x4_t *out0,
-                                                     int16x4_t *out1) {
+static INLINE void butterfly_s16_s32_x4_w2_abbb_neon(
+    const int16_t *ws, const int w0_idx, const int16x4_t in0,
+    const int16x4_t in1, int16x4_t *out0, int16x4_t *out1) {
+  int w1_idx = 64 - w0_idx;
+  int16_t w0 = ws[w0_idx];
+  int16_t w1 = ws[w1_idx];
   butterfly_s16_s32_x4_neon(w0, -w1, -w1, -w0, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x8_w2_abbb_neon(const int w0, const int w1,
-                                                     const int16x8_t in0,
-                                                     const int16x8_t in1,
-                                                     int16x8_t *out0,
-                                                     int16x8_t *out1) {
+static INLINE void butterfly_s16_s32_x8_w2_abbb_neon(
+    const int16_t *ws, const int w0_idx, const int16x8_t in0,
+    const int16x8_t in1, int16x8_t *out0, int16x8_t *out1) {
+  int w1_idx = 64 - w0_idx;
+  int16_t w0 = ws[w0_idx];
+  int16_t w1 = ws[w1_idx];
   butterfly_s16_s32_x8_neon(w0, -w1, -w1, -w0, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x8_w2_aaab_neon(const int w0, const int w1,
-                                                     const int16x8_t in0,
-                                                     const int16x8_t in1,
-                                                     int16x8_t *out0,
-                                                     int16x8_t *out1) {
+static INLINE void butterfly_s16_s32_x8_w2_aaab_neon(
+    const int16_t *ws, const int w0_idx, const int16x8_t in0,
+    const int16x8_t in1, int16x8_t *out0, int16x8_t *out1) {
+  int w1_idx = 64 - w0_idx;
+  int16_t w0 = ws[w0_idx];
+  int16_t w1 = ws[w1_idx];
   butterfly_s16_s32_x8_neon(w0, w1, w1, -w0, in0, in1, out0, out1);
 }
 
@@ -356,10 +362,10 @@ static void fadst4x8_neon(const int16x4_t *input, int16x4_t *output,
 
   // stage 1-2
   int16x4_t x2[8];
-  butterfly_s16_s32_x4_w2_abbb_neon(cospi[32], cospi[32], input[4], input[3],
-                                    &x2[2], &x2[3]);
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[32], cospi[32], input[2], input[5],
-                                    &x2[7], &x2[6]);
+  butterfly_s16_s32_x4_w2_abbb_neon(cospi, 32, input[4], input[3], &x2[2],
+                                    &x2[3]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 32, input[2], input[5], &x2[7],
+                                    &x2[6]);
 
   // stage 3
   int16x4_t x3[8];
@@ -374,10 +380,8 @@ static void fadst4x8_neon(const int16x4_t *input, int16x4_t *output,
 
   // stage 4
   int16x4_t x4[8];
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x3[4], x3[5], &x4[4],
-                                    &x4[5]);
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x3[7], x3[6], &x4[6],
-                                    &x4[7]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 16, x3[4], x3[5], &x4[4], &x4[5]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 16, x3[7], x3[6], &x4[6], &x4[7]);
 
   // stage 5
   int16x4_t x5[8];
@@ -391,14 +395,14 @@ static void fadst4x8_neon(const int16x4_t *input, int16x4_t *output,
   x5[7] = vqadd_s16(x3[3], x4[7]);
 
   // stage 6-7
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[4], cospi[60], x5[0], x5[1],
-                                    &output[7], &output[0]);
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[20], cospi[44], x5[2], x5[3],
-                                    &output[5], &output[2]);
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[36], cospi[28], x5[4], x5[5],
-                                    &output[3], &output[4]);
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[12], cospi[52], x5[6], x5[7],
-                                    &output[6], &output[1]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 4, x5[0], x5[1], &output[7],
+                                    &output[0]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 20, x5[2], x5[3], &output[5],
+                                    &output[2]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 36, x5[4], x5[5], &output[3],
+                                    &output[4]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 12, x5[6], x5[7], &output[6],
+                                    &output[1]);
 }
 
 static void fadst8x4_neon(const int16x8_t *input, int16x8_t *output,
@@ -493,10 +497,8 @@ static void fdct8x4_neon(const int16x8_t *input, int16x8_t *output,
 
   // stage 2
   int16x8_t x2[4];
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x1[0], x1[1], &x2[0],
-                                    &x2[1]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x1[3], x1[2], &x2[2],
-                                    &x2[3]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[0], x1[1], &x2[0], &x2[1]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x1[3], x1[2], &x2[2], &x2[3]);
 
   // stage 3
   output[0] = x2[0];
@@ -526,25 +528,24 @@ static void fdct4x8_neon(const int16x4_t *input, int16x4_t *output,
   x2[3] = vqsub_s16(x1[0], x1[3]);
   x2[1] = vqadd_s16(x1[1], x1[2]);
   x2[2] = vqsub_s16(x1[1], x1[2]);
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x1[6], x1[5], &x2[6],
-                                    &x2[5]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 32, x1[6], x1[5], &x2[6], &x2[5]);
 
   // stage 3
   int16x4_t x3[8];
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x2[0], x2[1],
-                                    &output[0], &output[4]);
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x2[3], x2[2],
-                                    &output[2], &output[6]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 32, x2[0], x2[1], &output[0],
+                                    &output[4]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 16, x2[3], x2[2], &output[2],
+                                    &output[6]);
   x3[4] = vqadd_s16(x1[4], x2[5]);
   x3[5] = vqsub_s16(x1[4], x2[5]);
   x3[6] = vqsub_s16(x1[7], x2[6]);
   x3[7] = vqadd_s16(x1[7], x2[6]);
 
   // stage 4-5
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[8], cospi[56], x3[7], x3[4],
-                                    &output[1], &output[7]);
-  butterfly_s16_s32_x4_w2_aaab_neon(cospi[40], cospi[24], x3[6], x3[5],
-                                    &output[5], &output[3]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 8, x3[7], x3[4], &output[1],
+                                    &output[7]);
+  butterfly_s16_s32_x4_w2_aaab_neon(cospi, 40, x3[6], x3[5], &output[5],
+                                    &output[3]);
 }
 
 static void fdct8x8_neon(const int16x8_t *input, int16x8_t *output,
@@ -568,25 +569,24 @@ static void fdct8x8_neon(const int16x8_t *input, int16x8_t *output,
   x2[3] = vqsubq_s16(x1[0], x1[3]);
   x2[1] = vqaddq_s16(x1[1], x1[2]);
   x2[2] = vqsubq_s16(x1[1], x1[2]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x1[6], x1[5], &x2[6],
-                                    &x2[5]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[6], x1[5], &x2[6], &x2[5]);
 
   // stage 3
   int16x8_t x3[8];
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x2[0], x2[1],
-                                    &output[0], &output[4]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x2[3], x2[2],
-                                    &output[2], &output[6]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x2[0], x2[1], &output[0],
+                                    &output[4]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x2[3], x2[2], &output[2],
+                                    &output[6]);
   x3[4] = vqaddq_s16(x1[4], x2[5]);
   x3[5] = vqsubq_s16(x1[4], x2[5]);
   x3[6] = vqsubq_s16(x1[7], x2[6]);
   x3[7] = vqaddq_s16(x1[7], x2[6]);
 
   // stage 4-5
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[8], cospi[56], x3[7], x3[4],
-                                    &output[1], &output[7]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x3[6], x3[5],
-                                    &output[5], &output[3]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 8, x3[7], x3[4], &output[1],
+                                    &output[7]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x3[6], x3[5], &output[5],
+                                    &output[3]);
 }
 
 static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
@@ -623,10 +623,10 @@ static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
   x2[3] = vqaddq_s16(x1[3], x1[4]);
   x2[4] = vqsubq_s16(x1[3], x1[4]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x1[13], x1[10],
-                                    &x2[13], &x2[10]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x1[12], x1[11],
-                                    &x2[12], &x2[11]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[13], x1[10], &x2[13],
+                                    &x2[10]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[12], x1[11], &x2[12],
+                                    &x2[11]);
 
   // stage 3
   int16x8_t x3[16];
@@ -635,8 +635,7 @@ static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
   x3[1] = vqaddq_s16(x2[1], x2[2]);
   x3[2] = vqsubq_s16(x2[1], x2[2]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x2[6], x2[5], &x3[6],
-                                    &x3[5]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x2[6], x2[5], &x3[6], &x3[5]);
 
   x3[8] = vqaddq_s16(x1[8], x2[11]);
   x3[11] = vqsubq_s16(x1[8], x2[11]);
@@ -649,26 +648,25 @@ static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
 
   // stage 4
   int16x8_t x4[16];
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x3[0], x3[1],
-                                    &output[0], &output[8]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[3], x3[2],
-                                    &output[4], &output[12]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x3[0], x3[1], &output[0],
+                                    &output[8]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[3], x3[2], &output[4],
+                                    &output[12]);
   x4[4] = vqaddq_s16(x2[4], x3[5]);
   x4[5] = vqsubq_s16(x2[4], x3[5]);
   x4[6] = vqsubq_s16(x2[7], x3[6]);
   x4[7] = vqaddq_s16(x2[7], x3[6]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[14], x3[9],
-                                    &x4[14], &x4[9]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x3[13], x3[10],
-                                    &x4[13], &x4[10]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[14], x3[9], &x4[14], &x4[9]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x3[13], x3[10], &x4[13],
+                                    &x4[10]);
 
   // stage 5
   int16x8_t x5[16];
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[8], cospi[56], x4[7], x4[4],
-                                    &output[2], &output[14]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x4[6], x4[5],
-                                    &output[10], &output[6]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 8, x4[7], x4[4], &output[2],
+                                    &output[14]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x4[6], x4[5], &output[10],
+                                    &output[6]);
   x5[8] = vqaddq_s16(x3[8], x4[9]);
   x5[9] = vqsubq_s16(x3[8], x4[9]);
   x5[10] = vqsubq_s16(x3[11], x4[10]);
@@ -679,14 +677,14 @@ static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
   x5[15] = vqaddq_s16(x3[15], x4[14]);
 
   // stage 6-7
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[4], cospi[60], x5[15], x5[8],
-                                    &output[1], &output[15]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[36], cospi[28], x5[14], x5[9],
-                                    &output[9], &output[7]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[20], cospi[44], x5[13], x5[10],
-                                    &output[5], &output[11]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[52], cospi[12], x5[12], x5[11],
-                                    &output[13], &output[3]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 4, x5[15], x5[8], &output[1],
+                                    &output[15]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 36, x5[14], x5[9], &output[9],
+                                    &output[7]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 20, x5[13], x5[10], &output[5],
+                                    &output[11]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 52, x5[12], x5[11], &output[13],
+                                    &output[3]);
 }
 
 static void fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
@@ -747,14 +745,14 @@ static void fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x2[7] = vqaddq_s16(x1[7], x1[8]);
   x2[8] = vqsubq_s16(x1[7], x1[8]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x1[27], x1[20],
-                                    &x2[27], &x2[20]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x1[26], x1[21],
-                                    &x2[26], &x2[21]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x1[25], x1[22],
-                                    &x2[25], &x2[22]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x1[24], x1[23],
-                                    &x2[24], &x2[23]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[27], x1[20], &x2[27],
+                                    &x2[20]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[26], x1[21], &x2[26],
+                                    &x2[21]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[25], x1[22], &x2[25],
+                                    &x2[22]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[24], x1[23], &x2[24],
+                                    &x2[23]);
 
   // stage 3
   int16x8_t x3[32];
@@ -767,10 +765,10 @@ static void fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x3[3] = vqaddq_s16(x2[3], x2[4]);
   x3[4] = vqsubq_s16(x2[3], x2[4]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x2[13], x2[10],
-                                    &x3[13], &x3[10]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x2[12], x2[11],
-                                    &x3[12], &x3[11]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x2[13], x2[10], &x3[13],
+                                    &x3[10]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x2[12], x2[11], &x3[12],
+                                    &x3[11]);
 
   x3[16] = vqaddq_s16(x1[16], x2[23]);
   x3[23] = vqsubq_s16(x1[16], x2[23]);
@@ -795,8 +793,7 @@ static void fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x4[3] = vqsubq_s16(x3[0], x3[3]);
   x4[1] = vqaddq_s16(x3[1], x3[2]);
   x4[2] = vqsubq_s16(x3[1], x3[2]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x3[6], x3[5], &x4[6],
-                                    &x4[5]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x3[6], x3[5], &x4[6], &x4[5]);
   x4[8] = vqaddq_s16(x2[8], x3[11]);
   x4[11] = vqsubq_s16(x2[8], x3[11]);
   x4[9] = vqaddq_s16(x2[9], x3[10]);
@@ -806,30 +803,29 @@ static void fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x4[13] = vqsubq_s16(x2[14], x3[13]);
   x4[14] = vqaddq_s16(x2[14], x3[13]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[29], x3[18],
-                                    &x4[29], &x4[18]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[28], x3[19],
-                                    &x4[28], &x4[19]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x3[27], x3[20],
-                                    &x4[27], &x4[20]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x3[26], x3[21],
-                                    &x4[26], &x4[21]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[29], x3[18], &x4[29],
+                                    &x4[18]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[28], x3[19], &x4[28],
+                                    &x4[19]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x3[27], x3[20], &x4[27],
+                                    &x4[20]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x3[26], x3[21], &x4[26],
+                                    &x4[21]);
 
   // stage 5
   int16x8_t x5[32];
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x4[0], x4[1],
-                                    &output[0], &output[16]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x4[3], x4[2],
-                                    &output[8], &output[24]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x4[0], x4[1], &output[0],
+                                    &output[16]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x4[3], x4[2], &output[8],
+                                    &output[24]);
   x5[4] = vqaddq_s16(x3[4], x4[5]);
   x5[5] = vqsubq_s16(x3[4], x4[5]);
   x5[6] = vqsubq_s16(x3[7], x4[6]);
   x5[7] = vqaddq_s16(x3[7], x4[6]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x4[14], x4[9],
-                                    &x5[14], &x5[9]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x4[13], x4[10],
-                                    &x5[13], &x5[10]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x4[14], x4[9], &x5[14], &x5[9]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x4[13], x4[10], &x5[13],
+                                    &x5[10]);
 
   x5[16] = vqaddq_s16(x3[16], x4[19]);
   x5[19] = vqsubq_s16(x3[16], x4[19]);
@@ -850,10 +846,10 @@ static void fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
 
   // stage 6
   int16x8_t x6[32];
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[8], cospi[56], x5[7], x5[4],
-                                    &output[4], &output[28]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x5[6], x5[5],
-                                    &output[20], &output[12]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 8, x5[7], x5[4], &output[4],
+                                    &output[28]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x5[6], x5[5], &output[20],
+                                    &output[12]);
   x6[8] = vqaddq_s16(x4[8], x5[9]);
   x6[9] = vqsubq_s16(x4[8], x5[9]);
   x6[10] = vqsubq_s16(x4[11], x5[10]);
@@ -862,25 +858,24 @@ static void fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x6[13] = vqsubq_s16(x4[12], x5[13]);
   x6[14] = vqsubq_s16(x4[15], x5[14]);
   x6[15] = vqaddq_s16(x4[15], x5[14]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[8], cospi[56], x5[30], x5[17],
-                                    &x6[30], &x6[17]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[56], cospi[8], x5[29], x5[18],
-                                    &x6[29], &x6[18]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x5[26], x5[21],
-                                    &x6[26], &x6[21]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[24], cospi[40], x5[25], x5[22],
-                                    &x6[25], &x6[22]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 8, x5[30], x5[17], &x6[30], &x6[17]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 56, x5[29], x5[18], &x6[29],
+                                    &x6[18]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x5[26], x5[21], &x6[26],
+                                    &x6[21]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 24, x5[25], x5[22], &x6[25],
+                                    &x6[22]);
 
   // stage 7
   int16x8_t x7[32];
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[4], cospi[60], x6[15], x6[8],
-                                    &output[2], &output[30]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[36], cospi[28], x6[14], x6[9],
-                                    &output[18], &output[14]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[20], cospi[44], x6[13], x6[10],
-                                    &output[10], &output[22]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[52], cospi[12], x6[12], x6[11],
-                                    &output[26], &output[6]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 4, x6[15], x6[8], &output[2],
+                                    &output[30]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 36, x6[14], x6[9], &output[18],
+                                    &output[14]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 20, x6[13], x6[10], &output[10],
+                                    &output[22]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 52, x6[12], x6[11], &output[26],
+                                    &output[6]);
   x7[16] = vqaddq_s16(x5[16], x6[17]);
   x7[17] = vqsubq_s16(x5[16], x6[17]);
   x7[18] = vqsubq_s16(x5[19], x6[18]);
@@ -898,26 +893,26 @@ static void fdct8x32_neon(const int16x8_t *input, int16x8_t *output,
   x7[30] = vqsubq_s16(x5[31], x6[30]);
   x7[31] = vqaddq_s16(x5[31], x6[30]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[2], cospi[62], x7[31], x7[16],
-                                    &output[1], &output[31]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[34], cospi[30], x7[30], x7[17],
-                                    &output[17], &output[15]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[18], cospi[46], x7[29], x7[18],
-                                    &output[9], &output[23]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[50], cospi[14], x7[28], x7[19],
-                                    &output[25], &output[7]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[10], cospi[54], x7[27], x7[20],
-                                    &output[5], &output[27]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[42], cospi[22], x7[26], x7[21],
-                                    &output[21], &output[11]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[26], cospi[38], x7[25], x7[22],
-                                    &output[13], &output[19]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[58], cospi[6], x7[24], x7[23],
-                                    &output[29], &output[3]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 2, x7[31], x7[16], &output[1],
+                                    &output[31]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 34, x7[30], x7[17], &output[17],
+                                    &output[15]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 18, x7[29], x7[18], &output[9],
+                                    &output[23]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 50, x7[28], x7[19], &output[25],
+                                    &output[7]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 10, x7[27], x7[20], &output[5],
+                                    &output[27]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 42, x7[26], x7[21], &output[21],
+                                    &output[11]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 26, x7[25], x7[22], &output[13],
+                                    &output[19]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 58, x7[24], x7[23], &output[29],
+                                    &output[3]);
 }
 
 static void fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
-                                     int16x8_t *x4, const int16_t cospi32) {
+                                     int16x8_t *x4, const int16_t *cospi) {
   int16x8_t x1[64];
   int16x8_t x2[64];
   x1[0] = vqaddq_s16(input[0], input[63]);
@@ -1018,21 +1013,21 @@ static void fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
   x2[15] = vqaddq_s16(x1[15], x1[16]);
   x2[16] = vqsubq_s16(x1[15], x1[16]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x1[55], x1[40], &x2[55],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[55], x1[40], &x2[55],
                                     &x2[40]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x1[54], x1[41], &x2[54],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[54], x1[41], &x2[54],
                                     &x2[41]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x1[53], x1[42], &x2[53],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[53], x1[42], &x2[53],
                                     &x2[42]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x1[52], x1[43], &x2[52],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[52], x1[43], &x2[52],
                                     &x2[43]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x1[51], x1[44], &x2[51],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[51], x1[44], &x2[51],
                                     &x2[44]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x1[50], x1[45], &x2[50],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[50], x1[45], &x2[50],
                                     &x2[45]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x1[49], x1[46], &x2[49],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[49], x1[46], &x2[49],
                                     &x2[46]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x1[48], x1[47], &x2[48],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x1[48], x1[47], &x2[48],
                                     &x2[47]);
 
   // stage 3
@@ -1056,13 +1051,13 @@ static void fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
   x3[17] = x2[17];
   x3[18] = x2[18];
   x3[19] = x2[19];
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x2[27], x2[20], &x3[27],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x2[27], x2[20], &x3[27],
                                     &x3[20]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x2[26], x2[21], &x3[26],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x2[26], x2[21], &x3[26],
                                     &x3[21]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x2[25], x2[22], &x3[25],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x2[25], x2[22], &x3[25],
                                     &x3[22]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x2[24], x2[23], &x3[24],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x2[24], x2[23], &x3[24],
                                     &x3[23]);
   x3[28] = x2[28];
   x3[29] = x2[29];
@@ -1111,9 +1106,9 @@ static void fdct8x64_stage_1234_neon(const int16x8_t *input, int16x8_t *x3,
   x4[3] = vqaddq_s16(x3[3], x3[4]);
   x4[4] = vqsubq_s16(x3[3], x3[4]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x3[13], x3[10], &x4[13],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x3[13], x3[10], &x4[13],
                                     &x4[10]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi32, cospi32, x3[12], x3[11], &x4[12],
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x3[12], x3[11], &x4[12],
                                     &x4[11]);
 
   x4[16] = vqaddq_s16(x3[16], x3[23]);
@@ -1141,24 +1136,24 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   int16x8_t x3[64];
   int16x8_t x4[64];
 
-  fdct8x64_stage_1234_neon(input, x3, x4, cospi[32]);
+  fdct8x64_stage_1234_neon(input, x3, x4, cospi);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[59], x3[36],
-                                    &x4[59], &x4[36]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[58], x3[37],
-                                    &x4[58], &x4[37]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[57], x3[38],
-                                    &x4[57], &x4[38]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[56], x3[39],
-                                    &x4[56], &x4[39]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x3[55], x3[40],
-                                    &x4[55], &x4[40]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x3[54], x3[41],
-                                    &x4[54], &x4[41]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x3[53], x3[42],
-                                    &x4[53], &x4[42]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x3[52], x3[43],
-                                    &x4[52], &x4[43]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[59], x3[36], &x4[59],
+                                    &x4[36]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[58], x3[37], &x4[58],
+                                    &x4[37]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[57], x3[38], &x4[57],
+                                    &x4[38]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[56], x3[39], &x4[56],
+                                    &x4[39]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x3[55], x3[40], &x4[55],
+                                    &x4[40]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x3[54], x3[41], &x4[54],
+                                    &x4[41]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x3[53], x3[42], &x4[53],
+                                    &x4[42]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x3[52], x3[43], &x4[52],
+                                    &x4[43]);
 
   // stage 5
   int16x8_t x5[64];
@@ -1167,8 +1162,7 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x5[1] = vqaddq_s16(x4[1], x4[2]);
   x5[2] = vqsubq_s16(x4[1], x4[2]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x4[6], x4[5], &x5[6],
-                                    &x5[5]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x4[6], x4[5], &x5[6], &x5[5]);
 
   x5[8] = vqaddq_s16(x3[8], x4[11]);
   x5[11] = vqsubq_s16(x3[8], x4[11]);
@@ -1179,14 +1173,14 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x5[13] = vqsubq_s16(x3[14], x4[13]);
   x5[14] = vqaddq_s16(x3[14], x4[13]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x4[29], x4[18],
-                                    &x5[29], &x5[18]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x4[28], x4[19],
-                                    &x5[28], &x5[19]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x4[27], x4[20],
-                                    &x5[27], &x5[20]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x4[26], x4[21],
-                                    &x5[26], &x5[21]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x4[29], x4[18], &x5[29],
+                                    &x5[18]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x4[28], x4[19], &x5[28],
+                                    &x5[19]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x4[27], x4[20], &x5[27],
+                                    &x5[20]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x4[26], x4[21], &x5[26],
+                                    &x5[21]);
 
   x5[32] = vqaddq_s16(x3[32], x4[39]);
   x5[39] = vqsubq_s16(x3[32], x4[39]);
@@ -1223,19 +1217,16 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
 
   // stage 6
   int16x8_t x6[64];
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], x5[1], x5[0], &x6[0],
-                                    &x6[1]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x5[3], x5[2], &x6[2],
-                                    &x6[3]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, x5[1], x5[0], &x6[0], &x6[1]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x5[3], x5[2], &x6[2], &x6[3]);
   x6[4] = vqaddq_s16(x4[4], x5[5]);
   x6[5] = vqsubq_s16(x4[4], x5[5]);
   x6[6] = vqsubq_s16(x4[7], x5[6]);
   x6[7] = vqaddq_s16(x4[7], x5[6]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x5[14], x5[9],
-                                    &x6[14], &x6[9]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[48], cospi[16], x5[13], x5[10],
-                                    &x6[13], &x6[10]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x5[14], x5[9], &x6[14], &x6[9]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 48, x5[13], x5[10], &x6[13],
+                                    &x6[10]);
 
   x6[16] = vqaddq_s16(x4[16], x5[19]);
   x6[19] = vqsubq_s16(x4[16], x5[19]);
@@ -1254,30 +1245,26 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x6[29] = vqsubq_s16(x4[30], x5[29]);
   x6[30] = vqaddq_s16(x4[30], x5[29]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[8], cospi[56], x5[61], x5[34],
-                                    &x6[61], &x6[34]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[8], cospi[56], x5[60], x5[35],
-                                    &x6[60], &x6[35]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[56], cospi[8], x5[59], x5[36],
-                                    &x6[59], &x6[36]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[56], cospi[8], x5[58], x5[37],
-                                    &x6[58], &x6[37]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x5[53], x5[42],
-                                    &x6[53], &x6[42]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x5[52], x5[43],
-                                    &x6[52], &x6[43]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[24], cospi[40], x5[51], x5[44],
-                                    &x6[51], &x6[44]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[24], cospi[40], x5[50], x5[45],
-                                    &x6[50], &x6[45]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 8, x5[61], x5[34], &x6[61], &x6[34]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 8, x5[60], x5[35], &x6[60], &x6[35]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 56, x5[59], x5[36], &x6[59],
+                                    &x6[36]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 56, x5[58], x5[37], &x6[58],
+                                    &x6[37]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x5[53], x5[42], &x6[53],
+                                    &x6[42]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x5[52], x5[43], &x6[52],
+                                    &x6[43]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 24, x5[51], x5[44], &x6[51],
+                                    &x6[44]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 24, x5[50], x5[45], &x6[50],
+                                    &x6[45]);
 
   // stage 7
   int16x8_t x7[64];
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[8], cospi[56], x6[7], x6[4], &x7[4],
-                                    &x7[7]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x6[6], x6[5], &x7[5],
-                                    &x7[6]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 8, x6[7], x6[4], &x7[4], &x7[7]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x6[6], x6[5], &x7[5], &x7[6]);
   x7[8] = vqaddq_s16(x5[8], x6[9]);
   x7[9] = vqsubq_s16(x5[8], x6[9]);
   x7[10] = vqsubq_s16(x5[11], x6[10]);
@@ -1287,15 +1274,14 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x7[14] = vqsubq_s16(x5[15], x6[14]);
   x7[15] = vqaddq_s16(x5[15], x6[14]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[8], cospi[56], x6[30], x6[17],
-                                    &x7[30], &x7[17]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[56], cospi[8], x6[29], x6[18],
-                                    &x7[29], &x7[18]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 8, x6[30], x6[17], &x7[30], &x7[17]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 56, x6[29], x6[18], &x7[29],
+                                    &x7[18]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x6[26], x6[21],
-                                    &x7[26], &x7[21]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[24], cospi[40], x6[25], x6[22],
-                                    &x7[25], &x7[22]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x6[26], x6[21], &x7[26],
+                                    &x7[21]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 24, x6[25], x6[22], &x7[25],
+                                    &x7[22]);
 
   x7[32] = vqaddq_s16(x5[32], x6[35]);
   x7[35] = vqsubq_s16(x5[32], x6[35]);
@@ -1333,14 +1319,12 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   // stage 8
   int16x8_t x8[64];
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[4], cospi[60], x7[15], x7[8], &x8[8],
-                                    &x8[15]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[36], cospi[28], x7[14], x7[9], &x8[9],
-                                    &x8[14]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[20], cospi[44], x7[13], x7[10],
-                                    &x8[10], &x8[13]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[52], cospi[12], x7[12], x7[11],
-                                    &x8[11], &x8[12]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 4, x7[15], x7[8], &x8[8], &x8[15]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 36, x7[14], x7[9], &x8[9], &x8[14]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 20, x7[13], x7[10], &x8[10],
+                                    &x8[13]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 52, x7[12], x7[11], &x8[11],
+                                    &x8[12]);
   x8[16] = vqaddq_s16(x6[16], x7[17]);
   x8[17] = vqsubq_s16(x6[16], x7[17]);
   x8[18] = vqsubq_s16(x6[19], x7[18]);
@@ -1358,42 +1342,40 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x8[30] = vqsubq_s16(x6[31], x7[30]);
   x8[31] = vqaddq_s16(x6[31], x7[30]);
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[4], cospi[60], x7[62], x7[33],
-                                    &x8[62], &x8[33]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[60], cospi[4], x7[61], x7[34],
-                                    &x8[61], &x8[34]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[36], cospi[28], x7[58], x7[37],
-                                    &x8[58], &x8[37]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[28], cospi[36], x7[57], x7[38],
-                                    &x8[57], &x8[38]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[20], cospi[44], x7[54], x7[41],
-                                    &x8[54], &x8[41]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[44], cospi[20], x7[53], x7[42],
-                                    &x8[53], &x8[42]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[52], cospi[12], x7[50], x7[45],
-                                    &x8[50], &x8[45]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[12], cospi[52], x7[49], x7[46],
-                                    &x8[49], &x8[46]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 4, x7[62], x7[33], &x8[62], &x8[33]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 60, x7[61], x7[34], &x8[61],
+                                    &x8[34]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 36, x7[58], x7[37], &x8[58],
+                                    &x8[37]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 28, x7[57], x7[38], &x8[57],
+                                    &x8[38]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 20, x7[54], x7[41], &x8[54],
+                                    &x8[41]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 44, x7[53], x7[42], &x8[53],
+                                    &x8[42]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 52, x7[50], x7[45], &x8[50],
+                                    &x8[45]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 12, x7[49], x7[46], &x8[49],
+                                    &x8[46]);
 
   // stage 9
   int16x8_t x9[64];
 
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[2], cospi[62], x8[31], x8[16],
-                                    &x9[16], &x9[31]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[34], cospi[30], x8[30], x8[17],
-                                    &x9[17], &x9[30]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[18], cospi[46], x8[29], x8[18],
-                                    &x9[18], &x9[29]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[50], cospi[14], x8[28], x8[19],
-                                    &x9[19], &x9[28]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[10], cospi[54], x8[27], x8[20],
-                                    &x9[20], &x9[27]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[42], cospi[22], x8[26], x8[21],
-                                    &x9[21], &x9[26]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[26], cospi[38], x8[25], x8[22],
-                                    &x9[22], &x9[25]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[58], cospi[6], x8[24], x8[23],
-                                    &x9[23], &x9[24]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 2, x8[31], x8[16], &x9[16], &x9[31]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 34, x8[30], x8[17], &x9[17],
+                                    &x9[30]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 18, x8[29], x8[18], &x9[18],
+                                    &x9[29]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 50, x8[28], x8[19], &x9[19],
+                                    &x9[28]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 10, x8[27], x8[20], &x9[20],
+                                    &x9[27]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 42, x8[26], x8[21], &x9[21],
+                                    &x9[26]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 26, x8[25], x8[22], &x9[22],
+                                    &x9[25]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 58, x8[24], x8[23], &x9[23],
+                                    &x9[24]);
   x9[32] = vqaddq_s16(x7[32], x8[33]);
   x9[33] = vqsubq_s16(x7[32], x8[33]);
   x9[34] = vqsubq_s16(x7[35], x8[34]);
@@ -1428,38 +1410,38 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   x9[63] = vqaddq_s16(x7[63], x8[62]);
 
   // stage 10
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[1], cospi[63], x9[63], x9[32],
-                                    &output[1], &output[63]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[33], cospi[31], x9[62], x9[33],
-                                    &output[33], &output[31]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[17], cospi[47], x9[61], x9[34],
-                                    &output[17], &output[47]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[49], cospi[15], x9[60], x9[35],
-                                    &output[49], &output[15]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[9], cospi[55], x9[59], x9[36],
-                                    &output[9], &output[55]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[41], cospi[23], x9[58], x9[37],
-                                    &output[41], &output[23]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[25], cospi[39], x9[57], x9[38],
-                                    &output[25], &output[39]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[57], cospi[7], x9[56], x9[39],
-                                    &output[57], &output[7]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[5], cospi[59], x9[55], x9[40],
-                                    &output[5], &output[59]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[37], cospi[27], x9[54], x9[41],
-                                    &output[37], &output[27]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[21], cospi[43], x9[53], x9[42],
-                                    &output[21], &output[43]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[53], cospi[11], x9[52], x9[43],
-                                    &output[53], &output[11]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[13], cospi[51], x9[51], x9[44],
-                                    &output[13], &output[51]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[45], cospi[19], x9[50], x9[45],
-                                    &output[45], &output[19]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[29], cospi[35], x9[49], x9[46],
-                                    &output[29], &output[35]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[61], cospi[3], x9[48], x9[47],
-                                    &output[61], &output[3]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 1, x9[63], x9[32], &output[1],
+                                    &output[63]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 33, x9[62], x9[33], &output[33],
+                                    &output[31]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 17, x9[61], x9[34], &output[17],
+                                    &output[47]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 49, x9[60], x9[35], &output[49],
+                                    &output[15]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 9, x9[59], x9[36], &output[9],
+                                    &output[55]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 41, x9[58], x9[37], &output[41],
+                                    &output[23]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 25, x9[57], x9[38], &output[25],
+                                    &output[39]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 57, x9[56], x9[39], &output[57],
+                                    &output[7]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 5, x9[55], x9[40], &output[5],
+                                    &output[59]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 37, x9[54], x9[41], &output[37],
+                                    &output[27]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 21, x9[53], x9[42], &output[21],
+                                    &output[43]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 53, x9[52], x9[43], &output[53],
+                                    &output[11]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 13, x9[51], x9[44], &output[13],
+                                    &output[51]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 45, x9[50], x9[45], &output[45],
+                                    &output[19]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 29, x9[49], x9[46], &output[29],
+                                    &output[35]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 61, x9[48], x9[47], &output[61],
+                                    &output[3]);
 
   // stage 11
   output[0] = x6[0];
@@ -1502,10 +1484,10 @@ static void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output,
   // stage 2
   int16x8_t x2[8];
 
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[32], cospi[32], input[4], input[3],
-                                    &x2[2], &x2[3]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], input[2], input[5],
-                                    &x2[7], &x2[6]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 32, input[4], input[3], &x2[2],
+                                    &x2[3]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, input[2], input[5], &x2[7],
+                                    &x2[6]);
   // stage 3
   int16x8_t x3[8];
   x3[0] = vqaddq_s16(input[0], x2[2]);
@@ -1518,10 +1500,8 @@ static void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output,
   x3[7] = vqsubq_s16(input[6], x2[7]);
 
   // stage 4
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[4], x3[5], &x3[4],
-                                    &x3[5]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[7], x3[6], &x3[6],
-                                    &x3[7]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[4], x3[5], &x3[4], &x3[5]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[7], x3[6], &x3[6], &x3[7]);
 
   // stage 5
   int16x8_t x5[8];
@@ -1535,14 +1515,14 @@ static void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output,
   x5[7] = vqaddq_s16(x3[3], x3[7]);
 
   // stage 6
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[4], cospi[60], x5[0], x5[1],
-                                    &output[7], &output[0]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[20], cospi[44], x5[2], x5[3],
-                                    &output[5], &output[2]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[36], cospi[28], x5[4], x5[5],
-                                    &output[3], &output[4]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[12], cospi[52], x5[6], x5[7],
-                                    &output[6], &output[1]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 4, x5[0], x5[1], &output[7],
+                                    &output[0]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 20, x5[2], x5[3], &output[5],
+                                    &output[2]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 36, x5[4], x5[5], &output[3],
+                                    &output[4]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 12, x5[6], x5[7], &output[6],
+                                    &output[1]);
 }
 
 static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
@@ -1551,14 +1531,14 @@ static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
 
   // stage 2
   int16x8_t x2[8];
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[32], cospi[32], input[8], input[7],
-                                    &x2[0], &x2[1]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], input[4], input[11],
-                                    &x2[3], &x2[2]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[32], cospi[32], input[6], input[9],
-                                    &x2[5], &x2[4]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[32], cospi[32], input[10], input[5],
-                                    &x2[6], &x2[7]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 32, input[8], input[7], &x2[0],
+                                    &x2[1]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, input[4], input[11], &x2[3],
+                                    &x2[2]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 32, input[6], input[9], &x2[5],
+                                    &x2[4]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 32, input[10], input[5], &x2[6],
+                                    &x2[7]);
 
   // stage 3
   int16x8_t x3[16];
@@ -1580,14 +1560,12 @@ static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
   x3[15] = vqaddq_s16(input[13], x2[7]);
 
   // stage 4
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[4], x3[5], &x3[4],
-                                    &x3[5]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[7], x3[6], &x3[6],
-                                    &x3[7]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[16], cospi[48], x3[12], x3[13],
-                                    &x3[12], &x3[13]);
-  butterfly_s16_s32_x8_w2_abbb_neon(cospi[16], cospi[48], x3[14], x3[15],
-                                    &x3[15], &x3[14]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[4], x3[5], &x3[4], &x3[5]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[7], x3[6], &x3[6], &x3[7]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 16, x3[12], x3[13], &x3[12],
+                                    &x3[13]);
+  butterfly_s16_s32_x8_w2_abbb_neon(cospi, 16, x3[14], x3[15], &x3[15],
+                                    &x3[14]);
 
   // stage 5
   int16x8_t x5[16];
@@ -1609,14 +1587,13 @@ static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
   x5[15] = vqsubq_s16(x3[11], x3[15]);
 
   // stage 6
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[8], cospi[56], x5[8], x5[9], &x5[8],
-                                    &x5[9]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x5[10], x5[11],
-                                    &x5[10], &x5[11]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[56], cospi[8], x5[13], x5[12],
-                                    &x5[13], &x5[12]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[40], cospi[24], x5[15], x5[14],
-                                    &x5[14], &x5[15]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 8, x5[8], x5[9], &x5[8], &x5[9]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x5[10], x5[11], &x5[10],
+                                    &x5[11]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 56, x5[13], x5[12], &x5[13],
+                                    &x5[12]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 40, x5[15], x5[14], &x5[14],
+                                    &x5[15]);
 
   // stage 7
   int16x8_t x7[16];
@@ -1638,22 +1615,22 @@ static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
   x7[15] = vqaddq_s16(x5[7], x5[15]);
 
   // stage 8
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[2], cospi[62], x7[0], x7[1],
-                                    &output[15], &output[0]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[10], cospi[54], x7[2], x7[3],
-                                    &output[13], &output[2]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[18], cospi[46], x7[4], x7[5],
-                                    &output[11], &output[4]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[26], cospi[38], x7[6], x7[7],
-                                    &output[9], &output[6]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[34], cospi[30], x7[8], x7[9],
-                                    &output[7], &output[8]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[42], cospi[22], x7[10], x7[11],
-                                    &output[5], &output[10]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[50], cospi[14], x7[12], x7[13],
-                                    &output[3], &output[12]);
-  butterfly_s16_s32_x8_w2_aaab_neon(cospi[6], cospi[58], x7[14], x7[15],
-                                    &output[14], &output[1]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 2, x7[0], x7[1], &output[15],
+                                    &output[0]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 10, x7[2], x7[3], &output[13],
+                                    &output[2]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 18, x7[4], x7[5], &output[11],
+                                    &output[4]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 26, x7[6], x7[7], &output[9],
+                                    &output[6]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 34, x7[8], x7[9], &output[7],
+                                    &output[8]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 42, x7[10], x7[11], &output[5],
+                                    &output[10]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 50, x7[12], x7[13], &output[3],
+                                    &output[12]);
+  butterfly_s16_s32_x8_w2_aaab_neon(cospi, 6, x7[14], x7[15], &output[14],
+                                    &output[1]);
 }
 
 static void fidentity4x4_neon(const int16x4_t *const input,
@@ -2754,14 +2731,14 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf0[17] = buf1[17];
   buf0[18] = buf1[18];
   buf0[19] = buf1[19];
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], buf1[27], buf1[20],
-                                    &buf0[27], &buf0[20]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], buf1[26], buf1[21],
-                                    &buf0[26], &buf0[21]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], buf1[25], buf1[22],
-                                    &buf0[25], &buf0[22]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], buf1[24], buf1[23],
-                                    &buf0[24], &buf0[23]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, buf1[27], buf1[20], &buf0[27],
+                                    &buf0[20]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, buf1[26], buf1[21], &buf0[26],
+                                    &buf0[21]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, buf1[25], buf1[22], &buf0[25],
+                                    &buf0[22]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, buf1[24], buf1[23], &buf0[24],
+                                    &buf0[23]);
   buf0[28] = buf1[28];
   buf0[29] = buf1[29];
   buf0[30] = buf1[30];
@@ -2779,10 +2756,10 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf1[4] = vsubq_s32(buf0[3], buf0[4]);
   buf1[8] = buf0[8];
   buf1[9] = buf0[9];
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], buf0[13], buf0[10],
-                                    &buf1[13], &buf1[10]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], buf0[12], buf0[11],
-                                    &buf1[12], &buf1[11]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, buf0[13], buf0[10], &buf1[13],
+                                    &buf1[10]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, buf0[12], buf0[11], &buf1[12],
+                                    &buf1[11]);
   buf1[14] = buf0[14];
   buf1[15] = buf0[15];
   buf1[16] = vaddq_s32(buf0[16], buf0[23]);
@@ -2809,8 +2786,8 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf0[1] = vaddq_s32(buf1[1], buf1[2]);
   buf0[2] = vsubq_s32(buf1[1], buf1[2]);
   buf0[4] = buf1[4];
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], buf1[6], buf1[5],
-                                    &buf0[6], &buf0[5]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, buf1[6], buf1[5], &buf0[6],
+                                    &buf0[5]);
   buf0[7] = buf1[7];
   buf0[8] = vaddq_s32(buf1[8], buf1[11]);
   buf0[11] = vsubq_s32(buf1[8], buf1[11]);
@@ -2822,14 +2799,14 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf0[14] = vaddq_s32(buf1[14], buf1[13]);
   buf0[16] = buf1[16];
   buf0[17] = buf1[17];
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], buf1[29], buf1[18],
-                                    &buf0[29], &buf0[18]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], buf1[28], buf1[19],
-                                    &buf0[28], &buf0[19]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], buf1[27], buf1[20],
-                                    &buf0[27], &buf0[20]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], buf1[26], buf1[21],
-                                    &buf0[26], &buf0[21]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, buf1[29], buf1[18], &buf0[29],
+                                    &buf0[18]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, buf1[28], buf1[19], &buf0[28],
+                                    &buf0[19]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, buf1[27], buf1[20], &buf0[27],
+                                    &buf0[20]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, buf1[26], buf1[21], &buf0[26],
+                                    &buf0[21]);
   buf0[22] = buf1[22];
   buf0[23] = buf1[23];
   buf0[24] = buf1[24];
@@ -2839,19 +2816,19 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
 
   // stage 5
   cospi = cospi_arr_q13(cos_bit);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], buf0[0], buf0[1],
-                                    &buf1[0], &buf1[1]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], buf0[3], buf0[2],
-                                    &buf1[2], &buf1[3]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, buf0[0], buf0[1], &buf1[0],
+                                    &buf1[1]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, buf0[3], buf0[2], &buf1[2],
+                                    &buf1[3]);
   buf1[4] = vaddq_s32(buf0[4], buf0[5]);
   buf1[5] = vsubq_s32(buf0[4], buf0[5]);
   buf1[6] = vsubq_s32(buf0[7], buf0[6]);
   buf1[7] = vaddq_s32(buf0[7], buf0[6]);
   buf1[8] = buf0[8];
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], buf0[14], buf0[9],
-                                    &buf1[14], &buf1[9]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], buf0[13], buf0[10],
-                                    &buf1[13], &buf1[10]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, buf0[14], buf0[9], &buf1[14],
+                                    &buf1[9]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, buf0[13], buf0[10], &buf1[13],
+                                    &buf1[10]);
   buf1[11] = buf0[11];
   buf1[12] = buf0[12];
   buf1[15] = buf0[15];
@@ -2878,10 +2855,10 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf0[1] = buf1[1];
   buf0[2] = buf1[2];
   buf0[3] = buf1[3];
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[8], cospi[56], buf1[7], buf1[4],
-                                    &buf0[4], &buf0[7]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[40], cospi[24], buf1[6], buf1[5],
-                                    &buf0[5], &buf0[6]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 8, buf1[7], buf1[4], &buf0[4],
+                                    &buf0[7]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 40, buf1[6], buf1[5], &buf0[5],
+                                    &buf0[6]);
   buf0[8] = vaddq_s32(buf1[8], buf1[9]);
   buf0[9] = vsubq_s32(buf1[8], buf1[9]);
   buf0[10] = vsubq_s32(buf1[11], buf1[10]);
@@ -2891,16 +2868,16 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf0[14] = vsubq_s32(buf1[15], buf1[14]);
   buf0[15] = vaddq_s32(buf1[15], buf1[14]);
   buf0[16] = buf1[16];
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[8], cospi[56], buf1[30], buf1[17],
-                                    &buf0[30], &buf0[17]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[56], cospi[8], buf1[29], buf1[18],
-                                    &buf0[29], &buf0[18]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 8, buf1[30], buf1[17], &buf0[30],
+                                    &buf0[17]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 56, buf1[29], buf1[18], &buf0[29],
+                                    &buf0[18]);
   buf0[19] = buf1[19];
   buf0[20] = buf1[20];
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[40], cospi[24], buf1[26], buf1[21],
-                                    &buf0[26], &buf0[21]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[24], cospi[40], buf1[25], buf1[22],
-                                    &buf0[25], &buf0[22]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 40, buf1[26], buf1[21], &buf0[26],
+                                    &buf0[21]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 24, buf1[25], buf1[22], &buf0[25],
+                                    &buf0[22]);
   buf0[23] = buf1[23];
   buf0[24] = buf1[24];
   buf0[27] = buf1[27];
@@ -2918,14 +2895,14 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf1[6] = buf0[6];
   buf1[7] = buf0[7];
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[4], cospi[60], buf0[15], buf0[8],
-                                    &buf1[8], &buf1[15]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[36], cospi[28], buf0[14], buf0[9],
-                                    &buf1[9], &buf1[14]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[20], cospi[44], buf0[13], buf0[10],
-                                    &buf1[10], &buf1[13]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[52], cospi[12], buf0[12], buf0[11],
-                                    &buf1[11], &buf1[12]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 4, buf0[15], buf0[8], &buf1[8],
+                                    &buf1[15]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 36, buf0[14], buf0[9], &buf1[9],
+                                    &buf1[14]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 20, buf0[13], buf0[10], &buf1[10],
+                                    &buf1[13]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 52, buf0[12], buf0[11], &buf1[11],
+                                    &buf1[12]);
   buf1[16] = vaddq_s32(buf0[16], buf0[17]);
   buf1[17] = vsubq_s32(buf0[16], buf0[17]);
   buf1[18] = vsubq_s32(buf0[19], buf0[18]);
@@ -2962,22 +2939,22 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf0[14] = buf1[14];
   buf0[15] = buf1[15];
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[2], cospi[62], buf1[31], buf1[16],
-                                    &buf0[16], &buf0[31]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[34], cospi[30], buf1[30], buf1[17],
-                                    &buf0[17], &buf0[30]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[18], cospi[46], buf1[29], buf1[18],
-                                    &buf0[18], &buf0[29]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[50], cospi[14], buf1[28], buf1[19],
-                                    &buf0[19], &buf0[28]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[10], cospi[54], buf1[27], buf1[20],
-                                    &buf0[20], &buf0[27]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[42], cospi[22], buf1[26], buf1[21],
-                                    &buf0[21], &buf0[26]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[26], cospi[38], buf1[25], buf1[22],
-                                    &buf0[22], &buf0[25]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[58], cospi[6], buf1[24], buf1[23],
-                                    &buf0[23], &buf0[24]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 2, buf1[31], buf1[16], &buf0[16],
+                                    &buf0[31]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 34, buf1[30], buf1[17], &buf0[17],
+                                    &buf0[30]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 18, buf1[29], buf1[18], &buf0[18],
+                                    &buf0[29]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 50, buf1[28], buf1[19], &buf0[19],
+                                    &buf0[28]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 10, buf1[27], buf1[20], &buf0[20],
+                                    &buf0[27]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 42, buf1[26], buf1[21], &buf0[21],
+                                    &buf0[26]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 26, buf1[25], buf1[22], &buf0[22],
+                                    &buf0[25]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 58, buf1[24], buf1[23], &buf0[23],
+                                    &buf0[24]);
 
   // stage 9
   output[0] = buf0[0];
@@ -3118,22 +3095,22 @@ static void fdct64_new_stage1234_neon(const int32x4_t *input, int32x4_t *x3,
   x2[15] = vaddq_s32(x1[15], x1[16]);
   x2[16] = vsubq_s32(x1[15], x1[16]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x1[55], x1[40],
-                                    &x2[55], &x2[40]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x1[54], x1[41],
-                                    &x2[54], &x2[41]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x1[53], x1[42],
-                                    &x2[53], &x2[42]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x1[52], x1[43],
-                                    &x2[52], &x2[43]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x1[51], x1[44],
-                                    &x2[51], &x2[44]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x1[50], x1[45],
-                                    &x2[50], &x2[45]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x1[49], x1[46],
-                                    &x2[49], &x2[46]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x1[48], x1[47],
-                                    &x2[48], &x2[47]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x1[55], x1[40], &x2[55],
+                                    &x2[40]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x1[54], x1[41], &x2[54],
+                                    &x2[41]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x1[53], x1[42], &x2[53],
+                                    &x2[42]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x1[52], x1[43], &x2[52],
+                                    &x2[43]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x1[51], x1[44], &x2[51],
+                                    &x2[44]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x1[50], x1[45], &x2[50],
+                                    &x2[45]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x1[49], x1[46], &x2[49],
+                                    &x2[46]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x1[48], x1[47], &x2[48],
+                                    &x2[47]);
 
   // stage 3
   x3[0] = vaddq_s32(x2[0], x2[15]);
@@ -3153,14 +3130,14 @@ static void fdct64_new_stage1234_neon(const int32x4_t *input, int32x4_t *x3,
   x3[7] = vaddq_s32(x2[7], x2[8]);
   x3[8] = vsubq_s32(x2[7], x2[8]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x2[27], x2[20],
-                                    &x3[27], &x3[20]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x2[26], x2[21],
-                                    &x3[26], &x3[21]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x2[25], x2[22],
-                                    &x3[25], &x3[22]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x2[24], x2[23],
-                                    &x3[24], &x3[23]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x2[27], x2[20], &x3[27],
+                                    &x3[20]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x2[26], x2[21], &x3[26],
+                                    &x3[21]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x2[25], x2[22], &x3[25],
+                                    &x3[22]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x2[24], x2[23], &x3[24],
+                                    &x3[23]);
 
   x3[32] = vaddq_s32(x1[32], x2[47]);
   x3[47] = vsubq_s32(x1[32], x2[47]);
@@ -3205,10 +3182,10 @@ static void fdct64_new_stage1234_neon(const int32x4_t *input, int32x4_t *x3,
   x4[3] = vaddq_s32(x3[3], x3[4]);
   x4[4] = vsubq_s32(x3[3], x3[4]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x3[13], x3[10],
-                                    &x4[13], &x4[10]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x3[12], x3[11],
-                                    &x4[12], &x4[11]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x3[13], x3[10], &x4[13],
+                                    &x4[10]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x3[12], x3[11], &x4[12],
+                                    &x4[11]);
 
   x4[16] = vaddq_s32(x2[16], x3[23]);
   x4[23] = vsubq_s32(x2[16], x3[23]);
@@ -3227,22 +3204,22 @@ static void fdct64_new_stage1234_neon(const int32x4_t *input, int32x4_t *x3,
   x4[27] = vsubq_s32(x2[28], x3[27]);
   x4[28] = vaddq_s32(x2[28], x3[27]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x3[59], x3[36],
-                                    &x4[59], &x4[36]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x3[58], x3[37],
-                                    &x4[58], &x4[37]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x3[57], x3[38],
-                                    &x4[57], &x4[38]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x3[56], x3[39],
-                                    &x4[56], &x4[39]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], x3[55], x3[40],
-                                    &x4[55], &x4[40]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], x3[54], x3[41],
-                                    &x4[54], &x4[41]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], x3[53], x3[42],
-                                    &x4[53], &x4[42]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], x3[52], x3[43],
-                                    &x4[52], &x4[43]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, x3[59], x3[36], &x4[59],
+                                    &x4[36]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, x3[58], x3[37], &x4[58],
+                                    &x4[37]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, x3[57], x3[38], &x4[57],
+                                    &x4[38]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, x3[56], x3[39], &x4[56],
+                                    &x4[39]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, x3[55], x3[40], &x4[55],
+                                    &x4[40]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, x3[54], x3[41], &x4[54],
+                                    &x4[41]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, x3[53], x3[42], &x4[53],
+                                    &x4[42]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, x3[52], x3[43], &x4[52],
+                                    &x4[43]);
 }
 
 static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
@@ -3259,8 +3236,7 @@ static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   x5[1] = vaddq_s32(x4[1], x4[2]);
   x5[2] = vsubq_s32(x4[1], x4[2]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x4[6], x4[5], &x5[6],
-                                    &x5[5]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x4[6], x4[5], &x5[6], &x5[5]);
 
   x5[8] = vaddq_s32(x3[8], x4[11]);
   x5[11] = vsubq_s32(x3[8], x4[11]);
@@ -3271,14 +3247,14 @@ static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   x5[13] = vsubq_s32(x3[14], x4[13]);
   x5[14] = vaddq_s32(x3[14], x4[13]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x4[29], x4[18],
-                                    &x5[29], &x5[18]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x4[28], x4[19],
-                                    &x5[28], &x5[19]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], x4[27], x4[20],
-                                    &x5[27], &x5[20]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], x4[26], x4[21],
-                                    &x5[26], &x5[21]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, x4[29], x4[18], &x5[29],
+                                    &x5[18]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, x4[28], x4[19], &x5[28],
+                                    &x5[19]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, x4[27], x4[20], &x5[27],
+                                    &x5[20]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, x4[26], x4[21], &x5[26],
+                                    &x5[21]);
 
   x5[32] = vaddq_s32(x3[32], x4[39]);
   x5[39] = vsubq_s32(x3[32], x4[39]);
@@ -3315,18 +3291,15 @@ static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
 
   // stage 6
   int32x4_t x6[64];
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[32], cospi[32], x5[0], x5[1], &x6[0],
-                                    &x6[1]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x5[3], x5[2], &x6[2],
-                                    &x6[3]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 32, x5[0], x5[1], &x6[0], &x6[1]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, x5[3], x5[2], &x6[2], &x6[3]);
   x6[4] = vaddq_s32(x4[4], x5[5]);
   x6[5] = vsubq_s32(x4[4], x5[5]);
   x6[6] = vsubq_s32(x4[7], x5[6]);
   x6[7] = vaddq_s32(x4[7], x5[6]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[16], cospi[48], x5[14], x5[9],
-                                    &x6[14], &x6[9]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[48], cospi[16], x5[13], x5[10],
-                                    &x6[13], &x6[10]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 16, x5[14], x5[9], &x6[14], &x6[9]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 48, x5[13], x5[10], &x6[13],
+                                    &x6[10]);
 
   x6[16] = vaddq_s32(x4[16], x5[19]);
   x6[19] = vsubq_s32(x4[16], x5[19]);
@@ -3345,30 +3318,26 @@ static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   x6[29] = vsubq_s32(x4[30], x5[29]);
   x6[30] = vaddq_s32(x4[30], x5[29]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[8], cospi[56], x5[61], x5[34],
-                                    &x6[61], &x6[34]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[8], cospi[56], x5[60], x5[35],
-                                    &x6[60], &x6[35]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[56], cospi[8], x5[59], x5[36],
-                                    &x6[59], &x6[36]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[56], cospi[8], x5[58], x5[37],
-                                    &x6[58], &x6[37]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[40], cospi[24], x5[53], x5[42],
-                                    &x6[53], &x6[42]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[40], cospi[24], x5[52], x5[43],
-                                    &x6[52], &x6[43]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[24], cospi[40], x5[51], x5[44],
-                                    &x6[51], &x6[44]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[24], cospi[40], x5[50], x5[45],
-                                    &x6[50], &x6[45]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 8, x5[61], x5[34], &x6[61], &x6[34]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 8, x5[60], x5[35], &x6[60], &x6[35]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 56, x5[59], x5[36], &x6[59],
+                                    &x6[36]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 56, x5[58], x5[37], &x6[58],
+                                    &x6[37]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 40, x5[53], x5[42], &x6[53],
+                                    &x6[42]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 40, x5[52], x5[43], &x6[52],
+                                    &x6[43]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 24, x5[51], x5[44], &x6[51],
+                                    &x6[44]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 24, x5[50], x5[45], &x6[50],
+                                    &x6[45]);
 
   // stage 7
   int32x4_t x7[64];
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[8], cospi[56], x6[7], x6[4], &x7[4],
-                                    &x7[7]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[40], cospi[24], x6[6], x6[5], &x7[5],
-                                    &x7[6]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 8, x6[7], x6[4], &x7[4], &x7[7]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 40, x6[6], x6[5], &x7[5], &x7[6]);
   x7[8] = vaddq_s32(x5[8], x6[9]);
   x7[9] = vsubq_s32(x5[8], x6[9]);
   x7[10] = vsubq_s32(x5[11], x6[10]);
@@ -3378,15 +3347,14 @@ static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   x7[14] = vsubq_s32(x5[15], x6[14]);
   x7[15] = vaddq_s32(x5[15], x6[14]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[8], cospi[56], x6[30], x6[17],
-                                    &x7[30], &x7[17]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[56], cospi[8], x6[29], x6[18],
-                                    &x7[29], &x7[18]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 8, x6[30], x6[17], &x7[30], &x7[17]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 56, x6[29], x6[18], &x7[29],
+                                    &x7[18]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[40], cospi[24], x6[26], x6[21],
-                                    &x7[26], &x7[21]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[24], cospi[40], x6[25], x6[22],
-                                    &x7[25], &x7[22]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 40, x6[26], x6[21], &x7[26],
+                                    &x7[21]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 24, x6[25], x6[22], &x7[25],
+                                    &x7[22]);
 
   x7[32] = vaddq_s32(x5[32], x6[35]);
   x7[35] = vsubq_s32(x5[32], x6[35]);
@@ -3424,14 +3392,12 @@ static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   // stage 8
   int32x4_t x8[64];
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[4], cospi[60], x7[15], x7[8], &x8[8],
-                                    &x8[15]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[36], cospi[28], x7[14], x7[9], &x8[9],
-                                    &x8[14]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[20], cospi[44], x7[13], x7[10],
-                                    &x8[10], &x8[13]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[52], cospi[12], x7[12], x7[11],
-                                    &x8[11], &x8[12]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 4, x7[15], x7[8], &x8[8], &x8[15]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 36, x7[14], x7[9], &x8[9], &x8[14]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 20, x7[13], x7[10], &x8[10],
+                                    &x8[13]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 52, x7[12], x7[11], &x8[11],
+                                    &x8[12]);
   x8[16] = vaddq_s32(x6[16], x7[17]);
   x8[17] = vsubq_s32(x6[16], x7[17]);
   x8[18] = vsubq_s32(x6[19], x7[18]);
@@ -3449,42 +3415,40 @@ static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   x8[30] = vsubq_s32(x6[31], x7[30]);
   x8[31] = vaddq_s32(x6[31], x7[30]);
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[4], cospi[60], x7[62], x7[33],
-                                    &x8[62], &x8[33]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[60], cospi[4], x7[61], x7[34],
-                                    &x8[61], &x8[34]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[36], cospi[28], x7[58], x7[37],
-                                    &x8[58], &x8[37]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[28], cospi[36], x7[57], x7[38],
-                                    &x8[57], &x8[38]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[20], cospi[44], x7[54], x7[41],
-                                    &x8[54], &x8[41]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[44], cospi[20], x7[53], x7[42],
-                                    &x8[53], &x8[42]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[52], cospi[12], x7[50], x7[45],
-                                    &x8[50], &x8[45]);
-  butterfly_s32_s32_x4_w2_abbb_neon(cospi[12], cospi[52], x7[49], x7[46],
-                                    &x8[49], &x8[46]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 4, x7[62], x7[33], &x8[62], &x8[33]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 60, x7[61], x7[34], &x8[61],
+                                    &x8[34]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 36, x7[58], x7[37], &x8[58],
+                                    &x8[37]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 28, x7[57], x7[38], &x8[57],
+                                    &x8[38]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 20, x7[54], x7[41], &x8[54],
+                                    &x8[41]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 44, x7[53], x7[42], &x8[53],
+                                    &x8[42]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 52, x7[50], x7[45], &x8[50],
+                                    &x8[45]);
+  butterfly_s32_s32_x4_w2_abbb_neon(cospi, 12, x7[49], x7[46], &x8[49],
+                                    &x8[46]);
 
   // stage 9
   int32x4_t x9[64];
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[2], cospi[62], x8[31], x8[16],
-                                    &x9[16], &x9[31]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[34], cospi[30], x8[30], x8[17],
-                                    &x9[17], &x9[30]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[18], cospi[46], x8[29], x8[18],
-                                    &x9[18], &x9[29]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[50], cospi[14], x8[28], x8[19],
-                                    &x9[19], &x9[28]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[10], cospi[54], x8[27], x8[20],
-                                    &x9[20], &x9[27]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[42], cospi[22], x8[26], x8[21],
-                                    &x9[21], &x9[26]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[26], cospi[38], x8[25], x8[22],
-                                    &x9[22], &x9[25]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[58], cospi[6], x8[24], x8[23],
-                                    &x9[23], &x9[24]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 2, x8[31], x8[16], &x9[16], &x9[31]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 34, x8[30], x8[17], &x9[17],
+                                    &x9[30]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 18, x8[29], x8[18], &x9[18],
+                                    &x9[29]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 50, x8[28], x8[19], &x9[19],
+                                    &x9[28]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 10, x8[27], x8[20], &x9[20],
+                                    &x9[27]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 42, x8[26], x8[21], &x9[21],
+                                    &x9[26]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 26, x8[25], x8[22], &x9[22],
+                                    &x9[25]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 58, x8[24], x8[23], &x9[23],
+                                    &x9[24]);
   x9[32] = vaddq_s32(x7[32], x8[33]);
   x9[33] = vsubq_s32(x7[32], x8[33]);
   x9[34] = vsubq_s32(x7[35], x8[34]);
@@ -3521,38 +3485,38 @@ static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   // stage 10
   int32x4_t x10[64];
 
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[1], cospi[63], x9[63], x9[32],
-                                    &x10[32], &x10[63]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[33], cospi[31], x9[62], x9[33],
-                                    &x10[33], &x10[62]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[17], cospi[47], x9[61], x9[34],
-                                    &x10[34], &x10[61]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[49], cospi[15], x9[60], x9[35],
-                                    &x10[35], &x10[60]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[9], cospi[55], x9[59], x9[36],
-                                    &x10[36], &x10[59]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[41], cospi[23], x9[58], x9[37],
-                                    &x10[37], &x10[58]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[25], cospi[39], x9[57], x9[38],
-                                    &x10[38], &x10[57]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[57], cospi[7], x9[56], x9[39],
-                                    &x10[39], &x10[56]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[5], cospi[59], x9[55], x9[40],
-                                    &x10[40], &x10[55]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[37], cospi[27], x9[54], x9[41],
-                                    &x10[41], &x10[54]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[21], cospi[43], x9[53], x9[42],
-                                    &x10[42], &x10[53]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[53], cospi[11], x9[52], x9[43],
-                                    &x10[43], &x10[52]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[13], cospi[51], x9[51], x9[44],
-                                    &x10[44], &x10[51]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[45], cospi[19], x9[50], x9[45],
-                                    &x10[45], &x10[50]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[29], cospi[35], x9[49], x9[46],
-                                    &x10[46], &x10[49]);
-  butterfly_s32_s32_x4_w2_aaab_neon(cospi[61], cospi[3], x9[48], x9[47],
-                                    &x10[47], &x10[48]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 1, x9[63], x9[32], &x10[32],
+                                    &x10[63]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 33, x9[62], x9[33], &x10[33],
+                                    &x10[62]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 17, x9[61], x9[34], &x10[34],
+                                    &x10[61]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 49, x9[60], x9[35], &x10[35],
+                                    &x10[60]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 9, x9[59], x9[36], &x10[36],
+                                    &x10[59]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 41, x9[58], x9[37], &x10[37],
+                                    &x10[58]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 25, x9[57], x9[38], &x10[38],
+                                    &x10[57]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 57, x9[56], x9[39], &x10[39],
+                                    &x10[56]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 5, x9[55], x9[40], &x10[40],
+                                    &x10[55]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 37, x9[54], x9[41], &x10[41],
+                                    &x10[54]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 21, x9[53], x9[42], &x10[42],
+                                    &x10[53]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 53, x9[52], x9[43], &x10[43],
+                                    &x10[52]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 13, x9[51], x9[44], &x10[44],
+                                    &x10[51]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 45, x9[50], x9[45], &x10[45],
+                                    &x10[50]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 29, x9[49], x9[46], &x10[46],
+                                    &x10[49]);
+  butterfly_s32_s32_x4_w2_aaab_neon(cospi, 61, x9[48], x9[47], &x10[47],
+                                    &x10[48]);
 
   // stage 11
   output[0] = x6[0];
