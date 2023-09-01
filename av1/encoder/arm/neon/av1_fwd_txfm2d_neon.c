@@ -40,56 +40,6 @@ static INLINE void round_shift_array_32_neon(int32x4_t *input,
   }
 }
 
-static INLINE void butterfly_s32_s32_x4_neon(const int w0, const int w1,
-                                             const int w2, const int w3,
-                                             const int32x4_t in0,
-                                             const int32x4_t in1,
-                                             int32x4_t *out0, int32x4_t *out1) {
-  int32x4_t o0 = vmulq_n_s32(in0, w0);
-  o0 = vmlaq_n_s32(o0, in1, w1);
-  int32x4_t o1 = vmulq_n_s32(in0, w2);
-  o1 = vmlaq_n_s32(o1, in1, w3);
-
-  *out0 = vrshrq_n_s32(o0, TXFM_COS_BIT_MAX);
-  *out1 = vrshrq_n_s32(o1, TXFM_COS_BIT_MAX);
-}
-
-static INLINE void butterfly_s16_s32_x4_neon(const int w0, const int w1,
-                                             const int w2, const int w3,
-                                             const int16x4_t in0,
-                                             const int16x4_t in1,
-                                             int16x4_t *out0, int16x4_t *out1) {
-  int32x4_t u0 = vmull_n_s16(in0, w0);
-  u0 = vmlal_n_s16(u0, in1, w1);
-  int32x4_t v0 = vmull_n_s16(in0, w2);
-  v0 = vmlal_n_s16(v0, in1, w3);
-
-  *out0 = vqrshrn_n_s32(u0, TXFM_COS_BIT_MAX);
-  *out1 = vqrshrn_n_s32(v0, TXFM_COS_BIT_MAX);
-}
-
-static INLINE void butterfly_s16_s32_x8_neon(const int w0, const int w1,
-                                             const int w2, const int w3,
-                                             const int16x8_t in0,
-                                             const int16x8_t in1,
-                                             int16x8_t *out0, int16x8_t *out1) {
-  int32x4_t u0 = vmull_n_s16(vget_low_s16(in0), w0);
-  u0 = vmlal_n_s16(u0, vget_low_s16(in1), w1);
-  int32x4_t u1 = vmull_n_s16(vget_high_s16(in0), w0);
-  u1 = vmlal_n_s16(u1, vget_high_s16(in1), w1);
-  int32x4_t v0 = vmull_n_s16(vget_low_s16(in0), w2);
-  v0 = vmlal_n_s16(v0, vget_low_s16(in1), w3);
-  int32x4_t v1 = vmull_n_s16(vget_high_s16(in0), w2);
-  v1 = vmlal_n_s16(v1, vget_high_s16(in1), w3);
-
-  const int16x4_t c0 = vrshrn_n_s32(u0, TXFM_COS_BIT_MAX);
-  const int16x4_t c1 = vrshrn_n_s32(u1, TXFM_COS_BIT_MAX);
-  const int16x4_t d0 = vrshrn_n_s32(v0, TXFM_COS_BIT_MAX);
-  const int16x4_t d1 = vrshrn_n_s32(v1, TXFM_COS_BIT_MAX);
-  *out0 = vcombine_s16(c0, c1);
-  *out1 = vcombine_s16(d0, d1);
-}
-
 // a note on butterfly helper naming:
 // butterfly_[input_ty]_[acc_ty]_[input_num]_[weight_num]_[weight_neg]_neon
 // e.g. butterfly_s32_s32_x4_w2_abbb_neon
@@ -103,55 +53,83 @@ static INLINE void butterfly_s16_s32_x8_neon(const int w0, const int w1,
 static INLINE void butterfly_s32_s32_x4_w2_aaab_neon(
     const int16_t *ws, const int w0_idx, const int32x4_t in0,
     const int32x4_t in1, int32x4_t *out0, int32x4_t *out1) {
-  int w1_idx = 64 - w0_idx;
-  int16_t w0 = ws[w0_idx];
-  int16_t w1 = ws[w1_idx];
-  butterfly_s32_s32_x4_neon(w0, w1, w1, -w0, in0, in1, out0, out1);
+  int32x4_t w0101 = vmovl_s16(vld1_s16(ws + 4 * w0_idx));
+  int32x4_t o0 = vmulq_lane_s32(in0, vget_low_s32(w0101), 0);
+  o0 = vmlaq_lane_s32(o0, in1, vget_low_s32(w0101), 1);
+  int32x4_t o1 = vmulq_lane_s32(in0, vget_low_s32(w0101), 1);
+  o1 = vmlaq_lane_s32(o1, in1, vget_high_s32(w0101), 0);
+  *out0 = vrshrq_n_s32(o0, TXFM_COS_BIT_MAX);
+  *out1 = vrshrq_n_s32(o1, TXFM_COS_BIT_MAX);
 }
 
 static INLINE void butterfly_s32_s32_x4_w2_abbb_neon(
     const int16_t *ws, const int w0_idx, const int32x4_t in0,
     const int32x4_t in1, int32x4_t *out0, int32x4_t *out1) {
-  int w1_idx = 64 - w0_idx;
-  int16_t w0 = ws[w0_idx];
-  int16_t w1 = ws[w1_idx];
-  butterfly_s32_s32_x4_neon(w0, -w1, -w1, -w0, in0, in1, out0, out1);
+  int32x4_t w0101 = vmovl_s16(vld1_s16(ws + 4 * w0_idx));
+  int32x4_t o0 = vmulq_lane_s32(in0, vget_low_s32(w0101), 0);
+  o0 = vmlaq_lane_s32(o0, in1, vget_high_s32(w0101), 1);
+  int32x4_t o1 = vmulq_lane_s32(in0, vget_high_s32(w0101), 1);
+  o1 = vmlaq_lane_s32(o1, in1, vget_high_s32(w0101), 0);
+  *out0 = vrshrq_n_s32(o0, TXFM_COS_BIT_MAX);
+  *out1 = vrshrq_n_s32(o1, TXFM_COS_BIT_MAX);
 }
+
+#define butterfly_s16_s32_x4_neon(wvec, lane0, lane1, lane2, lane3, in0, in1, \
+                                  out0, out1)                                 \
+  do {                                                                        \
+    int32x4_t u0 = vmull_lane_s16(in0, wvec, lane0);                          \
+    u0 = vmlal_lane_s16(u0, in1, wvec, lane1);                                \
+    int32x4_t v0 = vmull_lane_s16(in0, wvec, lane2);                          \
+    v0 = vmlal_lane_s16(v0, in1, wvec, lane3);                                \
+    *out0 = vqrshrn_n_s32(u0, TXFM_COS_BIT_MAX);                              \
+    *out1 = vqrshrn_n_s32(v0, TXFM_COS_BIT_MAX);                              \
+  } while (0)
 
 static INLINE void butterfly_s16_s32_x4_w2_aaab_neon(
     const int16_t *ws, const int w0_idx, const int16x4_t in0,
     const int16x4_t in1, int16x4_t *out0, int16x4_t *out1) {
-  int w1_idx = 64 - w0_idx;
-  int16_t w0 = ws[w0_idx];
-  int16_t w1 = ws[w1_idx];
-  butterfly_s16_s32_x4_neon(w0, w1, w1, -w0, in0, in1, out0, out1);
+  int16x4_t w0101 = vld1_s16(ws + 4 * w0_idx);
+  butterfly_s16_s32_x4_neon(w0101, 0, 1, 1, 2, in0, in1, out0, out1);
 }
 
 static INLINE void butterfly_s16_s32_x4_w2_abbb_neon(
     const int16_t *ws, const int w0_idx, const int16x4_t in0,
     const int16x4_t in1, int16x4_t *out0, int16x4_t *out1) {
-  int w1_idx = 64 - w0_idx;
-  int16_t w0 = ws[w0_idx];
-  int16_t w1 = ws[w1_idx];
-  butterfly_s16_s32_x4_neon(w0, -w1, -w1, -w0, in0, in1, out0, out1);
+  int16x4_t w0101 = vld1_s16(ws + 4 * w0_idx);
+  butterfly_s16_s32_x4_neon(w0101, 0, 3, 3, 2, in0, in1, out0, out1);
 }
+
+#define butterfly_s16_s32_x8_neon(wvec, lane0, lane1, lane2, lane3, in0, in1, \
+                                  out0, out1)                                 \
+  do {                                                                        \
+    int32x4_t u0 = vmull_lane_s16(vget_low_s16(in0), wvec, lane0);            \
+    u0 = vmlal_lane_s16(u0, vget_low_s16(in1), wvec, lane1);                  \
+    int32x4_t u1 = vmull_lane_s16(vget_high_s16(in0), wvec, lane0);           \
+    u1 = vmlal_lane_s16(u1, vget_high_s16(in1), wvec, lane1);                 \
+    int32x4_t v0 = vmull_lane_s16(vget_low_s16(in0), wvec, lane2);            \
+    v0 = vmlal_lane_s16(v0, vget_low_s16(in1), wvec, lane3);                  \
+    int32x4_t v1 = vmull_lane_s16(vget_high_s16(in0), wvec, lane2);           \
+    v1 = vmlal_lane_s16(v1, vget_high_s16(in1), wvec, lane3);                 \
+    const int16x4_t c0 = vrshrn_n_s32(u0, TXFM_COS_BIT_MAX);                  \
+    const int16x4_t c1 = vrshrn_n_s32(u1, TXFM_COS_BIT_MAX);                  \
+    const int16x4_t d0 = vrshrn_n_s32(v0, TXFM_COS_BIT_MAX);                  \
+    const int16x4_t d1 = vrshrn_n_s32(v1, TXFM_COS_BIT_MAX);                  \
+    *out0 = vcombine_s16(c0, c1);                                             \
+    *out1 = vcombine_s16(d0, d1);                                             \
+  } while (0)
 
 static INLINE void butterfly_s16_s32_x8_w2_abbb_neon(
     const int16_t *ws, const int w0_idx, const int16x8_t in0,
     const int16x8_t in1, int16x8_t *out0, int16x8_t *out1) {
-  int w1_idx = 64 - w0_idx;
-  int16_t w0 = ws[w0_idx];
-  int16_t w1 = ws[w1_idx];
-  butterfly_s16_s32_x8_neon(w0, -w1, -w1, -w0, in0, in1, out0, out1);
+  int16x4_t w0101 = vld1_s16(ws + 4 * w0_idx);
+  butterfly_s16_s32_x8_neon(w0101, 0, 3, 3, 2, in0, in1, out0, out1);
 }
 
 static INLINE void butterfly_s16_s32_x8_w2_aaab_neon(
     const int16_t *ws, const int w0_idx, const int16x8_t in0,
     const int16x8_t in1, int16x8_t *out0, int16x8_t *out1) {
-  int w1_idx = 64 - w0_idx;
-  int16_t w0 = ws[w0_idx];
-  int16_t w1 = ws[w1_idx];
-  butterfly_s16_s32_x8_neon(w0, w1, w1, -w0, in0, in1, out0, out1);
+  int16x4_t w0101 = vld1_s16(ws + 4 * w0_idx);
+  butterfly_s16_s32_x8_neon(w0101, 0, 1, 1, 2, in0, in1, out0, out1);
 }
 
 static INLINE void flip_buf_4_neon(int16x4_t *in, int16x4_t *out, int size) {
@@ -468,15 +446,15 @@ static void fdct4x4_neon(const int16x4_t *input, int16x4_t *output,
   int32x4_t in03a = vaddl_s16(input[0], input[3]);
   int32x4_t in03s = vsubl_s16(input[0], input[3]);
 
-  int32x4_t u0ad1 = vmulq_n_s32(in12a, cospi[32]);
-  int32x4_t u0ad2 = vmulq_n_s32(in03a, cospi[32]);
+  int32x4_t u0ad1 = vmulq_n_s32(in12a, cospi[4 * 32]);
+  int32x4_t u0ad2 = vmulq_n_s32(in03a, cospi[4 * 32]);
   u[0] = vaddq_s32(u0ad1, u0ad2);
   u[1] = vsubq_s32(u0ad2, u0ad1);
-  u[2] = vmulq_n_s32(in12s, cospi[48]);
-  u[2] = vmlaq_n_s32(u[2], in03s, cospi[16]);
+  u[2] = vmulq_n_s32(in12s, cospi[4 * 48]);
+  u[2] = vmlaq_n_s32(u[2], in03s, cospi[4 * 16]);
 
-  u[3] = vmulq_n_s32(in03s, cospi[48]);
-  u[3] = vmlsq_n_s32(u[3], in12s, cospi[16]);
+  u[3] = vmulq_n_s32(in03s, cospi[4 * 48]);
+  u[3] = vmlsq_n_s32(u[3], in12s, cospi[4 * 16]);
 
   output[0] = vrshrn_n_s32(u[0], TXFM_COS_BIT_MAX);
   output[1] = vrshrn_n_s32(u[2], TXFM_COS_BIT_MAX);
