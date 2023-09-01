@@ -78,12 +78,14 @@ const int16_t av1_cospi_arr_s16_data[4][64] = {
     1795, 1598, 1401, 1202, 1003, 803,  603,  402,  201 }
 };
 
-// av1_sinpi_arr_data[i][j] = (int)round((sqrt(2) * sin(j*Pi/9) * 2 / 3) * (1
-// << (cos_bit_min + i))) modified so that elements j=1,2 sum to element j=4.
-const int16_t av1_sinpi_arr_s16_data[4][5] = { { 0, 330, 621, 836, 951 },
-                                               { 0, 660, 1241, 1672, 1901 },
-                                               { 0, 1321, 2482, 3344, 3803 },
-                                               { 0, 2642, 4964, 6689, 7606 } };
+// av1_sinpi_arr_q13_data[i][j] =
+//   round((sqrt2 * sin((j+1)*Pi/9) * 2/3) * (1 << (cos_bit_min + i))) << (3-i)
+// modified so that elements j=0,1 sum to element j=3.
+// See also: https://en.wikipedia.org/wiki/Q_(number_format)
+const int16_t av1_sinpi_arr_q13_data[4][4] = { { 2640, 4968, 6688, 7608 },
+                                               { 2640, 4964, 6688, 7604 },
+                                               { 2642, 4964, 6688, 7606 },
+                                               { 2642, 4964, 6689, 7606 } };
 #endif  // HAVE_NEON
 
 void av1_round_shift_array_c(int32_t *arr, int size, int bit) {
