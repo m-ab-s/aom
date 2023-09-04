@@ -479,8 +479,7 @@ static int fp_enc_row_mt_worker_hook(void *arg1, void *unused) {
 #endif
     // When firstpass_mt_exit is set to true, other workers need not pursue any
     // further jobs.
-    if (firstpass_mt_exit) return 1;
-    if (end_of_frame == 1) break;
+    if (firstpass_mt_exit || end_of_frame) break;
 
     TileDataEnc *const this_tile = &cpi->tile_data[cur_tile_id];
     AV1EncRowMultiThreadSync *const row_mt_sync = &this_tile->row_mt_sync;
@@ -651,7 +650,10 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 #endif
     // When row_mt_exit is set to true, other workers need not pursue any
     // further jobs.
-    if (row_mt_exit) return 1;
+    if (row_mt_exit) {
+      error_info->setjmp = 0;
+      return 1;
+    }
 
     if (end_of_frame) break;
 
@@ -1405,6 +1407,7 @@ static AOM_INLINE void launch_workers(MultiThreadInfo *const mt_info,
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &mt_info->workers[i];
+    worker->had_error = 0;
     if (i == 0)
       winterface->execute(worker);
     else
@@ -2516,9 +2519,7 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 
     // When gm_mt_exit is set to true, other workers need not pursue any
     // further jobs.
-    if (gm_mt_exit) return 1;
-
-    if (ref_buf_idx == -1) break;
+    if (gm_mt_exit || ref_buf_idx == -1) break;
 
     // Compute global motion for the given ref_buf_idx.
     av1_compute_gm_for_valid_ref_frames(
