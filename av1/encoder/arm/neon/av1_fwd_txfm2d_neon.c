@@ -286,26 +286,20 @@ static INLINE void store_rect_buffer_16bit_to_32bit_w8(
   }
 }
 
-static INLINE void round_shift_16bit(int16x8_t *in, int size, int bit) {
-  const int16x8_t vbit = vdupq_n_s16(bit);
-  for (int i = 0; i < size; ++i) {
-    in[i] = vrshlq_s16(in[i], vbit);
+#define SHIFT_LOOP_HELPER(name, type, intrinsic, shift) \
+  static INLINE void name(type *in, int size) {         \
+    int i = 0;                                          \
+    do {                                                \
+      in[i] = intrinsic(in[i], shift);                  \
+    } while (++i < size);                               \
   }
-}
 
-static INLINE void round_shift_s16_4_neon(int16x4_t *in, int size,
-                                          int16x4_t v_bit) {
-  for (int i = 0; i < size; ++i) {
-    in[i] = vrshl_s16(in[i], v_bit);
-  }
-}
-
-static INLINE void round_shift_s16_8_neon(int16x8_t *in, int size,
-                                          int16x8_t v_bit) {
-  for (int i = 0; i < size; ++i) {
-    in[i] = vrshlq_s16(in[i], v_bit);
-  }
-}
+SHIFT_LOOP_HELPER(shift_right_1_round_s16_x4, int16x4_t, vrshr_n_s16, 1)
+SHIFT_LOOP_HELPER(shift_right_1_round_s16_x8, int16x8_t, vrshrq_n_s16, 1)
+SHIFT_LOOP_HELPER(shift_right_2_round_s16_x8, int16x8_t, vrshrq_n_s16, 2)
+SHIFT_LOOP_HELPER(shift_right_4_round_s16_x8, int16x8_t, vrshrq_n_s16, 4)
+SHIFT_LOOP_HELPER(shift_left_2_s16_x4, int16x4_t, vshl_n_s16, 2)
+SHIFT_LOOP_HELPER(shift_left_2_s16_x8, int16x8_t, vshlq_n_s16, 2)
 
 static void fadst4x4_neon(const int16x4_t *input, int16x4_t *output,
                           int cos_bit) {
@@ -1920,7 +1914,6 @@ static void lowbd_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *output,
                                       int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x4_t buf0[4], buf1[4];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_4X4];
   const int txw_idx = get_txw_idx(TX_4X4);
   const int txh_idx = get_txh_idx(TX_4X4);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -1932,27 +1925,21 @@ static void lowbd_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x4_t v_shift0 = vdup_n_s16(shift[0]);
-  const int16x4_t v_shift1 = vdup_n_s16(shift[1]);
-  const int16x4_t v_shift2 = vdup_n_s16(shift[2]);
   if (ud_flip) {
     load_buffer_16bit_to_16bit_w4_flip(input, stride, buf0, height);
   } else {
     load_buffer_16bit_to_16bit_w4(input, stride, buf0, height);
   }
-  round_shift_s16_4_neon(buf0, height, v_shift0);
+  shift_left_2_s16_x4(buf0, height);
   col_txfm(buf0, buf0, cos_bit_col);
-  round_shift_s16_4_neon(buf0, height, v_shift1);
   transpose_arrays_s16_4x4(buf0, buf1);
 
   if (lr_flip) {
     flip_buf_4_neon(buf1, buf0, width);
     row_txfm(buf0, buf0, cos_bit_row);
-    round_shift_s16_4_neon(buf0, height, v_shift2);
     store_buffer_16bit_to_32bit_4_to_4(buf0, output, height, width);
   } else {
     row_txfm(buf1, buf1, cos_bit_row);
-    round_shift_s16_4_neon(buf0, height, v_shift2);
     store_buffer_16bit_to_32bit_4_to_4(buf1, output, height, width);
   }
 }
@@ -1963,7 +1950,6 @@ static void lowbd_fwd_txfm2d_4x8_neon(const int16_t *input, int32_t *output,
   (void)bd;
   int16x4_t buf0[8];
   int16x8_t buf1[8];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_4X8];
   const int txw_idx = get_txw_idx(TX_4X8);
   const int txh_idx = get_txh_idx(TX_4X8);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -1975,24 +1961,20 @@ static void lowbd_fwd_txfm2d_4x8_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x4_t v_shift0 = vdup_n_s16(shift[0]);
-  const int16x4_t v_shift1 = vdup_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
   if (ud_flip) {
     load_buffer_16bit_to_16bit_w4_flip(input, stride, buf0, height);
   } else {
     load_buffer_16bit_to_16bit_w4(input, stride, buf0, height);
   }
-  round_shift_s16_4_neon(buf0, height, v_shift0);
+  shift_left_2_s16_x4(buf0, height);
   col_txfm(buf0, buf0, cos_bit_col);
-  round_shift_s16_4_neon(buf0, height, v_shift1);
+  shift_right_1_round_s16_x4(buf0, height);
   transpose_arrays_s16_4x8(buf0, buf1);
 
   if (lr_flip) {
     int16x8_t buf2[8];
     flip_buf_8_neon(buf1, buf2, width);
     row_txfm(buf2, buf2, cos_bit_row);
-    round_shift_s16_8_neon(buf2, height, v_shift2);
     store_rect_buffer_16bit_to_32bit_w8(buf2, output, height, width);
   } else {
     row_txfm(buf1, buf1, cos_bit_row);
@@ -2006,7 +1988,6 @@ static void lowbd_fwd_txfm2d_4x16_neon(const int16_t *input, int32_t *output,
   int16x8_t buf0[16];
   int16x4_t buf1[16];
   int16x8_t buf2[16];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_4X16];
   const int txw_idx = get_txw_idx(TX_4X16);
   const int txh_idx = get_txh_idx(TX_4X16);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2018,15 +1999,12 @@ static void lowbd_fwd_txfm2d_4x16_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x4_t v_shift1 = vdup_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
   if (ud_flip) {
     load_buffer_16bit_to_16bit_w8_flip(input, stride, buf0, height);
   } else {
     load_buffer_16bit_to_16bit_w8(input, stride, buf0, height);
   }
-  round_shift_s16_8_neon(buf0, height, v_shift0);
+  shift_left_2_s16_x8(buf0, height);
   col_txfm(buf0, buf0, cos_bit_col);
 
   // We need a 4x16 kernel but only have a col_txfm8x16_arr for now, so narrow
@@ -2035,7 +2013,7 @@ static void lowbd_fwd_txfm2d_4x16_neon(const int16_t *input, int32_t *output,
     buf1[i] = vget_low_s16(buf0[i]);
   }
 
-  round_shift_s16_4_neon(buf1, height, v_shift1);
+  shift_right_1_round_s16_x4(buf1, height);
   transpose_arrays_s16_4x8(buf1, buf2);
   transpose_arrays_s16_4x8(buf1 + 8, buf2 + 8);
 
@@ -2044,7 +2022,6 @@ static void lowbd_fwd_txfm2d_4x16_neon(const int16_t *input, int32_t *output,
       int16x8_t buf3[16];
       flip_buf_8_neon(buf2 + 8 * i, buf3, width);
       row_txfm(buf3, buf3, cos_bit_row);
-      round_shift_s16_8_neon(buf3, height, v_shift2);
       store_buffer_16bit_to_32bit_w8(buf3, output + 8 * i, height, width);
     } else {
       int16x8_t *buf = buf2 + 8 * i;
@@ -2059,7 +2036,6 @@ static void lowbd_fwd_txfm2d_8x4_neon(const int16_t *input, int32_t *output,
   (void)bd;
   int16x8_t buf0[8];
   int16x4_t buf1[8];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X4];
   const int txw_idx = get_txw_idx(TX_8X4);
   const int txh_idx = get_txh_idx(TX_8X4);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2071,23 +2047,19 @@ static void lowbd_fwd_txfm2d_8x4_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x4_t v_shift2 = vdup_n_s16(shift[2]);
   if (ud_flip)
     load_buffer_16bit_to_16bit_flip(input, stride, buf0, height);
   else
     load_buffer_16bit_to_16bit(input, stride, buf0, height);
-  round_shift_s16_8_neon(buf0, height, v_shift0);
+  shift_left_2_s16_x8(buf0, height);
   col_txfm(buf0, buf0, cos_bit_col);
-  round_shift_s16_8_neon(buf0, height, v_shift1);
+  shift_right_1_round_s16_x8(buf0, height);
   transpose_arrays_s16_8x4(buf0, buf1);
 
   if (lr_flip) {
     int16x4_t buf2[8];
     flip_buf_4_neon(buf1, buf2, width);
     row_txfm(buf2, buf1, cos_bit_row);
-    round_shift_s16_4_neon(buf1, width, v_shift2);
     store_rect_buffer_16bit_to_32bit_w4(buf1, output, height, width);
   } else {
     row_txfm(buf1, buf1, cos_bit_row);
@@ -2099,7 +2071,6 @@ static void lowbd_fwd_txfm2d_8x8_neon(const int16_t *input, int32_t *output,
                                       int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x8_t buf0[8], buf1[8];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X8];
   const int txw_idx = get_txw_idx(TX_8X8);
   const int txh_idx = get_txh_idx(TX_8X8);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2111,22 +2082,18 @@ static void lowbd_fwd_txfm2d_8x8_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
   if (ud_flip)
     load_buffer_16bit_to_16bit_flip(input, stride, buf0, height);
   else
     load_buffer_16bit_to_16bit(input, stride, buf0, height);
-  round_shift_s16_8_neon(buf0, height, v_shift0);
+  shift_left_2_s16_x8(buf0, height);
   col_txfm(buf0, buf0, cos_bit_col);
-  round_shift_s16_8_neon(buf0, height, v_shift1);
+  shift_right_1_round_s16_x8(buf0, height);
   transpose_arrays_s16_8x8(buf0, buf1);
 
   if (lr_flip) {
     flip_buf_8_neon(buf1, buf0, width);
     row_txfm(buf0, buf0, cos_bit_row);
-    round_shift_s16_8_neon(buf0, height, v_shift2);
     store_buffer_16bit_to_32bit_w8(buf0, output, height, width);
   } else {
     row_txfm(buf1, buf1, cos_bit_row);
@@ -2138,7 +2105,6 @@ static void lowbd_fwd_txfm2d_8x16_neon(const int16_t *input, int32_t *output,
                                        int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x8_t buf0[16], buf1[16];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X16];
   const int txw_idx = get_txw_idx(TX_8X16);
   const int txh_idx = get_txh_idx(TX_8X16);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2150,17 +2116,14 @@ static void lowbd_fwd_txfm2d_8x16_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
   if (ud_flip) {
     load_buffer_16bit_to_16bit_flip(input, stride, buf0, height);
   } else {
     load_buffer_16bit_to_16bit(input, stride, buf0, height);
   }
-  round_shift_s16_8_neon(buf0, height, v_shift0);
+  shift_left_2_s16_x8(buf0, height);
   col_txfm(buf0, buf0, cos_bit_col);
-  round_shift_s16_8_neon(buf0, height, v_shift1);
+  shift_right_2_round_s16_x8(buf0, height);
   transpose_arrays_s16_8x8(buf0, buf1);
   transpose_arrays_s16_8x8(buf0 + 8, buf1 + 8);
 
@@ -2168,7 +2131,6 @@ static void lowbd_fwd_txfm2d_8x16_neon(const int16_t *input, int32_t *output,
     if (lr_flip) {
       flip_buf_8_neon(buf1 + width * i, buf0, width);
       row_txfm(buf0, buf0, cos_bit_row);
-      round_shift_s16_8_neon(buf0, height, v_shift2);
       store_rect_buffer_16bit_to_32bit_w8(buf0, output + 8 * i, height, 8);
     } else {
       int16x8_t *buf = buf1 + width * i;
@@ -2182,7 +2144,6 @@ static void lowbd_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *output,
                                        int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x8_t buf0[32], buf1[32];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X32];
   const int txw_idx = get_txw_idx(TX_8X32);
   const int txh_idx = get_txh_idx(TX_8X32);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2194,17 +2155,14 @@ static void lowbd_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
   if (ud_flip) {
     load_buffer_16bit_to_16bit_flip(input, stride, buf0, height);
   } else {
     load_buffer_16bit_to_16bit(input, stride, buf0, height);
   }
-  round_shift_s16_8_neon(buf0, height, v_shift0);
+  shift_left_2_s16_x8(buf0, height);
   col_txfm(buf0, buf0, cos_bit_col);
-  round_shift_s16_8_neon(buf0, height, v_shift1);
+  shift_right_2_round_s16_x8(buf0, height);
   transpose_arrays_s16_8x8(buf0, buf1);
   transpose_arrays_s16_8x8(buf0 + 8, buf1 + 8);
   transpose_arrays_s16_8x8(buf0 + 16, buf1 + 16);
@@ -2214,7 +2172,6 @@ static void lowbd_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *output,
     if (lr_flip) {
       flip_buf_8_neon(buf1 + width * i, buf0, width);
       row_txfm(buf0, buf0, cos_bit_row);
-      round_shift_s16_8_neon(buf0, height, v_shift2);
       store_buffer_16bit_to_32bit_w8(buf0, output + 8 * i, height, width);
     } else {
       int16x8_t *buf = buf1 + width * i;
@@ -2230,7 +2187,6 @@ static void lowbd_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *output,
   int16x8_t buf0[16];
   int16x4_t buf1[16];
   int16x8_t buf2[16];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_16X4];
   const int txw_idx = get_txw_idx(TX_16X4);
   const int txh_idx = get_txh_idx(TX_16X4);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2242,18 +2198,15 @@ static void lowbd_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
   for (int i = 0; i < 2; i++) {
     if (ud_flip) {
       load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, height);
     } else {
       load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
     }
-    round_shift_s16_8_neon(buf0, height, v_shift0);
+    shift_left_2_s16_x8(buf0, height);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_s16_8_neon(buf0, height, v_shift1);
+    shift_right_1_round_s16_x8(buf0, height);
     transpose_arrays_s16_8x4(buf0, buf1 + 8 * i);
   }
 
@@ -2266,7 +2219,6 @@ static void lowbd_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *output,
   if (lr_flip) {
     flip_buf_8_neon(buf2, buf0, width);
     row_txfm(buf0, buf0, cos_bit_row);
-    round_shift_s16_8_neon(buf0, height, v_shift2);
     store_buffer_16bit_to_32bit_8_to_4(buf0, output, height, width);
   } else {
     row_txfm(buf2, buf2, cos_bit_row);
@@ -2278,7 +2230,6 @@ static void lowbd_fwd_txfm2d_16x8_neon(const int16_t *input, int32_t *output,
                                        int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x8_t buf0[16], buf1[16];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_16X8];
   const int txw_idx = get_txw_idx(TX_16X8);
   const int txh_idx = get_txh_idx(TX_16X8);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2290,25 +2241,21 @@ static void lowbd_fwd_txfm2d_16x8_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
   for (int i = 0; i < 2; i++) {
     if (ud_flip) {
       load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, height);
     } else {
       load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
     }
-    round_shift_s16_8_neon(buf0, height, v_shift0);
+    shift_left_2_s16_x8(buf0, height);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_s16_8_neon(buf0, height, v_shift1);
+    shift_right_2_round_s16_x8(buf0, height);
     transpose_arrays_s16_8x8(buf0, buf1 + 8 * i);
   }
 
   if (lr_flip) {
     flip_buf_8_neon(buf1, buf0, width);
     row_txfm(buf0, buf0, cos_bit_row);
-    round_shift_s16_8_neon(buf0, height, v_shift2);
     store_rect_buffer_16bit_to_32bit_w8(buf0, output, height, width);
   } else {
     row_txfm(buf1, buf1, cos_bit_row);
@@ -2320,7 +2267,6 @@ static void lowbd_fwd_txfm2d_16x16_neon(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x8_t buf0[16], buf1[32];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_16X16];
   const int txw_idx = get_txw_idx(TX_16X16);
   const int txh_idx = get_txh_idx(TX_16X16);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2332,9 +2278,6 @@ static void lowbd_fwd_txfm2d_16x16_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
 
   for (int i = 0; i < 2; i++) {
     if (ud_flip) {
@@ -2342,9 +2285,9 @@ static void lowbd_fwd_txfm2d_16x16_neon(const int16_t *input, int32_t *output,
     } else {
       load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
     }
-    round_shift_s16_8_neon(buf0, height, v_shift0);
+    shift_left_2_s16_x8(buf0, height);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_s16_8_neon(buf0, height, v_shift1);
+    shift_right_2_round_s16_x8(buf0, height);
     transpose_arrays_s16_8x8(buf0, buf1 + 0 * width + 8 * i);
     transpose_arrays_s16_8x8(buf0 + 8, buf1 + 1 * width + 8 * i);
   }
@@ -2353,7 +2296,6 @@ static void lowbd_fwd_txfm2d_16x16_neon(const int16_t *input, int32_t *output,
     if (lr_flip) {
       flip_buf_8_neon(buf1 + width * i, buf0, width);
       row_txfm(buf0, buf0, cos_bit_row);
-      round_shift_s16_8_neon(buf0, height, v_shift2);
       store_buffer_16bit_to_32bit_w8(buf0, output + 8 * i, height, width);
     } else {
       int16x8_t *buf = buf1 + width * i;
@@ -2367,7 +2309,6 @@ static void lowbd_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x8_t buf0[32], buf1[64];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_16X32];
   const int txw_idx = get_txw_idx(TX_16X32);
   const int txh_idx = get_txh_idx(TX_16X32);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2384,9 +2325,6 @@ static void lowbd_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *output,
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
 
   for (int i = 0; i < 2; i++) {
     if (ud_flip) {
@@ -2394,9 +2332,9 @@ static void lowbd_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *output,
     } else {
       load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
     }
-    round_shift_s16_8_neon(buf0, height, v_shift0);
+    shift_left_2_s16_x8(buf0, height);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_s16_8_neon(buf0, height, v_shift1);
+    shift_right_4_round_s16_x8(buf0, height);
     transpose_arrays_s16_8x8(buf0 + 0 * 8, buf1 + 0 * width + 8 * i);
     transpose_arrays_s16_8x8(buf0 + 1 * 8, buf1 + 1 * width + 8 * i);
     transpose_arrays_s16_8x8(buf0 + 2 * 8, buf1 + 2 * width + 8 * i);
@@ -2407,7 +2345,6 @@ static void lowbd_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *output,
     if (lr_flip) {
       flip_buf_8_neon(buf1 + width * i, buf0, width);
       row_txfm(buf0, buf0, cos_bit_row);
-      round_shift_s16_8_neon(buf0, height, v_shift2);
       store_rect_buffer_16bit_to_32bit_w8(buf0, output + 8 * i, height, width);
     } else {
       int16x8_t *buf = buf1 + width * i;
@@ -2421,7 +2358,6 @@ static void lowbd_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *output,
                                        int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x8_t buf0[32], buf1[32];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_32X8];
   const int txw_idx = get_txw_idx(TX_32X8);
   const int txh_idx = get_txh_idx(TX_32X8);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2438,9 +2374,6 @@ static void lowbd_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *output,
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
 
   for (int i = 0; i < 4; i++) {
     if (ud_flip) {
@@ -2448,16 +2381,15 @@ static void lowbd_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *output,
     } else {
       load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
     }
-    round_shift_s16_8_neon(buf0, height, v_shift0);
+    shift_left_2_s16_x8(buf0, height);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_s16_8_neon(buf0, height, v_shift1);
+    shift_right_2_round_s16_x8(buf0, height);
     transpose_arrays_s16_8x8(buf0, buf1 + 0 * width + 8 * i);
   }
 
   if (lr_flip) {
     flip_buf_8_neon(buf1, buf0, width);
     row_txfm(buf0, buf0, cos_bit_row);
-    round_shift_s16_8_neon(buf0, width, v_shift2);
     store_buffer_16bit_to_32bit_w8(buf0, output, height, width);
   } else {
     row_txfm(buf1, buf1, cos_bit_row);
@@ -2469,7 +2401,6 @@ static void lowbd_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x8_t buf0[32], buf1[64];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_32X16];
   const int txw_idx = get_txw_idx(TX_32X16);
   const int txh_idx = get_txh_idx(TX_32X16);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2484,9 +2415,6 @@ static void lowbd_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *output,
     return;
   }
 
-  const int16x8_t v_shift0 = vdupq_n_s16(shift[0]);
-  const int16x8_t v_shift1 = vdupq_n_s16(shift[1]);
-  const int16x8_t v_shift2 = vdupq_n_s16(shift[2]);
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
 
@@ -2496,9 +2424,9 @@ static void lowbd_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *output,
     } else {
       load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
     }
-    round_shift_s16_8_neon(buf0, height, v_shift0);
+    shift_left_2_s16_x8(buf0, height);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_s16_8_neon(buf0, height, v_shift1);
+    shift_right_4_round_s16_x8(buf0, height);
     transpose_arrays_s16_8x8(buf0, buf1 + 0 * width + 8 * i);
     transpose_arrays_s16_8x8(buf0 + 8, buf1 + 1 * width + 8 * i);
   }
@@ -2507,7 +2435,6 @@ static void lowbd_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *output,
     if (lr_flip) {
       flip_buf_8_neon(buf1 + width * i, buf0, width);
       row_txfm(buf0, buf0, cos_bit_row);
-      round_shift_s16_8_neon(buf0, width, v_shift2);
       store_rect_buffer_16bit_to_32bit_w8(buf0, output + 8 * i, height, width);
     } else {
       int16x8_t *buf = buf1 + width * i;
@@ -2521,7 +2448,6 @@ static void lowbd_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   int16x8_t buf0[32], buf1[128];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_32X32];
   const int txw_idx = get_txw_idx(TX_32X32);
   const int txh_idx = get_txh_idx(TX_32X32);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2545,9 +2471,9 @@ static void lowbd_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
     } else {
       load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
     }
-    round_shift_16bit(buf0, height, shift[0]);
+    shift_left_2_s16_x8(buf0, height);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_16bit(buf0, height, shift[1]);
+    shift_right_4_round_s16_x8(buf0, height);
     transpose_arrays_s16_8x8(buf0 + 0 * 8, buf1 + 0 * width + 8 * i);
     transpose_arrays_s16_8x8(buf0 + 1 * 8, buf1 + 1 * width + 8 * i);
     transpose_arrays_s16_8x8(buf0 + 2 * 8, buf1 + 2 * width + 8 * i);
@@ -2558,12 +2484,10 @@ static void lowbd_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
     if (lr_flip) {
       flip_buf_8_neon(buf1 + width * i, buf0, width);
       row_txfm(buf0, buf0, cos_bit_row);
-      round_shift_16bit(buf0, width, shift[2]);
       store_buffer_16bit_to_32bit_w8(buf0, output + 8 * i, height, width);
     } else {
       int16x8_t *buf = buf1 + width * i;
       row_txfm(buf, buf, cos_bit_row);
-      round_shift_16bit(buf, width, shift[2]);
       store_buffer_16bit_to_32bit_w8(buf, output + 8 * i, height, width);
     }
   }
@@ -2576,7 +2500,6 @@ static void lowbd_fwd_txfm2d_64x16_neon(const int16_t *input, int32_t *output,
   assert(tx_type == DCT_DCT);
   const TX_SIZE tx_size = TX_64X16;
   int16x8_t buf0[64], buf1[128];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
   const int txw_idx = get_txw_idx(tx_size);
   const int txh_idx = get_txh_idx(tx_size);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2590,9 +2513,9 @@ static void lowbd_fwd_txfm2d_64x16_neon(const int16_t *input, int32_t *output,
 
   for (int i = 0; i < width_div8; i++) {
     load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
-    round_shift_16bit(buf0, height, shift[0]);
+    shift_left_2_s16_x8(buf0, height);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_16bit(buf0, height, shift[1]);
+    shift_right_4_round_s16_x8(buf0, height);
     for (int j = 0; j < height_div8; ++j) {
       transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
@@ -2601,7 +2524,6 @@ static void lowbd_fwd_txfm2d_64x16_neon(const int16_t *input, int32_t *output,
   for (int i = 0; i < height_div8; i++) {
     int16x8_t *buf = buf1 + width * i;
     row_txfm(buf, buf, cos_bit_row);
-    round_shift_16bit(buf, width, shift[2]);
     store_buffer_16bit_to_32bit_w8(buf, output + 8 * i, 16, 32);
   }
   // Zero out the bottom 16x32 area.
@@ -2615,7 +2537,6 @@ static void lowbd_fwd_txfm2d_16x64_neon(const int16_t *input, int32_t *output,
   assert(tx_type == DCT_DCT);
   const TX_SIZE tx_size = TX_16X64;
   int16x8_t buf0[64], buf1[128];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
   const int txw_idx = get_txw_idx(tx_size);
   const int txh_idx = get_txh_idx(tx_size);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -2629,9 +2550,8 @@ static void lowbd_fwd_txfm2d_16x64_neon(const int16_t *input, int32_t *output,
 
   for (int i = 0; i < width_div8; i++) {
     load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
-    round_shift_16bit(buf0, height, shift[0]);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_16bit(buf0, height, shift[1]);
+    shift_right_2_round_s16_x8(buf0, height);
     for (int j = 0; j < height_div8; ++j) {
       transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
@@ -2640,7 +2560,6 @@ static void lowbd_fwd_txfm2d_16x64_neon(const int16_t *input, int32_t *output,
   for (int i = 0; i < AOMMIN(4, height_div8); i++) {
     int16x8_t *buf = buf1 + width * i;
     row_txfm(buf, buf, cos_bit_row);
-    round_shift_16bit(buf, width, shift[2]);
     store_buffer_16bit_to_32bit_w8(buf, output + 8 * i, 32, 16);
   }
 }
@@ -3567,7 +3486,6 @@ static void lowbd_fwd_txfm2d_64x64_neon(const int16_t *input, int32_t *output,
   assert(tx_type == DCT_DCT);
   const TX_SIZE tx_size = TX_64X64;
   int16x8_t buf0[64], buf1[512];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
   const int txw_idx = get_txw_idx(tx_size);
   const int txh_idx = get_txh_idx(tx_size);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -3580,9 +3498,8 @@ static void lowbd_fwd_txfm2d_64x64_neon(const int16_t *input, int32_t *output,
 
   for (int i = 0; i < width_div8; i++) {
     load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
-    round_shift_16bit(buf0, height, shift[0]);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_16bit(buf0, height, shift[1]);
+    shift_right_2_round_s16_x8(buf0, height);
     for (int j = 0; j < AOMMIN(4, height_div8); ++j) {
       transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
@@ -3609,7 +3526,6 @@ static void lowbd_fwd_txfm2d_64x32_neon(const int16_t *input, int32_t *output,
   (void)bd;
   const TX_SIZE tx_size = TX_64X32;
   int16x8_t buf0[64], buf1[256];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
   const int txw_idx = get_txw_idx(tx_size);
   const int txh_idx = get_txh_idx(tx_size);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -3622,9 +3538,9 @@ static void lowbd_fwd_txfm2d_64x32_neon(const int16_t *input, int32_t *output,
 
   for (int i = 0; i < width_div8; i++) {
     load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
-    round_shift_16bit(buf0, height, shift[0]);
+    shift_left_2_s16_x8(buf0, height);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_16bit(buf0, height, shift[1]);
+    shift_right_4_round_s16_x8(buf0, height);
     for (int j = 0; j < AOMMIN(4, height_div8); ++j) {
       transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
@@ -3654,7 +3570,6 @@ static void lowbd_fwd_txfm2d_32x64_neon(const int16_t *input, int32_t *output,
   assert(tx_type == DCT_DCT);
   const TX_SIZE tx_size = TX_32X64;
   int16x8_t buf0[64], buf1[256];
-  const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
   const int txw_idx = get_txw_idx(tx_size);
   const int txh_idx = get_txh_idx(tx_size);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -3667,9 +3582,8 @@ static void lowbd_fwd_txfm2d_32x64_neon(const int16_t *input, int32_t *output,
 
   for (int i = 0; i < width_div8; i++) {
     load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, height);
-    round_shift_16bit(buf0, height, shift[0]);
     col_txfm(buf0, buf0, cos_bit_col);
-    round_shift_16bit(buf0, height, shift[1]);
+    shift_right_2_round_s16_x8(buf0, height);
     for (int j = 0; j < AOMMIN(4, height_div8); ++j) {
       transpose_arrays_s16_8x8(buf0 + j * 8, buf1 + j * width + 8 * i);
     }
