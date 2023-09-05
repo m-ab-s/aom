@@ -2454,17 +2454,14 @@ static void lowbd_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *output,
     transpose_arrays_s16_8x8(buf0, buf1 + 0 * width + 8 * i);
   }
 
-  for (int i = 0; i < 1; i++) {
-    if (lr_flip) {
-      flip_buf_8_neon(buf1 + width * i, buf0, width);
-      row_txfm(buf0, buf0, cos_bit_row);
-      round_shift_s16_8_neon(buf0, width, v_shift2);
-      store_buffer_16bit_to_32bit_w8(buf0, output + 8 * i, height, width);
-    } else {
-      int16x8_t *buf = buf1 + width * i;
-      row_txfm(buf, buf, cos_bit_row);
-      store_buffer_16bit_to_32bit_w8(buf, output + 8 * i, height, width);
-    }
+  if (lr_flip) {
+    flip_buf_8_neon(buf1, buf0, width);
+    row_txfm(buf0, buf0, cos_bit_row);
+    round_shift_s16_8_neon(buf0, width, v_shift2);
+    store_buffer_16bit_to_32bit_w8(buf0, output, height, width);
+  } else {
+    row_txfm(buf1, buf1, cos_bit_row);
+    store_buffer_16bit_to_32bit_w8(buf1, output, height, width);
   }
 }
 
