@@ -23,23 +23,6 @@
 
 #define TXFM_COS_BIT_MAX 13
 
-static INLINE void round_shift_rect_array_32_neon(int32x4_t *input,
-                                                  int32x4_t *output,
-                                                  const int size) {
-  for (int i = 0; i < size; ++i) {
-    output[i] = vrshrq_n_s32(vmulq_n_s32(vrshrq_n_s32(input[i], 2), NewSqrt2),
-                             NewSqrt2Bits);
-  }
-}
-
-static INLINE void round_shift_array_32_neon(int32x4_t *input,
-                                             int32x4_t *output,
-                                             const int size) {
-  for (int i = 0; i < size; ++i) {
-    output[i] = vrshrq_n_s32(input[i], 2);
-  }
-}
-
 // a note on butterfly helper naming:
 // butterfly_[input_ty]_[acc_ty]_[input_num]_[weight_num]_[weight_neg]_neon
 // e.g. butterfly_s32_s32_x4_w2_abbb_neon
@@ -300,6 +283,16 @@ SHIFT_LOOP_HELPER(shift_right_2_round_s16_x8, int16x8_t, vrshrq_n_s16, 2)
 SHIFT_LOOP_HELPER(shift_right_4_round_s16_x8, int16x8_t, vrshrq_n_s16, 4)
 SHIFT_LOOP_HELPER(shift_left_2_s16_x4, int16x4_t, vshl_n_s16, 2)
 SHIFT_LOOP_HELPER(shift_left_2_s16_x8, int16x8_t, vshlq_n_s16, 2)
+SHIFT_LOOP_HELPER(shift_right_2_round_s32_x4, int32x4_t, vrshrq_n_s32, 2)
+
+static INLINE void round_shift_rect_array_32_neon(int32x4_t *input,
+                                                  int32x4_t *output,
+                                                  const int size) {
+  for (int i = 0; i < size; ++i) {
+    output[i] = vrshrq_n_s32(vmulq_n_s32(vrshrq_n_s32(input[i], 2), NewSqrt2),
+                             NewSqrt2Bits);
+  }
+}
 
 static void fadst4x4_neon(const int16x4_t *input, int16x4_t *output,
                           int cos_bit) {
@@ -3405,9 +3398,8 @@ static void lowbd_fwd_txfm2d_64x64_neon(const int16_t *input, int32_t *output,
     }
     fdct64_new_neon(bufA, bufA, 10);
     fdct64_new_neon(bufB, bufB, 10);
-    round_shift_array_32_neon(bufA, bufA, 32);
-    round_shift_array_32_neon(bufB, bufB, 32);
-
+    shift_right_2_round_s32_x4(bufA, 32);
+    shift_right_2_round_s32_x4(bufB, 32);
     store_output_32bit_w8(output + i * 8, bufA, bufB, 32, 32);
   }
 }
