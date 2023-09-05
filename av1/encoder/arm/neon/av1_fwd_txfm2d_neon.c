@@ -3305,71 +3305,39 @@ static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   butterfly_s32_s32_x4_w2_aaab_neon(cospi, 61, x9[48], x9[47], &x10[47],
                                     &x10[48]);
 
-  // stage 11
+  // stage 11, only store into the low 32 output indices.
   output[0] = x6[0];
-  output[63] = x10[63];
   output[1] = x10[32];
-  output[62] = x9[31];
   output[2] = x9[16];
-  output[61] = x10[47];
   output[3] = x10[48];
-  output[60] = x8[15];
   output[4] = x8[8];
-  output[59] = x10[55];
   output[5] = x10[40];
-  output[58] = x9[23];
   output[6] = x9[24];
-  output[57] = x10[39];
   output[7] = x10[56];
-  output[56] = x7[7];
   output[8] = x7[4];
-  output[55] = x10[59];
   output[9] = x10[36];
-  output[54] = x9[27];
   output[10] = x9[20];
-  output[53] = x10[43];
   output[11] = x10[52];
-  output[52] = x8[11];
   output[12] = x8[12];
-  output[51] = x10[51];
   output[13] = x10[44];
-  output[50] = x9[19];
   output[14] = x9[28];
-  output[49] = x10[35];
   output[15] = x10[60];
-  output[48] = x6[3];
   output[16] = x6[2];
-  output[47] = x10[61];
   output[17] = x10[34];
-  output[46] = x9[29];
   output[18] = x9[18];
-  output[45] = x10[45];
   output[19] = x10[50];
-  output[44] = x8[13];
   output[20] = x8[10];
-  output[43] = x10[53];
   output[21] = x10[42];
-  output[42] = x9[21];
   output[22] = x9[26];
-  output[41] = x10[37];
   output[23] = x10[58];
-  output[40] = x7[5];
   output[24] = x7[6];
-  output[39] = x10[57];
   output[25] = x10[38];
-  output[38] = x9[25];
   output[26] = x9[22];
-  output[37] = x10[41];
   output[27] = x10[54];
-  output[36] = x8[9];
   output[28] = x8[14];
-  output[35] = x10[49];
   output[29] = x10[46];
-  output[34] = x9[17];
   output[30] = x9[30];
-  output[33] = x10[33];
   output[31] = x10[62];
-  output[32] = x6[1];
 }
 
 static void lowbd_fwd_txfm2d_64x64_neon(const int16_t *input, int32_t *output,
