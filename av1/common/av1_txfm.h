@@ -57,7 +57,7 @@ static INLINE const int32_t *sinpi_arr(int n) {
 #if HAVE_NEON
 // Store cospi/sinpi costants in Q2.13 format.
 // See: https://en.wikipedia.org/wiki/Q_(number_format)
-extern const int16_t av1_cospi_arr_q13_data[4][256];
+extern const int16_t av1_cospi_arr_q13_data[4][132];
 extern const int16_t av1_sinpi_arr_q13_data[4][4];
 
 static INLINE const int16_t *cospi_arr_q13(int n) {
