@@ -1506,11 +1506,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
         cpi->svc.number_temporal_layers > 1)
       sf->hl_sf.accurate_bit_estimate = 0;
 
-    // TODO(yunqingwang@google.com): test to see if
-    // estimate_motion_for_var_based_partition == 2 helps here.
-    if (sf->rt_sf.estimate_motion_for_var_based_partition == 2)
-      sf->rt_sf.estimate_motion_for_var_based_partition = 1;
-    if (speed >= 9) sf->rt_sf.estimate_motion_for_var_based_partition = 0;
+    sf->rt_sf.estimate_motion_for_var_based_partition = 1;
 
     // For single layers RPS: bias/adjustment for recovery frame.
     if (cpi->ppi->rtc_ref.bias_recovery_frame) {
