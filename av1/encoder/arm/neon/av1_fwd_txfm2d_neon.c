@@ -1136,8 +1136,8 @@ static void fdct8x64_neon(const int16x8_t *input, int16x8_t *output,
   output[62] = x9[31];
 }
 
-static void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output,
-                           int cos_bit) {
+static void fadst8x8_neon(const int16x8_t *input, int16x8_t *output,
+                          int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
   const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
   const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
@@ -1564,40 +1564,40 @@ static const transform_1d_lbd_4_neon row_txfm4x8_arr[TX_TYPES] = {
 
 static const transform_1d_lbd_8_neon col_txfm8x8_arr[TX_TYPES] = {
   fdct8x8_neon,       // DCT_DCT
-  fadst_8x8_neon,     // ADST_DCT
+  fadst8x8_neon,      // ADST_DCT
   fdct8x8_neon,       // DCT_ADST
-  fadst_8x8_neon,     // ADST_ADST
-  fadst_8x8_neon,     // FLIPADST_DCT
+  fadst8x8_neon,      // ADST_ADST
+  fadst8x8_neon,      // FLIPADST_DCT
   fdct8x8_neon,       // DCT_FLIPADST
-  fadst_8x8_neon,     // FLIPADST_FLIPADST
-  fadst_8x8_neon,     // ADST_FLIPADST
-  fadst_8x8_neon,     // FLIPADST_ADST
+  fadst8x8_neon,      // FLIPADST_FLIPADST
+  fadst8x8_neon,      // ADST_FLIPADST
+  fadst8x8_neon,      // FLIPADST_ADST
   fidentity8x8_neon,  // IDTX
   fdct8x8_neon,       // V_DCT
   fidentity8x8_neon,  // H_DCT
-  fadst_8x8_neon,     // V_ADST
+  fadst8x8_neon,      // V_ADST
   fidentity8x8_neon,  // H_ADST
-  fadst_8x8_neon,     // V_FLIPADST
+  fadst8x8_neon,      // V_FLIPADST
   fidentity8x8_neon,  // H_FLIPADST
 };
 
 static const transform_1d_lbd_8_neon row_txfm8x8_arr[TX_TYPES] = {
   fdct8x8_neon,       // DCT_DCT
   fdct8x8_neon,       // ADST_DCT
-  fadst_8x8_neon,     // DCT_ADST
-  fadst_8x8_neon,     // ADST_ADST
+  fadst8x8_neon,      // DCT_ADST
+  fadst8x8_neon,      // ADST_ADST
   fdct8x8_neon,       // FLIPADST_DCT
-  fadst_8x8_neon,     // DCT_FLIPADST
-  fadst_8x8_neon,     // FLIPADST_FLIPADST
-  fadst_8x8_neon,     // ADST_FLIPADST
-  fadst_8x8_neon,     // FLIPADST_ADST
+  fadst8x8_neon,      // DCT_FLIPADST
+  fadst8x8_neon,      // FLIPADST_FLIPADST
+  fadst8x8_neon,      // ADST_FLIPADST
+  fadst8x8_neon,      // FLIPADST_ADST
   fidentity8x8_neon,  // IDTX
   fidentity8x8_neon,  // V_DCT
   fdct8x8_neon,       // H_DCT
   fidentity8x8_neon,  // V_ADST
-  fadst_8x8_neon,     // H_ADST
+  fadst8x8_neon,      // H_ADST
   fidentity8x8_neon,  // V_FLIPADST
-  fadst_8x8_neon      // H_FLIPADST
+  fadst8x8_neon       // H_FLIPADST
 };
 
 static const transform_1d_lbd_4_neon col_txfm4x16_arr[TX_TYPES] = {
