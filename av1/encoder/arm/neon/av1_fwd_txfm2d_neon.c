@@ -141,6 +141,14 @@ static INLINE void butterfly_s16_s32_x4_1003_neon(const int16x4_t w0101,
   butterfly_s16_s32_x4_neon(w0101, 1, 0, 0, 3, in0, in1, out0, out1);
 }
 
+static INLINE void butterfly_s16_s32_x4_1223_neon(const int16x4_t w0101,
+                                                  const int16x4_t in0,
+                                                  const int16x4_t in1,
+                                                  int16x4_t *out0,
+                                                  int16x4_t *out1) {
+  butterfly_s16_s32_x4_neon(w0101, 1, 2, 2, 3, in0, in1, out0, out1);
+}
+
 #define butterfly_s16_s32_x8_neon(wvec, lane0, lane1, lane2, lane3, in0, in1, \
                                   out0, out1)                                 \
   do {                                                                        \
@@ -224,40 +232,12 @@ static INLINE void load_buffer_16bit_to_16bit_w4(const int16_t *in,
   }
 }
 
-static INLINE void load_buffer_16bit_to_16bit_w8(const int16_t *in,
-                                                 const int stride,
-                                                 int16x8_t *const out,
-                                                 const int out_size) {
-  for (int i = 0; i < out_size; ++i) {
-    // vld1q_dup_u64 is used rather than vld1q_lane_u64(lane=0) to avoid
-    // -Wmaybe-uninitialized warnings with some versions of gcc. This assumes
-    // the upper lane is unused or further modified after this call. The
-    // latency should be similar between the two.
-    out[i] = vreinterpretq_s16_u64(vld1q_dup_u64((const uint64_t *)in));
-    in += stride;
-  }
-}
-
 static INLINE void load_buffer_16bit_to_16bit_w4_flip(const int16_t *in,
                                                       const int stride,
                                                       int16x4_t *const out,
                                                       const int out_size) {
   for (int i = out_size - 1; i >= 0; --i) {
     out[i] = vld1_s16(in);
-    in += stride;
-  }
-}
-
-static INLINE void load_buffer_16bit_to_16bit_w8_flip(const int16_t *in,
-                                                      const int stride,
-                                                      int16x8_t *const out,
-                                                      const int out_size) {
-  for (int i = out_size - 1; i >= 0; --i) {
-    // vld1q_dup_u64 is used rather than vld1q_lane_u64(lane=0) to avoid
-    // -Wmaybe-uninitialized warnings with some versions of gcc. This assumes
-    // the upper lane is unused or further modified after this call. The
-    // latency should be similar between the two.
-    out[i] = vreinterpretq_s16_u64(vld1q_dup_u64((const uint64_t *)in));
     in += stride;
   }
 }
@@ -283,15 +263,6 @@ static INLINE void store_buffer_16bit_to_32bit_4_to_4(const int16x4_t *const in,
                                                       const int out_size) {
   for (int i = 0; i < out_size; ++i) {
     vst1q_s32(out + i * stride, vmovl_s16(in[i]));
-  }
-}
-
-static INLINE void store_buffer_16bit_to_32bit_8_to_4(const int16x8_t *const in,
-                                                      int32_t *const out,
-                                                      const int stride,
-                                                      const int out_size) {
-  for (int i = 0; i < out_size; ++i) {
-    vst1q_s32(out + i * stride, vmovl_s16(vget_low_s16(in[i])));
   }
 }
 
@@ -353,6 +324,8 @@ ROUND_SHIFT_SQRT_LOOP_HELPER(round_shift_sqrt2_s16_s16_4xn_neon, int16x4_t,
                              int16x4_t, round_shift_sqrt2_s16_s16_4x1_neon)
 ROUND_SHIFT_SQRT_LOOP_HELPER(round_shift_sqrt2_s16_s16_8xn_neon, int16x8_t,
                              int16x8_t, round_shift_sqrt2_s16_s16_8x1_neon)
+ROUND_SHIFT_SQRT_LOOP_HELPER(round_shift_2sqrt2_s16_s16_4xn_neon, int16x4_t,
+                             int16x4_t, round_shift_2sqrt2_s16_s16_4x1_neon)
 ROUND_SHIFT_SQRT_LOOP_HELPER(round_shift_2sqrt2_s16_s16_8xn_neon, int16x8_t,
                              int16x8_t, round_shift_2sqrt2_s16_s16_8x1_neon)
 
@@ -726,6 +699,62 @@ static void fdct8x8_neon(const int16x8_t *input, int16x8_t *output,
   // stage 4-5
   butterfly_s16_s32_x8_0112_neon(cospi8, x3[7], x3[4], &output[1], &output[7]);
   butterfly_s16_s32_x8_1003_neon(cospi24, x3[6], x3[5], &output[5], &output[3]);
+}
+
+static void fdct4x16_neon(const int16x4_t *input, int16x4_t *output,
+                          int cos_bit) {
+  const int16_t *cospi = cospi_arr_q13(cos_bit);
+  const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
+  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
+  const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
+  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
+  const int16x4_t cospi20 = vld1_s16(&cospi[4 * 20]);
+  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
+  const int16x4_t cospi28 = vld1_s16(&cospi[4 * 28]);
+  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  // stage 1
+  int16x4_t x1[16];
+  butterfly_dct_pre_s16_x4(input, x1, 16);
+
+  // stage 2
+  int16x4_t x2[16];
+  butterfly_dct_pre_s16_x4(x1, x2, 8);
+  butterfly_s16_s32_x4_0112_neon(cospi32, x1[13], x1[10], &x2[13], &x2[10]);
+  butterfly_s16_s32_x4_0112_neon(cospi32, x1[12], x1[11], &x2[12], &x2[11]);
+
+  // stage 3
+  int16x4_t x3[16];
+  butterfly_dct_pre_s16_x4(x2, x3, 4);
+  butterfly_s16_s32_x4_0112_neon(cospi32, x2[6], x2[5], &x3[6], &x3[5]);
+  butterfly_dct_post_s16_x4(x1 + 8, x2 + 8, x3 + 8, 8);
+
+  // stage 4
+  int16x4_t x4[16];
+  butterfly_s16_s32_x4_0112_neon(cospi32, x3[0], x3[1], &output[0], &output[8]);
+  butterfly_s16_s32_x4_0112_neon(cospi16, x3[3], x3[2], &output[4],
+                                 &output[12]);
+  butterfly_dct_post_s16_x4(x2 + 4, x3 + 4, x4 + 4, 4);
+  butterfly_s16_s32_x4_0112_neon(cospi16, x3[14], x3[9], &x4[14], &x4[9]);
+  butterfly_s16_s32_x4_1223_neon(cospi16, x3[13], x3[10], &x4[13], &x4[10]);
+
+  // stage 5
+  int16x4_t x5[16];
+  butterfly_s16_s32_x4_0112_neon(cospi8, x4[7], x4[4], &output[2], &output[14]);
+  butterfly_s16_s32_x4_1003_neon(cospi24, x4[6], x4[5], &output[10],
+                                 &output[6]);
+  butterfly_dct_post_s16_x4(x3 + 8, x4 + 8, x5 + 8, 4);
+  butterfly_dct_post_s16_x4(x3 + 12, x4 + 12, x5 + 12, 4);
+
+  // stage 6-7
+  butterfly_s16_s32_x4_0112_neon(cospi4, x5[15], x5[8], &output[1],
+                                 &output[15]);
+  butterfly_s16_s32_x4_1003_neon(cospi28, x5[14], x5[9], &output[9],
+                                 &output[7]);
+  butterfly_s16_s32_x4_0112_neon(cospi20, x5[13], x5[10], &output[5],
+                                 &output[11]);
+  butterfly_s16_s32_x4_1003_neon(cospi12, x5[12], x5[11], &output[13],
+                                 &output[3]);
 }
 
 static void fdct8x16_neon(const int16x8_t *input, int16x8_t *output,
@@ -1173,6 +1202,114 @@ static void fadst_8x8_neon(const int16x8_t *input, int16x8_t *output,
   butterfly_s16_s32_x8_0112_neon(cospi12, x5[6], x5[7], &output[6], &output[1]);
 }
 
+static void fadst4x16_neon(const int16x4_t *input, int16x4_t *output,
+                           int cos_bit) {
+  const int16_t *cospi = cospi_arr_q13(cos_bit);
+  const int16x4_t cospi2 = vld1_s16(&cospi[4 * 2]);
+  const int16x4_t cospi6 = vld1_s16(&cospi[4 * 6]);
+  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
+  const int16x4_t cospi10 = vld1_s16(&cospi[4 * 10]);
+  const int16x4_t cospi14 = vld1_s16(&cospi[4 * 14]);
+  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
+  const int16x4_t cospi18 = vld1_s16(&cospi[4 * 18]);
+  const int16x4_t cospi22 = vld1_s16(&cospi[4 * 22]);
+  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
+  const int16x4_t cospi26 = vld1_s16(&cospi[4 * 26]);
+  const int16x4_t cospi30 = vld1_s16(&cospi[4 * 30]);
+  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  // stage 2
+  int16x4_t x2[8];
+  butterfly_s16_s32_x4_0332_neon(cospi32, input[8], input[7], &x2[0], &x2[1]);
+  butterfly_s16_s32_x4_0112_neon(cospi32, input[4], input[11], &x2[3], &x2[2]);
+  butterfly_s16_s32_x4_0112_neon(cospi32, input[6], input[9], &x2[5], &x2[4]);
+  butterfly_s16_s32_x4_0332_neon(cospi32, input[10], input[5], &x2[6], &x2[7]);
+
+  // stage 3
+  int16x4_t x3[16];
+  x3[0] = vqadd_s16(input[0], x2[0]);
+  x3[1] = vqsub_s16(x2[1], input[15]);
+  x3[2] = vqsub_s16(input[0], x2[0]);
+  x3[3] = vqadd_s16(input[15], x2[1]);
+  x3[4] = vqsub_s16(x2[2], input[3]);
+  x3[5] = vqadd_s16(input[12], x2[3]);
+  x3[6] = vqadd_s16(input[3], x2[2]);
+  x3[7] = vqsub_s16(input[12], x2[3]);
+  x3[8] = vqsub_s16(x2[4], input[1]);
+  x3[9] = vqadd_s16(input[14], x2[5]);
+  x3[10] = vqadd_s16(input[1], x2[4]);
+  x3[11] = vqsub_s16(input[14], x2[5]);
+  x3[12] = vqadd_s16(input[2], x2[6]);
+  x3[13] = vqsub_s16(x2[7], input[13]);
+  x3[14] = vqsub_s16(input[2], x2[6]);
+  x3[15] = vqadd_s16(input[13], x2[7]);
+
+  // stage 4
+  butterfly_s16_s32_x4_0112_neon(cospi16, x3[4], x3[5], &x3[4], &x3[5]);
+  butterfly_s16_s32_x4_0112_neon(cospi16, x3[7], x3[6], &x3[6], &x3[7]);
+  butterfly_s16_s32_x4_0112_neon(cospi16, x3[12], x3[13], &x3[12], &x3[13]);
+  butterfly_s16_s32_x4_0332_neon(cospi16, x3[14], x3[15], &x3[15], &x3[14]);
+
+  // stage 5
+  int16x4_t x5[16];
+  x5[0] = vqadd_s16(x3[0], x3[4]);
+  x5[1] = vqadd_s16(x3[1], x3[5]);
+  x5[2] = vqadd_s16(x3[2], x3[6]);
+  x5[3] = vqsub_s16(x3[7], x3[3]);
+  x5[4] = vqsub_s16(x3[0], x3[4]);
+  x5[5] = vqsub_s16(x3[1], x3[5]);
+  x5[6] = vqsub_s16(x3[2], x3[6]);
+  x5[7] = vqadd_s16(x3[3], x3[7]);
+  x5[8] = vqadd_s16(x3[8], x3[12]);
+  x5[9] = vqadd_s16(x3[9], x3[13]);
+  x5[10] = vqsub_s16(x3[14], x3[10]);
+  x5[11] = vqadd_s16(x3[11], x3[15]);
+  x5[12] = vqsub_s16(x3[8], x3[12]);
+  x5[13] = vqsub_s16(x3[9], x3[13]);
+  x5[14] = vqadd_s16(x3[10], x3[14]);
+  x5[15] = vqsub_s16(x3[11], x3[15]);
+
+  // stage 6
+  butterfly_s16_s32_x4_0112_neon(cospi8, x5[8], x5[9], &x5[8], &x5[9]);
+  butterfly_s16_s32_x4_1003_neon(cospi24, x5[10], x5[11], &x5[10], &x5[11]);
+  butterfly_s16_s32_x4_1003_neon(cospi8, x5[13], x5[12], &x5[13], &x5[12]);
+  butterfly_s16_s32_x4_1003_neon(cospi24, x5[15], x5[14], &x5[14], &x5[15]);
+
+  // stage 7
+  int16x4_t x7[16];
+  x7[0] = vqadd_s16(x5[0], x5[8]);
+  x7[1] = vqadd_s16(x5[1], x5[9]);
+  x7[2] = vqadd_s16(x5[2], x5[10]);
+  x7[3] = vqadd_s16(x5[3], x5[11]);
+  x7[4] = vqadd_s16(x5[4], x5[12]);
+  x7[5] = vqadd_s16(x5[5], x5[13]);
+  x7[6] = vqadd_s16(x5[6], x5[14]);
+  x7[7] = vqsub_s16(x5[15], x5[7]);
+  x7[8] = vqsub_s16(x5[0], x5[8]);
+  x7[9] = vqsub_s16(x5[1], x5[9]);
+  x7[10] = vqsub_s16(x5[2], x5[10]);
+  x7[11] = vqsub_s16(x5[3], x5[11]);
+  x7[12] = vqsub_s16(x5[4], x5[12]);
+  x7[13] = vqsub_s16(x5[5], x5[13]);
+  x7[14] = vqsub_s16(x5[6], x5[14]);
+  x7[15] = vqadd_s16(x5[7], x5[15]);
+
+  // stage 8
+  butterfly_s16_s32_x4_0112_neon(cospi2, x7[0], x7[1], &output[15], &output[0]);
+  butterfly_s16_s32_x4_0112_neon(cospi10, x7[2], x7[3], &output[13],
+                                 &output[2]);
+  butterfly_s16_s32_x4_0112_neon(cospi18, x7[4], x7[5], &output[11],
+                                 &output[4]);
+  butterfly_s16_s32_x4_0112_neon(cospi26, x7[6], x7[7], &output[9], &output[6]);
+  butterfly_s16_s32_x4_1003_neon(cospi30, x7[8], x7[9], &output[7], &output[8]);
+  butterfly_s16_s32_x4_1003_neon(cospi22, x7[10], x7[11], &output[5],
+                                 &output[10]);
+  butterfly_s16_s32_x4_1003_neon(cospi14, x7[12], x7[13], &output[3],
+                                 &output[12]);
+  butterfly_s16_s32_x4_0112_neon(cospi6, x7[14], x7[15], &output[14],
+                                 &output[1]);
+}
+
 static void fadst8x16_neon(const int16x8_t *input, int16x8_t *output,
                            int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
@@ -1304,6 +1441,12 @@ static void fidentity8x8_neon(const int16x8_t *input, int16x8_t *output,
                               int cos_bit) {
   (void)cos_bit;
   shift_left_1_s16_x8(input, output, 8);
+}
+
+static INLINE void fidentity4x16_neon(const int16x4_t *input, int16x4_t *output,
+                                      int cos_bit) {
+  (void)cos_bit;
+  round_shift_2sqrt2_s16_s16_4xn_neon(input, output, 16);
 }
 
 static INLINE void fidentity8x16_neon(const int16x8_t *input, int16x8_t *output,
@@ -1475,6 +1618,44 @@ static const transform_1d_lbd_8_neon row_txfm8x8_arr[TX_TYPES] = {
   fadst_8x8_neon      // H_FLIPADST
 };
 
+static const transform_1d_lbd_4_neon col_txfm4x16_arr[TX_TYPES] = {
+  fdct4x16_neon,       // DCT_DCT
+  fadst4x16_neon,      // ADST_DCT
+  fdct4x16_neon,       // DCT_ADST
+  fadst4x16_neon,      // ADST_ADST
+  fadst4x16_neon,      // FLIPADST_DCT
+  fdct4x16_neon,       // DCT_FLIPADST
+  fadst4x16_neon,      // FLIPADST_FLIPADST
+  fadst4x16_neon,      // ADST_FLIPADST
+  fadst4x16_neon,      // FLIPADST_ADST
+  fidentity4x16_neon,  // IDTX
+  fdct4x16_neon,       // V_DCT
+  fidentity4x16_neon,  // H_DCT
+  fadst4x16_neon,      // V_ADST
+  fidentity4x16_neon,  // H_ADST
+  fadst4x16_neon,      // V_FLIPADST
+  fidentity4x16_neon   // H_FLIPADST
+};
+
+static const transform_1d_lbd_4_neon row_txfm4x16_arr[TX_TYPES] = {
+  fdct4x16_neon,       // DCT_DCT
+  fdct4x16_neon,       // ADST_DCT
+  fadst4x16_neon,      // DCT_ADST
+  fadst4x16_neon,      // ADST_ADST
+  fdct4x16_neon,       // FLIPADST_DCT
+  fadst4x16_neon,      // DCT_FLIPADST
+  fadst4x16_neon,      // FLIPADST_FLIPADST
+  fadst4x16_neon,      // ADST_FLIPADST
+  fadst4x16_neon,      // FLIPADST_ADST
+  fidentity4x16_neon,  // IDTX
+  fidentity4x16_neon,  // V_DCT
+  fdct4x16_neon,       // H_DCT
+  fidentity4x16_neon,  // V_ADST
+  fadst4x16_neon,      // H_ADST
+  fidentity4x16_neon,  // V_FLIPADST
+  fadst4x16_neon       // H_FLIPADST
+};
+
 static const transform_1d_lbd_8_neon col_txfm8x16_arr[TX_TYPES] = {
   fdct8x16_neon,       // DCT_DCT
   fadst8x16_neon,      // ADST_DCT
@@ -1613,40 +1794,33 @@ static void lowbd_fwd_txfm2d_4x8_neon(const int16_t *input, int32_t *output,
 static void lowbd_fwd_txfm2d_4x16_neon(const int16_t *input, int32_t *output,
                                        int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
-  int16x8_t buf0[16];
-  int16x4_t buf1[16];
-  int16x8_t buf2[16];
-  const transform_1d_lbd_8_neon col_txfm = col_txfm8x16_arr[tx_type];
+  int16x4_t buf0[16];
+  int16x8_t buf1[16];
+  const transform_1d_lbd_4_neon col_txfm = col_txfm4x16_arr[tx_type];
   const transform_1d_lbd_8_neon row_txfm = row_txfm8x4_arr[tx_type];
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
   if (ud_flip) {
-    load_buffer_16bit_to_16bit_w8_flip(input, stride, buf0, 16);
+    load_buffer_16bit_to_16bit_w4_flip(input, stride, buf0, 16);
   } else {
-    load_buffer_16bit_to_16bit_w8(input, stride, buf0, 16);
+    load_buffer_16bit_to_16bit_w4(input, stride, buf0, 16);
   }
-  shift_left_2_s16_x8(buf0, buf0, 16);
+  shift_left_2_s16_x4(buf0, buf0, 16);
   col_txfm(buf0, buf0, 13);
 
-  // We need a 4x16 kernel but only have a col_txfm8x16_arr for now, so narrow
-  // from a full Neon vector. This should be zero-cost on AArch64.
-  for (int i = 0; i < 16; ++i) {
-    buf1[i] = vget_low_s16(buf0[i]);
-  }
-
-  shift_right_1_round_s16_x4(buf1, buf1, 16);
-  transpose_arrays_s16_4x8(buf1, buf2);
-  transpose_arrays_s16_4x8(buf1 + 8, buf2 + 8);
+  shift_right_1_round_s16_x4(buf0, buf0, 16);
+  transpose_arrays_s16_4x8(buf0, buf1);
+  transpose_arrays_s16_4x8(buf0 + 8, buf1 + 8);
 
   for (int i = 0; i < 2; i++) {
     if (lr_flip) {
-      int16x8_t buf3[16];
-      flip_buf_8_neon(buf2 + 8 * i, buf3, 4);
-      row_txfm(buf3, buf3, 12);
-      store_buffer_16bit_to_32bit_w8(buf3, output + 8 * i, 16, 4);
+      int16x8_t buf2[16];
+      flip_buf_8_neon(buf1 + 8 * i, buf2, 4);
+      row_txfm(buf2, buf2, 12);
+      store_buffer_16bit_to_32bit_w8(buf2, output + 8 * i, 16, 4);
     } else {
-      int16x8_t *buf = buf2 + 8 * i;
+      int16x8_t *buf = buf1 + 8 * i;
       row_txfm(buf, buf, 12);
       store_buffer_16bit_to_32bit_w8(buf, output + 8 * i, 16, 4);
     }
@@ -1786,9 +1960,9 @@ static void lowbd_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *output,
   (void)bd;
   int16x8_t buf0[16];
   int16x4_t buf1[16];
-  int16x8_t buf2[16];
+  int16x4_t buf2[16];
   const transform_1d_lbd_8_neon col_txfm = col_txfm8x4_arr[tx_type];
-  const transform_1d_lbd_8_neon row_txfm = row_txfm8x16_arr[tx_type];
+  const transform_1d_lbd_4_neon row_txfm = row_txfm4x16_arr[tx_type];
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -1804,19 +1978,13 @@ static void lowbd_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *output,
     transpose_arrays_s16_8x4(buf0, buf1 + 8 * i);
   }
 
-  // We need a 4x16 kernel but only have a row_txfm8x16_arr for now, so
-  // zero-extend to a full Neon vector. This should be zero-cost on AArch64.
-  for (int i = 0; i < 16; ++i) {
-    buf2[i] = vcombine_s16(buf1[i], vdup_n_s16(0));
-  }
-
   if (lr_flip) {
-    flip_buf_8_neon(buf2, buf0, 16);
-    row_txfm(buf0, buf0, 13);
-    store_buffer_16bit_to_32bit_8_to_4(buf0, output, 4, 16);
-  } else {
+    flip_buf_4_neon(buf1, buf2, 16);
     row_txfm(buf2, buf2, 13);
-    store_buffer_16bit_to_32bit_8_to_4(buf2, output, 4, 16);
+    store_buffer_16bit_to_32bit_4_to_4(buf2, output, 4, 16);
+  } else {
+    row_txfm(buf1, buf1, 13);
+    store_buffer_16bit_to_32bit_4_to_4(buf1, output, 4, 16);
   }
 }
 
