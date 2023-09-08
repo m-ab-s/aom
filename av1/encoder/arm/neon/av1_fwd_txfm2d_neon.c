@@ -1581,7 +1581,6 @@ static void lowbd_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *output,
 
 static void lowbd_fwd_txfm2d_4x8_neon(const int16_t *input, int32_t *output,
                                       int stride, TX_TYPE tx_type, int bd) {
-  (void)stride;
   (void)bd;
   int16x4_t buf0[8];
   int16x8_t buf1[8];
