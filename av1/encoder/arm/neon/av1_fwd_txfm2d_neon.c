@@ -232,28 +232,10 @@ static INLINE void load_buffer_16bit_to_16bit_w4(const int16_t *in,
   }
 }
 
-static INLINE void load_buffer_16bit_to_16bit_w4_flip(const int16_t *in,
-                                                      const int stride,
-                                                      int16x4_t *const out,
-                                                      const int out_size) {
-  for (int i = out_size - 1; i >= 0; --i) {
-    out[i] = vld1_s16(in);
-    in += stride;
-  }
-}
-
 static INLINE void load_buffer_16bit_to_16bit(const int16_t *in, int stride,
                                               int16x8_t *out, int out_size) {
   for (int i = 0; i < out_size; ++i) {
     out[i] = vld1q_s16(in + i * stride);
-  }
-}
-
-static INLINE void load_buffer_16bit_to_16bit_flip(const int16_t *in,
-                                                   int stride, int16x8_t *out,
-                                                   int out_size) {
-  for (int i = 0; i < out_size; ++i) {
-    out[out_size - i - 1] = vld1q_s16(in + i * stride);
   }
 }
 
@@ -1732,6 +1714,14 @@ static const transform_1d_lbd_8_neon col_txfm8x32_arr[TX_TYPES] = {
   NULL                 // H_FLIPADST
 };
 
+static void ud_adjust_input_and_stride(int ud_flip, const int16_t **input,
+                                       int *stride, int out_size) {
+  if (ud_flip) {
+    *input = *input + (out_size - 1) * *stride;
+    *stride = -*stride;
+  }
+}
+
 static void lowbd_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *output,
                                       int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
@@ -1741,11 +1731,8 @@ static void lowbd_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  if (ud_flip) {
-    load_buffer_16bit_to_16bit_w4_flip(input, stride, buf0, 4);
-  } else {
-    load_buffer_16bit_to_16bit_w4(input, stride, buf0, 4);
-  }
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 4);
+  load_buffer_16bit_to_16bit_w4(input, stride, buf0, 4);
   shift_left_2_s16_x4(buf0, buf0, 4);
   col_txfm(buf0, buf0, 13);
   transpose_arrays_s16_4x4(buf0, buf1);
@@ -1770,11 +1757,8 @@ static void lowbd_fwd_txfm2d_4x8_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  if (ud_flip) {
-    load_buffer_16bit_to_16bit_w4_flip(input, stride, buf0, 8);
-  } else {
-    load_buffer_16bit_to_16bit_w4(input, stride, buf0, 8);
-  }
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 8);
+  load_buffer_16bit_to_16bit_w4(input, stride, buf0, 8);
   shift_left_2_s16_x4(buf0, buf0, 8);
   col_txfm(buf0, buf0, 13);
   shift_right_1_round_s16_x4(buf0, buf0, 8);
@@ -1801,11 +1785,8 @@ static void lowbd_fwd_txfm2d_4x16_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  if (ud_flip) {
-    load_buffer_16bit_to_16bit_w4_flip(input, stride, buf0, 16);
-  } else {
-    load_buffer_16bit_to_16bit_w4(input, stride, buf0, 16);
-  }
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 16);
+  load_buffer_16bit_to_16bit_w4(input, stride, buf0, 16);
   shift_left_2_s16_x4(buf0, buf0, 16);
   col_txfm(buf0, buf0, 13);
 
@@ -1837,11 +1818,8 @@ static void lowbd_fwd_txfm2d_8x4_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  if (ud_flip) {
-    load_buffer_16bit_to_16bit_flip(input, stride, buf0, 4);
-  } else {
-    load_buffer_16bit_to_16bit(input, stride, buf0, 4);
-  }
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 4);
+  load_buffer_16bit_to_16bit(input, stride, buf0, 4);
   shift_left_2_s16_x8(buf0, buf0, 4);
   col_txfm(buf0, buf0, 13);
   shift_right_1_round_s16_x8(buf0, buf0, 4);
@@ -1867,11 +1845,8 @@ static void lowbd_fwd_txfm2d_8x8_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  if (ud_flip) {
-    load_buffer_16bit_to_16bit_flip(input, stride, buf0, 8);
-  } else {
-    load_buffer_16bit_to_16bit(input, stride, buf0, 8);
-  }
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 8);
+  load_buffer_16bit_to_16bit(input, stride, buf0, 8);
   shift_left_2_s16_x8(buf0, buf0, 8);
   col_txfm(buf0, buf0, 13);
   shift_right_1_round_s16_x8(buf0, buf0, 8);
@@ -1896,11 +1871,8 @@ static void lowbd_fwd_txfm2d_8x16_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  if (ud_flip) {
-    load_buffer_16bit_to_16bit_flip(input, stride, buf0, 16);
-  } else {
-    load_buffer_16bit_to_16bit(input, stride, buf0, 16);
-  }
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 16);
+  load_buffer_16bit_to_16bit(input, stride, buf0, 16);
   shift_left_2_s16_x8(buf0, buf0, 16);
   col_txfm(buf0, buf0, 13);
   shift_right_2_round_s16_x8(buf0, buf0, 16);
@@ -1929,11 +1901,8 @@ static void lowbd_fwd_txfm2d_8x32_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  if (ud_flip) {
-    load_buffer_16bit_to_16bit_flip(input, stride, buf0, 32);
-  } else {
-    load_buffer_16bit_to_16bit(input, stride, buf0, 32);
-  }
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 32);
+  load_buffer_16bit_to_16bit(input, stride, buf0, 32);
   shift_left_2_s16_x8(buf0, buf0, 32);
   col_txfm(buf0, buf0, 12);
   shift_right_2_round_s16_x8(buf0, buf0, 32);
@@ -1966,12 +1935,9 @@ static void lowbd_fwd_txfm2d_16x4_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 4);
   for (int i = 0; i < 2; i++) {
-    if (ud_flip) {
-      load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, 4);
-    } else {
-      load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 4);
-    }
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 4);
     shift_left_2_s16_x8(buf0, buf0, 4);
     col_txfm(buf0, buf0, 13);
     shift_right_1_round_s16_x8(buf0, buf0, 4);
@@ -1997,12 +1963,9 @@ static void lowbd_fwd_txfm2d_16x8_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 8);
   for (int i = 0; i < 2; i++) {
-    if (ud_flip) {
-      load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, 8);
-    } else {
-      load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 8);
-    }
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 8);
     shift_left_2_s16_x8(buf0, buf0, 8);
     col_txfm(buf0, buf0, 13);
     shift_right_2_round_s16_x8(buf0, buf0, 8);
@@ -2028,13 +1991,9 @@ static void lowbd_fwd_txfm2d_16x16_neon(const int16_t *input, int32_t *output,
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 16);
   for (int i = 0; i < 2; i++) {
-    if (ud_flip) {
-      load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, 16);
-    } else {
-      load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 16);
-    }
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 16);
     shift_left_2_s16_x8(buf0, buf0, 16);
     col_txfm(buf0, buf0, 13);
     shift_right_2_round_s16_x8(buf0, buf0, 16);
@@ -2069,13 +2028,9 @@ static void lowbd_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *output,
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 32);
   for (int i = 0; i < 2; i++) {
-    if (ud_flip) {
-      load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, 32);
-    } else {
-      load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 32);
-    }
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 32);
     shift_left_2_s16_x8(buf0, buf0, 32);
     col_txfm(buf0, buf0, 12);
     shift_right_4_round_s16_x8(buf0, buf0, 32);
@@ -2112,13 +2067,9 @@ static void lowbd_fwd_txfm2d_32x8_neon(const int16_t *input, int32_t *output,
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 8);
   for (int i = 0; i < 4; i++) {
-    if (ud_flip) {
-      load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, 8);
-    } else {
-      load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 8);
-    }
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 8);
     shift_left_2_s16_x8(buf0, buf0, 8);
     col_txfm(buf0, buf0, 13);
     shift_right_2_round_s16_x8(buf0, buf0, 8);
@@ -2149,13 +2100,9 @@ static void lowbd_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *output,
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 16);
   for (int i = 0; i < 4; i++) {
-    if (ud_flip) {
-      load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, 16);
-    } else {
-      load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 16);
-    }
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 16);
     shift_left_2_s16_x8(buf0, buf0, 16);
     col_txfm(buf0, buf0, 13);
     shift_right_4_round_s16_x8(buf0, buf0, 16);
@@ -2190,13 +2137,9 @@ static void lowbd_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-
+  ud_adjust_input_and_stride(ud_flip, &input, &stride, 32);
   for (int i = 0; i < 4; i++) {
-    if (ud_flip) {
-      load_buffer_16bit_to_16bit_flip(input + 8 * i, stride, buf0, 32);
-    } else {
-      load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 32);
-    }
+    load_buffer_16bit_to_16bit(input + 8 * i, stride, buf0, 32);
     shift_left_2_s16_x8(buf0, buf0, 32);
     col_txfm(buf0, buf0, 12);
     shift_right_4_round_s16_x8(buf0, buf0, 32);
