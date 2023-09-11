@@ -371,14 +371,14 @@ void av1_highbd_apply_temporal_filter_neon(
             for (int jj = 0; jj < (1 << ss_x_shift); ++jj) {
               const int yy = (i << ss_y_shift) + ii;  // Y-coord on Y-plane.
               const int xx = (j << ss_x_shift) + jj;  // X-coord on Y-plane.
-              luma_sse_sum[i * BW + j] +=
-                  frame_sse[yy * frame_sse_stride + xx + 2];
+              const int ww = frame_sse_stride
+                             << ss_x_shift;  // Width of Y-plane.
+              luma_sse_sum[i * BW + j] += frame_sse[yy * ww + xx];
             }
           }
         }
       }
     }
-
     get_squared_error(ref, frame_stride, pred + plane_offset, plane_w, plane_w,
                       plane_h, frame_sse, frame_sse_stride);
 
