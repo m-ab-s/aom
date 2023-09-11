@@ -393,8 +393,6 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AV1LbdInvTxfm2d,
                          ::testing::Values(av1_lowbd_inv_txfm2d_add_avx2));
 #endif  // HAVE_AVX2
 
-// TODO(yunqing): Re-enable this unit test for NEON version after the functions
-// are fixed.
 #if HAVE_NEON
 extern "C" void av1_lowbd_inv_txfm2d_add_neon(const int32_t *input,
                                               uint8_t *output, int stride,
