@@ -378,12 +378,17 @@ static AOM_FORCE_INLINE void fadst4x4_neon(const int16x4_t *input,
 static AOM_FORCE_INLINE void fadst4x8_neon(const int16x4_t *input,
                                            int16x4_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
-  const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi20 = vld1_s16(&cospi[4 * 20]);
-  const int16x4_t cospi28 = vld1_s16(&cospi[4 * 28]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi4_12 = vld1q_s16(&cospi[4 * 4]);
+  const int16x8_t cospi20_28 = vld1q_s16(&cospi[4 * 6]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi4 = vget_low_s16(cospi4_12);
+  const int16x4_t cospi12 = vget_high_s16(cospi4_12);
+  const int16x4_t cospi20 = vget_low_s16(cospi20_28);
+  const int16x4_t cospi28 = vget_high_s16(cospi20_28);
 
   // stage 1-2
   int16x4_t x2[8];
@@ -479,15 +484,15 @@ static AOM_FORCE_INLINE void fadst8x4_neon(const int16x8_t *input,
 static AOM_FORCE_INLINE void fdct4x4_neon(const int16x4_t *input,
                                           int16x4_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
+  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 1]);
 
   int16x4_t in12a = vadd_s16(input[1], input[2]);
   int16x4_t in12s = vsub_s16(input[1], input[2]);
   int16x4_t in03a = vadd_s16(input[0], input[3]);
   int16x4_t in03s = vsub_s16(input[0], input[3]);
 
-  int32x4_t u0ad1 = vmull_n_s16(in12a, cospi[4 * 32]);
-  int32x4_t u0ad2 = vmull_n_s16(in03a, cospi[4 * 32]);
+  int32x4_t u0ad1 = vmull_n_s16(in12a, cospi[4 * 0]);
+  int32x4_t u0ad2 = vmull_n_s16(in03a, cospi[4 * 0]);
 
   int32x4_t u[4];
   u[0] = vaddq_s32(u0ad1, u0ad2);
@@ -608,8 +613,11 @@ static INLINE void butterfly_dct_post_s32_x4(const int32x4_t *in0,
 static AOM_FORCE_INLINE void fdct8x4_neon(const int16x8_t *input,
                                           int16x8_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
 
   // stage 1
   int16x8_t x1[4];
@@ -630,10 +638,14 @@ static AOM_FORCE_INLINE void fdct8x4_neon(const int16x8_t *input,
 static AOM_FORCE_INLINE void fdct4x8_neon(const int16x4_t *input,
                                           int16x4_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
 
   // stage 1
   int16x4_t x1[8];
@@ -658,10 +670,14 @@ static AOM_FORCE_INLINE void fdct4x8_neon(const int16x4_t *input,
 static AOM_FORCE_INLINE void fdct8x8_neon(const int16x8_t *input,
                                           int16x8_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
 
   // stage 1
   int16x8_t x1[8];
@@ -686,14 +702,20 @@ static AOM_FORCE_INLINE void fdct8x8_neon(const int16x8_t *input,
 static AOM_FORCE_INLINE void fdct4x16_neon(const int16x4_t *input,
                                            int16x4_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi20 = vld1_s16(&cospi[4 * 20]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi28 = vld1_s16(&cospi[4 * 28]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+  const int16x8_t cospi4_12 = vld1q_s16(&cospi[4 * 4]);
+  const int16x8_t cospi20_28 = vld1q_s16(&cospi[4 * 6]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
+  const int16x4_t cospi4 = vget_low_s16(cospi4_12);
+  const int16x4_t cospi12 = vget_high_s16(cospi4_12);
+  const int16x4_t cospi20 = vget_low_s16(cospi20_28);
+  const int16x4_t cospi28 = vget_high_s16(cospi20_28);
 
   // stage 1
   int16x4_t x1[16];
@@ -742,14 +764,20 @@ static AOM_FORCE_INLINE void fdct4x16_neon(const int16x4_t *input,
 static AOM_FORCE_INLINE void fdct8x16_neon(const int16x8_t *input,
                                            int16x8_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi20 = vld1_s16(&cospi[4 * 20]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi28 = vld1_s16(&cospi[4 * 28]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+  const int16x8_t cospi4_12 = vld1q_s16(&cospi[4 * 4]);
+  const int16x8_t cospi20_28 = vld1q_s16(&cospi[4 * 6]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
+  const int16x4_t cospi4 = vget_low_s16(cospi4_12);
+  const int16x4_t cospi12 = vget_high_s16(cospi4_12);
+  const int16x4_t cospi20 = vget_low_s16(cospi20_28);
+  const int16x4_t cospi28 = vget_high_s16(cospi20_28);
 
   // stage 1
   int16x8_t x1[16];
@@ -798,22 +826,32 @@ static AOM_FORCE_INLINE void fdct8x16_neon(const int16x8_t *input,
 static AOM_FORCE_INLINE void fdct8x32_neon(const int16x8_t *input,
                                            int16x8_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi2 = vld1_s16(&cospi[4 * 2]);
-  const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
-  const int16x4_t cospi6 = vld1_s16(&cospi[4 * 6]);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi10 = vld1_s16(&cospi[4 * 10]);
-  const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
-  const int16x4_t cospi14 = vld1_s16(&cospi[4 * 14]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi18 = vld1_s16(&cospi[4 * 18]);
-  const int16x4_t cospi20 = vld1_s16(&cospi[4 * 20]);
-  const int16x4_t cospi22 = vld1_s16(&cospi[4 * 22]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi26 = vld1_s16(&cospi[4 * 26]);
-  const int16x4_t cospi28 = vld1_s16(&cospi[4 * 28]);
-  const int16x4_t cospi30 = vld1_s16(&cospi[4 * 30]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+  const int16x8_t cospi4_12 = vld1q_s16(&cospi[4 * 4]);
+  const int16x8_t cospi20_28 = vld1q_s16(&cospi[4 * 6]);
+  const int16x8_t cospi2_6 = vld1q_s16(&cospi[4 * 8]);
+  const int16x8_t cospi10_14 = vld1q_s16(&cospi[4 * 10]);
+  const int16x8_t cospi18_22 = vld1q_s16(&cospi[4 * 12]);
+  const int16x8_t cospi26_30 = vld1q_s16(&cospi[4 * 14]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
+  const int16x4_t cospi4 = vget_low_s16(cospi4_12);
+  const int16x4_t cospi12 = vget_high_s16(cospi4_12);
+  const int16x4_t cospi20 = vget_low_s16(cospi20_28);
+  const int16x4_t cospi28 = vget_high_s16(cospi20_28);
+  const int16x4_t cospi2 = vget_low_s16(cospi2_6);
+  const int16x4_t cospi6 = vget_high_s16(cospi2_6);
+  const int16x4_t cospi10 = vget_low_s16(cospi10_14);
+  const int16x4_t cospi14 = vget_high_s16(cospi10_14);
+  const int16x4_t cospi18 = vget_low_s16(cospi18_22);
+  const int16x4_t cospi22 = vget_high_s16(cospi18_22);
+  const int16x4_t cospi26 = vget_low_s16(cospi26_30);
+  const int16x4_t cospi30 = vget_high_s16(cospi26_30);
 
   // stage 1
   int16x8_t x1[32];
@@ -904,38 +942,56 @@ static AOM_FORCE_INLINE void fdct8x32_neon(const int16x8_t *input,
 static AOM_FORCE_INLINE void fdct8x64_neon(const int16x8_t *input,
                                            int16x8_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi1 = vld1_s16(&cospi[4 * 1]);
-  const int16x4_t cospi2 = vld1_s16(&cospi[4 * 2]);
-  const int16x4_t cospi3 = vld1_s16(&cospi[4 * 3]);
-  const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
-  const int16x4_t cospi5 = vld1_s16(&cospi[4 * 5]);
-  const int16x4_t cospi6 = vld1_s16(&cospi[4 * 6]);
-  const int16x4_t cospi7 = vld1_s16(&cospi[4 * 7]);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi9 = vld1_s16(&cospi[4 * 9]);
-  const int16x4_t cospi10 = vld1_s16(&cospi[4 * 10]);
-  const int16x4_t cospi11 = vld1_s16(&cospi[4 * 11]);
-  const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
-  const int16x4_t cospi13 = vld1_s16(&cospi[4 * 13]);
-  const int16x4_t cospi14 = vld1_s16(&cospi[4 * 14]);
-  const int16x4_t cospi15 = vld1_s16(&cospi[4 * 15]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi17 = vld1_s16(&cospi[4 * 17]);
-  const int16x4_t cospi18 = vld1_s16(&cospi[4 * 18]);
-  const int16x4_t cospi19 = vld1_s16(&cospi[4 * 19]);
-  const int16x4_t cospi20 = vld1_s16(&cospi[4 * 20]);
-  const int16x4_t cospi21 = vld1_s16(&cospi[4 * 21]);
-  const int16x4_t cospi22 = vld1_s16(&cospi[4 * 22]);
-  const int16x4_t cospi23 = vld1_s16(&cospi[4 * 23]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi25 = vld1_s16(&cospi[4 * 25]);
-  const int16x4_t cospi26 = vld1_s16(&cospi[4 * 26]);
-  const int16x4_t cospi27 = vld1_s16(&cospi[4 * 27]);
-  const int16x4_t cospi28 = vld1_s16(&cospi[4 * 28]);
-  const int16x4_t cospi29 = vld1_s16(&cospi[4 * 29]);
-  const int16x4_t cospi30 = vld1_s16(&cospi[4 * 30]);
-  const int16x4_t cospi31 = vld1_s16(&cospi[4 * 31]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+  const int16x8_t cospi4_12 = vld1q_s16(&cospi[4 * 4]);
+  const int16x8_t cospi20_28 = vld1q_s16(&cospi[4 * 6]);
+  const int16x8_t cospi2_6 = vld1q_s16(&cospi[4 * 8]);
+  const int16x8_t cospi10_14 = vld1q_s16(&cospi[4 * 10]);
+  const int16x8_t cospi18_22 = vld1q_s16(&cospi[4 * 12]);
+  const int16x8_t cospi26_30 = vld1q_s16(&cospi[4 * 14]);
+  const int16x8_t cospi1_3 = vld1q_s16(&cospi[4 * 16]);
+  const int16x8_t cospi5_7 = vld1q_s16(&cospi[4 * 18]);
+  const int16x8_t cospi9_11 = vld1q_s16(&cospi[4 * 20]);
+  const int16x8_t cospi13_15 = vld1q_s16(&cospi[4 * 22]);
+  const int16x8_t cospi17_19 = vld1q_s16(&cospi[4 * 24]);
+  const int16x8_t cospi21_23 = vld1q_s16(&cospi[4 * 26]);
+  const int16x8_t cospi25_27 = vld1q_s16(&cospi[4 * 28]);
+  const int16x8_t cospi29_31 = vld1q_s16(&cospi[4 * 30]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
+  const int16x4_t cospi4 = vget_low_s16(cospi4_12);
+  const int16x4_t cospi12 = vget_high_s16(cospi4_12);
+  const int16x4_t cospi20 = vget_low_s16(cospi20_28);
+  const int16x4_t cospi28 = vget_high_s16(cospi20_28);
+  const int16x4_t cospi2 = vget_low_s16(cospi2_6);
+  const int16x4_t cospi6 = vget_high_s16(cospi2_6);
+  const int16x4_t cospi10 = vget_low_s16(cospi10_14);
+  const int16x4_t cospi14 = vget_high_s16(cospi10_14);
+  const int16x4_t cospi18 = vget_low_s16(cospi18_22);
+  const int16x4_t cospi22 = vget_high_s16(cospi18_22);
+  const int16x4_t cospi26 = vget_low_s16(cospi26_30);
+  const int16x4_t cospi30 = vget_high_s16(cospi26_30);
+  const int16x4_t cospi1 = vget_low_s16(cospi1_3);
+  const int16x4_t cospi3 = vget_high_s16(cospi1_3);
+  const int16x4_t cospi5 = vget_low_s16(cospi5_7);
+  const int16x4_t cospi7 = vget_high_s16(cospi5_7);
+  const int16x4_t cospi9 = vget_low_s16(cospi9_11);
+  const int16x4_t cospi11 = vget_high_s16(cospi9_11);
+  const int16x4_t cospi13 = vget_low_s16(cospi13_15);
+  const int16x4_t cospi15 = vget_high_s16(cospi13_15);
+  const int16x4_t cospi17 = vget_low_s16(cospi17_19);
+  const int16x4_t cospi19 = vget_high_s16(cospi17_19);
+  const int16x4_t cospi21 = vget_low_s16(cospi21_23);
+  const int16x4_t cospi23 = vget_high_s16(cospi21_23);
+  const int16x4_t cospi25 = vget_low_s16(cospi25_27);
+  const int16x4_t cospi27 = vget_high_s16(cospi25_27);
+  const int16x4_t cospi29 = vget_low_s16(cospi29_31);
+  const int16x4_t cospi31 = vget_high_s16(cospi29_31);
 
   // stage 1
   int16x8_t x1[64];
@@ -1139,12 +1195,17 @@ static AOM_FORCE_INLINE void fdct8x64_neon(const int16x8_t *input,
 static AOM_FORCE_INLINE void fadst8x8_neon(const int16x8_t *input,
                                            int16x8_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
-  const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi20 = vld1_s16(&cospi[4 * 20]);
-  const int16x4_t cospi28 = vld1_s16(&cospi[4 * 28]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi4_12 = vld1q_s16(&cospi[4 * 4]);
+  const int16x8_t cospi20_28 = vld1q_s16(&cospi[4 * 6]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi4 = vget_low_s16(cospi4_12);
+  const int16x4_t cospi12 = vget_high_s16(cospi4_12);
+  const int16x4_t cospi20 = vget_low_s16(cospi20_28);
+  const int16x4_t cospi28 = vget_high_s16(cospi20_28);
 
   // stage 2
   int16x8_t x2[8];
@@ -1187,18 +1248,26 @@ static AOM_FORCE_INLINE void fadst8x8_neon(const int16x8_t *input,
 static AOM_FORCE_INLINE void fadst4x16_neon(const int16x4_t *input,
                                             int16x4_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi2 = vld1_s16(&cospi[4 * 2]);
-  const int16x4_t cospi6 = vld1_s16(&cospi[4 * 6]);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi10 = vld1_s16(&cospi[4 * 10]);
-  const int16x4_t cospi14 = vld1_s16(&cospi[4 * 14]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi18 = vld1_s16(&cospi[4 * 18]);
-  const int16x4_t cospi22 = vld1_s16(&cospi[4 * 22]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi26 = vld1_s16(&cospi[4 * 26]);
-  const int16x4_t cospi30 = vld1_s16(&cospi[4 * 30]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+  const int16x8_t cospi2_6 = vld1q_s16(&cospi[4 * 8]);
+  const int16x8_t cospi10_14 = vld1q_s16(&cospi[4 * 10]);
+  const int16x8_t cospi18_22 = vld1q_s16(&cospi[4 * 12]);
+  const int16x8_t cospi26_30 = vld1q_s16(&cospi[4 * 14]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
+  const int16x4_t cospi2 = vget_low_s16(cospi2_6);
+  const int16x4_t cospi6 = vget_high_s16(cospi2_6);
+  const int16x4_t cospi10 = vget_low_s16(cospi10_14);
+  const int16x4_t cospi14 = vget_high_s16(cospi10_14);
+  const int16x4_t cospi18 = vget_low_s16(cospi18_22);
+  const int16x4_t cospi22 = vget_high_s16(cospi18_22);
+  const int16x4_t cospi26 = vget_low_s16(cospi26_30);
+  const int16x4_t cospi30 = vget_high_s16(cospi26_30);
 
   // stage 2
   int16x4_t x2[8];
@@ -1295,18 +1364,26 @@ static AOM_FORCE_INLINE void fadst4x16_neon(const int16x4_t *input,
 static AOM_FORCE_INLINE void fadst8x16_neon(const int16x8_t *input,
                                             int16x8_t *output, int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi2 = vld1_s16(&cospi[4 * 2]);
-  const int16x4_t cospi6 = vld1_s16(&cospi[4 * 6]);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi10 = vld1_s16(&cospi[4 * 10]);
-  const int16x4_t cospi14 = vld1_s16(&cospi[4 * 14]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi18 = vld1_s16(&cospi[4 * 18]);
-  const int16x4_t cospi22 = vld1_s16(&cospi[4 * 22]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi26 = vld1_s16(&cospi[4 * 26]);
-  const int16x4_t cospi30 = vld1_s16(&cospi[4 * 30]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+  const int16x8_t cospi2_6 = vld1q_s16(&cospi[4 * 8]);
+  const int16x8_t cospi10_14 = vld1q_s16(&cospi[4 * 10]);
+  const int16x8_t cospi18_22 = vld1q_s16(&cospi[4 * 12]);
+  const int16x8_t cospi26_30 = vld1q_s16(&cospi[4 * 14]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
+  const int16x4_t cospi2 = vget_low_s16(cospi2_6);
+  const int16x4_t cospi6 = vget_high_s16(cospi2_6);
+  const int16x4_t cospi10 = vget_low_s16(cospi10_14);
+  const int16x4_t cospi14 = vget_high_s16(cospi10_14);
+  const int16x4_t cospi18 = vget_low_s16(cospi18_22);
+  const int16x4_t cospi22 = vget_high_s16(cospi18_22);
+  const int16x4_t cospi26 = vget_low_s16(cospi26_30);
+  const int16x4_t cospi30 = vget_high_s16(cospi26_30);
 
   // stage 2
   int16x8_t x2[8];
@@ -2331,24 +2408,35 @@ static void lowbd_fwd_txfm2d_16x64_neon(const int16_t *input, int32_t *output,
   }
 }
 
-static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
+static void fdct32_new_neon(const int32x4_t *input, int32x4_t *output,
+                            int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi2 = vld1_s16(&cospi[4 * 2]);
-  const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
-  const int16x4_t cospi6 = vld1_s16(&cospi[4 * 6]);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi10 = vld1_s16(&cospi[4 * 10]);
-  const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
-  const int16x4_t cospi14 = vld1_s16(&cospi[4 * 14]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi18 = vld1_s16(&cospi[4 * 18]);
-  const int16x4_t cospi20 = vld1_s16(&cospi[4 * 20]);
-  const int16x4_t cospi22 = vld1_s16(&cospi[4 * 22]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi26 = vld1_s16(&cospi[4 * 26]);
-  const int16x4_t cospi28 = vld1_s16(&cospi[4 * 28]);
-  const int16x4_t cospi30 = vld1_s16(&cospi[4 * 30]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+  const int16x8_t cospi4_12 = vld1q_s16(&cospi[4 * 4]);
+  const int16x8_t cospi20_28 = vld1q_s16(&cospi[4 * 6]);
+  const int16x8_t cospi2_6 = vld1q_s16(&cospi[4 * 8]);
+  const int16x8_t cospi10_14 = vld1q_s16(&cospi[4 * 10]);
+  const int16x8_t cospi18_22 = vld1q_s16(&cospi[4 * 12]);
+  const int16x8_t cospi26_30 = vld1q_s16(&cospi[4 * 14]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
+  const int16x4_t cospi4 = vget_low_s16(cospi4_12);
+  const int16x4_t cospi12 = vget_high_s16(cospi4_12);
+  const int16x4_t cospi20 = vget_low_s16(cospi20_28);
+  const int16x4_t cospi28 = vget_high_s16(cospi20_28);
+  const int16x4_t cospi2 = vget_low_s16(cospi2_6);
+  const int16x4_t cospi6 = vget_high_s16(cospi2_6);
+  const int16x4_t cospi10 = vget_low_s16(cospi10_14);
+  const int16x4_t cospi14 = vget_high_s16(cospi10_14);
+  const int16x4_t cospi18 = vget_low_s16(cospi18_22);
+  const int16x4_t cospi22 = vget_high_s16(cospi18_22);
+  const int16x4_t cospi26 = vget_low_s16(cospi26_30);
+  const int16x4_t cospi30 = vget_high_s16(cospi26_30);
 
   int32x4_t buf0[32];
   int32x4_t buf1[32];
@@ -2542,40 +2630,59 @@ static void fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   output[31] = buf0[31];
 }
 
-static void fdct64_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
+static void fdct64_new_neon(const int32x4_t *input, int32x4_t *output,
+                            int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
-  const int16x4_t cospi1 = vld1_s16(&cospi[4 * 1]);
-  const int16x4_t cospi2 = vld1_s16(&cospi[4 * 2]);
-  const int16x4_t cospi3 = vld1_s16(&cospi[4 * 3]);
-  const int16x4_t cospi4 = vld1_s16(&cospi[4 * 4]);
-  const int16x4_t cospi5 = vld1_s16(&cospi[4 * 5]);
-  const int16x4_t cospi6 = vld1_s16(&cospi[4 * 6]);
-  const int16x4_t cospi7 = vld1_s16(&cospi[4 * 7]);
-  const int16x4_t cospi8 = vld1_s16(&cospi[4 * 8]);
-  const int16x4_t cospi9 = vld1_s16(&cospi[4 * 9]);
-  const int16x4_t cospi10 = vld1_s16(&cospi[4 * 10]);
-  const int16x4_t cospi11 = vld1_s16(&cospi[4 * 11]);
-  const int16x4_t cospi12 = vld1_s16(&cospi[4 * 12]);
-  const int16x4_t cospi13 = vld1_s16(&cospi[4 * 13]);
-  const int16x4_t cospi14 = vld1_s16(&cospi[4 * 14]);
-  const int16x4_t cospi15 = vld1_s16(&cospi[4 * 15]);
-  const int16x4_t cospi16 = vld1_s16(&cospi[4 * 16]);
-  const int16x4_t cospi17 = vld1_s16(&cospi[4 * 17]);
-  const int16x4_t cospi18 = vld1_s16(&cospi[4 * 18]);
-  const int16x4_t cospi19 = vld1_s16(&cospi[4 * 19]);
-  const int16x4_t cospi20 = vld1_s16(&cospi[4 * 20]);
-  const int16x4_t cospi21 = vld1_s16(&cospi[4 * 21]);
-  const int16x4_t cospi22 = vld1_s16(&cospi[4 * 22]);
-  const int16x4_t cospi23 = vld1_s16(&cospi[4 * 23]);
-  const int16x4_t cospi24 = vld1_s16(&cospi[4 * 24]);
-  const int16x4_t cospi25 = vld1_s16(&cospi[4 * 25]);
-  const int16x4_t cospi26 = vld1_s16(&cospi[4 * 26]);
-  const int16x4_t cospi27 = vld1_s16(&cospi[4 * 27]);
-  const int16x4_t cospi28 = vld1_s16(&cospi[4 * 28]);
-  const int16x4_t cospi29 = vld1_s16(&cospi[4 * 29]);
-  const int16x4_t cospi30 = vld1_s16(&cospi[4 * 30]);
-  const int16x4_t cospi31 = vld1_s16(&cospi[4 * 31]);
-  const int16x4_t cospi32 = vld1_s16(&cospi[4 * 32]);
+
+  const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
+  const int16x8_t cospi8_24 = vld1q_s16(&cospi[4 * 2]);
+  const int16x8_t cospi4_12 = vld1q_s16(&cospi[4 * 4]);
+  const int16x8_t cospi20_28 = vld1q_s16(&cospi[4 * 6]);
+  const int16x8_t cospi2_6 = vld1q_s16(&cospi[4 * 8]);
+  const int16x8_t cospi10_14 = vld1q_s16(&cospi[4 * 10]);
+  const int16x8_t cospi18_22 = vld1q_s16(&cospi[4 * 12]);
+  const int16x8_t cospi26_30 = vld1q_s16(&cospi[4 * 14]);
+  const int16x8_t cospi1_3 = vld1q_s16(&cospi[4 * 16]);
+  const int16x8_t cospi5_7 = vld1q_s16(&cospi[4 * 18]);
+  const int16x8_t cospi9_11 = vld1q_s16(&cospi[4 * 20]);
+  const int16x8_t cospi13_15 = vld1q_s16(&cospi[4 * 22]);
+  const int16x8_t cospi17_19 = vld1q_s16(&cospi[4 * 24]);
+  const int16x8_t cospi21_23 = vld1q_s16(&cospi[4 * 26]);
+  const int16x8_t cospi25_27 = vld1q_s16(&cospi[4 * 28]);
+  const int16x8_t cospi29_31 = vld1q_s16(&cospi[4 * 30]);
+
+  const int16x4_t cospi32 = vget_low_s16(cospi32_16);
+  const int16x4_t cospi16 = vget_high_s16(cospi32_16);
+  const int16x4_t cospi8 = vget_low_s16(cospi8_24);
+  const int16x4_t cospi24 = vget_high_s16(cospi8_24);
+  const int16x4_t cospi4 = vget_low_s16(cospi4_12);
+  const int16x4_t cospi12 = vget_high_s16(cospi4_12);
+  const int16x4_t cospi20 = vget_low_s16(cospi20_28);
+  const int16x4_t cospi28 = vget_high_s16(cospi20_28);
+  const int16x4_t cospi2 = vget_low_s16(cospi2_6);
+  const int16x4_t cospi6 = vget_high_s16(cospi2_6);
+  const int16x4_t cospi10 = vget_low_s16(cospi10_14);
+  const int16x4_t cospi14 = vget_high_s16(cospi10_14);
+  const int16x4_t cospi18 = vget_low_s16(cospi18_22);
+  const int16x4_t cospi22 = vget_high_s16(cospi18_22);
+  const int16x4_t cospi26 = vget_low_s16(cospi26_30);
+  const int16x4_t cospi30 = vget_high_s16(cospi26_30);
+  const int16x4_t cospi1 = vget_low_s16(cospi1_3);
+  const int16x4_t cospi3 = vget_high_s16(cospi1_3);
+  const int16x4_t cospi5 = vget_low_s16(cospi5_7);
+  const int16x4_t cospi7 = vget_high_s16(cospi5_7);
+  const int16x4_t cospi9 = vget_low_s16(cospi9_11);
+  const int16x4_t cospi11 = vget_high_s16(cospi9_11);
+  const int16x4_t cospi13 = vget_low_s16(cospi13_15);
+  const int16x4_t cospi15 = vget_high_s16(cospi13_15);
+  const int16x4_t cospi17 = vget_low_s16(cospi17_19);
+  const int16x4_t cospi19 = vget_high_s16(cospi17_19);
+  const int16x4_t cospi21 = vget_low_s16(cospi21_23);
+  const int16x4_t cospi23 = vget_high_s16(cospi21_23);
+  const int16x4_t cospi25 = vget_low_s16(cospi25_27);
+  const int16x4_t cospi27 = vget_high_s16(cospi25_27);
+  const int16x4_t cospi29 = vget_low_s16(cospi29_31);
+  const int16x4_t cospi31 = vget_high_s16(cospi29_31);
 
   // stage 1
   int32x4_t x1[64];
