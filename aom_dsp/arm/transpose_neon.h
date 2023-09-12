@@ -764,9 +764,12 @@ static INLINE int32x4x2_t aom_vtrnq_s64_to_s32(int32x4_t a0, int32x4_t a1) {
   return b0;
 }
 
-static INLINE void transpose_elems_inplace_s32_4x4(int32x4_t *a0, int32x4_t *a1,
-                                                   int32x4_t *a2,
-                                                   int32x4_t *a3) {
+static INLINE void transpose_elems_s32_4x4(const int32x4_t a0,
+                                           const int32x4_t a1,
+                                           const int32x4_t a2,
+                                           const int32x4_t a3, int32x4_t *o0,
+                                           int32x4_t *o1, int32x4_t *o2,
+                                           int32x4_t *o3) {
   // Swap 32 bit elements. Goes from:
   // a0: 00 01 02 03
   // a1: 10 11 12 13
@@ -778,8 +781,8 @@ static INLINE void transpose_elems_inplace_s32_4x4(int32x4_t *a0, int32x4_t *a1,
   // b1.val[0]: 20 30 22 32
   // b1.val[1]: 21 31 23 33
 
-  const int32x4x2_t b0 = vtrnq_s32(*a0, *a1);
-  const int32x4x2_t b1 = vtrnq_s32(*a2, *a3);
+  const int32x4x2_t b0 = vtrnq_s32(a0, a1);
+  const int32x4x2_t b1 = vtrnq_s32(a2, a3);
 
   // Swap 64 bit elements resulting in:
   // c0.val[0]: 00 10 20 30
@@ -790,10 +793,16 @@ static INLINE void transpose_elems_inplace_s32_4x4(int32x4_t *a0, int32x4_t *a1,
   const int32x4x2_t c0 = aom_vtrnq_s64_to_s32(b0.val[0], b1.val[0]);
   const int32x4x2_t c1 = aom_vtrnq_s64_to_s32(b0.val[1], b1.val[1]);
 
-  *a0 = c0.val[0];
-  *a1 = c1.val[0];
-  *a2 = c0.val[1];
-  *a3 = c1.val[1];
+  *o0 = c0.val[0];
+  *o1 = c1.val[0];
+  *o2 = c0.val[1];
+  *o3 = c1.val[1];
+}
+
+static INLINE void transpose_elems_inplace_s32_4x4(int32x4_t *a0, int32x4_t *a1,
+                                                   int32x4_t *a2,
+                                                   int32x4_t *a3) {
+  transpose_elems_s32_4x4(*a0, *a1, *a2, *a3, a0, a1, a2, a3);
 }
 
 static INLINE int64x2_t aom_vtrn1q_s64(int64x2_t a, int64x2_t b) {
