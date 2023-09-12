@@ -3118,8 +3118,9 @@ static AOM_INLINE void cdef_reset_job_info(AV1CdefSync *cdef_sync) {
 // populates next job information and returns 1, else returns 0.
 static AOM_INLINE int cdef_get_next_job(AV1CdefSync *cdef_sync,
                                         CdefSearchCtx *cdef_search_ctx,
-                                        int *cur_fbr, int *cur_fbc,
-                                        int *sb_count) {
+                                        volatile int *cur_fbr,
+                                        volatile int *cur_fbc,
+                                        volatile int *sb_count) {
 #if CONFIG_MULTITHREAD
   pthread_mutex_lock(cdef_sync->mutex_);
 #endif  // CONFIG_MULTITHREAD
@@ -3176,7 +3177,7 @@ static int cdef_filter_block_worker_hook(void *arg1, void *arg2) {
   }
   error_info->setjmp = 1;
 
-  int cur_fbr, cur_fbc, sb_count;
+  volatile int cur_fbr, cur_fbc, sb_count;
   while (cdef_get_next_job(cdef_sync, cdef_search_ctx, &cur_fbr, &cur_fbc,
                            &sb_count)) {
     av1_cdef_mse_calc_block(cdef_search_ctx, error_info, cur_fbr, cur_fbc,
