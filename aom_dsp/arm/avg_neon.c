@@ -10,6 +10,7 @@
 
 #include <arm_neon.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
@@ -217,9 +218,9 @@ int aom_vector_var_neon(const int16_t *ref, const int16_t *src, int bwl) {
   int16x8_t r = vld1q_s16(ref);
   int16x8_t s = vld1q_s16(src);
 
-  // diff: dynamic range [-510, 510] 10 bits.
+  // diff: dynamic range [-510, 510] 10 (signed) bits.
   int16x8_t diff = vsubq_s16(r, s);
-  // v_mean: dynamic range 16 * diff -> [-8160, 8160], 14 bits.
+  // v_mean: dynamic range 16 * diff -> [-8160, 8160], 14 (signed) bits.
   int16x8_t v_mean = diff;
   // v_sse: dynamic range 2 * 16 * diff^2 -> [0, 8,323,200], 24 (signed) bits.
   int32x4_t v_sse[2];
@@ -245,11 +246,12 @@ int aom_vector_var_neon(const int16_t *ref, const int16_t *src, int bwl) {
     width -= 8;
   } while (width != 0);
 
-  const int32_t mean = horizontal_add_s16x8(v_mean);
+  // Dynamic range [0, 65280], 16 (unsigned) bits.
+  const uint32_t mean_abs = abs(horizontal_add_s16x8(v_mean));
   const int32_t sse = horizontal_add_s32x4(vaddq_s32(v_sse[0], v_sse[1]));
 
-  // (mean * mean): dynamic range 31 bits.
-  return sse - ((mean * mean) >> (bwl + 2));
+  // (mean_abs * mean_abs): dynamic range 32 (unsigned) bits.
+  return sse - ((mean_abs * mean_abs) >> (bwl + 2));
 }
 
 void aom_minmax_8x8_neon(const uint8_t *a, int a_stride, const uint8_t *b,
