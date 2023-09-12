@@ -1416,6 +1416,10 @@ static INLINE void highbd_convolve_2d_sr_horiz_6tap_neon(
     const uint16_t *src_ptr, int src_stride, uint16_t *dst_ptr, int dst_stride,
     int w, int h, const int16_t *x_filter_ptr, ConvolveParams *conv_params,
     const int offset) {
+  // The smallest block height processed by the SIMD functions is 4, and the
+  // horizontal convolution needs to process an extra (filter_taps/2 - 1) lines
+  // for the vertical convolution.
+  assert(h >= 5);
   const int32x4_t shift_s32 = vdupq_n_s32(-conv_params->round_0);
   const int32x4_t offset_s32 = vdupq_n_s32(offset);
 
@@ -1527,6 +1531,10 @@ static INLINE void highbd_convolve_2d_sr_horiz_neon(
     const uint16_t *src_ptr, int src_stride, uint16_t *dst_ptr, int dst_stride,
     int w, int h, const int16_t *x_filter_ptr, ConvolveParams *conv_params,
     const int offset) {
+  // The smallest block height processed by the SIMD functions is 4, and the
+  // horizontal convolution needs to process an extra (filter_taps/2 - 1) lines
+  // for the vertical convolution.
+  assert(h >= 5);
   const int32x4_t shift_s32 = vdupq_n_s32(-conv_params->round_0);
   const int32x4_t offset_s32 = vdupq_n_s32(offset);
 
@@ -1704,6 +1712,10 @@ static INLINE void highbd_convolve_2d_sr_horiz_12tap_neon(
     const uint16_t *src_ptr, int src_stride, uint16_t *dst_ptr, int dst_stride,
     int w, int h, const int16_t *x_filter_ptr, ConvolveParams *conv_params,
     const int offset) {
+  // The smallest block height processed by the SIMD functions is 4, and the
+  // horizontal convolution needs to process an extra (filter_taps/2 - 1) lines
+  // for the vertical convolution.
+  assert(h >= 5);
   const int32x4_t shift_s32 = vdupq_n_s32(-conv_params->round_0);
   const int16x8_t x_filter_0_7 = vld1q_s16(x_filter_ptr);
   const int16x4_t x_filter_8_11 = vld1_s16(x_filter_ptr + 8);
