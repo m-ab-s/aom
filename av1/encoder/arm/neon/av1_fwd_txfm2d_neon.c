@@ -20,6 +20,7 @@
 #include "av1/encoder/av1_fwd_txfm1d_cfg.h"
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
+#include "txfm_neon.h"
 
 #define TXFM_COS_BIT_MAX 13
 
@@ -1963,14 +1964,6 @@ static const col_transform_1d_lbd_8_neon col_txfm8x32_arr[TX_TYPES] = {
   NULL,                    // V_FLIPADST
   NULL                     // H_FLIPADST
 };
-
-static void ud_adjust_input_and_stride(int ud_flip, const int16_t **input,
-                                       int *stride, int out_size) {
-  if (ud_flip) {
-    *input = *input + (out_size - 1) * *stride;
-    *stride = -*stride;
-  }
-}
 
 static void lowbd_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *output,
                                       int stride, TX_TYPE tx_type, int bd) {
