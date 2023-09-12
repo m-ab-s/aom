@@ -359,8 +359,8 @@ void AV1HighbdFrameErrorConsistencyTest::RandomValues(int width, int height) {
   ASSERT_NE(ref16, nullptr);
   // Set up parallel 8-bit and 16-bit buffers with the same content
   for (int i = 0; i < max_blk_size; ++i) {
-    dst8[i] = dst16[i] = rnd_.Rand8();
-    ref8[i] = ref16[i] = rnd_.Rand8();
+    dst16[i] = dst8[i] = rnd_.Rand8();
+    ref16[i] = ref8[i] = rnd_.Rand8();
   }
   const int64_t error8 =
       av1_calc_frame_error_c(ref8, stride, dst8, stride, width, height);
