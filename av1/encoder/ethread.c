@@ -960,6 +960,9 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
         // Set up firstpass PICK_MODE_CONTEXT.
         thread_data->td->firstpass_ctx = av1_alloc_pmc(
             ppi->cpi, BLOCK_16X16, &thread_data->td->shared_coeff_buf);
+        if (!thread_data->td->firstpass_ctx)
+          aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
+                             "Failed to allocate PICK_MODE_CONTEXT");
       }
 
       if (!is_first_pass && i < num_enc_workers) {
