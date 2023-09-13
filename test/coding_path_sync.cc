@@ -130,11 +130,13 @@ std::vector<int16_t> Serialize(const aom_image_t *img) {
 
     for (int r = 0; r < h; ++r) {
       for (int c = 0; c < w; ++c) {
-        unsigned char *row = img->planes[plane] + r * img->stride[plane];
-        if (img->fmt & AOM_IMG_FMT_HIGHBITDEPTH)
-          bytes.push_back(row[c * 2]);
-        else
+        const unsigned char *row = img->planes[plane] + r * img->stride[plane];
+        if (img->fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
+          const uint16_t *row16 = reinterpret_cast<const uint16_t *>(row);
+          bytes.push_back(row16[c]);
+        } else {
           bytes.push_back(row[c]);
+        }
       }
     }
   }
