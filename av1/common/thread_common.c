@@ -922,6 +922,7 @@ static AOM_INLINE void launch_cdef_workers(AVxWorker *const workers,
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &workers[i];
+    worker->had_error = 0;
     if (i == 0)
       winterface->execute(worker);
     else
@@ -933,16 +934,26 @@ static AOM_INLINE void sync_cdef_workers(AVxWorker *const workers,
                                          AV1_COMMON *const cm,
                                          int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
-  int had_error = 0;
+  int had_error = workers[0].had_error;
+  struct aom_internal_error_info error_info;
 
-  // Wait for completion of Cdef frame.
-  for (int i = num_workers - 1; i > 0; i--) {
+  // Read the error_info of main thread.
+  if (had_error) {
+    AVxWorker *const worker = &workers[0];
+    error_info = ((AV1CdefWorkerData *)worker->data2)->error_info;
+  }
+
+  // Wait till all rows are finished.
+  for (int i = num_workers - 1; i > 0; --i) {
     AVxWorker *const worker = &workers[i];
-    had_error |= !winterface->sync(worker);
+    if (!winterface->sync(worker)) {
+      had_error = 1;
+      error_info = ((AV1CdefWorkerData *)worker->data2)->error_info;
+    }
   }
   if (had_error)
-    aom_internal_error(cm->error, AOM_CODEC_ERROR,
-                       "Failed to process cdef frame");
+    aom_internal_error(cm->error, error_info.error_code, "%s",
+                       error_info.detail);
 }
 
 // Updates the row index of the next job to be processed.
@@ -958,14 +969,15 @@ static void update_cdef_row_next_job_info(AV1CdefSync *const cdef_sync,
 // Checks if a job is available. If job is available,
 // populates next job information and returns 1, else returns 0.
 static AOM_INLINE int get_cdef_row_next_job(AV1CdefSync *const cdef_sync,
-                                            int *cur_fbr, const int nvfb) {
+                                            volatile int *cur_fbr,
+                                            const int nvfb) {
 #if CONFIG_MULTITHREAD
   pthread_mutex_lock(cdef_sync->mutex_);
 #endif  // CONFIG_MULTITHREAD
   int do_next_row = 0;
   // Populates information needed for current job and update the row
   // index of the next row to be processed.
-  if (cdef_sync->end_of_frame == 0) {
+  if (!cdef_sync->cdef_mt_exit && cdef_sync->end_of_frame == 0) {
     do_next_row = 1;
     *cur_fbr = cdef_sync->fbr;
     update_cdef_row_next_job_info(cdef_sync, nvfb);
@@ -976,19 +988,49 @@ static AOM_INLINE int get_cdef_row_next_job(AV1CdefSync *const cdef_sync,
   return do_next_row;
 }
 
+static void set_cdef_init_fb_row_done(AV1CdefSync *const cdef_sync, int nvfb) {
+  for (int fbr = 0; fbr < nvfb; fbr++) cdef_row_mt_sync_write(cdef_sync, fbr);
+}
+
 // Hook function for each thread in CDEF multi-threading.
 static int cdef_sb_row_worker_hook(void *arg1, void *arg2) {
   AV1CdefSync *const cdef_sync = (AV1CdefSync *)arg1;
   AV1CdefWorkerData *const cdef_worker = (AV1CdefWorkerData *)arg2;
   AV1_COMMON *cm = cdef_worker->cm;
   const int nvfb = (cm->mi_params.mi_rows + MI_SIZE_64X64 - 1) / MI_SIZE_64X64;
-  int cur_fbr;
+
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t *job_mutex_ = cdef_sync->mutex_;
+#endif
+  struct aom_internal_error_info *const error_info = &cdef_worker->error_info;
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(job_mutex_);
+    cdef_sync->cdef_mt_exit = true;
+    pthread_mutex_unlock(job_mutex_);
+#endif
+    // In case of cdef row-multithreading, the worker on a filter block row
+    // (fbr) waits for the line buffers (top and bottom) copy of the above row.
+    // Hence, in case a thread (main/worker) encounters an error before copying
+    // of the line buffers, update that line buffer copy is complete in order to
+    // avoid dependent workers waiting indefinitely.
+    set_cdef_init_fb_row_done(cdef_sync, nvfb);
+    return 0;
+  }
+  error_info->setjmp = 1;
+
+  volatile int cur_fbr;
   const int num_planes = av1_num_planes(cm);
   while (get_cdef_row_next_job(cdef_sync, &cur_fbr, nvfb)) {
     MACROBLOCKD *xd = cdef_worker->xd;
     av1_cdef_fb_row(cm, xd, cdef_worker->linebuf, cdef_worker->colbuf,
                     cdef_worker->srcbuf, cur_fbr,
-                    cdef_worker->cdef_init_fb_row_fn, cdef_sync);
+                    cdef_worker->cdef_init_fb_row_fn, cdef_sync, error_info);
     if (cdef_worker->do_extend_border) {
       for (int plane = 0; plane < num_planes; ++plane) {
         const YV12_BUFFER_CONFIG *ybf = &cm->cur_frame->buf;
@@ -1002,6 +1044,7 @@ static int cdef_sb_row_worker_hook(void *arg1, void *arg2) {
       }
     }
   }
+  error_info->setjmp = 0;
   return 1;
 }
 
