@@ -2792,6 +2792,7 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
   struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
   int force_skip_low_temp_var = 0;
   int skip_pred_mv = 0;
+  int use_scaled_ref = 0;
 
   for (int i = 0; i < MB_MODE_COUNT; ++i) {
     for (int j = 0; j < REF_FRAMES; ++j) {
@@ -2804,7 +2805,7 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
                   x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)] != 2);
 
   find_predictors(cpi, x, ref_frame, frame_mv, yv12_mb, bsize,
-                  force_skip_low_temp_var, skip_pred_mv);
+                  force_skip_low_temp_var, skip_pred_mv, &use_scaled_ref);
 
   int continue_merging = 1;
   if (frame_mv[NEARESTMV][ref_frame].as_mv.row != b0[0]->mv[0].as_mv.row ||
@@ -2820,7 +2821,7 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
     av1_set_offsets_without_segment_id(cpi, &tile_data->tile_info, x, mi_row,
                                        mi_col, this_mi[0]->bsize);
     find_predictors(cpi, x, ref_frame, frame_mv, yv12_mb, this_mi[0]->bsize,
-                    force_skip_low_temp_var, skip_pred_mv);
+                    force_skip_low_temp_var, skip_pred_mv, &use_scaled_ref);
   } else {
     struct scale_factors *sf = get_ref_scale_factors(cm, ref_frame);
     const int is_scaled = av1_is_scaled(sf);
