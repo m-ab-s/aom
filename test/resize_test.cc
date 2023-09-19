@@ -402,7 +402,8 @@ class ResizeRealtimeTest
  protected:
   ResizeRealtimeTest()
       : EncoderTest(GET_PARAM(0)), num_threads_(GET_PARAM(3)),
-        set_scale_mode_(false), set_scale_mode2_(false) {}
+        set_scale_mode_(false), set_scale_mode2_(false),
+        set_scale_mode3_(false) {}
   ~ResizeRealtimeTest() override = default;
 
   void PreEncodeFrameHook(libaom_test::VideoSource *video,
@@ -432,6 +433,13 @@ class ResizeRealtimeTest
         mode = { AOME_ONETWO, AOME_ONETWO };
       else if (video->frame() > 40)
         mode = { AOME_THREEFOUR, AOME_THREEFOUR };
+      encoder->Control(AOME_SET_SCALEMODE, &mode);
+    } else if (set_scale_mode3_) {
+      struct aom_scaling_mode mode;
+      if (video->frame() <= 30)
+        mode = { AOME_ONETWO, AOME_NORMAL };
+      else
+        mode = { AOME_NORMAL, AOME_NORMAL };
       encoder->Control(AOME_SET_SCALEMODE, &mode);
     }
 
@@ -483,7 +491,7 @@ class ResizeRealtimeTest
     // the width and height of the frame are swapped
     cfg_.g_forced_max_frame_width = cfg_.g_forced_max_frame_height =
         AOMMAX(kInitialWidth, kInitialHeight);
-    if (set_scale_mode_ || set_scale_mode2_) {
+    if (set_scale_mode_ || set_scale_mode2_ || set_scale_mode3_) {
       cfg_.rc_dropframe_thresh = 0;
       cfg_.g_forced_max_frame_width = 1280;
       cfg_.g_forced_max_frame_height = 1280;
@@ -499,6 +507,7 @@ class ResizeRealtimeTest
   int mismatch_nframes_;
   bool set_scale_mode_;
   bool set_scale_mode2_;
+  bool set_scale_mode3_;
 };
 
 // Check the AOME_SET_SCALEMODE control by downsizing to
@@ -509,6 +518,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode1) {
   cfg_.g_h = 720;
   set_scale_mode_ = true;
   set_scale_mode2_ = false;
+  set_scale_mode3_ = false;
   DefaultConfig();
   change_bitrate_ = false;
   mismatch_nframes_ = 0;
@@ -544,6 +554,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode1QVGA) {
   cfg_.g_h = 180;
   set_scale_mode_ = true;
   set_scale_mode2_ = false;
+  set_scale_mode3_ = false;
   DefaultConfig();
   change_bitrate_ = false;
   mismatch_nframes_ = 0;
@@ -578,6 +589,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode2) {
   cfg_.g_h = 720;
   set_scale_mode_ = false;
   set_scale_mode2_ = true;
+  set_scale_mode3_ = false;
   DefaultConfig();
   change_bitrate_ = false;
   mismatch_nframes_ = 0;
@@ -604,12 +616,45 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode2) {
   }
 }
 
+// Check the AOME_SET_SCALEMODE control by downsizing to
+// 1/2 horizontally only and then back up to original.
+TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode3) {
+  ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 60);
+  cfg_.g_w = 1280;
+  cfg_.g_h = 720;
+  set_scale_mode_ = false;
+  set_scale_mode2_ = false;
+  set_scale_mode3_ = true;
+  DefaultConfig();
+  change_bitrate_ = false;
+  mismatch_nframes_ = 0;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  // Check we decoded the same number of frames as we attempted to encode
+  ASSERT_EQ(frame_info_list_.size(), video.limit());
+  for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
+       info != frame_info_list_.end(); ++info) {
+    const auto frame = static_cast<unsigned>(info->pts);
+    unsigned int expected_w = 640;
+    unsigned int expected_h = 720;
+    if (frame > 30) {
+      expected_w = 1280;
+      expected_h = 720;
+    }
+    EXPECT_EQ(expected_w, info->w)
+        << "Frame " << frame << " had unexpected width";
+    EXPECT_EQ(expected_h, info->h)
+        << "Frame " << frame << " had unexpected height";
+    EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
+  }
+}
+
 TEST_P(ResizeRealtimeTest, TestExternalResizeWorks) {
   ResizingVideoSource video;
   video.flag_codec_ = 1;
   change_bitrate_ = false;
   set_scale_mode_ = false;
   set_scale_mode2_ = false;
+  set_scale_mode3_ = false;
   mismatch_psnr_ = 0.0;
   mismatch_nframes_ = 0;
   DefaultConfig();
@@ -651,6 +696,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeDown) {
   change_bitrate_ = false;
   set_scale_mode_ = false;
   set_scale_mode2_ = false;
+  set_scale_mode3_ = false;
   mismatch_psnr_ = 0.0;
   mismatch_nframes_ = 0;
   DefaultConfig();
@@ -700,6 +746,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeDownUpChangeBitRate) {
   frame_change_bitrate_ = 120;
   set_scale_mode_ = false;
   set_scale_mode2_ = false;
+  set_scale_mode3_ = false;
   mismatch_psnr_ = 0.0;
   mismatch_nframes_ = 0;
   DefaultConfig();
