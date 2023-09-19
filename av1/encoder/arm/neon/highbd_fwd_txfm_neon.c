@@ -3607,31 +3607,28 @@ void av1_fwd_txfm2d_64x16_neon(const int16_t *input, int32_t *coeff, int stride,
 #endif
 
 static void fdct64_new_neon(int32x4_t *input, int32x4_t *output,
-                            const int8_t cos_bit, const int8_t *stage_range) {
-  (void)stage_range;
+                            const int8_t cos_bit) {
   for (int col = 0; col < 16; col++) {
     av1_fdct64_new_neon(input + col, output + col, cos_bit, 16, 16);
   }
 }
 
 static void fdct32_new_neon(int32x4_t *input, int32x4_t *output,
-                            const int8_t cos_bit, const int8_t *stage_range) {
-  (void)stage_range;
+                            const int8_t cos_bit) {
   for (int col = 0; col < 8; col++) {
     av1_fdct32_new_neon(input + col, output + col, cos_bit, 8);
   }
 }
 
 static void idtx32x32_neon(int32x4_t *input, int32x4_t *output,
-                           const int8_t cos_bit, const int8_t *stage_range) {
-  (void)stage_range;
+                           const int8_t cos_bit) {
   for (int i = 0; i < 8; i++) {
     av1_idtx32_new_neon(&input[i * 32], &output[i * 32], cos_bit, 1);
   }
 }
 
 typedef void (*TxfmFuncNEON)(int32x4_t *input, int32x4_t *output,
-                             const int8_t cos_bit, const int8_t *stage_range);
+                             const int8_t cos_bit);
 
 static INLINE TxfmFuncNEON fwd_txfm_type_to_func(TXFM_TYPE txfm_type) {
   switch (txfm_type) {
@@ -3686,8 +3683,6 @@ void av1_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
   TXFM_2D_FLIP_CFG cfg;
   av1_get_fwd_txfm_cfg(tx_type, TX_32X32, &cfg);
   assert(cfg.tx_size < TX_SIZES);
-  const int8_t *stage_range_col = cfg.stage_range_col;
-  const int8_t *stage_range_row = cfg.stage_range_row;
   const TxfmFuncNEON txfm_func_col = fwd_txfm_type_to_func(cfg.txfm_type_col);
   const TxfmFuncNEON txfm_func_row = fwd_txfm_type_to_func(cfg.txfm_type_row);
 
@@ -3697,10 +3692,10 @@ void av1_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
   int16_array_with_stride_to_int32_array_without_stride(input, stride, txfm_buf,
                                                         32);
   av1_round_shift_array_32_neon(buf_128, out_128, 256, -2);
-  txfm_func_col(out_128, buf_128, 12, stage_range_col);
+  txfm_func_col(out_128, buf_128, 12);
   av1_round_shift_array_32_neon(buf_128, out_128, 256, 4);
   transpose_32(32, out_128, buf_128);
-  txfm_func_row(buf_128, out_128, 12, stage_range_row);
+  txfm_func_row(buf_128, out_128, 12);
   av1_round_shift_array_32_neon(out_128, out_128, 256, 0);
 }
 
@@ -3711,7 +3706,6 @@ void av1_fwd_txfm2d_64x64_neon(const int16_t *input, int32_t *output,
   TXFM_2D_FLIP_CFG cfg;
   av1_get_fwd_txfm_cfg(tx_type, TX_64X64, &cfg);
   assert(cfg.tx_size < TX_SIZES);
-  const int8_t *stage_range_col = cfg.stage_range_col;
   const TxfmFuncNEON txfm_func_col = fwd_txfm_type_to_func(cfg.txfm_type_col);
   int32x4_t *buf_128 = (int32x4_t *)txfm_buf;
   int32x4_t *out_128 = (int32x4_t *)output;
@@ -3719,7 +3713,7 @@ void av1_fwd_txfm2d_64x64_neon(const int16_t *input, int32_t *output,
   int16_array_with_stride_to_int32_array_without_stride(input, stride, output,
                                                         64);
   // Column-wise transform.
-  txfm_func_col(out_128, buf_128, 13, stage_range_col);
+  txfm_func_col(out_128, buf_128, 13);
   av1_round_shift_array_32_neon(buf_128, out_128, 1024, 2);
   transpose_32(64, out_128, buf_128);
 
