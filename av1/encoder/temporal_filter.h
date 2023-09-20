@@ -21,9 +21,9 @@ extern "C" {
 struct AV1_COMP;
 struct AV1EncoderConfig;
 struct ThreadData;
-// TODO(any): These two variables are only used in avx2, sse2, sse4
-// implementations, where the block size is still hard coded. This should be
-// fixed to align with the c implementation.
+// TODO(wtc): These two variables are only used in avx2, sse2, neon
+// implementations, where the block size is still hard coded to TF_BLOCK_SIZE.
+// This should be fixed to align with the c implementation.
 #define BH 32
 #define BW 32
 
