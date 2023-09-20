@@ -114,8 +114,8 @@ static void highbd_apply_temporal_filter(
   vmask2[3] = k1111;
 
   uint32_t row = 0;
-  uint32_t col = 0;
   do {
+    uint32_t col = 0;
     const uint32_t *src = frame_sse + row * frame_sse_stride;
     if (row == 0) {
       vsrc[2][0] = vld1q_u32(src);
@@ -160,7 +160,7 @@ static void highbd_apply_temporal_filter(
     acc_5x5_neon[row][0] = sum_kernel5x5_mask_single(vsrc, k0113);
     acc_5x5_neon[row][1] = sum_kernel5x5_mask_single(vsrc, k1112);
 
-    col = 4;
+    col += 4;
     src += 4;
     // Traverse 4 columns at a time
     do {
