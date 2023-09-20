@@ -321,8 +321,7 @@ void av1_highbd_apply_temporal_filter_neon(
   double s_decay = pow((double)filter_strength / TF_STRENGTH_THRESHOLD, 2);
   s_decay = CLIP(s_decay, 1e-5, 1);
   double d_factor[4] = { 0 };
-  // Add padding to frame_sse
-  uint32_t frame_sse[(BW + 4) * BH] = { 0 };
+  uint32_t frame_sse[BW * BH] = { 0 };
   uint32_t luma_sse_sum[BW * BH] = { 0 };
   uint16_t *pred = CONVERT_TO_SHORTPTR(pred8);
 
