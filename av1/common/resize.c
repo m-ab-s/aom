@@ -1132,21 +1132,20 @@ static bool highbd_upscale_normative_rect(const uint8_t *const input,
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-bool av1_resize_frame420(const uint8_t *const y, int y_stride,
+void av1_resize_frame420(const uint8_t *const y, int y_stride,
                          const uint8_t *const u, const uint8_t *const v,
                          int uv_stride, int height, int width, uint8_t *oy,
                          int oy_stride, uint8_t *ou, uint8_t *ov,
                          int ouv_stride, int oheight, int owidth) {
   if (!av1_resize_plane(y, height, width, y_stride, oy, oheight, owidth,
                         oy_stride))
-    return false;
+    abort();
   if (!av1_resize_plane(u, height / 2, width / 2, uv_stride, ou, oheight / 2,
                         owidth / 2, ouv_stride))
-    return false;
+    abort();
   if (!av1_resize_plane(v, height / 2, width / 2, uv_stride, ov, oheight / 2,
                         owidth / 2, ouv_stride))
-    return false;
-  return true;
+    abort();
 }
 
 bool av1_resize_frame422(const uint8_t *const y, int y_stride,
