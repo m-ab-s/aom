@@ -10,6 +10,8 @@
 ##
 ##  This script checks the bit exactness between C and SIMD
 ##  implementations of AV1 encoder.
+##
+. $(dirname $0)/tools_common.sh
 
 PRESETS="good rt"
 LOWBD_CLIPS="yuv_raw_input yuv_480p_raw_input y4m_720p_input y4m_screen_input"
@@ -17,7 +19,6 @@ HIGHBD_CLIPS="y4m_360p_10bit_input"
 OUT_FILE_SUFFIX=".ivf"
 SCRIPT_DIR=$(dirname "$0")
 LIBAOM_SOURCE_DIR=$(cd ${SCRIPT_DIR}/..; pwd)
-devnull='> /dev/null 2>&1'
 
 # Clips used in test.
 YUV_RAW_INPUT="${LIBAOM_TEST_DATA_PATH}/hantro_collage_w352h288.yuv"
@@ -93,9 +94,11 @@ av1_c_vs_simd_enc_verify_environment () {
   fi
 }
 
-cleanup() {
-  rm -rf  ${AOM_TEST_OUTPUT_DIR}
-}
+# This is not needed since tools_common.sh does the same cleanup.
+# Keep the code here for our reference.
+# cleanup() {
+#  rm -rf  ${AOM_TEST_OUTPUT_DIR}
+# }
 
 # Echo AOM_SIMD_CAPS_MASK for different instruction set architecture.
 avx512f() {
@@ -208,8 +211,8 @@ y4m_screen_input() {
 
 has_x86_isa_extn() {
   instruction_set=$1
-  grep -q "$instruction_set" /proc/cpuinfo
-  if [ $? -eq 1 ]; then
+  if ! grep -q "$instruction_set" /proc/cpuinfo; then
+    # This instruction set is not supported.
     return 1
   fi
 }
@@ -322,9 +325,8 @@ compare_enc_output() {
   local clip=$3
   local bitrate=$4
   local preset=$5
-  diff ${AOM_TEST_OUTPUT_DIR}/Out-generic-"${clip}"-${preset}-${bitrate}kbps-cpu${cpu}${OUT_FILE_SUFFIX} \
-       ${AOM_TEST_OUTPUT_DIR}/Out-${target}-"${clip}"-${preset}-${bitrate}kbps-cpu${cpu}${OUT_FILE_SUFFIX} > /dev/null
-  if [ $? -eq 1 ]; then
+  if ! diff -q ${AOM_TEST_OUTPUT_DIR}/Out-generic-"${clip}"-${preset}-${bitrate}kbps-cpu${cpu}${OUT_FILE_SUFFIX} \
+       ${AOM_TEST_OUTPUT_DIR}/Out-${target}-"${clip}"-${preset}-${bitrate}kbps-cpu${cpu}${OUT_FILE_SUFFIX}; then
     elog "C vs ${target} encode mismatches for ${clip}, at ${bitrate} kbps, speed ${cpu}, ${preset} preset"
     return 1
   fi
@@ -371,8 +373,8 @@ av1_enc_test() {
         ${devnull}
 
         if [ "${target}" != "generic" ]; then
-          compare_enc_output ${target} $cpu ${clip} $bitrate ${preset}
-          if [ $? -eq 1 ]; then
+          if ! compare_enc_output ${target} $cpu ${clip} $bitrate ${preset}; then
+            # Found a mismatch
             return 1
           fi
         fi
@@ -392,7 +394,7 @@ av1_test_generic() {
     # The cmake command line option -DENABLE_MMX=0 flag disables all SIMD
     # optimizations, and generates a C-only binary.
     local cmake_command="cmake $LIBAOM_SOURCE_DIR -DENABLE_MMX=0 \
-      -DCMAKE_TOOLCHAIN_FILE=${LIBAOM_SOURCE_DIR}/build/cmake/toolchains/${arch}-linux.cmake"
+      -DCMAKE_TOOLCHAIN_FILE=${LIBAOM_SOURCE_DIR}/build/cmake/toolchains/i686-linux-gcc.cmake"
   fi
 
   echo "Build for: Generic ${arch}"
@@ -424,8 +426,7 @@ av1_test_generic() {
 av1_test_x86() {
   local arch=$1
 
-  uname -m | grep -q "x86"
-  if [ $? -eq 1 ]; then
+  if ! uname -m | grep -q "x86"; then
     elog "Machine architecture is not x86 or x86_64"
     return 0
   fi
@@ -434,7 +435,7 @@ av1_test_x86() {
     local target="x86-linux"
     local cmake_command="cmake \
     $LIBAOM_SOURCE_DIR \
-    -DCMAKE_TOOLCHAIN_FILE=${LIBAOM_SOURCE_DIR}/build/cmake/toolchains/${target}.cmake"
+    -DCMAKE_TOOLCHAIN_FILE=${LIBAOM_SOURCE_DIR}/build/cmake/toolchains/i686-linux-gcc.cmake"
   elif [ $arch = "x86_64" ]; then
     local target="x86_64-linux"
     local cmake_command="cmake $LIBAOM_SOURCE_DIR"
@@ -448,14 +449,14 @@ av1_test_x86() {
   for preset in $PRESETS; do
     local encoder="$(av1_enc_tool_path "${target}" "${preset}")"
     for isa in $x86_isa_variants; do
-      has_x86_isa_extn $isa
-      if [ $? -eq 1 ]; then
+      # Note that if has_x86_isa_extn returns 1, it is false, and vice versa.
+      if ! has_x86_isa_extn $isa; then
         echo "${isa} is not supported in this machine"
         continue
       fi
       export AOM_SIMD_CAPS_MASK=$($isa)
-      av1_enc_test $encoder "${target}" "${preset}"
-      if [ $? -eq 1 ]; then
+      if ! av1_enc_test $encoder "${target}" "${preset}"; then
+        # Found a mismatch
         return 1
       fi
       unset AOM_SIMD_CAPS_MASK
@@ -479,8 +480,8 @@ av1_test_arm() {
       continue
     fi
     local encoder="$(av1_enc_tool_path "${target}" "${preset}")"
-    av1_enc_test "qemu-aarch64 -L /usr/aarch64-linux-gnu ${encoder}" "${target}" "${preset}"
-    if [ $? -eq 1 ]; then
+    if ! av1_enc_test "qemu-aarch64 -L /usr/aarch64-linux-gnu ${encoder}" "${target}" "${preset}"; then
+      # Found a mismatch
       return 1
     fi
   done
@@ -488,14 +489,15 @@ av1_test_arm() {
 
 av1_c_vs_simd_enc_test () {
   # Test x86 (32 bit)
+  # x86 requires the i686-linux-gnu toolchain:
+  # $ sudo apt-get install g++-i686-linux-gnu
   echo "av1 test for x86 (32 bit): Started."
   # Encode 'C' only
   av1_test_generic "x86"
-
   # Encode with SIMD optimizations enabled
-  av1_test_x86 "x86"
-  if [ $? -eq 1 ]; then
+  if ! av1_test_x86 "x86"; then
     echo "av1 test for x86 (32 bit): Done, test failed."
+    return 1
   else
     echo "av1 test for x86 (32 bit): Done, all tests passed."
   fi
@@ -506,9 +508,9 @@ av1_c_vs_simd_enc_test () {
     # Encode 'C' only
     av1_test_generic "x86_64"
     # Encode with SIMD optimizations enabled
-    av1_test_x86 "x86_64"
-    if [ $? -eq 1 ]; then
+    if ! av1_test_x86 "x86_64"; then
       echo "av1 test for x86_64 (64 bit): Done, test failed."
+      return 1
     else
       echo "av1 test for x86_64 (64 bit): Done, all tests passed."
     fi
@@ -516,20 +518,12 @@ av1_c_vs_simd_enc_test () {
 
   # Test ARM
   echo "av1_test_arm: Started."
-  av1_test_arm
-  if [ $? -eq 1 ]; then
+  if ! av1_test_arm; then
     echo "av1 test for arm: Done, test failed."
+    return 1
   else
     echo "av1 test for arm: Done, all tests passed."
   fi
 }
 
-# Setup a trap function to clean up build, and output files after tests complete.
-trap cleanup EXIT
-
-av1_c_vs_simd_enc_verify_environment
-if [ $? -eq 1 ]; then
-  echo "Environment check failed."
-  exit 1
-fi
-av1_c_vs_simd_enc_test
+run_tests av1_c_vs_simd_enc_verify_environment av1_c_vs_simd_enc_test
