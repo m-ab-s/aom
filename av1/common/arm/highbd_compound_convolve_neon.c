@@ -546,7 +546,7 @@ static INLINE void highbd_dist_wtd_convolve_y_8tap_neon(
   const int32x4_t shift = vdupq_n_s32(-conv_params->round_0);
   const int32x4_t offset_vec = vdupq_n_s32(offset);
 
-  if (w <= 4) {
+  if (w == 4) {
     const int16_t *s = (const int16_t *)src_ptr;
     uint16_t *d = dst_ptr;
 
