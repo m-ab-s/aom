@@ -2537,9 +2537,9 @@ static int gm_mt_worker_hook(void *arg1, void *unused) {
 
     // Compute global motion for the given ref_buf_idx.
     av1_compute_gm_for_valid_ref_frames(
-        cpi, xd, gm_info->ref_buf, ref_buf_idx, gm_thread_data->motion_models,
-        gm_thread_data->segment_map, gm_info->segment_map_w,
-        gm_info->segment_map_h);
+        cpi, error_info, gm_info->ref_buf, ref_buf_idx,
+        gm_thread_data->motion_models, gm_thread_data->segment_map,
+        gm_info->segment_map_w, gm_info->segment_map_h);
 
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(gm_mt_mutex_);
