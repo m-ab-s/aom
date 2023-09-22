@@ -9,13 +9,14 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include <string.h>
-
-#include <string>
-
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
 #include "config/aom_config.h"
+
+#if !CONFIG_SHARED
+#include <string.h>
+
+#include <string>
 
 #if AOM_ARCH_ARM
 #include "aom_ports/arm.h"
@@ -30,7 +31,7 @@ extern void aom_dsp_rtcd();
 extern void aom_scale_rtcd();
 }
 
-#if (!CONFIG_SHARED && AOM_ARCH_ARM) || AOM_ARCH_X86 || AOM_ARCH_X86_64
+#if AOM_ARCH_ARM || AOM_ARCH_X86 || AOM_ARCH_X86_64
 static void append_negative_gtest_filter(const char *str) {
   std::string flag_value = GTEST_FLAG_GET(filter);
   // Negative patterns begin with one '-' followed by a ':' separated list.
@@ -48,7 +49,8 @@ static void append_negative_gtest_filter(const char *str) {
   }
   GTEST_FLAG_SET(filter, flag_value);
 }
-#endif  // (!CONFIG_SHARED && AOM_ARCH_ARM) || AOM_ARCH_X86 || AOM_ARCH_X86_64
+#endif  // AOM_ARCH_ARM || AOM_ARCH_X86 || AOM_ARCH_X86_64
+#endif  // !CONFIG_SHARED
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
@@ -64,7 +66,6 @@ int main(int argc, char **argv) {
   const int caps = aom_arm_cpu_caps();
   if (!(caps & HAS_NEON)) append_negative_gtest_filter("NEON");
 #endif  // AOM_ARCH_ARM
-#endif  // !CONFIG_SHARED
 
 #if AOM_ARCH_X86 || AOM_ARCH_X86_64
   const int simd_caps = x86_simd_caps();
@@ -79,9 +80,8 @@ int main(int argc, char **argv) {
   if (!(simd_caps & HAS_AVX2)) append_negative_gtest_filter("AVX2");
 #endif  // AOM_ARCH_X86 || AOM_ARCH_X86_64
 
-// Shared library builds don't support whitebox tests that exercise internal
-// symbols.
-#if !CONFIG_SHARED
+  // Shared library builds don't support whitebox tests that exercise internal
+  // symbols.
   av1_rtcd();
   aom_dsp_rtcd();
   aom_scale_rtcd();
