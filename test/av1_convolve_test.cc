@@ -983,6 +983,89 @@ INSTANTIATE_TEST_SUITE_P(NEON_I8MM, AV1Convolve2DTest,
                          BuildLowbdParams(av1_convolve_2d_sr_neon_i8mm));
 #endif
 
+/////////////////////////////////////////////////////////////////
+// Single reference convolve-2D IntraBC functions (low bit-depth)
+/////////////////////////////////////////////////////////////////
+
+class AV1Convolve2DIntraBCTest : public AV1ConvolveTest<convolve_2d_func> {
+ public:
+  void RunTest() {
+    // IntraBC functions only operate for subpel_x_qn = 8 and subpel_y_qn = 8.
+    constexpr int kSubX = 8;
+    constexpr int kSubY = 8;
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const InterpFilterParams *filter_params_x = &av1_intrabc_filter_params;
+    const InterpFilterParams *filter_params_y = &av1_intrabc_filter_params;
+    const uint8_t *input = FirstRandomInput8(GetParam());
+
+    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
+    ConvolveParams conv_params1 =
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
+    // Use a stride different from width to avoid potential storing errors that
+    // would go undetected. The input buffer is filled using a padding of 12, so
+    // the stride can be anywhere between width and width + 12.
+    av1_convolve_2d_sr_intrabc_c(input, width + 2, reference, kOutputStride,
+                                 width, height, filter_params_x,
+                                 filter_params_y, kSubX, kSubY, &conv_params1);
+
+    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
+    ConvolveParams conv_params2 =
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
+    GetParam().TestFunction()(input, width + 2, test, kOutputStride, width,
+                              height, filter_params_x, filter_params_y, kSubX,
+                              kSubY, &conv_params2);
+
+    AssertOutputBufferEq(reference, test, width, height);
+  }
+
+  void SpeedTest() {
+    constexpr int kNumIters = 10000;
+    const InterpFilter h_f = static_cast<InterpFilter>(BILINEAR);
+    const InterpFilter v_f = static_cast<InterpFilter>(BILINEAR);
+    const int width = GetParam().Block().Width();
+    const int height = GetParam().Block().Height();
+    const InterpFilterParams *filter_params_x = &av1_intrabc_filter_params;
+    const InterpFilterParams *filter_params_y = &av1_intrabc_filter_params;
+    const uint8_t *input = FirstRandomInput8(GetParam());
+
+    DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
+    ConvolveParams conv_params1 =
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < kNumIters; ++i) {
+      av1_convolve_2d_sr_intrabc_c(input, width, reference, kOutputStride,
+                                   width, height, filter_params_x,
+                                   filter_params_y, 8, 8, &conv_params1);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+
+    convolve_2d_func test_func = GetParam().TestFunction();
+    DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
+    ConvolveParams conv_params2 =
+        get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < kNumIters; ++i) {
+      test_func(input, width, test, kOutputStride, width, height,
+                filter_params_x, filter_params_y, 8, 8, &conv_params2);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+
+    printf("%d - %d %3dx%-3d:%7.2f/%7.2fns (%3.2f)\n", h_f, v_f, width, height,
+           time1, time2, time1 / time2);
+  }
+};
+
+TEST_P(AV1Convolve2DIntraBCTest, RunTest) { RunTest(); }
+
+TEST_P(AV1Convolve2DIntraBCTest, DISABLED_SpeedTest) { SpeedTest(); }
+
+INSTANTIATE_TEST_SUITE_P(C, AV1Convolve2DIntraBCTest,
+                         BuildLowbdParams(av1_convolve_2d_sr_intrabc_c));
+
 #if CONFIG_AV1_HIGHBITDEPTH
 //////////////////////////////////////////////////////////
 // Single reference convolve-2d functions (high bit-depth)
