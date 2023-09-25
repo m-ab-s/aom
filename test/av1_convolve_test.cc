@@ -513,6 +513,11 @@ TEST_P(AV1ConvolveXIntraBCTest, DISABLED_SpeedTest) { SpeedTest(); }
 INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveXIntraBCTest,
                          BuildLowbdParams(av1_convolve_x_sr_intrabc_c));
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveXIntraBCTest,
+                         BuildLowbdParams(av1_convolve_x_sr_intrabc_neon));
+#endif
+
 #if CONFIG_AV1_HIGHBITDEPTH
 /////////////////////////////////////////////////////////
 // Single reference convolve-x functions (high bit-depth)

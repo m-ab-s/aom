@@ -1408,6 +1408,81 @@ void av1_convolve_2d_sr_neon(const uint8_t *src, int src_stride, uint8_t *dst,
   }
 }
 
+void av1_convolve_x_sr_intrabc_neon(const uint8_t *src, int src_stride,
+                                    uint8_t *dst, int dst_stride, int w, int h,
+                                    const InterpFilterParams *filter_params_x,
+                                    const int subpel_x_qn,
+                                    ConvolveParams *conv_params) {
+  assert(subpel_x_qn == 8);
+  assert(filter_params_x->taps == 2);
+  assert((conv_params->round_0 + conv_params->round_1) == 2 * FILTER_BITS);
+  (void)filter_params_x;
+  (void)subpel_x_qn;
+  (void)conv_params;
+
+  if (w <= 4) {
+    do {
+      uint8x8_t s0_0 = vld1_u8(src);
+      uint8x8_t s0_1 = vld1_u8(src + 1);
+      uint8x8_t s1_0 = vld1_u8(src + src_stride);
+      uint8x8_t s1_1 = vld1_u8(src + src_stride + 1);
+
+      uint8x8_t d0 = vrhadd_u8(s0_0, s0_1);
+      uint8x8_t d1 = vrhadd_u8(s1_0, s1_1);
+
+      if (w == 2) {
+        store_u8_2x1(dst + 0 * dst_stride, d0, 0);
+        store_u8_2x1(dst + 1 * dst_stride, d1, 0);
+      } else {
+        store_u8_4x1(dst + 0 * dst_stride, d0, 0);
+        store_u8_4x1(dst + 1 * dst_stride, d1, 0);
+      }
+
+      src += 2 * src_stride;
+      dst += 2 * dst_stride;
+      h -= 2;
+    } while (h != 0);
+  } else if (w == 8) {
+    do {
+      uint8x8_t s0_0 = vld1_u8(src);
+      uint8x8_t s0_1 = vld1_u8(src + 1);
+      uint8x8_t s1_0 = vld1_u8(src + src_stride);
+      uint8x8_t s1_1 = vld1_u8(src + src_stride + 1);
+
+      uint8x8_t d0 = vrhadd_u8(s0_0, s0_1);
+      uint8x8_t d1 = vrhadd_u8(s1_0, s1_1);
+
+      vst1_u8(dst, d0);
+      vst1_u8(dst + dst_stride, d1);
+
+      src += 2 * src_stride;
+      dst += 2 * dst_stride;
+      h -= 2;
+    } while (h != 0);
+  } else {
+    do {
+      const uint8_t *src_ptr = src;
+      uint8_t *dst_ptr = dst;
+      int width = w;
+
+      do {
+        uint8x16_t s0 = vld1q_u8(src_ptr);
+        uint8x16_t s1 = vld1q_u8(src_ptr + 1);
+
+        uint8x16_t d0 = vrhaddq_u8(s0, s1);
+
+        vst1q_u8(dst_ptr, d0);
+
+        src_ptr += 16;
+        dst_ptr += 16;
+        width -= 16;
+      } while (width != 0);
+      src += src_stride;
+      dst += dst_stride;
+    } while (--h != 0);
+  }
+}
+
 void av1_convolve_y_sr_intrabc_neon(const uint8_t *src, int src_stride,
                                     uint8_t *dst, int dst_stride, int w, int h,
                                     const InterpFilterParams *filter_params_y,

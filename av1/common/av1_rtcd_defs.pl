@@ -594,6 +594,7 @@ if(aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   specialize qw/av1_convolve_2d_sr sse2 avx2 neon neon_dotprod neon_i8mm/;
   specialize qw/av1_convolve_2d_sr_intrabc neon/;
   specialize qw/av1_convolve_x_sr sse2 avx2 neon neon_dotprod neon_i8mm/;
+  specialize qw/av1_convolve_x_sr_intrabc neon/;
   specialize qw/av1_convolve_y_sr sse2 avx2 neon/;
   specialize qw/av1_convolve_y_sr_intrabc neon/;
   specialize qw/av1_convolve_2d_scale sse4_1/;
