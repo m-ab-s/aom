@@ -1476,7 +1476,7 @@ static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
         aom_free(thread_data->td->mb.dv_costs);
       }
     }
-    av1_dealloc_mb_data(&cpi->common, &thread_data->td->mb);
+    av1_dealloc_mb_data(&thread_data->td->mb, av1_num_planes(&cpi->common));
 
     // Accumulate counters.
     if (i > 0) {

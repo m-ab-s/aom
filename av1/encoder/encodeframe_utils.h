@@ -432,15 +432,15 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
 
 void av1_dealloc_src_diff_buf(struct macroblock *mb, int num_planes);
 
-static AOM_INLINE void av1_dealloc_mb_data(struct AV1Common *cm,
-                                           struct macroblock *mb) {
+static AOM_INLINE void av1_dealloc_mb_data(struct macroblock *mb,
+                                           int num_planes) {
   aom_free(mb->txfm_search_info.mb_rd_record);
   mb->txfm_search_info.mb_rd_record = NULL;
 
   aom_free(mb->inter_modes_info);
   mb->inter_modes_info = NULL;
 
-  av1_dealloc_src_diff_buf(mb, av1_num_planes(cm));
+  av1_dealloc_src_diff_buf(mb, num_planes);
 
   aom_free(mb->e_mbd.seg_mask);
   mb->e_mbd.seg_mask = NULL;

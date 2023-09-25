@@ -284,7 +284,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cpi->cdef_search_ctx);
   cpi->cdef_search_ctx = NULL;
 
-  av1_dealloc_src_diff_buf(&cpi->td.mb, av1_num_planes(cm));
+  av1_dealloc_mb_data(&cpi->td.mb, av1_num_planes(cm));
 
   av1_free_txb_buf(cpi);
   av1_free_context_buffers(cm);
@@ -485,7 +485,7 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
     // This call ensures that the buffers in gm_data for MT encode are freed in
     // case of an error during gm.
     gm_dealloc_data(&thread_data->td->gm_data);
-    av1_dealloc_src_diff_buf(&thread_data->td->mb, num_planes);
+    av1_dealloc_mb_data(&thread_data->td->mb, num_planes);
     aom_free(thread_data->td);
   }
 }
