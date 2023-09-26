@@ -1905,3 +1905,112 @@ void av1_highbd_convolve_2d_sr_neon(const uint16_t *src, int src_stride,
                                          y_offset);
   }
 }
+
+// Both horizontal and vertical passes use the same 2-tap filter: [64, 64].
+void av1_highbd_convolve_2d_sr_intrabc_neon(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const InterpFilterParams *filter_params_x,
+    const InterpFilterParams *filter_params_y, const int subpel_x_qn,
+    const int subpel_y_qn, ConvolveParams *conv_params, int bd) {
+  assert(subpel_x_qn == 8);
+  assert(subpel_y_qn == 8);
+  assert(filter_params_x->taps == 2 && filter_params_y->taps == 2);
+  assert((conv_params->round_0 + conv_params->round_1) == 2 * FILTER_BITS);
+  assert(w <= MAX_SB_SIZE && h <= MAX_SB_SIZE);
+  (void)filter_params_x;
+  (void)subpel_x_qn;
+  (void)filter_params_y;
+  (void)subpel_y_qn;
+  (void)conv_params;
+  (void)bd;
+
+  DECLARE_ALIGNED(16, uint16_t,
+                  im_block[(MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE]);
+  int im_h = h + 1;
+  int im_stride = MAX_SB_SIZE;
+
+  uint16x8_t vert_offset = vdupq_n_u16(1);
+
+  uint16_t *im = im_block;
+
+  // Horizontal filter.
+  if (w <= 4) {
+    do {
+      uint16x4_t s0 = vld1_u16(src);
+      uint16x4_t s1 = vld1_u16(src + 1);
+
+      uint16x4_t d0 = vadd_u16(s0, s1);
+
+      // Safe to store the whole vector, the im buffer is big enough.
+      vst1_u16(im, d0);
+
+      src += src_stride;
+      im += im_stride;
+    } while (--im_h != 0);
+  } else {
+    do {
+      const uint16_t *src_ptr = src;
+      uint16_t *im_ptr = im;
+      int width = w;
+
+      do {
+        uint16x8_t s0 = vld1q_u16(src_ptr);
+        uint16x8_t s1 = vld1q_u16(src_ptr + 1);
+
+        uint16x8_t d0 = vaddq_u16(s0, s1);
+
+        vst1q_u16(im_ptr, d0);
+
+        src_ptr += 8;
+        im_ptr += 8;
+        width -= 8;
+      } while (width != 0);
+      src += src_stride;
+      im += im_stride;
+    } while (--im_h != 0);
+  }
+
+  im = im_block;
+
+  // Vertical filter.
+  if (w <= 4) {
+    do {
+      uint16x4_t s0 = vld1_u16(im);
+      uint16x4_t s1 = vld1_u16(im + im_stride);
+
+      uint16x4_t d0 = vhadd_u16(s0, s1);
+      d0 = vhadd_u16(d0, vget_low_u16(vert_offset));
+
+      if (w == 2) {
+        store_u16_2x1(dst, d0, 0);
+      } else {
+        vst1_u16(dst, d0);
+      }
+
+      im += im_stride;
+      dst += dst_stride;
+    } while (--h != 0);
+  } else {
+    do {
+      uint16_t *im_ptr = im;
+      uint16_t *dst_ptr = dst;
+      int height = h;
+
+      do {
+        uint16x8_t s0 = vld1q_u16(im_ptr);
+        uint16x8_t s1 = vld1q_u16(im_ptr + im_stride);
+
+        uint16x8_t d0 = vhaddq_u16(s0, s1);
+        d0 = vhaddq_u16(d0, vert_offset);
+
+        vst1q_u16(dst_ptr, d0);
+
+        im_ptr += im_stride;
+        dst_ptr += dst_stride;
+      } while (--height != 0);
+      im += 8;
+      dst += 8;
+      w -= 8;
+    } while (w != 0);
+  }
+}

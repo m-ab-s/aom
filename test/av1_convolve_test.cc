@@ -1446,6 +1446,12 @@ INSTANTIATE_TEST_SUITE_P(
     C, AV1Convolve2DHighbdIntraBCTest,
     BuildHighbdParams(av1_highbd_convolve_2d_sr_intrabc_c));
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV1Convolve2DHighbdIntraBCTest,
+    BuildHighbdParams(av1_highbd_convolve_2d_sr_intrabc_neon));
+#endif
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 //////////////////////////
