@@ -33,6 +33,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
   svc->force_zero_mode_spatial_ref = 1;
   svc->num_encoded_top_layer = 0;
   svc->use_flexible_mode = 0;
+  svc->has_lower_quality_layer = 0;
 
   for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
     for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
@@ -396,6 +397,16 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   int width = 0, height = 0;
   lc = &svc->layer_context[svc->spatial_layer_id * svc->number_temporal_layers +
                            svc->temporal_layer_id];
+  // Set the lower quality layer flag.
+  svc->has_lower_quality_layer = 0;
+  if (cpi->svc.spatial_layer_id > 0) {
+    const LAYER_CONTEXT *lc_prev =
+        &svc->layer_context[(svc->spatial_layer_id - 1) *
+                                svc->number_temporal_layers +
+                            svc->temporal_layer_id];
+    if (lc_prev->scaling_factor_den == 1 && lc_prev->scaling_factor_num == 1)
+      svc->has_lower_quality_layer = 1;
+  }
   av1_get_layer_resolution(cpi->oxcf.frm_dim_cfg.width,
                            cpi->oxcf.frm_dim_cfg.height, lc->scaling_factor_num,
                            lc->scaling_factor_den, &width, &height);

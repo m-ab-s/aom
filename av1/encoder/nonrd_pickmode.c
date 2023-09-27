@@ -3151,7 +3151,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   // to source, so use subpel motion vector to compensate. The nonzero motion
   // is half pixel shifted to left and top, so (-4, -4). This has more effect
   // on higher resolutions, so condition it on that for now.
+  // Exclude quality layers, which have the same resolution and hence no shift.
   if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
+      !svc->has_lower_quality_layer &&
       svc->downsample_filter_phase[svc->spatial_layer_id - 1] == 8 &&
       cm->width * cm->height > 640 * 480) {
     svc_mv.as_mv.row = -4;
