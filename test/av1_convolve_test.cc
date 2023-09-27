@@ -713,6 +713,12 @@ TEST_P(AV1ConvolveXHighbdIntraBCTest, DISABLED_SpeedTest) { SpeedTest(); }
 INSTANTIATE_TEST_SUITE_P(C, AV1ConvolveXHighbdIntraBCTest,
                          BuildHighbdParams(av1_highbd_convolve_x_sr_intrabc_c));
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV1ConvolveXHighbdIntraBCTest,
+    BuildHighbdParams(av1_highbd_convolve_x_sr_intrabc_neon));
+#endif
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 ////////////////////////////////////////////////////////

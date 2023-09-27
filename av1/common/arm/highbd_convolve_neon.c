@@ -1907,6 +1907,59 @@ void av1_highbd_convolve_2d_sr_neon(const uint16_t *src, int src_stride,
 }
 
 // Filter used is [64, 64].
+void av1_highbd_convolve_x_sr_intrabc_neon(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
+    ConvolveParams *conv_params, int bd) {
+  assert(subpel_x_qn == 8);
+  assert(filter_params_x->taps == 2);
+  assert((conv_params->round_0 + conv_params->round_1) == 2 * FILTER_BITS);
+  (void)filter_params_x;
+  (void)subpel_x_qn;
+  (void)conv_params;
+  (void)bd;
+
+  if (w <= 4) {
+    do {
+      uint16x4_t s0 = vld1_u16(src);
+      uint16x4_t s1 = vld1_u16(src + 1);
+
+      uint16x4_t d0 = vrhadd_u16(s0, s1);
+
+      if (w == 2) {
+        store_u16_2x1(dst, d0, 0);
+      } else {
+        vst1_u16(dst, d0);
+      }
+
+      src += src_stride;
+      dst += dst_stride;
+    } while (--h != 0);
+  } else {
+    do {
+      const uint16_t *src_ptr = src;
+      uint16_t *dst_ptr = dst;
+      int width = w;
+
+      do {
+        uint16x8_t s0 = vld1q_u16(src_ptr);
+        uint16x8_t s1 = vld1q_u16(src_ptr + 1);
+
+        uint16x8_t d0 = vrhaddq_u16(s0, s1);
+
+        vst1q_u16(dst_ptr, d0);
+
+        src_ptr += 8;
+        dst_ptr += 8;
+        width -= 8;
+      } while (width != 0);
+      src += src_stride;
+      dst += dst_stride;
+    } while (--h != 0);
+  }
+}
+
+// Filter used is [64, 64].
 void av1_highbd_convolve_y_sr_intrabc_neon(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
     int h, const InterpFilterParams *filter_params_y, const int subpel_y_qn,
