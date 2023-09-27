@@ -1906,6 +1906,57 @@ void av1_highbd_convolve_2d_sr_neon(const uint16_t *src, int src_stride,
   }
 }
 
+// Filter used is [64, 64].
+void av1_highbd_convolve_y_sr_intrabc_neon(
+    const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
+    int h, const InterpFilterParams *filter_params_y, const int subpel_y_qn,
+    int bd) {
+  assert(subpel_y_qn == 8);
+  assert(filter_params_y->taps == 2);
+  (void)filter_params_y;
+  (void)subpel_y_qn;
+  (void)bd;
+
+  if (w <= 4) {
+    do {
+      uint16x4_t s0 = vld1_u16(src);
+      uint16x4_t s1 = vld1_u16(src + src_stride);
+
+      uint16x4_t d0 = vrhadd_u16(s0, s1);
+
+      if (w == 2) {
+        store_u16_2x1(dst, d0, 0);
+      } else {
+        vst1_u16(dst, d0);
+      }
+
+      src += src_stride;
+      dst += dst_stride;
+    } while (--h != 0);
+  } else {
+    do {
+      const uint16_t *src_ptr = src;
+      uint16_t *dst_ptr = dst;
+      int height = h;
+
+      do {
+        uint16x8_t s0 = vld1q_u16(src_ptr);
+        uint16x8_t s1 = vld1q_u16(src_ptr + src_stride);
+
+        uint16x8_t d0 = vrhaddq_u16(s0, s1);
+
+        vst1q_u16(dst_ptr, d0);
+
+        src_ptr += src_stride;
+        dst_ptr += dst_stride;
+      } while (--height != 0);
+      src += 8;
+      dst += 8;
+      w -= 8;
+    } while (w != 0);
+  }
+}
+
 // Both horizontal and vertical passes use the same 2-tap filter: [64, 64].
 void av1_highbd_convolve_2d_sr_intrabc_neon(
     const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w,
