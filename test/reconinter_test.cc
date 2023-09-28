@@ -120,6 +120,108 @@ INSTANTIATE_TEST_SUITE_P(NEON, BuildCompDiffwtdMaskTest,
                          BuildParams(av1_build_compound_diffwtd_mask_neon));
 #endif
 
+#if CONFIG_AV1_HIGHBITDEPTH
+
+using BuildCompDiffWtdMaskHighbdFunc =
+    void (*)(uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const uint8_t *src0,
+             int src0_stride, const uint8_t *src1, int src1_stride, int h,
+             int w, int bd);
+
+using BuildCompDiffwtdMaskHighbdParam =
+    std::tuple<BLOCK_SIZE, int, BuildCompDiffWtdMaskHighbdFunc>;
+
+#if HAVE_SSSE3 || HAVE_AVX2
+::testing::internal::ParamGenerator<BuildCompDiffwtdMaskHighbdParam>
+BuildParamsHighbd(BuildCompDiffWtdMaskHighbdFunc filter) {
+  return ::testing::Combine(::testing::Range(BLOCK_4X4, BLOCK_SIZES_ALL),
+                            ::testing::Values(8, 10, 12),
+                            ::testing::Values(filter));
+}
+#endif
+
+class BuildCompDiffwtdMaskHighbdTest
+    : public ::testing::TestWithParam<BuildCompDiffwtdMaskHighbdParam> {
+ public:
+  BuildCompDiffwtdMaskHighbdTest() : rnd_(ACMRandom::DeterministicSeed()) {}
+  ~BuildCompDiffwtdMaskHighbdTest() override = default;
+
+ protected:
+  void RunTest(BuildCompDiffWtdMaskHighbdFunc test_impl, bool is_speed,
+               const DIFFWTD_MASK_TYPE type) {
+    const int sb_type = GET_PARAM(0);
+    const int bd = GET_PARAM(1);
+    const int width = block_size_wide[sb_type];
+    const int height = block_size_high[sb_type];
+    const int mask = (1 << bd) - 1;
+    DECLARE_ALIGNED(16, uint8_t, mask_ref[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(16, uint8_t, mask_test[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(16, uint16_t, src0[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(16, uint16_t, src1[MAX_SB_SQUARE]);
+    for (int i = 0; i < width * height; i++) {
+      src0[i] = rnd_.Rand16() & mask;
+      src1[i] = rnd_.Rand16() & mask;
+    }
+    const int run_times = is_speed ? (10000000 / (width + height)) : 1;
+    aom_usec_timer timer;
+
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < run_times; ++i) {
+      uint8_t *src0_8 = CONVERT_TO_BYTEPTR(src0);
+      uint8_t *src1_8 = CONVERT_TO_BYTEPTR(src1);
+      av1_build_compound_diffwtd_mask_highbd_c(
+          mask_ref, type, src0_8, width, src1_8, width, height, width, bd);
+    }
+    const double t1 = get_time_mark(&timer);
+
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < run_times; ++i) {
+      uint8_t *src0_8 = CONVERT_TO_BYTEPTR(src0);
+      uint8_t *src1_8 = CONVERT_TO_BYTEPTR(src1);
+      test_impl(mask_test, type, src0_8, width, src1_8, width, height, width,
+                bd);
+    }
+    const double t2 = get_time_mark(&timer);
+
+    if (is_speed) {
+      printf("mask %d %3dx%-3d:%7.2f/%7.2fns", type, width, height, t1, t2);
+      printf("(%3.2f)\n", t1 / t2);
+    }
+    for (int r = 0; r < height; ++r) {
+      for (int c = 0; c < width; ++c) {
+        ASSERT_EQ(mask_ref[c + r * width], mask_test[c + r * width])
+            << "[" << r << "," << c << "] " << run_times << " @ " << width
+            << "x" << height << " inv " << type;
+      }
+    }
+  }
+
+ private:
+  ACMRandom rnd_;
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(BuildCompDiffwtdMaskHighbdTest);
+
+TEST_P(BuildCompDiffwtdMaskHighbdTest, match) {
+  RunTest(GET_PARAM(2), 0, DIFFWTD_38);
+  RunTest(GET_PARAM(2), 0, DIFFWTD_38_INV);
+}
+TEST_P(BuildCompDiffwtdMaskHighbdTest, DISABLED_Speed) {
+  RunTest(GET_PARAM(2), 1, DIFFWTD_38);
+  RunTest(GET_PARAM(2), 1, DIFFWTD_38_INV);
+}
+
+#if HAVE_SSSE3
+INSTANTIATE_TEST_SUITE_P(
+    SSSE3, BuildCompDiffwtdMaskHighbdTest,
+    BuildParamsHighbd(av1_build_compound_diffwtd_mask_highbd_ssse3));
+#endif
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, BuildCompDiffwtdMaskHighbdTest,
+    BuildParamsHighbd(av1_build_compound_diffwtd_mask_highbd_avx2));
+#endif
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
 using BuildCompDiffWtdMaskD16Func = void (*)(
     uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const CONV_BUF_TYPE *src0,
     int src0_stride, const CONV_BUF_TYPE *src1, int src1_stride, int h, int w,
