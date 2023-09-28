@@ -468,6 +468,7 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/av1/common/arm/highbd_convolve_horiz_rs_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_convolve_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_convolve_scale_neon.c"
+              "${AOM_ROOT}/av1/common/arm/highbd_reconinter_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_reconintra_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_warp_plane_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_wiener_convolve_neon.c")

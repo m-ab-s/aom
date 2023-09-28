@@ -259,7 +259,7 @@ specialize qw/av1_build_compound_diffwtd_mask neon sse4_1 avx2/;
 
 if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   add_proto qw/void av1_build_compound_diffwtd_mask_highbd/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const uint8_t *src0, int src0_stride, const uint8_t *src1, int src1_stride, int h, int w, int bd";
-  specialize qw/av1_build_compound_diffwtd_mask_highbd ssse3 avx2/;
+  specialize qw/av1_build_compound_diffwtd_mask_highbd ssse3 avx2 neon/;
 }
 
 add_proto qw/void av1_build_compound_diffwtd_mask_d16/, "uint8_t *mask, DIFFWTD_MASK_TYPE mask_type, const CONV_BUF_TYPE *src0, int src0_stride, const CONV_BUF_TYPE *src1, int src1_stride, int h, int w, ConvolveParams *conv_params, int bd";
