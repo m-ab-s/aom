@@ -3633,7 +3633,6 @@ typedef void (*TxfmFuncNEON)(int32x4_t *input, int32x4_t *output,
 static INLINE TxfmFuncNEON fwd_txfm_type_to_func(TXFM_TYPE txfm_type) {
   switch (txfm_type) {
     case TXFM_TYPE_DCT32: return fdct32_new_neon;
-    case TXFM_TYPE_DCT64: return fdct64_new_neon;
     case TXFM_TYPE_IDENTITY32: return idtx32x32_neon;
     default: assert(0);
   }
@@ -3702,19 +3701,17 @@ void av1_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
 void av1_fwd_txfm2d_64x64_neon(const int16_t *input, int32_t *output,
                                int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
+  (void)tx_type;
   DECLARE_ALIGNED(16, int32_t, txfm_buf[4096]);
-  TXFM_2D_FLIP_CFG cfg;
-  av1_get_fwd_txfm_cfg(tx_type, TX_64X64, &cfg);
-  assert(cfg.tx_size < TX_SIZES);
-  const TxfmFuncNEON txfm_func_col = fwd_txfm_type_to_func(cfg.txfm_type_col);
   int32x4_t *buf_128 = (int32x4_t *)txfm_buf;
   int32x4_t *out_128 = (int32x4_t *)output;
 
   int16_array_with_stride_to_int32_array_without_stride(input, stride, output,
                                                         64);
   // Column-wise transform.
-  txfm_func_col(out_128, buf_128, 13);
+  fdct64_new_neon(out_128, buf_128, 13);
   av1_round_shift_array_32_neon(buf_128, out_128, 1024, 2);
+
   transpose_32(64, out_128, buf_128);
 
   // Row-wise transform.
