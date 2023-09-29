@@ -22,15 +22,15 @@
 #include "av1/common/filter.h"
 #include "av1/common/arm/highbd_convolve_neon.h"
 
-static INLINE void highbd_comp_avg_neon(const uint16_t *src_ptr, int src_stride,
-                                        uint16_t *dst_ptr, int dst_stride,
-                                        int w, int h,
-                                        ConvolveParams *conv_params,
-                                        const int round_bits, const int offset,
-                                        const int bd) {
+#define ROUND_SHIFT 2 * FILTER_BITS - ROUND0_BITS - COMPOUND_ROUND1_BITS
+
+static INLINE void highbd_12_comp_avg_neon(const uint16_t *src_ptr,
+                                           int src_stride, uint16_t *dst_ptr,
+                                           int dst_stride, int w, int h,
+                                           ConvolveParams *conv_params,
+                                           const int offset, const int bd) {
   CONV_BUF_TYPE *ref_ptr = conv_params->dst;
   const int ref_stride = conv_params->dst_stride;
-  const int32x4_t round_shift = vdupq_n_s32(-round_bits);
   const uint16x4_t offset_vec = vdup_n_u16(offset);
   const uint16x8_t max = vdupq_n_u16((1 << bd) - 1);
 
@@ -41,9 +41,8 @@ static INLINE void highbd_comp_avg_neon(const uint16_t *src_ptr, int src_stride,
 
       uint16x4_t avg = vhadd_u16(src, ref);
       int32x4_t d0 = vreinterpretq_s32_u32(vsubl_u16(avg, offset_vec));
-      d0 = vqrshlq_s32(d0, round_shift);
 
-      uint16x4_t d0_u16 = vqmovun_s32(d0);
+      uint16x4_t d0_u16 = vqrshrun_n_s32(d0, ROUND_SHIFT - 2);
       d0_u16 = vmin_u16(d0_u16, vget_low_u16(max));
 
       vst1_u16(dst_ptr, d0_u16);
@@ -67,10 +66,70 @@ static INLINE void highbd_comp_avg_neon(const uint16_t *src_ptr, int src_stride,
             vreinterpretq_s32_u32(vsubl_u16(vget_low_u16(avg), offset_vec));
         int32x4_t d0_hi =
             vreinterpretq_s32_u32(vsubl_u16(vget_high_u16(avg), offset_vec));
-        d0_lo = vqrshlq_s32(d0_lo, round_shift);
-        d0_hi = vqrshlq_s32(d0_hi, round_shift);
 
-        uint16x8_t d0 = vcombine_u16(vqmovun_s32(d0_lo), vqmovun_s32(d0_hi));
+        uint16x8_t d0 = vcombine_u16(vqrshrun_n_s32(d0_lo, ROUND_SHIFT - 2),
+                                     vqrshrun_n_s32(d0_hi, ROUND_SHIFT - 2));
+        d0 = vminq_u16(d0, max);
+        vst1q_u16(dst, d0);
+
+        src += 8;
+        ref += 8;
+        dst += 8;
+        width -= 8;
+      } while (width != 0);
+
+      src_ptr += src_stride;
+      ref_ptr += ref_stride;
+      dst_ptr += dst_stride;
+    } while (--h != 0);
+  }
+}
+
+static INLINE void highbd_comp_avg_neon(const uint16_t *src_ptr, int src_stride,
+                                        uint16_t *dst_ptr, int dst_stride,
+                                        int w, int h,
+                                        ConvolveParams *conv_params,
+                                        const int offset, const int bd) {
+  CONV_BUF_TYPE *ref_ptr = conv_params->dst;
+  const int ref_stride = conv_params->dst_stride;
+  const uint16x4_t offset_vec = vdup_n_u16(offset);
+  const uint16x8_t max = vdupq_n_u16((1 << bd) - 1);
+
+  if (w == 4) {
+    do {
+      const uint16x4_t src = vld1_u16(src_ptr);
+      const uint16x4_t ref = vld1_u16(ref_ptr);
+
+      uint16x4_t avg = vhadd_u16(src, ref);
+      int32x4_t d0 = vreinterpretq_s32_u32(vsubl_u16(avg, offset_vec));
+
+      uint16x4_t d0_u16 = vqrshrun_n_s32(d0, ROUND_SHIFT);
+      d0_u16 = vmin_u16(d0_u16, vget_low_u16(max));
+
+      vst1_u16(dst_ptr, d0_u16);
+
+      src_ptr += src_stride;
+      ref_ptr += ref_stride;
+      dst_ptr += dst_stride;
+    } while (--h != 0);
+  } else {
+    do {
+      int width = w;
+      const uint16_t *src = src_ptr;
+      const uint16_t *ref = ref_ptr;
+      uint16_t *dst = dst_ptr;
+      do {
+        const uint16x8_t s = vld1q_u16(src);
+        const uint16x8_t r = vld1q_u16(ref);
+
+        uint16x8_t avg = vhaddq_u16(s, r);
+        int32x4_t d0_lo =
+            vreinterpretq_s32_u32(vsubl_u16(vget_low_u16(avg), offset_vec));
+        int32x4_t d0_hi =
+            vreinterpretq_s32_u32(vsubl_u16(vget_high_u16(avg), offset_vec));
+
+        uint16x8_t d0 = vcombine_u16(vqrshrun_n_s32(d0_lo, ROUND_SHIFT),
+                                     vqrshrun_n_s32(d0_hi, ROUND_SHIFT));
         d0 = vminq_u16(d0, max);
         vst1q_u16(dst, d0);
 
@@ -637,41 +696,41 @@ void av1_highbd_dist_wtd_convolve_x_neon(
   src -= horiz_offset;
 
   // horizontal filter
-  if (conv_params->do_average) {
-    if (x_filter_taps <= 6 && w != 4) {
-      if (bd == 12) {
+  if (bd == 12) {
+    if (conv_params->do_average) {
+      if (x_filter_taps <= 6 && w != 4) {
         highbd_12_dist_wtd_convolve_x_6tap_neon(src + 1, src_stride, im_block,
                                                 im_stride, w, h, x_filter_ptr,
                                                 offset_convolve);
       } else {
-        highbd_dist_wtd_convolve_x_6tap_neon(src + 1, src_stride, im_block,
-                                             im_stride, w, h, x_filter_ptr,
-                                             offset_convolve);
-      }
-    } else {
-      if (bd == 12) {
         highbd_12_dist_wtd_convolve_x_neon(src, src_stride, im_block, im_stride,
                                            w, h, x_filter_ptr, offset_convolve);
-      } else {
-        highbd_dist_wtd_convolve_x_neon(src, src_stride, im_block, im_stride, w,
-                                        h, x_filter_ptr, offset_convolve);
       }
-    }
-  } else {
-    if (x_filter_taps <= 6 && w != 4) {
-      if (bd == 12) {
+    } else {
+      if (x_filter_taps <= 6 && w != 4) {
         highbd_12_dist_wtd_convolve_x_6tap_neon(src + 1, src_stride, dst16,
                                                 dst16_stride, w, h,
                                                 x_filter_ptr, offset_convolve);
       } else {
+        highbd_12_dist_wtd_convolve_x_neon(src, src_stride, dst16, dst16_stride,
+                                           w, h, x_filter_ptr, offset_convolve);
+      }
+    }
+  } else {
+    if (conv_params->do_average) {
+      if (x_filter_taps <= 6 && w != 4) {
+        highbd_dist_wtd_convolve_x_6tap_neon(src + 1, src_stride, im_block,
+                                             im_stride, w, h, x_filter_ptr,
+                                             offset_convolve);
+      } else {
+        highbd_dist_wtd_convolve_x_neon(src, src_stride, im_block, im_stride, w,
+                                        h, x_filter_ptr, offset_convolve);
+      }
+    } else {
+      if (x_filter_taps <= 6 && w != 4) {
         highbd_dist_wtd_convolve_x_6tap_neon(src + 1, src_stride, dst16,
                                              dst16_stride, w, h, x_filter_ptr,
                                              offset_convolve);
-      }
-    } else {
-      if (bd == 12) {
-        highbd_12_dist_wtd_convolve_x_neon(src, src_stride, dst16, dst16_stride,
-                                           w, h, x_filter_ptr, offset_convolve);
       } else {
         highbd_dist_wtd_convolve_x_neon(src, src_stride, dst16, dst16_stride, w,
                                         h, x_filter_ptr, offset_convolve);
@@ -684,8 +743,13 @@ void av1_highbd_dist_wtd_convolve_x_neon(
       highbd_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
                                     conv_params, round_bits, offset_avg, bd);
     } else {
-      highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                           conv_params, round_bits, offset_avg, bd);
+      if (bd == 12) {
+        highbd_12_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                                conv_params, offset_avg, bd);
+      } else {
+        highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                             conv_params, offset_avg, bd);
+      }
     }
   }
 }
@@ -1040,44 +1104,44 @@ void av1_highbd_dist_wtd_convolve_y_neon(
 
   src -= vert_offset * src_stride;
 
-  if (conv_params->do_average) {
-    if (y_filter_taps <= 6) {
-      if (bd == 12) {
+  if (bd == 12) {
+    if (conv_params->do_average) {
+      if (y_filter_taps <= 6) {
         highbd_12_dist_wtd_convolve_y_6tap_neon(
             src + src_stride, src_stride, im_block, im_stride, w, h,
             y_filter_ptr, round_offset_conv);
       } else {
-        highbd_dist_wtd_convolve_y_6tap_neon(src + src_stride, src_stride,
-                                             im_block, im_stride, w, h,
-                                             y_filter_ptr, round_offset_conv);
-      }
-    } else {
-      if (bd == 12) {
         highbd_12_dist_wtd_convolve_y_8tap_neon(src, src_stride, im_block,
                                                 im_stride, w, h, y_filter_ptr,
                                                 round_offset_conv);
+      }
+    } else {
+      if (y_filter_taps <= 6) {
+        highbd_12_dist_wtd_convolve_y_6tap_neon(
+            src + src_stride, src_stride, dst16, dst16_stride, w, h,
+            y_filter_ptr, round_offset_conv);
+      } else {
+        highbd_12_dist_wtd_convolve_y_8tap_neon(
+            src, src_stride, dst16, dst16_stride, w, h, y_filter_ptr,
+            round_offset_conv);
+      }
+    }
+  } else {
+    if (conv_params->do_average) {
+      if (y_filter_taps <= 6) {
+        highbd_dist_wtd_convolve_y_6tap_neon(src + src_stride, src_stride,
+                                             im_block, im_stride, w, h,
+                                             y_filter_ptr, round_offset_conv);
       } else {
         highbd_dist_wtd_convolve_y_8tap_neon(src, src_stride, im_block,
                                              im_stride, w, h, y_filter_ptr,
                                              round_offset_conv);
       }
-    }
-  } else {
-    if (y_filter_taps <= 6) {
-      if (bd == 12) {
-        highbd_12_dist_wtd_convolve_y_6tap_neon(
-            src + src_stride, src_stride, dst16, dst16_stride, w, h,
-            y_filter_ptr, round_offset_conv);
-      } else {
+    } else {
+      if (y_filter_taps <= 6) {
         highbd_dist_wtd_convolve_y_6tap_neon(src + src_stride, src_stride,
                                              dst16, dst16_stride, w, h,
                                              y_filter_ptr, round_offset_conv);
-      }
-    } else {
-      if (bd == 12) {
-        highbd_12_dist_wtd_convolve_y_8tap_neon(
-            src, src_stride, dst16, dst16_stride, w, h, y_filter_ptr,
-            round_offset_conv);
       } else {
         highbd_dist_wtd_convolve_y_8tap_neon(src, src_stride, dst16,
                                              dst16_stride, w, h, y_filter_ptr,
@@ -1092,8 +1156,13 @@ void av1_highbd_dist_wtd_convolve_y_neon(
                                     conv_params, round_bits, round_offset_avg,
                                     bd);
     } else {
-      highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                           conv_params, round_bits, round_offset_avg, bd);
+      if (bd == 12) {
+        highbd_12_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                                conv_params, round_offset_avg, bd);
+      } else {
+        highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                             conv_params, round_offset_avg, bd);
+      }
     }
   }
 }
@@ -1162,8 +1231,13 @@ void av1_highbd_dist_wtd_convolve_2d_copy_neon(const uint16_t *src,
       highbd_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
                                     conv_params, round_bits, round_offset, bd);
     } else {
-      highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                           conv_params, round_bits, round_offset, bd);
+      if (bd == 12) {
+        highbd_12_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                                conv_params, round_offset, bd);
+      } else {
+        highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                             conv_params, round_offset, bd);
+      }
     }
   }
 }
@@ -1829,19 +1903,19 @@ void av1_highbd_dist_wtd_convolve_2d_neon(
       filter_params_y, subpel_y_qn & SUBPEL_MASK);
 
   // horizontal filter
-  if (x_filter_taps <= 6 && w != 4) {
-    if (bd == 12) {
+  if (bd == 12) {
+    if (x_filter_taps <= 6 && w != 4) {
       highbd_12_dist_wtd_convolve_2d_horiz_6tap_neon(
           src_ptr, src_stride, im_block, im_stride, w, im_h, x_filter_ptr,
           round_offset_conv_x);
     } else {
-      highbd_dist_wtd_convolve_2d_horiz_6tap_neon(
+      highbd_12_dist_wtd_convolve_2d_horiz_neon(
           src_ptr, src_stride, im_block, im_stride, w, im_h, x_filter_ptr,
           round_offset_conv_x);
     }
   } else {
-    if (bd == 12) {
-      highbd_12_dist_wtd_convolve_2d_horiz_neon(
+    if (x_filter_taps <= 6 && w != 4) {
+      highbd_dist_wtd_convolve_2d_horiz_6tap_neon(
           src_ptr, src_stride, im_block, im_stride, w, im_h, x_filter_ptr,
           round_offset_conv_x);
     } else {
@@ -1882,8 +1956,13 @@ void av1_highbd_dist_wtd_convolve_2d_neon(
                                     conv_params, round_bits, round_offset_avg,
                                     bd);
     } else {
-      highbd_comp_avg_neon(im_block2, im_stride, dst, dst_stride, w, h,
-                           conv_params, round_bits, round_offset_avg, bd);
+      if (bd == 12) {
+        highbd_12_comp_avg_neon(im_block2, im_stride, dst, dst_stride, w, h,
+                                conv_params, round_offset_avg, bd);
+      } else {
+        highbd_comp_avg_neon(im_block2, im_stride, dst, dst_stride, w, h,
+                             conv_params, round_offset_avg, bd);
+      }
     }
   }
 }
