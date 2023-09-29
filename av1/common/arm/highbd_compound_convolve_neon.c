@@ -146,13 +146,11 @@ static INLINE void highbd_comp_avg_neon(const uint16_t *src_ptr, int src_stride,
   }
 }
 
-static INLINE void highbd_dist_wtd_comp_avg_neon(
+static INLINE void highbd_12_dist_wtd_comp_avg_neon(
     const uint16_t *src_ptr, int src_stride, uint16_t *dst_ptr, int dst_stride,
-    int w, int h, ConvolveParams *conv_params, const int round_bits,
-    const int offset, const int bd) {
+    int w, int h, ConvolveParams *conv_params, const int offset, const int bd) {
   CONV_BUF_TYPE *ref_ptr = conv_params->dst;
   const int ref_stride = conv_params->dst_stride;
-  const int32x4_t round_shift = vdupq_n_s32(-round_bits);
   const uint32x4_t offset_vec = vdupq_n_u32(offset);
   const uint16x8_t max = vdupq_n_u16((1 << bd) - 1);
   uint16x4_t fwd_offset = vdup_n_u16(conv_params->fwd_offset);
@@ -168,9 +166,8 @@ static INLINE void highbd_dist_wtd_comp_avg_neon(
       wtd_avg = vmlal_u16(wtd_avg, src, bck_offset);
       wtd_avg = vshrq_n_u32(wtd_avg, DIST_PRECISION_BITS);
       int32x4_t d0 = vreinterpretq_s32_u32(vsubq_u32(wtd_avg, offset_vec));
-      d0 = vqrshlq_s32(d0, round_shift);
 
-      uint16x4_t d0_u16 = vqmovun_s32(d0);
+      uint16x4_t d0_u16 = vqrshrun_n_s32(d0, ROUND_SHIFT - 2);
       d0_u16 = vmin_u16(d0_u16, vget_low_u16(max));
 
       vst1_u16(dst_ptr, d0_u16);
@@ -193,15 +190,81 @@ static INLINE void highbd_dist_wtd_comp_avg_neon(
         wtd_avg0 = vmlal_u16(wtd_avg0, vget_low_u16(s), bck_offset);
         wtd_avg0 = vshrq_n_u32(wtd_avg0, DIST_PRECISION_BITS);
         int32x4_t d0 = vreinterpretq_s32_u32(vsubq_u32(wtd_avg0, offset_vec));
-        d0 = vqrshlq_s32(d0, round_shift);
 
         uint32x4_t wtd_avg1 = vmull_u16(vget_high_u16(r), fwd_offset);
         wtd_avg1 = vmlal_u16(wtd_avg1, vget_high_u16(s), bck_offset);
         wtd_avg1 = vshrq_n_u32(wtd_avg1, DIST_PRECISION_BITS);
         int32x4_t d1 = vreinterpretq_s32_u32(vsubq_u32(wtd_avg1, offset_vec));
-        d1 = vqrshlq_s32(d1, round_shift);
 
-        uint16x8_t d01 = vcombine_u16(vqmovun_s32(d0), vqmovun_s32(d1));
+        uint16x8_t d01 = vcombine_u16(vqrshrun_n_s32(d0, ROUND_SHIFT - 2),
+                                      vqrshrun_n_s32(d1, ROUND_SHIFT - 2));
+        d01 = vminq_u16(d01, max);
+        vst1q_u16(dst, d01);
+
+        src += 8;
+        ref += 8;
+        dst += 8;
+        width -= 8;
+      } while (width != 0);
+      src_ptr += src_stride;
+      dst_ptr += dst_stride;
+      ref_ptr += ref_stride;
+    } while (--h != 0);
+  }
+}
+
+static INLINE void highbd_dist_wtd_comp_avg_neon(
+    const uint16_t *src_ptr, int src_stride, uint16_t *dst_ptr, int dst_stride,
+    int w, int h, ConvolveParams *conv_params, const int offset, const int bd) {
+  CONV_BUF_TYPE *ref_ptr = conv_params->dst;
+  const int ref_stride = conv_params->dst_stride;
+  const uint32x4_t offset_vec = vdupq_n_u32(offset);
+  const uint16x8_t max = vdupq_n_u16((1 << bd) - 1);
+  uint16x4_t fwd_offset = vdup_n_u16(conv_params->fwd_offset);
+  uint16x4_t bck_offset = vdup_n_u16(conv_params->bck_offset);
+
+  // Weighted averaging
+  if (w == 4) {
+    do {
+      const uint16x4_t src = vld1_u16(src_ptr);
+      const uint16x4_t ref = vld1_u16(ref_ptr);
+
+      uint32x4_t wtd_avg = vmull_u16(ref, fwd_offset);
+      wtd_avg = vmlal_u16(wtd_avg, src, bck_offset);
+      wtd_avg = vshrq_n_u32(wtd_avg, DIST_PRECISION_BITS);
+      int32x4_t d0 = vreinterpretq_s32_u32(vsubq_u32(wtd_avg, offset_vec));
+
+      uint16x4_t d0_u16 = vqrshrun_n_s32(d0, ROUND_SHIFT);
+      d0_u16 = vmin_u16(d0_u16, vget_low_u16(max));
+
+      vst1_u16(dst_ptr, d0_u16);
+
+      src_ptr += src_stride;
+      dst_ptr += dst_stride;
+      ref_ptr += ref_stride;
+    } while (--h != 0);
+  } else {
+    do {
+      int width = w;
+      const uint16_t *src = src_ptr;
+      const uint16_t *ref = ref_ptr;
+      uint16_t *dst = dst_ptr;
+      do {
+        const uint16x8_t s = vld1q_u16(src);
+        const uint16x8_t r = vld1q_u16(ref);
+
+        uint32x4_t wtd_avg0 = vmull_u16(vget_low_u16(r), fwd_offset);
+        wtd_avg0 = vmlal_u16(wtd_avg0, vget_low_u16(s), bck_offset);
+        wtd_avg0 = vshrq_n_u32(wtd_avg0, DIST_PRECISION_BITS);
+        int32x4_t d0 = vreinterpretq_s32_u32(vsubq_u32(wtd_avg0, offset_vec));
+
+        uint32x4_t wtd_avg1 = vmull_u16(vget_high_u16(r), fwd_offset);
+        wtd_avg1 = vmlal_u16(wtd_avg1, vget_high_u16(s), bck_offset);
+        wtd_avg1 = vshrq_n_u32(wtd_avg1, DIST_PRECISION_BITS);
+        int32x4_t d1 = vreinterpretq_s32_u32(vsubq_u32(wtd_avg1, offset_vec));
+
+        uint16x8_t d01 = vcombine_u16(vqrshrun_n_s32(d0, ROUND_SHIFT),
+                                      vqrshrun_n_s32(d1, ROUND_SHIFT));
         d01 = vminq_u16(d01, max);
         vst1q_u16(dst, d01);
 
@@ -686,9 +749,6 @@ void av1_highbd_dist_wtd_convolve_x_neon(
   const int offset_convolve = (1 << (conv_params->round_0 - 1)) +
                               (1 << (bd + FILTER_BITS)) +
                               (1 << (bd + FILTER_BITS - 1));
-  const int round_bits =
-      2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
-  assert(round_bits >= 0);
 
   const int16_t *x_filter_ptr = av1_get_interp_filter_subpel_kernel(
       filter_params_x, subpel_x_qn & SUBPEL_MASK);
@@ -705,6 +765,13 @@ void av1_highbd_dist_wtd_convolve_x_neon(
       } else {
         highbd_12_dist_wtd_convolve_x_neon(src, src_stride, im_block, im_stride,
                                            w, h, x_filter_ptr, offset_convolve);
+      }
+      if (conv_params->use_dist_wtd_comp_avg) {
+        highbd_12_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride,
+                                         w, h, conv_params, offset_avg, bd);
+      } else {
+        highbd_12_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                                conv_params, offset_avg, bd);
       }
     } else {
       if (x_filter_taps <= 6 && w != 4) {
@@ -726,6 +793,13 @@ void av1_highbd_dist_wtd_convolve_x_neon(
         highbd_dist_wtd_convolve_x_neon(src, src_stride, im_block, im_stride, w,
                                         h, x_filter_ptr, offset_convolve);
       }
+      if (conv_params->use_dist_wtd_comp_avg) {
+        highbd_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w,
+                                      h, conv_params, offset_avg, bd);
+      } else {
+        highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                             conv_params, offset_avg, bd);
+      }
     } else {
       if (x_filter_taps <= 6 && w != 4) {
         highbd_dist_wtd_convolve_x_6tap_neon(src + 1, src_stride, dst16,
@@ -734,21 +808,6 @@ void av1_highbd_dist_wtd_convolve_x_neon(
       } else {
         highbd_dist_wtd_convolve_x_neon(src, src_stride, dst16, dst16_stride, w,
                                         h, x_filter_ptr, offset_convolve);
-      }
-    }
-  }
-
-  if (conv_params->do_average) {
-    if (conv_params->use_dist_wtd_comp_avg) {
-      highbd_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                                    conv_params, round_bits, offset_avg, bd);
-    } else {
-      if (bd == 12) {
-        highbd_12_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                                conv_params, offset_avg, bd);
-      } else {
-        highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                             conv_params, offset_avg, bd);
       }
     }
   }
@@ -1095,9 +1154,6 @@ void av1_highbd_dist_wtd_convolve_y_neon(
   const int round_offset_conv = (1 << (conv_params->round_0 - 1)) +
                                 (1 << (bd + FILTER_BITS)) +
                                 (1 << (bd + FILTER_BITS - 1));
-  const int round_bits =
-      2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
-  assert(round_bits >= 0);
 
   const int16_t *y_filter_ptr = av1_get_interp_filter_subpel_kernel(
       filter_params_y, subpel_y_qn & SUBPEL_MASK);
@@ -1114,6 +1170,14 @@ void av1_highbd_dist_wtd_convolve_y_neon(
         highbd_12_dist_wtd_convolve_y_8tap_neon(src, src_stride, im_block,
                                                 im_stride, w, h, y_filter_ptr,
                                                 round_offset_conv);
+      }
+      if (conv_params->use_dist_wtd_comp_avg) {
+        highbd_12_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride,
+                                         w, h, conv_params, round_offset_avg,
+                                         bd);
+      } else {
+        highbd_12_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                                conv_params, round_offset_avg, bd);
       }
     } else {
       if (y_filter_taps <= 6) {
@@ -1137,6 +1201,13 @@ void av1_highbd_dist_wtd_convolve_y_neon(
                                              im_stride, w, h, y_filter_ptr,
                                              round_offset_conv);
       }
+      if (conv_params->use_dist_wtd_comp_avg) {
+        highbd_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w,
+                                      h, conv_params, round_offset_avg, bd);
+      } else {
+        highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
+                             conv_params, round_offset_avg, bd);
+      }
     } else {
       if (y_filter_taps <= 6) {
         highbd_dist_wtd_convolve_y_6tap_neon(src + src_stride, src_stride,
@@ -1146,22 +1217,6 @@ void av1_highbd_dist_wtd_convolve_y_neon(
         highbd_dist_wtd_convolve_y_8tap_neon(src, src_stride, dst16,
                                              dst16_stride, w, h, y_filter_ptr,
                                              round_offset_conv);
-      }
-    }
-  }
-
-  if (conv_params->do_average) {
-    if (conv_params->use_dist_wtd_comp_avg) {
-      highbd_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                                    conv_params, round_bits, round_offset_avg,
-                                    bd);
-    } else {
-      if (bd == 12) {
-        highbd_12_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                                conv_params, round_offset_avg, bd);
-      } else {
-        highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                             conv_params, round_offset_avg, bd);
       }
     }
   }
@@ -1228,8 +1283,13 @@ void av1_highbd_dist_wtd_convolve_2d_copy_neon(const uint16_t *src,
 
   if (conv_params->do_average) {
     if (conv_params->use_dist_wtd_comp_avg) {
-      highbd_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                                    conv_params, round_bits, round_offset, bd);
+      if (bd == 12) {
+        highbd_12_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride,
+                                         w, h, conv_params, round_offset, bd);
+      } else {
+        highbd_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w,
+                                      h, conv_params, round_offset, bd);
+      }
     } else {
       if (bd == 12) {
         highbd_12_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
@@ -1883,8 +1943,6 @@ void av1_highbd_dist_wtd_convolve_2d_neon(
   const int im_stride = MAX_SB_SIZE;
   const int vert_offset = clamped_y_taps / 2 - 1;
   const int horiz_offset = clamped_x_taps / 2 - 1;
-  const int round_bits =
-      2 * FILTER_BITS - conv_params->round_0 - conv_params->round_1;
   // The extra shim of (1 << (conv_params->round_0 - 1)) allows us to use a
   // faster non-rounding non-saturating left shift.
   const int round_offset_conv_x =
@@ -1952,9 +2010,14 @@ void av1_highbd_dist_wtd_convolve_2d_neon(
   // main loop
   if (conv_params->do_average) {
     if (conv_params->use_dist_wtd_comp_avg) {
-      highbd_dist_wtd_comp_avg_neon(im_block2, im_stride, dst, dst_stride, w, h,
-                                    conv_params, round_bits, round_offset_avg,
-                                    bd);
+      if (bd == 12) {
+        highbd_12_dist_wtd_comp_avg_neon(im_block2, im_stride, dst, dst_stride,
+                                         w, h, conv_params, round_offset_avg,
+                                         bd);
+      } else {
+        highbd_dist_wtd_comp_avg_neon(im_block2, im_stride, dst, dst_stride, w,
+                                      h, conv_params, round_offset_avg, bd);
+      }
     } else {
       if (bd == 12) {
         highbd_12_comp_avg_neon(im_block2, im_stride, dst, dst_stride, w, h,
