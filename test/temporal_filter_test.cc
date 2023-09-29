@@ -396,12 +396,14 @@ TEST_P(EstimateNoiseTest, RandomValues) { RunTest(1); }
 
 TEST_P(EstimateNoiseTest, DISABLED_Speed) { SpeedTest(2000); }
 
-#if HAVE_AVX2
+#if HAVE_AVX2 || HAVE_NEON
 // Width and height for which av1_estimate_noise_from_single_plane() will be
 // tested.
 const int kWidths[] = { 3840, 1920, 1280, 800, 640, 360, 357 };
 const int kHeights[] = { 2160, 1080, 720, 600, 480, 240, 237 };
+#endif  // HAVE_AVX2 || HAVE_NEON
 
+#if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, EstimateNoiseTest,
     ::testing::Combine(
@@ -409,6 +411,15 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(av1_estimate_noise_from_single_plane_avx2),
         ::testing::ValuesIn(kWidths), ::testing::ValuesIn(kHeights)));
 #endif  // HAVE_AVX2
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, EstimateNoiseTest,
+    ::testing::Combine(
+        ::testing::Values(av1_estimate_noise_from_single_plane_c),
+        ::testing::Values(av1_estimate_noise_from_single_plane_neon),
+        ::testing::ValuesIn(kWidths), ::testing::ValuesIn(kHeights)));
+#endif  // HAVE_NEON
 
 #if CONFIG_AV1_HIGHBITDEPTH
 
