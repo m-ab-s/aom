@@ -2430,13 +2430,12 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
       get_segdata(seg, segment_id, SEG_LVL_REF_FRAME) != (int)(*ref_frame))
     return true;
 
-  // For screen content: for base spatial layer only for now.
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-      cpi->svc.spatial_layer_id == 0) {
+  // For screen content: skip mode testing based on source_sad.
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     // If source_sad is computed: skip non-zero motion
     // check for stationary (super)blocks. Otherwise if superblock
-    // has motion skip the modes with zero motion for flat blocks,
-    // and color is not set.
+    // has motion skip the modes with zero motion on last reference
+    // for flat blocks, and color is not set.
     // For the latter condition: the same condition should apply
     // to newmv if (0, 0), so this latter condition is repeated
     // below after search_new_mv.
@@ -2444,7 +2443,7 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
       if ((search_state->frame_mv[*this_mode][*ref_frame].as_int != 0 &&
            x->content_state_sb.source_sad_nonrd == kZeroSad) ||
           (search_state->frame_mv[*this_mode][*ref_frame].as_int == 0 &&
-           x->block_is_zero_sad == 0 &&
+           x->block_is_zero_sad == 0 && *ref_frame == LAST_FRAME &&
            ((x->color_sensitivity_sb[COLOR_SENS_IDX(AOM_PLANE_U)] == 0 &&
              x->color_sensitivity_sb[COLOR_SENS_IDX(AOM_PLANE_V)] == 0) ||
             cpi->rc.high_source_sad) &&
@@ -2589,10 +2588,11 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
   if (skip_this_mv && is_single_pred) return true;
 
   // For screen: for spatially flat blocks with non-zero motion,
-  // skip newmv if the motion vector is (0, 0), and color is not set.
+  // skip newmv if the motion vector is (0, 0)-LAST, and color is not set.
   if (this_mode == NEWMV && cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       cpi->svc.spatial_layer_id == 0 && rt_sf->source_metrics_sb_nonrd) {
-    if (this_mv->as_int == 0 && x->block_is_zero_sad == 0 &&
+    if (this_mv->as_int == 0 && ref_frame == LAST_FRAME &&
+        x->block_is_zero_sad == 0 &&
         ((x->color_sensitivity_sb[COLOR_SENS_IDX(AOM_PLANE_U)] == 0 &&
           x->color_sensitivity_sb[COLOR_SENS_IDX(AOM_PLANE_V)] == 0) ||
          cpi->rc.high_source_sad) &&
