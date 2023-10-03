@@ -1528,7 +1528,9 @@ static AOM_INLINE bool is_set_force_zeromv_skip_based_on_src_sad(
     int set_zeromv_skip_based_on_source_sad, SOURCE_SAD source_sad_nonrd) {
   if (set_zeromv_skip_based_on_source_sad == 0) return false;
 
-  if (set_zeromv_skip_based_on_source_sad >= 2)
+  if (set_zeromv_skip_based_on_source_sad >= 3)
+    return source_sad_nonrd <= kLowSad;
+  else if (set_zeromv_skip_based_on_source_sad >= 2)
     return source_sad_nonrd <= kVeryLowSad;
   else if (set_zeromv_skip_based_on_source_sad >= 1)
     return source_sad_nonrd == kZeroSad;
@@ -1545,12 +1547,13 @@ static AOM_INLINE bool set_force_zeromv_skip_for_sb(
           cpi->sf.rt_sf.set_zeromv_skip_based_on_source_sad,
           x->content_state_sb.source_sad_nonrd))
     return false;
+  int shift = cpi->sf.rt_sf.increase_source_sad_thresh ? 1 : 0;
   const int block_width = mi_size_wide[cm->seq_params->sb_size];
   const int block_height = mi_size_high[cm->seq_params->sb_size];
   const unsigned int thresh_exit_part_y =
-      cpi->zeromv_skip_thresh_exit_part[bsize];
+      cpi->zeromv_skip_thresh_exit_part[bsize] << shift;
   unsigned int thresh_exit_part_uv =
-      CALC_CHROMA_THRESH_FOR_ZEROMV_SKIP(thresh_exit_part_y);
+      CALC_CHROMA_THRESH_FOR_ZEROMV_SKIP(thresh_exit_part_y) << shift;
   // Be more aggressive in UV threshold if source_sad >= VeryLowSad
   // to suppreess visual artifact caused by the speed feature:
   // set_zeromv_skip_based_on_source_sad = 2. For now only for

@@ -577,7 +577,7 @@ static INLINE void set_early_term_based_on_uv_plane(
   struct macroblock_plane *const p = &x->plane[AOM_PLANE_Y];
   const uint32_t dc_quant = p->dequant_QTX[0];
   const uint32_t ac_quant = p->dequant_QTX[1];
-  const int64_t dc_thr = dc_quant * dc_quant >> 6;
+  int64_t dc_thr = dc_quant * dc_quant >> 6;
   int64_t ac_thr = ac_quant * ac_quant >> 6;
   const int bw = b_width_log2_lookup[bsize];
   const int bh = b_height_log2_lookup[bsize];
@@ -596,6 +596,11 @@ static INLINE void set_early_term_based_on_uv_plane(
   ac_thr *= ac_thr_factor(cpi->oxcf.speed, cm->width, cm->height, norm_sum);
 
 #endif
+
+  if (cpi->sf.rt_sf.increase_source_sad_thresh) {
+    dc_thr = dc_thr << 1;
+    ac_thr = ac_thr << 2;
+  }
 
   for (int k = 0; k < num_blk; k++) {
     // Check if all ac coefficients can be quantized to zero.
@@ -626,10 +631,12 @@ static INLINE void set_early_term_based_on_uv_plane(
         const BLOCK_SIZE uv_bsize = get_plane_block_size(
             bsize, puvd->subsampling_x, puvd->subsampling_y);
         // Adjust these thresholds for UV.
+        const int shift_ac = cpi->sf.rt_sf.increase_source_sad_thresh ? 5 : 3;
+        const int shift_dc = cpi->sf.rt_sf.increase_source_sad_thresh ? 4 : 3;
         const int64_t uv_dc_thr =
-            (puv->dequant_QTX[0] * puv->dequant_QTX[0]) >> 3;
+            (puv->dequant_QTX[0] * puv->dequant_QTX[0]) >> shift_dc;
         const int64_t uv_ac_thr =
-            (puv->dequant_QTX[1] * puv->dequant_QTX[1]) >> 3;
+            (puv->dequant_QTX[1] * puv->dequant_QTX[1]) >> shift_ac;
         av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
                                       plane, plane);
         var_uv[j] = cpi->ppi->fn_ptr[uv_bsize].vf(puv->src.buf, puv->src.stride,

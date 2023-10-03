@@ -3821,6 +3821,8 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size,
       if (cpi->sf.rt_sf.disable_cdf_update_non_reference_frame &&
           cpi->ppi->rtc_ref.non_reference_frame && cpi->rc.frames_since_key > 2)
         features->disable_cdf_update = 1;
+      else if (cpi->sf.rt_sf.selective_cdf_update)
+        features->disable_cdf_update = selective_disable_cdf_rtc(cpi);
       else
         features->disable_cdf_update = 0;
       break;

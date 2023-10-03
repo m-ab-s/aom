@@ -1654,9 +1654,23 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // rc->high_source_sad = 0 (non slide-changes), and color sensitivity off.
   int skip_cdef_sb;
 
+  // Force selective cdf update.
+  int selective_cdf_update;
+
+  // Force only single reference (LAST) for prediction.
+  int force_only_last_ref;
+
   // Forces larger partition blocks in variance based partitioning for intra
   // frames
   int force_large_partition_blocks_intra;
+
+  // Use fixed partition for superblocks based on source_sad.
+  // 0: disabled
+  // 1: enabled
+  int use_fast_fixed_part;
+
+  // Increase source_sad thresholds in nonrd pickmode.
+  int increase_source_sad_thresh;
 
   // Skip evaluation of no split in tx size selection for merge partition
   int skip_tx_no_split_var_based_partition;

@@ -1453,7 +1453,25 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 9) sf->lpf_sf.cdef_pick_method = CDEF_PICK_FROM_Q;
     if (speed >= 10) sf->rt_sf.nonrd_aggressive_skip = 1;
   }
-
+  // TODO(marpan): Tune settings for speed 11 video mode,
+  // for resolutions below 720p.
+  if (speed >= 11 && !is_720p_or_larger &&
+      cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) {
+    sf->rt_sf.skip_cdef_sb = 2;
+    sf->rt_sf.force_only_last_ref = 1;
+    sf->rt_sf.selective_cdf_update = 1;
+    sf->rt_sf.use_nonrd_filter_search = 0;
+    if (is_360p_or_larger) {
+      sf->part_sf.fixed_partition_size = BLOCK_32X32;
+      sf->rt_sf.use_fast_fixed_part = 1;
+    }
+    sf->rt_sf.increase_source_sad_thresh = 1;
+    sf->rt_sf.part_early_exit_zeromv = 2;
+    sf->rt_sf.set_zeromv_skip_based_on_source_sad = 2;
+    for (int i = 0; i < BLOCK_SIZES; ++i) {
+      sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
+    }
+  }
   // Setting for SVC, or when the ref_frame_config control is
   // used to set the reference structure.
   if (cpi->ppi->use_svc || cpi->ppi->rtc_ref.set_ref_frame_config) {
@@ -1769,6 +1787,8 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
                 FLAG_EARLY_TERMINATE;
   sf->rt_sf.var_part_split_threshold_shift = 5;
   if (!frame_is_intra_only(&cpi->common)) sf->rt_sf.var_part_based_on_qidx = 1;
+  sf->rt_sf.use_fast_fixed_part = 0;
+  sf->rt_sf.increase_source_sad_thresh = 0;
 
   if (speed >= 6) {
     sf->mv_sf.use_fullpel_costlist = 1;
@@ -2256,6 +2276,8 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->enable_ref_short_signaling = false;
   rt_sf->check_globalmv_on_single_ref = true;
   rt_sf->increase_color_thresh_palette = false;
+  rt_sf->selective_cdf_update = 0;
+  rt_sf->force_only_last_ref = 0;
 }
 
 static fractional_mv_step_fp
