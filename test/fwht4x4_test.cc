@@ -80,7 +80,6 @@ class Trans4x4WHT : public libaom_test::TransformTestBase<tran_low_t>,
     num_coeffs_ = GET_PARAM(4);
     fwd_txfm_c_ = GET_PARAM(5);
   }
-  void TearDown() override {}
 
  protected:
   void RunFwdTxfm(const int16_t *in, tran_low_t *out, int stride) override {

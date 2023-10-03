@@ -49,8 +49,6 @@ class MaskedSubPixelVarianceTest
     ref_func_ = GET_PARAM(1);
   }
 
-  void TearDown() override {}
-
  protected:
   MaskedSubPixelVarianceFunc opt_func_;
   MaskedSubPixelVarianceFunc ref_func_;
@@ -185,8 +183,6 @@ class HighbdMaskedSubPixelVarianceTest
     ref_func_ = GET_PARAM(1);
     bit_depth_ = GET_PARAM(2);
   }
-
-  void TearDown() override {}
 
  protected:
   MaskedSubPixelVarianceFunc opt_func_;

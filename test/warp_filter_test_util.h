@@ -53,8 +53,6 @@ class AV1WarpFilterTest : public ::testing::TestWithParam<WarpTestParams> {
   ~AV1WarpFilterTest() override;
   void SetUp() override;
 
-  void TearDown() override;
-
  protected:
   void RunCheckOutput(warp_affine_func test_impl);
   void RunSpeedTest(warp_affine_func test_impl);
@@ -88,8 +86,6 @@ class AV1HighbdWarpFilterTest
  public:
   ~AV1HighbdWarpFilterTest() override;
   void SetUp() override;
-
-  void TearDown() override;
 
  protected:
   void RunCheckOutput(highbd_warp_affine_func test_impl);

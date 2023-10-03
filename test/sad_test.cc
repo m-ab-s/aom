@@ -132,8 +132,6 @@ class SADTestBase : public ::testing::Test {
     comp_pred16_test_ = nullptr;
   }
 
-  void TearDown() override {}
-
  protected:
   // Handle up to 4 128x128 blocks, with stride up to 256
   static const int kDataAlignment = 16;

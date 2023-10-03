@@ -49,8 +49,6 @@ class AV1KmeansTest1
   ~AV1KmeansTest1() override;
   void SetUp() override;
 
-  void TearDown() override;
-
  protected:
   void RunCheckOutput(av1_calc_indices_dim1_func test_impl, BLOCK_SIZE bsize,
                       int centroids);
@@ -86,8 +84,6 @@ void AV1KmeansTest1::SetUp() {
     centroids_[i] = (int)rnd_.Rand8() << 4;
   }
 }
-
-void AV1KmeansTest1::TearDown() {}
 
 void AV1KmeansTest1::RunCheckOutput(av1_calc_indices_dim1_func test_impl,
                                     BLOCK_SIZE bsize, int k) {
@@ -155,8 +151,6 @@ class AV1KmeansTest2
   ~AV1KmeansTest2() override;
   void SetUp() override;
 
-  void TearDown() override;
-
  protected:
   void RunCheckOutput(av1_calc_indices_dim2_func test_impl, BLOCK_SIZE bsize,
                       int centroids);
@@ -196,8 +190,6 @@ void AV1KmeansTest2::SetUp() {
     centroids_[i] = (int)rnd_.Rand8();
   }
 }
-
-void AV1KmeansTest2::TearDown() {}
 
 void AV1KmeansTest2::RunCheckOutput(av1_calc_indices_dim2_func test_impl,
                                     BLOCK_SIZE bsize, int k) {

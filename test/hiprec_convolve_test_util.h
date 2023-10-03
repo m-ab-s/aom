@@ -47,8 +47,6 @@ class AV1HiprecConvolveTest
   ~AV1HiprecConvolveTest() override;
   void SetUp() override;
 
-  void TearDown() override;
-
  protected:
   void RunCheckOutput(hiprec_convolve_func test_impl);
   void RunSpeedTest(hiprec_convolve_func test_impl);
@@ -77,8 +75,6 @@ class AV1HighbdHiprecConvolveTest
  public:
   ~AV1HighbdHiprecConvolveTest() override;
   void SetUp() override;
-
-  void TearDown() override;
 
  protected:
   void RunCheckOutput(highbd_hiprec_convolve_func test_impl);

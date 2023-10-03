@@ -44,7 +44,6 @@ class AV1CompRoundShiftTest
   void SetUp() override {
     rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   }
-  void TearDown() override {}
 
  protected:
   void RunCheckOutput(comp_round_shift_array_func test_impl, BLOCK_SIZE bsize,

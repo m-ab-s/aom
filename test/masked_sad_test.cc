@@ -58,7 +58,6 @@ class MaskedSADTestBase : public ::testing::Test {
                        int msk_stride, int inv_mask, unsigned sads[],
                        int times) = 0;
 
-  void TearDown() override {}
   void runMaskedSADTest(int run_times);
 };
 
@@ -268,7 +267,6 @@ class HighbdMaskedSADTest
     ref_maskedSAD_op_ = GET_PARAM(1);
   }
 
-  void TearDown() override {}
   void runHighbdMaskedSADTest(int run_times);
 
  protected:

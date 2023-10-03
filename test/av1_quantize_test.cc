@@ -185,8 +185,6 @@ class AV1QuantizeTest : public ::testing::TestWithParam<QuantizeFuncParams> {
 
   void SetUp() override { params_ = GetParam(); }
 
-  void TearDown() override {}
-
   ~AV1QuantizeTest() override = default;
 
  private:

@@ -47,8 +47,6 @@ class CDEFBlockTest : public ::testing::TestWithParam<cdef_dir_param_t> {
     depth = GET_PARAM(4);
   }
 
-  void TearDown() override {}
-
  protected:
   int bsize;
   int boundary;
@@ -219,8 +217,6 @@ class CDEFFindDirTest : public ::testing::TestWithParam<find_dir_param_t> {
     ref_finddir = GET_PARAM(1);
   }
 
-  void TearDown() override {}
-
  protected:
   find_dir_t finddir;
   find_dir_t ref_finddir;
@@ -309,8 +305,6 @@ class CDEFFindDirDualTest
     finddir = GET_PARAM(0);
     ref_finddir = GET_PARAM(1);
   }
-
-  void TearDown() override {}
 
  protected:
   find_dir_dual_t finddir;

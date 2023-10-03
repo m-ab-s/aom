@@ -71,7 +71,6 @@ class Trans4x4FDCT : public libaom_test::TransformTestBase<OutputType>,
     TxfmBaseOutType::mask_ = (1 << TxfmBaseOutType::bit_depth_) - 1;
     TxfmBaseOutType::num_coeffs_ = std::get<3>(this->GetParam());
   }
-  void TearDown() override {}
 
  protected:
   void RunFwdTxfm(const int16_t *in, OutputType *out, int stride) override {

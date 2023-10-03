@@ -43,7 +43,6 @@ class AV1FrameErrorTest : public ::testing::TestWithParam<FrameErrorParam> {
   void SetUp() override {
     rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   }
-  void TearDown() override {}
 
  protected:
   void RandomValues(frame_error_func test_impl, int width, int height);
@@ -189,7 +188,6 @@ class AV1HighbdFrameErrorTest
   void SetUp() override {
     rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   }
-  void TearDown() override {}
 
  protected:
   void RandomValues(highbd_frame_error_func test_impl, int width, int height,
@@ -332,7 +330,6 @@ class AV1HighbdFrameErrorConsistencyTest
   void SetUp() override {
     rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   }
-  void TearDown() override {}
 
  protected:
   void RandomValues(int width, int height);

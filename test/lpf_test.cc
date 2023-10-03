@@ -135,8 +135,6 @@ class LoopTestParam : public ::testing::TestWithParam<params_t> {
     mask_ = (1 << bit_depth_) - 1;
   }
 
-  void TearDown() override {}
-
  protected:
   int bit_depth_;
   int mask_;

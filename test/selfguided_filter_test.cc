@@ -44,8 +44,6 @@ class AV1SelfguidedFilterTest
   ~AV1SelfguidedFilterTest() override = default;
   void SetUp() override {}
 
-  void TearDown() override {}
-
  protected:
   void RunSpeedTest() {
     tst_fun_ = GET_PARAM(0);
@@ -236,8 +234,6 @@ class AV1HighbdSelfguidedFilterTest
  public:
   ~AV1HighbdSelfguidedFilterTest() override = default;
   void SetUp() override {}
-
-  void TearDown() override {}
 
  protected:
   void RunSpeedTest() {

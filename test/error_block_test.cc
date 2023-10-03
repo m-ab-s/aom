@@ -72,8 +72,6 @@ class ErrorBlockTest : public ::testing::TestWithParam<ErrorBlockParam> {
     bit_depth_ = GET_PARAM(2);
   }
 
-  void TearDown() override {}
-
  protected:
   aom_bit_depth_t bit_depth_;
   ErrorBlockFunc error_block_op_;

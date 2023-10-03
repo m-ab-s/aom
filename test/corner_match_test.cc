@@ -40,8 +40,6 @@ class AV1CornerMatchTest : public ::testing::TestWithParam<CornerMatchParam> {
   ~AV1CornerMatchTest() override;
   void SetUp() override;
 
-  void TearDown() override;
-
  protected:
   void RunCheckOutput(int run_times);
   ComputeCrossCorrFunc target_func;
@@ -55,7 +53,6 @@ void AV1CornerMatchTest::SetUp() {
   rnd_.Reset(ACMRandom::DeterministicSeed());
   target_func = GET_PARAM(1);
 }
-void AV1CornerMatchTest::TearDown() {}
 
 void AV1CornerMatchTest::RunCheckOutput(int run_times) {
   const int w = 128, h = 128;

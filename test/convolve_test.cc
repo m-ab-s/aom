@@ -301,8 +301,6 @@ class ConvolveTestBase : public ::testing::TestWithParam<ConvolveParam> {
     ASSERT_NE(output16_ref_, nullptr);
   }
 
-  void TearDown() override {}
-
   static void TearDownTestSuite() {
     aom_free(input_ - 1);
     input_ = nullptr;

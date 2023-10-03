@@ -259,7 +259,6 @@ class ConvolveScaleTestBase : public ::testing::Test {
  public:
   ConvolveScaleTestBase() : image_(nullptr) {}
   ~ConvolveScaleTestBase() override { delete image_; }
-  void TearDown() override {}
 
   // Implemented by subclasses (SetUp depends on the parameters passed
   // in and RunOne depends on the function to be tested. These can't

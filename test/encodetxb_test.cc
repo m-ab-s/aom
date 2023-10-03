@@ -212,7 +212,6 @@ class EncodeTxbInitLevelTest
     : public ::testing::TestWithParam<TxbInitLevelParam> {
  public:
   ~EncodeTxbInitLevelTest() override = default;
-  void TearDown() override {}
   void RunTest(av1_txb_init_levels_func test_func, int tx_size, int is_speed);
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EncodeTxbInitLevelTest);

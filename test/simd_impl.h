@@ -29,8 +29,6 @@ class TestIntrinsic : public ::testing::TestWithParam<param_signature> {
     name = std::get<2>(this->GetParam());
   }
 
-  void TearDown() override {}
-
  protected:
   uint32_t mask, maskwidth;
   const char *name;

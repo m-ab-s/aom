@@ -163,7 +163,6 @@ class ConvolveHorizRSTestBase : public ::testing::Test {
  public:
   ConvolveHorizRSTestBase() : image_(nullptr) {}
   ~ConvolveHorizRSTestBase() override = default;
-  void TearDown() override {}
 
   // Implemented by subclasses (SetUp depends on the parameters passed
   // in and RunOne depends on the function to be tested. These can't

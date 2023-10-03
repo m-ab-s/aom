@@ -186,7 +186,6 @@ class HBDMetricsTest : public HBDMetricsTestBase,
     bit_depth_ = GET_PARAM(3);
     threshold_ = GET_PARAM(4);
   }
-  void TearDown() override {}
 };
 
 TEST_P(HBDMetricsTest, RunAccuracyCheck) { RunAccuracyCheck(); }

@@ -50,7 +50,6 @@ class BuildCompDiffwtdMaskTest
  public:
   ~BuildCompDiffwtdMaskTest() override = default;
 
-  void TearDown() override {}
   void RunTest(buildcompdiffwtdmaskd_func test_impl, const int is_speed,
                const DIFFWTD_MASK_TYPE type);
 
@@ -78,7 +77,6 @@ class BuildCompDiffwtdMaskD16Test
     : public ::testing::TestWithParam<BuildCompDiffwtdMaskD16Param> {
  public:
   ~BuildCompDiffwtdMaskD16Test() override = default;
-  void TearDown() override {}
   void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:

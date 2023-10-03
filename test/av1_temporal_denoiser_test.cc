@@ -47,8 +47,6 @@ class AV1DenoiserTest
 
   void SetUp() override { bs_ = GET_PARAM(1); }
 
-  void TearDown() override {}
-
  protected:
   BLOCK_SIZE bs_;
 };

@@ -183,13 +183,11 @@ TEST_F(AV1ConvolveParametersTest, GetHighbdTestParams) {
 template <typename T>
 class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
  public:
-  ~AV1ConvolveTest() override { TearDown(); }
+  ~AV1ConvolveTest() override = default;
 
   void SetUp() override {
     rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
   }
-
-  void TearDown() override {}
 
   // Randomizes the 8-bit input buffer and returns a pointer to it. Note that
   // the pointer is safe to use with an 8-tap filter. The stride can range
