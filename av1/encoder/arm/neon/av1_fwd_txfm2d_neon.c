@@ -42,14 +42,14 @@
 //        in0  in1
 //      /----------
 // out0 |  w0   w1   ==>  out0 = in0 * w0 + in1 * w1
-// out0 |  w2   w3   ==>  out1 = in0 * w2 + in1 * w3
+// out1 |  w2   w3   ==>  out1 = in0 * w2 + in1 * w3
 //
 // So for indices 0331 from the earlier example, we end up with:
 //
 //          in0       in1
 //      /------------------
 // out0 | (lane 0) (lane 2)   ==>  out0 = in0 *   w0   + in1 *  -w0
-// out0 | (lane 3) (lane 1)   ==>  out1 = in0 * (w0-1) + in1 * (1-w0)
+// out1 | (lane 3) (lane 1)   ==>  out1 = in0 * (w0-1) + in1 * (1-w0)
 
 static INLINE void butterfly_s32_s32_x4_0112_neon(const int16x4_t w0101_s16,
                                                   const int32x4_t in0,
