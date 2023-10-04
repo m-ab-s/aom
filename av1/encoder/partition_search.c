@@ -2792,7 +2792,7 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
   struct buf_2d yv12_mb[REF_FRAMES][MAX_MB_PLANE];
   int force_skip_low_temp_var = 0;
   int skip_pred_mv = 0;
-  int use_scaled_ref = 0;
+  bool use_scaled_ref;
 
   for (int i = 0; i < MB_MODE_COUNT; ++i) {
     for (int j = 0; j < REF_FRAMES; ++j) {

@@ -2235,7 +2235,6 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   MB_MODE_INFO *const mi = xd->mi[0];
   const ModeCosts *mode_costs = &x->mode_costs;
   int skip_pred_mv = 0;
-  int use_scaled_ref_frame = 0;
 
   // Initialize variance and distortion (chroma) for all modes and reference
   // frames
@@ -2285,8 +2284,8 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   if (cpi->ref_frame_flags & AOM_LAST_FLAG) {
     find_predictors(cpi, x, LAST_FRAME, search_state->frame_mv,
                     search_state->yv12_mb, bsize, *force_skip_low_temp_var,
-                    x->force_zeromv_skip_for_blk, &use_scaled_ref_frame);
-    search_state->use_scaled_ref_frame[LAST_FRAME] = use_scaled_ref_frame;
+                    x->force_zeromv_skip_for_blk,
+                    &search_state->use_scaled_ref_frame[LAST_FRAME]);
   }
   // Update mask to use all reference frame
   get_ref_frame_use_mask(cpi, x, mi, mi_row, mi_col, bsize, gf_temporal_ref,
@@ -2305,8 +2304,8 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
     if (search_state->use_ref_frame_mask[ref_frame_iter]) {
       find_predictors(cpi, x, ref_frame_iter, search_state->frame_mv,
                       search_state->yv12_mb, bsize, *force_skip_low_temp_var,
-                      skip_pred_mv, &use_scaled_ref_frame);
-      search_state->use_scaled_ref_frame[ref_frame_iter] = use_scaled_ref_frame;
+                      skip_pred_mv,
+                      &search_state->use_scaled_ref_frame[ref_frame_iter]);
     }
   }
 }
@@ -3518,4 +3517,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 #endif  // COLLECT_NONRD_PICK_MODE_STAT
 
   *rd_cost = search_state.best_rdc;
+
+  // Reset the xd->block_ref_scale_factors[i], as they may have
+  // been set to pointer &sf_no_scale, which becomes invalid afer
+  // this function.
+  set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
 }

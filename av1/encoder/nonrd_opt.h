@@ -424,21 +424,20 @@ static INLINE int get_model_rd_flag(const AV1_COMP *cpi, const MACROBLOCKD *xd,
  *                                        frame is used.
  *
  * \remark Nothing is returned. Instead, predicted MVs are placed into
- * \c frame_mv array, and use_scaled_ref_frame is set to 1.
+ * \c frame_mv array, and use_scaled_ref_frame is set.
  */
 static INLINE void find_predictors(
     AV1_COMP *cpi, MACROBLOCK *x, MV_REFERENCE_FRAME ref_frame,
     int_mv frame_mv[MB_MODE_COUNT][REF_FRAMES],
     struct buf_2d yv12_mb[8][MAX_MB_PLANE], BLOCK_SIZE bsize,
-    int force_skip_low_temp_var, int skip_pred_mv, int *use_scaled_ref_frame) {
+    int force_skip_low_temp_var, int skip_pred_mv, bool *use_scaled_ref_frame) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
-  bool ref_is_scaled = false;
   const YV12_BUFFER_CONFIG *ref = get_ref_frame_yv12_buf(cm, ref_frame);
-  if (ref->y_crop_height != cm->height || ref->y_crop_width != cm->width)
-    ref_is_scaled = true;
+  const bool ref_is_scaled =
+      ref->y_crop_height != cm->height || ref->y_crop_width != cm->width;
   const YV12_BUFFER_CONFIG *scaled_ref =
       av1_get_scaled_ref_frame(cpi, ref_frame);
   const YV12_BUFFER_CONFIG *yv12 =
@@ -475,7 +474,7 @@ static INLINE void find_predictors(
     av1_count_overlappable_neighbors(cm, xd);
   }
   mbmi->num_proj_ref = 1;
-  if (ref_is_scaled && scaled_ref) *use_scaled_ref_frame = 1;
+  *use_scaled_ref_frame = ref_is_scaled && scaled_ref;
 }
 
 static INLINE void init_mbmi_nonrd(MB_MODE_INFO *mbmi,
