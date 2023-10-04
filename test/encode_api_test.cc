@@ -11,6 +11,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <tuple>
 
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 
@@ -276,6 +277,74 @@ TEST(EncodeAPI, LowBDEncoderHighBDImage) {
   aom_img_free(image);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+
+class EncodeAPIParameterized
+    : public testing::TestWithParam<
+          std::tuple</*usage=*/int, /*speed=*/int, /*aq_mode=*/int>> {};
+
+// Encodes two frames at a given usage, speed, and aq_mode setting.
+// Reproduces b/303023614
+TEST_P(EncodeAPIParameterized, HighBDEncoderHighBDFrames) {
+  const int usage = std::get<0>(GetParam());
+  int speed = std::get<1>(GetParam());
+
+  if (speed == 10 && usage != AOM_USAGE_REALTIME) {
+    speed = 9;  // 10 is only allowed in AOM_USAGE_REALTIME
+  }
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, usage), AOM_CODEC_OK);
+  cfg.g_w = 500;
+  cfg.g_h = 400;
+
+  aom_codec_ctx_t enc;
+  aom_codec_err_t init_status =
+      aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH);
+#if !CONFIG_AV1_HIGHBITDEPTH
+  ASSERT_EQ(init_status, AOM_CODEC_INCAPABLE);
+#else
+  const int aq_mode = std::get<2>(GetParam());
+
+  ASSERT_EQ(init_status, AOM_CODEC_OK);
+
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, speed), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_AQ_MODE, aq_mode), AOM_CODEC_OK);
+
+  aom_image_t *image =
+      aom_img_alloc(NULL, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 0);
+  ASSERT_NE(image, nullptr);
+
+  for (unsigned int i = 0; i < image->d_h; ++i) {
+    Memset16(image->planes[0] + i * image->stride[0], 128, image->d_w);
+  }
+  unsigned int uv_h = (image->d_h + 1) / 2;
+  unsigned int uv_w = (image->d_w + 1) / 2;
+  for (unsigned int i = 0; i < uv_h; ++i) {
+    Memset16(image->planes[1] + i * image->stride[1], 128, uv_w);
+    Memset16(image->planes[2] + i * image->stride[2], 128, uv_w);
+  }
+
+  // Encode two frames.
+  ASSERT_EQ(
+      aom_codec_encode(&enc, image, /*pts=*/0, /*duration=*/1, /*flags=*/0),
+      AOM_CODEC_OK);
+  ASSERT_EQ(
+      aom_codec_encode(&enc, image, /*pts=*/1, /*duration=*/1, /*flags=*/0),
+      AOM_CODEC_OK);
+
+  aom_img_free(image);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+#endif
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All, EncodeAPIParameterized,
+    testing::Combine(/*usage=*/testing::Values(AOM_USAGE_GOOD_QUALITY,
+                                               AOM_USAGE_REALTIME,
+                                               AOM_USAGE_ALL_INTRA),
+                     /*speed=*/testing::Values(7, 10),
+                     /*aq_mode=*/testing::Values(0, 1, 2, 3)));
 
 #if !CONFIG_REALTIME_ONLY
 TEST(EncodeAPI, AllIntraMode) {
