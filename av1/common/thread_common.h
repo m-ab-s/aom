@@ -75,6 +75,7 @@ typedef struct LoopRestorationWorkerData {
   void *rlbs;
   void *lr_ctxt;
   int do_extend_border;
+  struct aom_internal_error_info error_info;
 } LRWorkerData;
 
 // Looprestoration row synchronization
@@ -102,6 +103,9 @@ typedef struct AV1LrSyncData {
   AV1LrMTInfo *job_queue;
   int jobs_enqueued;
   int jobs_dequeued;
+  // Initialized to false, set to true by the worker thread that encounters
+  // an error in order to abort the processing of other worker threads.
+  bool lr_mt_exit;
 } AV1LrSync;
 
 typedef struct AV1CdefWorker {
