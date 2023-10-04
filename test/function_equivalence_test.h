@@ -55,11 +55,9 @@ class FunctionEquivalenceTest : public ::testing::TestWithParam<FuncParam<T> > {
  public:
   FunctionEquivalenceTest() : rng_(ACMRandom::DeterministicSeed()) {}
 
-  virtual ~FunctionEquivalenceTest() = default;
+  ~FunctionEquivalenceTest() override = default;
 
   void SetUp() override { params_ = this->GetParam(); }
-
-  void TearDown() override {}
 
  protected:
   ACMRandom rng_;
