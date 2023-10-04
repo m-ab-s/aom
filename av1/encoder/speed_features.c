@@ -1385,10 +1385,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed == 7) {
       sf->rt_sf.prefer_large_partition_blocks = 1;
       // Enable this feature for [360p, 720p] resolution range initially.
-      // Only enable for low bitdepth: see issue: b/303023614.
+      // Only enable for low bitdepth to mitigate issue: b/303023614.
       if (!cpi->rc.rtc_external_ratectrl &&
-          AOMMIN(cm->width, cm->height) <= 720 &&
-          cm->seq_params->bit_depth == 8)
+          AOMMIN(cm->width, cm->height) <= 720 && !cpi->oxcf.use_highbitdepth)
         sf->hl_sf.accurate_bit_estimate = cpi->oxcf.q_cfg.aq_mode == NO_AQ;
     }
     if (speed >= 7) {
