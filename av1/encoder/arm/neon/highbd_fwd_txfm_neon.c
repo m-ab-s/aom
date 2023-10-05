@@ -193,7 +193,7 @@ STORE_BUFFER_WXH(64, 16)
 STORE_BUFFER_WXH(64, 32)
 
 static void fdct4x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
-  const int32_t *cospi = cospi_arr(bit);
+  const int32_t *const cospi = cospi_arr(bit);
   const int32x4_t cospi32 = vdupq_n_s32(cospi[32]);
   const int32x4_t cospi48 = vdupq_n_s32(cospi[48]);
   const int32x4_t cospi16 = vdupq_n_s32(cospi[16]);
@@ -440,7 +440,7 @@ static INLINE void col_txfm_4x8_rounding(int32x4_t *in, const int shift) {
 
 static void fdct4x8_neon(int32x4_t *in, int32x4_t *out, int bit, int howmany) {
   (void)howmany;
-  const int32_t *cospi = cospi_arr(bit);
+  const int32_t *const cospi = cospi_arr(bit);
   const int32x4_t v_bit = vdupq_n_s32(-bit);
   int32x4_t u[8], v[8];
 
@@ -523,7 +523,7 @@ static void fdct8x8_neon(int32x4_t *in, int32x4_t *out, int bit, int howmany) {
 }
 
 static void fadst8x8_neon(int32x4_t *in, int32x4_t *out, int bit, int howmany) {
-  const int32_t *cospi = cospi_arr(bit);
+  const int32_t *const cospi = cospi_arr(bit);
 
   const int32x4_t v_bit = vdupq_n_s32(-bit);
   int32x4_t u0, u1, u2, u3, u4, u5, u6, u7;
@@ -830,7 +830,7 @@ void av1_fwd_txfm2d_8x8_neon(const int16_t *input, int32_t *coeff, int stride,
 
 static void fdct16x16_neon(int32x4_t *in, int32x4_t *out, int bit,
                            const int howmany) {
-  const int32_t *cospi = cospi_arr(bit);
+  const int32_t *const cospi = cospi_arr(bit);
   const int32x4_t v_bit = vdupq_n_s32(-bit);
   int32x4_t u[16], v[16];
 
@@ -1048,7 +1048,7 @@ static void fdct16x16_neon(int32x4_t *in, int32x4_t *out, int bit,
 
 static void fadst16x16_neon(int32x4_t *in, int32x4_t *out, int bit,
                             int howmany) {
-  const int32_t *cospi = cospi_arr(bit);
+  const int32_t *const cospi = cospi_arr(bit);
   const int32x4_t v_bit = vdupq_n_s32(-bit);
   int32x4_t u[16], v[16], x, y;
 
@@ -1600,7 +1600,7 @@ static const fwd_transform_1d_neon col_highbd_txfm4x4_arr[TX_TYPES] = {
 };
 
 void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
-  const int32_t *cospi;
+  const int32_t *const cospi = cospi_arr(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // Workspaces for intermediate transform steps.
@@ -1643,7 +1643,6 @@ void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf1[16] = vsubq_s32(input[15], input[16]);
 
   // stage 2
-  cospi = cospi_arr(cos_bit);
   buf0[0] = vaddq_s32(buf1[0], buf1[15]);
   buf0[15] = vsubq_s32(buf1[0], buf1[15]);
   buf0[1] = vaddq_s32(buf1[1], buf1[14]);
@@ -1678,7 +1677,6 @@ void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf0[31] = buf1[31];
 
   // stage 3
-  cospi = cospi_arr(cos_bit);
   buf1[0] = vaddq_s32(buf0[0], buf0[7]);
   buf1[7] = vsubq_s32(buf0[0], buf0[7]);
   buf1[1] = vaddq_s32(buf0[1], buf0[6]);
@@ -1713,7 +1711,6 @@ void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf1[28] = vaddq_s32(buf0[28], buf0[27]);
 
   // stage 4
-  cospi = cospi_arr(cos_bit);
   buf0[0] = vaddq_s32(buf1[0], buf1[3]);
   buf0[3] = vsubq_s32(buf1[0], buf1[3]);
   buf0[1] = vaddq_s32(buf1[1], buf1[2]);
@@ -1786,7 +1783,6 @@ void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf1[30] = vaddq_s32(buf0[30], buf0[29]);
 
   // stage 6
-  cospi = cospi_arr(cos_bit);
   buf0[0] = buf1[0];
   buf0[1] = buf1[1];
   buf0[2] = buf1[2];
@@ -1825,7 +1821,6 @@ void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf0[31] = buf1[31];
 
   // stage 7
-  cospi = cospi_arr(cos_bit);
   buf1[0] = buf0[0];
   buf1[1] = buf0[1];
   buf1[2] = buf0[2];
@@ -1860,7 +1855,6 @@ void av1_fdct32_new_neon(int32x4_t *input, int32x4_t *output, int cos_bit) {
   buf1[31] = vaddq_s32(buf0[31], buf0[30]);
 
   // stage 8
-  cospi = cospi_arr(cos_bit);
   buf0[0] = buf1[0];
   buf0[1] = buf1[1];
   buf0[2] = buf1[2];
@@ -2272,7 +2266,7 @@ static void av1_fdct64_new_stage12345_neon(int32x4_t *input, int32x4_t *x5,
 
 static void av1_fdct64_new_neon(int32x4_t *input, int32x4_t *output,
                                 int8_t cos_bit) {
-  const int32_t *cospi = cospi_arr(cos_bit);
+  const int32_t *const cospi = cospi_arr(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
 
   // stage 1-2-3-4-5
