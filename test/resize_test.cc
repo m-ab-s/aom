@@ -1007,4 +1007,91 @@ TEST(ResizeSimpleTest, SmallerFrameSizeSVC) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
+TEST(ResizeSimpleTest, TemporarySmallerFrameSizeMultiThread) {
+  constexpr int kWidth = 512;
+  constexpr int kHeight = 512;
+  constexpr int kFirstWidth = 256;
+  constexpr int kFirstHeight = 256;
+  // Buffer of zero samples.
+  constexpr size_t kBufferSize = 3 * kWidth * kHeight;
+  std::vector<unsigned char> buffer(kBufferSize, static_cast<unsigned char>(0));
+
+  aom_image_t img1;
+  EXPECT_EQ(&img1, aom_img_wrap(&img1, AOM_IMG_FMT_I420, kFirstWidth,
+                                kFirstHeight, 1, buffer.data()));
+
+  aom_image_t img2;
+  EXPECT_EQ(&img2, aom_img_wrap(&img2, AOM_IMG_FMT_I420, kWidth, kHeight, 1,
+                                buffer.data()));
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
+  cfg.g_threads = 4;
+  cfg.g_lag_in_frames = 1;
+  cfg.g_w = kFirstWidth;
+  cfg.g_h = kFirstHeight;
+  cfg.g_forced_max_frame_width = kWidth;
+  cfg.g_forced_max_frame_height = kHeight;
+  aom_codec_ctx_t enc;
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 6));
+
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img1, 0, 1, 0));
+
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_set(&enc, &cfg));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img2, 1, 1, 0));
+
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 0, 0));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+}
+
+// This test differs from "TemporarySmallerFrameSizeMultiThread" in that
+// it changes the number of threads from 4 to 2 before coding the second frame.
+TEST(ResizeSimpleTest, TemporarySmallerFrameSizeMultiThread2) {
+  constexpr int kWidth = 512;
+  constexpr int kHeight = 512;
+  constexpr int kFirstWidth = 256;
+  constexpr int kFirstHeight = 256;
+  // Buffer of zero samples.
+  constexpr size_t kBufferSize = 3 * kWidth * kHeight;
+  std::vector<unsigned char> buffer(kBufferSize, static_cast<unsigned char>(0));
+
+  aom_image_t img1;
+  EXPECT_EQ(&img1, aom_img_wrap(&img1, AOM_IMG_FMT_I420, kFirstWidth,
+                                kFirstHeight, 1, buffer.data()));
+
+  aom_image_t img2;
+  EXPECT_EQ(&img2, aom_img_wrap(&img2, AOM_IMG_FMT_I420, kWidth, kHeight, 1,
+                                buffer.data()));
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
+  cfg.g_threads = 4;
+  cfg.g_lag_in_frames = 1;
+  cfg.g_w = kFirstWidth;
+  cfg.g_h = kFirstHeight;
+  cfg.g_forced_max_frame_width = kWidth;
+  cfg.g_forced_max_frame_height = kHeight;
+  aom_codec_ctx_t enc;
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 6));
+
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img1, 0, 1, 0));
+
+  cfg.g_threads = 2;
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_set(&enc, &cfg));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img2, 1, 1, 0));
+
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 0, 0));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+}
+
 }  // namespace

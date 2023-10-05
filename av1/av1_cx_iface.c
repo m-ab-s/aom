@@ -3120,8 +3120,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     if (ppi->p_mt_info.prev_num_enc_workers < num_enc_workers &&
         num_enc_workers <= ppi->p_mt_info.num_workers) {
       free_thread_data(ppi);
-      for (int j = 0; j < ppi->num_fp_contexts; j++)
+      for (int j = 0; j < ppi->num_fp_contexts; j++) {
         aom_free(ppi->parallel_cpi[j]->td.tctx);
+        ppi->parallel_cpi[j]->td.tctx = NULL;
+      }
       av1_init_tile_thread_data(ppi, cpi->oxcf.pass == AOM_RC_FIRST_PASS);
     }
 
