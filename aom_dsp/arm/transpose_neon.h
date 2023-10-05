@@ -13,6 +13,7 @@
 
 #include <arm_neon.h>
 
+#include "aom/aom_integer.h"  // For AOM_FORCE_INLINE.
 #include "config/aom_config.h"
 
 static INLINE void transpose_elems_inplace_u8_8x8(uint8x8_t *a0, uint8x8_t *a1,
