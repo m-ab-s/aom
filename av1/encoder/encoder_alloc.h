@@ -65,12 +65,14 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
 
   if (!is_stat_generation_stage(cpi)) av1_alloc_txb_buf(cpi);
 
-  aom_free(cpi->td.mb.mv_costs);
-  cpi->td.mb.mv_costs = NULL;
-  // Avoid the memory allocation of 'mv_costs' for allintra encoding mode.
+  aom_free(cpi->td.mv_costs_alloc);
+  cpi->td.mv_costs_alloc = NULL;
+  // Avoid the memory allocation of 'mv_costs_alloc' for allintra encoding
+  // mode.
   if (cpi->oxcf.kf_cfg.key_freq_max != 0) {
-    CHECK_MEM_ERROR(cm, cpi->td.mb.mv_costs,
-                    (MvCosts *)aom_calloc(1, sizeof(MvCosts)));
+    CHECK_MEM_ERROR(cm, cpi->td.mv_costs_alloc,
+                    (MvCosts *)aom_calloc(1, sizeof(*cpi->td.mv_costs_alloc)));
+    cpi->td.mb.mv_costs = cpi->td.mv_costs_alloc;
   }
 
   av1_setup_shared_coeff_buffer(cm->seq_params, &cpi->td.shared_coeff_buf,
@@ -222,10 +224,10 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
   release_obmc_buffers(&cpi->td.mb.obmc_buffer);
 
-  aom_free(cpi->td.mb.mv_costs);
-  cpi->td.mb.mv_costs = NULL;
-  aom_free(cpi->td.mb.dv_costs);
-  cpi->td.mb.dv_costs = NULL;
+  aom_free(cpi->td.mv_costs_alloc);
+  cpi->td.mv_costs_alloc = NULL;
+  aom_free(cpi->td.dv_costs_alloc);
+  cpi->td.dv_costs_alloc = NULL;
 
   for (int i = 0; i < 2; i++)
     for (int j = 0; j < 2; j++) {
@@ -449,6 +451,10 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
         thread_data->td->hash_value_buffer[x][y] = NULL;
       }
     }
+    aom_free(thread_data->td->mv_costs_alloc);
+    thread_data->td->mv_costs_alloc = NULL;
+    aom_free(thread_data->td->dv_costs_alloc);
+    thread_data->td->dv_costs_alloc = NULL;
     aom_free(thread_data->td->counts);
     av1_free_pmc(thread_data->td->firstpass_ctx, num_planes);
     thread_data->td->firstpass_ctx = NULL;
