@@ -20,6 +20,7 @@
 #include "av1/encoder/av1_fwd_txfm1d_cfg.h"
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
+#include "shift_neon.h"
 #include "txfm_neon.h"
 
 #define TXFM_COS_BIT_MAX 13
@@ -330,24 +331,6 @@ static INLINE void store_rect_buffer_s16_x8(const int16x8_t *const in,
               round_shift_sqrt2_s16_s32_4x1_neon(vget_high_s16(in[i])));
   }
 }
-
-#define SHIFT_LOOP_HELPER(name, type, intrinsic, shift)          \
-  static INLINE void name(const type *in, type *out, int size) { \
-    int i = 0;                                                   \
-    do {                                                         \
-      out[i] = intrinsic(in[i], shift);                          \
-    } while (++i < size);                                        \
-  }
-
-SHIFT_LOOP_HELPER(shift_right_1_round_s16_x4, int16x4_t, vrshr_n_s16, 1)
-SHIFT_LOOP_HELPER(shift_right_1_round_s16_x8, int16x8_t, vrshrq_n_s16, 1)
-SHIFT_LOOP_HELPER(shift_right_2_round_s16_x8, int16x8_t, vrshrq_n_s16, 2)
-SHIFT_LOOP_HELPER(shift_right_4_round_s16_x8, int16x8_t, vrshrq_n_s16, 4)
-SHIFT_LOOP_HELPER(shift_left_1_s16_x4, int16x4_t, vshl_n_s16, 1)
-SHIFT_LOOP_HELPER(shift_left_1_s16_x8, int16x8_t, vshlq_n_s16, 1)
-SHIFT_LOOP_HELPER(shift_left_2_s16_x4, int16x4_t, vshl_n_s16, 2)
-SHIFT_LOOP_HELPER(shift_left_2_s16_x8, int16x8_t, vshlq_n_s16, 2)
-SHIFT_LOOP_HELPER(shift_right_2_round_s32_x4, int32x4_t, vrshrq_n_s32, 2)
 
 static AOM_FORCE_INLINE void fadst4x4_neon(const int16x4_t *input,
                                            int16x4_t *output, int cos_bit) {
