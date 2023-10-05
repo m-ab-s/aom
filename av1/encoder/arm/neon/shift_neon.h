@@ -32,7 +32,11 @@ SHIFT_LOOP_HELPER(shift_left_1_s16_x4, int16x4_t, vshl_n_s16, 1)
 SHIFT_LOOP_HELPER(shift_left_1_s16_x8, int16x8_t, vshlq_n_s16, 1)
 SHIFT_LOOP_HELPER(shift_left_2_s16_x4, int16x4_t, vshl_n_s16, 2)
 SHIFT_LOOP_HELPER(shift_left_2_s16_x8, int16x8_t, vshlq_n_s16, 2)
+
+SHIFT_LOOP_HELPER(shift_right_1_round_s32_x4, int32x4_t, vrshrq_n_s32, 1)
 SHIFT_LOOP_HELPER(shift_right_2_round_s32_x4, int32x4_t, vrshrq_n_s32, 2)
+SHIFT_LOOP_HELPER(shift_right_4_round_s32_x4, int32x4_t, vrshrq_n_s32, 4)
+SHIFT_LOOP_HELPER(shift_left_2_s32_x4, int32x4_t, vshlq_n_s32, 2)
 
 #undef SHIFT_LOOP_HELPER
 
