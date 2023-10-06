@@ -88,7 +88,7 @@ static INLINE void get_min_max_lane_eob(const int16_t *iscan,
   const int16x8_t v_nz_iscan_max = vbslq_s16(v_mask, v_iscan, vdupq_n_s16(-1));
 #if SKIP_EOB_FACTOR_ADJUST
   const int16x8_t v_nz_iscan_min =
-      vbslq_s16(v_mask, v_iscan, vdupq_n_s16(n_coeffs));
+      vbslq_s16(v_mask, v_iscan, vdupq_n_s16((int16_t)n_coeffs));
   *v_eobmin = vminq_s16(*v_eobmin, v_nz_iscan_min);
 #else
   (void)v_eobmin;
@@ -297,7 +297,7 @@ static void highbd_quantize_b_adaptive_neon(
   int32x4_t v_zbin_s32 = vmovl_s16(v_zbin);
   uint16x4_t v_mask_lo, v_mask_hi;
   int16x8_t v_eobmax = vdupq_n_s16(-1);
-  int16x8_t v_eobmin = vdupq_n_s16(n_coeffs);
+  int16x8_t v_eobmin = vdupq_n_s16((int16_t)n_coeffs);
 
   assert(n_coeffs > 8);
   // Pre-scan pass
