@@ -291,10 +291,7 @@ class FilmGrainEncodeTest
 
   void SetUp() override {
     InitializeConfig(test_mode_);
-    if (test_monochrome_ == 0 || test_monochrome_ == 2)
-      cfg_.monochrome = 0;
-    else
-      cfg_.monochrome = 1;
+    cfg_.monochrome = test_monochrome_ == 1;
     cfg_.rc_target_bitrate = 300;
     cfg_.kf_max_dist = key_frame_dist_;
     cfg_.g_lag_in_frames = 0;
@@ -308,16 +305,10 @@ class FilmGrainEncodeTest
       encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_FILM);
       encoder->Control(AV1E_SET_DENOISE_NOISE_LEVEL, 1);
     } else if (video->frame() == 1) {
-      if (test_monochrome_ == 0 || test_monochrome_ == 3)
-        cfg_.monochrome = 0;
-      else
-        cfg_.monochrome = 1;
+      cfg_.monochrome = (test_monochrome_ == 1 || test_monochrome_ == 2);
       encoder->Config(&cfg_);
     } else {
-      if (test_monochrome_ == 0 || test_monochrome_ == 2)
-        cfg_.monochrome = 0;
-      else
-        cfg_.monochrome = 1;
+      cfg_.monochrome = test_monochrome_ == 1;
       encoder->Config(&cfg_);
     }
   }
@@ -325,11 +316,6 @@ class FilmGrainEncodeTest
   bool DoDecode() const override { return false; }
 
   void DoTest() {
-    if (test_monochrome_ == 3) {
-      // Running with encoder initialized with monochrome = 1 and then
-      // encoding subsequent frame with monochrome = 0 will crash.
-      GTEST_SKIP();
-    }
     ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
                                          288, 30, 1, 0, 3);
     cfg_.g_w = video.img()->d_w;
@@ -340,9 +326,10 @@ class FilmGrainEncodeTest
  private:
   // 0: monochroome always off.
   // 1: monochrome always on.
-  // Dynamic modes:
   // 2: monochrome changes from 0, 1, 0, for encoded frames 0, 1, 2.
-  // 3: monochrome changes from 1, 0, 1, for encoded frames 0, 1, 2.
+  // The case where monochrome changes from 1 to 0 (i.e., encoder initialized
+  // with monochrome = 1 and then subsequently encoded with monochrome = 0)
+  // will fail. The test InitMonochrome1_EncodeMonochrome0 below verifies this.
   int test_monochrome_;
   int key_frame_dist_;
   ::libaom_test::TestMode test_mode_;
@@ -350,6 +337,45 @@ class FilmGrainEncodeTest
 
 TEST_P(FilmGrainEncodeTest, Test) { DoTest(); }
 
-AV1_INSTANTIATE_TEST_SUITE(FilmGrainEncodeTest, ::testing::Range(0, 4),
+AV1_INSTANTIATE_TEST_SUITE(FilmGrainEncodeTest, ::testing::Range(0, 3),
                            ::testing::Values(0, 10),
                            ::testing::ValuesIn(kFilmGrainEncodeTestModes));
+
+// Initialize encoder with monochrome = 1, and then encode frame with
+// monochrome = 0. This will result in an error: see the following check
+// in encoder_set_config() in av1/av1_cx_iface.c.
+// TODO(marpan): Consider moving this test to another file, as the failure
+// has nothing to do with film grain mode.
+TEST(FilmGrainEncodeTest, InitMonochrome1EncodeMonochrome0) {
+  const int kWidth = 352;
+  const int kHeight = 288;
+  const int usage = AOM_USAGE_REALTIME;
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, usage), AOM_CODEC_OK);
+  aom_codec_ctx_t enc;
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  // Initialize encoder, with monochrome = 0.
+  cfg.monochrome = 1;
+  aom_codec_err_t init_status = aom_codec_enc_init(&enc, iface, &cfg, 0);
+  ASSERT_EQ(init_status, AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 7), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_FILM),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_DENOISE_NOISE_LEVEL, 1),
+            AOM_CODEC_OK);
+  // Set image with zero values.
+  constexpr size_t kBufferSize =
+      kWidth * kHeight + 2 * (kWidth + 1) / 2 * (kHeight + 1) / 2;
+  std::vector<unsigned char> buffer(kBufferSize);
+  aom_image_t img;
+  EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I420, kWidth, kHeight, 1,
+                               buffer.data()));
+  // Encode first frame.
+  ASSERT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
+  // Second frame: update config with monochrome = 1.
+  cfg.monochrome = 0;
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_INVALID_PARAM);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}

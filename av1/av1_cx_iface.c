@@ -544,6 +544,7 @@ struct aom_codec_alg_priv {
   // Number of stats buffers required for look ahead
   int num_lap_buffers;
   STATS_BUFFER_CTX stats_buf_context;
+  bool monochrome_on_init;
 };
 
 static INLINE int gcd(int64_t a, int b) {
@@ -1504,6 +1505,12 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
         (initial_dimensions->height &&
          (int)cfg->g_h > initial_dimensions->height))
       force_key = 1;
+  }
+
+  if (ctx->monochrome_on_init && cfg->monochrome == 0) {
+    // TODO(aomedia:3465): Allow this case to work without requiring re-init
+    // of encoder.
+    ERROR("Cannot change to monochrome = 0 after init with monochrome");
   }
 
   // Prevent increasing lag_in_frames. This check is stricter than it needs
@@ -2722,6 +2729,8 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       }
       priv->oxcf.use_highbitdepth =
           (ctx->init_flags & AOM_CODEC_USE_HIGHBITDEPTH) ? 1 : 0;
+
+      priv->monochrome_on_init = priv->cfg.monochrome;
 
       priv->ppi = av1_create_primary_compressor(&priv->pkt_list.head,
                                                 *num_lap_buffers, &priv->oxcf);
