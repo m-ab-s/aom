@@ -2979,25 +2979,11 @@ void av1_fwd_txfm2d_64x16_neon(const int16_t *input, int32_t *coeff, int stride,
 }
 #endif
 
-static INLINE fwd_transform_1d_neon fwd_txfm_type_to_func(TXFM_TYPE txfm_type) {
-  switch (txfm_type) {
-    case TXFM_TYPE_DCT32: return av1_fdct32_new_neon;
-    case TXFM_TYPE_IDENTITY32: return av1_idtx32_new_neon;
-    default: assert(0);
-  }
-  return NULL;
-}
-
 void av1_fwd_txfm2d_32x32_neon(const int16_t *input, int32_t *output,
                                int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
-  TXFM_2D_FLIP_CFG cfg;
-  av1_get_fwd_txfm_cfg(tx_type, TX_32X32, &cfg);
-  assert(cfg.tx_size < TX_SIZES);
-  const fwd_transform_1d_neon col_txfm =
-      fwd_txfm_type_to_func(cfg.txfm_type_col);
-  const fwd_transform_1d_neon row_txfm =
-      fwd_txfm_type_to_func(cfg.txfm_type_row);
+  const fwd_transform_1d_neon col_txfm = col_highbd_txfm8x32_arr[tx_type];
+  const fwd_transform_1d_neon row_txfm = col_highbd_txfm8x32_arr[tx_type];
 
   // Column-wise transform.
   int32x4_t buf0[256];
