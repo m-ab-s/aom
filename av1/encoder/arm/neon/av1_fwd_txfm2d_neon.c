@@ -469,8 +469,9 @@ static AOM_FORCE_INLINE void fadst8x4_neon(const int16x8_t *input,
   u_lo[3] = vsubq_s32(u_lo[2], u_lo[0]);
   u_hi[3] = vsubq_s32(u_hi[2], u_hi[0]);
 
-  u_lo[3] = vmlal_lane_s16(u_lo[3], vget_low_s16(input[2]), sinpi * 3, 2);
-  u_hi[3] = vmlal_lane_s16(u_hi[3], vget_high_s16(input[2]), sinpi * 3, 2);
+  const int16x4_t sinpix3 = vmul_n_s16(sinpi, 3);
+  u_lo[3] = vmlal_lane_s16(u_lo[3], vget_low_s16(input[2]), sinpix3, 2);
+  u_hi[3] = vmlal_lane_s16(u_hi[3], vget_high_s16(input[2]), sinpix3, 2);
 
   output[0] = vcombine_s16(vrshrn_n_s32(u_lo[0], TXFM_COS_BIT_MAX),
                            vrshrn_n_s32(u_hi[0], TXFM_COS_BIT_MAX));
