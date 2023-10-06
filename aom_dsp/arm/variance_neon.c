@@ -461,7 +461,7 @@ uint64_t aom_mse_16xh_16bit_neon(uint8_t *dst, int dstride, uint16_t *src,
 
   int num_blks = 16 / w;
   do {
-    sum += mse_wxh_16bit(dst, dstride, src, w, w, h);
+    sum = vaddq_u64(sum, mse_wxh_16bit(dst, dstride, src, w, w, h));
     dst += w;
     src += w * h;
   } while (--num_blks != 0);
