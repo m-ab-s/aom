@@ -2932,14 +2932,40 @@ static int pack_bs_worker_hook(void *arg1, void *arg2) {
   const CommonTileParams *const tiles = &cm->tiles;
   const int num_tiles = tiles->cols * tiles->rows;
 
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t *const pack_bs_mutex = pack_bs_sync->mutex_;
+#endif
+  MACROBLOCKD *const xd = &thread_data->td->mb.e_mbd;
+  struct aom_internal_error_info *const error_info = &thread_data->error_info;
+  xd->error_info = error_info;
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+#if CONFIG_MULTITHREAD
+    pthread_mutex_lock(pack_bs_mutex);
+    pack_bs_sync->pack_bs_mt_exit = true;
+    pthread_mutex_unlock(pack_bs_mutex);
+#endif
+    return 0;
+  }
+  error_info->setjmp = 1;
+
   while (1) {
 #if CONFIG_MULTITHREAD
-    pthread_mutex_lock(pack_bs_sync->mutex_);
+    pthread_mutex_lock(pack_bs_mutex);
 #endif
-    const int tile_idx = get_next_pack_bs_tile_idx(pack_bs_sync, num_tiles);
+    const int tile_idx =
+        pack_bs_sync->pack_bs_mt_exit
+            ? -1
+            : get_next_pack_bs_tile_idx(pack_bs_sync, num_tiles);
 #if CONFIG_MULTITHREAD
-    pthread_mutex_unlock(pack_bs_sync->mutex_);
+    pthread_mutex_unlock(pack_bs_mutex);
 #endif
+    // When pack_bs_mt_exit is set to true, other workers need not pursue any
+    // further jobs.
     if (tile_idx == -1) break;
     TileDataEnc *this_tile = &cpi->tile_data[tile_idx];
     thread_data->td->mb.e_mbd.tile_ctx = &this_tile->tctx;
@@ -2947,6 +2973,7 @@ static int pack_bs_worker_hook(void *arg1, void *arg2) {
     av1_pack_tile_info(cpi, thread_data->td, &pack_bs_params[tile_idx]);
   }
 
+  error_info->setjmp = 0;
   return 1;
 }
 
