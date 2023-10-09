@@ -1115,6 +1115,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.search_method = DIAMOND;
     sf->mv_sf.disable_second_mv = 2;
     sf->mv_sf.prune_mesh_search = PRUNE_MESH_SEARCH_LVL_1;
+    sf->mv_sf.use_intrabc = 0;
 
     sf->inter_sf.disable_interinter_wedge_newmv_search = boosted ? 0 : 1;
     sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW;
@@ -2005,6 +2006,7 @@ static AOM_INLINE void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->skip_fullpel_search_using_startmv = 0;
   mv_sf->warp_search_method = WARP_SEARCH_SQUARE;
   mv_sf->warp_search_iters = 8;
+  mv_sf->use_intrabc = 1;
 }
 
 static AOM_INLINE void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {

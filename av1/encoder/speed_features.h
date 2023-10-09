@@ -855,6 +855,9 @@ typedef struct MV_SPEED_FEATURES {
   // Accurate full pixel motion search based on TPL stats.
   int full_pixel_search_level;
 
+  // Allow intrabc motion search
+  int use_intrabc;
+
   // Whether to downsample the rows in sad calculation during motion search.
   // This is only active when there are at least 16 rows. When this sf is
   // active, if there is a large discrepancy in the SAD values for the final
