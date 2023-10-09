@@ -343,7 +343,7 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(/*usage=*/testing::Values(AOM_USAGE_GOOD_QUALITY,
                                                AOM_USAGE_REALTIME,
                                                AOM_USAGE_ALL_INTRA),
-                     /*speed=*/testing::Values(7, 10),
+                     /*speed=*/testing::Values(6, 7, 10),
                      /*aq_mode=*/testing::Values(0, 1, 2, 3)));
 
 #if !CONFIG_REALTIME_ONLY
