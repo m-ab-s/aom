@@ -242,74 +242,61 @@ static void fdct4x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
   const int32x4_t cospi32 = vdupq_n_s32(cospi[32]);
   const int32x4_t cospi48 = vdupq_n_s32(cospi[48]);
   const int32x4_t cospi16 = vdupq_n_s32(cospi[16]);
-  int32x4_t s0, s1, s2, s3;
-  int32x4_t u0, u1, u2, u3;
-  int32x4_t v0, v2;
 
-  s0 = vaddq_s32(in[0], in[3]);
-  s3 = vsubq_s32(in[0], in[3]);
-  s1 = vaddq_s32(in[1], in[2]);
-  s2 = vsubq_s32(in[1], in[2]);
+  const int32x4_t a0 = vaddq_s32(in[0], in[3]);
+  const int32x4_t a1 = vsubq_s32(in[0], in[3]);
+  const int32x4_t a2 = vaddq_s32(in[1], in[2]);
+  const int32x4_t a3 = vsubq_s32(in[1], in[2]);
 
-  u0 = vmulq_s32(s0, cospi32);
-  u1 = vmulq_s32(s1, cospi32);
-  u2 = vaddq_s32(u0, u1);
-  v0 = vsubq_s32(u0, u1);
+  const int32x4_t b0 = vmulq_s32(a0, cospi32);
+  const int32x4_t b1 = vmulq_s32(a1, cospi48);
+  const int32x4_t b2 = vmulq_s32(a2, cospi32);
+  const int32x4_t b3 = vmulq_s32(a3, cospi48);
+
+  const int32x4_t c0 = vaddq_s32(b0, b2);
+  const int32x4_t c1 = vsubq_s32(b0, b2);
+  const int32x4_t c2 = vmlaq_s32(b3, a1, cospi16);
+  const int32x4_t c3 = vmlsq_s32(b1, a3, cospi16);
+
   const int32x4_t v_bit = vdupq_n_s32(-bit);
-  u0 = vrshlq_s32(u2, v_bit);
-  u2 = vrshlq_s32(v0, v_bit);
+  const int32x4_t d0 = vrshlq_s32(c0, v_bit);
+  const int32x4_t d1 = vrshlq_s32(c1, v_bit);
+  const int32x4_t d2 = vrshlq_s32(c2, v_bit);
+  const int32x4_t d3 = vrshlq_s32(c3, v_bit);
 
-  v0 = vmulq_s32(s2, cospi48);
-  v2 = vmlaq_s32(v0, s3, cospi16);
-
-  u1 = vrshlq_s32(v2, v_bit);
-
-  v0 = vmulq_s32(s3, cospi48);
-  v2 = vmlsq_s32(v0, s2, cospi16);
-
-  u3 = vrshlq_s32(v2, v_bit);
-
-  out[0] = u0;
-  out[1] = u1;
-  out[2] = u2;
-  out[3] = u3;
+  out[0] = d0;
+  out[1] = d2;
+  out[2] = d1;
+  out[3] = d3;
 }
 
 static void fadst4x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
-  const int32_t *sinpi = sinpi_arr(bit);
-  const int32x4_t sinpi4x = vld1q_s32(&sinpi[1]);
+  const int32x4_t sinpi = vld1q_s32(sinpi_arr(bit) + 1);
 
-  const int32x4_t sinpi1 = vdupq_lane_s32(vget_low_s32(sinpi4x), 0);
-  const int32x4_t sinpi2 = vdupq_lane_s32(vget_low_s32(sinpi4x), 1);
-  const int32x4_t sinpi3 = vdupq_lane_s32(vget_high_s32(sinpi4x), 0);
-  const int32x4_t sinpi4 = vdupq_lane_s32(vget_high_s32(sinpi4x), 1);
-  int32x4_t t;
-  int32x4_t s0, s1, s2, s3, s7;
-  int32x4_t x0, x1, x2, x3;
+  const int32x4_t a0 = vaddq_s32(in[0], in[1]);
+  const int32x4_t a1 = vmulq_lane_s32(in[0], vget_low_s32(sinpi), 0);
+  const int32x4_t a2 = vmulq_lane_s32(in[0], vget_high_s32(sinpi), 1);
+  const int32x4_t a3 = vmulq_lane_s32(in[2], vget_high_s32(sinpi), 0);
 
-  s0 = vmulq_s32(in[0], sinpi1);
-  s1 = vmulq_s32(in[0], sinpi4);
-  t = vaddq_s32(in[0], in[1]);
-  x3 = vmulq_s32(in[2], sinpi3);
-  s7 = vsubq_s32(t, in[3]);
+  const int32x4_t b0 = vmlaq_lane_s32(a1, in[1], vget_low_s32(sinpi), 1);
+  const int32x4_t b1 = vmlsq_lane_s32(a2, in[1], vget_low_s32(sinpi), 0);
+  const int32x4_t b2 = vsubq_s32(a0, in[3]);
 
-  t = vmlaq_s32(s0, in[1], sinpi2);
-  x0 = vmlaq_s32(t, in[3], sinpi4);
-  x1 = vmulq_s32(s7, sinpi3);
-  t = vmlsq_s32(s1, in[1], sinpi1);
-  x2 = vmlaq_s32(t, in[3], sinpi2);
+  const int32x4_t c0 = vmlaq_lane_s32(b0, in[3], vget_high_s32(sinpi), 1);
+  const int32x4_t c1 = vmlaq_lane_s32(b1, in[3], vget_low_s32(sinpi), 1);
+  const int32x4_t c2 = vmulq_lane_s32(b2, vget_high_s32(sinpi), 0);
 
-  s0 = vaddq_s32(x0, x3);
-  s1 = x1;
-  s2 = vsubq_s32(x2, x3);
-  t = vsubq_s32(x2, x0);
-  s3 = vaddq_s32(t, x3);
+  const int32x4_t d0 = vaddq_s32(c0, a3);
+  const int32x4_t d1 = vsubq_s32(c1, a3);
+  const int32x4_t d2 = vsubq_s32(c1, c0);
+
+  const int32x4_t e0 = vaddq_s32(d2, a3);
 
   const int32x4_t v_bit = vdupq_n_s32(-bit);
-  out[0] = vrshlq_s32(s0, v_bit);
-  out[1] = vrshlq_s32(s1, v_bit);
-  out[2] = vrshlq_s32(s2, v_bit);
-  out[3] = vrshlq_s32(s3, v_bit);
+  out[0] = vrshlq_s32(d0, v_bit);
+  out[1] = vrshlq_s32(c2, v_bit);
+  out[2] = vrshlq_s32(d1, v_bit);
+  out[3] = vrshlq_s32(e0, v_bit);
 }
 
 static void idtx4x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
