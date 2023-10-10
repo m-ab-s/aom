@@ -80,6 +80,7 @@ static INLINE int16x8_t get_max_lane_eob(const int16_t *iscan,
   return vmaxq_s16(v_eobmax, v_nz_iscan);
 }
 
+#if !CONFIG_REALTIME_ONLY
 static INLINE void get_min_max_lane_eob(const int16_t *iscan,
                                         int16x8_t *v_eobmin,
                                         int16x8_t *v_eobmax, uint16x8_t v_mask,
@@ -95,6 +96,7 @@ static INLINE void get_min_max_lane_eob(const int16_t *iscan,
 #endif
   *v_eobmax = vmaxq_s16(*v_eobmax, v_nz_iscan_max);
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 static INLINE uint16_t get_max_eob(int16x8_t v_eobmax) {
 #if AOM_ARCH_AARCH64
@@ -114,7 +116,7 @@ static INLINE uint16_t get_max_eob(int16x8_t v_eobmax) {
 #endif
 }
 
-#if SKIP_EOB_FACTOR_ADJUST
+#if SKIP_EOB_FACTOR_ADJUST && !CONFIG_REALTIME_ONLY
 static INLINE uint16_t get_min_eob(int16x8_t v_eobmin) {
 #if AOM_ARCH_AARCH64
   return (uint16_t)vminvq_s16(v_eobmin);
@@ -132,7 +134,7 @@ static INLINE uint16_t get_min_eob(int16x8_t v_eobmin) {
   return (uint16_t)vget_lane_s16(v_eobmin_final, 0);
 #endif
 }
-#endif  // SKIP_EOB_FACTOR_ADJUST
+#endif  // SKIP_EOB_FACTOR_ADJUST && !CONFIG_REALTIME_ONLY
 
 static void highbd_quantize_b_neon(
     const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
