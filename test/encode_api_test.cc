@@ -338,13 +338,17 @@ TEST_P(EncodeAPIParameterized, HighBDEncoderHighBDFrames) {
 #endif
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    All, EncodeAPIParameterized,
-    testing::Combine(/*usage=*/testing::Values(AOM_USAGE_GOOD_QUALITY,
-                                               AOM_USAGE_REALTIME,
-                                               AOM_USAGE_ALL_INTRA),
-                     /*speed=*/testing::Values(6, 7, 10),
-                     /*aq_mode=*/testing::Values(0, 1, 2, 3)));
+INSTANTIATE_TEST_SUITE_P(All, EncodeAPIParameterized,
+                         testing::Combine(
+#if CONFIG_REALTIME_ONLY
+                             /*usage=*/testing::Values(AOM_USAGE_REALTIME),
+#else
+                             /*usage=*/testing::Values(AOM_USAGE_GOOD_QUALITY,
+                                                       AOM_USAGE_REALTIME,
+                                                       AOM_USAGE_ALL_INTRA),
+#endif
+                             /*speed=*/testing::Values(6, 7, 10),
+                             /*aq_mode=*/testing::Values(0, 1, 2, 3)));
 
 #if !CONFIG_REALTIME_ONLY
 TEST(EncodeAPI, AllIntraMode) {
