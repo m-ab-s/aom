@@ -74,7 +74,7 @@ static INLINE int64_t horizontal_long_add_s32x4(const int32x4_t a) {
 #endif
 }
 
-static INLINE unsigned int horizontal_add_u32x4(const uint32x4_t a) {
+static INLINE uint32_t horizontal_add_u32x4(const uint32x4_t a) {
 #if AOM_ARCH_AARCH64
   return vaddvq_u32(a);
 #else
