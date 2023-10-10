@@ -773,7 +773,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_subtract_block neon sse2 avx2/;
 
   add_proto qw/int64_t/, "aom_sse", "const uint8_t *a, int a_stride, const uint8_t *b,int b_stride, int width, int height";
-  specialize qw/aom_sse  sse4_1 avx2 neon neon_dotprod/;
+  specialize qw/aom_sse sse4_1 avx2 neon neon_dotprod/;
 
   add_proto qw/void/, "aom_get_blk_sse_sum", "const int16_t *data, int stride, int bw, int bh, int *x_sum, int64_t *x2_sum";
   specialize qw/aom_get_blk_sse_sum sse2 avx2 neon/;
@@ -783,25 +783,23 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_subtract_block sse2 neon/;
 
     add_proto qw/int64_t/, "aom_highbd_sse", "const uint8_t *a8, int a_stride, const uint8_t *b8,int b_stride, int width, int height";
-    specialize qw/aom_highbd_sse  sse4_1 avx2 neon/;
+    specialize qw/aom_highbd_sse sse4_1 avx2 neon/;
   }
 
-  if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
-    #
-    # Sum of Squares
-    #
-    add_proto qw/uint64_t aom_sum_squares_2d_i16/, "const int16_t *src, int stride, int width, int height";
-    specialize qw/aom_sum_squares_2d_i16 sse2 avx2 neon/;
+  #
+  # Sum of Squares
+  #
+  add_proto qw/uint64_t aom_sum_squares_2d_i16/, "const int16_t *src, int stride, int width, int height";
+  specialize qw/aom_sum_squares_2d_i16 sse2 avx2 neon/;
 
-    add_proto qw/uint64_t aom_sum_squares_i16/, "const int16_t *src, uint32_t N";
-    specialize qw/aom_sum_squares_i16 sse2 neon/;
+  add_proto qw/uint64_t aom_sum_squares_i16/, "const int16_t *src, uint32_t N";
+  specialize qw/aom_sum_squares_i16 sse2 neon/;
 
-    add_proto qw/uint64_t aom_var_2d_u8/, "uint8_t *src, int src_stride, int width, int height";
-    specialize qw/aom_var_2d_u8 sse2 avx2 neon neon_dotprod/;
+  add_proto qw/uint64_t aom_var_2d_u8/, "uint8_t *src, int src_stride, int width, int height";
+  specialize qw/aom_var_2d_u8 sse2 avx2 neon neon_dotprod/;
 
-    add_proto qw/uint64_t aom_var_2d_u16/, "uint8_t *src, int src_stride, int width, int height";
-    specialize qw/aom_var_2d_u16 sse2 avx2 neon/;
-  }
+  add_proto qw/uint64_t aom_var_2d_u16/, "uint8_t *src, int src_stride, int width, int height";
+  specialize qw/aom_var_2d_u16 sse2 avx2 neon/;
 
   #
   # Single block SAD / Single block Avg SAD
