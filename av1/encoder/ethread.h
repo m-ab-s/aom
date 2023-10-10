@@ -98,7 +98,7 @@ void av1_init_lr_mt_buffers(AV1_COMP *cpi);
 void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass);
 #endif  // CONFIG_MULTITHREAD
 
-int av1_get_num_mod_workers_for_alloc(PrimaryMultiThreadInfo *const p_mt_info,
+int av1_get_num_mod_workers_for_alloc(const PrimaryMultiThreadInfo *p_mt_info,
                                       MULTI_THREADED_MODULES mod_name);
 
 void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass);

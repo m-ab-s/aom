@@ -916,7 +916,7 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
 
 // Computes the number of workers to be considered while allocating memory for a
 // multi-threaded module under FPMT.
-int av1_get_num_mod_workers_for_alloc(PrimaryMultiThreadInfo *const p_mt_info,
+int av1_get_num_mod_workers_for_alloc(const PrimaryMultiThreadInfo *p_mt_info,
                                       MULTI_THREADED_MODULES mod_name) {
   int num_mod_workers = p_mt_info->num_mod_workers[mod_name];
   if (p_mt_info->num_mod_workers[MOD_FRAME_ENC] > 1) {
