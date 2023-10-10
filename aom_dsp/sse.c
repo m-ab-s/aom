@@ -14,6 +14,8 @@
  * buffers.
  */
 
+#include <stdlib.h>
+
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
