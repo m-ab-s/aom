@@ -1626,7 +1626,7 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 #endif
 
 // Computes the number of workers for row multi-threading of encoding stage
-static AOM_INLINE int compute_num_enc_row_mt_workers(AV1_COMMON *const cm,
+static AOM_INLINE int compute_num_enc_row_mt_workers(const AV1_COMMON *cm,
                                                      int max_threads) {
   TileInfo tile_info;
   const int tile_cols = cm->tiles.cols;
@@ -1645,7 +1645,7 @@ static AOM_INLINE int compute_num_enc_row_mt_workers(AV1_COMMON *const cm,
 }
 
 // Computes the number of workers for tile multi-threading of encoding stage
-static AOM_INLINE int compute_num_enc_tile_mt_workers(AV1_COMMON *const cm,
+static AOM_INLINE int compute_num_enc_tile_mt_workers(const AV1_COMMON *cm,
                                                       int max_threads) {
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
@@ -1663,7 +1663,7 @@ int av1_get_max_num_workers(const AV1_COMP *cpi) {
 }
 
 // Computes the number of workers for encoding stage (row/tile multi-threading)
-int av1_compute_num_enc_workers(AV1_COMP *cpi, int max_workers) {
+int av1_compute_num_enc_workers(const AV1_COMP *cpi, int max_workers) {
   if (max_workers <= 1) return 1;
   if (cpi->oxcf.row_mt)
     return compute_num_enc_row_mt_workers(&cpi->common, max_workers);
@@ -3218,7 +3218,7 @@ void av1_cdef_mse_calc_frame_mt(AV1_COMP *cpi) {
 }
 
 // Computes num_workers for temporal filter multi-threading.
-static AOM_INLINE int compute_num_tf_workers(AV1_COMP *cpi) {
+static AOM_INLINE int compute_num_tf_workers(const AV1_COMP *cpi) {
   // For single-pass encode, using no. of workers as per tf block size was not
   // found to improve speed. Hence the thread assignment for single-pass encode
   // is kept based on compute_num_enc_workers().
@@ -3303,11 +3303,10 @@ static int compute_num_mod_workers(AV1_COMP *cpi,
     case MOD_AI:
       if (cpi->oxcf.pass == AOM_RC_ONE_PASS) {
         num_mod_workers = compute_num_ai_workers(cpi);
-        break;
       } else {
         num_mod_workers = 0;
-        break;
       }
+      break;
     default: assert(0); break;
   }
   return (num_mod_workers);
