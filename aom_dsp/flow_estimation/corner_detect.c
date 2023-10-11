@@ -47,19 +47,16 @@ static bool compute_corner_list(const ImagePyramid *pyr, CornerList *corners) {
 
   int *scores = NULL;
   int num_corners;
-  bool mem_alloc_failed = false;
-  xy *const frame_corners_xy =
-      aom_fast9_detect_nonmax(buf, width, height, stride, FAST_BARRIER, &scores,
-                              &num_corners, &mem_alloc_failed);
-  if (mem_alloc_failed) return false;
+  xy *const frame_corners_xy = aom_fast9_detect_nonmax(
+      buf, width, height, stride, FAST_BARRIER, &scores, &num_corners);
+  if (num_corners < 0) return false;
 
-  if (num_corners <= 0) {
-    // Some error occured, so no corners are available
-    corners->num_corners = 0;
-  } else if (num_corners <= MAX_CORNERS) {
+  if (num_corners <= MAX_CORNERS) {
     // Use all detected corners
-    memcpy(corners->corners, frame_corners_xy,
-           sizeof(*frame_corners_xy) * num_corners);
+    if (num_corners != 0) {
+      memcpy(corners->corners, frame_corners_xy,
+             sizeof(*frame_corners_xy) * num_corners);
+    }
     corners->num_corners = num_corners;
   } else {
     // There are more than MAX_CORNERS corners avilable, so pick out a subset
