@@ -1285,3 +1285,233 @@ void av1_compute_stats_neon(int wiener_win, const uint8_t *dgd,
                             last_row_downsample_factor);
   }
 }
+
+static INLINE void calc_proj_params_r0_r1_neon(
+    const uint8_t *src8, int width, int height, int src_stride,
+    const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride,
+    int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2]) {
+  assert(width % 8 == 0);
+  const int size = width * height;
+
+  int64x2_t h00_lo = vdupq_n_s64(0);
+  int64x2_t h00_hi = vdupq_n_s64(0);
+  int64x2_t h11_lo = vdupq_n_s64(0);
+  int64x2_t h11_hi = vdupq_n_s64(0);
+  int64x2_t h01_lo = vdupq_n_s64(0);
+  int64x2_t h01_hi = vdupq_n_s64(0);
+  int64x2_t c0_lo = vdupq_n_s64(0);
+  int64x2_t c0_hi = vdupq_n_s64(0);
+  int64x2_t c1_lo = vdupq_n_s64(0);
+  int64x2_t c1_hi = vdupq_n_s64(0);
+
+  do {
+    const uint8_t *src_ptr = src8;
+    const uint8_t *dat_ptr = dat8;
+    int32_t *flt0_ptr = flt0;
+    int32_t *flt1_ptr = flt1;
+    int w = width;
+
+    do {
+      uint8x8_t s = vld1_u8(src_ptr);
+      uint8x8_t d = vld1_u8(dat_ptr);
+      int32x4_t f0_lo = vld1q_s32(flt0_ptr);
+      int32x4_t f0_hi = vld1q_s32(flt0_ptr + 4);
+      int32x4_t f1_lo = vld1q_s32(flt1_ptr);
+      int32x4_t f1_hi = vld1q_s32(flt1_ptr + 4);
+
+      int16x8_t u = vreinterpretq_s16_u16(vshll_n_u8(d, SGRPROJ_RST_BITS));
+      int16x8_t s_s16 = vreinterpretq_s16_u16(vshll_n_u8(s, SGRPROJ_RST_BITS));
+
+      int32x4_t s_lo = vsubl_s16(vget_low_s16(s_s16), vget_low_s16(u));
+      int32x4_t s_hi = vsubl_s16(vget_high_s16(s_s16), vget_high_s16(u));
+      f0_lo = vsubw_s16(f0_lo, vget_low_s16(u));
+      f0_hi = vsubw_s16(f0_hi, vget_high_s16(u));
+      f1_lo = vsubw_s16(f1_lo, vget_low_s16(u));
+      f1_hi = vsubw_s16(f1_hi, vget_high_s16(u));
+
+      h00_lo = vmlal_s32(h00_lo, vget_low_s32(f0_lo), vget_low_s32(f0_lo));
+      h00_lo = vmlal_s32(h00_lo, vget_high_s32(f0_lo), vget_high_s32(f0_lo));
+      h00_hi = vmlal_s32(h00_hi, vget_low_s32(f0_hi), vget_low_s32(f0_hi));
+      h00_hi = vmlal_s32(h00_hi, vget_high_s32(f0_hi), vget_high_s32(f0_hi));
+
+      h11_lo = vmlal_s32(h11_lo, vget_low_s32(f1_lo), vget_low_s32(f1_lo));
+      h11_lo = vmlal_s32(h11_lo, vget_high_s32(f1_lo), vget_high_s32(f1_lo));
+      h11_hi = vmlal_s32(h11_hi, vget_low_s32(f1_hi), vget_low_s32(f1_hi));
+      h11_hi = vmlal_s32(h11_hi, vget_high_s32(f1_hi), vget_high_s32(f1_hi));
+
+      h01_lo = vmlal_s32(h01_lo, vget_low_s32(f0_lo), vget_low_s32(f1_lo));
+      h01_lo = vmlal_s32(h01_lo, vget_high_s32(f0_lo), vget_high_s32(f1_lo));
+      h01_hi = vmlal_s32(h01_hi, vget_low_s32(f0_hi), vget_low_s32(f1_hi));
+      h01_hi = vmlal_s32(h01_hi, vget_high_s32(f0_hi), vget_high_s32(f1_hi));
+
+      c0_lo = vmlal_s32(c0_lo, vget_low_s32(f0_lo), vget_low_s32(s_lo));
+      c0_lo = vmlal_s32(c0_lo, vget_high_s32(f0_lo), vget_high_s32(s_lo));
+      c0_hi = vmlal_s32(c0_hi, vget_low_s32(f0_hi), vget_low_s32(s_hi));
+      c0_hi = vmlal_s32(c0_hi, vget_high_s32(f0_hi), vget_high_s32(s_hi));
+
+      c1_lo = vmlal_s32(c1_lo, vget_low_s32(f1_lo), vget_low_s32(s_lo));
+      c1_lo = vmlal_s32(c1_lo, vget_high_s32(f1_lo), vget_high_s32(s_lo));
+      c1_hi = vmlal_s32(c1_hi, vget_low_s32(f1_hi), vget_low_s32(s_hi));
+      c1_hi = vmlal_s32(c1_hi, vget_high_s32(f1_hi), vget_high_s32(s_hi));
+
+      src_ptr += 8;
+      dat_ptr += 8;
+      flt0_ptr += 8;
+      flt1_ptr += 8;
+      w -= 8;
+    } while (w != 0);
+
+    src8 += src_stride;
+    dat8 += dat_stride;
+    flt0 += flt0_stride;
+    flt1 += flt1_stride;
+  } while (--height != 0);
+
+  H[0][0] = horizontal_add_s64x2(vaddq_s64(h00_lo, h00_hi)) / size;
+  H[0][1] = horizontal_add_s64x2(vaddq_s64(h01_lo, h01_hi)) / size;
+  H[1][1] = horizontal_add_s64x2(vaddq_s64(h11_lo, h11_hi)) / size;
+  H[1][0] = H[0][1];
+  C[0] = horizontal_add_s64x2(vaddq_s64(c0_lo, c0_hi)) / size;
+  C[1] = horizontal_add_s64x2(vaddq_s64(c1_lo, c1_hi)) / size;
+}
+
+static INLINE void calc_proj_params_r0_neon(const uint8_t *src8, int width,
+                                            int height, int src_stride,
+                                            const uint8_t *dat8, int dat_stride,
+                                            int32_t *flt0, int flt0_stride,
+                                            int64_t H[2][2], int64_t C[2]) {
+  assert(width % 8 == 0);
+  const int size = width * height;
+
+  int64x2_t h00_lo = vdupq_n_s64(0);
+  int64x2_t h00_hi = vdupq_n_s64(0);
+  int64x2_t c0_lo = vdupq_n_s64(0);
+  int64x2_t c0_hi = vdupq_n_s64(0);
+
+  do {
+    const uint8_t *src_ptr = src8;
+    const uint8_t *dat_ptr = dat8;
+    int32_t *flt0_ptr = flt0;
+    int w = width;
+
+    do {
+      uint8x8_t s = vld1_u8(src_ptr);
+      uint8x8_t d = vld1_u8(dat_ptr);
+      int32x4_t f0_lo = vld1q_s32(flt0_ptr);
+      int32x4_t f0_hi = vld1q_s32(flt0_ptr + 4);
+
+      int16x8_t u = vreinterpretq_s16_u16(vshll_n_u8(d, SGRPROJ_RST_BITS));
+      int16x8_t s_s16 = vreinterpretq_s16_u16(vshll_n_u8(s, SGRPROJ_RST_BITS));
+
+      int32x4_t s_lo = vsubl_s16(vget_low_s16(s_s16), vget_low_s16(u));
+      int32x4_t s_hi = vsubl_s16(vget_high_s16(s_s16), vget_high_s16(u));
+      f0_lo = vsubw_s16(f0_lo, vget_low_s16(u));
+      f0_hi = vsubw_s16(f0_hi, vget_high_s16(u));
+
+      h00_lo = vmlal_s32(h00_lo, vget_low_s32(f0_lo), vget_low_s32(f0_lo));
+      h00_lo = vmlal_s32(h00_lo, vget_high_s32(f0_lo), vget_high_s32(f0_lo));
+      h00_hi = vmlal_s32(h00_hi, vget_low_s32(f0_hi), vget_low_s32(f0_hi));
+      h00_hi = vmlal_s32(h00_hi, vget_high_s32(f0_hi), vget_high_s32(f0_hi));
+
+      c0_lo = vmlal_s32(c0_lo, vget_low_s32(f0_lo), vget_low_s32(s_lo));
+      c0_lo = vmlal_s32(c0_lo, vget_high_s32(f0_lo), vget_high_s32(s_lo));
+      c0_hi = vmlal_s32(c0_hi, vget_low_s32(f0_hi), vget_low_s32(s_hi));
+      c0_hi = vmlal_s32(c0_hi, vget_high_s32(f0_hi), vget_high_s32(s_hi));
+
+      src_ptr += 8;
+      dat_ptr += 8;
+      flt0_ptr += 8;
+      w -= 8;
+    } while (w != 0);
+
+    src8 += src_stride;
+    dat8 += dat_stride;
+    flt0 += flt0_stride;
+  } while (--height != 0);
+
+  H[0][0] = horizontal_add_s64x2(vaddq_s64(h00_lo, h00_hi)) / size;
+  C[0] = horizontal_add_s64x2(vaddq_s64(c0_lo, c0_hi)) / size;
+}
+
+static INLINE void calc_proj_params_r1_neon(const uint8_t *src8, int width,
+                                            int height, int src_stride,
+                                            const uint8_t *dat8, int dat_stride,
+                                            int32_t *flt1, int flt1_stride,
+                                            int64_t H[2][2], int64_t C[2]) {
+  assert(width % 8 == 0);
+  const int size = width * height;
+
+  int64x2_t h11_lo = vdupq_n_s64(0);
+  int64x2_t h11_hi = vdupq_n_s64(0);
+  int64x2_t c1_lo = vdupq_n_s64(0);
+  int64x2_t c1_hi = vdupq_n_s64(0);
+
+  do {
+    const uint8_t *src_ptr = src8;
+    const uint8_t *dat_ptr = dat8;
+    int32_t *flt1_ptr = flt1;
+    int w = width;
+
+    do {
+      uint8x8_t s = vld1_u8(src_ptr);
+      uint8x8_t d = vld1_u8(dat_ptr);
+      int32x4_t f1_lo = vld1q_s32(flt1_ptr);
+      int32x4_t f1_hi = vld1q_s32(flt1_ptr + 4);
+
+      int16x8_t u = vreinterpretq_s16_u16(vshll_n_u8(d, SGRPROJ_RST_BITS));
+      int16x8_t s_s16 = vreinterpretq_s16_u16(vshll_n_u8(s, SGRPROJ_RST_BITS));
+
+      int32x4_t s_lo = vsubl_s16(vget_low_s16(s_s16), vget_low_s16(u));
+      int32x4_t s_hi = vsubl_s16(vget_high_s16(s_s16), vget_high_s16(u));
+      f1_lo = vsubw_s16(f1_lo, vget_low_s16(u));
+      f1_hi = vsubw_s16(f1_hi, vget_high_s16(u));
+
+      h11_lo = vmlal_s32(h11_lo, vget_low_s32(f1_lo), vget_low_s32(f1_lo));
+      h11_lo = vmlal_s32(h11_lo, vget_high_s32(f1_lo), vget_high_s32(f1_lo));
+      h11_hi = vmlal_s32(h11_hi, vget_low_s32(f1_hi), vget_low_s32(f1_hi));
+      h11_hi = vmlal_s32(h11_hi, vget_high_s32(f1_hi), vget_high_s32(f1_hi));
+
+      c1_lo = vmlal_s32(c1_lo, vget_low_s32(f1_lo), vget_low_s32(s_lo));
+      c1_lo = vmlal_s32(c1_lo, vget_high_s32(f1_lo), vget_high_s32(s_lo));
+      c1_hi = vmlal_s32(c1_hi, vget_low_s32(f1_hi), vget_low_s32(s_hi));
+      c1_hi = vmlal_s32(c1_hi, vget_high_s32(f1_hi), vget_high_s32(s_hi));
+
+      src_ptr += 8;
+      dat_ptr += 8;
+      flt1_ptr += 8;
+      w -= 8;
+    } while (w != 0);
+
+    src8 += src_stride;
+    dat8 += dat_stride;
+    flt1 += flt1_stride;
+  } while (--height != 0);
+
+  H[1][1] = horizontal_add_s64x2(vaddq_s64(h11_lo, h11_hi)) / size;
+  C[1] = horizontal_add_s64x2(vaddq_s64(c1_lo, c1_hi)) / size;
+}
+
+// The function calls 3 subfunctions for the following cases :
+// 1) When params->r[0] > 0 and params->r[1] > 0. In this case all elements
+//    of C and H need to be computed.
+// 2) When only params->r[0] > 0. In this case only H[0][0] and C[0] are
+//    non-zero and need to be computed.
+// 3) When only params->r[1] > 0. In this case only H[1][1] and C[1] are
+//    non-zero and need to be computed.
+void av1_calc_proj_params_neon(const uint8_t *src8, int width, int height,
+                               int src_stride, const uint8_t *dat8,
+                               int dat_stride, int32_t *flt0, int flt0_stride,
+                               int32_t *flt1, int flt1_stride, int64_t H[2][2],
+                               int64_t C[2], const sgr_params_type *params) {
+  if ((params->r[0] > 0) && (params->r[1] > 0)) {
+    calc_proj_params_r0_r1_neon(src8, width, height, src_stride, dat8,
+                                dat_stride, flt0, flt0_stride, flt1,
+                                flt1_stride, H, C);
+  } else if (params->r[0] > 0) {
+    calc_proj_params_r0_neon(src8, width, height, src_stride, dat8, dat_stride,
+                             flt0, flt0_stride, H, C);
+  } else if (params->r[1] > 0) {
+    calc_proj_params_r1_neon(src8, width, height, src_stride, dat8, dat_stride,
+                             flt1, flt1_stride, H, C);
+  }
+}

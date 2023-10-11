@@ -546,6 +546,12 @@ INSTANTIATE_TEST_SUITE_P(AVX2, GetProjSubspaceTest,
                          ::testing::Values(av1_calc_proj_params_avx2));
 #endif  // HAVE_AVX2
 
+#if HAVE_NEON
+
+INSTANTIATE_TEST_SUITE_P(NEON, GetProjSubspaceTest,
+                         ::testing::Values(av1_calc_proj_params_neon));
+#endif  // HAVE_NEON
+
 }  // namespace get_proj_subspace_test_lowbd
 
 #if CONFIG_AV1_HIGHBITDEPTH
