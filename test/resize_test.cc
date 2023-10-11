@@ -1007,6 +1007,7 @@ TEST(ResizeSimpleTest, SmallerFrameSizeSVC) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
+#if !CONFIG_REALTIME_ONLY
 TEST(ResizeSimpleTest, TemporarySmallerFrameSizeMultiThread) {
   constexpr int kWidth = 512;
   constexpr int kHeight = 512;
@@ -1093,5 +1094,6 @@ TEST(ResizeSimpleTest, TemporarySmallerFrameSizeMultiThread2) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 0, 0));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 }  // namespace
