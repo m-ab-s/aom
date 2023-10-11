@@ -40,7 +40,7 @@ int aom_fast9_corner_score(const byte* p, const int pixel[], int bstart);
 
 xy* aom_fast9_detect(const byte* im, int xsize, int ysize, int stride, int b, int* ret_num_corners);
 
-int* aom_fast9_score(const byte* i, int stride, xy* corners, int num_corners, int b);
+int* aom_fast9_score(const byte* i, int stride, const xy* corners, int num_corners, int b);
 
 xy* aom_fast9_detect_nonmax(const byte* im, int xsize, int ysize, int stride, int b,
                             int** ret_scores, int* ret_num_corners, bool* mem_alloc_failed);
