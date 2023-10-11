@@ -1054,93 +1054,83 @@ TEST(ResizeSimpleTest, SmallerFrameSizeSVC) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
-#if !CONFIG_REALTIME_ONLY
-TEST(ResizeSimpleTest, TemporarySmallerFrameSizeMultiThread) {
-  constexpr int kWidth = 512;
-  constexpr int kHeight = 512;
-  constexpr int kFirstWidth = 256;
-  constexpr int kFirstHeight = 256;
-  // Buffer of zero samples.
-  constexpr size_t kBufferSize = 3 * kWidth * kHeight;
-  std::vector<unsigned char> buffer(kBufferSize, static_cast<unsigned char>(0));
+const int kUsages[] =
+#if CONFIG_REALTIME_ONLY
+    { AOM_USAGE_REALTIME };
+#else
+    { AOM_USAGE_GOOD_QUALITY, AOM_USAGE_REALTIME, AOM_USAGE_ALL_INTRA };
+#endif
 
-  aom_image_t img1;
-  EXPECT_EQ(&img1, aom_img_wrap(&img1, AOM_IMG_FMT_I420, kFirstWidth,
-                                kFirstHeight, 1, buffer.data()));
+const int kNumThreads[] = { 2, 4, 8 };
 
-  aom_image_t img2;
-  EXPECT_EQ(&img2, aom_img_wrap(&img2, AOM_IMG_FMT_I420, kWidth, kHeight, 1,
-                                buffer.data()));
+class FrameSizeChangeTest
+    : public ::libaom_test::CodecTestWith3Params<int, int, int> {
+ protected:
+  FrameSizeChangeTest() {}
+  ~FrameSizeChangeTest() override = default;
 
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
-  cfg.g_threads = 4;
-  cfg.g_lag_in_frames = 1;
-  cfg.g_w = kFirstWidth;
-  cfg.g_h = kFirstHeight;
-  cfg.g_forced_max_frame_width = kWidth;
-  cfg.g_forced_max_frame_height = kHeight;
-  aom_codec_ctx_t enc;
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 6));
+  void DoTest(int change_thread) {
+    usage_ = GET_PARAM(1);
+    cpu_used_ = GET_PARAM(2);
+    threads_ = GET_PARAM(3);
+    constexpr int kWidth = 512;
+    constexpr int kHeight = 512;
+    constexpr int kFirstWidth = 256;
+    constexpr int kFirstHeight = 256;
+    // Buffer of zero samples.
+    constexpr size_t kBufferSize = 3 * kWidth * kHeight;
+    std::vector<unsigned char> buffer(kBufferSize,
+                                      static_cast<unsigned char>(0));
 
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img1, 0, 1, 0));
+    aom_image_t img1;
+    EXPECT_EQ(&img1, aom_img_wrap(&img1, AOM_IMG_FMT_I420, kFirstWidth,
+                                  kFirstHeight, 1, buffer.data()));
 
-  cfg.g_w = kWidth;
-  cfg.g_h = kHeight;
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_set(&enc, &cfg));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img2, 1, 1, 0));
+    aom_image_t img2;
+    EXPECT_EQ(&img2, aom_img_wrap(&img2, AOM_IMG_FMT_I420, kWidth, kHeight, 1,
+                                  buffer.data()));
 
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 0, 0));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
-}
+    aom_codec_iface_t *iface = aom_codec_av1_cx();
+    aom_codec_enc_cfg_t cfg;
+    EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, usage_));
+    cfg.g_threads = threads_;
+    cfg.g_lag_in_frames = usage_ == AOM_USAGE_ALL_INTRA ? 0 : 1;
+    cfg.g_w = kFirstWidth;
+    cfg.g_h = kFirstHeight;
+    cfg.g_forced_max_frame_width = kWidth;
+    cfg.g_forced_max_frame_height = kHeight;
+    aom_codec_ctx_t enc;
+    EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
+    EXPECT_EQ(AOM_CODEC_OK,
+              aom_codec_control(&enc, AOME_SET_CPUUSED, cpu_used_));
 
-// This test differs from "TemporarySmallerFrameSizeMultiThread" in that
-// it changes the number of threads from 4 to 2 before coding the second frame.
-TEST(ResizeSimpleTest, TemporarySmallerFrameSizeMultiThread2) {
-  constexpr int kWidth = 512;
-  constexpr int kHeight = 512;
-  constexpr int kFirstWidth = 256;
-  constexpr int kFirstHeight = 256;
-  // Buffer of zero samples.
-  constexpr size_t kBufferSize = 3 * kWidth * kHeight;
-  std::vector<unsigned char> buffer(kBufferSize, static_cast<unsigned char>(0));
+    EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img1, 0, 1, 0));
 
-  aom_image_t img1;
-  EXPECT_EQ(&img1, aom_img_wrap(&img1, AOM_IMG_FMT_I420, kFirstWidth,
-                                kFirstHeight, 1, buffer.data()));
+    if (change_thread == 1) {
+      cfg.g_threads = AOMMAX(1, threads_ / 2);
+    } else if (change_thread == 2) {
+      cfg.g_threads = threads_ * 2;
+    }
+    cfg.g_w = kWidth;
+    cfg.g_h = kHeight;
+    EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_set(&enc, &cfg));
+    EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img2, 1, 1, 0));
 
-  aom_image_t img2;
-  EXPECT_EQ(&img2, aom_img_wrap(&img2, AOM_IMG_FMT_I420, kWidth, kHeight, 1,
-                                buffer.data()));
+    EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 0, 0));
+    EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+  }
 
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
-  cfg.g_threads = 4;
-  cfg.g_lag_in_frames = 1;
-  cfg.g_w = kFirstWidth;
-  cfg.g_h = kFirstHeight;
-  cfg.g_forced_max_frame_width = kWidth;
-  cfg.g_forced_max_frame_height = kHeight;
-  aom_codec_ctx_t enc;
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 6));
+  int cpu_used_;
+  int threads_;
+  int usage_;
+};
 
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img1, 0, 1, 0));
+TEST_P(FrameSizeChangeTest, FixedThreads) { DoTest(0); }
+TEST_P(FrameSizeChangeTest, DecreasingThreads) { DoTest(1); }
+TEST_P(FrameSizeChangeTest, IncreasingThreads) { DoTest(2); }
 
-  cfg.g_threads = 2;
-  cfg.g_w = kWidth;
-  cfg.g_h = kHeight;
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_set(&enc, &cfg));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img2, 1, 1, 0));
-
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 0, 0));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
-}
-#endif  // !CONFIG_REALTIME_ONLY
+AV1_INSTANTIATE_TEST_SUITE(FrameSizeChangeTest, ::testing::ValuesIn(kUsages),
+                           ::testing::Range(6, 7),
+                           ::testing::ValuesIn(kNumThreads));
 
 }  // namespace
