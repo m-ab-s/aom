@@ -907,18 +907,16 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   cm->width = frm_dim_cfg->width;
   cm->height = frm_dim_cfg->height;
 
-  if (initial_dimensions->width || is_sb_size_changed) {
-    if (cm->width > initial_dimensions->width ||
-        cm->height > initial_dimensions->height || is_sb_size_changed) {
-      av1_free_context_buffers(cm);
-      av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
-      av1_free_sms_tree(&cpi->td);
-      av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
-      cpi->td.firstpass_ctx = NULL;
-      alloc_compressor_data(cpi);
-      realloc_segmentation_maps(cpi);
-      initial_dimensions->width = initial_dimensions->height = 0;
-    }
+  if (cm->width > initial_dimensions->width ||
+      cm->height > initial_dimensions->height || is_sb_size_changed) {
+    av1_free_context_buffers(cm);
+    av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
+    av1_free_sms_tree(&cpi->td);
+    av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
+    cpi->td.firstpass_ctx = NULL;
+    alloc_compressor_data(cpi);
+    realloc_segmentation_maps(cpi);
+    initial_dimensions->width = initial_dimensions->height = 0;
   }
   av1_update_frame_size(cpi);
 
@@ -1489,6 +1487,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
                   aom_calloc((max_mi_rows * max_mi_cols) >> 2,
                              sizeof(*cpi->consec_zero_mv)));
+  cpi->consec_zero_mv_alloc_size = (max_mi_rows * max_mi_cols) >> 2;
 
   cpi->mb_weber_stats = NULL;
   cpi->mb_delta_q = NULL;
@@ -2565,9 +2564,18 @@ static int encode_without_recode(AV1_COMP *cpi) {
       cm, unscaled, &cpi->scaled_source, filter_scaler, phase_scaler, true,
       false, cpi->oxcf.border_in_pixels, cpi->image_pyramid_levels);
   if (frame_is_intra_only(cm) || resize_pending != 0) {
+    const int current_size = cm->mi_params.mi_rows * cm->mi_params.mi_cols >> 2;
+    if (cpi->consec_zero_mv &&
+        (cpi->consec_zero_mv_alloc_size < current_size)) {
+      aom_free(cpi->consec_zero_mv);
+      CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
+                      aom_calloc(current_size, sizeof(*cpi->consec_zero_mv)));
+    }
+    assert(cpi->consec_zero_mv != NULL);
     memset(cpi->consec_zero_mv, 0,
            ((cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2) *
                sizeof(*cpi->consec_zero_mv));
+    cpi->consec_zero_mv_alloc_size = current_size;
   }
 
   if (cpi->unscaled_last_source != NULL) {
