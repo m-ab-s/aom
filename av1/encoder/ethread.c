@@ -1442,13 +1442,13 @@ static AOM_INLINE void launch_workers(MultiThreadInfo *const mt_info,
 static AOM_INLINE void sync_enc_workers(MultiThreadInfo *const mt_info,
                                         AV1_COMMON *const cm, int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
-  int had_error = mt_info->workers[0].had_error;
+  const AVxWorker *const worker_main = &mt_info->workers[0];
+  int had_error = worker_main->had_error;
   struct aom_internal_error_info error_info;
 
   // Read the error_info of main thread.
   if (had_error) {
-    AVxWorker *const worker = &mt_info->workers[0];
-    error_info = ((EncWorkerData *)worker->data1)->error_info;
+    error_info = ((EncWorkerData *)worker_main->data1)->error_info;
   }
 
   // Encoding ends.
@@ -1463,6 +1463,12 @@ static AOM_INLINE void sync_enc_workers(MultiThreadInfo *const mt_info,
   if (had_error)
     aom_internal_error(cm->error, error_info.error_code, "%s",
                        error_info.detail);
+
+  // Restore xd->error_info of the main thread back to cm->error so that the
+  // multithreaded code, when executed using a single thread, has a valid
+  // xd->error_info.
+  MACROBLOCKD *const xd = &((EncWorkerData *)worker_main->data1)->td->mb.e_mbd;
+  xd->error_info = cm->error;
 }
 
 static AOM_INLINE void accumulate_counters_enc_workers(AV1_COMP *cpi,
