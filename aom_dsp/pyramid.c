@@ -346,9 +346,9 @@ bool aom_compute_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
 #endif  // CONFIG_MULTITHREAD
 
   if (!pyr->valid) {
-    if (!fill_pyramid(frame, bit_depth, pyr)) return false;
-    pyr->valid = true;
+    pyr->valid = fill_pyramid(frame, bit_depth, pyr);
   }
+  bool valid = pyr->valid;
 
   // At this point, the pyramid is guaranteed to be valid, and can be safely
   // read from without holding the mutex any more
@@ -356,7 +356,7 @@ bool aom_compute_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
 #if CONFIG_MULTITHREAD
   pthread_mutex_unlock(&pyr->mutex);
 #endif  // CONFIG_MULTITHREAD
-  return true;
+  return valid;
 }
 
 #ifndef NDEBUG

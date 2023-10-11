@@ -110,14 +110,14 @@ bool av1_compute_corner_list(const ImagePyramid *pyr, CornerList *corners) {
 #endif  // CONFIG_MULTITHREAD
 
   if (!corners->valid) {
-    if (!compute_corner_list(pyr, corners)) return false;
-    corners->valid = true;
+    corners->valid = compute_corner_list(pyr, corners);
   }
+  bool valid = corners->valid;
 
 #if CONFIG_MULTITHREAD
   pthread_mutex_unlock(&corners->mutex);
 #endif  // CONFIG_MULTITHREAD
-  return true;
+  return valid;
 }
 
 #ifndef NDEBUG
