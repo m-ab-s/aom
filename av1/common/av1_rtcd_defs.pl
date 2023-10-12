@@ -405,6 +405,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       specialize qw/av1_highbd_apply_temporal_filter sse2 avx2 neon/;
 
       add_proto qw/double av1_highbd_estimate_noise_from_single_plane/, "const uint16_t *src, int height, int width, int stride, int bit_depth, int edge_thresh";
+      specialize qw/av1_highbd_estimate_noise_from_single_plane neon/;
     }
   }
 

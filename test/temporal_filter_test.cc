@@ -774,6 +774,15 @@ TEST_P(HBDEstimateNoiseTest, RandomValues) { RunTest(); }
 
 TEST_P(HBDEstimateNoiseTest, DISABLED_Speed) { SpeedTest(2000); }
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, HBDEstimateNoiseTest,
+    ::testing::Combine(
+        ::testing::Values(av1_highbd_estimate_noise_from_single_plane_c),
+        ::testing::Values(av1_highbd_estimate_noise_from_single_plane_neon),
+        ::testing::ValuesIn(kWidths), ::testing::ValuesIn(kHeights),
+        ::testing::ValuesIn({ 8, 10, 12 })));
+#endif  // HAVE_NEON
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace
 #endif
