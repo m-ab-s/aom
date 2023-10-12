@@ -318,6 +318,13 @@ INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, TemporalFilterTest,
                                  Values(0, 1)));
 #endif  // HAVE_NEON_DOTPROD
 
+#if HAVE_AVX2 || HAVE_NEON
+// Width and height for which av1_estimate_noise_from_single_plane() will be
+// tested.
+const int kWidths[] = { 3840, 1920, 1280, 800, 640, 360, 357 };
+const int kHeights[] = { 2160, 1080, 720, 600, 480, 240, 237 };
+#endif  // HAVE_AVX2 || HAVE_NEON
+
 typedef double (*EstimateNoiseFunc)(const uint8_t *src, int height, int width,
                                     int stride, int edge_thresh);
 
@@ -395,13 +402,6 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EstimateNoiseTest);
 TEST_P(EstimateNoiseTest, RandomValues) { RunTest(1); }
 
 TEST_P(EstimateNoiseTest, DISABLED_Speed) { SpeedTest(2000); }
-
-#if HAVE_AVX2 || HAVE_NEON
-// Width and height for which av1_estimate_noise_from_single_plane() will be
-// tested.
-const int kWidths[] = { 3840, 1920, 1280, 800, 640, 360, 357 };
-const int kHeights[] = { 2160, 1080, 720, 600, 480, 240, 237 };
-#endif  // HAVE_AVX2 || HAVE_NEON
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
@@ -695,6 +695,85 @@ INSTANTIATE_TEST_SUITE_P(NEON, HBDTemporalFilterTest,
                          Combine(ValuesIn(HBDtemporal_filter_test_neon),
                                  Values(0, 1)));
 #endif  // HAVE_NEON
+
+using HBDEstimateNoiseFunc = double (*)(const uint16_t *src, int height,
+                                        int width, int stride, int bit_depth,
+                                        int edge_thresh);
+
+using HBDEstimateNoiseWithParam =
+    std::tuple<HBDEstimateNoiseFunc, HBDEstimateNoiseFunc, int, int, int>;
+
+class HBDEstimateNoiseTest
+    : public ::testing::TestWithParam<HBDEstimateNoiseWithParam> {
+ public:
+  HBDEstimateNoiseTest()
+      : ref_func_(GET_PARAM(0)), tst_func_(GET_PARAM(1)),
+        rnd_(libaom_test::ACMRandom::DeterministicSeed()), width_(GET_PARAM(2)),
+        height_(GET_PARAM(3)), bitdepth_(GET_PARAM(4)) {}
+  ~HBDEstimateNoiseTest() override = default;
+  void SetUp() override {
+    src1_ = reinterpret_cast<uint16_t *>(
+        aom_memalign(16, sizeof(uint16_t) * width_ * height_));
+    ASSERT_NE(src1_, nullptr);
+    GenRandomData(width_ * height_);
+  }
+
+  void TearDown() override { aom_free(src1_); }
+
+  void RunTest() {
+    stride_ = width_;
+
+    double ref_out = ref_func_(src1_, height_, width_, stride_, bitdepth_,
+                               NOISE_ESTIMATION_EDGE_THRESHOLD);
+
+    double tst_out = tst_func_(src1_, height_, width_, stride_, bitdepth_,
+                               NOISE_ESTIMATION_EDGE_THRESHOLD);
+
+    EXPECT_EQ(ref_out, tst_out);
+  }
+
+  void SpeedTest(int run_times) {
+    stride_ = width_;
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < run_times; i++) {
+      ref_func_(src1_, height_, width_, stride_, bitdepth_,
+                NOISE_ESTIMATION_EDGE_THRESHOLD);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time1 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < run_times; i++) {
+      tst_func_(src1_, height_, width_, stride_, bitdepth_,
+                NOISE_ESTIMATION_EDGE_THRESHOLD);
+    }
+    aom_usec_timer_mark(&timer);
+    const double time2 = static_cast<double>(aom_usec_timer_elapsed(&timer));
+
+    printf("%d %dx%d :%7.2f/%7.2f (%3.2f)\n", bitdepth_, width_, height_, time1,
+           time2, time1 / time2);
+  }
+
+  void GenRandomData(int size) {
+    for (int ii = 0; ii < size; ii++) src1_[ii] = rnd_.Rand12();
+  }
+
+ private:
+  HBDEstimateNoiseFunc ref_func_;
+  HBDEstimateNoiseFunc tst_func_;
+  ACMRandom rnd_;
+  uint16_t *src1_;
+  int width_;
+  int height_;
+  int stride_;
+  int bitdepth_;
+};
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HBDEstimateNoiseTest);
+
+TEST_P(HBDEstimateNoiseTest, RandomValues) { RunTest(); }
+
+TEST_P(HBDEstimateNoiseTest, DISABLED_Speed) { SpeedTest(2000); }
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 }  // namespace
 #endif
