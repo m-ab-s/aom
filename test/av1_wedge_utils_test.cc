@@ -379,6 +379,11 @@ INSTANTIATE_TEST_SUITE_P(
     NEON, WedgeUtilsSSEOptTest,
     ::testing::Values(TestFuncsFSSE(av1_wedge_sse_from_residuals_c,
                                     av1_wedge_sse_from_residuals_neon)));
+
+INSTANTIATE_TEST_SUITE_P(
+    NEON, WedgeUtilsSignOptTest,
+    ::testing::Values(TestFuncsFSign(av1_wedge_sign_from_residuals_c,
+                                     av1_wedge_sign_from_residuals_neon)));
 #endif  // HAVE_NEON
 
 #if HAVE_AVX2

@@ -75,3 +75,34 @@ uint64_t av1_wedge_sse_from_residuals_neon(const int16_t *r1, const int16_t *d,
   uint64_t csse = horizontal_add_u64x2(vaddq_u64(v_csse[0], v_csse[1]));
   return ROUND_POWER_OF_TWO(csse, 2 * WEDGE_WEIGHT_BITS);
 }
+
+int8_t av1_wedge_sign_from_residuals_neon(const int16_t *ds, const uint8_t *m,
+                                          int N, int64_t limit) {
+  int32x4_t acc[4] = { vdupq_n_s32(0), vdupq_n_s32(0), vdupq_n_s32(0),
+                       vdupq_n_s32(0) };
+
+  do {
+    int16x8_t ds_l = vld1q_s16(ds);
+    int16x8_t ds_h = vld1q_s16(ds + 8);
+
+    int8x16_t m_s8 = vreinterpretq_s8_u8(vld1q_u8(m));
+    int16x8_t m_l = vmovl_s8(vget_low_s8(m_s8));
+    int16x8_t m_h = vmovl_s8(vget_high_s8(m_s8));
+
+    acc[0] = vmlal_s16(acc[0], vget_low_s16(ds_l), vget_low_s16(m_l));
+    acc[1] = vmlal_s16(acc[1], vget_high_s16(ds_l), vget_high_s16(m_l));
+    acc[2] = vmlal_s16(acc[2], vget_low_s16(ds_h), vget_low_s16(m_h));
+    acc[3] = vmlal_s16(acc[3], vget_high_s16(ds_h), vget_high_s16(m_h));
+
+    ds += 16;
+    m += 16;
+    N -= 16;
+  } while (N != 0);
+
+  int64x2_t sum = vpaddlq_s32(acc[0]);
+  sum = vpadalq_s32(sum, acc[1]);
+  sum = vpadalq_s32(sum, acc[2]);
+  sum = vpadalq_s32(sum, acc[3]);
+
+  return (horizontal_add_s64x2(sum) > limit);
+}
