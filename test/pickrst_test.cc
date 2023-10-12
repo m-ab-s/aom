@@ -432,7 +432,9 @@ void GetProjSubspaceTest::RunGetProjSubspaceTest(int32_t run_times) {
   const int flt0_stride = MAX_DATA_BLOCK;
   const int flt1_stride = MAX_DATA_BLOCK;
   sgr_params_type params;
-  const int iters = run_times == 1 ? kIterations : 4;
+  const int iters = run_times == 1 ? kIterations : 3;
+  static constexpr int kR0[3] = { 1, 1, 0 };
+  static constexpr int kR1[3] = { 1, 0, 1 };
   for (int iter = 0; iter < iters && !HasFatalFailure(); ++iter) {
     int64_t C_ref[2] = { 0 }, C_test[2] = { 0 };
     int64_t H_ref[2][2] = { { 0, 0 }, { 0, 0 } };
@@ -444,10 +446,8 @@ void GetProjSubspaceTest::RunGetProjSubspaceTest(int32_t run_times) {
       flt1_[i] = rng_.Rand15Signed();
     }
 
-    params.r[0] = run_times == 1 ? (rng_.Rand8() % MAX_RADIUS) : 1;
-    params.r[1] = run_times == 1 ? (rng_.Rand8() % MAX_RADIUS) : 1;
-    params.s[0] = run_times == 1 ? (rng_.Rand8() % MAX_RADIUS) : (iter % 2);
-    params.s[1] = run_times == 1 ? (rng_.Rand8() % MAX_RADIUS) : (iter / 2);
+    params.r[0] = run_times == 1 ? (rng_.Rand8() % MAX_RADIUS) : kR0[iter];
+    params.r[1] = run_times == 1 ? (rng_.Rand8() % MAX_RADIUS) : kR1[iter];
     uint8_t *dgd = dgd_;
     uint8_t *src = src_;
 
