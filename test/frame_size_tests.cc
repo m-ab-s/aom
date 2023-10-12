@@ -173,15 +173,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Range(6, 11)));
 
 #if !CONFIG_REALTIME_ONLY
-// TODO(https://crbug.com/aomedia/3348): Modes that use av1_full_pixel_search()
-// will cause an assert.
 INSTANTIATE_TEST_SUITE_P(
-    DISABLED_GoodQuality, AV1ResolutionChange,
+    GoodQuality, AV1ResolutionChange,
     ::testing::Combine(::testing::Values(AOM_USAGE_GOOD_QUALITY),
                        ::testing::Values(AOM_VBR, AOM_CBR, AOM_CQ, AOM_Q),
                        ::testing::Range(2, 6)));
 INSTANTIATE_TEST_SUITE_P(
-    DISABLED_GoodQualityLarge, AV1ResolutionChange,
+    GoodQualityLarge, AV1ResolutionChange,
     ::testing::Combine(::testing::Values(AOM_USAGE_GOOD_QUALITY),
                        ::testing::Values(AOM_VBR, AOM_CBR, AOM_CQ, AOM_Q),
                        ::testing::Range(0, 2)));
