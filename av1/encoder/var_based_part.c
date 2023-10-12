@@ -1608,7 +1608,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   // Ref frame used in partitioning.
   MV_REFERENCE_FRAME ref_frame_partition = LAST_FRAME;
 
-  CHECK_MEM_ERROR(cm, vt, aom_malloc(sizeof(*vt)));
+  AOM_CHECK_MEM_ERROR(xd->error_info, vt, aom_malloc(sizeof(*vt)));
 
   vt->split = td->vt64x64;
 
@@ -1729,8 +1729,14 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   if (cpi->noise_estimate.enabled)
     noise_level = av1_noise_estimate_extract_level(&cpi->noise_estimate);
 
-  if (low_res && threshold_4x4avg < INT64_MAX)
-    CHECK_MEM_ERROR(cm, vt2, aom_malloc(sizeof(*vt2)));
+  if (low_res && threshold_4x4avg < INT64_MAX) {
+    vt2 = aom_malloc(sizeof(*vt2));
+    if (!vt2) {
+      aom_free(vt);
+      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                         "Error allocating partition buffer vt2");
+    }
+  }
   // Fill in the entire tree of 8x8 (or 4x4 under some conditions) variances
   // for splits.
   fill_variance_tree_leaves(cpi, x, vt, force_split, avg_16x16, maxvar_16x16,
