@@ -278,8 +278,8 @@ class SSETest : public ::testing::TestWithParam<SSETestParam> {
   void RunTest(bool is_random, int width, int height, int run_times);
 
   void GenRandomData(int width, int height, int stride) {
-    uint16_t *p_src = (uint16_t *)src_;
-    uint16_t *p_ref = (uint16_t *)ref_;
+    uint16_t *src16 = reinterpret_cast<uint16_t *>(src_);
+    uint16_t *ref16 = reinterpret_cast<uint16_t *>(ref_);
     const int msb = 11;  // Up to 12 bit input
     const int limit = 1 << (msb + 1);
     for (int ii = 0; ii < height; ii++) {
@@ -288,8 +288,8 @@ class SSETest : public ::testing::TestWithParam<SSETestParam> {
           src_[ii * stride + jj] = rnd_.Rand8();
           ref_[ii * stride + jj] = rnd_.Rand8();
         } else {
-          p_src[ii * stride + jj] = rnd_(limit);
-          p_ref[ii * stride + jj] = rnd_(limit);
+          src16[ii * stride + jj] = rnd_(limit);
+          ref16[ii * stride + jj] = rnd_(limit);
         }
       }
     }
@@ -297,13 +297,13 @@ class SSETest : public ::testing::TestWithParam<SSETestParam> {
 
   void GenExtremeData(int width, int height, int stride, uint8_t *data,
                       int16_t val) {
-    uint16_t *pData = (uint16_t *)data;
+    uint16_t *data16 = reinterpret_cast<uint16_t *>(data);
     for (int ii = 0; ii < height; ii++) {
       for (int jj = 0; jj < width; jj++) {
         if (!is_hbd_) {
-          data[ii * stride + jj] = (uint8_t)val;
+          data[ii * stride + jj] = static_cast<uint8_t>(val);
         } else {
-          pData[ii * stride + jj] = val;
+          data16[ii * stride + jj] = val;
         }
       }
     }
@@ -341,18 +341,18 @@ void SSETest::RunTest(bool is_random, int width, int height, int run_times) {
       }
     }
     int64_t res_ref, res_tst;
-    uint8_t *p_src = src_;
-    uint8_t *p_ref = ref_;
+    uint8_t *src = src_;
+    uint8_t *ref = ref_;
     if (is_hbd_) {
-      p_src = CONVERT_TO_BYTEPTR(src_);
-      p_ref = CONVERT_TO_BYTEPTR(ref_);
+      src = CONVERT_TO_BYTEPTR(src_);
+      ref = CONVERT_TO_BYTEPTR(ref_);
     }
-    res_ref = params_.ref_func(p_src, stride, p_ref, stride, width, height);
-    res_tst = params_.tst_func(p_src, stride, p_ref, stride, width, height);
+    res_ref = params_.ref_func(src, stride, ref, stride, width, height);
+    res_tst = params_.tst_func(src, stride, ref, stride, width, height);
     if (run_times > 1) {
       aom_usec_timer_start(&ref_timer);
       for (int j = 0; j < run_times; j++) {
-        params_.ref_func(p_src, stride, p_ref, stride, width, height);
+        params_.ref_func(src, stride, ref, stride, width, height);
       }
       aom_usec_timer_mark(&ref_timer);
       const int elapsed_time_c =
@@ -360,7 +360,7 @@ void SSETest::RunTest(bool is_random, int width, int height, int run_times) {
 
       aom_usec_timer_start(&test_timer);
       for (int j = 0; j < run_times; j++) {
-        params_.tst_func(p_src, stride, p_ref, stride, width, height);
+        params_.tst_func(src, stride, ref, stride, width, height);
       }
       aom_usec_timer_mark(&test_timer);
       const int elapsed_time_simd =
