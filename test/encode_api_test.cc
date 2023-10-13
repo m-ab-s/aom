@@ -338,15 +338,17 @@ TEST_P(EncodeAPIParameterized, HighBDEncoderHighBDFrames) {
 #endif
 }
 
+const int kUsages[] = {
+  AOM_USAGE_REALTIME,
+#if !CONFIG_REALTIME_ONLY
+  AOM_USAGE_GOOD_QUALITY,
+  AOM_USAGE_ALL_INTRA,
+#endif
+};
+
 INSTANTIATE_TEST_SUITE_P(All, EncodeAPIParameterized,
                          testing::Combine(
-#if CONFIG_REALTIME_ONLY
-                             /*usage=*/testing::Values(AOM_USAGE_REALTIME),
-#else
-                             /*usage=*/testing::Values(AOM_USAGE_GOOD_QUALITY,
-                                                       AOM_USAGE_REALTIME,
-                                                       AOM_USAGE_ALL_INTRA),
-#endif
+                             /*usage=*/testing::ValuesIn(kUsages),
                              /*speed=*/testing::Values(6, 7, 10),
                              /*aq_mode=*/testing::Values(0, 1, 2, 3)));
 
