@@ -588,13 +588,13 @@ void av1_sum_intra_stats(const AV1_COMMON *const cm, FRAME_COUNTS *counts,
       update_cdf(cdf_v, CFL_IDX_V(idx), CFL_ALPHABET_SIZE);
     }
   }
-  if (av1_is_directional_mode(get_uv_mode(uv_mode)) &&
-      av1_use_angle_delta(bsize)) {
+  const PREDICTION_MODE equiv_mode = get_uv_mode(uv_mode);
+  if (av1_is_directional_mode(equiv_mode) && av1_use_angle_delta(bsize)) {
 #if CONFIG_ENTROPY_STATS
-    ++counts->angle_delta[uv_mode - UV_V_PRED]
+    ++counts->angle_delta[equiv_mode - V_PRED]
                          [mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA];
 #endif
-    update_cdf(fc->angle_delta_cdf[uv_mode - UV_V_PRED],
+    update_cdf(fc->angle_delta_cdf[equiv_mode - V_PRED],
                mbmi->angle_delta[PLANE_TYPE_UV] + MAX_ANGLE_DELTA,
                2 * MAX_ANGLE_DELTA + 1);
   }

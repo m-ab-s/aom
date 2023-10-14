@@ -825,10 +825,10 @@ static void read_intra_frame_mode_info(AV1_COMMON *const cm,
     if (mbmi->uv_mode == UV_CFL_PRED) {
       mbmi->cfl_alpha_idx = read_cfl_alphas(ec_ctx, r, &mbmi->cfl_alpha_signs);
     }
+    const PREDICTION_MODE equiv_mode = get_uv_mode(mbmi->uv_mode);
     mbmi->angle_delta[PLANE_TYPE_UV] =
-        (use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode)))
-            ? read_angle_delta(r,
-                               ec_ctx->angle_delta_cdf[mbmi->uv_mode - V_PRED])
+        (use_angle_delta && av1_is_directional_mode(equiv_mode))
+            ? read_angle_delta(r, ec_ctx->angle_delta_cdf[equiv_mode - V_PRED])
             : 0;
   } else {
     // Avoid decoding angle_info if there is is no chroma prediction
@@ -1086,10 +1086,10 @@ static void read_intra_block_mode_info(AV1_COMMON *const cm,
       mbmi->cfl_alpha_idx =
           read_cfl_alphas(xd->tile_ctx, r, &mbmi->cfl_alpha_signs);
     }
+    const PREDICTION_MODE equiv_mode = get_uv_mode(mbmi->uv_mode);
     mbmi->angle_delta[PLANE_TYPE_UV] =
-        use_angle_delta && av1_is_directional_mode(get_uv_mode(mbmi->uv_mode))
-            ? read_angle_delta(r,
-                               ec_ctx->angle_delta_cdf[mbmi->uv_mode - V_PRED])
+        use_angle_delta && av1_is_directional_mode(equiv_mode)
+            ? read_angle_delta(r, ec_ctx->angle_delta_cdf[equiv_mode - V_PRED])
             : 0;
   } else {
     // Avoid decoding angle_info if there is is no chroma prediction
