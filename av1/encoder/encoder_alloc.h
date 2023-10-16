@@ -27,11 +27,9 @@ extern "C" {
 
 static AOM_INLINE void dealloc_context_buffers_ext(
     MBMIExtFrameBufferInfo *mbmi_ext_info) {
-  if (mbmi_ext_info->frame_base) {
-    aom_free(mbmi_ext_info->frame_base);
-    mbmi_ext_info->frame_base = NULL;
-    mbmi_ext_info->alloc_size = 0;
-  }
+  aom_free(mbmi_ext_info->frame_base);
+  mbmi_ext_info->frame_base = NULL;
+  mbmi_ext_info->alloc_size = 0;
 }
 
 static AOM_INLINE void alloc_context_buffers_ext(
@@ -67,10 +65,8 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
 
   if (!is_stat_generation_stage(cpi)) av1_alloc_txb_buf(cpi);
 
-  if (cpi->td.mb.mv_costs) {
-    aom_free(cpi->td.mb.mv_costs);
-    cpi->td.mb.mv_costs = NULL;
-  }
+  aom_free(cpi->td.mb.mv_costs);
+  cpi->td.mb.mv_costs = NULL;
   // Avoid the memory allocation of 'mv_costs' for allintra encoding mode.
   if (cpi->oxcf.kf_cfg.key_freq_max != 0) {
     CHECK_MEM_ERROR(cm, cpi->td.mb.mv_costs,
@@ -226,15 +222,10 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
 
   release_obmc_buffers(&cpi->td.mb.obmc_buffer);
 
-  if (cpi->td.mb.mv_costs) {
-    aom_free(cpi->td.mb.mv_costs);
-    cpi->td.mb.mv_costs = NULL;
-  }
-
-  if (cpi->td.mb.dv_costs) {
-    aom_free(cpi->td.mb.dv_costs);
-    cpi->td.mb.dv_costs = NULL;
-  }
+  aom_free(cpi->td.mb.mv_costs);
+  cpi->td.mb.mv_costs = NULL;
+  aom_free(cpi->td.mb.dv_costs);
+  cpi->td.mb.dv_costs = NULL;
 
   for (int i = 0; i < 2; i++)
     for (int j = 0; j < 2; j++) {
@@ -247,20 +238,14 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cm->tpl_mvs);
   cm->tpl_mvs = NULL;
 
-  if (cpi->td.pixel_gradient_info) {
-    aom_free(cpi->td.pixel_gradient_info);
-    cpi->td.pixel_gradient_info = NULL;
-  }
+  aom_free(cpi->td.pixel_gradient_info);
+  cpi->td.pixel_gradient_info = NULL;
 
-  if (cpi->td.src_var_info_of_4x4_sub_blocks) {
-    aom_free(cpi->td.src_var_info_of_4x4_sub_blocks);
-    cpi->td.src_var_info_of_4x4_sub_blocks = NULL;
-  }
+  aom_free(cpi->td.src_var_info_of_4x4_sub_blocks);
+  cpi->td.src_var_info_of_4x4_sub_blocks = NULL;
 
-  if (cpi->td.vt64x64) {
-    aom_free(cpi->td.vt64x64);
-    cpi->td.vt64x64 = NULL;
-  }
+  aom_free(cpi->td.vt64x64);
+  cpi->td.vt64x64 = NULL;
 
   av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
   cpi->td.firstpass_ctx = NULL;
@@ -336,15 +321,11 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cpi->svc.layer_context);
   cpi->svc.layer_context = NULL;
 
-  if (cpi->consec_zero_mv) {
-    aom_free(cpi->consec_zero_mv);
-    cpi->consec_zero_mv = NULL;
-  }
+  aom_free(cpi->consec_zero_mv);
+  cpi->consec_zero_mv = NULL;
 
-  if (cpi->src_sad_blk_64x64) {
-    aom_free(cpi->src_sad_blk_64x64);
-    cpi->src_sad_blk_64x64 = NULL;
-  }
+  aom_free(cpi->src_sad_blk_64x64);
+  cpi->src_sad_blk_64x64 = NULL;
 
   aom_free(cpi->mb_weber_stats);
   cpi->mb_weber_stats = NULL;

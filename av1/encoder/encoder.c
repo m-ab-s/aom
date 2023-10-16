@@ -4404,10 +4404,8 @@ void print_internal_stats(AV1_PRIMARY *ppi) {
 
     fclose(f);
 
-    if (ppi->ssim_vars != NULL) {
-      aom_free(ppi->ssim_vars);
-      ppi->ssim_vars = NULL;
-    }
+    aom_free(ppi->ssim_vars);
+    ppi->ssim_vars = NULL;
   }
 }
 #endif  // CONFIG_INTERNAL_STATS

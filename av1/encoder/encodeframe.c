@@ -1244,7 +1244,7 @@ void av1_alloc_tile_data(AV1_COMP *cpi) {
 
   av1_row_mt_mem_dealloc(cpi);
 
-  if (cpi->tile_data != NULL) aom_free(cpi->tile_data);
+  aom_free(cpi->tile_data);
   CHECK_MEM_ERROR(
       cm, cpi->tile_data,
       aom_memalign(32, tile_cols * tile_rows * sizeof(*cpi->tile_data)));

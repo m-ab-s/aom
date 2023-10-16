@@ -5220,7 +5220,7 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
     if (num_configs <= 0) {
       av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
                                  cpi->sf.part_sf.partition_search_type);
-      if (rdcost != NULL) aom_free(rdcost);
+      aom_free(rdcost);
       aom_internal_error(cm->error, AOM_CODEC_ERROR, "Invalid configs.");
     }
     verify_write_partition_tree(cpi, pc_tree, bsize, i, mi_row, mi_col);

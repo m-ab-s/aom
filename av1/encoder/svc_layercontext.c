@@ -70,7 +70,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
         lc->actual_num_seg1_blocks = 0;
         lc->actual_num_seg2_blocks = 0;
         lc->counter_encode_maxq_scene_change = 0;
-        if (lc->map) aom_free(lc->map);
+        aom_free(lc->map);
         CHECK_MEM_ERROR(cm, lc->map,
                         aom_calloc(mi_rows * mi_cols, sizeof(*lc->map)));
       }
@@ -156,7 +156,7 @@ void av1_update_layer_context_change_config(AV1_COMP *const cpi,
         lc->actual_num_seg1_blocks = 0;
         lc->actual_num_seg2_blocks = 0;
         lc->counter_encode_maxq_scene_change = 0;
-        if (lc->map) aom_free(lc->map);
+        aom_free(lc->map);
         CHECK_MEM_ERROR(cm, lc->map,
                         aom_calloc(mi_rows * mi_cols, sizeof(*lc->map)));
       }
@@ -359,7 +359,8 @@ void av1_free_svc_cyclic_refresh(AV1_COMP *const cpi) {
     for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
       int layer = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
       LAYER_CONTEXT *const lc = &svc->layer_context[layer];
-      if (lc->map) aom_free(lc->map);
+      aom_free(lc->map);
+      lc->map = NULL;
     }
   }
 }

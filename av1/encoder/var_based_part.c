@@ -1547,8 +1547,8 @@ static AOM_INLINE bool set_force_zeromv_skip_for_sb(
       uv_sad[0] < thresh_exit_part_uv && uv_sad[1] < thresh_exit_part_uv) {
     set_block_size(cpi, mi_row, mi_col, bsize);
     x->force_zeromv_skip_for_sb = 1;
-    if (vt2) aom_free(vt2);
-    if (vt) aom_free(vt);
+    aom_free(vt2);
+    aom_free(vt);
     // Partition shape is set here at SB level.
     // Exit needs to happen from av1_choose_var_based_partitioning().
     return true;
@@ -1914,8 +1914,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                           ref_frame_partition, mi_col, mi_row, is_small_sb);
   }
 
-  if (vt2) aom_free(vt2);
-  if (vt) aom_free(vt);
+  aom_free(vt2);
+  aom_free(vt);
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, choose_var_based_partitioning_time);
 #endif
