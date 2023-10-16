@@ -621,10 +621,14 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 
   // Preallocate the pc_tree for realtime coding to reduce the cost of memory
   // allocation.
-  thread_data->td->pc_root =
-      cpi->sf.rt_sf.use_nonrd_pick_mode
-          ? av1_alloc_pc_tree_node(cm->seq_params->sb_size)
-          : NULL;
+  if (cpi->sf.rt_sf.use_nonrd_pick_mode) {
+    thread_data->td->pc_root = av1_alloc_pc_tree_node(cm->seq_params->sb_size);
+    if (!thread_data->td->pc_root)
+      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PC_TREE");
+  } else {
+    thread_data->td->pc_root = NULL;
+  }
 
   assert(cur_tile_id != -1);
 
@@ -752,10 +756,14 @@ static int enc_worker_hook(void *arg1, void *unused) {
 
   // Preallocate the pc_tree for realtime coding to reduce the cost of memory
   // allocation.
-  thread_data->td->pc_root =
-      cpi->sf.rt_sf.use_nonrd_pick_mode
-          ? av1_alloc_pc_tree_node(cm->seq_params->sb_size)
-          : NULL;
+  if (cpi->sf.rt_sf.use_nonrd_pick_mode) {
+    thread_data->td->pc_root = av1_alloc_pc_tree_node(cm->seq_params->sb_size);
+    if (!thread_data->td->pc_root)
+      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PC_TREE");
+  } else {
+    thread_data->td->pc_root = NULL;
+  }
 
   for (t = thread_data->start; t < tile_rows * tile_cols;
        t += cpi->mt_info.num_workers) {

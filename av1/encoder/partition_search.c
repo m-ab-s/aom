@@ -1835,6 +1835,9 @@ void av1_rd_use_partition(AV1_COMP *cpi, ThreadData *td, TileDataEnc *tile_data,
 
   for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
     pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
+    if (!pc_tree->split[i])
+      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PC_TREE");
     pc_tree->split[i]->index = i;
   }
   switch (partition) {
@@ -2434,6 +2437,9 @@ static int try_split_partition(AV1_COMP *const cpi, ThreadData *const td,
   for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
     if (!pc_tree->split[i]) {
       pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
+      if (!pc_tree->split[i])
+        aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate PC_TREE");
     }
     pc_tree->split[i]->index = i;
   }
@@ -3038,6 +3044,9 @@ void av1_nonrd_use_partition(AV1_COMP *cpi, ThreadData *td,
       for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
         if (!pc_tree->split[i]) {
           pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
+          if (!pc_tree->split[i])
+            aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                               "Failed to allocate PC_TREE");
         }
         pc_tree->split[i]->index = i;
       }
@@ -4342,6 +4351,9 @@ static void split_partition_search(
   for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
     if (pc_tree->split[i] == NULL)
       pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
+    if (!pc_tree->split[i])
+      aom_internal_error(x->e_mbd.error_info, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PC_TREE");
     pc_tree->split[i]->index = i;
   }
 
@@ -4578,6 +4590,7 @@ static void verify_write_partition_tree(const AV1_COMP *const cpi,
 }
 
 static int read_partition_tree(AV1_COMP *const cpi, PC_TREE *const pc_tree,
+                               struct aom_internal_error_info *error_info,
                                const int config_id) {
   const AV1_COMMON *const cm = &cpi->common;
   const char *path = cpi->oxcf.partition_info_path;
@@ -4617,6 +4630,9 @@ static int read_partition_tree(AV1_COMP *const cpi, PC_TREE *const pc_tree,
       for (int i = 0; i < 4; ++i) {
         if (node != NULL) {  // Suppress warning
           node->split[i] = av1_alloc_pc_tree_node(subsize);
+          if (!node->split[i])
+            aom_internal_error(error_info, AOM_CODEC_MEM_ERROR,
+                               "Failed to allocate PC_TREE");
           node->split[i]->index = i;
           tree_node_queue[last_idx] = node->split[i];
           ++last_idx;
@@ -4780,7 +4796,8 @@ static void update_partition_stats(const RD_STATS *const this_rdcost,
 
 static void build_pc_tree_from_part_decision(
     const aom_partition_decision_t *partition_decision,
-    const BLOCK_SIZE this_bsize, PC_TREE *pc_tree) {
+    const BLOCK_SIZE this_bsize, PC_TREE *pc_tree,
+    struct aom_internal_error_info *error_info) {
   BLOCK_SIZE bsize = this_bsize;
   int num_nodes = partition_decision->num_nodes;
   PC_TREE *tree_node_queue[NUM_NODES] = { NULL };
@@ -4801,6 +4818,9 @@ static void build_pc_tree_from_part_decision(
       for (int i = 0; i < 4; ++i) {
         if (node != NULL) {  // Suppress warning
           node->split[i] = av1_alloc_pc_tree_node(subsize);
+          if (!node->split[i])
+            aom_internal_error(error_info, AOM_CODEC_MEM_ERROR,
+                               "Failed to allocate PC_TREE");
           node->split[i]->index = i;
           tree_node_queue[last_idx] = node->split[i];
           ++last_idx;
@@ -4822,6 +4842,7 @@ static bool ml_partition_search_whole_tree(AV1_COMP *const cpi, ThreadData *td,
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
   ExtPartController *const ext_part_controller = &cpi->ext_part_controller;
+  struct aom_internal_error_info *error_info = x->e_mbd.error_info;
   aom_partition_features_t features;
   prepare_sb_features_before_search(cpi, td, tile_data, mi_row, mi_col, bsize,
                                     &features);
@@ -4843,7 +4864,11 @@ static bool ml_partition_search_whole_tree(AV1_COMP *const cpi, ThreadData *td,
     // We require that the ml model has to provide partition decisions for the
     // whole superblock.
     td->pc_root = av1_alloc_pc_tree_node(bsize);
-    build_pc_tree_from_part_decision(&partition_decision, bsize, td->pc_root);
+    if (!td->pc_root)
+      aom_internal_error(error_info, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PC_TREE");
+    build_pc_tree_from_part_decision(&partition_decision, bsize, td->pc_root,
+                                     error_info);
 
     const RD_STATS this_rdcost = rd_search_for_fixed_partition(
         cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize, td->pc_root);
@@ -5094,6 +5119,9 @@ static bool recursive_partition(AV1_COMP *const cpi, ThreadData *td,
         av1_init_rd_stats(&split_rdc[i]);
         if (pc_tree->split[i] == NULL)
           pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
+        if (!pc_tree->split[i])
+          aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                             "Failed to allocate PC_TREE");
         pc_tree->split[i]->index = i;
       }
       const int orig_rdmult_tmp = x->rdmult;
@@ -5167,6 +5195,9 @@ static bool ml_partition_search_partial(AV1_COMP *const cpi, ThreadData *td,
   features.block_size = bsize;
   av1_ext_part_send_features(ext_part_controller, &features);
   td->pc_root = av1_alloc_pc_tree_node(bsize);
+  if (!td->pc_root)
+    aom_internal_error(x->e_mbd.error_info, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate PC_TREE");
 
   RD_STATS rdcost;
   const bool valid_partition =
@@ -5216,6 +5247,7 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   }
 
   MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
   int best_idx = 0;
   int64_t min_rdcost = INT64_MAX;
   int num_configs;
@@ -5223,7 +5255,10 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   int i = 0;
   do {
     td->pc_root = av1_alloc_pc_tree_node(bsize);
-    num_configs = read_partition_tree(cpi, td->pc_root, i);
+    if (!td->pc_root)
+      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PC_TREE");
+    num_configs = read_partition_tree(cpi, td->pc_root, xd->error_info, i);
     if (i == 0) {
       CHECK_MEM_ERROR(cm, rdcost, aom_calloc(num_configs, sizeof(*rdcost)));
     }
@@ -5253,7 +5288,10 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
 
   // Encode with the partition configuration with the smallest rdcost.
   td->pc_root = av1_alloc_pc_tree_node(bsize);
-  read_partition_tree(cpi, td->pc_root, best_idx);
+  if (!td->pc_root)
+    aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate PC_TREE");
+  read_partition_tree(cpi, td->pc_root, xd->error_info, best_idx);
   rd_search_for_fixed_partition(cpi, td, tile_data, tp, sms_root, mi_row,
                                 mi_col, bsize, td->pc_root);
   set_cb_offsets(x->cb_offset, 0, 0);
@@ -6096,6 +6134,9 @@ void av1_nonrd_pick_partition(AV1_COMP *cpi, ThreadData *td,
 
     for (int i = 0; i < SUB_PARTITIONS_SPLIT; ++i) {
       pc_tree->split[i] = av1_alloc_pc_tree_node(subsize);
+      if (!pc_tree->split[i])
+        aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate PC_TREE");
       pc_tree->split[i]->index = i;
     }
 

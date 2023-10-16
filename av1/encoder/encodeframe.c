@@ -732,6 +732,9 @@ static int sb_qp_sweep(AV1_COMP *const cpi, ThreadData *td,
     cm->mi_params.mi_alloc[alloc_mi_idx].current_qindex = backup_current_qindex;
 
     td->pc_root = av1_alloc_pc_tree_node(bsize);
+    if (!td->pc_root)
+      aom_internal_error(x->e_mbd.error_info, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PC_TREE");
     av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, bsize,
                           &cur_rdc, cur_rdc, td->pc_root, sms_tree, NULL,
                           SB_DRY_PASS, NULL);
@@ -760,6 +763,7 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                     const int seg_skip) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = &td->mb;
+  MACROBLOCKD *const xd = &x->e_mbd;
   const SPEED_FEATURES *const sf = &cpi->sf;
   const TileInfo *const tile_info = &tile_data->tile_info;
   MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
@@ -788,6 +792,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     start_timing(cpi, rd_use_partition_time);
 #endif
     td->pc_root = av1_alloc_pc_tree_node(sb_size);
+    if (!td->pc_root)
+      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PC_TREE");
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                          &dummy_rate, &dummy_dist, 1, td->pc_root);
     av1_free_pc_tree_recursive(td->pc_root, num_planes, 0, 0,
@@ -805,6 +812,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
         seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
     td->pc_root = av1_alloc_pc_tree_node(sb_size);
+    if (!td->pc_root)
+      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PC_TREE");
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
                          &dummy_rate, &dummy_dist, 1, td->pc_root);
     av1_free_pc_tree_recursive(td->pc_root, num_planes, 0, 0,
@@ -875,12 +885,18 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                 mi_col, sb_size, &this_rdc);
       } else {
         td->pc_root = av1_alloc_pc_tree_node(sb_size);
+        if (!td->pc_root)
+          aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                             "Failed to allocate PC_TREE");
         av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
                               &dummy_rdc, dummy_rdc, td->pc_root, sms_root,
                               NULL, SB_SINGLE_PASS, NULL);
       }
 #else
       td->pc_root = av1_alloc_pc_tree_node(sb_size);
+      if (!td->pc_root)
+        aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate PC_TREE");
       av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
                             &dummy_rdc, dummy_rdc, td->pc_root, sms_root, NULL,
                             SB_SINGLE_PASS, NULL);
@@ -893,6 +909,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       av1_backup_sb_state(td->mb.sb_fp_stats, cpi, td, tile_data, mi_row,
                           mi_col);
       td->pc_root = av1_alloc_pc_tree_node(sb_size);
+      if (!td->pc_root)
+        aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate PC_TREE");
       av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
                             &dummy_rdc, dummy_rdc, td->pc_root, sms_root, NULL,
                             SB_DRY_PASS, NULL);
@@ -907,6 +926,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                            mi_col);
 
       td->pc_root = av1_alloc_pc_tree_node(sb_size);
+      if (!td->pc_root)
+        aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate PC_TREE");
       av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
                             &dummy_rdc, dummy_rdc, td->pc_root, sms_root, NULL,
                             SB_WET_PASS, NULL);
@@ -1989,9 +2011,15 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       // Preallocate the pc_tree for realtime coding to reduce the cost of
       // memory allocation.
       const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
-      td->pc_root = use_nonrd_mode
-                        ? av1_alloc_pc_tree_node(cm->seq_params->sb_size)
-                        : NULL;
+      if (use_nonrd_mode) {
+        td->pc_root = av1_alloc_pc_tree_node(cm->seq_params->sb_size);
+        if (!td->pc_root)
+          aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
+                             "Failed to allocate PC_TREE");
+      } else {
+        td->pc_root = NULL;
+      }
+
       encode_tiles(cpi);
       av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                                  cpi->sf.part_sf.partition_search_type);
