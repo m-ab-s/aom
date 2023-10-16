@@ -4032,6 +4032,11 @@ static void prune_4_way_partition_search(
     return;
   }
 
+  BLOCK_SIZE horz_4_bs = get_partition_subsize(bsize, PARTITION_HORZ_4);
+  BLOCK_SIZE vert_4_bs = get_partition_subsize(bsize, PARTITION_VERT_4);
+  if (horz_4_bs == BLOCK_INVALID || vert_4_bs == BLOCK_INVALID)
+    partition4_allowed = false;
+
   PARTITION_TYPE cur_part[NUM_PART4_TYPES] = { PARTITION_HORZ_4,
                                                PARTITION_VERT_4 };
   const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
