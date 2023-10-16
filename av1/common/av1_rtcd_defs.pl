@@ -498,7 +498,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # Global motion
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
     add_proto qw/int64_t av1_calc_frame_error/, "const uint8_t *const ref, int ref_stride, const uint8_t *const dst, int dst_stride, int p_width, int p_height";
-    specialize qw/av1_calc_frame_error sse2 avx2/;
+    specialize qw/av1_calc_frame_error sse2 avx2 neon/;
 
     if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
       add_proto qw/int64_t av1_calc_highbd_frame_error/, "const uint16_t *const ref, int ref_stride, const uint16_t *const dst, int dst_stride, int p_width, int p_height, int bd";

@@ -27,7 +27,7 @@ namespace frame_error_test {
 typedef int64_t (*frame_error_func)(const uint8_t *const ref, int ref_stride,
                                     const uint8_t *const dst, int dst_stride,
                                     int p_width, int p_height);
-#if HAVE_AVX2 || HAVE_SSE2
+#if HAVE_AVX2 || HAVE_SSE2 || HAVE_NEON
 const int kBlockWidth[] = {
   832, 834, 640, 1280, 1920,
 };
@@ -157,6 +157,14 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1FrameErrorTest,
     ::testing::Combine(::testing::Values(&av1_calc_frame_error_avx2),
+                       ::testing::ValuesIn(kBlockWidth),
+                       ::testing::ValuesIn(kBlockHeight)));
+#endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV1FrameErrorTest,
+    ::testing::Combine(::testing::Values(&av1_calc_frame_error_neon),
                        ::testing::ValuesIn(kBlockWidth),
                        ::testing::ValuesIn(kBlockHeight)));
 #endif
