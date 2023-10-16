@@ -523,7 +523,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
   MB_MODE_INFO **mi = cm->mi_params.mi_grid_base +
                       get_mi_grid_idx(&cm->mi_params, mi_row, mi_col);
   const BLOCK_SIZE sb_size = cm->seq_params->sb_size;
-  PC_TREE *const pc_root = td->rt_pc_root;
+  PC_TREE *const pc_root = td->pc_root;
 
 #if CONFIG_RT_ML_PARTITIONING
   if (sf->part_sf.partition_search_type == ML_BASED_PARTITION) {
@@ -731,9 +731,9 @@ static int sb_qp_sweep(AV1_COMP *const cpi, ThreadData *td,
     av1_restore_sb_state(sb_org_stats, cpi, td, tile_data, mi_row, mi_col);
     cm->mi_params.mi_alloc[alloc_mi_idx].current_qindex = backup_current_qindex;
 
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(bsize);
+    td->pc_root = av1_alloc_pc_tree_node(bsize);
     av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, bsize,
-                          &cur_rdc, cur_rdc, pc_root, sms_tree, NULL,
+                          &cur_rdc, cur_rdc, td->pc_root, sms_tree, NULL,
                           SB_DRY_PASS, NULL);
 
     if ((rdc_winner.rdcost > cur_rdc.rdcost) ||
@@ -787,11 +787,12 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, rd_use_partition_time);
 #endif
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+    td->pc_root = av1_alloc_pc_tree_node(sb_size);
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                         &dummy_rate, &dummy_dist, 1, pc_root);
-    av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0,
+                         &dummy_rate, &dummy_dist, 1, td->pc_root);
+    av1_free_pc_tree_recursive(td->pc_root, num_planes, 0, 0,
                                sf->part_sf.partition_search_type);
+    td->pc_root = NULL;
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, rd_use_partition_time);
 #endif
@@ -803,11 +804,12 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
     const BLOCK_SIZE bsize =
         seg_skip ? sb_size : sf->part_sf.fixed_partition_size;
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
-    PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+    td->pc_root = av1_alloc_pc_tree_node(sb_size);
     av1_rd_use_partition(cpi, td, tile_data, mi, tp, mi_row, mi_col, sb_size,
-                         &dummy_rate, &dummy_dist, 1, pc_root);
-    av1_free_pc_tree_recursive(pc_root, num_planes, 0, 0,
+                         &dummy_rate, &dummy_dist, 1, td->pc_root);
+    av1_free_pc_tree_recursive(td->pc_root, num_planes, 0, 0,
                                sf->part_sf.partition_search_type);
+    td->pc_root = NULL;
   } else {
     // The most exhaustive recursive partition search
     SuperBlockEnc *sb_enc = &x->sb_enc;
@@ -872,15 +874,15 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
         av1_rd_partition_search(cpi, td, tile_data, tp, sms_root, mi_row,
                                 mi_col, sb_size, &this_rdc);
       } else {
-        PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+        td->pc_root = av1_alloc_pc_tree_node(sb_size);
         av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                              &dummy_rdc, dummy_rdc, pc_root, sms_root, NULL,
-                              SB_SINGLE_PASS, NULL);
+                              &dummy_rdc, dummy_rdc, td->pc_root, sms_root,
+                              NULL, SB_SINGLE_PASS, NULL);
       }
 #else
-      PC_TREE *const pc_root = av1_alloc_pc_tree_node(sb_size);
+      td->pc_root = av1_alloc_pc_tree_node(sb_size);
       av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                            &dummy_rdc, dummy_rdc, pc_root, sms_root, NULL,
+                            &dummy_rdc, dummy_rdc, td->pc_root, sms_root, NULL,
                             SB_SINGLE_PASS, NULL);
 #endif  // CONFIG_PARTITION_SEARCH_ORDER
     } else {
@@ -890,9 +892,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
           (SB_FIRST_PASS_STATS *)aom_malloc(sizeof(*td->mb.sb_fp_stats)));
       av1_backup_sb_state(td->mb.sb_fp_stats, cpi, td, tile_data, mi_row,
                           mi_col);
-      PC_TREE *const pc_root_p0 = av1_alloc_pc_tree_node(sb_size);
+      td->pc_root = av1_alloc_pc_tree_node(sb_size);
       av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                            &dummy_rdc, dummy_rdc, pc_root_p0, sms_root, NULL,
+                            &dummy_rdc, dummy_rdc, td->pc_root, sms_root, NULL,
                             SB_DRY_PASS, NULL);
 
       // Second pass
@@ -904,9 +906,9 @@ static AOM_INLINE void encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
       av1_restore_sb_state(td->mb.sb_fp_stats, cpi, td, tile_data, mi_row,
                            mi_col);
 
-      PC_TREE *const pc_root_p1 = av1_alloc_pc_tree_node(sb_size);
+      td->pc_root = av1_alloc_pc_tree_node(sb_size);
       av1_rd_pick_partition(cpi, td, tile_data, tp, mi_row, mi_col, sb_size,
-                            &dummy_rdc, dummy_rdc, pc_root_p1, sms_root, NULL,
+                            &dummy_rdc, dummy_rdc, td->pc_root, sms_root, NULL,
                             SB_WET_PASS, NULL);
       aom_free(td->mb.sb_fp_stats);
       td->mb.sb_fp_stats = NULL;
@@ -1987,12 +1989,13 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       // Preallocate the pc_tree for realtime coding to reduce the cost of
       // memory allocation.
       const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
-      td->rt_pc_root = use_nonrd_mode
-                           ? av1_alloc_pc_tree_node(cm->seq_params->sb_size)
-                           : NULL;
+      td->pc_root = use_nonrd_mode
+                        ? av1_alloc_pc_tree_node(cm->seq_params->sb_size)
+                        : NULL;
       encode_tiles(cpi);
-      av1_free_pc_tree_recursive(td->rt_pc_root, av1_num_planes(cm), 0, 0,
+      av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                                  cpi->sf.part_sf.partition_search_type);
+      td->pc_root = NULL;
     }
   }
 

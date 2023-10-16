@@ -621,7 +621,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 
   // Preallocate the pc_tree for realtime coding to reduce the cost of memory
   // allocation.
-  thread_data->td->rt_pc_root =
+  thread_data->td->pc_root =
       cpi->sf.rt_sf.use_nonrd_pick_mode
           ? av1_alloc_pc_tree_node(cm->seq_params->sb_size)
           : NULL;
@@ -720,8 +720,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     // encoding and loop filter stage.
     launch_loop_filter_rows(cm, thread_data, enc_row_mt, mib_size_log2);
   }
-  av1_free_pc_tree_recursive(thread_data->td->rt_pc_root, av1_num_planes(cm), 0,
-                             0, cpi->sf.part_sf.partition_search_type);
+  av1_free_pc_tree_recursive(thread_data->td->pc_root, av1_num_planes(cm), 0, 0,
+                             cpi->sf.part_sf.partition_search_type);
+  thread_data->td->pc_root = NULL;
   error_info->setjmp = 0;
   return 1;
 }
@@ -751,7 +752,7 @@ static int enc_worker_hook(void *arg1, void *unused) {
 
   // Preallocate the pc_tree for realtime coding to reduce the cost of memory
   // allocation.
-  thread_data->td->rt_pc_root =
+  thread_data->td->pc_root =
       cpi->sf.rt_sf.use_nonrd_pick_mode
           ? av1_alloc_pc_tree_node(cm->seq_params->sb_size)
           : NULL;
@@ -768,9 +769,9 @@ static int enc_worker_hook(void *arg1, void *unused) {
     av1_encode_tile(cpi, thread_data->td, tile_row, tile_col);
   }
 
-  av1_free_pc_tree_recursive(thread_data->td->rt_pc_root, av1_num_planes(cm), 0,
-                             0, cpi->sf.part_sf.partition_search_type);
-
+  av1_free_pc_tree_recursive(thread_data->td->pc_root, av1_num_planes(cm), 0, 0,
+                             cpi->sf.part_sf.partition_search_type);
+  thread_data->td->pc_root = NULL;
   error_info->setjmp = 0;
   return 1;
 }

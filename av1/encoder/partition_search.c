@@ -4831,7 +4831,6 @@ static bool ml_partition_search_whole_tree(AV1_COMP *const cpi, ThreadData *td,
   features.frame_height = cpi->frame_info.frame_height;
   features.block_size = bsize;
   av1_ext_part_send_features(ext_part_controller, &features);
-  PC_TREE *pc_tree;
 
   // rd mode search (dry run) for a valid partition decision from the ml model.
   aom_partition_decision_t partition_decision;
@@ -4843,26 +4842,28 @@ static bool ml_partition_search_whole_tree(AV1_COMP *const cpi, ThreadData *td,
     // First, let's take the easy approach.
     // We require that the ml model has to provide partition decisions for the
     // whole superblock.
-    pc_tree = av1_alloc_pc_tree_node(bsize);
-    build_pc_tree_from_part_decision(&partition_decision, bsize, pc_tree);
+    td->pc_root = av1_alloc_pc_tree_node(bsize);
+    build_pc_tree_from_part_decision(&partition_decision, bsize, td->pc_root);
 
     const RD_STATS this_rdcost = rd_search_for_fixed_partition(
-        cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize, pc_tree);
+        cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize, td->pc_root);
     aom_partition_stats_t stats;
     update_partition_stats(&this_rdcost, &stats);
     av1_ext_part_send_partition_stats(ext_part_controller, &stats);
     if (!partition_decision.is_final_decision) {
-      av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+      av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                                  cpi->sf.part_sf.partition_search_type);
+      td->pc_root = NULL;
     }
   } while (!partition_decision.is_final_decision);
 
   // Encode with the selected mode and partition.
   set_cb_offsets(x->cb_offset, 0, 0);
   encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
-            pc_tree, NULL);
-  av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+            td->pc_root, NULL);
+  av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                              cpi->sf.part_sf.partition_search_type);
+  td->pc_root = NULL;
 
   return true;
 }
@@ -5165,12 +5166,11 @@ static bool ml_partition_search_partial(AV1_COMP *const cpi, ThreadData *td,
   features.frame_height = cpi->frame_info.frame_height;
   features.block_size = bsize;
   av1_ext_part_send_features(ext_part_controller, &features);
-  PC_TREE *pc_tree;
-  pc_tree = av1_alloc_pc_tree_node(bsize);
+  td->pc_root = av1_alloc_pc_tree_node(bsize);
 
   RD_STATS rdcost;
   const bool valid_partition =
-      recursive_partition(cpi, td, tile_data, tp, sms_root, pc_tree, mi_row,
+      recursive_partition(cpi, td, tile_data, tp, sms_root, td->pc_root, mi_row,
                           mi_col, bsize, &rdcost);
   if (!valid_partition) {
     return false;
@@ -5179,9 +5179,10 @@ static bool ml_partition_search_partial(AV1_COMP *const cpi, ThreadData *td,
   // Encode with the selected mode and partition.
   set_cb_offsets(x->cb_offset, 0, 0);
   encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
-            pc_tree, NULL);
-  av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+            td->pc_root, NULL);
+  av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                              cpi->sf.part_sf.partition_search_type);
+  td->pc_root = NULL;
 
   return true;
 }
@@ -5221,43 +5222,46 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   RD_STATS *rdcost = NULL;
   int i = 0;
   do {
-    PC_TREE *const pc_tree = av1_alloc_pc_tree_node(bsize);
-    num_configs = read_partition_tree(cpi, pc_tree, i);
+    td->pc_root = av1_alloc_pc_tree_node(bsize);
+    num_configs = read_partition_tree(cpi, td->pc_root, i);
     if (i == 0) {
       CHECK_MEM_ERROR(cm, rdcost, aom_calloc(num_configs, sizeof(*rdcost)));
     }
     if (num_configs <= 0) {
-      av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+      av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                                  cpi->sf.part_sf.partition_search_type);
+      td->pc_root = NULL;
       aom_free(rdcost);
       aom_internal_error(cm->error, AOM_CODEC_ERROR, "Invalid configs.");
     }
-    verify_write_partition_tree(cpi, pc_tree, bsize, i, mi_row, mi_col);
+    verify_write_partition_tree(cpi, td->pc_root, bsize, i, mi_row, mi_col);
     // Encode the block with the given partition tree. Get rdcost and encoding
     // time.
-    rdcost[i] = rd_search_for_fixed_partition(cpi, td, tile_data, tp, sms_root,
-                                              mi_row, mi_col, bsize, pc_tree);
+    rdcost[i] = rd_search_for_fixed_partition(
+        cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize, td->pc_root);
 
     if (rdcost[i].rdcost < min_rdcost) {
       min_rdcost = rdcost[i].rdcost;
       best_idx = i;
       *best_rd_cost = rdcost[i];
     }
-    av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+    av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                                cpi->sf.part_sf.partition_search_type);
+    td->pc_root = NULL;
     ++i;
   } while (i < num_configs);
 
   // Encode with the partition configuration with the smallest rdcost.
-  PC_TREE *const pc_tree = av1_alloc_pc_tree_node(bsize);
-  read_partition_tree(cpi, pc_tree, best_idx);
+  td->pc_root = av1_alloc_pc_tree_node(bsize);
+  read_partition_tree(cpi, td->pc_root, best_idx);
   rd_search_for_fixed_partition(cpi, td, tile_data, tp, sms_root, mi_row,
-                                mi_col, bsize, pc_tree);
+                                mi_col, bsize, td->pc_root);
   set_cb_offsets(x->cb_offset, 0, 0);
   encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, OUTPUT_ENABLED, bsize,
-            pc_tree, NULL);
-  av1_free_pc_tree_recursive(pc_tree, av1_num_planes(cm), 0, 0,
+            td->pc_root, NULL);
+  av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                              cpi->sf.part_sf.partition_search_type);
+  td->pc_root = NULL;
   aom_free(rdcost);
   ++cpi->sb_counter;
 
@@ -5730,9 +5734,12 @@ BEGIN_PARTITION_SEARCH:
       set_cb_offsets(x->cb_offset, 0, 0);
       encode_sb(cpi, td, tile_data, tp, mi_row, mi_col, run_type, bsize,
                 pc_tree, NULL);
+      assert(pc_tree == td->pc_root);
       // Dealloc the whole PC_TREE after a superblock is done.
       av1_free_pc_tree_recursive(pc_tree, num_planes, 0, 0,
                                  cpi->sf.part_sf.partition_search_type);
+      pc_tree = NULL;
+      td->pc_root = NULL;
       pc_tree_dealloc = 1;
     } else if (should_do_dry_run_encode_for_current_block(
                    cm->seq_params->sb_size, x->sb_enc.max_partition_size,
