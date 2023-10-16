@@ -1028,10 +1028,10 @@ static AOM_INLINE void write_intra_prediction_modes(const AV1_COMMON *cm,
     write_intra_uv_mode(ec_ctx, uv_mode, mode, is_cfl_allowed(xd), w);
     if (uv_mode == UV_CFL_PRED)
       write_cfl_alphas(ec_ctx, mbmi->cfl_alpha_idx, mbmi->cfl_alpha_signs, w);
-    const PREDICTION_MODE equiv_mode = get_uv_mode(uv_mode);
-    if (use_angle_delta && av1_is_directional_mode(equiv_mode)) {
+    const PREDICTION_MODE intra_mode = get_uv_mode(uv_mode);
+    if (use_angle_delta && av1_is_directional_mode(intra_mode)) {
       write_angle_delta(w, mbmi->angle_delta[PLANE_TYPE_UV],
-                        ec_ctx->angle_delta_cdf[equiv_mode - V_PRED]);
+                        ec_ctx->angle_delta_cdf[intra_mode - V_PRED]);
     }
   }
 
