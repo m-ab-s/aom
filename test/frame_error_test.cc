@@ -183,7 +183,7 @@ const int kBlockWidth[] = {
 const int kBlockHeight[] = {
   480, 482, 360, 720, 1080,
 };
-#if HAVE_AVX2 || HAVE_SSE2
+#if HAVE_AVX2 || HAVE_SSE2 || HAVE_NEON
 const int kBitDepths[] = { 8, 10, 12 };
 #endif
 typedef std::tuple<highbd_frame_error_func, int, int, int>
@@ -322,6 +322,15 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdFrameErrorTest,
     ::testing::Combine(::testing::Values(&av1_calc_highbd_frame_error_avx2),
+                       ::testing::ValuesIn(kBlockWidth),
+                       ::testing::ValuesIn(kBlockHeight),
+                       ::testing::ValuesIn(kBitDepths)));
+#endif
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, AV1HighbdFrameErrorTest,
+    ::testing::Combine(::testing::Values(&av1_calc_highbd_frame_error_neon),
                        ::testing::ValuesIn(kBlockWidth),
                        ::testing::ValuesIn(kBlockHeight),
                        ::testing::ValuesIn(kBitDepths)));
