@@ -486,6 +486,7 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_avx2.c")
 
   list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
+              "${AOM_ROOT}/av1/encoder/arm/neon/highbd_pickrst_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/neon/highbd_rdopt_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/neon/highbd_temporal_filter_neon.c")
 endif()
