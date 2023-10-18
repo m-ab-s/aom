@@ -685,6 +685,7 @@ typedef struct PARTITION_SPEED_FEATURES {
   int intra_cnn_based_part_prune_level;
 
   // Disable extended partition search for lower block sizes.
+  // Must be a square block size BLOCK_8X8 or higher.
   int ext_partition_eval_thresh;
 
   // Use best partition decision so far to tune 'ext_partition_eval_thresh'

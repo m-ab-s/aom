@@ -4017,6 +4017,7 @@ static void prune_4_way_partition_search(
   if (cpi->sf.part_sf.ext_part_eval_based_on_cur_best &&
       !x->must_find_valid_partition && pc_tree->partitioning == PARTITION_NONE)
     part4_min_bsize_allowed = BLOCK_128X128;
+  assert(part4_min_bsize_allowed >= BLOCK_8X8);
 
   bool partition4_allowed = part_search_state->do_rectangular_split &&
                             bsize > part4_min_bsize_allowed &&
