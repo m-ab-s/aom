@@ -1484,10 +1484,11 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
     max_mi_rows = size_in_mi(oxcf->frm_dim_cfg.forced_max_frame_height);
   }
 
-  CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
-                  aom_calloc((max_mi_rows * max_mi_cols) >> 2,
-                             sizeof(*cpi->consec_zero_mv)));
-  cpi->consec_zero_mv_alloc_size = (max_mi_rows * max_mi_cols) >> 2;
+  const int consec_zero_mv_alloc_size = (max_mi_rows * max_mi_cols) >> 2;
+  CHECK_MEM_ERROR(
+      cm, cpi->consec_zero_mv,
+      aom_calloc(consec_zero_mv_alloc_size, sizeof(*cpi->consec_zero_mv)));
+  cpi->consec_zero_mv_alloc_size = consec_zero_mv_alloc_size;
 
   cpi->mb_weber_stats = NULL;
   cpi->mb_delta_q = NULL;
@@ -2564,18 +2565,18 @@ static int encode_without_recode(AV1_COMP *cpi) {
       cm, unscaled, &cpi->scaled_source, filter_scaler, phase_scaler, true,
       false, cpi->oxcf.border_in_pixels, cpi->image_pyramid_levels);
   if (frame_is_intra_only(cm) || resize_pending != 0) {
-    const int current_size = cm->mi_params.mi_rows * cm->mi_params.mi_cols >> 2;
+    const int current_size =
+        (cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2;
     if (cpi->consec_zero_mv &&
         (cpi->consec_zero_mv_alloc_size < current_size)) {
       aom_free(cpi->consec_zero_mv);
+      cpi->consec_zero_mv_alloc_size = 0;
       CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,
-                      aom_calloc(current_size, sizeof(*cpi->consec_zero_mv)));
+                      aom_malloc(current_size * sizeof(*cpi->consec_zero_mv)));
+      cpi->consec_zero_mv_alloc_size = current_size;
     }
     assert(cpi->consec_zero_mv != NULL);
-    memset(cpi->consec_zero_mv, 0,
-           ((cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2) *
-               sizeof(*cpi->consec_zero_mv));
-    cpi->consec_zero_mv_alloc_size = current_size;
+    memset(cpi->consec_zero_mv, 0, current_size * sizeof(*cpi->consec_zero_mv));
   }
 
   if (cpi->unscaled_last_source != NULL) {
