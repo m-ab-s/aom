@@ -506,7 +506,7 @@ double av1_estimate_noise_from_single_plane_neon(const uint8_t *src, int height,
       src_ptr += 4;
     }
 
-    while (w != width - 1) {
+    while (w < width - 1) {
       int mat[3][3];
       mat[0][0] = *(src_ptr - stride - 1);
       mat[0][1] = *(src_ptr - stride);
@@ -537,7 +537,7 @@ double av1_estimate_noise_from_single_plane_neon(const uint8_t *src, int height,
       w++;
     }
     src_start += stride;
-  } while (++h != height - 1);
+  } while (++h < height - 1);
 
   // We counted negatively, so subtract to get the final value.
   final_count -= horizontal_add_s32x4(count);

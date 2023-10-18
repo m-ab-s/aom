@@ -396,12 +396,12 @@ TEST_P(EstimateNoiseTest, RandomValues) { RunTest(1); }
 
 TEST_P(EstimateNoiseTest, DISABLED_Speed) { SpeedTest(2000); }
 
-#if HAVE_AVX2
+#if HAVE_AVX2 || HAVE_NEON
 // Width and height for which av1_estimate_noise_from_single_plane() will be
 // tested.
 const int kWidths[] = { 3840, 1920, 1280, 800, 640, 360, 357 };
 const int kHeights[] = { 2160, 1080, 720, 600, 480, 240, 237 };
-#endif  // HAVE_AVX2
+#endif  // HAVE_AVX2 || HAVE_NEON
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
@@ -412,8 +412,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(kWidths), ::testing::ValuesIn(kHeights)));
 #endif  // HAVE_AVX2
 
-// TODO(aomedia:3501): enable test after segfault is fixed.
-#if 0   // HAVE_NEON
+#if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, EstimateNoiseTest,
     ::testing::Combine(
