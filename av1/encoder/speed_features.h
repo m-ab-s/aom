@@ -686,7 +686,7 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Disable extended partition search for lower block sizes.
   // Must be a square block size BLOCK_8X8 or higher.
-  int ext_partition_eval_thresh;
+  BLOCK_SIZE ext_partition_eval_thresh;
 
   // Use best partition decision so far to tune 'ext_partition_eval_thresh'
   int ext_part_eval_based_on_cur_best;

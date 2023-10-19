@@ -3616,7 +3616,7 @@ static void rd_pick_ab_part(
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const int mi_row = blk_params.mi_row;
   const int mi_col = blk_params.mi_col;
-  const int bsize = blk_params.bsize;
+  const BLOCK_SIZE bsize = blk_params.bsize;
   int64_t this_rdcost = 0;
 
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -3726,7 +3726,7 @@ static void ab_partitions_search(
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const int mi_row = blk_params.mi_row;
   const int mi_col = blk_params.mi_col;
-  const int bsize = blk_params.bsize;
+  const BLOCK_SIZE bsize = blk_params.bsize;
 
   if (part_search_state->terminate_partition_search) {
     return;
@@ -3935,7 +3935,7 @@ static void rd_pick_4partition(
 // Do not evaluate extended partitions if NONE partition is skippable.
 static INLINE int prune_ext_part_none_skippable(
     PICK_MODE_CONTEXT *part_none, int must_find_valid_partition,
-    int skip_non_sq_part_based_on_none, int bsize) {
+    int skip_non_sq_part_based_on_none, BLOCK_SIZE bsize) {
   if ((skip_non_sq_part_based_on_none >= 1) && (part_none != NULL)) {
     if (part_none->skippable && !must_find_valid_partition &&
         bsize >= BLOCK_16X16) {
@@ -3953,13 +3953,13 @@ static int allow_ab_partition_search(PartitionSearchState *part_search_state,
                                      int prune_ext_part_state,
                                      int64_t best_rdcost) {
   const PartitionBlkParams blk_params = part_search_state->part_blk_params;
-  const int bsize = blk_params.bsize;
+  const BLOCK_SIZE bsize = blk_params.bsize;
 
   // Do not prune if there is no valid partition
   if (best_rdcost == INT64_MAX) return 1;
 
   // Determine min bsize to evaluate ab partitions
-  int ab_min_bsize_allowed = part_sf->ext_partition_eval_thresh;
+  BLOCK_SIZE ab_min_bsize_allowed = part_sf->ext_partition_eval_thresh;
   if (part_sf->ext_part_eval_based_on_cur_best && !must_find_valid_partition &&
       !(curr_best_part == PARTITION_HORZ || curr_best_part == PARTITION_VERT))
     ab_min_bsize_allowed = BLOCK_128X128;
@@ -4007,13 +4007,14 @@ static void prune_4_way_partition_search(
     int pb_source_variance, int prune_ext_part_state,
     int part4_search_allowed[NUM_PART4_TYPES]) {
   const PartitionBlkParams blk_params = part_search_state->part_blk_params;
-  const int bsize = blk_params.bsize;
+  const BLOCK_SIZE bsize = blk_params.bsize;
 
   // Do not prune if there is no valid partition
   if (best_rdc->rdcost == INT64_MAX) return;
 
   // Determine min bsize to evaluate 4-way partitions
-  int part4_min_bsize_allowed = cpi->sf.part_sf.ext_partition_eval_thresh;
+  BLOCK_SIZE part4_min_bsize_allowed =
+      cpi->sf.part_sf.ext_partition_eval_thresh;
   if (cpi->sf.part_sf.ext_part_eval_based_on_cur_best &&
       !x->must_find_valid_partition && pc_tree->partitioning == PARTITION_NONE)
     part4_min_bsize_allowed = BLOCK_128X128;
@@ -4321,7 +4322,7 @@ static void split_partition_search(
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int mi_row = blk_params.mi_row;
   const int mi_col = blk_params.mi_col;
-  const int bsize = blk_params.bsize;
+  const BLOCK_SIZE bsize = blk_params.bsize;
   assert(bsize < BLOCK_SIZES_ALL);
   RD_STATS sum_rdc = part_search_state->sum_rdc;
   const BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_SPLIT);

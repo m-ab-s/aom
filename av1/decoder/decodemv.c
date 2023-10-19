@@ -311,7 +311,7 @@ static int dec_get_segment_id(const AV1_COMMON *cm, const uint8_t *segment_ids,
 }
 
 static int read_intra_segment_id(AV1_COMMON *const cm,
-                                 const MACROBLOCKD *const xd, int bsize,
+                                 const MACROBLOCKD *const xd, BLOCK_SIZE bsize,
                                  aom_reader *r, int skip) {
   struct segmentation *const seg = &cm->seg;
   if (!seg->enabled) return 0;  // Default for disabled segmentation

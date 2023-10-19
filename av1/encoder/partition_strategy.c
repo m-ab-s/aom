@@ -108,7 +108,7 @@ static void write_features_to_file(const char *const path,
                                    const bool is_test_mode,
                                    const float *features,
                                    const int feature_size, const int id,
-                                   const int bsize, const int mi_row,
+                                   const BLOCK_SIZE bsize, const int mi_row,
                                    const int mi_col) {
   if (!WRITE_FEATURE_TO_FILE && !is_test_mode) return;
 
@@ -118,7 +118,8 @@ static void write_features_to_file(const char *const path,
   FILE *pfile = fopen(filename, "a");
   if (pfile == NULL) return;
   if (!is_test_mode) {
-    fprintf(pfile, "%d,%d,%d,%d,%d\n", id, bsize, mi_row, mi_col, feature_size);
+    fprintf(pfile, "%d,%d,%d,%d,%d\n", id, (int)bsize, mi_row, mi_col,
+            feature_size);
   }
   for (int i = 0; i < feature_size; ++i) {
     fprintf(pfile, "%.6f", features[i]);
@@ -1212,7 +1213,7 @@ void av1_ml_prune_ab_partition(AV1_COMP *const cpi, int part_ctx, int var_ctx,
   const PartitionBlkParams blk_params = part_state->part_blk_params;
   const int mi_row = blk_params.mi_row;
   const int mi_col = blk_params.mi_col;
-  const int bsize = blk_params.bsize;
+  const BLOCK_SIZE bsize = blk_params.bsize;
 
   if (bsize < BLOCK_8X8 || best_rd >= 1000000000) return;
   const NN_CONFIG *nn_config = NULL;
@@ -1315,7 +1316,7 @@ void av1_ml_prune_4_partition(AV1_COMP *const cpi, MACROBLOCK *const x,
   const PartitionBlkParams blk_params = part_state->part_blk_params;
   const int mi_row = blk_params.mi_row;
   const int mi_col = blk_params.mi_col;
-  const int bsize = blk_params.bsize;
+  const BLOCK_SIZE bsize = blk_params.bsize;
 
   int64_t(*rect_part_rd)[SUB_PARTITIONS_RECT] = part_state->rect_part_rd;
   int64_t *split_rd = part_state->split_rd;

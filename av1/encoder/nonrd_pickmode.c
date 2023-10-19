@@ -1672,7 +1672,7 @@ static AOM_INLINE int is_same_gf_and_last_scale(AV1_COMMON *cm) {
 
 static AOM_INLINE void get_ref_frame_use_mask(AV1_COMP *cpi, MACROBLOCK *x,
                                               MB_MODE_INFO *mi, int mi_row,
-                                              int mi_col, int bsize,
+                                              int mi_col, BLOCK_SIZE bsize,
                                               int gf_temporal_ref,
                                               int use_ref_frame[],
                                               int *force_skip_low_temp_var) {

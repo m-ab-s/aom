@@ -1278,7 +1278,7 @@ AV1_PRIMARY *av1_create_primary_compressor(
     enc_set_mb_mi(&mi_params, oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
                   BLOCK_4X4);
 
-    const int bsize = BLOCK_16X16;
+    const BLOCK_SIZE bsize = BLOCK_16X16;
     const int w = mi_size_wide[bsize];
     const int h = mi_size_high[bsize];
     const int num_cols = (mi_params.mi_cols + w - 1) / w;
@@ -1495,7 +1495,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   cpi->palette_pixel_num = 0;
 
   {
-    const int bsize = BLOCK_16X16;
+    const BLOCK_SIZE bsize = BLOCK_16X16;
     const int w = mi_size_wide[bsize];
     const int h = mi_size_high[bsize];
     const int num_cols = (max_mi_cols + w - 1) / w;
@@ -1510,7 +1510,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
 
 #if CONFIG_TUNE_VMAF
   {
-    const int bsize = BLOCK_64X64;
+    const BLOCK_SIZE bsize = BLOCK_64X64;
     const int w = mi_size_wide[bsize];
     const int h = mi_size_high[bsize];
     const int num_cols = (mi_params->mi_cols + w - 1) / w;
