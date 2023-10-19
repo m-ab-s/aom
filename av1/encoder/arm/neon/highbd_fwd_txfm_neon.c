@@ -314,27 +314,30 @@ static AOM_FORCE_INLINE void highbd_fdct4_xn_neon(const int32x4_t *in,
                                                   int32x4_t *out, int bit,
                                                   int howmany) {
   const int stride = 4;
-  for (int i = 0; i < howmany; ++i) {
+  int i = 0;
+  do {
     highbd_fdct4_x4_neon(in + i * stride, out + i * stride, bit);
-  }
+  } while (++i < howmany);
 }
 
 static AOM_FORCE_INLINE void highbd_fadst4_xn_neon(const int32x4_t *in,
                                                    int32x4_t *out, int bit,
                                                    int howmany) {
   const int stride = 4;
-  for (int i = 0; i < howmany; ++i) {
+  int i = 0;
+  do {
     highbd_fadst4_x4_neon(in + i * stride, out + i * stride, bit);
-  }
+  } while (++i < howmany);
 }
 
 static AOM_FORCE_INLINE void highbd_fidentity4_xn_neon(const int32x4_t *in,
                                                        int32x4_t *out, int bit,
                                                        int howmany) {
   const int stride = 4;
-  for (int i = 0; i < howmany; ++i) {
+  int i = 0;
+  do {
     highbd_fidentity4_x4_neon(in + i * stride, out + i * stride, bit);
-  }
+  } while (++i < howmany);
 }
 
 void av1_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *coeff,
@@ -701,18 +704,20 @@ static AOM_FORCE_INLINE void highbd_fdct8_xn_neon(const int32x4_t *in,
                                                   int32x4_t *out, int bit,
                                                   int howmany) {
   const int stride = 8;
-  for (int i = 0; i < howmany; ++i) {
+  int i = 0;
+  do {
     highbd_fdct8_x4_neon(in + i * stride, out + i * stride, bit);
-  }
+  } while (++i < howmany);
 }
 
 static AOM_FORCE_INLINE void highbd_fadst8_xn_neon(const int32x4_t *in,
                                                    int32x4_t *out, int bit,
                                                    int howmany) {
   const int stride = 8;
-  for (int i = 0; i < howmany; ++i) {
+  int i = 0;
+  do {
     highbd_fadst8_x4_neon(in + i * stride, out + i * stride, bit);
-  }
+  } while (++i < howmany);
 }
 
 static AOM_FORCE_INLINE void highbd_fidentity8_xn_neon(const int32x4_t *in,
@@ -720,9 +725,10 @@ static AOM_FORCE_INLINE void highbd_fidentity8_xn_neon(const int32x4_t *in,
                                                        int howmany) {
   (void)bit;
   const int stride = 8;
-  for (int i = 0; i < howmany; ++i) {
+  int i = 0;
+  do {
     highbd_fidentity8_x4_neon(in + i * stride, out + i * stride, bit);
-  }
+  } while (++i < howmany);
 }
 
 void av1_fwd_txfm2d_8x8_neon(const int16_t *input, int32_t *coeff, int stride,
@@ -887,7 +893,8 @@ static void highbd_fdct16_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
 
   // Calculate the column 0, 1, 2, 3
   const int stride = 16;
-  for (int col = 0; col < howmany; ++col) {
+  int col = 0;
+  do {
     // stage 0
     // stage 1
     u[0] = vaddq_s32(in[0 + col * stride], in[15 + col * stride]);
@@ -1094,7 +1101,7 @@ static void highbd_fdct16_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
     out[13 + col * stride] = v[11];
     out[14 + col * stride] = v[7];
     out[15 + col * stride] = v[15];
-  }
+  } while (++col < howmany);
 }
 
 static void highbd_fadst16_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
@@ -1106,7 +1113,8 @@ static void highbd_fadst16_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
   int32x4_t u[16], v[16], x, y;
 
   const int stride = 16;
-  for (int col = 0; col < howmany; ++col) {
+  int col = 0;
+  do {
     // stage 0-1
     u[0] = in[0 + col * stride];
     u[1] = vnegq_s32(in[15 + col * stride]);
@@ -1282,7 +1290,7 @@ static void highbd_fadst16_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
     out[13 + col * stride] = v[2];
     out[14 + col * stride] = v[15];
     out[15 + col * stride] = v[0];
-  }
+  } while (++col < howmany);
 }
 
 static void highbd_fidentity16_xn_neon(const int32x4_t *in, int32x4_t *out,
