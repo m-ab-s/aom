@@ -102,18 +102,27 @@ static INLINE void butterfly_0130_neon(const int32_t *cospi, const int widx0,
   butterfly_half_neon(w01, 3, 0, n0, n1, out1, v_bit);
 }
 
-static INLINE void av1_round_shift_rect_array_32_neon(const int32x4_t *input,
-                                                      int32x4_t *output,
-                                                      const int size,
-                                                      const int bit,
-                                                      const int val) {
-  const int32x4_t sqrt2 = vdupq_n_s32(val);
-  const int32x4_t v_bit = vdupq_n_s32(-bit);
-  for (int i = 0; i < size; i++) {
-    const int32x4_t r0 = vrshlq_s32(input[i], v_bit);
-    const int32x4_t r1 = vmulq_s32(sqrt2, r0);
+static INLINE void round_rect_array_s32_neon(const int32x4_t *input,
+                                             int32x4_t *output,
+                                             const int size) {
+  const int32x4_t sqrt2 = vdupq_n_s32(NewSqrt2);
+  int i = 0;
+  do {
+    const int32x4_t r1 = vmulq_s32(input[i], sqrt2);
     output[i] = vrshrq_n_s32(r1, NewSqrt2Bits);
-  }
+  } while (++i < size);
+}
+
+static INLINE void round_shift2_rect_array_s32_neon(const int32x4_t *input,
+                                                    int32x4_t *output,
+                                                    const int size) {
+  const int32x4_t sqrt2 = vdupq_n_s32(NewSqrt2);
+  int i = 0;
+  do {
+    const int32x4_t r0 = vrshrq_n_s32(input[i], 2);
+    const int32x4_t r1 = vmulq_s32(r0, sqrt2);
+    output[i] = vrshrq_n_s32(r1, NewSqrt2Bits);
+  } while (++i < size);
 }
 
 #define LOAD_BUFFER_4XH(w, h)                                        \
@@ -2630,7 +2639,7 @@ void av1_fwd_txfm2d_16x8_neon(const int16_t *input, int32_t *coeff, int stride,
   transpose_arrays_s32_16x8(buf0, buf1);
 
   row_txfm(buf1, buf1, bit, 2);
-  av1_round_shift_rect_array_32_neon(buf1, buf1, 32, 0, NewSqrt2);
+  round_rect_array_s32_neon(buf1, buf1, 32);
   store_buffer_16x8(buf1, coeff);
 }
 
@@ -2654,7 +2663,7 @@ void av1_fwd_txfm2d_8x16_neon(const int16_t *input, int32_t *coeff, int stride,
   transpose_arrays_s32_8x16(buf0, buf1);
 
   row_txfm(buf1, buf1, bit, 4);
-  av1_round_shift_rect_array_32_neon(buf1, buf1, 32, 0, NewSqrt2);
+  round_rect_array_s32_neon(buf1, buf1, 32);
   store_buffer_8x16(buf1, coeff);
 }
 
@@ -2731,7 +2740,7 @@ void av1_fwd_txfm2d_16x32_neon(const int16_t *input, int32_t *coeff, int stride,
 
   // Row-wise transform.
   row_txfm(buf1, buf1, bitrow, 8);
-  av1_round_shift_rect_array_32_neon(buf1, buf1, 128, 0, NewSqrt2);
+  round_rect_array_s32_neon(buf1, buf1, 128);
   store_buffer_16x32(buf1, coeff);
 }
 
@@ -2757,7 +2766,7 @@ void av1_fwd_txfm2d_32x64_neon(const int16_t *input, int32_t *coeff, int stride,
   for (int i = 0; i < 16; i++) {
     highbd_fdct32_x4_neon(buf1 + i * 32, buf1 + i * 32, bitrow);
   }
-  av1_round_shift_rect_array_32_neon(buf1, buf1, 512, 2, NewSqrt2);
+  round_shift2_rect_array_s32_neon(buf1, buf1, 512);
   store_buffer_32x32(buf1, coeff);
 }
 
@@ -2783,7 +2792,7 @@ void av1_fwd_txfm2d_64x32_neon(const int16_t *input, int32_t *coeff, int stride,
   for (int i = 0; i < 8; i++) {
     highbd_fdct64_x4_neon(buf1 + i * 64, buf1 + i * 64, bitrow);
   }
-  av1_round_shift_rect_array_32_neon(buf1, buf1, 512, 2, NewSqrt2);
+  round_shift2_rect_array_s32_neon(buf1, buf1, 512);
   store_buffer_64x32(buf1, coeff);
 }
 
@@ -2808,7 +2817,7 @@ void av1_fwd_txfm2d_32x16_neon(const int16_t *input, int32_t *coeff, int stride,
   for (int i = 0; i < 4; i++) {
     row_txfm(buf1 + i * 32, buf1 + i * 32, bitrow);
   }
-  av1_round_shift_rect_array_32_neon(buf1, buf1, 128, 0, NewSqrt2);
+  round_rect_array_s32_neon(buf1, buf1, 128);
   store_buffer_32x16(buf1, coeff);
 }
 
@@ -2883,7 +2892,7 @@ void av1_fwd_txfm2d_4x8_neon(const int16_t *input, int32_t *coeff, int stride,
   transpose_arrays_s32_4x8(buf0, buf1);
 
   row_txfm(buf1, buf1, bitrow, 2);
-  av1_round_shift_rect_array_32_neon(buf1, buf1, 8, 0, NewSqrt2);
+  round_rect_array_s32_neon(buf1, buf1, 8);
   store_buffer_4x8(buf1, coeff);
 }
 
@@ -2910,7 +2919,7 @@ void av1_fwd_txfm2d_8x4_neon(const int16_t *input, int32_t *coeff, int stride,
 
   // Row-wise transform.
   row_txfm(buf1, buf1, bitrow);
-  av1_round_shift_rect_array_32_neon(buf1, buf1, 8, 0, NewSqrt2);
+  round_rect_array_s32_neon(buf1, buf1, 8);
   store_buffer_8x4(buf1, coeff);
 }
 
