@@ -3958,14 +3958,19 @@ static int allow_ab_partition_search(PartitionSearchState *part_search_state,
   // Do not prune if there is no valid partition
   if (best_rdcost == INT64_MAX) return 1;
 
-  // Determine min bsize to evaluate ab partitions
-  BLOCK_SIZE ab_min_bsize_allowed = part_sf->ext_partition_eval_thresh;
+  // Determine bsize threshold to evaluate ab partitions
+  BLOCK_SIZE ab_bsize_thresh = part_sf->ext_partition_eval_thresh;
   if (part_sf->ext_part_eval_based_on_cur_best && !must_find_valid_partition &&
       !(curr_best_part == PARTITION_HORZ || curr_best_part == PARTITION_VERT))
-    ab_min_bsize_allowed = BLOCK_128X128;
+    ab_bsize_thresh = BLOCK_128X128;
+
+  // ab partitions are only allowed for square block sizes BLOCK_16X16 or
+  // higher, so ab_bsize_thresh must be large enough to exclude BLOCK_4X4 and
+  // BLOCK_8X8.
+  assert(ab_bsize_thresh >= BLOCK_8X8);
 
   int ab_partition_allowed =
-      part_search_state->do_rectangular_split && bsize > ab_min_bsize_allowed &&
+      part_search_state->do_rectangular_split && bsize > ab_bsize_thresh &&
       av1_blk_has_rows_and_cols(&blk_params) && !prune_ext_part_state;
 
   return ab_partition_allowed;
@@ -4012,18 +4017,20 @@ static void prune_4_way_partition_search(
   // Do not prune if there is no valid partition
   if (best_rdc->rdcost == INT64_MAX) return;
 
-  // Determine min bsize to evaluate 4-way partitions
-  BLOCK_SIZE part4_min_bsize_allowed =
-      cpi->sf.part_sf.ext_partition_eval_thresh;
+  // Determine bsize threshold to evaluate 4-way partitions
+  BLOCK_SIZE part4_bsize_thresh = cpi->sf.part_sf.ext_partition_eval_thresh;
   if (cpi->sf.part_sf.ext_part_eval_based_on_cur_best &&
       !x->must_find_valid_partition && pc_tree->partitioning == PARTITION_NONE)
-    part4_min_bsize_allowed = BLOCK_128X128;
-  assert(part4_min_bsize_allowed >= BLOCK_8X8);
+    part4_bsize_thresh = BLOCK_128X128;
 
-  bool partition4_allowed = part_search_state->do_rectangular_split &&
-                            bsize > part4_min_bsize_allowed &&
-                            av1_blk_has_rows_and_cols(&blk_params) &&
-                            !prune_ext_part_state;
+  // 4-way partitions are only allowed for BLOCK_16X16, BLOCK_32X32, and
+  // BLOCK_64X64, so part4_bsize_thresh must be large enough to exclude
+  // BLOCK_4X4 and BLOCK_8X8.
+  assert(part4_bsize_thresh >= BLOCK_8X8);
+
+  bool partition4_allowed =
+      part_search_state->do_rectangular_split && bsize > part4_bsize_thresh &&
+      av1_blk_has_rows_and_cols(&blk_params) && !prune_ext_part_state;
 
   // Disable 4-way partition search flags for width less than a multiple of the
   // minimum partition width.
