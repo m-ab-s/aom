@@ -235,7 +235,8 @@ STORE_BUFFER_WXH(32, 8)
 STORE_BUFFER_WXH(64, 16)
 #endif  // !CONFIG_REALTIME_ONLY
 
-static void highbd_fdct4_x4_neon(const int32x4_t *in, int32x4_t *out, int bit) {
+static AOM_FORCE_INLINE void highbd_fdct4_x4_neon(const int32x4_t *in,
+                                                  int32x4_t *out, int bit) {
   const int32_t *const cospi = cospi_arr_s32(bit);
   const int32x4_t cospi32 = vdupq_n_s32(cospi[2 * 32]);
   const int32x2_t cospi16_48 = vld1_s32(&cospi[2 * 16]);
@@ -267,8 +268,8 @@ static void highbd_fdct4_x4_neon(const int32x4_t *in, int32x4_t *out, int bit) {
   out[3] = d3;
 }
 
-static void highbd_fadst4_x4_neon(const int32x4_t *in, int32x4_t *out,
-                                  int bit) {
+static AOM_FORCE_INLINE void highbd_fadst4_x4_neon(const int32x4_t *in,
+                                                   int32x4_t *out, int bit) {
   const int32x4_t sinpi = vld1q_s32(sinpi_arr(bit) + 1);
 
   const int32x4_t a0 = vaddq_s32(in[0], in[1]);
@@ -297,8 +298,9 @@ static void highbd_fadst4_x4_neon(const int32x4_t *in, int32x4_t *out,
   out[3] = vrshlq_s32(e0, v_bit);
 }
 
-static void highbd_fidentity4_x4_neon(const int32x4_t *in, int32x4_t *out,
-                                      int bit) {
+static AOM_FORCE_INLINE void highbd_fidentity4_x4_neon(const int32x4_t *in,
+                                                       int32x4_t *out,
+                                                       int bit) {
   (void)bit;
   int32x4_t fact = vdupq_n_s32(NewSqrt2);
 
@@ -308,24 +310,27 @@ static void highbd_fidentity4_x4_neon(const int32x4_t *in, int32x4_t *out,
   }
 }
 
-static void highbd_fdct4_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
-                                 int howmany) {
+static AOM_FORCE_INLINE void highbd_fdct4_xn_neon(const int32x4_t *in,
+                                                  int32x4_t *out, int bit,
+                                                  int howmany) {
   const int stride = 4;
   for (int i = 0; i < howmany; ++i) {
     highbd_fdct4_x4_neon(in + i * stride, out + i * stride, bit);
   }
 }
 
-static void highbd_fadst4_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
-                                  int howmany) {
+static AOM_FORCE_INLINE void highbd_fadst4_xn_neon(const int32x4_t *in,
+                                                   int32x4_t *out, int bit,
+                                                   int howmany) {
   const int stride = 4;
   for (int i = 0; i < howmany; ++i) {
     highbd_fadst4_x4_neon(in + i * stride, out + i * stride, bit);
   }
 }
 
-static void highbd_fidentity4_xn_neon(const int32x4_t *in, int32x4_t *out,
-                                      int bit, int howmany) {
+static AOM_FORCE_INLINE void highbd_fidentity4_xn_neon(const int32x4_t *in,
+                                                       int32x4_t *out, int bit,
+                                                       int howmany) {
   const int stride = 4;
   for (int i = 0; i < howmany; ++i) {
     highbd_fidentity4_x4_neon(in + i * stride, out + i * stride, bit);
@@ -460,7 +465,8 @@ void av1_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *coeff,
   }
 }
 
-static void highbd_fdct8_x4_neon(const int32x4_t *in, int32x4_t *out, int bit) {
+static AOM_FORCE_INLINE void highbd_fdct8_x4_neon(const int32x4_t *in,
+                                                  int32x4_t *out, int bit) {
   const int32_t *const cospi = cospi_arr_s32(bit);
   const int32x4_t cospi32 = vdupq_n_s32(cospi[2 * 32]);
 
@@ -542,8 +548,8 @@ static void highbd_fdct8_x4_neon(const int32x4_t *in, int32x4_t *out, int bit) {
   out[6] = u[3];
 }
 
-static void highbd_fadst8_x4_neon(const int32x4_t *in, int32x4_t *out,
-                                  int bit) {
+static AOM_FORCE_INLINE void highbd_fadst8_x4_neon(const int32x4_t *in,
+                                                   int32x4_t *out, int bit) {
   const int32_t *const cospi = cospi_arr_s32(bit);
   const int32x4_t cospi32 = vdupq_n_s32(cospi[2 * 32]);
 
@@ -677,8 +683,9 @@ static void highbd_fadst8_x4_neon(const int32x4_t *in, int32x4_t *out,
   out[7] = v0;
 }
 
-static void highbd_fidentity8_x4_neon(const int32x4_t *in, int32x4_t *out,
-                                      int bit) {
+static AOM_FORCE_INLINE void highbd_fidentity8_x4_neon(const int32x4_t *in,
+                                                       int32x4_t *out,
+                                                       int bit) {
   (void)bit;
   out[0] = vshlq_n_s32(in[0], 1);
   out[1] = vshlq_n_s32(in[1], 1);
@@ -690,24 +697,27 @@ static void highbd_fidentity8_x4_neon(const int32x4_t *in, int32x4_t *out,
   out[7] = vshlq_n_s32(in[7], 1);
 }
 
-static void highbd_fdct8_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
-                                 int howmany) {
+static AOM_FORCE_INLINE void highbd_fdct8_xn_neon(const int32x4_t *in,
+                                                  int32x4_t *out, int bit,
+                                                  int howmany) {
   const int stride = 8;
   for (int i = 0; i < howmany; ++i) {
     highbd_fdct8_x4_neon(in + i * stride, out + i * stride, bit);
   }
 }
 
-static void highbd_fadst8_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
-                                  int howmany) {
+static AOM_FORCE_INLINE void highbd_fadst8_xn_neon(const int32x4_t *in,
+                                                   int32x4_t *out, int bit,
+                                                   int howmany) {
   const int stride = 8;
   for (int i = 0; i < howmany; ++i) {
     highbd_fadst8_x4_neon(in + i * stride, out + i * stride, bit);
   }
 }
 
-static void highbd_fidentity8_xn_neon(const int32x4_t *in, int32x4_t *out,
-                                      int bit, int howmany) {
+static AOM_FORCE_INLINE void highbd_fidentity8_xn_neon(const int32x4_t *in,
+                                                       int32x4_t *out, int bit,
+                                                       int howmany) {
   (void)bit;
   const int stride = 8;
   for (int i = 0; i < howmany; ++i) {
