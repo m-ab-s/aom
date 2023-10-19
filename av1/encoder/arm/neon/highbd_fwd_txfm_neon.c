@@ -235,7 +235,7 @@ STORE_BUFFER_WXH(32, 8)
 STORE_BUFFER_WXH(64, 16)
 #endif  // !CONFIG_REALTIME_ONLY
 
-static void highbd_fdct4_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
+static void highbd_fdct4_x4_neon(const int32x4_t *in, int32x4_t *out, int bit) {
   const int32_t *const cospi = cospi_arr_s32(bit);
   const int32x4_t cospi32 = vdupq_n_s32(cospi[2 * 32]);
   const int32x2_t cospi16_48 = vld1_s32(&cospi[2 * 16]);
@@ -267,7 +267,8 @@ static void highbd_fdct4_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
   out[3] = d3;
 }
 
-static void highbd_fadst4_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
+static void highbd_fadst4_x4_neon(const int32x4_t *in, int32x4_t *out,
+                                  int bit) {
   const int32x4_t sinpi = vld1q_s32(sinpi_arr(bit) + 1);
 
   const int32x4_t a0 = vaddq_s32(in[0], in[1]);
@@ -296,7 +297,8 @@ static void highbd_fadst4_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
   out[3] = vrshlq_s32(e0, v_bit);
 }
 
-static void highbd_fidentity4_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
+static void highbd_fidentity4_x4_neon(const int32x4_t *in, int32x4_t *out,
+                                      int bit) {
   (void)bit;
   int32x4_t fact = vdupq_n_s32(NewSqrt2);
 
@@ -306,7 +308,7 @@ static void highbd_fidentity4_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
   }
 }
 
-static void highbd_fdct4_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
+static void highbd_fdct4_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
                                  int howmany) {
   const int stride = 4;
   for (int i = 0; i < howmany; ++i) {
@@ -314,7 +316,7 @@ static void highbd_fdct4_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
   }
 }
 
-static void highbd_fadst4_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
+static void highbd_fadst4_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
                                   int howmany) {
   const int stride = 4;
   for (int i = 0; i < howmany; ++i) {
@@ -322,8 +324,8 @@ static void highbd_fadst4_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
   }
 }
 
-static void highbd_fidentity4_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
-                                      int howmany) {
+static void highbd_fidentity4_xn_neon(const int32x4_t *in, int32x4_t *out,
+                                      int bit, int howmany) {
   const int stride = 4;
   for (int i = 0; i < howmany; ++i) {
     highbd_fidentity4_x4_neon(in + i * stride, out + i * stride, bit);
@@ -458,7 +460,7 @@ void av1_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *coeff,
   }
 }
 
-static void highbd_fdct8_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
+static void highbd_fdct8_x4_neon(const int32x4_t *in, int32x4_t *out, int bit) {
   const int32_t *const cospi = cospi_arr_s32(bit);
   const int32x4_t cospi32 = vdupq_n_s32(cospi[2 * 32]);
 
@@ -540,7 +542,8 @@ static void highbd_fdct8_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
   out[6] = u[3];
 }
 
-static void highbd_fadst8_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
+static void highbd_fadst8_x4_neon(const int32x4_t *in, int32x4_t *out,
+                                  int bit) {
   const int32_t *const cospi = cospi_arr_s32(bit);
   const int32x4_t cospi32 = vdupq_n_s32(cospi[2 * 32]);
 
@@ -674,7 +677,8 @@ static void highbd_fadst8_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
   out[7] = v0;
 }
 
-static void highbd_fidentity8_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
+static void highbd_fidentity8_x4_neon(const int32x4_t *in, int32x4_t *out,
+                                      int bit) {
   (void)bit;
   out[0] = vshlq_n_s32(in[0], 1);
   out[1] = vshlq_n_s32(in[1], 1);
@@ -686,7 +690,7 @@ static void highbd_fidentity8_x4_neon(int32x4_t *in, int32x4_t *out, int bit) {
   out[7] = vshlq_n_s32(in[7], 1);
 }
 
-static void highbd_fdct8_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
+static void highbd_fdct8_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
                                  int howmany) {
   const int stride = 8;
   for (int i = 0; i < howmany; ++i) {
@@ -694,7 +698,7 @@ static void highbd_fdct8_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
   }
 }
 
-static void highbd_fadst8_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
+static void highbd_fadst8_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
                                   int howmany) {
   const int stride = 8;
   for (int i = 0; i < howmany; ++i) {
@@ -702,8 +706,8 @@ static void highbd_fadst8_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
   }
 }
 
-static void highbd_fidentity8_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
-                                      int howmany) {
+static void highbd_fidentity8_xn_neon(const int32x4_t *in, int32x4_t *out,
+                                      int bit, int howmany) {
   (void)bit;
   const int stride = 8;
   for (int i = 0; i < howmany; ++i) {
@@ -855,7 +859,7 @@ void av1_fwd_txfm2d_8x8_neon(const int16_t *input, int32_t *coeff, int stride,
   }
 }
 
-static void highbd_fdct16_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
+static void highbd_fdct16_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
                                   const int howmany) {
   const int32_t *const cospi = cospi_arr_s32(bit);
   const int32x4_t cospi32 = vdupq_n_s32(cospi[2 * 32]);
@@ -1083,7 +1087,7 @@ static void highbd_fdct16_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
   }
 }
 
-static void highbd_fadst16_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
+static void highbd_fadst16_xn_neon(const int32x4_t *in, int32x4_t *out, int bit,
                                    int howmany) {
   const int32_t *const cospi = cospi_arr_s32(bit);
   const int32x4_t cospi32 = vdupq_n_s32(cospi[2 * 32]);
@@ -1271,8 +1275,8 @@ static void highbd_fadst16_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
   }
 }
 
-static void highbd_fidentity16_xn_neon(int32x4_t *in, int32x4_t *out, int bit,
-                                       int howmany) {
+static void highbd_fidentity16_xn_neon(const int32x4_t *in, int32x4_t *out,
+                                       int bit, int howmany) {
   (void)bit;
   int32x4_t fact = vdupq_n_s32(2 * NewSqrt2);
   int32x4_t offset = vdupq_n_s32(1 << (NewSqrt2Bits - 1));
@@ -1429,8 +1433,9 @@ void av1_fwd_txfm2d_16x16_neon(const int16_t *input, int32_t *coeff, int stride,
   }
 }
 
-typedef void (*fwd_transform_1d_neon)(int32x4_t *in, int32x4_t *out, int bit);
-typedef void (*fwd_transform_1d_many_neon)(int32x4_t *in, int32x4_t *out,
+typedef void (*fwd_transform_1d_neon)(const int32x4_t *in, int32x4_t *out,
+                                      int bit);
+typedef void (*fwd_transform_1d_many_neon)(const int32x4_t *in, int32x4_t *out,
                                            int bit, int howmany);
 
 static const fwd_transform_1d_many_neon col_highbd_txfm8_xn_arr[TX_TYPES] = {
@@ -1585,7 +1590,7 @@ static const fwd_transform_1d_many_neon col_highbd_txfm4_xn_arr[TX_TYPES] = {
   highbd_fidentity4_xn_neon   // H_FLIPADST
 };
 
-static void highbd_fdct32_x4_neon(int32x4_t *input, int32x4_t *output,
+static void highbd_fdct32_x4_neon(const int32x4_t *input, int32x4_t *output,
                                   int cos_bit) {
   const int32_t *const cospi = cospi_arr_s32(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
@@ -2224,7 +2229,7 @@ static void highbd_fdct64_x4_stage12345_neon(const int32x4_t *input,
   x5[60] = vaddq_s32(x4[60], x4[59]);
 }
 
-static void highbd_fdct64_x4_neon(int32x4_t *input, int32x4_t *output,
+static void highbd_fdct64_x4_neon(const int32x4_t *input, int32x4_t *output,
                                   int8_t cos_bit) {
   const int32_t *const cospi = cospi_arr_s32(cos_bit);
   const int32x4_t v_cos_bit = vdupq_n_s32(-cos_bit);
@@ -2592,8 +2597,8 @@ static void highbd_fdct64_x4_neon(int32x4_t *input, int32x4_t *output,
   output[63] = x10[63];
 }
 
-static void highbd_fidentity32_x4_neon(int32x4_t *input, int32x4_t *output,
-                                       int cos_bit) {
+static void highbd_fidentity32_x4_neon(const int32x4_t *input,
+                                       int32x4_t *output, int cos_bit) {
   (void)cos_bit;
   for (int i = 0; i < 32; i++) {
     output[i] = vshlq_n_s32(input[i], 2);
