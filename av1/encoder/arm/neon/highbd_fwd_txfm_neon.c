@@ -84,13 +84,13 @@ static INLINE void butterfly_2312_neon(const int32_t *cospi, const int widx0,
   butterfly_half_neon(w01, 1, 2, n0, n1, out1, v_bit);
 }
 
-static INLINE void butterfly_2330_neon(const int32_t *cospi, const int widx0,
+static INLINE void butterfly_0332_neon(const int32_t *cospi, const int widx0,
                                        const int32x4_t n0, const int32x4_t n1,
                                        int32x4_t *out0, int32x4_t *out1,
                                        const int32x4_t v_bit) {
   int32x2_t w01 = vld1_s32(cospi + 2 * widx0);
-  butterfly_half_neon(w01, 2, 3, n0, n1, out0, v_bit);
-  butterfly_half_neon(w01, 3, 0, n0, n1, out1, v_bit);
+  butterfly_half_neon(w01, 0, 3, n0, n1, out0, v_bit);
+  butterfly_half_neon(w01, 3, 2, n0, n1, out1, v_bit);
 }
 
 static INLINE void butterfly_0130_neon(const int32_t *cospi, const int widx0,
@@ -520,31 +520,31 @@ static AOM_FORCE_INLINE void highbd_fadst8_x4_neon(const int32x4_t *in,
 
   // stage 0-1
   u0 = in[0];
-  u1 = vnegq_s32(in[7]);
-  u2 = vnegq_s32(in[3]);
+  u1 = in[7];
+  u2 = in[3];
   u3 = in[4];
-  u4 = vnegq_s32(in[1]);
+  u4 = in[1];
   u5 = in[6];
   u6 = in[2];
-  u7 = vnegq_s32(in[5]);
+  u7 = in[5];
 
   // stage 2
   v0 = u0;
   v1 = u1;
 
-  x = vmulq_s32(u2, cospi32);
-  y = vmulq_s32(u3, cospi32);
-  v2 = vaddq_s32(x, y);
+  x = vmulq_s32(u2, vnegq_s32(cospi32));
+  y = vmulq_s32(u3, vnegq_s32(cospi32));
+  v2 = vsubq_s32(x, y);
   v2 = vrshlq_s32(v2, v_bit);
 
-  v3 = vsubq_s32(x, y);
+  v3 = vaddq_s32(x, y);
   v3 = vrshlq_s32(v3, v_bit);
 
   v4 = u4;
   v5 = u5;
 
   x = vmulq_s32(u6, cospi32);
-  y = vmulq_s32(u7, cospi32);
+  y = vmulq_s32(u7, vnegq_s32(cospi32));
   v6 = vaddq_s32(x, y);
   v6 = vrshlq_s32(v6, v_bit);
 
@@ -553,12 +553,12 @@ static AOM_FORCE_INLINE void highbd_fadst8_x4_neon(const int32x4_t *in,
 
   // stage 3
   u0 = vaddq_s32(v0, v2);
-  u1 = vaddq_s32(v1, v3);
+  u1 = vsubq_s32(v3, v1);
   u2 = vsubq_s32(v0, v2);
-  u3 = vsubq_s32(v1, v3);
-  u4 = vaddq_s32(v4, v6);
+  u3 = vaddq_s32(v1, v3);
+  u4 = vsubq_s32(v6, v4);
   u5 = vaddq_s32(v5, v7);
-  u6 = vsubq_s32(v4, v6);
+  u6 = vaddq_s32(v4, v6);
   u7 = vsubq_s32(v5, v7);
 
   // stage 4
@@ -576,10 +576,10 @@ static AOM_FORCE_INLINE void highbd_fadst8_x4_neon(const int32x4_t *in,
   v5 = vrshlq_s32(v5, v_bit);
 
   v6 = vmulq_lane_s32(u7, cospi16_48, 0);
-  v6 = vmlsq_lane_s32(v6, u6, cospi16_48, 1);
+  v6 = vmlaq_lane_s32(v6, u6, cospi16_48, 1);
   v6 = vrshlq_s32(v6, v_bit);
 
-  v7 = vmulq_lane_s32(u6, cospi16_48, 0);
+  v7 = vmulq_lane_s32(u6, vneg_s32(cospi16_48), 0);
   v7 = vmlaq_lane_s32(v7, u7, cospi16_48, 1);
   v7 = vrshlq_s32(v7, v_bit);
 
@@ -587,11 +587,11 @@ static AOM_FORCE_INLINE void highbd_fadst8_x4_neon(const int32x4_t *in,
   u0 = vaddq_s32(v0, v4);
   u1 = vaddq_s32(v1, v5);
   u2 = vaddq_s32(v2, v6);
-  u3 = vaddq_s32(v3, v7);
+  u3 = vsubq_s32(v7, v3);
   u4 = vsubq_s32(v0, v4);
   u5 = vsubq_s32(v1, v5);
   u6 = vsubq_s32(v2, v6);
-  u7 = vsubq_s32(v3, v7);
+  u7 = vaddq_s32(v3, v7);
 
   // stage 6
   v0 = vmulq_lane_s32(u0, cospi4_60, 0);
@@ -619,11 +619,11 @@ static AOM_FORCE_INLINE void highbd_fadst8_x4_neon(const int32x4_t *in,
   v5 = vrshlq_s32(v5, v_bit);
 
   x = vmulq_lane_s32(u6, cospi12_52, 1);
-  v6 = vmlaq_lane_s32(x, u7, cospi12_52, 0);
+  v6 = vmlsq_lane_s32(x, u7, cospi12_52, 0);
   v6 = vrshlq_s32(v6, v_bit);
 
   v7 = vmulq_lane_s32(u6, cospi12_52, 0);
-  v7 = vmlsq_lane_s32(v7, u7, cospi12_52, 1);
+  v7 = vmlaq_lane_s32(v7, u7, cospi12_52, 1);
   v7 = vrshlq_s32(v7, v_bit);
 
   // stage 7
@@ -1059,27 +1059,27 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
 
   // stage 0-1
   u[0] = in[0];
-  u[1] = vnegq_s32(in[15]);
-  u[2] = vnegq_s32(in[7]);
+  u[1] = in[15];
+  u[2] = in[7];
   u[3] = in[8];
-  u[4] = vnegq_s32(in[3]);
+  u[4] = in[3];
   u[5] = in[12];
   u[6] = in[4];
-  u[7] = vnegq_s32(in[11]);
-  u[8] = vnegq_s32(in[1]);
+  u[7] = in[11];
+  u[8] = in[1];
   u[9] = in[14];
   u[10] = in[6];
-  u[11] = vnegq_s32(in[9]);
+  u[11] = in[9];
   u[12] = in[2];
-  u[13] = vnegq_s32(in[13]);
-  u[14] = vnegq_s32(in[5]);
+  u[13] = in[13];
+  u[14] = in[5];
   u[15] = in[10];
 
   // stage 2
   v[0] = u[0];
   v[1] = u[1];
 
-  x = vmulq_s32(u[2], cospi32);
+  x = vmulq_s32(u[2], vnegq_s32(cospi32));
   y = vmulq_s32(u[3], cospi32);
   v[2] = vaddq_s32(x, y);
   v[2] = vrshlq_s32(v[2], v_bit);
@@ -1091,7 +1091,7 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
   v[5] = u[5];
 
   x = vmulq_s32(u[6], cospi32);
-  y = vmulq_s32(u[7], cospi32);
+  y = vmulq_s32(u[7], vnegq_s32(cospi32));
   v[6] = vaddq_s32(x, y);
   v[6] = vrshlq_s32(v[6], v_bit);
 
@@ -1102,7 +1102,7 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
   v[9] = u[9];
 
   x = vmulq_s32(u[10], cospi32);
-  y = vmulq_s32(u[11], cospi32);
+  y = vmulq_s32(u[11], vnegq_s32(cospi32));
   v[10] = vaddq_s32(x, y);
   v[10] = vrshlq_s32(v[10], v_bit);
 
@@ -1112,7 +1112,7 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
   v[12] = u[12];
   v[13] = u[13];
 
-  x = vmulq_s32(u[14], cospi32);
+  x = vmulq_s32(u[14], vnegq_s32(cospi32));
   y = vmulq_s32(u[15], cospi32);
   v[14] = vaddq_s32(x, y);
   v[14] = vrshlq_s32(v[14], v_bit);
@@ -1122,21 +1122,21 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
 
   // stage 3
   u[0] = vaddq_s32(v[0], v[2]);
-  u[1] = vaddq_s32(v[1], v[3]);
+  u[1] = vsubq_s32(v[3], v[1]);
   u[2] = vsubq_s32(v[0], v[2]);
-  u[3] = vsubq_s32(v[1], v[3]);
-  u[4] = vaddq_s32(v[4], v[6]);
+  u[3] = vaddq_s32(v[1], v[3]);
+  u[4] = vsubq_s32(v[6], v[4]);
   u[5] = vaddq_s32(v[5], v[7]);
-  u[6] = vsubq_s32(v[4], v[6]);
+  u[6] = vaddq_s32(v[4], v[6]);
   u[7] = vsubq_s32(v[5], v[7]);
-  u[8] = vaddq_s32(v[8], v[10]);
+  u[8] = vsubq_s32(v[10], v[8]);
   u[9] = vaddq_s32(v[9], v[11]);
-  u[10] = vsubq_s32(v[8], v[10]);
+  u[10] = vaddq_s32(v[8], v[10]);
   u[11] = vsubq_s32(v[9], v[11]);
   u[12] = vaddq_s32(v[12], v[14]);
-  u[13] = vaddq_s32(v[13], v[15]);
+  u[13] = vsubq_s32(v[15], v[13]);
   u[14] = vsubq_s32(v[12], v[14]);
-  u[15] = vsubq_s32(v[13], v[15]);
+  u[15] = vaddq_s32(v[13], v[15]);
 
   // stage 4
   v[0] = u[0];
@@ -1144,7 +1144,7 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
   v[2] = u[2];
   v[3] = u[3];
   butterfly_0112_neon(cospi, 16, u[4], u[5], &v[4], &v[5], v_bit);
-  butterfly_0130_neon(cospi, 16, u[6], u[7], &v[7], &v[6], v_bit);
+  butterfly_0112_neon(cospi, 16, u[7], u[6], &v[6], &v[7], v_bit);
 
   v[8] = u[8];
   v[9] = u[9];
@@ -1152,24 +1152,24 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
   v[11] = u[11];
 
   butterfly_0112_neon(cospi, 16, u[12], u[13], &v[12], &v[13], v_bit);
-  butterfly_0130_neon(cospi, 16, u[14], u[15], &v[15], &v[14], v_bit);
+  butterfly_0332_neon(cospi, 16, u[14], u[15], &v[15], &v[14], v_bit);
 
   // stage 5
   u[0] = vaddq_s32(v[0], v[4]);
   u[1] = vaddq_s32(v[1], v[5]);
   u[2] = vaddq_s32(v[2], v[6]);
-  u[3] = vaddq_s32(v[3], v[7]);
+  u[3] = vsubq_s32(v[7], v[3]);
   u[4] = vsubq_s32(v[0], v[4]);
   u[5] = vsubq_s32(v[1], v[5]);
   u[6] = vsubq_s32(v[2], v[6]);
-  u[7] = vsubq_s32(v[3], v[7]);
+  u[7] = vaddq_s32(v[3], v[7]);
   u[8] = vaddq_s32(v[8], v[12]);
   u[9] = vaddq_s32(v[9], v[13]);
-  u[10] = vaddq_s32(v[10], v[14]);
+  u[10] = vsubq_s32(v[14], v[10]);
   u[11] = vaddq_s32(v[11], v[15]);
   u[12] = vsubq_s32(v[8], v[12]);
   u[13] = vsubq_s32(v[9], v[13]);
-  u[14] = vsubq_s32(v[10], v[14]);
+  u[14] = vaddq_s32(v[10], v[14]);
   u[15] = vsubq_s32(v[11], v[15]);
 
   // stage 6
@@ -1185,7 +1185,7 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
   butterfly_0112_neon(cospi, 8, u[8], u[9], &v[8], &v[9], v_bit);
   butterfly_0130_neon(cospi, 8, u[12], u[13], &v[13], &v[12], v_bit);
   butterfly_0130_neon(cospi, 24, u[11], u[10], &v[10], &v[11], v_bit);
-  butterfly_0112_neon(cospi, 24, u[15], u[14], &v[15], &v[14], v_bit);
+  butterfly_0130_neon(cospi, 24, u[14], u[15], &v[14], &v[15], v_bit);
 
   // stage 7
   u[0] = vaddq_s32(v[0], v[8]);
@@ -1195,7 +1195,7 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
   u[4] = vaddq_s32(v[4], v[12]);
   u[5] = vaddq_s32(v[5], v[13]);
   u[6] = vaddq_s32(v[6], v[14]);
-  u[7] = vaddq_s32(v[7], v[15]);
+  u[7] = vsubq_s32(v[15], v[7]);
   u[8] = vsubq_s32(v[0], v[8]);
   u[9] = vsubq_s32(v[1], v[9]);
   u[10] = vsubq_s32(v[2], v[10]);
@@ -1203,7 +1203,7 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
   u[12] = vsubq_s32(v[4], v[12]);
   u[13] = vsubq_s32(v[5], v[13]);
   u[14] = vsubq_s32(v[6], v[14]);
-  u[15] = vsubq_s32(v[7], v[15]);
+  u[15] = vaddq_s32(v[7], v[15]);
 
   // stage 8
   butterfly_0112_neon(cospi, 2, u[0], u[1], &v[0], &v[1], v_bit);
@@ -1213,7 +1213,7 @@ static void highbd_fadst16_x4_neon(const int32x4_t *in, int32x4_t *out,
   butterfly_0130_neon(cospi, 30, u[9], u[8], &v[8], &v[9], v_bit);
   butterfly_0130_neon(cospi, 22, u[11], u[10], &v[10], &v[11], v_bit);
   butterfly_0130_neon(cospi, 14, u[13], u[12], &v[12], &v[13], v_bit);
-  butterfly_0130_neon(cospi, 6, u[15], u[14], &v[14], &v[15], v_bit);
+  butterfly_0112_neon(cospi, 6, u[14], u[15], &v[15], &v[14], v_bit);
 
   // stage 9
   out[0] = v[1];
@@ -1975,7 +1975,7 @@ static void highbd_fdct32_x4_neon(const int32x4_t *input, int32x4_t *output,
                       v_cos_bit);
   butterfly_0130_neon(cospi, 24, buf1[21], buf1[26], &buf0[26], &buf0[21],
                       v_cos_bit);
-  butterfly_2330_neon(cospi, 24, buf1[22], buf1[25], &buf0[22], &buf0[25],
+  butterfly_0332_neon(cospi, 24, buf1[25], buf1[22], &buf0[25], &buf0[22],
                       v_cos_bit);
 
   buf0[23] = buf1[23];
@@ -2446,8 +2446,8 @@ static void highbd_fdct64_x4_neon(const int32x4_t *input, int32x4_t *output,
 
   butterfly_0130_neon(cospi, 24, x5[42], x5[53], &x6[53], &x6[42], v_cos_bit);
   butterfly_0130_neon(cospi, 24, x5[43], x5[52], &x6[52], &x6[43], v_cos_bit);
-  butterfly_2330_neon(cospi, 24, x5[44], x5[51], &x6[44], &x6[51], v_cos_bit);
-  butterfly_2330_neon(cospi, 24, x5[45], x5[50], &x6[45], &x6[50], v_cos_bit);
+  butterfly_0332_neon(cospi, 24, x5[51], x5[44], &x6[51], &x6[44], v_cos_bit);
+  butterfly_0332_neon(cospi, 24, x5[50], x5[45], &x6[50], &x6[45], v_cos_bit);
 
   x6[46] = x5[46];
   x6[47] = x5[47];
@@ -2479,7 +2479,7 @@ static void highbd_fdct64_x4_neon(const int32x4_t *input, int32x4_t *output,
   x7[16] = x6[16];
 
   butterfly_0130_neon(cospi, 24, x6[21], x6[26], &x7[26], &x7[21], v_cos_bit);
-  butterfly_2330_neon(cospi, 24, x6[22], x6[25], &x7[22], &x7[25], v_cos_bit);
+  butterfly_0332_neon(cospi, 24, x6[25], x6[22], &x7[25], &x7[22], v_cos_bit);
   x7[23] = x6[23];
   x7[24] = x6[24];
   x7[27] = x6[27];
@@ -2572,7 +2572,7 @@ static void highbd_fdct64_x4_neon(const int32x4_t *input, int32x4_t *output,
   x8[35] = x7[35];
   x8[36] = x7[36];
   butterfly_0130_neon(cospi, 28, x7[37], x7[58], &x8[58], &x8[37], v_cos_bit);
-  butterfly_2330_neon(cospi, 28, x7[38], x7[57], &x8[38], &x8[57], v_cos_bit);
+  butterfly_0332_neon(cospi, 28, x7[57], x7[38], &x8[57], &x8[38], v_cos_bit);
   x8[39] = x7[39];
   x8[40] = x7[40];
   butterfly_0112_neon(cospi, 20, x7[54], x7[41], &x8[54], &x8[41], v_cos_bit);
@@ -2580,7 +2580,7 @@ static void highbd_fdct64_x4_neon(const int32x4_t *input, int32x4_t *output,
   x8[43] = x7[43];
   x8[44] = x7[44];
   butterfly_0130_neon(cospi, 12, x7[45], x7[50], &x8[50], &x8[45], v_cos_bit);
-  butterfly_2330_neon(cospi, 12, x7[46], x7[49], &x8[46], &x8[49], v_cos_bit);
+  butterfly_0332_neon(cospi, 12, x7[49], x7[46], &x8[49], &x8[46], v_cos_bit);
   x8[47] = x7[47];
   x8[48] = x7[48];
   x8[51] = x7[51];
