@@ -2027,12 +2027,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   uint16_t best_eob = 0;
   TX_TYPE best_tx_type = DCT_DCT;
   int rate_cost = 0;
-  // The buffer used to swap dqcoeff in macroblockd_plane so we can keep dqcoeff
-  // of the best tx_type
-  DECLARE_ALIGNED(32, tran_low_t, this_dqcoeff[MAX_SB_SQUARE]);
   struct macroblock_plane *const p = &x->plane[plane];
   tran_low_t *orig_dqcoeff = p->dqcoeff;
-  tran_low_t *best_dqcoeff = this_dqcoeff;
+  tran_low_t *best_dqcoeff = x->dqcoeff_buf;
   const int tx_type_map_idx =
       plane ? 0 : blk_row * xd->tx_type_map_stride + blk_col;
   av1_invalid_rd_stats(best_rd_stats);

@@ -447,6 +447,9 @@ static AOM_INLINE void av1_dealloc_mb_data(struct macroblock *mb,
 
   aom_free(mb->winner_mode_stats);
   mb->winner_mode_stats = NULL;
+
+  aom_free(mb->dqcoeff_buf);
+  mb->dqcoeff_buf = NULL;
 }
 
 static AOM_INLINE void allocate_winner_mode_stats(const AV1_COMP *cpi,
@@ -491,6 +494,12 @@ static AOM_INLINE void av1_alloc_mb_data(const AV1_COMP *cpi,
                       16, 2 * MAX_SB_SQUARE * sizeof(mb->e_mbd.seg_mask[0])));
 
   allocate_winner_mode_stats(cpi, mb);
+
+  const int max_sb_square_y = 1
+                              << num_pels_log2_lookup[cm->seq_params->sb_size];
+  CHECK_MEM_ERROR(
+      cm, mb->dqcoeff_buf,
+      (tran_low_t *)aom_memalign(32, max_sb_square_y * sizeof(tran_low_t)));
 }
 
 // This function will compute the number of reference frames to be disabled

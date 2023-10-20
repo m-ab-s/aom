@@ -1324,6 +1324,10 @@ typedef struct macroblock {
   uint8_t color_sensitivity[MAX_MB_PLANE - 1];
   //! Coding block distortion value for uv/color, minimum over the inter modes.
   int64_t min_dist_inter_uv;
+
+  //! The buffer used by search_tx_type() to swap dqcoeff in macroblockd_plane
+  // so we can keep dqcoeff of the best tx_type.
+  tran_low_t *dqcoeff_buf;
   /**@}*/
 
   /*****************************************************************************
