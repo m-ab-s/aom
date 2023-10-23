@@ -90,13 +90,12 @@ TEST(EncodeAPI, InvalidControlId) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
-TEST(EncodeAPI, SetSFrameOnFirstFrame) {
+void EncodeSetSFrameOnFirstFrame(aom_img_fmt fmt, aom_codec_flags_t flag) {
   constexpr int kWidth = 2;
   constexpr int kHeight = 128;
   unsigned char kBuffer[kWidth * kHeight * 3] = { 0 };
   aom_image_t img;
-  ASSERT_EQ(aom_img_wrap(&img, AOM_IMG_FMT_I420, kWidth, kHeight, 1, kBuffer),
-            &img);
+  ASSERT_EQ(aom_img_wrap(&img, fmt, kWidth, kHeight, 1, kBuffer), &img);
 
   aom_codec_iface_t *iface = aom_codec_av1_cx();
   aom_codec_enc_cfg_t cfg;
@@ -105,7 +104,7 @@ TEST(EncodeAPI, SetSFrameOnFirstFrame) {
   cfg.g_h = kHeight;
 
   aom_codec_ctx_t enc;
-  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, flag), AOM_CODEC_OK);
   // One of these aom_codec_encode() calls should fail.
   if (aom_codec_encode(&enc, &img, 0, 1, AOM_EFLAG_SET_S_FRAME) ==
       AOM_CODEC_OK) {
@@ -113,6 +112,16 @@ TEST(EncodeAPI, SetSFrameOnFirstFrame) {
   }
   EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+
+TEST(EncodeAPI, SetSFrameOnFirstFrame) {
+  EncodeSetSFrameOnFirstFrame(AOM_IMG_FMT_I420, 0);
+}
+
+#if CONFIG_AV1_HIGHBITDEPTH
+TEST(EncodeAPI, SetSFrameOnFirstFrameHighbd) {
+  EncodeSetSFrameOnFirstFrame(AOM_IMG_FMT_I42016, AOM_CODEC_USE_HIGHBITDEPTH);
+}
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 TEST(EncodeAPI, MonochromeInProfiles) {
   aom_codec_iface_t *iface = aom_codec_av1_cx();
