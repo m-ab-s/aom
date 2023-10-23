@@ -58,12 +58,12 @@ static INLINE void transpose_arrays_s32_64x64(const int32x4_t *in,
 // out0 | (lane 0) (lane 3)   ==>  out0 = in0 *  w0 + in1 * (w0-1)
 // out1 | (lane 2) (lane 1)   ==>  out1 = in0 * -w0 + in1 * (1-w0)
 
-#define butterfly_half_neon(wvec, lane0, lane1, in0, in1, out, v_bit)  \
-  do {                                                                 \
-    int32x2x2_t wvecs = { { wvec, vneg_s32(wvec) } };                  \
-    int32x4_t x = vmulq_lane_s32(n0, wvecs.val[lane0 / 2], lane0 % 2); \
-    x = vmlaq_lane_s32(x, n1, wvecs.val[lane1 / 2], lane1 % 2);        \
-    *out = vrshlq_s32(x, v_bit);                                       \
+#define butterfly_half_neon(wvec, lane0, lane1, in0, in1, out, v_bit)   \
+  do {                                                                  \
+    int32x2x2_t wvecs = { { wvec, vneg_s32(wvec) } };                   \
+    int32x4_t x = vmulq_lane_s32(in0, wvecs.val[lane0 / 2], lane0 % 2); \
+    x = vmlaq_lane_s32(x, in1, wvecs.val[lane1 / 2], lane1 % 2);        \
+    *out = vrshlq_s32(x, v_bit);                                        \
   } while (false)
 
 static INLINE void butterfly_0112_neon(const int32_t *cospi, const int widx0,
