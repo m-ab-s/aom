@@ -454,14 +454,18 @@ int av1_rc_drop_frame(AV1_COMP *cpi) {
   int64_t buffer_level = p_rc->buffer_level;
 #endif
   // Never drop on key frame, or for frame whose base layer is key.
+  // If drop_count_consec hits or exceeds max_consec_drop then don't drop.
   if (cpi->common.current_frame.frame_type == KEY_FRAME ||
       (cpi->ppi->use_svc &&
        cpi->svc.layer_context[cpi->svc.temporal_layer_id].is_key_frame) ||
-      !oxcf->rc_cfg.drop_frames_water_mark) {
+      !oxcf->rc_cfg.drop_frames_water_mark ||
+      (rc->max_consec_drop > 0 &&
+       rc->drop_count_consec >= rc->max_consec_drop)) {
     return 0;
   } else {
     if (buffer_level < 0) {
       // Always drop if buffer is below 0.
+      rc->drop_count_consec++;
       return 1;
     } else {
       // If buffer is below drop_mark, for now just drop every other frame
@@ -476,6 +480,7 @@ int av1_rc_drop_frame(AV1_COMP *cpi) {
       if (rc->decimation_factor > 0) {
         if (rc->decimation_count > 0) {
           --rc->decimation_count;
+          rc->drop_count_consec++;
           return 1;
         } else {
           rc->decimation_count = rc->decimation_factor;
@@ -2354,6 +2359,7 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   rc->prev_coded_height = cm->height;
   rc->frame_number_encoded++;
   rc->prev_frame_is_dropped = 0;
+  rc->drop_count_consec = 0;
   // if (current_frame->frame_number == 1 && cm->show_frame)
   /*
   rc->this_frame_target =
