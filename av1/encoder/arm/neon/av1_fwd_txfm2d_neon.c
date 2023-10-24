@@ -497,8 +497,8 @@ static AOM_FORCE_INLINE void fdct4x4_neon(const int16x4_t *input,
 // e.g. n=4:
 //   out[0] = in[0] + in[3]
 //   out[1] = in[1] + in[2]
-//   out[2] = in[1] + in[2]
-//   out[3] = in[0] + in[3]
+//   out[2] = in[1] - in[2]
+//   out[3] = in[0] - in[3]
 
 static INLINE void butterfly_dct_pre_s16_x4(const int16x4_t *input,
                                             int16x4_t *output, int n) {
