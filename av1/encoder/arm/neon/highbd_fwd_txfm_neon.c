@@ -22,8 +22,8 @@
 #include "shift_neon.h"
 #include "txfm_neon.h"
 
-static INLINE void transpose_arrays_s32_64x64(const int32x4_t *in,
-                                              int32x4_t *out) {
+static AOM_FORCE_INLINE void transpose_arrays_s32_64x64(const int32x4_t *in,
+                                                        int32x4_t *out) {
   // This is not quite the same as the other transposes defined in
   // transpose_neon.h: We only write the low 64x32 sub-matrix since the rest is
   // unused by the following row transform.
@@ -66,65 +66,61 @@ static INLINE void transpose_arrays_s32_64x64(const int32x4_t *in,
     *out = vrshlq_s32(x, v_bit);                                        \
   } while (false)
 
-static INLINE void butterfly_0112_neon(const int32_t *cospi, const int widx0,
-                                       const int32x4_t n0, const int32x4_t n1,
-                                       int32x4_t *out0, int32x4_t *out1,
-                                       const int32x4_t v_bit) {
+static AOM_FORCE_INLINE void butterfly_0112_neon(
+    const int32_t *cospi, const int widx0, const int32x4_t n0,
+    const int32x4_t n1, int32x4_t *out0, int32x4_t *out1,
+    const int32x4_t v_bit) {
   int32x2_t w01 = vld1_s32(cospi + 2 * widx0);
   butterfly_half_neon(w01, 0, 1, n0, n1, out0, v_bit);
   butterfly_half_neon(w01, 1, 2, n0, n1, out1, v_bit);
 }
 
-static INLINE void butterfly_2312_neon(const int32_t *cospi, const int widx0,
-                                       const int32x4_t n0, const int32x4_t n1,
-                                       int32x4_t *out0, int32x4_t *out1,
-                                       const int32x4_t v_bit) {
+static AOM_FORCE_INLINE void butterfly_2312_neon(
+    const int32_t *cospi, const int widx0, const int32x4_t n0,
+    const int32x4_t n1, int32x4_t *out0, int32x4_t *out1,
+    const int32x4_t v_bit) {
   int32x2_t w01 = vld1_s32(cospi + 2 * widx0);
   butterfly_half_neon(w01, 2, 3, n0, n1, out0, v_bit);
   butterfly_half_neon(w01, 1, 2, n0, n1, out1, v_bit);
 }
 
-static INLINE void butterfly_0332_neon(const int32_t *cospi, const int widx0,
-                                       const int32x4_t n0, const int32x4_t n1,
-                                       int32x4_t *out0, int32x4_t *out1,
-                                       const int32x4_t v_bit) {
+static AOM_FORCE_INLINE void butterfly_0332_neon(
+    const int32_t *cospi, const int widx0, const int32x4_t n0,
+    const int32x4_t n1, int32x4_t *out0, int32x4_t *out1,
+    const int32x4_t v_bit) {
   int32x2_t w01 = vld1_s32(cospi + 2 * widx0);
   butterfly_half_neon(w01, 0, 3, n0, n1, out0, v_bit);
   butterfly_half_neon(w01, 3, 2, n0, n1, out1, v_bit);
 }
 
-static INLINE void butterfly_0130_neon(const int32_t *cospi, const int widx0,
-                                       const int32x4_t n0, const int32x4_t n1,
-                                       int32x4_t *out0, int32x4_t *out1,
-                                       const int32x4_t v_bit) {
+static AOM_FORCE_INLINE void butterfly_0130_neon(
+    const int32_t *cospi, const int widx0, const int32x4_t n0,
+    const int32x4_t n1, int32x4_t *out0, int32x4_t *out1,
+    const int32x4_t v_bit) {
   int32x2_t w01 = vld1_s32(cospi + 2 * widx0);
   butterfly_half_neon(w01, 0, 1, n0, n1, out0, v_bit);
   butterfly_half_neon(w01, 3, 0, n0, n1, out1, v_bit);
 }
 
-static INLINE void butterfly_cospi32_0002_neon(const int32_t *cospi,
-                                               const int32x4_t n0,
-                                               const int32x4_t n1,
-                                               int32x4_t *out0, int32x4_t *out1,
-                                               const int32x4_t v_bit) {
+static AOM_FORCE_INLINE void butterfly_cospi32_0002_neon(
+    const int32_t *cospi, const int32x4_t n0, const int32x4_t n1,
+    int32x4_t *out0, int32x4_t *out1, const int32x4_t v_bit) {
   int32x2_t w01 = vld1_s32(cospi + 2 * 32);
   butterfly_half_neon(w01, 0, 0, n0, n1, out0, v_bit);
   butterfly_half_neon(w01, 0, 2, n0, n1, out1, v_bit);
 }
 
-static INLINE void butterfly_cospi32_0222_neon(const int32_t *cospi,
-                                               const int32x4_t n0,
-                                               const int32x4_t n1,
-                                               int32x4_t *out0, int32x4_t *out1,
-                                               const int32x4_t v_bit) {
+static AOM_FORCE_INLINE void butterfly_cospi32_0222_neon(
+    const int32_t *cospi, const int32x4_t n0, const int32x4_t n1,
+    int32x4_t *out0, int32x4_t *out1, const int32x4_t v_bit) {
   int32x2_t w01 = vld1_s32(cospi + 2 * 32);
   butterfly_half_neon(w01, 0, 2, n0, n1, out0, v_bit);
   butterfly_half_neon(w01, 2, 2, n0, n1, out1, v_bit);
 }
 
-static INLINE void round_rect_array_s32_neon(const int32x4_t *input,
-                                             int32x4_t *output,
-                                             const int size) {
+static AOM_FORCE_INLINE void round_rect_array_s32_neon(const int32x4_t *input,
+                                                       int32x4_t *output,
+                                                       const int size) {
   const int32x4_t sqrt2 = vdupq_n_s32(NewSqrt2);
   int i = 0;
   do {
@@ -133,9 +129,8 @@ static INLINE void round_rect_array_s32_neon(const int32x4_t *input,
   } while (++i < size);
 }
 
-static INLINE void round_shift2_rect_array_s32_neon(const int32x4_t *input,
-                                                    int32x4_t *output,
-                                                    const int size) {
+static AOM_FORCE_INLINE void round_shift2_rect_array_s32_neon(
+    const int32x4_t *input, int32x4_t *output, const int size) {
   const int32x4_t sqrt2 = vdupq_n_s32(NewSqrt2);
   int i = 0;
   do {
@@ -446,8 +441,8 @@ void av1_fwd_txfm2d_4x4_neon(const int16_t *input, int32_t *coeff,
 //   out[2] = in[1] - in[2]
 //   out[3] = in[0] - in[3]
 
-static INLINE void butterfly_dct_pre(const int32x4_t *input, int32x4_t *output,
-                                     int n) {
+static AOM_FORCE_INLINE void butterfly_dct_pre(const int32x4_t *input,
+                                               int32x4_t *output, int n) {
   for (int i = 0; i < n / 2; ++i) {
     output[i] = vaddq_s32(input[i], input[n - i - 1]);
   }
@@ -467,9 +462,9 @@ static INLINE void butterfly_dct_pre(const int32x4_t *input, int32x4_t *output,
 //   out[6] = in0[6] + in1[5];
 //   out[7] = in0[7] + in1[4];
 
-static INLINE void butterfly_dct_post(const int32x4_t *in0,
-                                      const int32x4_t *in1, int32x4_t *output,
-                                      int n) {
+static AOM_FORCE_INLINE void butterfly_dct_post(const int32x4_t *in0,
+                                                const int32x4_t *in1,
+                                                int32x4_t *output, int n) {
   for (int i = 0; i < n / 4; ++i) {
     output[i] = vaddq_s32(in0[i], in1[n / 2 - i - 1]);
   }

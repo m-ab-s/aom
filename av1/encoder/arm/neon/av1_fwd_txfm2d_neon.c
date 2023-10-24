@@ -52,11 +52,9 @@
 // out0 | (lane 0) (lane 2)   ==>  out0 = in0 *   w0   + in1 *  -w0
 // out1 | (lane 3) (lane 1)   ==>  out1 = in0 * (w0-1) + in1 * (1-w0)
 
-static INLINE void butterfly_s32_s32_x4_0112_neon(const int16x4_t w0101_s16,
-                                                  const int32x4_t in0,
-                                                  const int32x4_t in1,
-                                                  int32x4_t *out0,
-                                                  int32x4_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s32_s32_x4_0112_neon(
+    const int16x4_t w0101_s16, const int32x4_t in0, const int32x4_t in1,
+    int32x4_t *out0, int32x4_t *out1) {
   int32x4_t w0101 = vmovl_s16(w0101_s16);
   int32x4_t o0 = vmulq_lane_s32(in0, vget_low_s32(w0101), 0);
   o0 = vmlaq_lane_s32(o0, in1, vget_low_s32(w0101), 1);
@@ -66,11 +64,9 @@ static INLINE void butterfly_s32_s32_x4_0112_neon(const int16x4_t w0101_s16,
   *out1 = vrshrq_n_s32(o1, TXFM_COS_BIT_MAX);
 }
 
-static INLINE void butterfly_s32_s32_x4_0332_neon(const int16x4_t w0101_s16,
-                                                  const int32x4_t in0,
-                                                  const int32x4_t in1,
-                                                  int32x4_t *out0,
-                                                  int32x4_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s32_s32_x4_0332_neon(
+    const int16x4_t w0101_s16, const int32x4_t in0, const int32x4_t in1,
+    int32x4_t *out0, int32x4_t *out1) {
   int32x4_t w0101 = vmovl_s16(w0101_s16);
   int32x4_t o0 = vmulq_lane_s32(in0, vget_low_s32(w0101), 0);
   o0 = vmlaq_lane_s32(o0, in1, vget_high_s32(w0101), 1);
@@ -80,11 +76,9 @@ static INLINE void butterfly_s32_s32_x4_0332_neon(const int16x4_t w0101_s16,
   *out1 = vrshrq_n_s32(o1, TXFM_COS_BIT_MAX);
 }
 
-static INLINE void butterfly_s32_s32_x4_1003_neon(const int16x4_t w0101_s16,
-                                                  const int32x4_t in0,
-                                                  const int32x4_t in1,
-                                                  int32x4_t *out0,
-                                                  int32x4_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s32_s32_x4_1003_neon(
+    const int16x4_t w0101_s16, const int32x4_t in0, const int32x4_t in1,
+    int32x4_t *out0, int32x4_t *out1) {
   int32x4_t w0101 = vmovl_s16(w0101_s16);
   int32x4_t o0 = vmulq_lane_s32(in0, vget_low_s32(w0101), 1);
   o0 = vmlaq_lane_s32(o0, in1, vget_low_s32(w0101), 0);
@@ -94,11 +88,9 @@ static INLINE void butterfly_s32_s32_x4_1003_neon(const int16x4_t w0101_s16,
   *out1 = vrshrq_n_s32(o1, TXFM_COS_BIT_MAX);
 }
 
-static INLINE void butterfly_s32_s32_x4_1223_neon(const int16x4_t w0101_s16,
-                                                  const int32x4_t in0,
-                                                  const int32x4_t in1,
-                                                  int32x4_t *out0,
-                                                  int32x4_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s32_s32_x4_1223_neon(
+    const int16x4_t w0101_s16, const int32x4_t in0, const int32x4_t in1,
+    int32x4_t *out0, int32x4_t *out1) {
   int32x4_t w0101 = vmovl_s16(w0101_s16);
   int32x4_t o0 = vmulq_lane_s32(in0, vget_low_s32(w0101), 1);
   o0 = vmlaq_lane_s32(o0, in1, vget_high_s32(w0101), 0);
@@ -119,35 +111,27 @@ static INLINE void butterfly_s32_s32_x4_1223_neon(const int16x4_t w0101_s16,
     *out1 = vqrshrn_n_s32(v0, TXFM_COS_BIT_MAX);                              \
   } while (0)
 
-static INLINE void butterfly_s16_s32_x4_0112_neon(const int16x4_t w0101,
-                                                  const int16x4_t in0,
-                                                  const int16x4_t in1,
-                                                  int16x4_t *out0,
-                                                  int16x4_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s16_s32_x4_0112_neon(
+    const int16x4_t w0101, const int16x4_t in0, const int16x4_t in1,
+    int16x4_t *out0, int16x4_t *out1) {
   butterfly_s16_s32_x4_neon(w0101, 0, 1, 1, 2, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x4_0332_neon(const int16x4_t w0101,
-                                                  const int16x4_t in0,
-                                                  const int16x4_t in1,
-                                                  int16x4_t *out0,
-                                                  int16x4_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s16_s32_x4_0332_neon(
+    const int16x4_t w0101, const int16x4_t in0, const int16x4_t in1,
+    int16x4_t *out0, int16x4_t *out1) {
   butterfly_s16_s32_x4_neon(w0101, 0, 3, 3, 2, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x4_1003_neon(const int16x4_t w0101,
-                                                  const int16x4_t in0,
-                                                  const int16x4_t in1,
-                                                  int16x4_t *out0,
-                                                  int16x4_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s16_s32_x4_1003_neon(
+    const int16x4_t w0101, const int16x4_t in0, const int16x4_t in1,
+    int16x4_t *out0, int16x4_t *out1) {
   butterfly_s16_s32_x4_neon(w0101, 1, 0, 0, 3, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x4_1223_neon(const int16x4_t w0101,
-                                                  const int16x4_t in0,
-                                                  const int16x4_t in1,
-                                                  int16x4_t *out0,
-                                                  int16x4_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s16_s32_x4_1223_neon(
+    const int16x4_t w0101, const int16x4_t in0, const int16x4_t in1,
+    int16x4_t *out0, int16x4_t *out1) {
   butterfly_s16_s32_x4_neon(w0101, 1, 2, 2, 3, in0, in1, out0, out1);
 }
 
@@ -170,88 +154,83 @@ static INLINE void butterfly_s16_s32_x4_1223_neon(const int16x4_t w0101,
     *out1 = vcombine_s16(d0, d1);                                             \
   } while (0)
 
-static INLINE void butterfly_s16_s32_x8_0112_neon(const int16x4_t w0101,
-                                                  const int16x8_t in0,
-                                                  const int16x8_t in1,
-                                                  int16x8_t *out0,
-                                                  int16x8_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s16_s32_x8_0112_neon(
+    const int16x4_t w0101, const int16x8_t in0, const int16x8_t in1,
+    int16x8_t *out0, int16x8_t *out1) {
   butterfly_s16_s32_x8_neon(w0101, 0, 1, 1, 2, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x8_0332_neon(const int16x4_t w0101,
-                                                  const int16x8_t in0,
-                                                  const int16x8_t in1,
-                                                  int16x8_t *out0,
-                                                  int16x8_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s16_s32_x8_0332_neon(
+    const int16x4_t w0101, const int16x8_t in0, const int16x8_t in1,
+    int16x8_t *out0, int16x8_t *out1) {
   butterfly_s16_s32_x8_neon(w0101, 0, 3, 3, 2, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x8_1003_neon(const int16x4_t w0101,
-                                                  const int16x8_t in0,
-                                                  const int16x8_t in1,
-                                                  int16x8_t *out0,
-                                                  int16x8_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s16_s32_x8_1003_neon(
+    const int16x4_t w0101, const int16x8_t in0, const int16x8_t in1,
+    int16x8_t *out0, int16x8_t *out1) {
   butterfly_s16_s32_x8_neon(w0101, 1, 0, 0, 3, in0, in1, out0, out1);
 }
 
-static INLINE void butterfly_s16_s32_x8_1223_neon(const int16x4_t w0101,
-                                                  const int16x8_t in0,
-                                                  const int16x8_t in1,
-                                                  int16x8_t *out0,
-                                                  int16x8_t *out1) {
+static AOM_FORCE_INLINE void butterfly_s16_s32_x8_1223_neon(
+    const int16x4_t w0101, const int16x8_t in0, const int16x8_t in1,
+    int16x8_t *out0, int16x8_t *out1) {
   butterfly_s16_s32_x8_neon(w0101, 1, 2, 2, 3, in0, in1, out0, out1);
 }
 
-static INLINE void flip_buf_4_neon(int16x4_t *in, int16x4_t *out, int size) {
+static AOM_FORCE_INLINE void flip_buf_4_neon(int16x4_t *in, int16x4_t *out,
+                                             int size) {
   for (int i = 0; i < size; ++i) {
     out[size - i - 1] = in[i];
   }
 }
 
-static INLINE void flip_buf_8_neon(int16x8_t *in, int16x8_t *out, int size) {
+static AOM_FORCE_INLINE void flip_buf_8_neon(int16x8_t *in, int16x8_t *out,
+                                             int size) {
   for (int i = 0; i < size; ++i) {
     out[size - i - 1] = in[i];
   }
 }
 
-static INLINE void store_buffer_interleaved_s32_x8(int32_t *const out,
-                                                   const int32x4_t *const in1,
-                                                   const int32x4_t *const in2,
-                                                   const int stride,
-                                                   const int out_size) {
+static AOM_FORCE_INLINE void store_buffer_interleaved_s32_x8(
+    int32_t *const out, const int32x4_t *const in1, const int32x4_t *const in2,
+    const int stride, const int out_size) {
   for (int i = 0; i < out_size; ++i) {
     vst1q_s32(out + stride * i, in1[i]);
     vst1q_s32(out + stride * i + 4, in2[i]);
   }
 }
 
-static INLINE void load_buffer_s16_x4(const int16_t *in, const int stride,
-                                      int16x4_t *const out,
-                                      const int out_size) {
+static AOM_FORCE_INLINE void load_buffer_s16_x4(const int16_t *in,
+                                                const int stride,
+                                                int16x4_t *const out,
+                                                const int out_size) {
   for (int i = 0; i < out_size; ++i) {
     out[i] = vld1_s16(in);
     in += stride;
   }
 }
 
-static INLINE void load_buffer_s16_x8(const int16_t *in, int stride,
-                                      int16x8_t *out, int out_size) {
+static AOM_FORCE_INLINE void load_buffer_s16_x8(const int16_t *in, int stride,
+                                                int16x8_t *out, int out_size) {
   for (int i = 0; i < out_size; ++i) {
     out[i] = vld1q_s16(in + i * stride);
   }
 }
 
-static INLINE void store_buffer_s16_x4(const int16x4_t *const in,
-                                       int32_t *const out, const int stride,
-                                       const int out_size) {
+static AOM_FORCE_INLINE void store_buffer_s16_x4(const int16x4_t *const in,
+                                                 int32_t *const out,
+                                                 const int stride,
+                                                 const int out_size) {
   for (int i = 0; i < out_size; ++i) {
     vst1q_s32(out + i * stride, vmovl_s16(in[i]));
   }
 }
 
-static INLINE void store_buffer_s16_x8(const int16x8_t *const in,
-                                       int32_t *const out, const int stride,
-                                       const int out_size) {
+static AOM_FORCE_INLINE void store_buffer_s16_x8(const int16x8_t *const in,
+                                                 int32_t *const out,
+                                                 const int stride,
+                                                 const int out_size) {
   for (int i = 0; i < out_size; ++i) {
     vst1q_s32(out + i * stride + 0, vmovl_s16(vget_low_s16(in[i])));
     vst1q_s32(out + i * stride + 4, vmovl_s16(vget_high_s16(in[i])));
@@ -267,37 +246,43 @@ static INLINE void store_buffer_s16_x8(const int16x8_t *const in,
 //                |      ^ input type
 //                ^ multiplicand and shift identifier
 
-static INLINE int16x4_t round_shift_sqrt2_s16_s16_4x1_neon(int16x4_t a) {
+static AOM_FORCE_INLINE int16x4_t
+round_shift_sqrt2_s16_s16_4x1_neon(int16x4_t a) {
   return vqrshrn_n_s32(vmull_n_s16(a, NewSqrt2), NewSqrt2Bits);
 }
 
-static INLINE int16x8_t round_shift_sqrt2_s16_s16_8x1_neon(int16x8_t a) {
+static AOM_FORCE_INLINE int16x8_t
+round_shift_sqrt2_s16_s16_8x1_neon(int16x8_t a) {
   return vcombine_s16(round_shift_sqrt2_s16_s16_4x1_neon(vget_low_s16(a)),
                       round_shift_sqrt2_s16_s16_4x1_neon(vget_high_s16(a)));
 }
 
-static INLINE int16x4_t round_shift_2sqrt2_s16_s16_4x1_neon(int16x4_t a) {
+static AOM_FORCE_INLINE int16x4_t
+round_shift_2sqrt2_s16_s16_4x1_neon(int16x4_t a) {
   return vqrshrn_n_s32(vmull_n_s16(a, 2 * NewSqrt2), NewSqrt2Bits);
 }
 
-static INLINE int16x8_t round_shift_2sqrt2_s16_s16_8x1_neon(int16x8_t a) {
+static AOM_FORCE_INLINE int16x8_t
+round_shift_2sqrt2_s16_s16_8x1_neon(int16x8_t a) {
   return vcombine_s16(round_shift_2sqrt2_s16_s16_4x1_neon(vget_low_s16(a)),
                       round_shift_2sqrt2_s16_s16_4x1_neon(vget_high_s16(a)));
 }
 
-static INLINE int32x4_t round_shift_sqrt2_s16_s32_4x1_neon(int16x4_t a) {
+static AOM_FORCE_INLINE int32x4_t
+round_shift_sqrt2_s16_s32_4x1_neon(int16x4_t a) {
   return vrshrq_n_s32(vmull_n_s16(a, NewSqrt2), NewSqrt2Bits);
 }
 
-static INLINE int32x4_t round_shift_sqrt2_s32_s32_4x1_neon(int32x4_t a) {
+static AOM_FORCE_INLINE int32x4_t
+round_shift_sqrt2_s32_s32_4x1_neon(int32x4_t a) {
   return vrshrq_n_s32(vmulq_n_s32(a, NewSqrt2), NewSqrt2Bits);
 }
 
-#define ROUND_SHIFT_SQRT_LOOP_HELPER(name, type0, type1, fn)       \
-  static INLINE void name(const type0 *in, type1 *out, int size) { \
-    for (int i = 0; i < size; ++i) {                               \
-      out[i] = fn(in[i]);                                          \
-    }                                                              \
+#define ROUND_SHIFT_SQRT_LOOP_HELPER(name, type0, type1, fn)                 \
+  static AOM_FORCE_INLINE void name(const type0 *in, type1 *out, int size) { \
+    for (int i = 0; i < size; ++i) {                                         \
+      out[i] = fn(in[i]);                                                    \
+    }                                                                        \
   }
 
 ROUND_SHIFT_SQRT_LOOP_HELPER(round_shift_sqrt2_s32_s32_4xn_neon, int32x4_t,
@@ -311,19 +296,19 @@ ROUND_SHIFT_SQRT_LOOP_HELPER(round_shift_2sqrt2_s16_s16_4xn_neon, int16x4_t,
 ROUND_SHIFT_SQRT_LOOP_HELPER(round_shift_2sqrt2_s16_s16_8xn_neon, int16x8_t,
                              int16x8_t, round_shift_2sqrt2_s16_s16_8x1_neon)
 
-static INLINE void store_rect_buffer_s16_x4(const int16x4_t *const in,
-                                            int32_t *const out,
-                                            const int stride,
-                                            const int out_size) {
+static AOM_FORCE_INLINE void store_rect_buffer_s16_x4(const int16x4_t *const in,
+                                                      int32_t *const out,
+                                                      const int stride,
+                                                      const int out_size) {
   for (int i = 0; i < out_size; ++i) {
     vst1q_s32(out + i * stride, round_shift_sqrt2_s16_s32_4x1_neon(in[i]));
   }
 }
 
-static INLINE void store_rect_buffer_s16_x8(const int16x8_t *const in,
-                                            int32_t *const out,
-                                            const int stride,
-                                            const int out_size) {
+static AOM_FORCE_INLINE void store_rect_buffer_s16_x8(const int16x8_t *const in,
+                                                      int32_t *const out,
+                                                      const int stride,
+                                                      const int out_size) {
   for (int i = 0; i < out_size; ++i) {
     vst1q_s32(out + i * stride + 0,
               round_shift_sqrt2_s16_s32_4x1_neon(vget_low_s16(in[i])));
@@ -500,8 +485,9 @@ static AOM_FORCE_INLINE void fdct4x4_neon(const int16x4_t *input,
 //   out[2] = in[1] - in[2]
 //   out[3] = in[0] - in[3]
 
-static INLINE void butterfly_dct_pre_s16_x4(const int16x4_t *input,
-                                            int16x4_t *output, int n) {
+static AOM_FORCE_INLINE void butterfly_dct_pre_s16_x4(const int16x4_t *input,
+                                                      int16x4_t *output,
+                                                      int n) {
   for (int i = 0; i < n / 2; ++i) {
     output[i] = vqadd_s16(input[i], input[n - i - 1]);
   }
@@ -510,8 +496,9 @@ static INLINE void butterfly_dct_pre_s16_x4(const int16x4_t *input,
   }
 }
 
-static INLINE void butterfly_dct_pre_s16_x8(const int16x8_t *input,
-                                            int16x8_t *output, int n) {
+static AOM_FORCE_INLINE void butterfly_dct_pre_s16_x8(const int16x8_t *input,
+                                                      int16x8_t *output,
+                                                      int n) {
   for (int i = 0; i < n / 2; ++i) {
     output[i] = vqaddq_s16(input[i], input[n - i - 1]);
   }
@@ -520,8 +507,9 @@ static INLINE void butterfly_dct_pre_s16_x8(const int16x8_t *input,
   }
 }
 
-static INLINE void butterfly_dct_pre_s32_x4(const int32x4_t *input,
-                                            int32x4_t *output, int n) {
+static AOM_FORCE_INLINE void butterfly_dct_pre_s32_x4(const int32x4_t *input,
+                                                      int32x4_t *output,
+                                                      int n) {
   for (int i = 0; i < n / 2; ++i) {
     output[i] = vqaddq_s32(input[i], input[n - i - 1]);
   }
@@ -541,9 +529,10 @@ static INLINE void butterfly_dct_pre_s32_x4(const int32x4_t *input,
 //   out[6] = in0[6] + in1[5];
 //   out[7] = in0[7] + in1[4];
 
-static INLINE void butterfly_dct_post_s16_x4(const int16x4_t *in0,
-                                             const int16x4_t *in1,
-                                             int16x4_t *output, int n) {
+static AOM_FORCE_INLINE void butterfly_dct_post_s16_x4(const int16x4_t *in0,
+                                                       const int16x4_t *in1,
+                                                       int16x4_t *output,
+                                                       int n) {
   for (int i = 0; i < n / 4; ++i) {
     output[i] = vqadd_s16(in0[i], in1[n / 2 - i - 1]);
   }
@@ -559,9 +548,10 @@ static INLINE void butterfly_dct_post_s16_x4(const int16x4_t *in0,
   }
 }
 
-static INLINE void butterfly_dct_post_s16_x8(const int16x8_t *in0,
-                                             const int16x8_t *in1,
-                                             int16x8_t *output, int n) {
+static AOM_FORCE_INLINE void butterfly_dct_post_s16_x8(const int16x8_t *in0,
+                                                       const int16x8_t *in1,
+                                                       int16x8_t *output,
+                                                       int n) {
   for (int i = 0; i < n / 4; ++i) {
     output[i] = vqaddq_s16(in0[i], in1[n / 2 - i - 1]);
   }
@@ -577,9 +567,10 @@ static INLINE void butterfly_dct_post_s16_x8(const int16x8_t *in0,
   }
 }
 
-static INLINE void butterfly_dct_post_s32_x4(const int32x4_t *in0,
-                                             const int32x4_t *in1,
-                                             int32x4_t *output, int n) {
+static AOM_FORCE_INLINE void butterfly_dct_post_s32_x4(const int32x4_t *in0,
+                                                       const int32x4_t *in1,
+                                                       int32x4_t *output,
+                                                       int n) {
   for (int i = 0; i < n / 4; ++i) {
     output[i] = vqaddq_s32(in0[i], in1[n / 2 - i - 1]);
   }
