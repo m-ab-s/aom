@@ -386,6 +386,33 @@ TEST_P(LowbdDrPredTest, OperationCheck) { RundrPredTest(0); }
 
 TEST_P(LowbdDrPredTest, DISABLED_Speed) { RundrPredTest(1); }
 
+#if CONFIG_AV1_HIGHBITDEPTH
+TEST_P(HighbdDrPredTest, OperationCheck) {
+  if (params_.tst_fn == nullptr) return;
+  for (enable_upsample_ = 0; enable_upsample_ < 2; ++enable_upsample_) {
+    for (int angle = start_angle_; angle < stop_angle_; angle++) {
+      dx_ = av1_get_dx(angle);
+      dy_ = av1_get_dy(angle);
+      if (dx_ && dy_) RunTest(false, false, angle);
+    }
+  }
+}
+
+TEST_P(HighbdDrPredTest, DISABLED_Speed) {
+  const int angles[] = { 3, 45, 87 };
+  for (enable_upsample_ = 0; enable_upsample_ < 2; ++enable_upsample_) {
+    for (int i = 0; i < 3; ++i) {
+      int angle = angles[i] + start_angle_;
+      dx_ = av1_get_dx(angle);
+      dy_ = av1_get_dy(angle);
+      printf("enable_upsample: %d angle: %d ~~~~~~~~~~~~~~~\n",
+             enable_upsample_, angle);
+      if (dx_ && dy_) RunTest(true, false, angle);
+    }
+  }
+}
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, LowbdDrPredTest,
@@ -453,32 +480,6 @@ INSTANTIATE_TEST_SUITE_P(
                           &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
                           &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_avx2>,
                           AOM_BITS_12, kZ3Start)));
-
-TEST_P(HighbdDrPredTest, DISABLED_Speed) {
-  const int angles[] = { 3, 45, 87 };
-  for (enable_upsample_ = 0; enable_upsample_ < 2; ++enable_upsample_) {
-    for (int i = 0; i < 3; ++i) {
-      int angle = angles[i] + start_angle_;
-      dx_ = av1_get_dx(angle);
-      dy_ = av1_get_dy(angle);
-      printf("enable_upsample: %d angle: %d ~~~~~~~~~~~~~~~\n",
-             enable_upsample_, angle);
-      if (dx_ && dy_) RunTest(true, false, angle);
-    }
-  }
-}
-
-TEST_P(HighbdDrPredTest, OperationCheck) {
-  if (params_.tst_fn == nullptr) return;
-  // const int angles[] = { 3, 45, 81, 87, 93, 100, 145, 187, 199, 260 };
-  for (enable_upsample_ = 0; enable_upsample_ < 2; ++enable_upsample_) {
-    for (int angle = start_angle_; angle < stop_angle_; angle++) {
-      dx_ = av1_get_dx(angle);
-      dy_ = av1_get_dy(angle);
-      if (dx_ && dy_) RunTest(false, false, angle);
-    }
-  }
-}
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 #endif  // HAVE_AVX2
 
@@ -494,6 +495,23 @@ INSTANTIATE_TEST_SUITE_P(
                       DrPredFunc<DrPred>(&z3_wrapper<av1_dr_prediction_z3_c>,
                                          &z3_wrapper<av1_dr_prediction_z3_neon>,
                                          AOM_BITS_8, kZ3Start)));
+
+#if CONFIG_AV1_HIGHBITDEPTH
+INSTANTIATE_TEST_SUITE_P(
+    NEON, HighbdDrPredTest,
+    ::testing::Values(DrPredFunc<DrPred_Hbd>(
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_neon>,
+                          AOM_BITS_8, kZ1Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_neon>,
+                          AOM_BITS_10, kZ1Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_neon>,
+                          AOM_BITS_12, kZ1Start)));
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #endif  // HAVE_NEON
 
