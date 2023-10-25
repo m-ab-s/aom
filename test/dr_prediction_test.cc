@@ -510,7 +510,19 @@ INSTANTIATE_TEST_SUITE_P(
                       DrPredFunc<DrPred_Hbd>(
                           &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
                           &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_neon>,
-                          AOM_BITS_12, kZ1Start)));
+                          AOM_BITS_12, kZ1Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
+                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_neon>,
+                          AOM_BITS_8, kZ2Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
+                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_neon>,
+                          AOM_BITS_10, kZ2Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_c>,
+                          &z2_wrapper_hbd<av1_highbd_dr_prediction_z2_neon>,
+                          AOM_BITS_12, kZ2Start)));
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #endif  // HAVE_NEON
