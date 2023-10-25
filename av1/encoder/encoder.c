@@ -2048,26 +2048,6 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   }
 }
 
-#if !CONFIG_REALTIME_ONLY
-#define COUPLED_CHROMA_FROM_LUMA_RESTORATION 0
-static void set_restoration_unit_size(int width, int height, int sx, int sy,
-                                      RestorationInfo *rst) {
-  (void)width;
-  (void)height;
-  (void)sx;
-  (void)sy;
-#if COUPLED_CHROMA_FROM_LUMA_RESTORATION
-  int s = AOMMIN(sx, sy);
-#else
-  int s = 0;
-#endif  // !COUPLED_CHROMA_FROM_LUMA_RESTORATION
-
-  rst[0].restoration_unit_size = RESTORATION_UNITSIZE_MAX;
-  rst[1].restoration_unit_size = rst[0].restoration_unit_size >> s;
-  rst[2].restoration_unit_size = rst[1].restoration_unit_size;
-}
-#endif
-
 static void init_ref_frame_bufs(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   int i;
@@ -2233,11 +2213,6 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 
 #if !CONFIG_REALTIME_ONLY
   if (is_restoration_used(cm)) {
-    const int frame_width = cm->superres_upscaled_width;
-    const int frame_height = cm->superres_upscaled_height;
-    set_restoration_unit_size(frame_width, frame_height,
-                              seq_params->subsampling_x,
-                              seq_params->subsampling_y, cm->rst_info);
     for (int i = 0; i < num_planes; ++i)
       cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
 

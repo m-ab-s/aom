@@ -1490,6 +1490,13 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // Disable loop restoration for luma plane
   int disable_loop_restoration_luma;
 
+  // Range of loop restoration unit sizes to search
+  // The minimum size is clamped against the superblock size in
+  // av1_pick_filter_restoration, so that the code which sets this value does
+  // not need to know the superblock size ahead of time.
+  int min_lr_unit_size;
+  int max_lr_unit_size;
+
   // Prune RESTORE_WIENER evaluation based on source variance
   // 0 : no pruning
   // 1 : conservative pruning

@@ -5222,6 +5222,9 @@ static AOM_INLINE void setup_frame_info(AV1Decoder *pbi) {
       cm->rst_info[1].frame_restoration_type != RESTORE_NONE ||
       cm->rst_info[2].frame_restoration_type != RESTORE_NONE) {
     av1_alloc_restoration_buffers(cm, /*is_sgr_enabled =*/true);
+    for (int p = 0; p < av1_num_planes(cm); p++) {
+      av1_alloc_restoration_struct(cm, &cm->rst_info[p], p > 0);
+    }
   }
 
   const int use_highbd = cm->seq_params->use_highbitdepth;

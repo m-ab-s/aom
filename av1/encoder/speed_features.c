@@ -2169,6 +2169,8 @@ static AOM_INLINE void init_winner_mode_sf(
 static AOM_INLINE void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->disable_loop_restoration_chroma = 0;
   lpf_sf->disable_loop_restoration_luma = 0;
+  lpf_sf->min_lr_unit_size = RESTORATION_PROC_UNIT_SIZE;
+  lpf_sf->max_lr_unit_size = RESTORATION_UNITSIZE_MAX;
   lpf_sf->prune_wiener_based_on_src_var = 0;
   lpf_sf->prune_sgr_based_on_wiener = 0;
   lpf_sf->enable_sgr_ep_pruning = 0;
@@ -2489,6 +2491,7 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const int is_1080p_or_larger = AOMMIN(cm->width, cm->height) >= 1080;
+  const int is_1440p_or_larger = AOMMIN(cm->width, cm->height) >= 1440;
   const int is_arf2_bwd_type =
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
 
@@ -2644,6 +2647,36 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     if (cm->features.allow_screen_content_tools &&
         cm->quant_params.base_qindex < 128 && is_480p_or_lesser) {
       sf->part_sf.prune_sub_8x8_partition_level = 0;
+    }
+  }
+
+  // Loop restoration size search
+  // At speed 0, always search all available sizes for the maximum possible gain
+  sf->lpf_sf.min_lr_unit_size = RESTORATION_PROC_UNIT_SIZE;
+  sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX;
+
+  if (speed >= 1) {
+    // For large frames, small restoration units are almost never useful,
+    // so prune them away
+    if (is_1440p_or_larger) {
+      sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX;
+    } else if (is_720p_or_larger) {
+      sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+    }
+  }
+
+  if (speed >= 3 || (cpi->oxcf.mode == ALLINTRA && speed >= 1)) {
+    // At this speed, a full search is too expensive. Instead, pick a single
+    // size based on size and qindex. Note that, in general, higher quantizers
+    // (== lower quality) and larger frames generally want to use larger
+    // restoration units.
+    int qindex_thresh = 96;
+    if (cm->quant_params.base_qindex <= qindex_thresh && !is_1440p_or_larger) {
+      sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+      sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+    } else {
+      sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX;
+      sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX;
     }
   }
 
