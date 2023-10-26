@@ -24,9 +24,9 @@
 namespace {
 
 #if CONFIG_REALTIME_ONLY
-const int kUsage = AOM_USAGE_REALTIME;
+const unsigned int kUsage = AOM_USAGE_REALTIME;
 #else
-const int kUsage = AOM_USAGE_GOOD_QUALITY;
+const unsigned int kUsage = AOM_USAGE_GOOD_QUALITY;
 #endif
 
 static void *Memset16(void *dest, int val, size_t length) {
@@ -156,7 +156,7 @@ TEST(EncodeAPI, LowBDEncoderLowBDImage) {
   ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
 
   aom_image_t *image =
-      aom_img_alloc(NULL, AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h, 0);
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h, 0);
   ASSERT_NE(image, nullptr);
 
   // Set the image to two colors so that av1_set_screen_content_options() will
@@ -193,7 +193,7 @@ TEST(EncodeAPI, HighBDEncoderHighBDImage) {
   ASSERT_EQ(init_status, AOM_CODEC_OK);
 
   aom_image_t *image =
-      aom_img_alloc(NULL, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 0);
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 0);
   ASSERT_NE(image, nullptr);
 
   // Set the image to two colors so that av1_set_screen_content_options() will
@@ -231,7 +231,7 @@ TEST(EncodeAPI, HighBDEncoderLowBDImage) {
   ASSERT_EQ(init_status, AOM_CODEC_OK);
 
   aom_image_t *image =
-      aom_img_alloc(NULL, AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h, 0);
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h, 0);
   ASSERT_NE(image, nullptr);
 
   // Set the image to two colors so that av1_set_screen_content_options() will
@@ -264,7 +264,7 @@ TEST(EncodeAPI, LowBDEncoderHighBDImage) {
   ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
 
   aom_image_t *image =
-      aom_img_alloc(NULL, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 0);
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 0);
   ASSERT_NE(image, nullptr);
 
   // Set the image to two colors so that av1_set_screen_content_options() will
@@ -288,13 +288,13 @@ TEST(EncodeAPI, LowBDEncoderHighBDImage) {
 }
 
 class EncodeAPIParameterized
-    : public testing::TestWithParam<
-          std::tuple</*usage=*/int, /*speed=*/int, /*aq_mode=*/int>> {};
+    : public testing::TestWithParam<std::tuple<
+          /*usage=*/unsigned int, /*speed=*/int, /*aq_mode=*/unsigned int>> {};
 
 // Encodes two frames at a given usage, speed, and aq_mode setting.
 // Reproduces b/303023614
 TEST_P(EncodeAPIParameterized, HighBDEncoderHighBDFrames) {
-  const int usage = std::get<0>(GetParam());
+  const unsigned int usage = std::get<0>(GetParam());
   int speed = std::get<1>(GetParam());
 
   if (speed == 10 && usage != AOM_USAGE_REALTIME) {
@@ -313,15 +313,15 @@ TEST_P(EncodeAPIParameterized, HighBDEncoderHighBDFrames) {
 #if !CONFIG_AV1_HIGHBITDEPTH
   ASSERT_EQ(init_status, AOM_CODEC_INCAPABLE);
 #else
-  const int aq_mode = std::get<2>(GetParam());
-
   ASSERT_EQ(init_status, AOM_CODEC_OK);
+
+  const unsigned int aq_mode = std::get<2>(GetParam());
 
   ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, speed), AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_AQ_MODE, aq_mode), AOM_CODEC_OK);
 
   aom_image_t *image =
-      aom_img_alloc(NULL, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 0);
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 0);
   ASSERT_NE(image, nullptr);
 
   for (unsigned int i = 0; i < image->d_h; ++i) {
@@ -347,7 +347,7 @@ TEST_P(EncodeAPIParameterized, HighBDEncoderHighBDFrames) {
 #endif
 }
 
-const int kUsages[] = {
+const unsigned int kUsages[] = {
   AOM_USAGE_REALTIME,
 #if !CONFIG_REALTIME_ONLY
   AOM_USAGE_GOOD_QUALITY,
