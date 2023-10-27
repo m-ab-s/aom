@@ -217,30 +217,6 @@ static INLINE uint32x4_t fold_mul_and_sum_neon(int16x8_t partiala,
   return partiala_u32;
 }
 
-static INLINE uint64x2_t ziplo_u64(uint32x4_t a, uint32x4_t b) {
-  return vcombine_u64(vget_low_u64(vreinterpretq_u64_u32(a)),
-                      vget_low_u64(vreinterpretq_u64_u32(b)));
-}
-
-static INLINE uint64x2_t ziphi_u64(uint32x4_t a, uint32x4_t b) {
-  return vcombine_u64(vget_high_u64(vreinterpretq_u64_u32(a)),
-                      vget_high_u64(vreinterpretq_u64_u32(b)));
-}
-
-static INLINE uint32x4_t hsum4_neon(uint32x4_t x0, uint32x4_t x1, uint32x4_t x2,
-                                    uint32x4_t x3) {
-  uint32x4_t t0, t1, t2, t3;
-  t0 = vzipq_u32(x0, x1).val[0];
-  t1 = vzipq_u32(x2, x3).val[0];
-  t2 = vzipq_u32(x0, x1).val[1];
-  t3 = vzipq_u32(x2, x3).val[1];
-  x0 = vreinterpretq_u32_u64(ziplo_u64(t0, t1));
-  x1 = vreinterpretq_u32_u64(ziphi_u64(t0, t1));
-  x2 = vreinterpretq_u32_u64(ziplo_u64(t2, t3));
-  x3 = vreinterpretq_u32_u64(ziphi_u64(t2, t3));
-  return vaddq_u32(vaddq_u32(x0, x1), vaddq_u32(x2, x3));
-}
-
 static INLINE uint32x4_t compute_directions_neon(int16x8_t lines[8],
                                                  uint32_t cost[4]) {
   int16x8_t partial4a, partial4b, partial5a, partial5b, partial6, partial7a,
@@ -307,19 +283,16 @@ static INLINE uint32x4_t compute_directions_neon(int16x8_t lines[8],
                    vcreate_u64((uint64_t)105 << 32 | 105)));
 
   // Compute costs in terms of partial sums.
-  uint32x4_t partial4a_u32 =
-      fold_mul_and_sum_neon(partial4a, partial4b, const0, const1);
-  uint32x4_t partial7a_u32 =
-      fold_mul_and_sum_neon(partial7a, partial7b, const2, const3);
-  uint32x4_t partial5a_u32 =
-      fold_mul_and_sum_neon(partial5a, partial5b, const2, const3);
-  uint32x4_t partial6_u32 = v128_madd_s16_neon(partial6, partial6);
-  partial6_u32 = vmulq_u32(partial6_u32, vdupq_n_u32(105));
+  uint32x4_t costs[4];
+  costs[0] = fold_mul_and_sum_neon(partial4a, partial4b, const0, const1);
+  costs[1] = fold_mul_and_sum_neon(partial5a, partial5b, const2, const3);
+  costs[2] = v128_madd_s16_neon(partial6, partial6);
+  costs[2] = vmulq_n_u32(costs[2], 105);
+  costs[3] = fold_mul_and_sum_neon(partial7a, partial7b, const2, const3);
 
-  partial4a_u32 =
-      hsum4_neon(partial4a_u32, partial5a_u32, partial6_u32, partial7a_u32);
-  vst1q_u32(cost, partial4a_u32);
-  return partial4a_u32;
+  costs[0] = horizontal_add_4d_u32x4(costs);
+  vst1q_u32(cost, costs[0]);
+  return costs[0];
 }
 
 static INLINE int64x2_t ziplo_s64(int32x4_t a, int32x4_t b) {
