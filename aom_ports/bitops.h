@@ -13,6 +13,7 @@
 #define AOM_AOM_PORTS_BITOPS_H_
 
 #include <assert.h>
+#include <stdint.h>
 
 #include "aom_ports/msvc.h"
 #include "config/aom_config.h"
@@ -52,7 +53,6 @@ static INLINE int get_msb(unsigned int n) {
   _BitScanReverse(&first_set_bit, n);
   return first_set_bit;
 }
-#undef USE_MSC_INTRINSICS
 #else
 static INLINE int get_msb(unsigned int n) {
   int log = 0;
@@ -68,6 +68,32 @@ static INLINE int get_msb(unsigned int n) {
     }
   }
   return log;
+}
+#endif
+
+#if defined(__GNUC__) && \
+    ((__GNUC__ == 3 && __GNUC_MINOR__ >= 4) || __GNUC__ >= 4)
+static INLINE int aom_clzll(uint64_t n) { return __builtin_clzll(n); }
+#elif defined(USE_MSC_INTRINSICS)
+#pragma intrinsic(_BitScanReverse64)
+
+static INLINE int aom_clzll(uint64_t n) {
+  int res;
+  _BitScanReverse64(&res, n);
+  return res;
+}
+#undef USE_MSC_INTRINSICS
+#else
+static INLINE int aom_clzll(uint64_t n) {
+  assert(n != 0);
+
+  int res = 0;
+  uint64_t high_bit = 1ULL << 63;
+  while (!(n & high_bit)) {
+    res++;
+    n <<= 1;
+  }
+  return res;
 }
 #endif
 

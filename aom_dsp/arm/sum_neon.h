@@ -17,6 +17,16 @@
 #include "aom/aom_integer.h"
 #include "aom_ports/mem.h"
 
+static INLINE int horizontal_add_u8x8(const uint8x8_t a) {
+#if AOM_ARCH_AARCH64
+  return vaddlv_u8(a);
+#else
+  uint16x4_t b = vpaddl_u8(a);
+  uint32x2_t c = vpaddl_u16(b);
+  return vget_lane_u32(c, 0) + vget_lane_u32(c, 1);
+#endif
+}
+
 static INLINE int horizontal_add_s16x8(const int16x8_t a) {
 #if AOM_ARCH_AARCH64
   return vaddlvq_s16(a);
