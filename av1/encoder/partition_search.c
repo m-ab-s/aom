@@ -5251,7 +5251,6 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   int best_idx = 0;
   int64_t min_rdcost = INT64_MAX;
   int num_configs;
-  RD_STATS *rdcost = NULL;
   int i = 0;
   do {
     td->pc_root = av1_alloc_pc_tree_node(bsize);
@@ -5259,26 +5258,26 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
       aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate PC_TREE");
     num_configs = read_partition_tree(cpi, td->pc_root, xd->error_info, i);
-    if (i == 0) {
-      CHECK_MEM_ERROR(cm, rdcost, aom_calloc(num_configs, sizeof(*rdcost)));
-    }
     if (num_configs <= 0) {
       av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                                  cpi->sf.part_sf.partition_search_type);
       td->pc_root = NULL;
-      aom_free(rdcost);
-      aom_internal_error(cm->error, AOM_CODEC_ERROR, "Invalid configs.");
+      aom_internal_error(xd->error_info, AOM_CODEC_ERROR, "Invalid configs.");
     }
     verify_write_partition_tree(cpi, td->pc_root, bsize, i, mi_row, mi_col);
+    if (i == 0) {
+      AOM_CHECK_MEM_ERROR(xd->error_info, x->rdcost,
+                          aom_calloc(num_configs, sizeof(*x->rdcost)));
+    }
     // Encode the block with the given partition tree. Get rdcost and encoding
     // time.
-    rdcost[i] = rd_search_for_fixed_partition(
+    x->rdcost[i] = rd_search_for_fixed_partition(
         cpi, td, tile_data, tp, sms_root, mi_row, mi_col, bsize, td->pc_root);
 
-    if (rdcost[i].rdcost < min_rdcost) {
-      min_rdcost = rdcost[i].rdcost;
+    if (x->rdcost[i].rdcost < min_rdcost) {
+      min_rdcost = x->rdcost[i].rdcost;
       best_idx = i;
-      *best_rd_cost = rdcost[i];
+      *best_rd_cost = x->rdcost[i];
     }
     av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                                cpi->sf.part_sf.partition_search_type);
@@ -5286,6 +5285,8 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
     ++i;
   } while (i < num_configs);
 
+  aom_free(x->rdcost);
+  x->rdcost = NULL;
   // Encode with the partition configuration with the smallest rdcost.
   td->pc_root = av1_alloc_pc_tree_node(bsize);
   if (!td->pc_root)
@@ -5300,7 +5301,6 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
   av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
                              cpi->sf.part_sf.partition_search_type);
   td->pc_root = NULL;
-  aom_free(rdcost);
   ++cpi->sb_counter;
 
   return true;
