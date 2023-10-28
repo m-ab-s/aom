@@ -100,21 +100,16 @@ static INLINE ConvolveParams get_conv_params(int do_average, int plane,
 }
 
 static INLINE ConvolveParams get_conv_params_wiener(int bd) {
-  ConvolveParams conv_params;
-  (void)bd;
-  conv_params.do_average = 0;
-  conv_params.is_compound = 0;
-  conv_params.round_0 = WIENER_ROUND0_BITS;
-  conv_params.round_1 = 2 * FILTER_BITS - conv_params.round_0;
+  ConvolveParams conv_params = {
+    0, NULL, 0, WIENER_ROUND0_BITS, 2 * FILTER_BITS - WIENER_ROUND0_BITS, 0, 0,
+    0, 0,    0
+  };
   const int intbufrange = bd + FILTER_BITS - conv_params.round_0 + 2;
   assert(IMPLIES(bd < 12, intbufrange <= 16));
   if (intbufrange > 16) {
     conv_params.round_0 += intbufrange - 16;
     conv_params.round_1 -= intbufrange - 16;
   }
-  conv_params.dst = NULL;
-  conv_params.dst_stride = 0;
-  conv_params.plane = 0;
   return conv_params;
 }
 
