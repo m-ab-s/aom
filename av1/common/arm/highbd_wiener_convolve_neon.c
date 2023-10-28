@@ -185,7 +185,7 @@ void av1_highbd_wiener_convolve_add_src_neon(
     const uint8_t *src8, ptrdiff_t src_stride, uint8_t *dst8,
     ptrdiff_t dst_stride, const int16_t *x_filter_ptr, int x_step_q4,
     const int16_t *y_filter_ptr, int y_step_q4, int w, int h,
-    const ConvolveParams *conv_params, int bd) {
+    const WienerConvolveParams *conv_params, int bd) {
   assert(x_step_q4 == 16 && y_step_q4 == 16);
 
   DECLARE_ALIGNED(16, uint16_t, im_block[WIENER_MAX_EXT_SIZE * MAX_SB_SIZE]);

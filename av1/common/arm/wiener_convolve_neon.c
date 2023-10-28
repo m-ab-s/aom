@@ -202,7 +202,7 @@ void av1_wiener_convolve_add_src_neon(const uint8_t *src, ptrdiff_t src_stride,
                                       const int16_t *filter_x, int x_step_q4,
                                       const int16_t *filter_y, int y_step_q4,
                                       int w, int h,
-                                      const ConvolveParams *conv_params) {
+                                      const WienerConvolveParams *conv_params) {
   uint8_t *d;
   const uint8_t *src_ptr, *s_tmp;
   uint16_t *dst_ptr;

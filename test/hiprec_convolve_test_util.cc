@@ -93,7 +93,7 @@ void AV1HiprecConvolveTest::RunCheckOutput(hiprec_convolve_func test_impl) {
   const int out_w = GET_PARAM(0), out_h = GET_PARAM(1);
   const int num_iters = GET_PARAM(2);
   int i, j, k, m;
-  const ConvolveParams conv_params = get_conv_params_wiener(8);
+  const WienerConvolveParams conv_params = get_conv_params_wiener(8);
 
   std::unique_ptr<uint8_t[]> input_(new (std::nothrow) uint8_t[h * w]);
   ASSERT_NE(input_, nullptr);
@@ -139,7 +139,7 @@ void AV1HiprecConvolveTest::RunSpeedTest(hiprec_convolve_func test_impl) {
   const int out_w = GET_PARAM(0), out_h = GET_PARAM(1);
   const int num_iters = GET_PARAM(2) / 500;
   int i, j, k;
-  const ConvolveParams conv_params = get_conv_params_wiener(8);
+  const WienerConvolveParams conv_params = get_conv_params_wiener(8);
 
   std::unique_ptr<uint8_t[]> input_(new (std::nothrow) uint8_t[h * w]);
   ASSERT_NE(input_, nullptr);
@@ -227,7 +227,7 @@ void AV1HighbdHiprecConvolveTest::RunCheckOutput(
   const int num_iters = GET_PARAM(2);
   const int bd = GET_PARAM(3);
   int i, j;
-  const ConvolveParams conv_params = get_conv_params_wiener(bd);
+  const WienerConvolveParams conv_params = get_conv_params_wiener(bd);
 
   std::unique_ptr<uint16_t[]> input(new (std::nothrow) uint16_t[h * w]);
   ASSERT_NE(input, nullptr);
@@ -278,7 +278,7 @@ void AV1HighbdHiprecConvolveTest::RunSpeedTest(
   const int num_iters = GET_PARAM(2) / 500;
   const int bd = GET_PARAM(3);
   int i, j, k;
-  const ConvolveParams conv_params = get_conv_params_wiener(bd);
+  const WienerConvolveParams conv_params = get_conv_params_wiener(bd);
 
   std::unique_ptr<uint16_t[]> input(new (std::nothrow) uint16_t[h * w]);
   ASSERT_NE(input, nullptr);
