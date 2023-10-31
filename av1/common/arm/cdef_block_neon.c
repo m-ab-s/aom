@@ -10,6 +10,8 @@
  */
 
 #include "aom_dsp/aom_simd.h"
+#include "aom_dsp/arm/mem_neon.h"
+
 #define SIMD_FUNC(name) name##_neon
 #include "av1/common/cdef_block_simd.h"
 
@@ -379,4 +381,534 @@ void cdef_find_dir_dual_neon(const uint16_t *img1, const uint16_t *img2,
 
   // Process second 8x8.
   *out_dir_2nd_8x8 = cdef_find_dir(img2, stride, var_out_2nd, coeff_shift);
+}
+
+// sign(a-b) * min(abs(a-b), max(0, threshold - (abs(a-b) >> adjdamp)))
+static INLINE int16x8_t constrain16(uint16x8_t a, uint16x8_t b,
+                                    unsigned int threshold,
+                                    unsigned int adjdamp) {
+  int16x8_t diff = vreinterpretq_s16_u16(vsubq_u16(a, b));
+  const int16x8_t sign = vshrq_n_s16(diff, 15);
+  diff = vabsq_s16(diff);
+  const uint16x8_t s =
+      vqsubq_u16(vdupq_n_u16(threshold),
+                 vreinterpretq_u16_s16(vshlq_s16(diff, vdupq_n_s16(-adjdamp))));
+  return veorq_s16(vaddq_s16(sign, vminq_s16(diff, vreinterpretq_s16_u16(s))),
+                   sign);
+}
+
+static INLINE uint16x8_t get_max_primary(const int is_lowbd, uint16x8_t *tap,
+                                         uint16x8_t max,
+                                         uint16x8_t cdef_large_value_mask) {
+  if (is_lowbd) {
+    uint8x16_t max_u8 = vreinterpretq_u8_u16(tap[0]);
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[1]));
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[2]));
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[3]));
+    /* The source is 16 bits, however, we only really care about the lower
+    8 bits.  The upper 8 bits contain the "large" flag.  After the final
+    primary max has been calculated, zero out the upper 8 bits.  Use this
+    to find the "16 bit" max. */
+    max = vmaxq_u16(
+        max, vandq_u16(vreinterpretq_u16_u8(max_u8), cdef_large_value_mask));
+  } else {
+    /* Convert CDEF_VERY_LARGE to 0 before calculating max. */
+    max = vmaxq_u16(max, vandq_u16(tap[0], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[1], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[2], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[3], cdef_large_value_mask));
+  }
+  return max;
+}
+
+static INLINE uint16x8_t get_max_secondary(const int is_lowbd, uint16x8_t *tap,
+                                           uint16x8_t max,
+                                           uint16x8_t cdef_large_value_mask) {
+  if (is_lowbd) {
+    uint8x16_t max_u8 = vreinterpretq_u8_u16(tap[0]);
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[1]));
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[2]));
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[3]));
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[4]));
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[5]));
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[6]));
+    max_u8 = vmaxq_u8(max_u8, vreinterpretq_u8_u16(tap[7]));
+    /* The source is 16 bits, however, we only really care about the lower
+    8 bits.  The upper 8 bits contain the "large" flag.  After the final
+    primary max has been calculated, zero out the upper 8 bits.  Use this
+    to find the "16 bit" max. */
+    max = vmaxq_u16(
+        max, vandq_u16(vreinterpretq_u16_u8(max_u8), cdef_large_value_mask));
+  } else {
+    /* Convert CDEF_VERY_LARGE to 0 before calculating max. */
+    max = vmaxq_u16(max, vandq_u16(tap[0], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[1], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[2], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[3], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[4], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[5], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[6], cdef_large_value_mask));
+    max = vmaxq_u16(max, vandq_u16(tap[7], cdef_large_value_mask));
+  }
+  return max;
+}
+
+static INLINE void filter_block_4x4(const int is_lowbd, void *dest, int dstride,
+                                    const uint16_t *in, int pri_strength,
+                                    int sec_strength, int dir, int pri_damping,
+                                    int sec_damping, int coeff_shift,
+                                    int height, int enable_primary,
+                                    int enable_secondary) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  uint16_t *dst16 = (uint16_t *)dest;
+  const int clipping_required = enable_primary && enable_secondary;
+  uint16x8_t max, min;
+  const uint16x8_t cdef_large_value_mask =
+      vdupq_n_u16(((uint16_t)~CDEF_VERY_LARGE));
+  const int po1 = cdef_directions[dir][0];
+  const int po2 = cdef_directions[dir][1];
+  const int s1o1 = cdef_directions[dir + 2][0];
+  const int s1o2 = cdef_directions[dir + 2][1];
+  const int s2o1 = cdef_directions[dir - 2][0];
+  const int s2o2 = cdef_directions[dir - 2][1];
+  const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
+  const int *sec_taps = cdef_sec_taps;
+
+  if (enable_primary && pri_strength) {
+    pri_damping = AOMMAX(0, pri_damping - get_msb(pri_strength));
+  }
+  if (enable_secondary && sec_strength) {
+    sec_damping = AOMMAX(0, sec_damping - get_msb(sec_strength));
+  }
+
+  int h = height;
+  do {
+    int16x8_t sum = vdupq_n_s16(0);
+    uint16x8_t s = load_unaligned_u16_4x2(in, CDEF_BSTRIDE);
+    max = min = s;
+
+    if (enable_primary) {
+      uint16x8_t tap[4];
+
+      // Primary near taps
+      tap[0] = load_unaligned_u16_4x2(in + po1, CDEF_BSTRIDE);
+      tap[1] = load_unaligned_u16_4x2(in - po1, CDEF_BSTRIDE);
+      int16x8_t p0 = constrain16(tap[0], s, pri_strength, pri_damping);
+      int16x8_t p1 = constrain16(tap[1], s, pri_strength, pri_damping);
+
+      // sum += pri_taps[0] * (p0 + p1)
+      p0 = vaddq_s16(p0, p1);
+      sum = vmlaq_s16(sum, p0, vdupq_n_s16(pri_taps[0]));
+
+      // Primary far taps
+      tap[2] = load_unaligned_u16_4x2(in + po2, CDEF_BSTRIDE);
+      tap[3] = load_unaligned_u16_4x2(in - po2, CDEF_BSTRIDE);
+      p0 = constrain16(tap[2], s, pri_strength, pri_damping);
+      p1 = constrain16(tap[3], s, pri_strength, pri_damping);
+
+      // sum += pri_taps[1] * (p0 + p1)
+      p0 = vaddq_s16(p0, p1);
+      sum = vmlaq_s16(sum, p0, vdupq_n_s16(pri_taps[1]));
+
+      if (clipping_required) {
+        max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
+
+        min = vminq_u16(min, tap[0]);
+        min = vminq_u16(min, tap[1]);
+        min = vminq_u16(min, tap[2]);
+        min = vminq_u16(min, tap[3]);
+      }
+    }
+
+    if (enable_secondary) {
+      uint16x8_t tap[8];
+
+      // Secondary near taps
+      tap[0] = load_unaligned_u16_4x2(in + s1o1, CDEF_BSTRIDE);
+      tap[1] = load_unaligned_u16_4x2(in - s1o1, CDEF_BSTRIDE);
+      tap[2] = load_unaligned_u16_4x2(in + s2o1, CDEF_BSTRIDE);
+      tap[3] = load_unaligned_u16_4x2(in - s2o1, CDEF_BSTRIDE);
+      int16x8_t p0 = constrain16(tap[0], s, sec_strength, sec_damping);
+      int16x8_t p1 = constrain16(tap[1], s, sec_strength, sec_damping);
+      int16x8_t p2 = constrain16(tap[2], s, sec_strength, sec_damping);
+      int16x8_t p3 = constrain16(tap[3], s, sec_strength, sec_damping);
+
+      // sum += sec_taps[0] * (p0 + p1 + p2 + p3)
+      p0 = vaddq_s16(p0, p1);
+      p2 = vaddq_s16(p2, p3);
+      p0 = vaddq_s16(p0, p2);
+      sum = vmlaq_s16(sum, p0, vdupq_n_s16(sec_taps[0]));
+
+      // Secondary far taps
+      tap[4] = load_unaligned_u16_4x2(in + s1o2, CDEF_BSTRIDE);
+      tap[5] = load_unaligned_u16_4x2(in - s1o2, CDEF_BSTRIDE);
+      tap[6] = load_unaligned_u16_4x2(in + s2o2, CDEF_BSTRIDE);
+      tap[7] = load_unaligned_u16_4x2(in - s2o2, CDEF_BSTRIDE);
+      p0 = constrain16(tap[4], s, sec_strength, sec_damping);
+      p1 = constrain16(tap[5], s, sec_strength, sec_damping);
+      p2 = constrain16(tap[6], s, sec_strength, sec_damping);
+      p3 = constrain16(tap[7], s, sec_strength, sec_damping);
+
+      // sum += sec_taps[1] * (p0 + p1 + p2 + p3)
+      p0 = vaddq_s16(p0, p1);
+      p2 = vaddq_s16(p2, p3);
+      p0 = vaddq_s16(p0, p2);
+      sum = vmlaq_s16(sum, p0, vdupq_n_s16(sec_taps[1]));
+
+      if (clipping_required) {
+        max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
+
+        min = vminq_u16(min, tap[0]);
+        min = vminq_u16(min, tap[1]);
+        min = vminq_u16(min, tap[2]);
+        min = vminq_u16(min, tap[3]);
+        min = vminq_u16(min, tap[4]);
+        min = vminq_u16(min, tap[5]);
+        min = vminq_u16(min, tap[6]);
+        min = vminq_u16(min, tap[7]);
+      }
+    }
+
+    // res = row + ((sum - (sum < 0) + 8) >> 4)
+    sum = vaddq_s16(sum, vreinterpretq_s16_u16(vcltq_s16(sum, vdupq_n_s16(0))));
+    int16x8_t res = vaddq_s16(sum, vdupq_n_s16(8));
+    res = vshrq_n_s16(res, 4);
+    res = vaddq_s16(vreinterpretq_s16_u16(s), res);
+
+    if (clipping_required) {
+      res = vminq_s16(vmaxq_s16(res, vreinterpretq_s16_u16(min)),
+                      vreinterpretq_s16_u16(max));
+    }
+
+    if (is_lowbd) {
+      const uint8x8_t res_128 = vqmovun_s16(res);
+      store_unaligned_u8_4x2(dst8, dstride, res_128);
+    } else {
+      store_unaligned_u16_4x2(dst16, dstride, vreinterpretq_u16_s16(res));
+    }
+
+    in += 2 * CDEF_BSTRIDE;
+    dst8 += 2 * dstride;
+    dst16 += 2 * dstride;
+    h -= 2;
+  } while (h != 0);
+}
+
+static INLINE void filter_block_8x8(const int is_lowbd, void *dest, int dstride,
+                                    const uint16_t *in, int pri_strength,
+                                    int sec_strength, int dir, int pri_damping,
+                                    int sec_damping, int coeff_shift,
+                                    int height, int enable_primary,
+                                    int enable_secondary) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  uint16_t *dst16 = (uint16_t *)dest;
+  const int clipping_required = enable_primary && enable_secondary;
+  uint16x8_t max, min;
+  const uint16x8_t cdef_large_value_mask =
+      vdupq_n_u16(((uint16_t)~CDEF_VERY_LARGE));
+  const int po1 = cdef_directions[dir][0];
+  const int po2 = cdef_directions[dir][1];
+  const int s1o1 = cdef_directions[dir + 2][0];
+  const int s1o2 = cdef_directions[dir + 2][1];
+  const int s2o1 = cdef_directions[dir - 2][0];
+  const int s2o2 = cdef_directions[dir - 2][1];
+  const int *pri_taps = cdef_pri_taps[(pri_strength >> coeff_shift) & 1];
+  const int *sec_taps = cdef_sec_taps;
+
+  if (enable_primary && pri_strength) {
+    pri_damping = AOMMAX(0, pri_damping - get_msb(pri_strength));
+  }
+  if (enable_secondary && sec_strength) {
+    sec_damping = AOMMAX(0, sec_damping - get_msb(sec_strength));
+  }
+
+  int h = height;
+  do {
+    int16x8_t sum = vdupq_n_s16(0);
+    uint16x8_t s = vld1q_u16(in);
+    max = min = s;
+
+    if (enable_primary) {
+      uint16x8_t tap[4];
+
+      // Primary near taps
+      tap[0] = vld1q_u16(in + po1);
+      tap[1] = vld1q_u16(in - po1);
+      int16x8_t p0 = constrain16(tap[0], s, pri_strength, pri_damping);
+      int16x8_t p1 = constrain16(tap[1], s, pri_strength, pri_damping);
+
+      // sum += pri_taps[0] * (p0 + p1)
+      p0 = vaddq_s16(p0, p1);
+      sum = vmlaq_s16(sum, p0, vdupq_n_s16(pri_taps[0]));
+
+      // Primary far taps
+      tap[2] = vld1q_u16(in + po2);
+      p0 = constrain16(tap[2], s, pri_strength, pri_damping);
+      tap[3] = vld1q_u16(in - po2);
+      p1 = constrain16(tap[3], s, pri_strength, pri_damping);
+
+      // sum += pri_taps[1] * (p0 + p1)
+      p0 = vaddq_s16(p0, p1);
+      sum = vmlaq_s16(sum, p0, vdupq_n_s16(pri_taps[1]));
+      if (clipping_required) {
+        max = get_max_primary(is_lowbd, tap, max, cdef_large_value_mask);
+
+        min = vminq_u16(min, tap[0]);
+        min = vminq_u16(min, tap[1]);
+        min = vminq_u16(min, tap[2]);
+        min = vminq_u16(min, tap[3]);
+      }
+    }
+
+    if (enable_secondary) {
+      uint16x8_t tap[8];
+
+      // Secondary near taps
+      tap[0] = vld1q_u16(in + s1o1);
+      tap[1] = vld1q_u16(in - s1o1);
+      tap[2] = vld1q_u16(in + s2o1);
+      tap[3] = vld1q_u16(in - s2o1);
+      int16x8_t p0 = constrain16(tap[0], s, sec_strength, sec_damping);
+      int16x8_t p1 = constrain16(tap[1], s, sec_strength, sec_damping);
+      int16x8_t p2 = constrain16(tap[2], s, sec_strength, sec_damping);
+      int16x8_t p3 = constrain16(tap[3], s, sec_strength, sec_damping);
+
+      // sum += sec_taps[0] * (p0 + p1 + p2 + p3)
+      p0 = vaddq_s16(p0, p1);
+      p2 = vaddq_s16(p2, p3);
+      p0 = vaddq_s16(p0, p2);
+      sum = vmlaq_s16(sum, p0, vdupq_n_s16(sec_taps[0]));
+
+      // Secondary far taps
+      tap[4] = vld1q_u16(in + s1o2);
+      tap[5] = vld1q_u16(in - s1o2);
+      tap[6] = vld1q_u16(in + s2o2);
+      tap[7] = vld1q_u16(in - s2o2);
+      p0 = constrain16(tap[4], s, sec_strength, sec_damping);
+      p1 = constrain16(tap[5], s, sec_strength, sec_damping);
+      p2 = constrain16(tap[6], s, sec_strength, sec_damping);
+      p3 = constrain16(tap[7], s, sec_strength, sec_damping);
+
+      // sum += sec_taps[1] * (p0 + p1 + p2 + p3)
+      p0 = vaddq_s16(p0, p1);
+      p2 = vaddq_s16(p2, p3);
+      p0 = vaddq_s16(p0, p2);
+      sum = vmlaq_s16(sum, p0, vdupq_n_s16(sec_taps[1]));
+
+      if (clipping_required) {
+        max = get_max_secondary(is_lowbd, tap, max, cdef_large_value_mask);
+
+        min = vminq_u16(min, tap[0]);
+        min = vminq_u16(min, tap[1]);
+        min = vminq_u16(min, tap[2]);
+        min = vminq_u16(min, tap[3]);
+        min = vminq_u16(min, tap[4]);
+        min = vminq_u16(min, tap[5]);
+        min = vminq_u16(min, tap[6]);
+        min = vminq_u16(min, tap[7]);
+      }
+    }
+
+    // res = row + ((sum - (sum < 0) + 8) >> 4)
+    sum = vaddq_s16(sum, vreinterpretq_s16_u16(vcltq_s16(sum, vdupq_n_s16(0))));
+    int16x8_t res = vaddq_s16(sum, vdupq_n_s16(8));
+    res = vshrq_n_s16(res, 4);
+    res = vaddq_s16(vreinterpretq_s16_u16(s), res);
+    if (clipping_required) {
+      res = vminq_s16(vmaxq_s16(res, vreinterpretq_s16_u16(min)),
+                      vreinterpretq_s16_u16(max));
+    }
+
+    if (is_lowbd) {
+      const uint8x8_t res_128 = vqmovun_s16(res);
+      vst1_u8(dst8, res_128);
+    } else {
+      vst1q_u16(dst16, vreinterpretq_u16_s16(res));
+    }
+
+    in += CDEF_BSTRIDE;
+    dst8 += dstride;
+    dst16 += dstride;
+  } while (--h != 0);
+}
+
+static INLINE void copy_block_4xh(const int is_lowbd, void *dest, int dstride,
+                                  const uint16_t *in, int height) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  uint16_t *dst16 = (uint16_t *)dest;
+
+  int h = height;
+  do {
+    const uint16x8_t row = load_unaligned_u16_4x2(in, CDEF_BSTRIDE);
+    if (is_lowbd) {
+      const uint8x8_t res_128 = vqmovn_u16(row);
+      store_unaligned_u8_4x2(dst8, dstride, res_128);
+    } else {
+      store_unaligned_u16_4x2(dst16, dstride, row);
+    }
+
+    in += 2 * CDEF_BSTRIDE;
+    dst8 += 2 * dstride;
+    dst16 += 2 * dstride;
+    h -= 2;
+  } while (h != 0);
+}
+
+static INLINE void copy_block_8xh(const int is_lowbd, void *dest, int dstride,
+                                  const uint16_t *in, int height) {
+  uint8_t *dst8 = (uint8_t *)dest;
+  uint16_t *dst16 = (uint16_t *)dest;
+
+  int h = height;
+  do {
+    const uint16x8_t row = vld1q_u16(in);
+    if (is_lowbd) {
+      const uint8x8_t res_128 = vqmovn_u16(row);
+      vst1_u8(dst8, res_128);
+    } else {
+      vst1q_u16(dst16, row);
+    }
+
+    in += CDEF_BSTRIDE;
+    dst8 += dstride;
+    dst16 += dstride;
+  } while (--h != 0);
+}
+
+void cdef_filter_8_0_neon(void *dest, int dstride, const uint16_t *in,
+                          int pri_strength, int sec_strength, int dir,
+                          int pri_damping, int sec_damping, int coeff_shift,
+                          int block_width, int block_height) {
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/1, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/1);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/1, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/1);
+  }
+}
+
+void cdef_filter_8_1_neon(void *dest, int dstride, const uint16_t *in,
+                          int pri_strength, int sec_strength, int dir,
+                          int pri_damping, int sec_damping, int coeff_shift,
+                          int block_width, int block_height) {
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/1, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/0);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/1, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/0);
+  }
+}
+
+void cdef_filter_8_2_neon(void *dest, int dstride, const uint16_t *in,
+                          int pri_strength, int sec_strength, int dir,
+                          int pri_damping, int sec_damping, int coeff_shift,
+                          int block_width, int block_height) {
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/1, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/0,
+                     /*enable_secondary=*/1);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/1, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/0,
+                     /*enable_secondary=*/1);
+  }
+}
+
+void cdef_filter_8_3_neon(void *dest, int dstride, const uint16_t *in,
+                          int pri_strength, int sec_strength, int dir,
+                          int pri_damping, int sec_damping, int coeff_shift,
+                          int block_width, int block_height) {
+  (void)pri_strength;
+  (void)sec_strength;
+  (void)dir;
+  (void)pri_damping;
+  (void)sec_damping;
+  (void)coeff_shift;
+  (void)block_width;
+  if (block_width == 8) {
+    copy_block_8xh(/*is_lowbd=*/1, dest, dstride, in, block_height);
+  } else {
+    copy_block_4xh(/*is_lowbd=*/1, dest, dstride, in, block_height);
+  }
+}
+
+void cdef_filter_16_0_neon(void *dest, int dstride, const uint16_t *in,
+                           int pri_strength, int sec_strength, int dir,
+                           int pri_damping, int sec_damping, int coeff_shift,
+                           int block_width, int block_height) {
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/0, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/1);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/0, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/1);
+  }
+}
+
+void cdef_filter_16_1_neon(void *dest, int dstride, const uint16_t *in,
+                           int pri_strength, int sec_strength, int dir,
+                           int pri_damping, int sec_damping, int coeff_shift,
+                           int block_width, int block_height) {
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/0, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/0);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/0, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/1,
+                     /*enable_secondary=*/0);
+  }
+}
+
+void cdef_filter_16_2_neon(void *dest, int dstride, const uint16_t *in,
+                           int pri_strength, int sec_strength, int dir,
+                           int pri_damping, int sec_damping, int coeff_shift,
+                           int block_width, int block_height) {
+  if (block_width == 8) {
+    filter_block_8x8(/*is_lowbd=*/0, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/0,
+                     /*enable_secondary=*/1);
+  } else {
+    filter_block_4x4(/*is_lowbd=*/0, dest, dstride, in, pri_strength,
+                     sec_strength, dir, pri_damping, sec_damping, coeff_shift,
+                     block_height, /*enable_primary=*/0,
+                     /*enable_secondary=*/1);
+  }
+}
+
+void cdef_filter_16_3_neon(void *dest, int dstride, const uint16_t *in,
+                           int pri_strength, int sec_strength, int dir,
+                           int pri_damping, int sec_damping, int coeff_shift,
+                           int block_width, int block_height) {
+  (void)pri_strength;
+  (void)sec_strength;
+  (void)dir;
+  (void)pri_damping;
+  (void)sec_damping;
+  (void)coeff_shift;
+  (void)block_width;
+  if (block_width == 8) {
+    copy_block_8xh(/*is_lowbd=*/0, dest, dstride, in, block_height);
+  } else {
+    copy_block_4xh(/*is_lowbd=*/0, dest, dstride, in, block_height);
+  }
 }

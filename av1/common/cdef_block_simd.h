@@ -209,6 +209,9 @@ int SIMD_FUNC(cdef_find_dir)(const uint16_t *img, int stride, int32_t *var,
 #define CDEF_INLINE SIMD_INLINE
 #endif
 
+// There is a separate Neon implementation of these functions, so disable this
+// one.
+#if !HAVE_NEON
 // sign(a-b) * min(abs(a-b), max(0, threshold - (abs(a-b) >> adjdamp)))
 CDEF_INLINE v256 constrain16(v256 a, v256 b, unsigned int threshold,
                              unsigned int adjdamp) {
@@ -827,6 +830,7 @@ void SIMD_FUNC(cdef_filter_16_3)(void *dest, int dstride, const uint16_t *in,
     copy_block_4xh(/*is_lowbd=*/0, dest, dstride, in, block_height);
   }
 }
+#endif  // HAVE_NEON
 
 void SIMD_FUNC(cdef_copy_rect8_16bit_to_16bit)(uint16_t *dst, int dstride,
                                                const uint16_t *src, int sstride,
