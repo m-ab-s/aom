@@ -32,31 +32,34 @@ static INLINE int16x8_t v128_from_64_neon(int64_t a, int64_t b) {
   return vreinterpretq_s16_s64(vcombine_s64(vcreate_s64(a), vcreate_s64(b)));
 }
 
-#define SHL_HIGH_NEON(n)                                                   \
-  static INLINE int16x8_t v128_shl_##n##_byte_neon(int16x8_t a) {          \
-    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                            \
-    return v128_from_64_neon(                                              \
-        0, (uint64_t)vshl_n_u64(vreinterpret_u64_s64(vget_low_s64(a_s64)), \
-                                (n - 8) * 8));                             \
+#define SHL_HIGH_NEON(n)                                                       \
+  static INLINE int16x8_t v128_shl_##n##_byte_neon(int16x8_t a) {              \
+    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                                \
+    return v128_from_64_neon(                                                  \
+        0, vget_lane_u64(vshl_n_u64(vreinterpret_u64_s64(vget_low_s64(a_s64)), \
+                                    (n - 8) * 8),                              \
+                         0));                                                  \
   }
 
-#define SHL_NEON(n)                                               \
-  static INLINE int16x8_t v128_shl_##n##_byte_neon(int16x8_t a) { \
-    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                   \
-    return v128_from_64_neon(                                     \
-        0, (uint64_t)vreinterpret_u64_s64(vget_low_s64(a_s64)));  \
+#define SHL_NEON(n)                                                      \
+  static INLINE int16x8_t v128_shl_##n##_byte_neon(int16x8_t a) {        \
+    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                          \
+    return v128_from_64_neon(                                            \
+        0, vget_lane_u64(vreinterpret_u64_s64(vget_low_s64(a_s64)), 0)); \
   }
 
-#define SHL_LOW_NEON(n)                                                    \
-  static INLINE int16x8_t v128_shl_##n##_byte_neon(int16x8_t a) {          \
-    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                            \
-    return v128_from_64_neon(                                              \
-        (uint64_t)vshl_n_u64(vreinterpret_u64_s64(vget_low_s64(a_s64)),    \
-                             n * 8),                                       \
-        (uint64_t)vorr_u64(                                                \
-            vshl_n_u64(vreinterpret_u64_s64(vget_high_s64(a_s64)), n * 8), \
-            vshr_n_u64(vreinterpret_u64_s64(vget_low_s64(a_s64)),          \
-                       (8 - n) * 8)));                                     \
+#define SHL_LOW_NEON(n)                                                        \
+  static INLINE int16x8_t v128_shl_##n##_byte_neon(int16x8_t a) {              \
+    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                                \
+    return v128_from_64_neon(                                                  \
+        vget_lane_u64(                                                         \
+            vshl_n_u64(vreinterpret_u64_s64(vget_low_s64(a_s64)), n * 8), 0),  \
+        vget_lane_u64(                                                         \
+            vorr_u64(                                                          \
+                vshl_n_u64(vreinterpret_u64_s64(vget_high_s64(a_s64)), n * 8), \
+                vshr_n_u64(vreinterpret_u64_s64(vget_low_s64(a_s64)),          \
+                           (8 - n) * 8)),                                      \
+            0));                                                               \
   }
 
 SHL_HIGH_NEON(14)
@@ -69,32 +72,36 @@ SHL_LOW_NEON(2)
 
 #define v128_shl_n_byte_neon(a, n) v128_shl_##n##_byte_neon(a)
 
-#define SHR_HIGH_NEON(n)                                                 \
-  static INLINE int16x8_t v128_shr_##n##_byte_neon(int16x8_t a) {        \
-    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                          \
-    return v128_from_64_neon(                                            \
-        (uint64_t)vshr_n_u64(vreinterpret_u64_s64(vget_high_s64(a_s64)), \
-                             (n - 8) * 8),                               \
-        0);                                                              \
+#define SHR_HIGH_NEON(n)                                                     \
+  static INLINE int16x8_t v128_shr_##n##_byte_neon(int16x8_t a) {            \
+    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                              \
+    return v128_from_64_neon(                                                \
+        vget_lane_u64(vshr_n_u64(vreinterpret_u64_s64(vget_high_s64(a_s64)), \
+                                 (n - 8) * 8),                               \
+                      0),                                                    \
+        0);                                                                  \
   }
 
-#define SHR_NEON(n)                                               \
-  static INLINE int16x8_t v128_shr_##n##_byte_neon(int16x8_t a) { \
-    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                   \
-    return v128_from_64_neon(                                     \
-        (uint64_t)vreinterpret_u64_s64(vget_high_s64(a_s64)), 0); \
-  }
-
-#define SHR_LOW_NEON(n)                                                   \
+#define SHR_NEON(n)                                                       \
   static INLINE int16x8_t v128_shr_##n##_byte_neon(int16x8_t a) {         \
     int64x2_t a_s64 = vreinterpretq_s64_s16(a);                           \
     return v128_from_64_neon(                                             \
-        (uint64_t)vorr_u64(                                               \
-            vshr_n_u64(vreinterpret_u64_s64(vget_low_s64(a_s64)), n * 8), \
-            vshl_n_u64(vreinterpret_u64_s64(vget_high_s64(a_s64)),        \
-                       (8 - n) * 8)),                                     \
-        (uint64_t)vshr_n_u64(vreinterpret_u64_s64(vget_high_s64(a_s64)),  \
-                             n * 8));                                     \
+        vget_lane_u64(vreinterpret_u64_s64(vget_high_s64(a_s64)), 0), 0); \
+  }
+
+#define SHR_LOW_NEON(n)                                                       \
+  static INLINE int16x8_t v128_shr_##n##_byte_neon(int16x8_t a) {             \
+    int64x2_t a_s64 = vreinterpretq_s64_s16(a);                               \
+    return v128_from_64_neon(                                                 \
+        vget_lane_u64(                                                        \
+            vorr_u64(                                                         \
+                vshr_n_u64(vreinterpret_u64_s64(vget_low_s64(a_s64)), n * 8), \
+                vshl_n_u64(vreinterpret_u64_s64(vget_high_s64(a_s64)),        \
+                           (8 - n) * 8)),                                     \
+            0),                                                               \
+        vget_lane_u64(                                                        \
+            vshr_n_u64(vreinterpret_u64_s64(vget_high_s64(a_s64)), n * 8),    \
+            0));                                                              \
   }
 
 SHR_HIGH_NEON(14)
