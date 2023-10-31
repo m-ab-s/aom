@@ -895,11 +895,7 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
     if (is_restoration_used(cm)) {
       // Initialize loop restoration MT object.
       AV1LrSync *lr_sync = &mt_info->lr_row_sync;
-      int rst_unit_size;
-      if (cm->width * cm->height > 352 * 288)
-        rst_unit_size = RESTORATION_UNITSIZE_MAX;
-      else
-        rst_unit_size = (RESTORATION_UNITSIZE_MAX >> 1);
+      int rst_unit_size = cpi->sf.lpf_sf.min_lr_unit_size;
       int num_rows_lr = av1_lr_count_units(rst_unit_size, cm->height);
       int num_lr_workers = av1_get_num_mod_workers_for_alloc(p_mt_info, MOD_LR);
       if (!lr_sync->sync_range || num_rows_lr > lr_sync->rows ||
