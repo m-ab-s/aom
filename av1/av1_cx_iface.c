@@ -3173,12 +3173,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       ppi->num_fp_contexts = av1_compute_num_fp_contexts(ppi, &cpi->oxcf);
     }
 
-    // Reset gf_frame_index in case it reaches MAX_STATIC_GF_GROUP_LENGTH for
-    // real time encoding.
-    if (is_one_pass_rt_params(cpi) &&
-        cpi->gf_frame_index == MAX_STATIC_GF_GROUP_LENGTH)
-      cpi->gf_frame_index = 0;
-
     // Get the next visible frame. Invisible frames get packed with the next
     // visible frame.
     while (cpi_data.cx_data_sz >= ctx->cx_data_sz / 2 && !is_frame_visible) {

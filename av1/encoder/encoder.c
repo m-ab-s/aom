@@ -4431,7 +4431,16 @@ static AOM_INLINE void update_frames_till_gf_update(AV1_COMP *cpi) {
 
 static AOM_INLINE void update_gf_group_index(AV1_COMP *cpi) {
   // Increment the gf group index ready for the next frame.
-  ++cpi->gf_frame_index;
+  if (is_one_pass_rt_params(cpi) &&
+      cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1) {
+    ++cpi->gf_frame_index;
+    // Reset gf_frame_index in case it reaches MAX_STATIC_GF_GROUP_LENGTH
+    // for real time encoding.
+    if (cpi->gf_frame_index == MAX_STATIC_GF_GROUP_LENGTH)
+      cpi->gf_frame_index = 0;
+  } else {
+    ++cpi->gf_frame_index;
+  }
 }
 
 static void update_fb_of_context_type(const AV1_COMP *const cpi,
