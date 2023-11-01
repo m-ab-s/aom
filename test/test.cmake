@@ -157,12 +157,6 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/simd_cmp_impl.h"
               "${AOM_ROOT}/test/simd_impl.h")
 
-  if(HAVE_NEON)
-    list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_NEON
-                "${AOM_ROOT}/test/simd_cmp_neon.cc")
-    add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_INTRIN_NEON)
-  endif()
-
   if(HAVE_SSE2)
     list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_SSE2
                 "${AOM_ROOT}/test/simd_cmp_sse2.cc")
@@ -301,11 +295,6 @@ if(NOT BUILD_SHARED_LIBS)
                        "${AOM_ROOT}/test/tile_independence_test.cc"
                        "${AOM_ROOT}/test/tpl_model_test.cc")
     endif()
-  endif()
-
-  if(HAVE_NEON)
-    list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
-                "${AOM_ROOT}/test/simd_neon_test.cc")
   endif()
 
   if(CONFIG_FPMT_TEST AND (NOT CONFIG_REALTIME_ONLY))
