@@ -9,6 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <assert.h>
+
 #include "av1/common/warped_motion.h"
 #include "av1/common/thread_common.h"
 
@@ -813,10 +815,11 @@ void av1_init_lr_mt_buffers(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   AV1LrSync *lr_sync = &cpi->mt_info.lr_row_sync;
   if (lr_sync->sync_range) {
-    int num_lr_workers =
-        av1_get_num_mod_workers_for_alloc(&cpi->ppi->p_mt_info, MOD_LR);
     if (cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0)
       return;
+    int num_lr_workers =
+        av1_get_num_mod_workers_for_alloc(&cpi->ppi->p_mt_info, MOD_LR);
+    assert(num_lr_workers <= lr_sync->num_workers);
     lr_sync->lrworkerdata[num_lr_workers - 1].rst_tmpbuf = cm->rst_tmpbuf;
     lr_sync->lrworkerdata[num_lr_workers - 1].rlbs = cm->rlbs;
   }
@@ -1281,6 +1284,7 @@ static AOM_INLINE void prepare_fpmt_workers(AV1_PRIMARY *ppi,
     if (is_restoration_used(cm)) {
       // Back up the original LR buffers before update.
       int idx = i + mt_info->num_workers - 1;
+      assert(idx < mt_info->lr_row_sync.num_workers);
       mt_info->restore_state_buf.rst_tmpbuf =
           mt_info->lr_row_sync.lrworkerdata[idx].rst_tmpbuf;
       mt_info->restore_state_buf.rlbs =
@@ -1352,6 +1356,7 @@ static AOM_INLINE void restore_workers_after_fpmt(AV1_PRIMARY *ppi,
     if (is_restoration_used(cm)) {
       // Restore the original LR buffers.
       int idx = i + mt_info->num_workers - 1;
+      assert(idx < mt_info->lr_row_sync.num_workers);
       mt_info->lr_row_sync.lrworkerdata[idx].rst_tmpbuf =
           mt_info->restore_state_buf.rst_tmpbuf;
       mt_info->lr_row_sync.lrworkerdata[idx].rlbs =
