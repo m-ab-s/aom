@@ -636,10 +636,14 @@ static aom_codec_err_t allocate_and_set_string(const char *src,
 static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
                                        const aom_codec_enc_cfg_t *cfg,
                                        const struct av1_extracfg *extra_cfg) {
-  RANGE_CHECK(cfg, g_w, 1, 65536);                        // 16 bits available
-  RANGE_CHECK(cfg, g_h, 1, 65536);                        // 16 bits available
-  RANGE_CHECK_HI(cfg, g_forced_max_frame_width, 65536);   // 16 bits available
-  RANGE_CHECK_HI(cfg, g_forced_max_frame_height, 65536);  // 16 bits available
+  // The AV1 specification allows a maximum frame dimension (width or height)
+  // of 65536 (= 2^16). To avoid integer overflows when multiplying width by
+  // height (or values derived from width and height) using the int type,
+  // impose a smaller maximum frame dimension of 32768 (= 2^15).
+  RANGE_CHECK(cfg, g_w, 1, 32768);
+  RANGE_CHECK(cfg, g_h, 1, 32768);
+  RANGE_CHECK_HI(cfg, g_forced_max_frame_width, 32768);
+  RANGE_CHECK_HI(cfg, g_forced_max_frame_height, 32768);
   if (cfg->g_forced_max_frame_width) {
     RANGE_CHECK_HI(cfg, g_w, cfg->g_forced_max_frame_width);
   }
