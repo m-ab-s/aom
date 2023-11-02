@@ -129,6 +129,77 @@ static INLINE void convolve_add_src_horiz_7tap_neon(
   } while (--h != 0);
 }
 
+static INLINE uint8x8_t wiener_convolve5_8_2d_v(
+    const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
+    const int16x8_t s3, const int16x8_t s4, const int16x4_t y_filter,
+    const int32x4_t round_vec) {
+  // Since the Wiener filter is symmetric about the middle tap (tap 2) add
+  // mirrored source elements before multiplying by filter coefficients.
+  int16x8_t s04 = vaddq_s16(s0, s4);
+  int16x8_t s13 = vaddq_s16(s1, s3);
+
+  int32x4_t sum_lo = vmlal_lane_s16(round_vec, vget_low_s16(s04), y_filter, 1);
+  sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s13), y_filter, 2);
+  sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s2), y_filter, 3);
+
+  int32x4_t sum_hi = vmlal_lane_s16(round_vec, vget_high_s16(s04), y_filter, 1);
+  sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s13), y_filter, 2);
+  sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s2), y_filter, 3);
+
+  int16x4_t res_lo = vshrn_n_s32(sum_lo, 2 * FILTER_BITS - WIENER_ROUND0_BITS);
+  int16x4_t res_hi = vshrn_n_s32(sum_hi, 2 * FILTER_BITS - WIENER_ROUND0_BITS);
+
+  return vqmovun_s16(vcombine_s16(res_lo, res_hi));
+}
+
+static INLINE void convolve_add_src_vert_5tap_neon(
+    const uint16_t *src, ptrdiff_t src_stride, uint8_t *dst,
+    ptrdiff_t dst_stride, int w, int h, const int16x4_t y_filter,
+    const int32x4_t round_vec) {
+  do {
+    const int16_t *s = (int16_t *)src;
+    uint8_t *d = dst;
+    int height = h;
+
+    while (height > 3) {
+      int16x8_t s0, s1, s2, s3, s4, s5, s6, s7;
+      load_s16_8x8(s, src_stride, &s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
+
+      uint8x8_t d0 =
+          wiener_convolve5_8_2d_v(s0, s1, s2, s3, s4, y_filter, round_vec);
+      uint8x8_t d1 =
+          wiener_convolve5_8_2d_v(s1, s2, s3, s4, s5, y_filter, round_vec);
+      uint8x8_t d2 =
+          wiener_convolve5_8_2d_v(s2, s3, s4, s5, s6, y_filter, round_vec);
+      uint8x8_t d3 =
+          wiener_convolve5_8_2d_v(s3, s4, s5, s6, s7, y_filter, round_vec);
+
+      store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
+
+      s += 4 * src_stride;
+      d += 4 * dst_stride;
+      height -= 4;
+    }
+
+    while (height-- != 0) {
+      int16x8_t s0, s1, s2, s3, s4;
+      load_s16_8x5(s, src_stride, &s0, &s1, &s2, &s3, &s4);
+
+      uint8x8_t d0 =
+          wiener_convolve5_8_2d_v(s0, s1, s2, s3, s4, y_filter, round_vec);
+
+      vst1_u8(d, d0);
+
+      d += dst_stride;
+      s += src_stride;
+    }
+
+    src += 8;
+    dst += 8;
+    w -= 8;
+  } while (w != 0);
+}
+
 static INLINE uint8x8_t wiener_convolve7_8_2d_v(
     const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
     const int16x8_t s3, const int16x8_t s4, const int16x8_t s5,
@@ -155,18 +226,10 @@ static INLINE uint8x8_t wiener_convolve7_8_2d_v(
   return vqmovun_s16(vcombine_s16(res_lo, res_hi));
 }
 
-static INLINE void convolve_add_src_vert_hip_neon(
+static INLINE void convolve_add_src_vert_7tap_neon(
     const uint16_t *src, ptrdiff_t src_stride, uint8_t *dst,
-    ptrdiff_t dst_stride, const int16_t *y_filter_ptr, int w, int h) {
-  const int bd = 8;
-  const int32x4_t round_vec =
-      vdupq_n_s32((1 << (2 * FILTER_BITS - WIENER_ROUND0_BITS - 1)) -
-                  (1 << (bd + (2 * FILTER_BITS - WIENER_ROUND0_BITS) - 1)));
-
-  int16x4_t y_filter = vld1_s16(y_filter_ptr);
-  // Add 128 to tap 3. (Needed for rounding.)
-  y_filter = vadd_s16(y_filter, vcreate_s16((1ULL << FILTER_BITS) << 48));
-
+    ptrdiff_t dst_stride, int w, int h, const int16x4_t y_filter,
+    const int32x4_t round_vec) {
   do {
     const int16_t *s = (int16_t *)src;
     uint8_t *d = dst;
@@ -244,22 +307,29 @@ void av1_wiener_convolve_add_src_neon(const uint8_t *src, ptrdiff_t src_stride,
                   im_block[(MAX_SB_SIZE + WIENER_WIN - 1) * MAX_SB_SIZE]);
 
   const int x_filter_taps = get_wiener_filter_taps(x_filter);
+  const int y_filter_taps = get_wiener_filter_taps(y_filter);
   int16x4_t x_filter_s16 = vld1_s16(x_filter);
+  int16x4_t y_filter_s16 = vld1_s16(y_filter);
   // Add 128 to tap 3. (Needed for rounding.)
   x_filter_s16 = vadd_s16(x_filter_s16, vcreate_s16(128ULL << 48));
+  y_filter_s16 = vadd_s16(y_filter_s16, vcreate_s16(128ULL << 48));
 
   const int im_stride = MAX_SB_SIZE;
-  const int im_h = h + WIENER_WIN - 1;
-  const int horiz_offset = WIENER_HALFWIN;
-  const int vert_offset = WIENER_HALFWIN * (int)src_stride;
+  const int im_h = h + y_filter_taps - 1;
+  const int horiz_offset = x_filter_taps / 2;
+  const int vert_offset = (y_filter_taps / 2) * (int)src_stride;
 
   const int bd = 8;
-  const int32x4_t horiz_round_vec = vdupq_n_s32(1 << (bd + FILTER_BITS - 1));
   const uint16x8_t im_max_val =
       vdupq_n_u16((1 << (bd + 1 + FILTER_BITS - WIENER_ROUND0_BITS)) - 1);
+  const int32x4_t horiz_round_vec = vdupq_n_s32(1 << (bd + FILTER_BITS - 1));
+
+  const int32x4_t vert_round_vec =
+      vdupq_n_s32((1 << (2 * FILTER_BITS - WIENER_ROUND0_BITS - 1)) -
+                  (1 << (bd + (2 * FILTER_BITS - WIENER_ROUND0_BITS) - 1)));
 
   if (x_filter_taps == WIENER_WIN_REDUCED) {
-    convolve_add_src_horiz_5tap_neon(src - horiz_offset - vert_offset + 1,
+    convolve_add_src_horiz_5tap_neon(src - horiz_offset - vert_offset,
                                      src_stride, im_block, im_stride, w, im_h,
                                      x_filter_s16, horiz_round_vec, im_max_val);
   } else {
@@ -268,6 +338,11 @@ void av1_wiener_convolve_add_src_neon(const uint8_t *src, ptrdiff_t src_stride,
                                      x_filter_s16, horiz_round_vec, im_max_val);
   }
 
-  convolve_add_src_vert_hip_neon(im_block, im_stride, dst, dst_stride, y_filter,
-                                 w, h);
+  if (y_filter_taps == WIENER_WIN_REDUCED) {
+    convolve_add_src_vert_5tap_neon(im_block, im_stride, dst, dst_stride, w, h,
+                                    y_filter_s16, vert_round_vec);
+  } else {
+    convolve_add_src_vert_7tap_neon(im_block, im_stride, dst, dst_stride, w, h,
+                                    y_filter_s16, vert_round_vec);
+  }
 }
