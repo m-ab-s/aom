@@ -485,6 +485,7 @@ class CDEFCopyRect8to16Test
   CDEFCopyRect8To16 test_func_;
   CDEFCopyRect8To16 ref_func_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFCopyRect8to16Test);
 
 using CDEFCopyRect16To16 = void (*)(uint16_t *dst, int dstride,
                                     const uint16_t *src, int sstride, int width,
@@ -567,6 +568,7 @@ class CDEFCopyRect16to16Test
   CDEFCopyRect16To16 test_func_;
   CDEFCopyRect16To16 ref_func_;
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CDEFCopyRect16to16Test);
 
 TEST_P(CDEFBlockTest, TestSIMDNoMismatch) {
   test_cdef(bsize, 1, cdef, ref_cdef, boundary, depth);
