@@ -904,7 +904,7 @@ static AOM_INLINE void sync_lr_workers(AVxWorker *const workers,
 }
 
 static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
-                                           AVxWorker *workers, int nworkers,
+                                           AVxWorker *workers, int num_workers,
                                            AV1LrSync *lr_sync, AV1_COMMON *cm,
                                            int do_extend_border) {
   FilterFrameCtxt *ctxt = lr_ctxt->ctxt;
@@ -923,7 +923,6 @@ static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
     num_rows_lr = AOMMAX(num_rows_lr, av1_lr_count_units(unit_size, plane_h));
   }
 
-  const int num_workers = nworkers;
   int i;
   assert(MAX_MB_PLANE == 3);
 
