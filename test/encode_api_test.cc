@@ -66,16 +66,20 @@ TEST(EncodeAPI, InvalidParams) {
   EXPECT_EQ(AOM_CODEC_INVALID_PARAM,
             aom_codec_enc_config_default(iface, &cfg, 3));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, kUsage));
-  cfg.g_w = (1 << 15) + 1;
+  cfg.g_w = 1 << 16;
+  cfg.g_h = (1 << 14) + 1;
   EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, kUsage));
-  cfg.g_h = (1 << 15) + 1;
+  cfg.g_w = (1 << 14) + 1;
+  cfg.g_h = 1 << 16;
   EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, kUsage));
-  cfg.g_forced_max_frame_width = (1 << 15) + 1;
+  cfg.g_forced_max_frame_width = 1 << 16;
+  cfg.g_forced_max_frame_height = (1 << 14) + 1;
   EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, kUsage));
-  cfg.g_forced_max_frame_height = (1 << 15) + 1;
+  cfg.g_forced_max_frame_width = (1 << 14) + 1;
+  cfg.g_forced_max_frame_height = 1 << 16;
   EXPECT_EQ(AOM_CODEC_INVALID_PARAM, aom_codec_enc_init(&enc, iface, &cfg, 0));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, kUsage));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
