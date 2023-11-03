@@ -3174,12 +3174,10 @@ static void smooth_4xh_neon(uint8_t *dst, ptrdiff_t stride,
   const uint8_t bottom_left = left_column[height - 1];
   const uint8_t *const weights_y = smooth_weights + height - 4;
 
-  uint8x8_t UNINITIALIZED_IS_SAFE(top_v);
-  load_u8_4x1(top_row, &top_v, 0);
+  uint8x8_t top_v = load_u8_4x1_lane0(top_row);
   const uint8x8_t top_right_v = vdup_n_u8(top_right);
   const uint8x8_t bottom_left_v = vdup_n_u8(bottom_left);
-  uint8x8_t UNINITIALIZED_IS_SAFE(weights_x_v);
-  load_u8_4x1(smooth_weights, &weights_x_v, 0);
+  uint8x8_t weights_x_v = load_u8_4x1_lane0(smooth_weights);
   const uint8x8_t scaled_weights_x = negate_s8(weights_x_v);
   const uint16x8_t weighted_tr = vmull_u8(scaled_weights_x, top_right_v);
 
@@ -3409,9 +3407,9 @@ SMOOTH_NXM_WIDE(64, 64)
     const uint8_t bottom_left = left_column[height - 1];              \
     const uint8_t *const weights_y = smooth_weights + height - 4;     \
                                                                       \
-    uint8x8_t UNINITIALIZED_IS_SAFE(top_v);                           \
+    uint8x8_t top_v;                                                  \
     if ((W) == 4) {                                                   \
-      load_u8_4x1(top_row, &top_v, 0);                                \
+      top_v = load_u8_4x1_lane0(top_row);                             \
     } else { /* width == 8 */                                         \
       top_v = vld1_u8(top_row);                                       \
     }                                                                 \
@@ -3723,9 +3721,9 @@ static INLINE void paeth_4or8_x_h_neon(uint8_t *dest, ptrdiff_t stride,
                                        int width, int height) {
   const uint8x8_t top_left = vdup_n_u8(top_row[-1]);
   const uint16x8_t top_left_x2 = vdupq_n_u16(top_row[-1] + top_row[-1]);
-  uint8x8_t UNINITIALIZED_IS_SAFE(top);
+  uint8x8_t top;
   if (width == 4) {
-    load_u8_4x1(top_row, &top, 0);
+    top = load_u8_4x1_lane0(top_row);
   } else {  // width == 8
     top = vld1_u8(top_row);
   }
