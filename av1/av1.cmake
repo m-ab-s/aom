@@ -314,7 +314,6 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
             "${AOM_ROOT}/av1/encoder/x86/av1_quantize_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/encodetxb_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/error_intrin_sse2.c"
-            "${AOM_ROOT}/av1/encoder/x86/frame_error_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/reconinter_enc_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/temporal_filter_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/wedge_utils_sse2.c")
@@ -344,7 +343,6 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
             "${AOM_ROOT}/av1/encoder/x86/highbd_fwd_txfm_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/wedge_utils_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/encodetxb_avx2.c"
-            "${AOM_ROOT}/av1/encoder/x86/frame_error_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/rdopt_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_k_means_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/temporal_filter_avx2.c"
@@ -358,7 +356,6 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/neon/av1_highbd_quantize_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/av1_k_means_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/encodetxb_neon.c"
-            "${AOM_ROOT}/av1/encoder/arm/neon/frame_error_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/highbd_fwd_txfm_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/hybrid_fwd_txfm_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/ml_neon.c"
@@ -487,7 +484,6 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_avx2.c")
 
   list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
-              "${AOM_ROOT}/av1/encoder/arm/neon/highbd_frame_error_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/neon/highbd_pickrst_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/neon/highbd_rdopt_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/neon/highbd_temporal_filter_neon.c")
@@ -508,14 +504,10 @@ if(CONFIG_INTERNAL_STATS)
 endif()
 
 if(CONFIG_REALTIME_ONLY)
-  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE2
-                   "${AOM_ROOT}/av1/encoder/x86/frame_error_sse2.c")
-
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE4_1
                    "${AOM_ROOT}/av1/encoder/x86/pickrst_sse4.c")
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_AVX2
-                   "${AOM_ROOT}/av1/encoder/x86/frame_error_avx2.c"
                    "${AOM_ROOT}/av1/encoder/x86/pickrst_avx2.c"
                    "${AOM_ROOT}/av1/encoder/x86/cnn_avx2.c")
 

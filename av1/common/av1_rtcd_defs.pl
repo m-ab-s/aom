@@ -494,17 +494,6 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/int av1_denoiser_filter/, "const uint8_t *sig, int sig_stride, const uint8_t *mc_avg, int mc_avg_stride, uint8_t *avg, int avg_stride, int increase_denoising, BLOCK_SIZE bs, int motion_magnitude";
     specialize qw/av1_denoiser_filter neon sse2/;
   }
-
-  # Global motion
-  if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
-    add_proto qw/int64_t av1_calc_frame_error/, "const uint8_t *const ref, int ref_stride, const uint8_t *const dst, int dst_stride, int p_width, int p_height";
-    specialize qw/av1_calc_frame_error sse2 avx2 neon/;
-
-    if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
-      add_proto qw/int64_t av1_calc_highbd_frame_error/, "const uint16_t *const ref, int ref_stride, const uint16_t *const dst, int dst_stride, int p_width, int p_height, int bd";
-      specialize qw/av1_calc_highbd_frame_error sse2 avx2 neon/;
-    }
-  }
 }
 # end encoder functions
 
