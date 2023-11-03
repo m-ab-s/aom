@@ -1341,7 +1341,8 @@ static AOM_INLINE void evaluate_neighbour_mvs(AV1_COMP *cpi, MACROBLOCK *x,
 static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                          unsigned int *y_sad_g, unsigned int *y_sad_alt,
                          unsigned int *y_sad_last,
-                         MV_REFERENCE_FRAME *ref_frame_partition, int mi_row,
+                         MV_REFERENCE_FRAME *ref_frame_partition,
+                         struct scale_factors *sf_no_scale, int mi_row,
                          int mi_col, bool is_small_sb, bool scaled_ref_last) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
@@ -1480,7 +1481,12 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
 
   // Only calculate the predictor for non-zero MV.
   if (mi->mv[0].as_int != 0) {
-    set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
+    if (!scaled_ref_last) {
+      set_ref_ptrs(cm, xd, mi->ref_frame[0], mi->ref_frame[1]);
+    } else {
+      xd->block_ref_scale_factors[0] = sf_no_scale;
+      xd->block_ref_scale_factors[1] = sf_no_scale;
+    }
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL,
                                   cm->seq_params->sb_size, AOM_PLANE_Y,
                                   num_planes - 1);
@@ -1588,6 +1594,9 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   NOISE_LEVEL noise_level = kLow;
   bool is_zero_motion = true;
   bool scaled_ref_last = false;
+  struct scale_factors sf_no_scale;
+  av1_setup_scale_factors_for_frame(&sf_no_scale, cm->width, cm->height,
+                                    cm->width, cm->height);
 
   bool is_key_frame =
       (frame_is_intra_only(cm) ||
@@ -1686,8 +1695,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   if (!is_key_frame) {
     setup_planes(cpi, x, &y_sad, &y_sad_g, &y_sad_alt, &y_sad_last,
-                 &ref_frame_partition, mi_row, mi_col, is_small_sb,
-                 scaled_ref_last);
+                 &ref_frame_partition, &sf_no_scale, mi_row, mi_col,
+                 is_small_sb, scaled_ref_last);
 
     MB_MODE_INFO *mi = xd->mi[0];
     // Use reference SB directly for zero mv.
