@@ -337,7 +337,7 @@ static int16_t highbd_find_average_neon(const int16_t *src, int src_stride,
 
     src += src_stride;
   } while (--h != 0);
-  return (horizontal_add_s64x2(sum_s64) + sum) / (height * width);
+  return (int16_t)((horizontal_add_s64x2(sum_s64) + sum) / (height * width));
 }
 
 static INLINE void compute_H_one_col(int16x8_t *dgd, int col, int64_t *H,
