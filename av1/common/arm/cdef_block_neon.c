@@ -385,8 +385,7 @@ void cdef_find_dir_dual_neon(const uint16_t *img1, const uint16_t *img2,
 
 // sign(a-b) * min(abs(a-b), max(0, threshold - (abs(a-b) >> adjdamp)))
 static INLINE int16x8_t constrain16(uint16x8_t a, uint16x8_t b,
-                                    unsigned int threshold,
-                                    unsigned int adjdamp) {
+                                    unsigned int threshold, int adjdamp) {
   int16x8_t diff = vreinterpretq_s16_u16(vsubq_u16(a, b));
   const int16x8_t sign = vshrq_n_s16(diff, 15);
   diff = vabsq_s16(diff);
