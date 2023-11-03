@@ -834,7 +834,7 @@ void aom_lpf_vertical_4_neon(uint8_t *src, int stride, const uint8_t *blimit,
                              const uint8_t *limit, const uint8_t *thresh) {
   uint32x2x2_t p1q0_p0q1, p1q1_p0q0, p1p0_q1q0;
   uint32x2_t pq_rev;
-  uint8x8_t UNINITIALIZED_IS_SAFE(p1p0), UNINITIALIZED_IS_SAFE(q0q1);
+  uint8x8_t p1p0, q0q1;
   uint8x8_t p0q0, p1q1;
 
   // row0: p1 p0 | q0 q1
