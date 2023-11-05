@@ -53,6 +53,8 @@ void av1_accumulate_frame_counts(struct FRAME_COUNTS *acc_counts,
 
 void av1_row_mt_mem_dealloc(AV1_COMP *cpi);
 
+void av1_row_mt_sync_mem_dealloc(AV1EncRowMultiThreadSync *row_mt_sync);
+
 void av1_global_motion_estimation_mt(AV1_COMP *cpi);
 
 #if !CONFIG_REALTIME_ONLY

@@ -196,7 +196,7 @@ static void row_mt_sync_mem_alloc(AV1EncRowMultiThreadSync *row_mt_sync,
 }
 
 // Deallocate row based multi-threading synchronization related mutex and data
-static void row_mt_sync_mem_dealloc(AV1EncRowMultiThreadSync *row_mt_sync) {
+void av1_row_mt_sync_mem_dealloc(AV1EncRowMultiThreadSync *row_mt_sync) {
   if (row_mt_sync != NULL) {
 #if CONFIG_MULTITHREAD
     int i;
@@ -282,7 +282,7 @@ void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
       int tile_index = tile_row * tile_cols + tile_col;
       TileDataEnc *const this_tile = &cpi->tile_data[tile_index];
 
-      row_mt_sync_mem_dealloc(&this_tile->row_mt_sync);
+      av1_row_mt_sync_mem_dealloc(&this_tile->row_mt_sync);
 
       if (cpi->oxcf.algo_cfg.cdf_update_mode) aom_free(this_tile->row_ctx);
     }
@@ -2696,6 +2696,7 @@ static AOM_INLINE void prepare_wiener_var_workers(AV1_COMP *const cpi,
 
     if (thread_data->td != &cpi->td) {
       thread_data->td->mb = cpi->td.mb;
+      av1_alloc_mb_wiener_var_pred_buf(&cpi->common, thread_data->td);
     }
   }
 }
@@ -2737,7 +2738,8 @@ static int cal_mb_wiener_var_hook(void *arg1, void *unused) {
     // TODO(chengchen): properly accumulate the distortion and rate.
     av1_calc_mb_wiener_var_row(cpi, x, xd, current_mi_row, src_diff, coeff,
                                qcoeff, dqcoeff, &sum_rec_distortion,
-                               &sum_est_rate);
+                               &sum_est_rate,
+                               thread_data->td->wiener_tmp_pred_buf);
 #if CONFIG_MULTITHREAD
     pthread_mutex_lock(enc_row_mt_mutex_);
 #endif
@@ -2747,6 +2749,17 @@ static int cal_mb_wiener_var_hook(void *arg1, void *unused) {
 #endif
   }
   return 1;
+}
+
+static void dealloc_mb_wiener_var_mt_data(AV1_COMP *cpi, int num_workers) {
+  av1_row_mt_sync_mem_dealloc(&cpi->ppi->intra_row_mt_sync);
+
+  MultiThreadInfo *mt_info = &cpi->mt_info;
+  for (int j = 0; j < num_workers; ++j) {
+    EncWorkerData *thread_data = &mt_info->tile_thr_data[j];
+    ThreadData *td = thread_data->td;
+    if (td != &cpi->td) av1_dealloc_mb_wiener_var_pred_buf(td);
+  }
 }
 
 // This function is the multi-threading version of computing the wiener
@@ -2778,8 +2791,7 @@ void av1_calc_mb_wiener_var_mt(AV1_COMP *cpi, int num_workers,
   prepare_wiener_var_workers(cpi, cal_mb_wiener_var_hook, num_workers);
   launch_workers(mt_info, num_workers);
   sync_enc_workers(mt_info, cm, num_workers);
-
-  row_mt_sync_mem_dealloc(intra_row_mt_sync);
+  dealloc_mb_wiener_var_mt_data(cpi, num_workers);
 }
 
 // Compare and order tiles based on absolute sum of tx coeffs.
