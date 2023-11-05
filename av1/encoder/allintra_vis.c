@@ -270,13 +270,14 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, MACROBLOCK *x,
   const int coeff_count = block_size * block_size;
   const int mb_step = mi_size_wide[bsize];
   const BitDepthInfo bd_info = get_bit_depth_info(xd);
-  const AV1EncAllIntraMultiThreadInfo *const intra_mt = &cpi->mt_info.intra_mt;
+  const MultiThreadInfo *const mt_info = &cpi->mt_info;
+  const AV1EncAllIntraMultiThreadInfo *const intra_mt = &mt_info->intra_mt;
   AV1EncRowMultiThreadSync *const intra_row_mt_sync =
       &cpi->ppi->intra_row_mt_sync;
   const int mi_cols = cm->mi_params.mi_cols;
   const int mt_thread_id = mi_row / mb_step;
   // TODO(chengchen): test different unit step size
-  const int mt_unit_step = mi_size_wide[BLOCK_64X64];
+  const int mt_unit_step = mi_size_wide[MB_WIENER_MT_UNIT_SIZE];
   const int mt_unit_cols = (mi_cols + (mt_unit_step >> 1)) / mt_unit_step;
   int mt_unit_col = 0;
   const int is_high_bitdepth = is_cur_buf_hbd(xd);
@@ -293,6 +294,18 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, MACROBLOCK *x,
     if (mi_col % mt_unit_step == 0) {
       intra_mt->intra_sync_read_ptr(intra_row_mt_sync, mt_thread_id,
                                     mt_unit_col);
+#if CONFIG_MULTITHREAD
+      const int num_workers =
+          AOMMIN(mt_info->num_mod_workers[MOD_AI], mt_info->num_workers);
+      if (num_workers > 1) {
+        const AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
+        pthread_mutex_lock(enc_row_mt->mutex_);
+        const bool exit = enc_row_mt->mb_wiener_mt_exit;
+        pthread_mutex_unlock(enc_row_mt->mutex_);
+        // Stop further processing in case any worker has encountered an error.
+        if (exit) break;
+      }
+#endif
     }
 
     PREDICTION_MODE best_mode = DC_PRED;

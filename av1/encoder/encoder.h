@@ -1544,6 +1544,13 @@ typedef struct {
    */
   bool firstpass_mt_exit;
 
+  /*!
+   * Initialized to false, set to true in cal_mb_wiener_var_hook() by the worker
+   * thread that encounters an error in order to abort the processing of other
+   * worker threads.
+   */
+  bool mb_wiener_mt_exit;
+
 #if CONFIG_MULTITHREAD
   /*!
    * Mutex lock used while dispatching jobs.
