@@ -1347,6 +1347,8 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_planes = av1_num_planes(cm);
+  bool scaled_ref_golden = false;
+  bool scaled_ref_alt = false;
   BLOCK_SIZE bsize = is_small_sb ? BLOCK_64X64 : BLOCK_128X128;
   MB_MODE_INFO *mi = xd->mi[0];
   const YV12_BUFFER_CONFIG *yv12 =
@@ -1364,21 +1366,22 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
                     cpi->sf.rt_sf.use_nonrd_altref_frame ||
                     (cpi->sf.rt_sf.use_comp_ref_nonrd &&
                      cpi->sf.rt_sf.ref_frame_comp_nonrd[2] == 1);
-  // On a resized frame (reference has different scale) only use
-  // LAST as reference for partitioning for now.
-  if (scaled_ref_last) {
-    use_golden_ref = 0;
-    use_alt_ref = 0;
-  }
 
   // For 1 spatial layer: GOLDEN is another temporal reference.
   // Check if it should be used as reference for partitioning.
   if (cpi->svc.number_spatial_layers == 1 && use_golden_ref &&
       (x->content_state_sb.source_sad_nonrd != kZeroSad || !use_last_ref)) {
     yv12_g = get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
+    if (yv12_g && (yv12_g->y_crop_height != cm->height ||
+                   yv12_g->y_crop_width != cm->width)) {
+      yv12_g = av1_get_scaled_ref_frame(cpi, GOLDEN_FRAME);
+      scaled_ref_golden = true;
+    }
     if (yv12_g && yv12_g != yv12) {
-      av1_setup_pre_planes(xd, 0, yv12_g, mi_row, mi_col,
-                           get_ref_scale_factors(cm, GOLDEN_FRAME), num_planes);
+      av1_setup_pre_planes(
+          xd, 0, yv12_g, mi_row, mi_col,
+          scaled_ref_golden ? NULL : get_ref_scale_factors(cm, GOLDEN_FRAME),
+          num_planes);
       *y_sad_g = cpi->ppi->fn_ptr[bsize].sdf(
           x->plane[AOM_PLANE_Y].src.buf, x->plane[AOM_PLANE_Y].src.stride,
           xd->plane[AOM_PLANE_Y].pre[0].buf,
@@ -1392,9 +1395,16 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
       (cpi->ref_frame_flags & AOM_ALT_FLAG) &&
       (x->content_state_sb.source_sad_nonrd != kZeroSad || !use_last_ref)) {
     yv12_alt = get_ref_frame_yv12_buf(cm, ALTREF_FRAME);
+    if (yv12_alt && (yv12_alt->y_crop_height != cm->height ||
+                     yv12_alt->y_crop_width != cm->width)) {
+      yv12_alt = av1_get_scaled_ref_frame(cpi, ALTREF_FRAME);
+      scaled_ref_alt = true;
+    }
     if (yv12_alt && yv12_alt != yv12) {
-      av1_setup_pre_planes(xd, 0, yv12_alt, mi_row, mi_col,
-                           get_ref_scale_factors(cm, ALTREF_FRAME), num_planes);
+      av1_setup_pre_planes(
+          xd, 0, yv12_alt, mi_row, mi_col,
+          scaled_ref_alt ? NULL : get_ref_scale_factors(cm, ALTREF_FRAME),
+          num_planes);
       *y_sad_alt = cpi->ppi->fn_ptr[bsize].sdf(
           x->plane[AOM_PLANE_Y].src.buf, x->plane[AOM_PLANE_Y].src.stride,
           xd->plane[AOM_PLANE_Y].pre[0].buf,

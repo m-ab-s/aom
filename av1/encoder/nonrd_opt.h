@@ -435,6 +435,7 @@ static INLINE void find_predictors(
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
+  int base_is_key_frame = 0;
   const YV12_BUFFER_CONFIG *ref = get_ref_frame_yv12_buf(cm, ref_frame);
   const bool ref_is_scaled =
       ref->y_crop_height != cm->height || ref->y_crop_width != cm->width;
@@ -450,6 +451,13 @@ static INLINE void find_predictors(
   // TODO(kyslov) this needs various further optimizations. to be continued..
   assert(yv12 != NULL);
   if (yv12 != NULL) {
+    if (cpi->ppi->use_svc) {
+      SVC *const svc = &cpi->svc;
+      const int layer =
+          LAYER_IDS_TO_IDX(svc->spatial_layer_id, svc->temporal_layer_id,
+                           svc->number_temporal_layers);
+      base_is_key_frame = svc->layer_context[layer].is_key_frame;
+    }
     struct scale_factors *const sf =
         scaled_ref ? NULL : get_ref_scale_factors(cm, ref_frame);
     av1_setup_pred_block(xd, yv12_mb[ref_frame], yv12, sf, sf, num_planes);
@@ -463,9 +471,11 @@ static INLINE void find_predictors(
         cm->features.allow_high_precision_mv, mbmi_ext, ref_frame,
         &frame_mv[NEARESTMV][ref_frame], &frame_mv[NEARMV][ref_frame], 0);
     frame_mv[GLOBALMV][ref_frame] = mbmi_ext->global_mvs[ref_frame];
-    // Early exit for non-LAST frame if force_skip_low_temp_var is set.
-    if (!ref_is_scaled && bsize >= BLOCK_8X8 && !skip_pred_mv &&
-        !(force_skip_low_temp_var && ref_frame != LAST_FRAME)) {
+    // Early exit for non-LAST frame if force_skip_low_temp_var or
+    // ref_is_scaled is set.
+    if (bsize >= BLOCK_8X8 && !skip_pred_mv && !base_is_key_frame &&
+        !((ref_is_scaled || force_skip_low_temp_var) &&
+          ref_frame != LAST_FRAME)) {
       av1_mv_pred(cpi, x, yv12_mb[ref_frame][0].buf, yv12->y_stride, ref_frame,
                   bsize);
     }
