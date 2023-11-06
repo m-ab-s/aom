@@ -74,19 +74,6 @@ void cdef_copy_rect8_16bit_to_16bit_neon(uint16_t *dst, int dstride,
   } while (--height != 0);
 }
 
-static INLINE uint32x4_t v128_madd_s16_neon(int16x8_t a, int16x8_t b) {
-  uint32x4_t t1 =
-      vreinterpretq_u32_s32(vmull_s16(vget_low_s16(a), vget_low_s16(b)));
-  uint32x4_t t2 =
-      vreinterpretq_u32_s32(vmull_s16(vget_high_s16(a), vget_high_s16(b)));
-#if AOM_ARCH_AARCH64
-  return vpaddq_u32(t1, t2);
-#else
-  return vcombine_u32(vpadd_u32(vget_low_u32(t1), vget_high_u32(t1)),
-                      vpadd_u32(vget_low_u32(t2), vget_high_u32(t2)));
-#endif
-}
-
 // partial A is a 16-bit vector of the form:
 // [x8 x7 x6 x5 x4 x3 x2 x1] and partial B has the form:
 // [0  y1 y2 y3 y4 y5 y6 y7].
@@ -97,8 +84,8 @@ static INLINE uint32x4_t fold_mul_and_sum_neon(int16x8_t partiala,
                                                int16x8_t partialb,
                                                uint32x4_t const1,
                                                uint32x4_t const2) {
-  int16x8_t tmp;
   // Reverse partial B.
+  // pattern = { 12 13 10 11 8 9 6 7 4 5 2 3 0 1 14 15 }.
   uint8x16_t pattern = vreinterpretq_u8_u64(
       vcombine_u64(vcreate_u64((uint64_t)0x07060908 << 32 | 0x0b0a0d0c),
                    vcreate_u64((uint64_t)0x0f0e0100 << 32 | 0x03020504)));
@@ -114,21 +101,18 @@ static INLINE uint32x4_t fold_mul_and_sum_neon(int16x8_t partiala,
   partialb = vreinterpretq_s16_s8(vcombine_s8(shuffle_lo, shuffle_hi));
 #endif
 
-  // Interleave the x and y values of identical indices and pair x8 with 0.
-  tmp = partiala;
-  partiala = vzipq_s16(partiala, partialb).val[0];
-  partialb = vzipq_s16(tmp, partialb).val[1];
   // Square and add the corresponding x and y values.
-  uint32x4_t partiala_u32 = v128_madd_s16_neon(partiala, partiala);
-  uint32x4_t partialb_u32 = v128_madd_s16_neon(partialb, partialb);
+  int32x4_t cost_lo = vmull_s16(vget_low_s16(partiala), vget_low_s16(partiala));
+  cost_lo = vmlal_s16(cost_lo, vget_low_s16(partialb), vget_low_s16(partialb));
+  int32x4_t cost_hi =
+      vmull_s16(vget_high_s16(partiala), vget_high_s16(partiala));
+  cost_hi =
+      vmlal_s16(cost_hi, vget_high_s16(partialb), vget_high_s16(partialb));
 
   // Multiply by constant.
-  partiala_u32 = vmulq_u32(partiala_u32, const1);
-  partialb_u32 = vmulq_u32(partialb_u32, const2);
-
-  // Sum all results.
-  partiala_u32 = vaddq_u32(partiala_u32, partialb_u32);
-  return partiala_u32;
+  uint32x4_t cost = vmulq_u32(vreinterpretq_u32_s32(cost_lo), const1);
+  cost = vmlaq_u32(cost, vreinterpretq_u32_s32(cost_hi), const2);
+  return cost;
 }
 
 // This function is called a first time to compute the cost along directions 4,
@@ -227,11 +211,15 @@ static INLINE uint32x4_t compute_directions_neon(int16x8_t lines[8],
                    vcreate_u64((uint64_t)105 << 32 | 105)));
 
   // Compute costs in terms of partial sums.
+  int32x4_t partial6_s32 =
+      vmull_s16(vget_low_s16(partial6), vget_low_s16(partial6));
+  partial6_s32 =
+      vmlal_s16(partial6_s32, vget_high_s16(partial6), vget_high_s16(partial6));
+
   uint32x4_t costs[4];
   costs[0] = fold_mul_and_sum_neon(partial4a, partial4b, const0, const1);
   costs[1] = fold_mul_and_sum_neon(partial5a, partial5b, const2, const3);
-  costs[2] = v128_madd_s16_neon(partial6, partial6);
-  costs[2] = vmulq_n_u32(costs[2], 105);
+  costs[2] = vmulq_n_u32(vreinterpretq_u32_s32(partial6_s32), 105);
   costs[3] = fold_mul_and_sum_neon(partial7a, partial7b, const2, const3);
 
   costs[0] = horizontal_add_4d_u32x4(costs);
