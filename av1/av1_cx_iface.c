@@ -2589,7 +2589,9 @@ static aom_codec_err_t ctrl_set_max_consec_frame_drop_cbr(
     aom_codec_alg_priv_t *ctx, va_list args) {
   AV1_PRIMARY *const ppi = ctx->ppi;
   AV1_COMP *const cpi = ppi->cpi;
-  cpi->rc.max_consec_drop = CAST(AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR, args);
+  const int max_consec_drop = CAST(AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR, args);
+  if (max_consec_drop < 0) return AOM_CODEC_INVALID_PARAM;
+  cpi->rc.max_consec_drop = max_consec_drop;
   cpi->rc.drop_count_consec = 0;
   return AOM_CODEC_OK;
 }
