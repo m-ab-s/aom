@@ -450,27 +450,27 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
     add_proto qw/void av1_compute_stats/,  "int wiener_win, const uint8_t *dgd8, const uint8_t *src8, int16_t *dgd_avg, int16_t *src_avg, int h_start, int h_end, int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H, int use_downsampled_wiener_stats";
     specialize qw/av1_compute_stats sse4_1 avx2 neon/;
-    add_proto qw/void av1_calc_proj_params/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2], const sgr_params_type *params";
+    add_proto qw/void av1_calc_proj_params/, "const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2], const sgr_params_type *params";
     specialize qw/av1_calc_proj_params sse4_1 avx2 neon/;
-    add_proto qw/int64_t av1_lowbd_pixel_proj_error/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int xq[2], const sgr_params_type *params";
+    add_proto qw/int64_t av1_lowbd_pixel_proj_error/, "const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int xq[2], const sgr_params_type *params";
     specialize qw/av1_lowbd_pixel_proj_error sse4_1 avx2 neon/;
 
     if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
-      add_proto qw/void av1_calc_proj_params_high_bd/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2], const sgr_params_type *params";
+      add_proto qw/void av1_calc_proj_params_high_bd/, "const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2], const sgr_params_type *params";
       specialize qw/av1_calc_proj_params_high_bd sse4_1 avx2 neon/;
-      add_proto qw/int64_t av1_highbd_pixel_proj_error/, " const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int xq[2], const sgr_params_type *params";
+      add_proto qw/int64_t av1_highbd_pixel_proj_error/, "const uint8_t *src8, int width, int height, int src_stride, const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride, int32_t *flt1, int flt1_stride, int xq[2], const sgr_params_type *params";
       specialize qw/av1_highbd_pixel_proj_error sse4_1 avx2/;
       add_proto qw/void av1_compute_stats_highbd/,  "int wiener_win, const uint8_t *dgd8, const uint8_t *src8, int h_start, int h_end, int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H, aom_bit_depth_t bit_depth";
       specialize qw/av1_compute_stats_highbd sse4_1 avx2 neon/;
     }
   }
 
-  add_proto qw/void av1_get_horver_correlation_full/, " const int16_t *diff, int stride, int w, int h, float *hcorr, float *vcorr";
+  add_proto qw/void av1_get_horver_correlation_full/, "const int16_t *diff, int stride, int w, int h, float *hcorr, float *vcorr";
   specialize qw/av1_get_horver_correlation_full sse4_1 avx2 neon/;
 
-  add_proto qw/void av1_nn_predict/, " const float *input_nodes, const NN_CONFIG *const nn_config, int reduce_prec, float *const output";
+  add_proto qw/void av1_nn_predict/, "const float *input_nodes, const NN_CONFIG *const nn_config, int reduce_prec, float *const output";
 
-  add_proto qw/void av1_nn_fast_softmax_16/, " const float *input_nodes, float *output";
+  add_proto qw/void av1_nn_fast_softmax_16/, "const float *input_nodes, float *output";
   if (aom_config("CONFIG_EXCLUDE_SIMD_MISMATCH") ne "yes") {
     specialize qw/av1_nn_predict sse3 avx2 neon/;
     specialize qw/av1_nn_fast_softmax_16 sse3/;
@@ -478,14 +478,14 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
   # CNN functions
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
-    add_proto qw/void av1_cnn_activate/, " float **input, int channels, int width, int height, int stride, ACTIVATION layer_activation";
-    add_proto qw/void av1_cnn_add/, " float **input, int channels, int width, int height, int stride, const float **add";
-    add_proto qw/bool av1_cnn_predict/, " const float **input, int in_width, int in_height, int in_stride, const CNN_CONFIG *cnn_config, const CNN_THREAD_DATA *thread_data, CNN_MULTI_OUT *output_struct";
-    add_proto qw/void av1_cnn_convolve_no_maxpool_padding_valid/, " const float **input, int in_width, int in_height, int in_stride, const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride, int start_idx, int cstep, int channel_step";
+    add_proto qw/void av1_cnn_activate/, "float **input, int channels, int width, int height, int stride, ACTIVATION layer_activation";
+    add_proto qw/void av1_cnn_add/, "float **input, int channels, int width, int height, int stride, const float **add";
+    add_proto qw/bool av1_cnn_predict/, "const float **input, int in_width, int in_height, int in_stride, const CNN_CONFIG *cnn_config, const CNN_THREAD_DATA *thread_data, CNN_MULTI_OUT *output_struct";
+    add_proto qw/void av1_cnn_convolve_no_maxpool_padding_valid/, "const float **input, int in_width, int in_height, int in_stride, const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride, int start_idx, int cstep, int channel_step";
     if (aom_config("CONFIG_EXCLUDE_SIMD_MISMATCH") ne "yes") {
       specialize qw/av1_cnn_convolve_no_maxpool_padding_valid avx2/;
     }
-    add_proto qw/void av1_cnn_deconvolve/, " const float **input, int in_width, int in_height, int in_stride, const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride";
+    add_proto qw/void av1_cnn_deconvolve/, "const float **input, int in_width, int in_height, int in_stride, const CNN_LAYER_CONFIG *layer_config, float **output, int out_stride";
     add_proto qw/void av1_cnn_batchnorm/, "float **image, int channels, int width, int height, int stride, const float *gamma, const float *beta, const float *mean, const float *std";
   }
 
