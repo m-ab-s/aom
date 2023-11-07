@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 #include <limits.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -3083,11 +3084,36 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         ctx->pts_offset = ptsvol;
         ctx->pts_offset_initialized = 1;
       }
+      if (ptsvol < ctx->pts_offset) {
+        aom_internal_error(&ppi->error, AOM_CODEC_INVALID_PARAM,
+                           "pts is smaller than initial pts");
+      }
       ptsvol -= ctx->pts_offset;
+      if (ptsvol > INT64_MAX / cpi_data.timestamp_ratio->num) {
+        aom_internal_error(
+            &ppi->error, AOM_CODEC_INVALID_PARAM,
+            "conversion of relative pts to ticks would overflow");
+      }
       int64_t src_time_stamp =
           timebase_units_to_ticks(cpi_data.timestamp_ratio, ptsvol);
+#if ULONG_MAX > INT64_MAX
+      if (duration > INT64_MAX) {
+        aom_internal_error(&ppi->error, AOM_CODEC_INVALID_PARAM,
+                           "duration is too big");
+      }
+#endif
+      if (ptsvol > INT64_MAX - (int64_t)duration) {
+        aom_internal_error(&ppi->error, AOM_CODEC_INVALID_PARAM,
+                           "relative pts + duration is too big");
+      }
+      aom_codec_pts_t pts_end = ptsvol + duration;
+      if (pts_end > INT64_MAX / cpi_data.timestamp_ratio->num) {
+        aom_internal_error(
+            &ppi->error, AOM_CODEC_INVALID_PARAM,
+            "conversion of relative pts + duration to ticks would overflow");
+      }
       int64_t src_end_time_stamp =
-          timebase_units_to_ticks(cpi_data.timestamp_ratio, ptsvol + duration);
+          timebase_units_to_ticks(cpi_data.timestamp_ratio, pts_end);
 
       YV12_BUFFER_CONFIG sd;
       res = image2yuvconfig(img, &sd);
