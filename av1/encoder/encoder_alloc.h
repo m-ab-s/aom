@@ -182,7 +182,7 @@ static AOM_INLINE void release_compound_type_rd_buffers(
 static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   TokenInfo *token_info = &cpi->token_info;
-
+  const int num_planes = av1_num_planes(cm);
   dealloc_context_buffers_ext(&cpi->mbmi_ext_info);
 
   aom_free(cpi->tile_data);
@@ -240,7 +240,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   cpi->td.mb.rdcost = NULL;
 #endif
 
-  av1_free_pc_tree_recursive(cpi->td.pc_root, av1_num_planes(cm), 0, 0,
+  av1_free_pc_tree_recursive(cpi->td.pc_root, num_planes, 0, 0,
                              cpi->sf.part_sf.partition_search_type);
   cpi->td.pc_root = NULL;
 
@@ -264,7 +264,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cpi->td.vt64x64);
   cpi->td.vt64x64 = NULL;
 
-  av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
+  av1_free_pmc(cpi->td.firstpass_ctx, num_planes);
   cpi->td.firstpass_ctx = NULL;
 
   const int is_highbitdepth = cpi->tf_ctx.is_highbitdepth;
@@ -288,7 +288,7 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
   aom_free(cpi->cdef_search_ctx);
   cpi->cdef_search_ctx = NULL;
 
-  av1_dealloc_mb_data(&cpi->td.mb, av1_num_planes(cm));
+  av1_dealloc_mb_data(&cpi->td.mb, num_planes);
 
   av1_dealloc_mb_wiener_var_pred_buf(&cpi->td);
 
@@ -305,6 +305,13 @@ static AOM_INLINE void dealloc_compressor_data(AV1_COMP *cpi) {
     av1_free_cdef_buffers(cm, &cpi->ppi->p_mt_info.cdef_worker,
                           &cpi->mt_info.cdef_sync);
   }
+
+  for (int plane = 0; plane < num_planes; plane++) {
+    aom_free(cpi->pick_lr_ctxt.rusi[plane]);
+    cpi->pick_lr_ctxt.rusi[plane] = NULL;
+  }
+  aom_free(cpi->pick_lr_ctxt.dgd_avg);
+  cpi->pick_lr_ctxt.dgd_avg = NULL;
 
   aom_free_frame_buffer(&cpi->trial_frame_rst);
   aom_free_frame_buffer(&cpi->scaled_source);

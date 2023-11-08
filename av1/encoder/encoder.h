@@ -1637,6 +1637,43 @@ typedef struct RestoreStateBuffers {
 } RestoreStateBuffers;
 
 /*!
+ * \brief Parameters related to restoration types.
+ */
+typedef struct {
+  /*!
+   * Stores the best coefficients for Wiener restoration.
+   */
+  WienerInfo wiener;
+
+  /*!
+   * Stores the best coefficients for Sgrproj restoration.
+   */
+  SgrprojInfo sgrproj;
+
+  /*!
+   * The rtype to use for this unit given a frame rtype as index. Indices:
+   * WIENER, SGRPROJ, SWITCHABLE.
+   */
+  RestorationType best_rtype[RESTORE_TYPES - 1];
+} RestUnitSearchInfo;
+
+/*!
+ * \brief Buffers used during loop restoration search.
+ */
+typedef struct {
+  /*!
+   * Array of pointers to 'RestUnitSearchInfo' which holds data related to
+   * restoration types.
+   */
+  RestUnitSearchInfo *rusi[MAX_MB_PLANE];
+
+  /*!
+   * Buffer used to hold dgd-avg data during SIMD call of Wiener filter.
+   */
+  int16_t *dgd_avg;
+} AV1LrPickStruct;
+
+/*!
  * \brief Primary Encoder parameters related to multi-threading.
  */
 typedef struct PrimaryMultiThreadInfo {
@@ -3241,6 +3278,11 @@ typedef struct AV1_COMP {
    * Loop Restoration context.
    */
   AV1LrStruct lr_ctxt;
+
+  /*!
+   * Loop Restoration context used during pick stage.
+   */
+  AV1LrPickStruct pick_lr_ctxt;
 
   /*!
    * Pointer to list of tables with film grain parameters.

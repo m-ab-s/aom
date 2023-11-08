@@ -105,16 +105,6 @@ static uint64_t var_restoration_unit(const RestorationTileLimits *limits,
 }
 
 typedef struct {
-  // The best coefficients for Wiener or Sgrproj restoration
-  WienerInfo wiener;
-  SgrprojInfo sgrproj;
-
-  // The rtype to use for this unit given a frame rtype as
-  // index. Indices: WIENER, SGRPROJ, SWITCHABLE.
-  RestorationType best_rtype[RESTORE_TYPES - 1];
-} RestUnitSearchInfo;
-
-typedef struct {
   const YV12_BUFFER_CONFIG *src;
   YV12_BUFFER_CONFIG *dst;
 
@@ -2038,10 +2028,9 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   min_lr_unit_size =
       AOMMAX(min_lr_unit_size, block_size_wide[cm->seq_params->sb_size]);
 
-  RestUnitSearchInfo *rusi[MAX_MB_PLANE] = { 0 };
   for (int plane = 0; plane < num_planes; ++plane) {
-    rusi[plane] = allocate_search_structs(cm, &cm->rst_info[plane], plane > 0,
-                                          min_lr_unit_size);
+    cpi->pick_lr_ctxt.rusi[plane] = allocate_search_structs(
+        cm, &cm->rst_info[plane], plane > 0, min_lr_unit_size);
   }
 
   x->rdmult = cpi->rd.RDMULT;
@@ -2071,10 +2060,12 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   // bitdepth path. Hence, allocate the same when Wiener filter is enabled in
   // low bitdepth path.
   if (!cpi->sf.lpf_sf.disable_wiener_filter && !highbd) {
-    const int buf_size = sizeof(*rsc.dgd_avg) * 6 * RESTORATION_UNITSIZE_MAX *
-                         RESTORATION_UNITSIZE_MAX;
-    CHECK_MEM_ERROR(cm, rsc.dgd_avg, (int16_t *)aom_memalign(32, buf_size));
+    const int buf_size = sizeof(*cpi->pick_lr_ctxt.dgd_avg) * 6 *
+                         RESTORATION_UNITSIZE_MAX * RESTORATION_UNITSIZE_MAX;
+    CHECK_MEM_ERROR(cm, cpi->pick_lr_ctxt.dgd_avg,
+                    (int16_t *)aom_memalign(32, buf_size));
 
+    rsc.dgd_avg = cpi->pick_lr_ctxt.dgd_avg;
     // When LRU width isn't multiple of 16, the 256 bits load instruction used
     // in AVX2 intrinsic can read data beyond valid LRU. Hence, in order to
     // silence Valgrind warning this buffer is initialized with zero. Overhead
@@ -2133,8 +2124,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
     for (int plane = plane_start; plane <= plane_end; ++plane) {
       set_restoration_unit_size(cm, &cm->rst_info[plane], plane > 0,
                                 luma_unit_size);
-      init_rsc(src, &cpi->common, x, lpf_sf, plane, rusi[plane],
-               &cpi->trial_frame_rst, &rsc);
+      init_rsc(src, &cpi->common, x, lpf_sf, plane,
+               cpi->pick_lr_ctxt.rusi[plane], &cpi->trial_frame_rst, &rsc);
 
       restoration_search(cm, plane, &rsc, disable_lr_filter);
 
@@ -2177,7 +2168,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           all_none = false;
           const int plane_num_units = cm->rst_info[plane].num_rest_units;
           for (int u = 0; u < plane_num_units; ++u) {
-            copy_unit_info(best_rtype[plane], &rusi[plane][u],
+            copy_unit_info(best_rtype[plane], &cpi->pick_lr_ctxt.rusi[plane][u],
                            &cm->rst_info[plane].unit_info[u]);
           }
         }
@@ -2206,10 +2197,12 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 
 #if HAVE_AVX || HAVE_NEON
   if (!cpi->sf.lpf_sf.disable_wiener_filter && !highbd) {
-    aom_free(rsc.dgd_avg);
+    aom_free(cpi->pick_lr_ctxt.dgd_avg);
+    cpi->pick_lr_ctxt.dgd_avg = NULL;
   }
 #endif
   for (int plane = 0; plane < num_planes; plane++) {
-    aom_free(rusi[plane]);
+    aom_free(cpi->pick_lr_ctxt.rusi[plane]);
+    cpi->pick_lr_ctxt.rusi[plane] = NULL;
   }
 }
