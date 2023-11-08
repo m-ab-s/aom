@@ -17,6 +17,64 @@
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
+#define HBD_WIENER_5TAP_HORIZ(name, shift)                              \
+  static INLINE uint16x8_t name##_wiener_convolve5_8_2d_h(              \
+      const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,       \
+      const int16x8_t s3, const int16x8_t s4, const int16x4_t x_filter, \
+      const int32x4_t round_vec, const uint16x8_t im_max_val) {         \
+    /* Wiener filter is symmetric so add mirrored source elements. */   \
+    int16x8_t s04 = vaddq_s16(s0, s4);                                  \
+    int16x8_t s13 = vaddq_s16(s1, s3);                                  \
+                                                                        \
+    /* x_filter[0] = 0. (5-tap filters are 0-padded to 7 taps.) */      \
+    int32x4_t sum_lo =                                                  \
+        vmlal_lane_s16(round_vec, vget_low_s16(s04), x_filter, 1);      \
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s13), x_filter, 2);    \
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s2), x_filter, 3);     \
+                                                                        \
+    int32x4_t sum_hi =                                                  \
+        vmlal_lane_s16(round_vec, vget_high_s16(s04), x_filter, 1);     \
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s13), x_filter, 2);   \
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s2), x_filter, 3);    \
+                                                                        \
+    uint16x4_t res_lo = vqrshrun_n_s32(sum_lo, shift);                  \
+    uint16x4_t res_hi = vqrshrun_n_s32(sum_hi, shift);                  \
+                                                                        \
+    return vminq_u16(vcombine_u16(res_lo, res_hi), im_max_val);         \
+  }                                                                     \
+                                                                        \
+  static INLINE void name##_convolve_add_src_5tap_horiz(                \
+      const uint16_t *src_ptr, ptrdiff_t src_stride, uint16_t *dst_ptr, \
+      ptrdiff_t dst_stride, int w, int h, const int16x4_t x_filter,     \
+      const int32x4_t round_vec, const uint16x8_t im_max_val) {         \
+    do {                                                                \
+      const int16_t *s = (int16_t *)src_ptr;                            \
+      uint16_t *d = dst_ptr;                                            \
+      int width = w;                                                    \
+                                                                        \
+      do {                                                              \
+        int16x8_t s0, s1, s2, s3, s4;                                   \
+        load_s16_8x5(s, 1, &s0, &s1, &s2, &s3, &s4);                    \
+                                                                        \
+        uint16x8_t d0 = name##_wiener_convolve5_8_2d_h(                 \
+            s0, s1, s2, s3, s4, x_filter, round_vec, im_max_val);       \
+                                                                        \
+        vst1q_u16(d, d0);                                               \
+                                                                        \
+        s += 8;                                                         \
+        d += 8;                                                         \
+        width -= 8;                                                     \
+      } while (width != 0);                                             \
+      src_ptr += src_stride;                                            \
+      dst_ptr += dst_stride;                                            \
+    } while (--h != 0);                                                 \
+  }
+
+HBD_WIENER_5TAP_HORIZ(highbd, WIENER_ROUND0_BITS)
+HBD_WIENER_5TAP_HORIZ(highbd_12, WIENER_ROUND0_BITS + 2)
+
+#undef HBD_WIENER_5TAP_HORIZ
+
 #define HBD_WIENER_7TAP_HORIZ(name, shift)                                     \
   static INLINE uint16x8_t name##_wiener_convolve7_8_2d_h(                     \
       const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,              \
@@ -46,7 +104,7 @@
     return vminq_u16(vcombine_u16(res_lo, res_hi), im_max_val);                \
   }                                                                            \
                                                                                \
-  static INLINE void name##_convolve_add_src_horiz_hip(                        \
+  static INLINE void name##_convolve_add_src_7tap_horiz(                       \
       const uint16_t *src_ptr, ptrdiff_t src_stride, uint16_t *dst_ptr,        \
       ptrdiff_t dst_stride, int w, int h, const int16x4_t x_filter,            \
       const int32x4_t round_vec, const uint16x8_t im_max_val) {                \
@@ -167,6 +225,14 @@ HBD_WIENER_7TAP_VERT(highbd_12, 2 * FILTER_BITS - WIENER_ROUND0_BITS - 2)
 
 #undef HBD_WIENER_7TAP_VERT
 
+static AOM_INLINE int get_wiener_filter_taps(const int16_t *filter) {
+  assert(filter[7] == 0);
+  if (filter[0] == 0 && filter[6] == 0) {
+    return WIENER_WIN_REDUCED;
+  }
+  return WIENER_WIN;
+}
+
 void av1_highbd_wiener_convolve_add_src_neon(
     const uint8_t *src8, ptrdiff_t src_stride, uint8_t *dst8,
     ptrdiff_t dst_stride, const int16_t *x_filter, int x_step_q4,
@@ -183,6 +249,7 @@ void av1_highbd_wiener_convolve_add_src_neon(
   DECLARE_ALIGNED(16, uint16_t,
                   im_block[(MAX_SB_SIZE + WIENER_WIN - 1) * MAX_SB_SIZE]);
 
+  const int x_filter_taps = get_wiener_filter_taps(x_filter);
   int16x4_t x_filter_s16 = vld1_s16(x_filter);
   int16x4_t y_filter_s16 = vld1_s16(y_filter);
   // Add 128 to tap 3. (Needed for rounding.)
@@ -191,7 +258,7 @@ void av1_highbd_wiener_convolve_add_src_neon(
 
   const int im_stride = MAX_SB_SIZE;
   const int im_h = h + WIENER_WIN - 1;
-  const int horiz_offset = WIENER_HALFWIN;
+  const int horiz_offset = x_filter_taps / 2;
   const int vert_offset = WIENER_HALFWIN * (int)src_stride;
 
   const int extraprec_clamp_limit =
@@ -207,16 +274,30 @@ void av1_highbd_wiener_convolve_add_src_neon(
   uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
 
   if (bd == 12) {
-    highbd_12_convolve_add_src_horiz_hip(
-        src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
-        im_h, x_filter_s16, horiz_round_vec, im_max_val);
+    if (x_filter_taps == WIENER_WIN_REDUCED) {
+      highbd_12_convolve_add_src_5tap_horiz(
+          src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
+          im_h, x_filter_s16, horiz_round_vec, im_max_val);
+    } else {
+      highbd_12_convolve_add_src_7tap_horiz(
+          src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
+          im_h, x_filter_s16, horiz_round_vec, im_max_val);
+    }
+
     highbd_12_convolve_add_src_vert_hip(im_block, im_stride, dst, dst_stride, w,
                                         h, y_filter_s16, vert_round_vec,
                                         res_max_val);
   } else {
-    highbd_convolve_add_src_horiz_hip(
-        src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
-        im_h, x_filter_s16, horiz_round_vec, im_max_val);
+    if (x_filter_taps == WIENER_WIN_REDUCED) {
+      highbd_convolve_add_src_5tap_horiz(
+          src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
+          im_h, x_filter_s16, horiz_round_vec, im_max_val);
+    } else {
+      highbd_convolve_add_src_7tap_horiz(
+          src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
+          im_h, x_filter_s16, horiz_round_vec, im_max_val);
+    }
+
     highbd_convolve_add_src_vert_hip(im_block, im_stride, dst, dst_stride, w, h,
                                      y_filter_s16, vert_round_vec, res_max_val);
   }
