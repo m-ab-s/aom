@@ -17,61 +17,66 @@
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
-static INLINE uint16x8_t highbd_wiener_convolve7_8_2d_h(
-    const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
-    const int16x8_t s3, const int16x8_t s4, const int16x8_t s5,
-    const int16x8_t s6, const int16x4_t x_filter, const int32x4_t round_vec,
-    const int32x4_t shift, const uint16x8_t im_max_val) {
-  // Since the Wiener filter is symmetric about the middle tap (tap 3) add
-  // mirrored source elements before multiplying by filter coefficients.
-  int16x8_t s06 = vaddq_s16(s0, s6);
-  int16x8_t s15 = vaddq_s16(s1, s5);
-  int16x8_t s24 = vaddq_s16(s2, s4);
+#define HBD_WIENER_7TAP_HORIZ(name, shift)                                     \
+  static INLINE uint16x8_t name##_wiener_convolve7_8_2d_h(                     \
+      const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,              \
+      const int16x8_t s3, const int16x8_t s4, const int16x8_t s5,              \
+      const int16x8_t s6, const int16x4_t x_filter, const int32x4_t round_vec, \
+      const uint16x8_t im_max_val) {                                           \
+    /* Wiener filter is symmetric so add mirrored source elements. */          \
+    int16x8_t s06 = vaddq_s16(s0, s6);                                         \
+    int16x8_t s15 = vaddq_s16(s1, s5);                                         \
+    int16x8_t s24 = vaddq_s16(s2, s4);                                         \
+                                                                               \
+    int32x4_t sum_lo =                                                         \
+        vmlal_lane_s16(round_vec, vget_low_s16(s06), x_filter, 0);             \
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s15), x_filter, 1);           \
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s24), x_filter, 2);           \
+    sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s3), x_filter, 3);            \
+                                                                               \
+    int32x4_t sum_hi =                                                         \
+        vmlal_lane_s16(round_vec, vget_high_s16(s06), x_filter, 0);            \
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s15), x_filter, 1);          \
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s24), x_filter, 2);          \
+    sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s3), x_filter, 3);           \
+                                                                               \
+    uint16x4_t res_lo = vqrshrun_n_s32(sum_lo, shift);                         \
+    uint16x4_t res_hi = vqrshrun_n_s32(sum_hi, shift);                         \
+                                                                               \
+    return vminq_u16(vcombine_u16(res_lo, res_hi), im_max_val);                \
+  }                                                                            \
+                                                                               \
+  static INLINE void name##_convolve_add_src_horiz_hip(                        \
+      const uint16_t *src_ptr, ptrdiff_t src_stride, uint16_t *dst_ptr,        \
+      ptrdiff_t dst_stride, int w, int h, const int16x4_t x_filter,            \
+      const int32x4_t round_vec, const uint16x8_t im_max_val) {                \
+    do {                                                                       \
+      const int16_t *s = (int16_t *)src_ptr;                                   \
+      uint16_t *d = dst_ptr;                                                   \
+      int width = w;                                                           \
+                                                                               \
+      do {                                                                     \
+        int16x8_t s0, s1, s2, s3, s4, s5, s6;                                  \
+        load_s16_8x7(s, 1, &s0, &s1, &s2, &s3, &s4, &s5, &s6);                 \
+                                                                               \
+        uint16x8_t d0 = name##_wiener_convolve7_8_2d_h(                        \
+            s0, s1, s2, s3, s4, s5, s6, x_filter, round_vec, im_max_val);      \
+                                                                               \
+        vst1q_u16(d, d0);                                                      \
+                                                                               \
+        s += 8;                                                                \
+        d += 8;                                                                \
+        width -= 8;                                                            \
+      } while (width != 0);                                                    \
+      src_ptr += src_stride;                                                   \
+      dst_ptr += dst_stride;                                                   \
+    } while (--h != 0);                                                        \
+  }
 
-  int32x4_t sum_lo = vmlal_lane_s16(round_vec, vget_low_s16(s06), x_filter, 0);
-  sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s15), x_filter, 1);
-  sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s24), x_filter, 2);
-  sum_lo = vmlal_lane_s16(sum_lo, vget_low_s16(s3), x_filter, 3);
+HBD_WIENER_7TAP_HORIZ(highbd, WIENER_ROUND0_BITS)
+HBD_WIENER_7TAP_HORIZ(highbd_12, WIENER_ROUND0_BITS + 2)
 
-  int32x4_t sum_hi = vmlal_lane_s16(round_vec, vget_high_s16(s06), x_filter, 0);
-  sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s15), x_filter, 1);
-  sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s24), x_filter, 2);
-  sum_hi = vmlal_lane_s16(sum_hi, vget_high_s16(s3), x_filter, 3);
-
-  sum_lo = vqrshlq_s32(sum_lo, shift);
-  sum_hi = vqrshlq_s32(sum_hi, shift);
-
-  uint16x8_t res = vcombine_u16(vqmovun_s32(sum_lo), vqmovun_s32(sum_hi));
-  return vminq_u16(res, im_max_val);
-}
-
-static INLINE void highbd_convolve_add_src_horiz_hip(
-    const uint16_t *src_ptr, ptrdiff_t src_stride, uint16_t *dst_ptr,
-    ptrdiff_t dst_stride, int w, int h, const int16x4_t x_filter,
-    const int32x4_t round_vec, const int32x4_t shift,
-    const uint16x8_t im_max_val) {
-  do {
-    const int16_t *s = (int16_t *)src_ptr;
-    uint16_t *d = dst_ptr;
-    int width = w;
-
-    do {
-      int16x8_t s0, s1, s2, s3, s4, s5, s6;
-      load_s16_8x7(s, 1, &s0, &s1, &s2, &s3, &s4, &s5, &s6);
-
-      uint16x8_t d0 = highbd_wiener_convolve7_8_2d_h(
-          s0, s1, s2, s3, s4, s5, s6, x_filter, round_vec, shift, im_max_val);
-
-      vst1q_u16(d, d0);
-
-      s += 8;
-      d += 8;
-      width -= 8;
-    } while (width != 0);
-    src_ptr += src_stride;
-    dst_ptr += dst_stride;
-  } while (--h != 0);
-}
+#undef HBD_WIENER_7TAP_HORIZ
 
 static INLINE uint16x8_t highbd_wiener_convolve7_8_2d_v(
     const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
@@ -187,7 +192,6 @@ void av1_highbd_wiener_convolve_add_src_neon(
   const int extraprec_clamp_limit =
       WIENER_CLAMP_LIMIT(conv_params->round_0, bd);
   const uint16x8_t im_max_val = vdupq_n_u16(extraprec_clamp_limit - 1);
-  const int32x4_t horiz_shift = vdupq_n_s32(-conv_params->round_0);
   const int32x4_t horiz_round_vec = vdupq_n_s32(1 << (bd + FILTER_BITS - 1));
 
   const uint16x8_t res_max_val = vdupq_n_u16((1 << bd) - 1);
@@ -198,9 +202,16 @@ void av1_highbd_wiener_convolve_add_src_neon(
   uint16_t *src = CONVERT_TO_SHORTPTR(src8);
   uint16_t *dst = CONVERT_TO_SHORTPTR(dst8);
 
-  highbd_convolve_add_src_horiz_hip(
-      src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
-      im_h, x_filter_s16, horiz_round_vec, horiz_shift, im_max_val);
+  if (bd == 12) {
+    highbd_12_convolve_add_src_horiz_hip(
+        src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
+        im_h, x_filter_s16, horiz_round_vec, im_max_val);
+  } else {
+    highbd_convolve_add_src_horiz_hip(
+        src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
+        im_h, x_filter_s16, horiz_round_vec, im_max_val);
+  }
+
   highbd_convolve_add_src_vert_hip(im_block, im_stride, dst, dst_stride, w, h,
                                    y_filter_s16, vert_round_vec, vert_shift,
                                    res_max_val);
