@@ -10,6 +10,7 @@
  */
 
 #include <assert.h>
+#include <stdbool.h>
 
 #include "av1/common/warped_motion.h"
 #include "av1/common/thread_common.h"
@@ -580,6 +581,11 @@ static void set_encoding_done(AV1_COMP *cpi) {
   }
 }
 
+static bool lpf_mt_with_enc_enabled(int pipeline_lpf_mt_with_enc,
+                                    const int filter_level[2]) {
+  return pipeline_lpf_mt_with_enc && (filter_level[0] || filter_level[1]);
+}
+
 static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   EncWorkerData *const thread_data = (EncWorkerData *)arg1;
   AV1_COMP *const cpi = thread_data->cpi;
@@ -594,6 +600,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   AV1LfSync *const lf_sync = thread_data->lf_sync;
   MACROBLOCKD *const xd = &thread_data->td->mb.e_mbd;
   xd->error_info = error_info;
+  AV1_COMMON *volatile const cm = &cpi->common;
+  volatile const bool do_pipelined_lpf_mt_with_enc = lpf_mt_with_enc_enabled(
+      cpi->mt_info.pipeline_lpf_mt_with_enc, cm->lf.filter_level);
 
   // The jmp_buf is valid only for the duration of the function that calls
   // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
@@ -610,7 +619,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
 #endif
     set_encoding_done(cpi);
 
-    if (cpi->mt_info.pipeline_lpf_mt_with_enc) {
+    if (do_pipelined_lpf_mt_with_enc) {
 #if CONFIG_MULTITHREAD
       pthread_mutex_lock(lf_sync->job_mutex);
       lf_sync->lf_mt_exit = true;
@@ -623,7 +632,6 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   }
   error_info->setjmp = 1;
 
-  AV1_COMMON *const cm = &cpi->common;
   const int mib_size_log2 = cm->seq_params->mib_size_log2;
   int cur_tile_id = enc_row_mt->thread_id_to_tile_id[thread_id];
 
@@ -723,9 +731,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     pthread_mutex_unlock(enc_row_mt_mutex_);
 #endif
   }
-  if (cpi->mt_info.pipeline_lpf_mt_with_enc &&
-      (cm->lf.filter_level[PLANE_TYPE_Y] ||
-       cm->lf.filter_level[PLANE_TYPE_UV])) {
+  if (do_pipelined_lpf_mt_with_enc) {
     // Loop-filter a superblock row if encoding of the current and next
     // superblock row is complete.
     // TODO(deepa.kg @ittiam.com) Evaluate encoder speed by interleaving
@@ -1850,8 +1856,9 @@ static void lpf_pipeline_mt_init(AV1_COMP *cpi, int num_workers) {
   const int plane_start = 0;
   const int plane_end = av1_num_planes(cm);
   int planes_to_lf[MAX_MB_PLANE];
-  if ((lf->filter_level[PLANE_TYPE_Y] || lf->filter_level[PLANE_TYPE_UV]) &&
-      check_planes_to_loop_filter(lf, planes_to_lf, plane_start, plane_end)) {
+  if (lpf_mt_with_enc_enabled(cpi->mt_info.pipeline_lpf_mt_with_enc,
+                              lf->filter_level)) {
+    set_planes_to_loop_filter(lf, planes_to_lf, plane_start, plane_end);
     int lpf_opt_level = get_lpf_opt_level(&cpi->sf);
     assert(lpf_opt_level == 2);
 
