@@ -548,7 +548,7 @@ add_proto qw/void av1_warp_affine/, "const int32_t *mat, const uint8_t *ref, int
 specialize qw/av1_warp_affine sse4_1 avx2 neon neon_i8mm sve/;
 
 # LOOP_RESTORATION functions
-add_proto qw/void av1_apply_selfguided_restoration/, "const uint8_t *dat, int width, int height, int stride, int eps, const int *xqd, uint8_t *dst, int dst_stride, int32_t *tmpbuf, int bit_depth, int highbd";
+add_proto qw/int av1_apply_selfguided_restoration/, "const uint8_t *dat, int width, int height, int stride, int eps, const int *xqd, uint8_t *dst, int dst_stride, int32_t *tmpbuf, int bit_depth, int highbd";
 specialize qw/av1_apply_selfguided_restoration sse4_1 avx2 neon/;
 
 add_proto qw/int av1_selfguided_restoration/, "const uint8_t *dgd8, int width, int height,
