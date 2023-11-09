@@ -1658,7 +1658,9 @@ typedef struct {
 } RestUnitSearchInfo;
 
 /*!
- * \brief Buffers used during loop restoration search.
+ * \brief Structure to hold search parameter per restoration unit and
+ * intermediate buffer of Wiener filter used in pick filter stage of Loop
+ * restoration.
  */
 typedef struct {
   /*!
