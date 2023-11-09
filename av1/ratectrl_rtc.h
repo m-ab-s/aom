@@ -33,7 +33,7 @@ struct AV1RateControlRtcConfig {
   int width;
   int height;
   // Flag indicating if the content is screen or not.
-  bool is_screen;
+  bool is_screen = false;
   // 0-63
   int max_quantizer;
   int min_quantizer;

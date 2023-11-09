@@ -193,6 +193,10 @@ bool AV1RateControlRTC::UpdateRateControl(
   oxcf->rc_cfg.max_intra_bitrate_pct = rc_cfg.max_intra_bitrate_pct;
   oxcf->rc_cfg.max_inter_bitrate_pct = rc_cfg.max_inter_bitrate_pct;
   cpi_->framerate = rc_cfg.framerate;
+  if (rc_cfg.is_screen) {
+    cpi_->oxcf.tune_cfg.content = AOM_CONTENT_SCREEN;
+    cpi_->is_screen_content_type = 1;
+  }
   cpi_->svc.number_spatial_layers = rc_cfg.ss_number_layers;
   cpi_->svc.number_temporal_layers = rc_cfg.ts_number_layers;
   set_primary_rc_buffer_sizes(oxcf, cpi_->ppi);
@@ -310,7 +314,7 @@ FrameDropDecision AV1RateControlRTC::ComputeQP(
     cpi_->common.current_frame.frame_number++;
     return FrameDropDecision::kDrop;
   }
-  int bottom_index, top_index;
+  int bottom_index = 0, top_index = 0;
   cpi_->common.quant_params.base_qindex =
       av1_rc_pick_q_and_bounds(cpi_, cm->width, cm->height,
                                cpi_->gf_frame_index, &bottom_index, &top_index);
