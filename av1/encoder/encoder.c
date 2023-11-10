@@ -1495,6 +1495,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   cpi->mb_weber_stats = NULL;
   cpi->mb_delta_q = NULL;
   cpi->palette_pixel_num = 0;
+  cpi->scaled_last_source_available = 0;
 
   {
     const BLOCK_SIZE bsize = BLOCK_16X16;
@@ -2467,7 +2468,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
   const QuantizationCfg *const q_cfg = &cpi->oxcf.q_cfg;
   SVC *const svc = &cpi->svc;
   const int resize_pending = is_frame_resize_pending(cpi);
-
   int top_index = 0, bottom_index = 0, q = 0;
   YV12_BUFFER_CONFIG *unscaled = cpi->unscaled_source;
   InterpFilter filter_scaler =
@@ -2556,7 +2556,10 @@ static int encode_without_recode(AV1_COMP *cpi) {
     memset(cpi->consec_zero_mv, 0, current_size * sizeof(*cpi->consec_zero_mv));
   }
 
-  if (cpi->unscaled_last_source != NULL) {
+  if (cpi->scaled_last_source_available) {
+    cpi->last_source = &cpi->scaled_last_source;
+    cpi->scaled_last_source_available = 0;
+  } else if (cpi->unscaled_last_source != NULL) {
     cpi->last_source = av1_realloc_and_scale_if_required(
         cm, cpi->unscaled_last_source, &cpi->scaled_last_source, filter_scaler,
         phase_scaler, true, false, cpi->oxcf.border_in_pixels,
@@ -2693,6 +2696,22 @@ static int encode_without_recode(AV1_COMP *cpi) {
       svc->number_temporal_layers == 1 && !cpi->rc.rtc_external_ratectrl &&
       sf->rt_sf.gf_refresh_based_on_qp)
     av1_adjust_gf_refresh_qp_one_pass_rt(cpi);
+
+  // For non-svc: if scaling is required, copy scaled_source
+  // into scaled_last_source.
+  if (cm->current_frame.frame_number > 1 && !cpi->ppi->use_svc &&
+      cpi->scaled_source.y_buffer != NULL &&
+      cpi->scaled_last_source.y_buffer != NULL &&
+      cpi->scaled_source.y_crop_width == cpi->scaled_last_source.y_crop_width &&
+      cpi->scaled_source.y_crop_height ==
+          cpi->scaled_last_source.y_crop_height &&
+      (cm->width != cpi->unscaled_source->y_crop_width ||
+       cm->height != cpi->unscaled_source->y_crop_height)) {
+    cpi->scaled_last_source_available = 1;
+    aom_yv12_copy_y(&cpi->scaled_source, &cpi->scaled_last_source);
+    aom_yv12_copy_u(&cpi->scaled_source, &cpi->scaled_last_source);
+    aom_yv12_copy_v(&cpi->scaled_source, &cpi->scaled_last_source);
+  }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_encode_frame_time);

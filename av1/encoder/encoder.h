@@ -3631,6 +3631,12 @@ typedef struct AV1_COMP {
    * fast encoding pass in av1_determine_sc_tools_with_encoding().
    */
   int palette_pixel_num;
+
+  /*!
+   * Flag to indicate scaled_last_source is available,
+   * so scaling is not needed for last_source.
+   */
+  int scaled_last_source_available;
 } AV1_COMP;
 
 /*!
