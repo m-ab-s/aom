@@ -1933,11 +1933,16 @@ static void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x,
     return;
   }
   int shift = 3;
+  unsigned int source_var_thr = 50;
+  int uv_sad_thr = 100;
   if (source_sad_nonrd >= kMedSad && x->source_variance > 0 && high_res)
     shift = 4;
-  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-      cpi->rc.high_source_sad) {
-    shift = 6;
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
+    if (cpi->rc.high_source_sad) shift = 6;
+    if (source_sad_nonrd > kMedSad) {
+      source_var_thr = 1200;
+      uv_sad_thr = 10;
+    }
   }
   NOISE_LEVEL noise_level = kLow;
   int norm_sad =
@@ -1975,7 +1980,7 @@ static void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x,
           uv_sad >> (b_width_log2_lookup[bs] + b_height_log2_lookup[bs]);
       x->color_sensitivity[COLOR_SENS_IDX(plane)] =
           uv_sad > (y_sad >> shift) && norm_uv_sad > 40;
-      if (source_variance < 50 && norm_uv_sad > 100)
+      if (source_variance < source_var_thr && norm_uv_sad > uv_sad_thr)
         x->color_sensitivity[COLOR_SENS_IDX(plane)] = 1;
     }
   }
