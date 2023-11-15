@@ -9,25 +9,66 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include "aom_dsp/aom_simd.h"
-#include "aom_dsp/arm/mem_neon.h"
+#include <arm_neon.h>
+#include <assert.h>
 
-#define SIMD_FUNC(name) name##_neon
-#include "av1/common/cdef_block_simd.h"
+#include "config/aom_config.h"
+#include "config/av1_rtcd.h"
+
+#include "aom_dsp/arm/mem_neon.h"
+#include "av1/common/cdef_block.h"
 
 void cdef_copy_rect8_8bit_to_16bit_neon(uint16_t *dst, int dstride,
                                         const uint8_t *src, int sstride,
                                         int width, int height) {
-  int j;
-  for (int i = 0; i < height; i++) {
-    for (j = 0; j < (width & ~0x7); j += 8) {
-      v64 row = v64_load_unaligned(&src[i * sstride + j]);
-      v128_store_unaligned(&dst[i * dstride + j], v128_unpack_u8_s16(row));
+  do {
+    const uint8_t *src_ptr = src;
+    uint16_t *dst_ptr = dst;
+
+    int w = 0;
+    while (w <= width - 16) {
+      uint8x16_t row = vld1q_u8(src_ptr + w);
+      uint8x16x2_t row_u16 = { { row, vdupq_n_u8(0) } };
+      vst2q_u8((uint8_t *)(dst_ptr + w), row_u16);
+
+      w += 16;
     }
-    for (; j < width; j++) {
-      dst[i * dstride + j] = src[i * sstride + j];
+    if (width - w == 8) {
+      uint8x8_t row = vld1_u8(src_ptr + w);
+      vst1q_u16(dst_ptr + w, vmovl_u8(row));
+    } else if (width - w == 4) {
+      for (int i = 0; i < 4; i++) {
+        dst_ptr[i] = src_ptr[i];
+      }
     }
-  }
+
+    src += sstride;
+    dst += dstride;
+  } while (--height != 0);
+}
+
+void cdef_copy_rect8_16bit_to_16bit_neon(uint16_t *dst, int dstride,
+                                         const uint16_t *src, int sstride,
+                                         int width, int height) {
+  do {
+    const uint16_t *src_ptr = src;
+    uint16_t *dst_ptr = dst;
+
+    int w = 0;
+    while (width - w >= 8) {
+      uint16x8_t row = vld1q_u16(src_ptr + w);
+      vst1q_u16(dst_ptr + w, row);
+
+      w += 8;
+    }
+    if (width == 4) {
+      uint16x4_t row = vld1_u16(src_ptr);
+      vst1_u16(dst_ptr, row);
+    }
+
+    src += sstride;
+    dst += dstride;
+  } while (--height != 0);
 }
 
 static INLINE int16x8_t v128_from_64_neon(int64_t a, int64_t b) {
