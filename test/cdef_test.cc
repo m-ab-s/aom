@@ -441,9 +441,10 @@ class CDEFCopyRect8to16Test
     constexpr int stride = MAX_CDEF_BLOCK;
     int error = 0;
     for (int k = 0; k < kIterations && !error; k++) {
-      // Generate a random value between 1 and 256, making sure height is even.
-      // Test once for very small values to avoid potential overflows.
-      const int width = k == 0 ? 4 : rnd_.Rand8() % 256 + 1;
+      // This function operates on values of width that are either 4 or a
+      // multiple of 8. For height, generate a random value between 1 and 256,
+      // making sure it is even.
+      const int width = k == 0 ? 4 : (rnd_.Rand8() % 32 + 1) * 8;
       const int height = k == 0 ? 4 : (rnd_.Rand8() % 128 + 1) * 2;
       for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
@@ -524,9 +525,10 @@ class CDEFCopyRect16to16Test
     constexpr int stride = MAX_CDEF_BLOCK;
     int error = 0;
     for (int k = 0; k < kIterations && !error; k++) {
-      // Generate a random value between 1 and 256, making sure height is even.
-      // Test once for very small values to avoid potential overflows.
-      const int width = k == 0 ? 4 : rnd_.Rand8() % 256 + 1;
+      // This function operates on values of width that are either 4 or a
+      // multiple of 8. For height, generate a random value between 1 and 256,
+      // making sure it is even.
+      const int width = k == 0 ? 4 : (rnd_.Rand8() % 32 + 1) * 8;
       const int height = k == 0 ? 4 : (rnd_.Rand8() % 128 + 1) * 2;
       for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
