@@ -320,6 +320,76 @@ aom_image_t *CreateGrayImage(aom_img_fmt_t fmt, unsigned int w,
   return image;
 }
 
+// Run this test in the debugger and set a breakpoint in aom_internal_error.
+TEST(EncodeAPI, Buganizer310548198) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  const unsigned int usage = AOM_USAGE_REALTIME;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, usage), AOM_CODEC_OK);
+  cfg.g_w = 1;
+  cfg.g_h = 444;
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.g_lag_in_frames = 0;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+
+  const int speed = 6;
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, speed), AOM_CODEC_OK);
+
+  const aom_enc_frame_flags_t flags = 0;
+  int frame_index = 0;
+
+  // Encode a frame.
+  aom_image_t *image = CreateGrayImage(AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h);
+  ASSERT_NE(image, nullptr);
+  ASSERT_EQ(aom_codec_encode(&enc, image, frame_index, 1, flags), AOM_CODEC_OK);
+  frame_index++;
+  const aom_codec_cx_pkt_t *pkt;
+  aom_codec_iter_t iter = nullptr;
+  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  }
+  aom_img_free(image);
+
+  // Uncomment this code to reproduce the bug.
+#if 0
+  cfg.g_w = 1;
+  cfg.g_h = 254;
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK)
+      << aom_codec_error_detail(&enc);
+#endif
+
+  cfg.g_w = 1;
+  cfg.g_h = 154;
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK)
+      << aom_codec_error_detail(&enc);
+
+  // Encode a frame.
+  image = CreateGrayImage(AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h);
+  ASSERT_EQ(aom_codec_encode(&enc, image, frame_index, 1, flags), AOM_CODEC_OK);
+  frame_index++;
+  iter = nullptr;
+  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  }
+  aom_img_free(image);
+
+  // Flush the encoder.
+  bool got_data;
+  do {
+    ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+    got_data = false;
+    iter = nullptr;
+    while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+      ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+      got_data = true;
+    }
+  } while (got_data);
+
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 // Run this test to reproduce the bug in fuzz test: ASSERT: cpi->rec_sse !=
 // UINT64_MAX in av1_rc_bits_per_mb.
 TEST(EncodeAPI, Buganizer310766628) {
