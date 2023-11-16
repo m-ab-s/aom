@@ -1601,11 +1601,26 @@ static aom_codec_err_t update_extra_cfg(aom_codec_alg_priv_t *ctx,
     bool is_sb_size_changed = false;
     av1_change_config_seq(ctx->ppi, &ctx->oxcf, &is_sb_size_changed);
     for (int i = 0; i < ctx->ppi->num_fp_contexts; i++) {
-      av1_change_config(ctx->ppi->parallel_cpi[i], &ctx->oxcf,
-                        is_sb_size_changed);
+      AV1_COMP *const cpi = ctx->ppi->parallel_cpi[i];
+      struct aom_internal_error_info *const error = cpi->common.error;
+      if (setjmp(error->jmp)) {
+        error->setjmp = 0;
+        return error->error_code;
+      }
+      error->setjmp = 1;
+      av1_change_config(cpi, &ctx->oxcf, is_sb_size_changed);
+      error->setjmp = 0;
     }
     if (ctx->ppi->cpi_lap != NULL) {
-      av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf, is_sb_size_changed);
+      AV1_COMP *const cpi_lap = ctx->ppi->cpi_lap;
+      struct aom_internal_error_info *const error = cpi_lap->common.error;
+      if (setjmp(error->jmp)) {
+        error->setjmp = 0;
+        return error->error_code;
+      }
+      error->setjmp = 1;
+      av1_change_config(cpi_lap, &ctx->oxcf, is_sb_size_changed);
+      error->setjmp = 0;
     }
   }
   return res;
