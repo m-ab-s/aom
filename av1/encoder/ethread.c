@@ -274,7 +274,6 @@ static void row_mt_mem_alloc(AV1_COMP *cpi, int max_rows, int max_cols,
   enc_row_mt->allocated_sb_rows = sb_rows;
   enc_row_mt->row_mt_exit = false;
   enc_row_mt->firstpass_mt_exit = false;
-  enc_row_mt->mb_wiener_mt_exit = false;
 }
 
 void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
@@ -2836,6 +2835,7 @@ void av1_calc_mb_wiener_var_mt(AV1_COMP *cpi, int num_workers,
   intra_row_mt_sync->next_mi_row = 0;
   memset(intra_row_mt_sync->num_finished_cols, -1,
          sizeof(*intra_row_mt_sync->num_finished_cols) * mi_rows);
+  mt_info->enc_row_mt.mb_wiener_mt_exit = false;
 
   prepare_wiener_var_workers(cpi, cal_mb_wiener_var_hook, num_workers);
   launch_workers(mt_info, num_workers);
