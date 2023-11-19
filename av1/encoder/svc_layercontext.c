@@ -386,6 +386,11 @@ void av1_get_layer_resolution(const int width_org, const int height_org,
                               int *height_out) {
   int w, h;
   if (width_out == NULL || height_out == NULL || den == 0) return;
+  if (den == 1 && num == 1) {
+    *width_out = width_org;
+    *height_out = height_org;
+    return;
+  }
   w = width_org * num / den;
   h = height_org * num / den;
   // Make height and width even.

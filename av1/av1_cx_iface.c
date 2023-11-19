@@ -3595,8 +3595,8 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
         LAYER_CONTEXT *lc = &cpi->svc.layer_context[layer];
         lc->max_q = params->max_quantizers[layer];
         lc->min_q = params->min_quantizers[layer];
-        lc->scaling_factor_num = params->scaling_factor_num[sl];
-        lc->scaling_factor_den = params->scaling_factor_den[sl];
+        lc->scaling_factor_num = AOMMAX(1, params->scaling_factor_num[sl]);
+        lc->scaling_factor_den = AOMMAX(1, params->scaling_factor_den[sl]);
         const int layer_target_bitrate = params->layer_target_bitrate[layer];
         if (layer_target_bitrate > INT_MAX / 1000) {
           lc->layer_target_bitrate = INT_MAX;
