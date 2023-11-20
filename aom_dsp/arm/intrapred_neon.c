@@ -1487,14 +1487,75 @@ static DECLARE_ALIGNED(16, uint8_t, LoadMaskz2[4][16]) = {
     0xff, 0xff, 0xff, 0xff }
 };
 
-static AOM_FORCE_INLINE void vector_shift_x4(uint8x8_t *vec, uint8x8_t *v_zero,
-                                             int shift_value) {
+// clang-format off
+static uint8_t z2_merge_shuffles_u8x8[9][8] = {
+  {  0,  1,  2,  3,  4,  5,  6,  7 },
+  { 16,  0,  1,  2,  3,  4,  5,  6 },
+  { 16, 16,  0,  1,  2,  3,  4,  5 },
+  { 16, 16, 16,  0,  1,  2,  3,  4 },
+  { 16, 16, 16, 16,  0,  1,  2,  3 },
+  { 16, 16, 16, 16, 16,  0,  1,  2 },
+  { 16, 16, 16, 16, 16, 16,  0,  1 },
+  { 16, 16, 16, 16, 16, 16, 16,  0 },
+  { 16, 16, 16, 16, 16, 16, 16, 16 },
+};
+// clang-format on
+
+#if AOM_ARCH_AARCH64
+// clang-format off
+static uint8_t z2_merge_shuffles_u8x16[17][16] = {
+  {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 },
+  { 16,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14 },
+  { 16, 16,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13 },
+  { 16, 16, 16,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12 },
+  { 16, 16, 16, 16,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11 },
+  { 16, 16, 16, 16, 16,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10 },
+  { 16, 16, 16, 16, 16, 16,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9 },
+  { 16, 16, 16, 16, 16, 16, 16,  0,  1,  2,  3,  4,  5,  6,  7,  8 },
+  { 16, 16, 16, 16, 16, 16, 16, 16,  0,  1,  2,  3,  4,  5,  6,  7 },
+  { 16, 16, 16, 16, 16, 16, 16, 16, 16,  0,  1,  2,  3,  4,  5,  6 },
+  { 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,  0,  1,  2,  3,  4,  5 },
+  { 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,  0,  1,  2,  3,  4 },
+  { 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,  0,  1,  2,  3 },
+  { 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,  0,  1,  2 },
+  { 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,  0,  1 },
+  { 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,  0 },
+  { 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16 },
+};
+// clang-format on
+#endif
+
+static AOM_FORCE_INLINE uint8x8_t dr_prediction_z2_shuffle_x8(uint8x8_t vec,
+                                                              int shift_value) {
+  return vtbl1_u8(vec, vld1_u8(z2_merge_shuffles_u8x8[shift_value]));
+}
+
+static AOM_FORCE_INLINE uint8x16_t
+dr_prediction_z2_shuffle_x16(uint8x16_t vec, int shift_value) {
+#if AOM_ARCH_AARCH64
+  return vqtbl1q_u8(vec, vld1q_u8(z2_merge_shuffles_u8x16[shift_value]));
+#else
+  const uint8x16_t vzero = vdupq_n_u8(0);
   switch (shift_value) {
-    case 1: *vec = vext_u8(*v_zero, *vec, 7); break;
-    case 2: *vec = vext_u8(*v_zero, *vec, 6); break;
-    case 3: *vec = vext_u8(*v_zero, *vec, 5); break;
+    case 1: vec = vextq_u8(vzero, vec, 15); break;
+    case 2: vec = vextq_u8(vzero, vec, 14); break;
+    case 3: vec = vextq_u8(vzero, vec, 13); break;
+    case 4: vec = vextq_u8(vzero, vec, 12); break;
+    case 5: vec = vextq_u8(vzero, vec, 11); break;
+    case 6: vec = vextq_u8(vzero, vec, 10); break;
+    case 7: vec = vextq_u8(vzero, vec, 9); break;
+    case 8: vec = vextq_u8(vzero, vec, 8); break;
+    case 9: vec = vextq_u8(vzero, vec, 7); break;
+    case 10: vec = vextq_u8(vzero, vec, 6); break;
+    case 11: vec = vextq_u8(vzero, vec, 5); break;
+    case 12: vec = vextq_u8(vzero, vec, 4); break;
+    case 13: vec = vextq_u8(vzero, vec, 3); break;
+    case 14: vec = vextq_u8(vzero, vec, 2); break;
+    case 15: vec = vextq_u8(vzero, vec, 1); break;
     default: break;
   }
+  return vec;
+#endif
 }
 
 static void dr_prediction_z2_Nx4_neon(int N, uint8_t *dst, ptrdiff_t stride,
@@ -1513,7 +1574,7 @@ static void dr_prediction_z2_Nx4_neon(int N, uint8_t *dst, ptrdiff_t stride,
   //   above[x+1] - above[x]
   // final pixels will be calculated as:
   //   (above[x] * 32 + 16 + (above[x+1] - above[x]) * shift) >> 5
-  uint16x8_t a0_x, a1_x, a32, diff;
+  uint16x8_t a32, diff;
   uint16x8_t v_32 = vdupq_n_u16(32);
   uint16x8_t v_zero = vdupq_n_u16(0);
   uint16x8_t a16 = vdupq_n_u16(16);
@@ -1555,6 +1616,7 @@ static void dr_prediction_z2_Nx4_neon(int N, uint8_t *dst, ptrdiff_t stride,
       if (base_min_diff < 0) base_min_diff = 0;
     }
 
+    uint16x8_t a0_x, a1_x;
     if (base_shift > 3) {
       a0_x = v_zero;
       a1_x = v_zero;
@@ -1575,7 +1637,7 @@ static void dr_prediction_z2_Nx4_neon(int N, uint8_t *dst, ptrdiff_t stride,
             vand_u16(vshl_u16(vsub_u16(r6, ydx), v_upsample_above), v_c3f), 1);
       } else {
         uint8x8_t v_a0_x64 = vld1_u8(above + base_x + base_shift);
-        vector_shift_x4(&v_a0_x64, &v_zero_u8, base_shift);
+        v_a0_x64 = dr_prediction_z2_shuffle_x8(v_a0_x64, base_shift);
         uint8x8_t v_a1_x64 = vext_u8(v_a0_x64, v_zero_u8, 1);
         v_shift.val[0] = vshr_n_u16(vand_u16(vsub_u16(r6, ydx), v_c3f), 1);
         a0_x = vmovl_u8(v_a0_x64);
@@ -1645,28 +1707,6 @@ static void dr_prediction_z2_Nx4_neon(int N, uint8_t *dst, ptrdiff_t stride,
     vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(v_resxy), 0);
 
     dst += stride;
-  }
-}
-
-static AOM_FORCE_INLINE void vector_shuffle(uint8x16_t *vec, uint8x16_t *vzero,
-                                            int shift_value) {
-  switch (shift_value) {
-    case 1: *vec = vextq_u8(*vzero, *vec, 15); break;
-    case 2: *vec = vextq_u8(*vzero, *vec, 14); break;
-    case 3: *vec = vextq_u8(*vzero, *vec, 13); break;
-    case 4: *vec = vextq_u8(*vzero, *vec, 12); break;
-    case 5: *vec = vextq_u8(*vzero, *vec, 11); break;
-    case 6: *vec = vextq_u8(*vzero, *vec, 10); break;
-    case 7: *vec = vextq_u8(*vzero, *vec, 9); break;
-    case 8: *vec = vextq_u8(*vzero, *vec, 8); break;
-    case 9: *vec = vextq_u8(*vzero, *vec, 7); break;
-    case 10: *vec = vextq_u8(*vzero, *vec, 6); break;
-    case 11: *vec = vextq_u8(*vzero, *vec, 5); break;
-    case 12: *vec = vextq_u8(*vzero, *vec, 4); break;
-    case 13: *vec = vextq_u8(*vzero, *vec, 3); break;
-    case 14: *vec = vextq_u8(*vzero, *vec, 2); break;
-    case 15: *vec = vextq_u8(*vzero, *vec, 1); break;
-    default: break;
   }
 }
 
@@ -1749,14 +1789,11 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
         a0_x0 = vtbl2_u8(v_tmp, v_index_low);
         a1_x0 = vtbl2_u8(v_tmp, v_index_high);
       } else {
-        uint8x16_t a0_x128, a1_x128;
-        a0_x128 = vld1q_u8(above + base_x + base_shift);
-        a1_x128 = vextq_u8(a0_x128, v_zero, 1);
-        vector_shuffle(&a0_x128, &v_zero, base_shift);
-        vector_shuffle(&a1_x128, &v_zero, base_shift);
+        const uint8x8_t a0_x128 = vld1_u8(above + base_x + base_shift);
+        const uint8x8_t a1_x128 = vld1_u8(above + base_x + base_shift + 1);
+        a0_x0 = dr_prediction_z2_shuffle_x8(a0_x128, base_shift);
+        a1_x0 = dr_prediction_z2_shuffle_x8(a1_x128, base_shift);
         shift.val[0] = vshrq_n_u16(vandq_u16(vsubq_u16(r6, ydx), c3f), 1);
-        a0_x0 = vget_low_u8(a0_x128);
-        a1_x0 = vget_low_u8(a1_x128);
       }
     }
 
@@ -1854,8 +1891,6 @@ static void dr_prediction_z2_HxW_neon(int H, int W, uint8_t *dst,
   const int frac_bits_y = 6;
 
   uint16x8x2_t a32, c0123, c1234, diff, shifty;
-  uint8x16x2_t a0_x, a1_x;
-  uint16x8_t v_32 = vdupq_n_u16(32);
   uint8x16_t v_zero = vdupq_n_u8(0);
   int16x8_t v_frac_bits_y = vdupq_n_s16(-frac_bits_y);
 
@@ -1910,26 +1945,22 @@ static void dr_prediction_z2_HxW_neon(int H, int W, uint8_t *dst,
         uint8x16_t a0_x128, a1_x128;
         a0_x128 = vld1q_u8(above + base_x + base_shift + j);
         a1_x128 = vld1q_u8(above + base_x + base_shift + 1 + j);
-        vector_shuffle(&a0_x128, &v_zero, base_shift);
-        vector_shuffle(&a1_x128, &v_zero, base_shift);
-        a0_x = vzipq_u8(a0_x128, v_zero);
-        a1_x = vzipq_u8(a1_x128, v_zero);
+        a0_x128 = dr_prediction_z2_shuffle_x16(a0_x128, base_shift);
+        a1_x128 = dr_prediction_z2_shuffle_x16(a1_x128, base_shift);
         r6.val[0] = vshlq_n_u16(vaddq_u16(c0123.val[0], j256), 6);
         r6.val[1] = vshlq_n_u16(vaddq_u16(c0123.val[1], j256), 6);
         shift.val[0] =
             vshrq_n_u16(vandq_u16(vsubq_u16(r6.val[0], ydx), c3f), 1);
         shift.val[1] =
             vshrq_n_u16(vandq_u16(vsubq_u16(r6.val[1], ydx), c3f), 1);
-        diff.val[0] =
-            vsubq_u16(vreinterpretq_u16_u8(a1_x.val[0]),
-                      vreinterpretq_u16_u8(a0_x.val[0]));  // a[x+1] - a[x]
-        diff.val[1] =
-            vsubq_u16(vreinterpretq_u16_u8(a1_x.val[1]),
-                      vreinterpretq_u16_u8(a0_x.val[1]));  // a[x+1] - a[x]
-        a32.val[0] = vmlaq_u16(a16, vreinterpretq_u16_u8(a0_x.val[0]),
-                               v_32);  // a[x] * 32 + 16
-        a32.val[1] = vmlaq_u16(a16, vreinterpretq_u16_u8(a0_x.val[1]),
-                               v_32);  // a[x] * 32 + 16
+        diff.val[0] = vsubl_u8(vget_low_u8(a1_x128),
+                               vget_low_u8(a0_x128));  // a[x+1] - a[x]
+        diff.val[1] = vsubl_u8(vget_high_u8(a1_x128),
+                               vget_high_u8(a0_x128));  // a[x+1] - a[x]
+        a32.val[0] = vmlal_u8(a16, vget_low_u8(a0_x128),
+                              vdup_n_u8(32));  // a[x] * 32 + 16
+        a32.val[1] = vmlal_u8(a16, vget_high_u8(a0_x128),
+                              vdup_n_u8(32));  // a[x] * 32 + 16
         res.val[0] = vmlaq_u16(a32.val[0], diff.val[0], shift.val[0]);
         res.val[1] = vmlaq_u16(a32.val[1], diff.val[1], shift.val[1]);
         resx =
