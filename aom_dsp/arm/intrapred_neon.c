@@ -17,7 +17,9 @@
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/arm/mem_neon.h"
+#include "aom_dsp/arm/reinterpret_neon.h"
 #include "aom_dsp/arm/sum_neon.h"
+#include "aom_dsp/arm/transpose_neon.h"
 #include "aom_dsp/intrapred_common.h"
 
 //------------------------------------------------------------------------------
@@ -2117,618 +2119,60 @@ void av1_dr_prediction_z2_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
 
 /* ---------------------P R E D I C T I O N   Z 3--------------------------- */
 
-static AOM_FORCE_INLINE void transpose4x16_neon(uint8x16_t *x,
-                                                uint16x8x2_t *d) {
-  uint8x16x2_t w0, w1;
+static AOM_FORCE_INLINE void z3_transpose_arrays_u8_16x4(const uint8x16_t *x,
+                                                         uint8x16x2_t *d) {
+  uint8x16x2_t w0 = vzipq_u8(x[0], x[1]);
+  uint8x16x2_t w1 = vzipq_u8(x[2], x[3]);
 
-  w0 = vzipq_u8(x[0], x[1]);
-  w1 = vzipq_u8(x[2], x[3]);
-
-  d[0] = vzipq_u16(vreinterpretq_u16_u8(w0.val[0]),
-                   vreinterpretq_u16_u8(w1.val[0]));
-  d[1] = vzipq_u16(vreinterpretq_u16_u8(w0.val[1]),
-                   vreinterpretq_u16_u8(w1.val[1]));
+  d[0] = aom_reinterpretq_u8_u16_x2(vzipq_u16(vreinterpretq_u16_u8(w0.val[0]),
+                                              vreinterpretq_u16_u8(w1.val[0])));
+  d[1] = aom_reinterpretq_u8_u16_x2(vzipq_u16(vreinterpretq_u16_u8(w0.val[1]),
+                                              vreinterpretq_u16_u8(w1.val[1])));
 }
 
-static AOM_FORCE_INLINE void transpose4x8_8x4_low_neon(uint8x8_t *x,
-                                                       uint16x4x2_t *d) {
-  uint8x8x2_t w0, w1;
+static AOM_FORCE_INLINE void z3_transpose_arrays_u8_4x4(const uint8x8_t *x,
+                                                        uint8x8x2_t *d) {
+  uint8x8x2_t w0 = vzip_u8(x[0], x[1]);
+  uint8x8x2_t w1 = vzip_u8(x[2], x[3]);
 
-  w0 = vzip_u8(x[0], x[1]);
-  w1 = vzip_u8(x[2], x[3]);
-
-  *d = vzip_u16(vreinterpret_u16_u8(w0.val[0]), vreinterpret_u16_u8(w1.val[0]));
+  *d = aom_reinterpret_u8_u16_x2(
+      vzip_u16(vreinterpret_u16_u8(w0.val[0]), vreinterpret_u16_u8(w1.val[0])));
 }
 
-static AOM_FORCE_INLINE void transpose4x8_8x4_neon(uint8x8_t *x,
-                                                   uint16x4x2_t *d) {
-  uint8x8x2_t w0, w1;
+static AOM_FORCE_INLINE void z3_transpose_arrays_u8_8x4(const uint8x8_t *x,
+                                                        uint8x8x2_t *d) {
+  uint8x8x2_t w0 = vzip_u8(x[0], x[1]);
+  uint8x8x2_t w1 = vzip_u8(x[2], x[3]);
 
-  w0 = vzip_u8(x[0], x[1]);
-  w1 = vzip_u8(x[2], x[3]);
-
-  d[0] =
-      vzip_u16(vreinterpret_u16_u8(w0.val[0]), vreinterpret_u16_u8(w1.val[0]));
-  d[1] =
-      vzip_u16(vreinterpret_u16_u8(w0.val[1]), vreinterpret_u16_u8(w1.val[1]));
+  d[0] = aom_reinterpret_u8_u16_x2(
+      vzip_u16(vreinterpret_u16_u8(w0.val[0]), vreinterpret_u16_u8(w1.val[0])));
+  d[1] = aom_reinterpret_u8_u16_x2(
+      vzip_u16(vreinterpret_u16_u8(w0.val[1]), vreinterpret_u16_u8(w1.val[1])));
 }
 
-static AOM_FORCE_INLINE void transpose8x8_low_neon(uint8x8_t *x,
-                                                   uint32x2x2_t *d) {
-  uint8x8x2_t w0, w1, w2, w3;
-  uint16x4x2_t w4, w5;
-
-  w0 = vzip_u8(x[0], x[1]);
-  w1 = vzip_u8(x[2], x[3]);
-  w2 = vzip_u8(x[4], x[5]);
-  w3 = vzip_u8(x[6], x[7]);
-
-  w4 = vzip_u16(vreinterpret_u16_u8(w0.val[0]), vreinterpret_u16_u8(w1.val[0]));
-  w5 = vzip_u16(vreinterpret_u16_u8(w2.val[0]), vreinterpret_u16_u8(w3.val[0]));
-
-  d[0] = vzip_u32(vreinterpret_u32_u16(w4.val[0]),
-                  vreinterpret_u32_u16(w5.val[0]));
-  d[1] = vzip_u32(vreinterpret_u32_u16(w4.val[1]),
-                  vreinterpret_u32_u16(w5.val[1]));
-}
-
-static AOM_FORCE_INLINE void transpose8x8_neon(uint8x8_t *x, uint32x2x2_t *d) {
-  uint8x8x2_t w0, w1, w2, w3;
-  uint16x4x2_t w4, w5, w6, w7;
-
-  w0 = vzip_u8(x[0], x[1]);
-  w1 = vzip_u8(x[2], x[3]);
-  w2 = vzip_u8(x[4], x[5]);
-  w3 = vzip_u8(x[6], x[7]);
-
-  w4 = vzip_u16(vreinterpret_u16_u8(w0.val[0]), vreinterpret_u16_u8(w1.val[0]));
-  w5 = vzip_u16(vreinterpret_u16_u8(w2.val[0]), vreinterpret_u16_u8(w3.val[0]));
-
-  d[0] = vzip_u32(vreinterpret_u32_u16(w4.val[0]),
-                  vreinterpret_u32_u16(w5.val[0]));
-  d[1] = vzip_u32(vreinterpret_u32_u16(w4.val[1]),
-                  vreinterpret_u32_u16(w5.val[1]));
-
-  w6 = vzip_u16(vreinterpret_u16_u8(w0.val[1]), vreinterpret_u16_u8(w1.val[1]));
-  w7 = vzip_u16(vreinterpret_u16_u8(w2.val[1]), vreinterpret_u16_u8(w3.val[1]));
-
-  d[2] = vzip_u32(vreinterpret_u32_u16(w6.val[0]),
-                  vreinterpret_u32_u16(w7.val[0]));
-  d[3] = vzip_u32(vreinterpret_u32_u16(w6.val[1]),
-                  vreinterpret_u32_u16(w7.val[1]));
-}
-
-static AOM_FORCE_INLINE void transpose16x8_8x16_neon(uint8x8_t *x,
-                                                     uint64x2_t *d) {
-  uint8x8x2_t w0, w1, w2, w3, w8, w9, w10, w11;
-  uint16x4x2_t w4, w5, w12, w13;
-  uint32x2x2_t w6, w7, w14, w15;
-
-  w0 = vzip_u8(x[0], x[1]);
-  w1 = vzip_u8(x[2], x[3]);
-  w2 = vzip_u8(x[4], x[5]);
-  w3 = vzip_u8(x[6], x[7]);
-
-  w8 = vzip_u8(x[8], x[9]);
-  w9 = vzip_u8(x[10], x[11]);
-  w10 = vzip_u8(x[12], x[13]);
-  w11 = vzip_u8(x[14], x[15]);
-
-  w4 = vzip_u16(vreinterpret_u16_u8(w0.val[0]), vreinterpret_u16_u8(w1.val[0]));
-  w5 = vzip_u16(vreinterpret_u16_u8(w2.val[0]), vreinterpret_u16_u8(w3.val[0]));
-  w12 =
-      vzip_u16(vreinterpret_u16_u8(w8.val[0]), vreinterpret_u16_u8(w9.val[0]));
-  w13 = vzip_u16(vreinterpret_u16_u8(w10.val[0]),
-                 vreinterpret_u16_u8(w11.val[0]));
-
-  w6 = vzip_u32(vreinterpret_u32_u16(w4.val[0]),
-                vreinterpret_u32_u16(w5.val[0]));
-  w7 = vzip_u32(vreinterpret_u32_u16(w4.val[1]),
-                vreinterpret_u32_u16(w5.val[1]));
-  w14 = vzip_u32(vreinterpret_u32_u16(w12.val[0]),
-                 vreinterpret_u32_u16(w13.val[0]));
-  w15 = vzip_u32(vreinterpret_u32_u16(w12.val[1]),
-                 vreinterpret_u32_u16(w13.val[1]));
-
-  // Store first 4-line result
-  d[0] = vcombine_u64(vreinterpret_u64_u32(w6.val[0]),
-                      vreinterpret_u64_u32(w14.val[0]));
-  d[1] = vcombine_u64(vreinterpret_u64_u32(w6.val[1]),
-                      vreinterpret_u64_u32(w14.val[1]));
-  d[2] = vcombine_u64(vreinterpret_u64_u32(w7.val[0]),
-                      vreinterpret_u64_u32(w15.val[0]));
-  d[3] = vcombine_u64(vreinterpret_u64_u32(w7.val[1]),
-                      vreinterpret_u64_u32(w15.val[1]));
-
-  w4 = vzip_u16(vreinterpret_u16_u8(w0.val[1]), vreinterpret_u16_u8(w1.val[1]));
-  w5 = vzip_u16(vreinterpret_u16_u8(w2.val[1]), vreinterpret_u16_u8(w3.val[1]));
-  w12 =
-      vzip_u16(vreinterpret_u16_u8(w8.val[1]), vreinterpret_u16_u8(w9.val[1]));
-  w13 = vzip_u16(vreinterpret_u16_u8(w10.val[1]),
-                 vreinterpret_u16_u8(w11.val[1]));
-
-  w6 = vzip_u32(vreinterpret_u32_u16(w4.val[0]),
-                vreinterpret_u32_u16(w5.val[0]));
-  w7 = vzip_u32(vreinterpret_u32_u16(w4.val[1]),
-                vreinterpret_u32_u16(w5.val[1]));
-  w14 = vzip_u32(vreinterpret_u32_u16(w12.val[0]),
-                 vreinterpret_u32_u16(w13.val[0]));
-  w15 = vzip_u32(vreinterpret_u32_u16(w12.val[1]),
-                 vreinterpret_u32_u16(w13.val[1]));
-
-  // Store second 4-line result
-  d[4] = vcombine_u64(vreinterpret_u64_u32(w6.val[0]),
-                      vreinterpret_u64_u32(w14.val[0]));
-  d[5] = vcombine_u64(vreinterpret_u64_u32(w6.val[1]),
-                      vreinterpret_u64_u32(w14.val[1]));
-  d[6] = vcombine_u64(vreinterpret_u64_u32(w7.val[0]),
-                      vreinterpret_u64_u32(w15.val[0]));
-  d[7] = vcombine_u64(vreinterpret_u64_u32(w7.val[1]),
-                      vreinterpret_u64_u32(w15.val[1]));
-}
-
-static AOM_FORCE_INLINE void transpose8x16_16x8_neon(uint8x16_t *x,
-                                                     uint64x2_t *d) {
-  uint8x16x2_t w0, w1, w2, w3;
-  uint16x8x2_t w4, w5, w6, w7;
-  uint32x4x2_t w8, w9, w10, w11;
-
-  w0 = vzipq_u8(x[0], x[1]);
-  w1 = vzipq_u8(x[2], x[3]);
-  w2 = vzipq_u8(x[4], x[5]);
-  w3 = vzipq_u8(x[6], x[7]);
-
-  w4 = vzipq_u16(vreinterpretq_u16_u8(w0.val[0]),
-                 vreinterpretq_u16_u8(w1.val[0]));
-  w5 = vzipq_u16(vreinterpretq_u16_u8(w2.val[0]),
-                 vreinterpretq_u16_u8(w3.val[0]));
-  w6 = vzipq_u16(vreinterpretq_u16_u8(w0.val[1]),
-                 vreinterpretq_u16_u8(w1.val[1]));
-  w7 = vzipq_u16(vreinterpretq_u16_u8(w2.val[1]),
-                 vreinterpretq_u16_u8(w3.val[1]));
-
-  w8 = vzipq_u32(vreinterpretq_u32_u16(w4.val[0]),
-                 vreinterpretq_u32_u16(w5.val[0]));
-  w9 = vzipq_u32(vreinterpretq_u32_u16(w6.val[0]),
-                 vreinterpretq_u32_u16(w7.val[0]));
-  w10 = vzipq_u32(vreinterpretq_u32_u16(w4.val[1]),
-                  vreinterpretq_u32_u16(w5.val[1]));
-  w11 = vzipq_u32(vreinterpretq_u32_u16(w6.val[1]),
-                  vreinterpretq_u32_u16(w7.val[1]));
-
-#if AOM_ARCH_AARCH64
-  d[0] = vzip1q_u64(vreinterpretq_u64_u32(w8.val[0]),
-                    vreinterpretq_u64_u32(w9.val[0]));
-  d[1] = vzip2q_u64(vreinterpretq_u64_u32(w8.val[0]),
-                    vreinterpretq_u64_u32(w9.val[0]));
-  d[2] = vzip1q_u64(vreinterpretq_u64_u32(w8.val[1]),
-                    vreinterpretq_u64_u32(w9.val[1]));
-  d[3] = vzip2q_u64(vreinterpretq_u64_u32(w8.val[1]),
-                    vreinterpretq_u64_u32(w9.val[1]));
-  d[4] = vzip1q_u64(vreinterpretq_u64_u32(w10.val[0]),
-                    vreinterpretq_u64_u32(w11.val[0]));
-  d[5] = vzip2q_u64(vreinterpretq_u64_u32(w10.val[0]),
-                    vreinterpretq_u64_u32(w11.val[0]));
-  d[6] = vzip1q_u64(vreinterpretq_u64_u32(w10.val[1]),
-                    vreinterpretq_u64_u32(w11.val[1]));
-  d[7] = vzip2q_u64(vreinterpretq_u64_u32(w10.val[1]),
-                    vreinterpretq_u64_u32(w11.val[1]));
-#else
-  d[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w8.val[0]), vget_low_u32(w9.val[0])));
-  d[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w8.val[0]), vget_high_u32(w9.val[0])));
-  d[2] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w8.val[1]), vget_low_u32(w9.val[1])));
-  d[3] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w8.val[1]), vget_high_u32(w9.val[1])));
-  d[4] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w10.val[0]), vget_low_u32(w11.val[0])));
-  d[5] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w10.val[0]), vget_high_u32(w11.val[0])));
-  d[6] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w10.val[1]), vget_low_u32(w11.val[1])));
-  d[7] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w10.val[1]), vget_high_u32(w11.val[1])));
-#endif
-}
-
-static AOM_FORCE_INLINE void transpose16x16_neon(uint8x16_t *x, uint64x2_t *d) {
-  uint8x16x2_t w0, w1, w2, w3, w4, w5, w6, w7;
-  uint16x8x2_t w8, w9, w10, w11;
-  uint32x4x2_t w12, w13, w14, w15;
-
-  w0 = vzipq_u8(x[0], x[1]);
-  w1 = vzipq_u8(x[2], x[3]);
-  w2 = vzipq_u8(x[4], x[5]);
-  w3 = vzipq_u8(x[6], x[7]);
-
-  w4 = vzipq_u8(x[8], x[9]);
-  w5 = vzipq_u8(x[10], x[11]);
-  w6 = vzipq_u8(x[12], x[13]);
-  w7 = vzipq_u8(x[14], x[15]);
-
-  w8 = vzipq_u16(vreinterpretq_u16_u8(w0.val[0]),
-                 vreinterpretq_u16_u8(w1.val[0]));
-  w9 = vzipq_u16(vreinterpretq_u16_u8(w2.val[0]),
-                 vreinterpretq_u16_u8(w3.val[0]));
-  w10 = vzipq_u16(vreinterpretq_u16_u8(w4.val[0]),
-                  vreinterpretq_u16_u8(w5.val[0]));
-  w11 = vzipq_u16(vreinterpretq_u16_u8(w6.val[0]),
-                  vreinterpretq_u16_u8(w7.val[0]));
-
-  w12 = vzipq_u32(vreinterpretq_u32_u16(w8.val[0]),
-                  vreinterpretq_u32_u16(w9.val[0]));
-  w13 = vzipq_u32(vreinterpretq_u32_u16(w10.val[0]),
-                  vreinterpretq_u32_u16(w11.val[0]));
-  w14 = vzipq_u32(vreinterpretq_u32_u16(w8.val[1]),
-                  vreinterpretq_u32_u16(w9.val[1]));
-  w15 = vzipq_u32(vreinterpretq_u32_u16(w10.val[1]),
-                  vreinterpretq_u32_u16(w11.val[1]));
-
-#if AOM_ARCH_AARCH64
-  d[0] = vzip1q_u64(vreinterpretq_u64_u32(w12.val[0]),
-                    vreinterpretq_u64_u32(w13.val[0]));
-  d[1] = vzip2q_u64(vreinterpretq_u64_u32(w12.val[0]),
-                    vreinterpretq_u64_u32(w13.val[0]));
-  d[2] = vzip1q_u64(vreinterpretq_u64_u32(w12.val[1]),
-                    vreinterpretq_u64_u32(w13.val[1]));
-  d[3] = vzip2q_u64(vreinterpretq_u64_u32(w12.val[1]),
-                    vreinterpretq_u64_u32(w13.val[1]));
-  d[4] = vzip1q_u64(vreinterpretq_u64_u32(w14.val[0]),
-                    vreinterpretq_u64_u32(w15.val[0]));
-  d[5] = vzip2q_u64(vreinterpretq_u64_u32(w14.val[0]),
-                    vreinterpretq_u64_u32(w15.val[0]));
-  d[6] = vzip1q_u64(vreinterpretq_u64_u32(w14.val[1]),
-                    vreinterpretq_u64_u32(w15.val[1]));
-  d[7] = vzip2q_u64(vreinterpretq_u64_u32(w14.val[1]),
-                    vreinterpretq_u64_u32(w15.val[1]));
-#else
-  d[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w12.val[0]), vget_low_u32(w13.val[0])));
-  d[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w12.val[0]), vget_high_u32(w13.val[0])));
-  d[2] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w12.val[1]), vget_low_u32(w13.val[1])));
-  d[3] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w12.val[1]), vget_high_u32(w13.val[1])));
-  d[4] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w14.val[0]), vget_low_u32(w15.val[0])));
-  d[5] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w14.val[0]), vget_high_u32(w15.val[0])));
-  d[6] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w14.val[1]), vget_low_u32(w15.val[1])));
-  d[7] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w14.val[1]), vget_high_u32(w15.val[1])));
-#endif
-
-  // upper half
-  w8 = vzipq_u16(vreinterpretq_u16_u8(w0.val[1]),
-                 vreinterpretq_u16_u8(w1.val[1]));
-  w9 = vzipq_u16(vreinterpretq_u16_u8(w2.val[1]),
-                 vreinterpretq_u16_u8(w3.val[1]));
-  w10 = vzipq_u16(vreinterpretq_u16_u8(w4.val[1]),
-                  vreinterpretq_u16_u8(w5.val[1]));
-  w11 = vzipq_u16(vreinterpretq_u16_u8(w6.val[1]),
-                  vreinterpretq_u16_u8(w7.val[1]));
-
-  w12 = vzipq_u32(vreinterpretq_u32_u16(w8.val[0]),
-                  vreinterpretq_u32_u16(w9.val[0]));
-  w13 = vzipq_u32(vreinterpretq_u32_u16(w10.val[0]),
-                  vreinterpretq_u32_u16(w11.val[0]));
-  w14 = vzipq_u32(vreinterpretq_u32_u16(w8.val[1]),
-                  vreinterpretq_u32_u16(w9.val[1]));
-  w15 = vzipq_u32(vreinterpretq_u32_u16(w10.val[1]),
-                  vreinterpretq_u32_u16(w11.val[1]));
-
-#if AOM_ARCH_AARCH64
-  d[8] = vzip1q_u64(vreinterpretq_u64_u32(w12.val[0]),
-                    vreinterpretq_u64_u32(w13.val[0]));
-  d[9] = vzip2q_u64(vreinterpretq_u64_u32(w12.val[0]),
-                    vreinterpretq_u64_u32(w13.val[0]));
-  d[10] = vzip1q_u64(vreinterpretq_u64_u32(w12.val[1]),
-                     vreinterpretq_u64_u32(w13.val[1]));
-  d[11] = vzip2q_u64(vreinterpretq_u64_u32(w12.val[1]),
-                     vreinterpretq_u64_u32(w13.val[1]));
-  d[12] = vzip1q_u64(vreinterpretq_u64_u32(w14.val[0]),
-                     vreinterpretq_u64_u32(w15.val[0]));
-  d[13] = vzip2q_u64(vreinterpretq_u64_u32(w14.val[0]),
-                     vreinterpretq_u64_u32(w15.val[0]));
-  d[14] = vzip1q_u64(vreinterpretq_u64_u32(w14.val[1]),
-                     vreinterpretq_u64_u32(w15.val[1]));
-  d[15] = vzip2q_u64(vreinterpretq_u64_u32(w14.val[1]),
-                     vreinterpretq_u64_u32(w15.val[1]));
-#else
-  d[8] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w12.val[0]), vget_low_u32(w13.val[0])));
-  d[9] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w12.val[0]), vget_high_u32(w13.val[0])));
-  d[10] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w12.val[1]), vget_low_u32(w13.val[1])));
-  d[11] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w12.val[1]), vget_high_u32(w13.val[1])));
-  d[12] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w14.val[0]), vget_low_u32(w15.val[0])));
-  d[13] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w14.val[0]), vget_high_u32(w15.val[0])));
-  d[14] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w14.val[1]), vget_low_u32(w15.val[1])));
-  d[15] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w14.val[1]), vget_high_u32(w15.val[1])));
-#endif
-}
-
-static AOM_FORCE_INLINE void transpose16x32_neon(uint8x16x2_t *x,
-                                                 uint64x2x2_t *d) {
-  uint8x16x2_t w0, w1, w2, w3, w8, w9, w10, w11;
-  uint16x8x2_t w4, w5, w12, w13;
-  uint32x4x2_t w6, w7, w14, w15;
-
-  w0 = vzipq_u8(x[0].val[0], x[1].val[0]);
-  w1 = vzipq_u8(x[2].val[0], x[3].val[0]);
-  w2 = vzipq_u8(x[4].val[0], x[5].val[0]);
-  w3 = vzipq_u8(x[6].val[0], x[7].val[0]);
-
-  w8 = vzipq_u8(x[8].val[0], x[9].val[0]);
-  w9 = vzipq_u8(x[10].val[0], x[11].val[0]);
-  w10 = vzipq_u8(x[12].val[0], x[13].val[0]);
-  w11 = vzipq_u8(x[14].val[0], x[15].val[0]);
-
-  w4 = vzipq_u16(vreinterpretq_u16_u8(w0.val[0]),
-                 vreinterpretq_u16_u8(w1.val[0]));
-  w5 = vzipq_u16(vreinterpretq_u16_u8(w2.val[0]),
-                 vreinterpretq_u16_u8(w3.val[0]));
-  w12 = vzipq_u16(vreinterpretq_u16_u8(w8.val[0]),
-                  vreinterpretq_u16_u8(w9.val[0]));
-  w13 = vzipq_u16(vreinterpretq_u16_u8(w10.val[0]),
-                  vreinterpretq_u16_u8(w11.val[0]));
-
-  w6 = vzipq_u32(vreinterpretq_u32_u16(w4.val[0]),
-                 vreinterpretq_u32_u16(w5.val[0]));
-  w7 = vzipq_u32(vreinterpretq_u32_u16(w4.val[1]),
-                 vreinterpretq_u32_u16(w5.val[1]));
-  w14 = vzipq_u32(vreinterpretq_u32_u16(w12.val[0]),
-                  vreinterpretq_u32_u16(w13.val[0]));
-  w15 = vzipq_u32(vreinterpretq_u32_u16(w12.val[1]),
-                  vreinterpretq_u32_u16(w13.val[1]));
-
-  // Store first 4-line result
-
-#if AOM_ARCH_AARCH64
-  d[0].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[0]),
-                           vreinterpretq_u64_u32(w14.val[0]));
-  d[0].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[0]),
-                           vreinterpretq_u64_u32(w14.val[0]));
-  d[1].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[1]),
-                           vreinterpretq_u64_u32(w14.val[1]));
-  d[1].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[1]),
-                           vreinterpretq_u64_u32(w14.val[1]));
-  d[2].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w7.val[0]),
-                           vreinterpretq_u64_u32(w15.val[0]));
-  d[2].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w7.val[0]),
-                           vreinterpretq_u64_u32(w15.val[0]));
-  d[3].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w7.val[1]),
-                           vreinterpretq_u64_u32(w15.val[1]));
-  d[3].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w7.val[1]),
-                           vreinterpretq_u64_u32(w15.val[1]));
-#else
-  d[0].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w6.val[0]), vget_low_u32(w14.val[0])));
-  d[0].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w6.val[0]), vget_high_u32(w14.val[0])));
-  d[1].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w6.val[1]), vget_low_u32(w14.val[1])));
-  d[1].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w6.val[1]), vget_high_u32(w14.val[1])));
-  d[2].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w7.val[0]), vget_low_u32(w15.val[0])));
-  d[2].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w7.val[0]), vget_high_u32(w15.val[0])));
-  d[3].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w7.val[1]), vget_low_u32(w15.val[1])));
-  d[3].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w7.val[1]), vget_high_u32(w15.val[1])));
-#endif
-
-  w4 = vzipq_u16(vreinterpretq_u16_u8(w0.val[1]),
-                 vreinterpretq_u16_u8(w1.val[1]));
-  w5 = vzipq_u16(vreinterpretq_u16_u8(w2.val[1]),
-                 vreinterpretq_u16_u8(w3.val[1]));
-  w12 = vzipq_u16(vreinterpretq_u16_u8(w8.val[1]),
-                  vreinterpretq_u16_u8(w9.val[1]));
-  w13 = vzipq_u16(vreinterpretq_u16_u8(w10.val[1]),
-                  vreinterpretq_u16_u8(w11.val[1]));
-
-  w6 = vzipq_u32(vreinterpretq_u32_u16(w4.val[0]),
-                 vreinterpretq_u32_u16(w5.val[0]));
-  w7 = vzipq_u32(vreinterpretq_u32_u16(w4.val[1]),
-                 vreinterpretq_u32_u16(w5.val[1]));
-  w14 = vzipq_u32(vreinterpretq_u32_u16(w12.val[0]),
-                  vreinterpretq_u32_u16(w13.val[0]));
-  w15 = vzipq_u32(vreinterpretq_u32_u16(w12.val[1]),
-                  vreinterpretq_u32_u16(w13.val[1]));
-
-  // Store second 4-line result
-
-#if AOM_ARCH_AARCH64
-  d[4].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[0]),
-                           vreinterpretq_u64_u32(w14.val[0]));
-  d[4].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[0]),
-                           vreinterpretq_u64_u32(w14.val[0]));
-  d[5].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[1]),
-                           vreinterpretq_u64_u32(w14.val[1]));
-  d[5].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[1]),
-                           vreinterpretq_u64_u32(w14.val[1]));
-  d[6].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w7.val[0]),
-                           vreinterpretq_u64_u32(w15.val[0]));
-  d[6].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w7.val[0]),
-                           vreinterpretq_u64_u32(w15.val[0]));
-  d[7].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w7.val[1]),
-                           vreinterpretq_u64_u32(w15.val[1]));
-  d[7].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w7.val[1]),
-                           vreinterpretq_u64_u32(w15.val[1]));
-#else
-  d[4].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w6.val[0]), vget_low_u32(w14.val[0])));
-  d[4].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w6.val[0]), vget_high_u32(w14.val[0])));
-  d[5].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w6.val[1]), vget_low_u32(w14.val[1])));
-  d[5].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w6.val[1]), vget_high_u32(w14.val[1])));
-  d[6].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w7.val[0]), vget_low_u32(w15.val[0])));
-  d[6].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w7.val[0]), vget_high_u32(w15.val[0])));
-  d[7].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w7.val[1]), vget_low_u32(w15.val[1])));
-  d[7].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w7.val[1]), vget_high_u32(w15.val[1])));
-#endif
-
-  // upper half
-  w0 = vzipq_u8(x[0].val[1], x[1].val[1]);
-  w1 = vzipq_u8(x[2].val[1], x[3].val[1]);
-  w2 = vzipq_u8(x[4].val[1], x[5].val[1]);
-  w3 = vzipq_u8(x[6].val[1], x[7].val[1]);
-
-  w8 = vzipq_u8(x[8].val[1], x[9].val[1]);
-  w9 = vzipq_u8(x[10].val[1], x[11].val[1]);
-  w10 = vzipq_u8(x[12].val[1], x[13].val[1]);
-  w11 = vzipq_u8(x[14].val[1], x[15].val[1]);
-
-  w4 = vzipq_u16(vreinterpretq_u16_u8(w0.val[0]),
-                 vreinterpretq_u16_u8(w1.val[0]));
-  w5 = vzipq_u16(vreinterpretq_u16_u8(w2.val[0]),
-                 vreinterpretq_u16_u8(w3.val[0]));
-  w12 = vzipq_u16(vreinterpretq_u16_u8(w8.val[0]),
-                  vreinterpretq_u16_u8(w9.val[0]));
-  w13 = vzipq_u16(vreinterpretq_u16_u8(w10.val[0]),
-                  vreinterpretq_u16_u8(w11.val[0]));
-
-  w6 = vzipq_u32(vreinterpretq_u32_u16(w4.val[0]),
-                 vreinterpretq_u32_u16(w5.val[0]));
-  w7 = vzipq_u32(vreinterpretq_u32_u16(w4.val[1]),
-                 vreinterpretq_u32_u16(w5.val[1]));
-  w14 = vzipq_u32(vreinterpretq_u32_u16(w12.val[0]),
-                  vreinterpretq_u32_u16(w13.val[0]));
-  w15 = vzipq_u32(vreinterpretq_u32_u16(w12.val[1]),
-                  vreinterpretq_u32_u16(w13.val[1]));
-
-  // Store first 4-line result
-
-#if AOM_ARCH_AARCH64
-  d[8].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[0]),
-                           vreinterpretq_u64_u32(w14.val[0]));
-  d[8].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[0]),
-                           vreinterpretq_u64_u32(w14.val[0]));
-  d[9].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[1]),
-                           vreinterpretq_u64_u32(w14.val[1]));
-  d[9].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[1]),
-                           vreinterpretq_u64_u32(w14.val[1]));
-  d[10].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w7.val[0]),
-                            vreinterpretq_u64_u32(w15.val[0]));
-  d[10].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w7.val[0]),
-                            vreinterpretq_u64_u32(w15.val[0]));
-  d[11].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w7.val[1]),
-                            vreinterpretq_u64_u32(w15.val[1]));
-  d[11].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w7.val[1]),
-                            vreinterpretq_u64_u32(w15.val[1]));
-#else
-  d[8].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w6.val[0]), vget_low_u32(w14.val[0])));
-  d[8].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w6.val[0]), vget_high_u32(w14.val[0])));
-  d[9].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w6.val[1]), vget_low_u32(w14.val[1])));
-  d[9].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w6.val[1]), vget_high_u32(w14.val[1])));
-  d[10].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w7.val[0]), vget_low_u32(w15.val[0])));
-  d[10].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w7.val[0]), vget_high_u32(w15.val[0])));
-  d[11].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w7.val[1]), vget_low_u32(w15.val[1])));
-  d[11].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w7.val[1]), vget_high_u32(w15.val[1])));
-#endif
-
-  w4 = vzipq_u16(vreinterpretq_u16_u8(w0.val[1]),
-                 vreinterpretq_u16_u8(w1.val[1]));
-  w5 = vzipq_u16(vreinterpretq_u16_u8(w2.val[1]),
-                 vreinterpretq_u16_u8(w3.val[1]));
-  w12 = vzipq_u16(vreinterpretq_u16_u8(w8.val[1]),
-                  vreinterpretq_u16_u8(w9.val[1]));
-  w13 = vzipq_u16(vreinterpretq_u16_u8(w10.val[1]),
-                  vreinterpretq_u16_u8(w11.val[1]));
-
-  w6 = vzipq_u32(vreinterpretq_u32_u16(w4.val[0]),
-                 vreinterpretq_u32_u16(w5.val[0]));
-  w7 = vzipq_u32(vreinterpretq_u32_u16(w4.val[1]),
-                 vreinterpretq_u32_u16(w5.val[1]));
-  w14 = vzipq_u32(vreinterpretq_u32_u16(w12.val[0]),
-                  vreinterpretq_u32_u16(w13.val[0]));
-  w15 = vzipq_u32(vreinterpretq_u32_u16(w12.val[1]),
-                  vreinterpretq_u32_u16(w13.val[1]));
-
-  // Store second 4-line result
-
-#if AOM_ARCH_AARCH64
-  d[12].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[0]),
-                            vreinterpretq_u64_u32(w14.val[0]));
-  d[12].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[0]),
-                            vreinterpretq_u64_u32(w14.val[0]));
-  d[13].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w6.val[1]),
-                            vreinterpretq_u64_u32(w14.val[1]));
-  d[13].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w6.val[1]),
-                            vreinterpretq_u64_u32(w14.val[1]));
-  d[14].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w7.val[0]),
-                            vreinterpretq_u64_u32(w15.val[0]));
-  d[14].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w7.val[0]),
-                            vreinterpretq_u64_u32(w15.val[0]));
-  d[15].val[0] = vzip1q_u64(vreinterpretq_u64_u32(w7.val[1]),
-                            vreinterpretq_u64_u32(w15.val[1]));
-  d[15].val[1] = vzip2q_u64(vreinterpretq_u64_u32(w7.val[1]),
-                            vreinterpretq_u64_u32(w15.val[1]));
-#else
-  d[12].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w6.val[0]), vget_low_u32(w14.val[0])));
-  d[12].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w6.val[0]), vget_high_u32(w14.val[0])));
-  d[13].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w6.val[1]), vget_low_u32(w14.val[1])));
-  d[13].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w6.val[1]), vget_high_u32(w14.val[1])));
-  d[14].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w7.val[0]), vget_low_u32(w15.val[0])));
-  d[14].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w7.val[0]), vget_high_u32(w15.val[0])));
-  d[15].val[0] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_low_u32(w7.val[1]), vget_low_u32(w15.val[1])));
-  d[15].val[1] = vreinterpretq_u64_u32(
-      vcombine_u32(vget_high_u32(w7.val[1]), vget_high_u32(w15.val[1])));
-#endif
-}
-
-static void transpose_TX_16X16(const uint8_t *src, ptrdiff_t pitchSrc,
-                               uint8_t *dst, ptrdiff_t pitchDst) {
+static void z3_transpose_arrays_u8_16x16(const uint8_t *src, ptrdiff_t pitchSrc,
+                                         uint8_t *dst, ptrdiff_t pitchDst) {
+  // The same as the normal transposes in transpose_neon.h, but with a stride
+  // between consecutive vectors of elements.
   uint8x16_t r[16];
-  uint64x2_t d[16];
+  uint8x16_t d[16];
   for (int i = 0; i < 16; i++) {
     r[i] = vld1q_u8(src + i * pitchSrc);
   }
-  transpose16x16_neon(r, d);
+  transpose_arrays_u8_16x16(r, d);
   for (int i = 0; i < 16; i++) {
-    vst1q_u8(dst + i * pitchDst, vreinterpretq_u8_u64(d[i]));
+    vst1q_u8(dst + i * pitchDst, d[i]);
   }
 }
 
-static void transpose(const uint8_t *src, ptrdiff_t pitchSrc, uint8_t *dst,
-                      ptrdiff_t pitchDst, int width, int height) {
+static void z3_transpose_arrays_u8_16nx16n(const uint8_t *src,
+                                           ptrdiff_t pitchSrc, uint8_t *dst,
+                                           ptrdiff_t pitchDst, int width,
+                                           int height) {
   for (int j = 0; j < height; j += 16) {
     for (int i = 0; i < width; i += 16) {
-      transpose_TX_16X16(src + i * pitchSrc + j, pitchSrc,
-                         dst + j * pitchDst + i, pitchDst);
+      z3_transpose_arrays_u8_16x16(src + i * pitchSrc + j, pitchSrc,
+                                   dst + j * pitchDst + i, pitchDst);
     }
   }
 }
@@ -2737,77 +2181,60 @@ static void dr_prediction_z3_4x4_neon(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *left, int upsample_left,
                                       int dy) {
   uint8x8_t dstvec[4];
-  uint16x4x2_t dest;
+  uint8x8x2_t dest;
 
   dr_prediction_z1_HxW_internal_neon_64(4, 4, dstvec, left, upsample_left, dy);
-  transpose4x8_8x4_low_neon(dstvec, &dest);
-  store_u8x4_strided_x2(dst + stride * 0, stride,
-                        vreinterpret_u8_u16(dest.val[0]));
-  store_u8x4_strided_x2(dst + stride * 2, stride,
-                        vreinterpret_u8_u16(dest.val[1]));
+  z3_transpose_arrays_u8_4x4(dstvec, &dest);
+  store_u8x4_strided_x2(dst + stride * 0, stride, dest.val[0]);
+  store_u8x4_strided_x2(dst + stride * 2, stride, dest.val[1]);
 }
 
 static void dr_prediction_z3_8x8_neon(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *left, int upsample_left,
                                       int dy) {
   uint8x8_t dstvec[8];
-  uint32x2x2_t d[4];
+  uint8x8_t d[8];
 
   dr_prediction_z1_HxW_internal_neon_64(8, 8, dstvec, left, upsample_left, dy);
-  transpose8x8_neon(dstvec, d);
-  vst1_u32((uint32_t *)(dst + 0 * stride), d[0].val[0]);
-  vst1_u32((uint32_t *)(dst + 1 * stride), d[0].val[1]);
-  vst1_u32((uint32_t *)(dst + 2 * stride), d[1].val[0]);
-  vst1_u32((uint32_t *)(dst + 3 * stride), d[1].val[1]);
-  vst1_u32((uint32_t *)(dst + 4 * stride), d[2].val[0]);
-  vst1_u32((uint32_t *)(dst + 5 * stride), d[2].val[1]);
-  vst1_u32((uint32_t *)(dst + 6 * stride), d[3].val[0]);
-  vst1_u32((uint32_t *)(dst + 7 * stride), d[3].val[1]);
+  transpose_arrays_u8_8x8(dstvec, d);
+  store_u8_8x8(dst, stride, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7]);
 }
 
 static void dr_prediction_z3_4x8_neon(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *left, int upsample_left,
                                       int dy) {
   uint8x8_t dstvec[4];
-  uint16x4x2_t d[2];
+  uint8x8x2_t d[2];
 
   dr_prediction_z1_HxW_internal_neon_64(8, 4, dstvec, left, upsample_left, dy);
-  transpose4x8_8x4_neon(dstvec, d);
-  store_u8x4_strided_x2(dst + stride * 0, stride,
-                        vreinterpret_u8_u16(d[0].val[0]));
-  store_u8x4_strided_x2(dst + stride * 2, stride,
-                        vreinterpret_u8_u16(d[0].val[1]));
-  store_u8x4_strided_x2(dst + stride * 4, stride,
-                        vreinterpret_u8_u16(d[1].val[0]));
-  store_u8x4_strided_x2(dst + stride * 6, stride,
-                        vreinterpret_u8_u16(d[1].val[1]));
+  z3_transpose_arrays_u8_8x4(dstvec, d);
+  store_u8x4_strided_x2(dst + stride * 0, stride, d[0].val[0]);
+  store_u8x4_strided_x2(dst + stride * 2, stride, d[0].val[1]);
+  store_u8x4_strided_x2(dst + stride * 4, stride, d[1].val[0]);
+  store_u8x4_strided_x2(dst + stride * 6, stride, d[1].val[1]);
 }
 
 static void dr_prediction_z3_8x4_neon(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *left, int upsample_left,
                                       int dy) {
   uint8x8_t dstvec[8];
-  uint32x2x2_t d[2];
+  uint8x8_t d[8];
 
   dr_prediction_z1_HxW_internal_neon_64(4, 8, dstvec, left, upsample_left, dy);
-  transpose8x8_low_neon(dstvec, d);
-  vst1_u32((uint32_t *)(dst + 0 * stride), d[0].val[0]);
-  vst1_u32((uint32_t *)(dst + 1 * stride), d[0].val[1]);
-  vst1_u32((uint32_t *)(dst + 2 * stride), d[1].val[0]);
-  vst1_u32((uint32_t *)(dst + 3 * stride), d[1].val[1]);
+  transpose_arrays_u8_8x8(dstvec, d);
+  store_u8_8x4(dst, stride, d[0], d[1], d[2], d[3]);
 }
 
 static void dr_prediction_z3_8x16_neon(uint8_t *dst, ptrdiff_t stride,
                                        const uint8_t *left, int upsample_left,
                                        int dy) {
   uint8x16_t dstvec[8];
-  uint64x2_t d[8];
+  uint8x8_t d[16];
 
   dr_prediction_z1_HxW_internal_neon(16, 8, dstvec, left, upsample_left, dy);
-  transpose8x16_16x8_neon(dstvec, d);
-  for (int i = 0; i < 8; i++) {
-    vst1_u8(dst + i * stride, vreinterpret_u8_u64(vget_low_u64(d[i])));
-    vst1_u8(dst + (i + 8) * stride, vreinterpret_u8_u64(vget_high_u64(d[i])));
+  transpose_arrays_u8_16x8(dstvec, d);
+  for (int i = 0; i < 16; i++) {
+    vst1_u8(dst + i * stride, d[i]);
   }
 }
 
@@ -2815,12 +2242,12 @@ static void dr_prediction_z3_16x8_neon(uint8_t *dst, ptrdiff_t stride,
                                        const uint8_t *left, int upsample_left,
                                        int dy) {
   uint8x8_t dstvec[16];
-  uint64x2_t d[8];
+  uint8x16_t d[8];
 
   dr_prediction_z1_HxW_internal_neon_64(8, 16, dstvec, left, upsample_left, dy);
-  transpose16x8_8x16_neon(dstvec, d);
+  transpose_arrays_u8_8x16(dstvec, d);
   for (int i = 0; i < 8; i++) {
-    vst1q_u8(dst + i * stride, vreinterpretq_u8_u64(d[i]));
+    vst1q_u8(dst + i * stride, d[i]);
   }
 }
 
@@ -2828,30 +2255,26 @@ static void dr_prediction_z3_4x16_neon(uint8_t *dst, ptrdiff_t stride,
                                        const uint8_t *left, int upsample_left,
                                        int dy) {
   uint8x16_t dstvec[4];
-  uint16x8x2_t d[2];
+  uint8x16x2_t d[2];
 
   dr_prediction_z1_HxW_internal_neon(16, 4, dstvec, left, upsample_left, dy);
-  transpose4x16_neon(dstvec, d);
-  store_u8x4_strided_x4(dst + stride * 0, stride,
-                        vreinterpretq_u8_u16(d[0].val[0]));
-  store_u8x4_strided_x4(dst + stride * 4, stride,
-                        vreinterpretq_u8_u16(d[0].val[1]));
-  store_u8x4_strided_x4(dst + stride * 8, stride,
-                        vreinterpretq_u8_u16(d[1].val[0]));
-  store_u8x4_strided_x4(dst + stride * 12, stride,
-                        vreinterpretq_u8_u16(d[1].val[1]));
+  z3_transpose_arrays_u8_16x4(dstvec, d);
+  store_u8x4_strided_x4(dst + stride * 0, stride, d[0].val[0]);
+  store_u8x4_strided_x4(dst + stride * 4, stride, d[0].val[1]);
+  store_u8x4_strided_x4(dst + stride * 8, stride, d[1].val[0]);
+  store_u8x4_strided_x4(dst + stride * 12, stride, d[1].val[1]);
 }
 
 static void dr_prediction_z3_16x4_neon(uint8_t *dst, ptrdiff_t stride,
                                        const uint8_t *left, int upsample_left,
                                        int dy) {
   uint8x8_t dstvec[16];
-  uint64x2_t d[8];
+  uint8x16_t d[8];
 
   dr_prediction_z1_HxW_internal_neon_64(4, 16, dstvec, left, upsample_left, dy);
-  transpose16x8_8x16_neon(dstvec, d);
+  transpose_arrays_u8_8x16(dstvec, d);
   for (int i = 0; i < 4; i++) {
-    vst1q_u8(dst + i * stride, vreinterpretq_u8_u64(d[i]));
+    vst1q_u8(dst + i * stride, d[i]);
   }
 }
 
@@ -2859,7 +2282,7 @@ static void dr_prediction_z3_8x32_neon(uint8_t *dst, ptrdiff_t stride,
                                        const uint8_t *left, int upsample_left,
                                        int dy) {
   uint8x16x2_t dstvec[16];
-  uint64x2x2_t d[16];
+  uint8x16_t d[32];
   uint8x16_t v_zero = vdupq_n_u8(0);
 
   dr_prediction_z1_32xN_internal_neon(8, dstvec, left, upsample_left, dy);
@@ -2867,12 +2290,9 @@ static void dr_prediction_z3_8x32_neon(uint8_t *dst, ptrdiff_t stride,
     dstvec[i].val[0] = v_zero;
     dstvec[i].val[1] = v_zero;
   }
-  transpose16x32_neon(dstvec, d);
-  for (int i = 0; i < 16; i++) {
-    vst1_u8(dst + 2 * i * stride,
-            vreinterpret_u8_u64(vget_low_u64(d[i].val[0])));
-    vst1_u8(dst + (2 * i + 1) * stride,
-            vreinterpret_u8_u64(vget_low_u64(d[i].val[1])));
+  transpose_arrays_u8_32x16(dstvec, d);
+  for (int i = 0; i < 32; i++) {
+    vst1_u8(dst + i * stride, vget_low_u8(d[i]));
   }
 }
 
@@ -2880,14 +2300,14 @@ static void dr_prediction_z3_32x8_neon(uint8_t *dst, ptrdiff_t stride,
                                        const uint8_t *left, int upsample_left,
                                        int dy) {
   uint8x8_t dstvec[32];
-  uint64x2_t d[16];
+  uint8x16_t d[16];
 
   dr_prediction_z1_HxW_internal_neon_64(8, 32, dstvec, left, upsample_left, dy);
-  transpose16x8_8x16_neon(dstvec, d);
-  transpose16x8_8x16_neon(dstvec + 16, d + 8);
+  transpose_arrays_u8_8x16(dstvec, d);
+  transpose_arrays_u8_8x16(dstvec + 16, d + 8);
   for (int i = 0; i < 8; i++) {
-    vst1q_u8(dst + i * stride, vreinterpretq_u8_u64(d[i]));
-    vst1q_u8(dst + i * stride + 16, vreinterpretq_u8_u64(d[i + 8]));
+    vst1q_u8(dst + i * stride, d[i]);
+    vst1q_u8(dst + i * stride + 16, d[i + 8]);
   }
 }
 
@@ -2895,12 +2315,12 @@ static void dr_prediction_z3_16x16_neon(uint8_t *dst, ptrdiff_t stride,
                                         const uint8_t *left, int upsample_left,
                                         int dy) {
   uint8x16_t dstvec[16];
-  uint64x2_t d[16];
+  uint8x16_t d[16];
 
   dr_prediction_z1_HxW_internal_neon(16, 16, dstvec, left, upsample_left, dy);
-  transpose16x16_neon(dstvec, d);
+  transpose_arrays_u8_16x16(dstvec, d);
   for (int i = 0; i < 16; i++) {
-    vst1q_u8(dst + i * stride, vreinterpretq_u8_u64(d[i]));
+    vst1q_u8(dst + i * stride, d[i]);
   }
 }
 
@@ -2908,17 +2328,14 @@ static void dr_prediction_z3_32x32_neon(uint8_t *dst, ptrdiff_t stride,
                                         const uint8_t *left, int upsample_left,
                                         int dy) {
   uint8x16x2_t dstvec[32];
-  uint64x2x2_t d[32];
+  uint8x16_t d[64];
 
   dr_prediction_z1_32xN_internal_neon(32, dstvec, left, upsample_left, dy);
-  transpose16x32_neon(dstvec, d);
-  transpose16x32_neon(dstvec + 16, d + 16);
-  for (int i = 0; i < 16; i++) {
-    vst1q_u8(dst + 2 * i * stride, vreinterpretq_u8_u64(d[i].val[0]));
-    vst1q_u8(dst + 2 * i * stride + 16, vreinterpretq_u8_u64(d[i + 16].val[0]));
-    vst1q_u8(dst + (2 * i + 1) * stride, vreinterpretq_u8_u64(d[i].val[1]));
-    vst1q_u8(dst + (2 * i + 1) * stride + 16,
-             vreinterpretq_u8_u64(d[i + 16].val[1]));
+  transpose_arrays_u8_32x16(dstvec, d);
+  transpose_arrays_u8_32x16(dstvec + 16, d + 32);
+  for (int i = 0; i < 32; i++) {
+    vst1q_u8(dst + i * stride, d[i]);
+    vst1q_u8(dst + i * stride + 16, d[i + 32]);
   }
 }
 
@@ -2928,20 +2345,20 @@ static void dr_prediction_z3_64x64_neon(uint8_t *dst, ptrdiff_t stride,
   DECLARE_ALIGNED(16, uint8_t, dstT[64 * 64]);
 
   dr_prediction_z1_64xN_neon(64, dstT, 64, left, upsample_left, dy);
-  transpose(dstT, 64, dst, stride, 64, 64);
+  z3_transpose_arrays_u8_16nx16n(dstT, 64, dst, stride, 64, 64);
 }
 
 static void dr_prediction_z3_16x32_neon(uint8_t *dst, ptrdiff_t stride,
                                         const uint8_t *left, int upsample_left,
                                         int dy) {
   uint8x16x2_t dstvec[16];
-  uint64x2x2_t d[16];
+  uint8x16_t d[32];
 
   dr_prediction_z1_32xN_internal_neon(16, dstvec, left, upsample_left, dy);
-  transpose16x32_neon(dstvec, d);
+  transpose_arrays_u8_32x16(dstvec, d);
   for (int i = 0; i < 16; i++) {
-    vst1q_u8(dst + 2 * i * stride, vreinterpretq_u8_u64(d[i].val[0]));
-    vst1q_u8(dst + (2 * i + 1) * stride, vreinterpretq_u8_u64(d[i].val[1]));
+    vst1q_u8(dst + 2 * i * stride, d[2 * i + 0]);
+    vst1q_u8(dst + (2 * i + 1) * stride, d[2 * i + 1]);
   }
 }
 
@@ -2949,13 +2366,13 @@ static void dr_prediction_z3_32x16_neon(uint8_t *dst, ptrdiff_t stride,
                                         const uint8_t *left, int upsample_left,
                                         int dy) {
   uint8x16_t dstvec[32];
-  uint64x2_t d[16];
 
   dr_prediction_z1_HxW_internal_neon(16, 32, dstvec, left, upsample_left, dy);
   for (int i = 0; i < 32; i += 16) {
-    transpose16x16_neon((dstvec + i), d);
+    uint8x16_t d[16];
+    transpose_arrays_u8_16x16(dstvec + i, d);
     for (int j = 0; j < 16; j++) {
-      vst1q_u8(dst + j * stride + i, vreinterpretq_u8_u64(d[j]));
+      vst1q_u8(dst + j * stride + i, d[j]);
     }
   }
 }
@@ -2966,7 +2383,7 @@ static void dr_prediction_z3_32x64_neon(uint8_t *dst, ptrdiff_t stride,
   uint8_t dstT[64 * 32];
 
   dr_prediction_z1_64xN_neon(32, dstT, 64, left, upsample_left, dy);
-  transpose(dstT, 64, dst, stride, 32, 64);
+  z3_transpose_arrays_u8_16nx16n(dstT, 64, dst, stride, 32, 64);
 }
 
 static void dr_prediction_z3_64x32_neon(uint8_t *dst, ptrdiff_t stride,
@@ -2975,7 +2392,7 @@ static void dr_prediction_z3_64x32_neon(uint8_t *dst, ptrdiff_t stride,
   uint8_t dstT[32 * 64];
 
   dr_prediction_z1_32xN_neon(64, dstT, 32, left, upsample_left, dy);
-  transpose(dstT, 32, dst, stride, 64, 32);
+  z3_transpose_arrays_u8_16nx16n(dstT, 32, dst, stride, 64, 32);
 }
 
 static void dr_prediction_z3_16x64_neon(uint8_t *dst, ptrdiff_t stride,
@@ -2984,20 +2401,20 @@ static void dr_prediction_z3_16x64_neon(uint8_t *dst, ptrdiff_t stride,
   uint8_t dstT[64 * 16];
 
   dr_prediction_z1_64xN_neon(16, dstT, 64, left, upsample_left, dy);
-  transpose(dstT, 64, dst, stride, 16, 64);
+  z3_transpose_arrays_u8_16nx16n(dstT, 64, dst, stride, 16, 64);
 }
 
 static void dr_prediction_z3_64x16_neon(uint8_t *dst, ptrdiff_t stride,
                                         const uint8_t *left, int upsample_left,
                                         int dy) {
   uint8x16_t dstvec[64];
-  uint64x2_t d[16];
 
   dr_prediction_z1_HxW_internal_neon(16, 64, dstvec, left, upsample_left, dy);
   for (int i = 0; i < 64; i += 16) {
-    transpose16x16_neon((dstvec + i), d);
-    for (int j = 0; j < 16; j++) {
-      vst1q_u8(dst + j * stride + i, vreinterpretq_u8_u64(d[j]));
+    uint8x16_t d[16];
+    transpose_arrays_u8_16x16(dstvec + i, d);
+    for (int j = 0; j < 16; ++j) {
+      vst1q_u8(dst + j * stride + i, d[j]);
     }
   }
 }
