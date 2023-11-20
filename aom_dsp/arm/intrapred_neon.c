@@ -1826,30 +1826,9 @@ static void dr_prediction_z2_Nx8_neon(int N, uint8_t *dst, ptrdiff_t stride,
       uint8x8_t a0_x1 = vget_low_u8(a01_x);
       uint8x8_t a1_x1 = vget_high_u8(a01_x);
 #else   // !AOM_ARCH_AARCH64
-      DECLARE_ALIGNED(32, int16_t, base_y_c[16]);
-
-      vst1q_s16(base_y_c, base_y_c128);
-      uint8x8_t a0_x1 = vdup_n_u8(0);
-      a0_x1 = vld1_lane_u8(left + base_y_c[0], a0_x1, 0);
-      a0_x1 = vld1_lane_u8(left + base_y_c[1], a0_x1, 1);
-      a0_x1 = vld1_lane_u8(left + base_y_c[2], a0_x1, 2);
-      a0_x1 = vld1_lane_u8(left + base_y_c[3], a0_x1, 3);
-      a0_x1 = vld1_lane_u8(left + base_y_c[4], a0_x1, 4);
-      a0_x1 = vld1_lane_u8(left + base_y_c[5], a0_x1, 5);
-      a0_x1 = vld1_lane_u8(left + base_y_c[6], a0_x1, 6);
-      a0_x1 = vld1_lane_u8(left + base_y_c[7], a0_x1, 7);
-
+      uint8x8_t a0_x1 = load_u8_gather_s16_x8(left, base_y_c128);
       base_y_c128 = vaddq_s16(base_y_c128, vdupq_n_s16(1));
-      vst1q_s16(base_y_c, base_y_c128);
-      uint8x8_t a1_x1 = vdup_n_u8(0);
-      a1_x1 = vld1_lane_u8(left + base_y_c[0], a1_x1, 0);
-      a1_x1 = vld1_lane_u8(left + base_y_c[1], a1_x1, 1);
-      a1_x1 = vld1_lane_u8(left + base_y_c[2], a1_x1, 2);
-      a1_x1 = vld1_lane_u8(left + base_y_c[3], a1_x1, 3);
-      a1_x1 = vld1_lane_u8(left + base_y_c[4], a1_x1, 4);
-      a1_x1 = vld1_lane_u8(left + base_y_c[5], a1_x1, 5);
-      a1_x1 = vld1_lane_u8(left + base_y_c[6], a1_x1, 6);
-      a1_x1 = vld1_lane_u8(left + base_y_c[7], a1_x1, 7);
+      uint8x8_t a1_x1 = load_u8_gather_s16_x8(left, base_y_c128);
 #endif  // AOM_ARCH_AARCH64
 
       if (upsample_left) {
@@ -2075,54 +2054,16 @@ static void dr_prediction_z2_HxW_neon(int H, int W, uint8_t *dst,
           a1_y0 = vget_low_u8(a1_y01);
           a1_y1 = vget_high_u8(a1_y01);
 #else   // !AOM_ARCH_AARCH64
-          DECLARE_ALIGNED(32, int16_t, base_y_c[16]);
-
-          vst1q_s16(base_y_c, base_y_c256.val[0]);
-          vst1q_s16(base_y_c + 8, base_y_c256.val[1]);
-          a0_y0 = vdup_n_u8(0);
-          a0_y0 = vld1_lane_u8(left + base_y_c[0], a0_y0, 0);
-          a0_y0 = vld1_lane_u8(left + base_y_c[1], a0_y0, 1);
-          a0_y0 = vld1_lane_u8(left + base_y_c[2], a0_y0, 2);
-          a0_y0 = vld1_lane_u8(left + base_y_c[3], a0_y0, 3);
-          a0_y0 = vld1_lane_u8(left + base_y_c[4], a0_y0, 4);
-          a0_y0 = vld1_lane_u8(left + base_y_c[5], a0_y0, 5);
-          a0_y0 = vld1_lane_u8(left + base_y_c[6], a0_y0, 6);
-          a0_y0 = vld1_lane_u8(left + base_y_c[7], a0_y0, 7);
-          a0_y1 = vdup_n_u8(0);
-          a0_y1 = vld1_lane_u8(left + base_y_c[8], a0_y1, 0);
-          a0_y1 = vld1_lane_u8(left + base_y_c[9], a0_y1, 1);
-          a0_y1 = vld1_lane_u8(left + base_y_c[10], a0_y1, 2);
-          a0_y1 = vld1_lane_u8(left + base_y_c[11], a0_y1, 3);
-          a0_y1 = vld1_lane_u8(left + base_y_c[12], a0_y1, 4);
-          a0_y1 = vld1_lane_u8(left + base_y_c[13], a0_y1, 5);
-          a0_y1 = vld1_lane_u8(left + base_y_c[14], a0_y1, 6);
-          a0_y1 = vld1_lane_u8(left + base_y_c[15], a0_y1, 7);
+          a0_y0 = load_u8_gather_s16_x8(left, base_y_c256.val[0]);
+          a0_y1 = load_u8_gather_s16_x8(left, base_y_c256.val[1]);
 
           base_y_c256.val[0] =
               vaddq_s16(base_y_c256.val[0], vreinterpretq_s16_u16(c1));
           base_y_c256.val[1] =
               vaddq_s16(base_y_c256.val[1], vreinterpretq_s16_u16(c1));
 
-          vst1q_s16(base_y_c, base_y_c256.val[0]);
-          vst1q_s16(base_y_c + 8, base_y_c256.val[1]);
-          a1_y0 = vdup_n_u8(0);
-          a1_y0 = vld1_lane_u8(left + base_y_c[0], a1_y0, 0);
-          a1_y0 = vld1_lane_u8(left + base_y_c[1], a1_y0, 1);
-          a1_y0 = vld1_lane_u8(left + base_y_c[2], a1_y0, 2);
-          a1_y0 = vld1_lane_u8(left + base_y_c[3], a1_y0, 3);
-          a1_y0 = vld1_lane_u8(left + base_y_c[4], a1_y0, 4);
-          a1_y0 = vld1_lane_u8(left + base_y_c[5], a1_y0, 5);
-          a1_y0 = vld1_lane_u8(left + base_y_c[6], a1_y0, 6);
-          a1_y0 = vld1_lane_u8(left + base_y_c[7], a1_y0, 7);
-          a1_y1 = vdup_n_u8(0);
-          a1_y1 = vld1_lane_u8(left + base_y_c[8], a1_y1, 0);
-          a1_y1 = vld1_lane_u8(left + base_y_c[9], a1_y1, 1);
-          a1_y1 = vld1_lane_u8(left + base_y_c[10], a1_y1, 2);
-          a1_y1 = vld1_lane_u8(left + base_y_c[11], a1_y1, 3);
-          a1_y1 = vld1_lane_u8(left + base_y_c[12], a1_y1, 4);
-          a1_y1 = vld1_lane_u8(left + base_y_c[13], a1_y1, 5);
-          a1_y1 = vld1_lane_u8(left + base_y_c[14], a1_y1, 6);
-          a1_y1 = vld1_lane_u8(left + base_y_c[15], a1_y1, 7);
+          a1_y0 = load_u8_gather_s16_x8(left, base_y_c256.val[0]);
+          a1_y1 = load_u8_gather_s16_x8(left, base_y_c256.val[1]);
 #endif  // AOM_ARCH_AARCH64
         }
 

@@ -1228,4 +1228,22 @@ static INLINE void store_unaligned_u16_4x2(uint16_t *dst, uint32_t dst_stride,
   store_unaligned_u16_4x1(dst, src, 1);
 }
 
+static INLINE uint8x8_t load_u8_gather_s16_x8(const uint8_t *src,
+                                              int16x8_t indices) {
+  // Recent Clang and GCC versions correctly identify that this zero-broadcast
+  // is redundant. Alternatively we could load and broadcast the zeroth element
+  // and then replace the other lanes, however this is slower than loading a
+  // single element without broadcast on some micro-architectures.
+  uint8x8_t ret = vdup_n_u8(0);
+  ret = vld1_lane_u8(src + vget_lane_s16(vget_low_s16(indices), 0), ret, 0);
+  ret = vld1_lane_u8(src + vget_lane_s16(vget_low_s16(indices), 1), ret, 1);
+  ret = vld1_lane_u8(src + vget_lane_s16(vget_low_s16(indices), 2), ret, 2);
+  ret = vld1_lane_u8(src + vget_lane_s16(vget_low_s16(indices), 3), ret, 3);
+  ret = vld1_lane_u8(src + vget_lane_s16(vget_high_s16(indices), 0), ret, 4);
+  ret = vld1_lane_u8(src + vget_lane_s16(vget_high_s16(indices), 1), ret, 5);
+  ret = vld1_lane_u8(src + vget_lane_s16(vget_high_s16(indices), 2), ret, 6);
+  ret = vld1_lane_u8(src + vget_lane_s16(vget_high_s16(indices), 3), ret, 7);
+  return ret;
+}
+
 #endif  // AOM_AOM_DSP_ARM_MEM_NEON_H_
