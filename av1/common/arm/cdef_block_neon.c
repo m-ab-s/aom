@@ -33,11 +33,13 @@ void cdef_copy_rect8_8bit_to_16bit_neon(uint16_t *dst, int dstride,
 
       w += 16;
     }
-    if (width - w == 8) {
+    if (width - w >= 8) {
       uint8x8_t row = vld1_u8(src_ptr + w);
       vst1q_u16(dst_ptr + w, vmovl_u8(row));
-    } else if (width - w == 4) {
-      for (int i = 0; i < 4; i++) {
+      w += 8;
+    }
+    if (width - w == 4) {
+      for (int i = w; i < w + 4; i++) {
         dst_ptr[i] = src_ptr[i];
       }
     }
@@ -61,9 +63,9 @@ void cdef_copy_rect8_16bit_to_16bit_neon(uint16_t *dst, int dstride,
 
       w += 8;
     }
-    if (width == 4) {
-      uint16x4_t row = vld1_u16(src_ptr);
-      vst1_u16(dst_ptr, row);
+    if (width - w == 4) {
+      uint16x4_t row = vld1_u16(src_ptr + w);
+      vst1_u16(dst_ptr + w, row);
     }
 
     src += sstride;
