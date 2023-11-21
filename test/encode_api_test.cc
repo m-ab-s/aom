@@ -303,6 +303,191 @@ TEST(EncodeAPI, LowBDEncoderHighBDImage) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+aom_image_t *CreateGrayImage(aom_img_fmt_t fmt, unsigned int w,
+                             unsigned int h) {
+  aom_image_t *const image = aom_img_alloc(nullptr, fmt, w, h, 1);
+  if (!image) return image;
+
+  for (unsigned int i = 0; i < image->d_h; ++i) {
+    memset(image->planes[0] + i * image->stride[0], 128, image->d_w);
+  }
+  const unsigned int uv_h = (image->d_h + 1) / 2;
+  const unsigned int uv_w = (image->d_w + 1) / 2;
+  for (unsigned int i = 0; i < uv_h; ++i) {
+    memset(image->planes[1] + i * image->stride[1], 128, uv_w);
+    memset(image->planes[2] + i * image->stride[2], 128, uv_w);
+  }
+  return image;
+}
+
+// Run this test to reproduce the bug in fuzz test: ASSERT: cpi->rec_sse !=
+// UINT64_MAX in av1_rc_bits_per_mb.
+TEST(EncodeAPI, Buganizer310766628) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+
+  struct Config {
+    unsigned int thread;
+    unsigned int width;
+    unsigned int height;
+    aom_rc_mode end_usage;
+  };
+
+  struct Config init_config = { 16, 759, 383, AOM_CBR };
+  const unsigned int usage = AOM_USAGE_REALTIME;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, usage), AOM_CODEC_OK);
+
+  cfg.g_threads = init_config.thread;
+  cfg.g_w = init_config.width;
+  cfg.g_h = init_config.height;
+  cfg.g_timebase.num = 1;
+  cfg.g_timebase.den = 1000 * 1000;  // microseconds
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = init_config.end_usage;
+  cfg.rc_min_quantizer = 2;
+  cfg.rc_max_quantizer = 58;
+
+  aom_codec_ctx_t enc;
+  const int speed = 7;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, speed), AOM_CODEC_OK);
+
+  const aom_enc_frame_flags_t flags = 0;
+  int frame_index = 0;
+
+  // Encode a frame.
+  aom_image_t *image = CreateGrayImage(AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h);
+  ASSERT_NE(image, nullptr);
+  ASSERT_EQ(aom_codec_encode(&enc, image, frame_index, 1, flags), AOM_CODEC_OK);
+  frame_index++;
+  const aom_codec_cx_pkt_t *pkt;
+  aom_codec_iter_t iter = nullptr;
+  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  }
+  aom_img_free(image);
+
+  struct Config encode_config = { 2, 759, 383, AOM_VBR };
+
+  cfg.g_threads = encode_config.thread;
+  cfg.g_w = encode_config.width;
+  cfg.g_h = encode_config.height;
+  cfg.rc_end_usage = encode_config.end_usage;
+
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK)
+      << aom_codec_error_detail(&enc);
+
+  // Encode a frame. This will trigger the assertion failure.
+  image = CreateGrayImage(AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h);
+  ASSERT_NE(image, nullptr);
+  ASSERT_EQ(aom_codec_encode(&enc, image, frame_index, 1, flags), AOM_CODEC_OK);
+  frame_index++;
+  iter = nullptr;
+  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  }
+  aom_img_free(image);
+
+  // Flush the encoder.
+  bool got_data;
+  do {
+    ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+    got_data = false;
+    iter = nullptr;
+    while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+      ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+      got_data = true;
+    }
+  } while (got_data);
+
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+// Run this test to reproduce the bug in fuzz test: Float-cast-overflow in
+// av1_rc_bits_per_mb.
+TEST(EncodeAPI, Buganizer310457427) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+
+  struct Config {
+    unsigned int thread;
+    unsigned int width;
+    unsigned int height;
+    aom_rc_mode end_usage;
+  };
+
+  struct Config init_config = { 12, 896, 1076, AOM_CBR };
+  const unsigned int usage = AOM_USAGE_REALTIME;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, usage), AOM_CODEC_OK);
+
+  cfg.g_threads = init_config.thread;
+  cfg.g_w = init_config.width;
+  cfg.g_h = init_config.height;
+  cfg.g_timebase.num = 1;
+  cfg.g_timebase.den = 1000 * 1000;  // microseconds
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = init_config.end_usage;
+  cfg.rc_min_quantizer = 2;
+  cfg.rc_max_quantizer = 58;
+
+  aom_codec_ctx_t enc;
+  const int speed = 7;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, speed), AOM_CODEC_OK);
+
+  struct Config encode_config = { 6, 609, 1076, AOM_VBR };
+  cfg.g_threads = encode_config.thread;
+  cfg.g_w = encode_config.width;
+  cfg.g_h = encode_config.height;
+  cfg.rc_end_usage = encode_config.end_usage;
+
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK)
+      << aom_codec_error_detail(&enc);
+
+  const aom_enc_frame_flags_t flags = 0;
+  int frame_index = 0;
+
+  // Encode a frame.
+  aom_image_t *image = CreateGrayImage(AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h);
+  ASSERT_NE(image, nullptr);
+  ASSERT_EQ(aom_codec_encode(&enc, image, frame_index, 1, flags), AOM_CODEC_OK);
+  frame_index++;
+  const aom_codec_cx_pkt_t *pkt;
+  aom_codec_iter_t iter = nullptr;
+  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  }
+  aom_img_free(image);
+
+  // Encode a frame. This will trigger the float-cast-overflow bug which was
+  // caused by division by zero.
+  image = CreateGrayImage(AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h);
+  ASSERT_NE(image, nullptr);
+  ASSERT_EQ(aom_codec_encode(&enc, image, frame_index, 1, flags), AOM_CODEC_OK);
+  frame_index++;
+  iter = nullptr;
+  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  }
+  aom_img_free(image);
+
+  // Flush the encoder.
+  bool got_data;
+  do {
+    ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+    got_data = false;
+    iter = nullptr;
+    while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+      ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+      got_data = true;
+    }
+  } while (got_data);
+
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 class EncodeAPIParameterized
     : public testing::TestWithParam<std::tuple<
           /*usage=*/unsigned int, /*speed=*/int, /*aq_mode=*/unsigned int>> {};
