@@ -26,7 +26,7 @@ void cdef_copy_rect8_8bit_to_16bit_neon(uint16_t *dst, int dstride,
     uint16_t *dst_ptr = dst;
 
     int w = 0;
-    while (w <= width - 16) {
+    while (width - w >= 16) {
       uint8x16_t row = vld1q_u8(src_ptr + w);
       uint8x16x2_t row_u16 = { { row, vdupq_n_u8(0) } };
       vst2q_u8((uint8_t *)(dst_ptr + w), row_u16);
