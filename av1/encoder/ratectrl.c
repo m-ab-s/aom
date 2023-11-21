@@ -3373,6 +3373,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
       svc->layer_context[layer].is_key_frame = 1;
     }
     rc->frame_number_encoded = 0;
+    cpi->ppi->rtc_ref.non_reference_frame = 0;
   } else {
     *frame_type = INTER_FRAME;
     gf_group->update_type[cpi->gf_frame_index] = LF_UPDATE;
