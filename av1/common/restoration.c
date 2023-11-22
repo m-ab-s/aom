@@ -90,7 +90,7 @@ void av1_free_restoration_struct(RestorationInfo *rst_info) {
 // Index 1 corresponds to r[1], e[1]
 int sgrproj_mtable[SGRPROJ_PARAMS][2];
 
-static void GenSgrprojVtable() {
+static void GenSgrprojVtable(void) {
   for (int i = 0; i < SGRPROJ_PARAMS; ++i) {
     const sgr_params_type *const params = &av1_sgr_params[i];
     for (int j = 0; j < 2; ++j) {
