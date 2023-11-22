@@ -109,7 +109,7 @@ static void GenSgrprojVtable() {
 }
 #endif
 
-void av1_loop_restoration_precal() {
+void av1_loop_restoration_precal(void) {
 #if 0
   GenSgrprojVtable();
 #endif
