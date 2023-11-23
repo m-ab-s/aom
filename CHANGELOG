@@ -1,4 +1,4 @@
-2023-11-21 v3.8.0
+2023-11-23 v3.8.0
   This release includes new codec interfaces, compression efficiency and
   perceptual improvements, speedup and memory optimizations and many bug
   fixes. This release is ABI compatible with the last release.
@@ -14,6 +14,18 @@
       dynamically. These code paths provide meaningful performance gains
       for standard bitdepth live-stream and VoD encoding: up to 10% and
       20% respectively, over the Armv8.0-A baseline build.
+
+  - Speedup and Memory Optimizations
+    * Good-quality, single-thread encoder speedups:
+      o 15% improvement for speed 5
+      o 12% improvement for speed 6
+
+  - Bug Fixes
+    * Fixes to improve libaom stability in case of memory allocation
+      failures.
+    * Fixes to SIMD functions (x86 AVX2/SSE2 and ARM Neon).
+    * b/310457427, b/310766628: Bug fixes to only use rec_sse in CBR
+      mode.
 
 2023-11-17 v3.7.1
   This release includes several bug fixes. This release is ABI
