@@ -692,7 +692,7 @@ void aom_lpf_vertical_14_neon(uint8_t *src, int stride, const uint8_t *blimit,
   row2 = vcombine_u8(p5p1, q2q6);
   row3 = vcombine_u8(p4p0, q3qy);
 
-  store_u8_8x16(src - 8, stride, row0, row1, row2, row3);
+  store_u8_16x4(src - 8, stride, row0, row1, row2, row3);
 }
 
 void aom_lpf_vertical_14_dual_neon(
