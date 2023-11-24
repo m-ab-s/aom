@@ -443,6 +443,15 @@ INSTANTIATE_TEST_SUITE_P(AVX2, SSETest,
                          Combine(ValuesIn(sse_avx2), Range(4, 129, 4)));
 #endif  // HAVE_AVX2
 
+#if HAVE_SVE
+#if CONFIG_AV1_HIGHBITDEPTH
+TestSSEFuncs sse_sve[] = { TestSSEFuncs(&aom_highbd_sse_c,
+                                        &aom_highbd_sse_sve) };
+INSTANTIATE_TEST_SUITE_P(SVE, SSETest,
+                         Combine(ValuesIn(sse_sve), Range(4, 129, 4)));
+#endif
+#endif  // HAVE_SVE
+
 //////////////////////////////////////////////////////////////////////////////
 // get_blk sum squares test functions
 //////////////////////////////////////////////////////////////////////////////

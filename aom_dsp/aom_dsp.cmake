@@ -329,6 +329,7 @@ if(CONFIG_AV1_ENCODER)
                 "${AOM_ROOT}/aom_dsp/arm/highbd_variance_neon_dotprod.c")
 
     list(APPEND AOM_DSP_ENCODER_INTRIN_SVE
+                "${AOM_ROOT}/aom_dsp/arm/highbd_sse_sve.c"
                 "${AOM_ROOT}/aom_dsp/arm/highbd_variance_sve.c")
   endif()
 
