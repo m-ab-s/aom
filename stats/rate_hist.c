@@ -69,7 +69,9 @@ struct rate_hist *init_rate_histogram(const aom_codec_enc_cfg_t *cfg,
 
 fail:
   fprintf(stderr,
-          "Warning: unable to allocate histogram buffers. Continuing...\n");
+          "Warning: Unable to allocate buffers required for "
+          "show_rate_histogram().\n"
+          "Continuing without rate histogram feature...\n");
   destroy_rate_histogram(hist);
   return NULL;
 }
