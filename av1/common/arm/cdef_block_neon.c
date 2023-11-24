@@ -712,7 +712,7 @@ void cdef_filter_8_0_neon(void *dest, int dstride, const uint16_t *in,
                           vreinterpretq_s16_u16(max));
 
       const uint8x8_t res_u8 = vqmovun_s16(res_s16);
-      store_unaligned_u8_4x2(dst8, dstride, res_u8);
+      store_u8x4_strided_x2(dst8, dstride, res_u8);
 
       in += 2 * CDEF_BSTRIDE;
       dst8 += 2 * dstride;
@@ -794,7 +794,7 @@ void cdef_filter_8_1_neon(void *dest, int dstride, const uint16_t *in,
       const int16x8_t res_s16 = vrsraq_n_s16(vreinterpretq_s16_u16(s), sum, 4);
 
       const uint8x8_t res_u8 = vqmovun_s16(res_s16);
-      store_unaligned_u8_4x2(dst8, dstride, res_u8);
+      store_u8x4_strided_x2(dst8, dstride, res_u8);
 
       in += 2 * CDEF_BSTRIDE;
       dst8 += 2 * dstride;
@@ -886,7 +886,7 @@ void cdef_filter_8_2_neon(void *dest, int dstride, const uint16_t *in,
       const int16x8_t res_s16 = vrsraq_n_s16(vreinterpretq_s16_u16(s), sum, 4);
 
       const uint8x8_t res_u8 = vqmovun_s16(res_s16);
-      store_unaligned_u8_4x2(dst8, dstride, res_u8);
+      store_u8x4_strided_x2(dst8, dstride, res_u8);
 
       in += 2 * CDEF_BSTRIDE;
       dst8 += 2 * dstride;
@@ -925,7 +925,7 @@ void cdef_filter_8_3_neon(void *dest, int dstride, const uint16_t *in,
     do {
       const uint16x8_t s = load_unaligned_u16_4x2(in, CDEF_BSTRIDE);
       const uint8x8_t res = vqmovn_u16(s);
-      store_unaligned_u8_4x2(dst8, dstride, res);
+      store_u8x4_strided_x2(dst8, dstride, res);
 
       in += 2 * CDEF_BSTRIDE;
       dst8 += 2 * dstride;
@@ -1139,7 +1139,7 @@ void cdef_filter_16_0_neon(void *dest, int dstride, const uint16_t *in,
       res = vminq_s16(vmaxq_s16(res, vreinterpretq_s16_u16(min)),
                       vreinterpretq_s16_u16(max));
 
-      store_unaligned_u16_4x2(dst16, dstride, vreinterpretq_u16_s16(res));
+      store_u16x4_strided_x2(dst16, dstride, vreinterpretq_u16_s16(res));
 
       in += 2 * CDEF_BSTRIDE;
       dst16 += 2 * dstride;
@@ -1218,7 +1218,7 @@ void cdef_filter_16_1_neon(void *dest, int dstride, const uint16_t *in,
           vaddq_s16(sum, vreinterpretq_s16_u16(vcltq_s16(sum, vdupq_n_s16(0))));
       const int16x8_t res = vrsraq_n_s16(vreinterpretq_s16_u16(s), sum, 4);
 
-      store_unaligned_u16_4x2(dst16, dstride, vreinterpretq_u16_s16(res));
+      store_u16x4_strided_x2(dst16, dstride, vreinterpretq_u16_s16(res));
 
       in += 2 * CDEF_BSTRIDE;
       dst16 += 2 * dstride;
@@ -1308,7 +1308,7 @@ void cdef_filter_16_2_neon(void *dest, int dstride, const uint16_t *in,
           vaddq_s16(sum, vreinterpretq_s16_u16(vcltq_s16(sum, vdupq_n_s16(0))));
       const int16x8_t res = vrsraq_n_s16(vreinterpretq_s16_u16(s), sum, 4);
 
-      store_unaligned_u16_4x2(dst16, dstride, vreinterpretq_u16_s16(res));
+      store_u16x4_strided_x2(dst16, dstride, vreinterpretq_u16_s16(res));
 
       in += 2 * CDEF_BSTRIDE;
       dst16 += 2 * dstride;
@@ -1345,7 +1345,7 @@ void cdef_filter_16_3_neon(void *dest, int dstride, const uint16_t *in,
     int h = block_height;
     do {
       const uint16x8_t s = load_unaligned_u16_4x2(in, CDEF_BSTRIDE);
-      store_unaligned_u16_4x2(dst16, dstride, s);
+      store_u16x4_strided_x2(dst16, dstride, s);
 
       in += 2 * CDEF_BSTRIDE;
       dst16 += 2 * dstride;
