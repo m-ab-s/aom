@@ -44,7 +44,7 @@ DECLARE_ALIGNED(16, static const uint8_t, dot_prod_merge_block_tbl[48]) = {
   3, 16, 17, 18, 7, 20, 21, 22, 11, 24, 25, 26, 15, 28, 29, 30
 };
 
-static INLINE int16x4_t convolve8_4_usdot(uint8x16_t samples,
+static INLINE int16x4_t convolve8_4_usdot(const uint8x16_t samples,
                                           const int8x8_t filter,
                                           const uint8x16x2_t permute_tbl) {
   uint8x16_t permuted_samples[2];
@@ -56,7 +56,6 @@ static INLINE int16x4_t convolve8_4_usdot(uint8x16_t samples,
   /* { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 } */
   permuted_samples[1] = vqtbl1q_u8(samples, permute_tbl.val[1]);
 
-  /* Accumulate dot product into 'correction' to account for range clamp. */
   sum = vusdotq_lane_s32(vdupq_n_s32(0), permuted_samples[0], filter, 0);
   sum = vusdotq_lane_s32(sum, permuted_samples[1], filter, 1);
 
@@ -64,7 +63,7 @@ static INLINE int16x4_t convolve8_4_usdot(uint8x16_t samples,
   return vqmovn_s32(sum);
 }
 
-static INLINE uint8x8_t convolve8_8_usdot(uint8x16_t samples,
+static INLINE uint8x8_t convolve8_8_usdot(const uint8x16_t samples,
                                           const int8x8_t filter,
                                           const uint8x16x3_t permute_tbl) {
   uint8x16_t permuted_samples[3];
