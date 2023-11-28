@@ -2082,7 +2082,13 @@ void av1_tpl_row_mt_sync_write(AV1TplRowMultiThreadSync *tpl_row_mt_sync, int r,
   if (sig) {
     pthread_mutex_lock(&tpl_row_mt_sync->mutex_[r]);
 
-    tpl_row_mt_sync->num_finished_cols[r] = cur;
+    // When a thread encounters an error, num_finished_cols[r] is set to maximum
+    // column number. In this case, the AOMMAX operation here ensures that
+    // num_finished_cols[r] is not overwritten with a smaller value thus
+    // preventing the infinite waiting of threads in the relevant sync_read()
+    // function.
+    tpl_row_mt_sync->num_finished_cols[r] =
+        AOMMAX(tpl_row_mt_sync->num_finished_cols[r], cur);
 
     pthread_cond_signal(&tpl_row_mt_sync->cond_[r]);
     pthread_mutex_unlock(&tpl_row_mt_sync->mutex_[r]);
