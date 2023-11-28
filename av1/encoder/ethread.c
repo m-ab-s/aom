@@ -273,8 +273,6 @@ static void row_mt_mem_alloc(AV1_COMP *cpi, int max_rows, int max_cols,
   enc_row_mt->allocated_rows = max_rows;
   enc_row_mt->allocated_cols = max_cols - 1;
   enc_row_mt->allocated_sb_rows = sb_rows;
-  enc_row_mt->row_mt_exit = false;
-  enc_row_mt->firstpass_mt_exit = false;
 }
 
 void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
@@ -904,7 +902,6 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
                       aom_malloc(sizeof(*(tpl_row_mt->mutex_))));
       if (tpl_row_mt->mutex_) pthread_mutex_init(tpl_row_mt->mutex_, NULL);
     }
-    tpl_row_mt->tpl_mt_exit = false;
 
 #if !CONFIG_REALTIME_ONLY
     if (is_restoration_used(cm)) {
@@ -1924,6 +1921,7 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
          sizeof(*thread_id_to_tile_id) * MAX_NUM_THREADS);
   memset(enc_row_mt->num_tile_cols_done, 0,
          sizeof(*enc_row_mt->num_tile_cols_done) * sb_rows_in_frame);
+  enc_row_mt->row_mt_exit = false;
 
   for (int tile_row = 0; tile_row < tile_rows; tile_row++) {
     for (int tile_col = 0; tile_col < tile_cols; tile_col++) {
@@ -2002,6 +2000,7 @@ void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi) {
 
   memset(thread_id_to_tile_id, -1,
          sizeof(*thread_id_to_tile_id) * MAX_NUM_THREADS);
+  enc_row_mt->firstpass_mt_exit = false;
 
   for (int tile_row = 0; tile_row < tile_rows; tile_row++) {
     for (int tile_col = 0; tile_col < tile_cols; tile_col++) {
@@ -2300,6 +2299,7 @@ void av1_mc_flow_dispenser_mt(AV1_COMP *cpi) {
     av1_tpl_alloc(tpl_sync, cm, mb_rows);
   }
   tpl_sync->num_threads_working = num_workers;
+  mt_info->tpl_row_mt.tpl_mt_exit = false;
 
   // Initialize cur_mb_col to -1 for all MB rows.
   memset(tpl_sync->num_finished_cols, -1,
@@ -3097,6 +3097,7 @@ static void prepare_pack_bs_workers(AV1_COMP *const cpi,
   AV1EncPackBSSync *const pack_bs_sync = &mt_info->pack_bs_sync;
   const uint16_t num_tiles = cm->tiles.rows * cm->tiles.cols;
   pack_bs_sync->next_job_idx = 0;
+  pack_bs_sync->pack_bs_mt_exit = false;
 
   PackBSTileOrder *const pack_bs_tile_order = pack_bs_sync->pack_bs_tile_order;
   // Reset tile order data of pack bitstream
@@ -3232,6 +3233,7 @@ static AOM_INLINE void cdef_reset_job_info(AV1CdefSync *cdef_sync) {
   cdef_sync->end_of_frame = 0;
   cdef_sync->fbr = 0;
   cdef_sync->fbc = 0;
+  cdef_sync->cdef_mt_exit = false;
 }
 
 // Checks if a job is available. If job is available,

@@ -269,6 +269,7 @@ static AOM_INLINE void loop_filter_frame_mt_init(
     av1_loop_filter_dealloc(lf_sync);
     av1_loop_filter_alloc(lf_sync, cm, sb_rows, cm->width, num_workers);
   }
+  lf_sync->lf_mt_exit = false;
 
   // Initialize cur_sb_col to -1 for all SB rows.
   for (int i = 0; i < MAX_MB_PLANE; i++) {
