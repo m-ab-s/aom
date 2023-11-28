@@ -99,10 +99,14 @@ static INLINE void free_cdef_row_sync(AV1CdefRowSync **cdef_row_mt,
   if (*cdef_row_mt == NULL) return;
 #if CONFIG_MULTITHREAD
   for (int row_idx = 0; row_idx < num_mi_rows; row_idx++) {
-    pthread_mutex_destroy((*cdef_row_mt)[row_idx].row_mutex_);
-    pthread_cond_destroy((*cdef_row_mt)[row_idx].row_cond_);
-    aom_free((*cdef_row_mt)[row_idx].row_mutex_);
-    aom_free((*cdef_row_mt)[row_idx].row_cond_);
+    if ((*cdef_row_mt)[row_idx].row_mutex_ != NULL) {
+      pthread_mutex_destroy((*cdef_row_mt)[row_idx].row_mutex_);
+      aom_free((*cdef_row_mt)[row_idx].row_mutex_);
+    }
+    if ((*cdef_row_mt)[row_idx].row_cond_ != NULL) {
+      pthread_cond_destroy((*cdef_row_mt)[row_idx].row_cond_);
+      aom_free((*cdef_row_mt)[row_idx].row_cond_);
+    }
   }
 #else
   (void)num_mi_rows;
@@ -167,7 +171,7 @@ static INLINE void alloc_cdef_row_sync(AV1_COMMON *const cm,
   if (*cdef_row_mt != NULL) return;
 
   CHECK_MEM_ERROR(cm, *cdef_row_mt,
-                  aom_malloc(sizeof(**cdef_row_mt) * num_mi_rows));
+                  aom_calloc(num_mi_rows, sizeof(**cdef_row_mt)));
 #if CONFIG_MULTITHREAD
   for (int row_idx = 0; row_idx < num_mi_rows; row_idx++) {
     CHECK_MEM_ERROR(cm, (*cdef_row_mt)[row_idx].row_mutex_,
@@ -177,8 +181,6 @@ static INLINE void alloc_cdef_row_sync(AV1_COMMON *const cm,
     CHECK_MEM_ERROR(cm, (*cdef_row_mt)[row_idx].row_cond_,
                     aom_malloc(sizeof(*(*cdef_row_mt)[row_idx].row_cond_)));
     pthread_cond_init((*cdef_row_mt)[row_idx].row_cond_, NULL);
-
-    (*cdef_row_mt)[row_idx].is_row_done = 0;
   }
 #endif  // CONFIG_MULTITHREAD
 }
