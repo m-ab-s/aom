@@ -1584,8 +1584,8 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     }
     sf->rt_sf.partition_direct_merging = 0;
     sf->hl_sf.accurate_bit_estimate = 0;
-    // This feature is for nonrd_pickmode and  non-svc for now.
-    if (sf->rt_sf.use_nonrd_pick_mode && !cpi->ppi->use_svc)
+    // This feature is for nonrd_pickmode.
+    if (sf->rt_sf.use_nonrd_pick_mode)
       sf->rt_sf.estimate_motion_for_var_based_partition = 1;
     else
       sf->rt_sf.estimate_motion_for_var_based_partition = 0;
