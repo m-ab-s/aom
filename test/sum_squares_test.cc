@@ -604,6 +604,14 @@ INSTANTIATE_TEST_SUITE_P(NEON, SSE_Sum_Test,
                                  ValuesIn(kValidBlockSize)));
 #endif  // HAVE_NEON
 
+#if HAVE_SVE
+TestSSE_SumFuncs sse_sum_sve[] = { TestSSE_SumFuncs(&aom_get_blk_sse_sum_c,
+                                                    &aom_get_blk_sse_sum_sve) };
+INSTANTIATE_TEST_SUITE_P(SVE, SSE_Sum_Test,
+                         Combine(ValuesIn(sse_sum_sve),
+                                 ValuesIn(kValidBlockSize)));
+#endif  // HAVE_SVE
+
 //////////////////////////////////////////////////////////////////////////////
 // 2D Variance test functions
 //////////////////////////////////////////////////////////////////////////////
