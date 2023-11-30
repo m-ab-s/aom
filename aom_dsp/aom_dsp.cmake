@@ -292,6 +292,8 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/arm/sum_squares_neon_dotprod.c"
               "${AOM_ROOT}/aom_dsp/arm/variance_neon_dotprod.c")
 
+  list(APPEND AOM_DSP_ENCODER_INTRIN_SVE "${AOM_ROOT}/aom_dsp/arm/avg_sve.c")
+
   if(CONFIG_AV1_HIGHBITDEPTH)
     list(APPEND AOM_DSP_ENCODER_ASM_SSE2
                 "${AOM_ROOT}/aom_dsp/x86/highbd_sad4d_sse2.asm"
