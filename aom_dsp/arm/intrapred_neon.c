@@ -2339,6 +2339,26 @@ static void dr_prediction_z3_64x16_neon(uint8_t *dst, ptrdiff_t stride,
   }
 }
 
+typedef void (*dr_prediction_z3_fn)(uint8_t *dst, ptrdiff_t stride,
+                                    const uint8_t *left, int upsample_left,
+                                    int dy);
+
+static dr_prediction_z3_fn dr_prediction_z3_arr[7][7] = {
+  { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+  { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+  { NULL, NULL, dr_prediction_z3_4x4_neon, dr_prediction_z3_4x8_neon,
+    dr_prediction_z3_4x16_neon, NULL, NULL },
+  { NULL, NULL, dr_prediction_z3_8x4_neon, dr_prediction_z3_8x8_neon,
+    dr_prediction_z3_8x16_neon, dr_prediction_z3_8x32_neon, NULL },
+  { NULL, NULL, dr_prediction_z3_16x4_neon, dr_prediction_z3_16x8_neon,
+    dr_prediction_z3_16x16_neon, dr_prediction_z3_16x32_neon,
+    dr_prediction_z3_16x64_neon },
+  { NULL, NULL, NULL, dr_prediction_z3_32x8_neon, dr_prediction_z3_32x16_neon,
+    dr_prediction_z3_32x32_neon, dr_prediction_z3_32x64_neon },
+  { NULL, NULL, NULL, NULL, dr_prediction_z3_64x16_neon,
+    dr_prediction_z3_64x32_neon, dr_prediction_z3_64x64_neon },
+};
+
 void av1_dr_prediction_z3_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
                                const uint8_t *above, const uint8_t *left,
                                int upsample_left, int dx, int dy) {
@@ -2347,85 +2367,9 @@ void av1_dr_prediction_z3_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
   assert(dx == 1);
   assert(dy > 0);
 
-  if (bw == bh) {
-    switch (bw) {
-      case 4:
-        dr_prediction_z3_4x4_neon(dst, stride, left, upsample_left, dy);
-        break;
-      case 8:
-        dr_prediction_z3_8x8_neon(dst, stride, left, upsample_left, dy);
-        break;
-      case 16:
-        dr_prediction_z3_16x16_neon(dst, stride, left, upsample_left, dy);
-        break;
-      case 32:
-        dr_prediction_z3_32x32_neon(dst, stride, left, upsample_left, dy);
-        break;
-      case 64:
-        dr_prediction_z3_64x64_neon(dst, stride, left, upsample_left, dy);
-        break;
-    }
-  } else {
-    if (bw < bh) {
-      if (bw + bw == bh) {
-        switch (bw) {
-          case 4:
-            dr_prediction_z3_4x8_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 8:
-            dr_prediction_z3_8x16_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 16:
-            dr_prediction_z3_16x32_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 32:
-            dr_prediction_z3_32x64_neon(dst, stride, left, upsample_left, dy);
-            break;
-        }
-      } else {
-        switch (bw) {
-          case 4:
-            dr_prediction_z3_4x16_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 8:
-            dr_prediction_z3_8x32_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 16:
-            dr_prediction_z3_16x64_neon(dst, stride, left, upsample_left, dy);
-            break;
-        }
-      }
-    } else {
-      if (bh + bh == bw) {
-        switch (bh) {
-          case 4:
-            dr_prediction_z3_8x4_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 8:
-            dr_prediction_z3_16x8_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 16:
-            dr_prediction_z3_32x16_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 32:
-            dr_prediction_z3_64x32_neon(dst, stride, left, upsample_left, dy);
-            break;
-        }
-      } else {
-        switch (bh) {
-          case 4:
-            dr_prediction_z3_16x4_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 8:
-            dr_prediction_z3_32x8_neon(dst, stride, left, upsample_left, dy);
-            break;
-          case 16:
-            dr_prediction_z3_64x16_neon(dst, stride, left, upsample_left, dy);
-            break;
-        }
-      }
-    }
-  }
+  dr_prediction_z3_fn f = dr_prediction_z3_arr[get_msb(bw)][get_msb(bh)];
+  assert(f != NULL);
+  f(dst, stride, left, upsample_left, dy);
 }
 
 // -----------------------------------------------------------------------------
