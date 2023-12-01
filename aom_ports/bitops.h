@@ -75,12 +75,30 @@ static INLINE int get_msb(unsigned int n) {
     ((__GNUC__ == 3 && __GNUC_MINOR__ >= 4) || __GNUC__ >= 4)
 static INLINE int aom_clzll(uint64_t n) { return __builtin_clzll(n); }
 #elif defined(USE_MSC_INTRINSICS)
+#if defined(_M_X64) || defined(_M_ARM64)
 #pragma intrinsic(_BitScanReverse64)
+#endif
 
 static INLINE int aom_clzll(uint64_t n) {
-  int res;
-  _BitScanReverse64(&res, n);
-  return res;
+  assert(n != 0);
+  unsigned long first_set_bit;  // NOLINT(runtime/int)
+#if defined(_M_X64) || defined(_M_ARM64)
+  const unsigned char bit_set =
+      _BitScanReverse64(&first_set_bit, (unsigned __int64)n);
+#else  // !(defined(_M_X64) || defined(_M_ARM64))
+  const unsigned long n_hi = (unsigned long)(n >> 32);  // NOLINT(runtime/int)
+  if (n_hi != 0) {
+    const unsigned char bit_set = _BitScanReverse(&first_set_bit, n_hi);
+    assert(bit_set != 0);
+    (void)bit_set;
+    return 31 ^ (int)first_set_bit;
+  }
+  const unsigned char bit_set =
+      _BitScanReverse(&first_set_bit, (unsigned long)n);  // NOLINT(runtime/int)
+#endif
+  assert(bit_set != 0);
+  (void)bit_set;
+  return 63 ^ (int)first_set_bit;
 }
 #undef USE_MSC_INTRINSICS
 #else
