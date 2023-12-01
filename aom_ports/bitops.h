@@ -19,7 +19,7 @@
 #include "config/aom_config.h"
 
 #ifdef _MSC_VER
-#if defined(_M_X64) || defined(_M_IX86)
+#if defined(_M_X64) || defined(_M_IX86) || defined(_M_ARM64) || defined(_M_ARM)
 #include <intrin.h>
 #define USE_MSC_INTRINSICS
 #endif
