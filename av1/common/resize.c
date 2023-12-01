@@ -1247,9 +1247,11 @@ void av1_resize_and_extend_frame_c(const YV12_BUFFER_CONFIG *src,
     uint8_t *dst_buffer = dst->buffers[i];
     const int dst_stride = dst->strides[is_uv];
     for (int y = 0; y < dst_h; y += 16) {
-      const int y_q4 = y * 16 * src_h / dst_h + phase_scaler;
+      const int y_q4 =
+          src_h == dst_h ? 0 : y * 16 * src_h / dst_h + phase_scaler;
       for (int x = 0; x < dst_w; x += 16) {
-        const int x_q4 = x * 16 * src_w / dst_w + phase_scaler;
+        const int x_q4 =
+            src_w == dst_w ? 0 : x * 16 * src_w / dst_w + phase_scaler;
         const uint8_t *src_ptr =
             src_buffer + y * src_h / dst_h * src_stride + x * src_w / dst_w;
         uint8_t *dst_ptr = dst_buffer + y * dst_stride + x;
