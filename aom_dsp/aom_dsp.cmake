@@ -293,7 +293,8 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/arm/variance_neon_dotprod.c")
 
   list(APPEND AOM_DSP_ENCODER_INTRIN_SVE "${AOM_ROOT}/aom_dsp/arm/avg_sve.c"
-              "${AOM_ROOT}/aom_dsp/arm/blk_sse_sum_sve.c")
+              "${AOM_ROOT}/aom_dsp/arm/blk_sse_sum_sve.c"
+              "${AOM_ROOT}/aom_dsp/arm/sum_squares_sve.c")
 
   if(CONFIG_AV1_HIGHBITDEPTH)
     list(APPEND AOM_DSP_ENCODER_ASM_SSE2
