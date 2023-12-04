@@ -2504,8 +2504,8 @@ static void lowbd_fwd_txfm2d_16x64_neon(const int16_t *input, int32_t *output,
   }
 }
 
-static void fdct32_new_neon(const int32x4_t *input, int32x4_t *output,
-                            int cos_bit) {
+static void fdct32_neon(const int32x4_t *input, int32x4_t *output,
+                        int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
 
   const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
@@ -2726,8 +2726,8 @@ static void fdct32_new_neon(const int32x4_t *input, int32x4_t *output,
   output[31] = buf0[31];
 }
 
-static void fdct64_new_neon(const int32x4_t *input, int32x4_t *output,
-                            int cos_bit) {
+static void fdct64_neon(const int32x4_t *input, int32x4_t *output,
+                        int cos_bit) {
   const int16_t *cospi = cospi_arr_q13(cos_bit);
 
   const int16x8_t cospi32_16 = vld1q_s16(&cospi[4 * 0]);
@@ -2981,8 +2981,8 @@ static void lowbd_fwd_txfm2d_64x64_neon(const int16_t *input, int32_t *output,
       bufA[j] = vmovl_s16(vget_low_s16(buf[j]));
       bufB[j] = vmovl_s16(vget_high_s16(buf[j]));
     }
-    fdct64_new_neon(bufA, bufA, 10);
-    fdct64_new_neon(bufB, bufB, 10);
+    fdct64_neon(bufA, bufA, 10);
+    fdct64_neon(bufB, bufB, 10);
     shift_right_2_round_s32_x4(bufA, bufA, 32);
     shift_right_2_round_s32_x4(bufB, bufB, 32);
     store_buffer_interleaved_s32_x8(output + i * 8, bufA, bufB, 32, 32);
@@ -3011,8 +3011,8 @@ static void lowbd_fwd_txfm2d_64x32_neon(const int16_t *input, int32_t *output,
       bufA[j] = vmovl_s16(vget_low_s16(buf[j]));
       bufB[j] = vmovl_s16(vget_high_s16(buf[j]));
     }
-    fdct64_new_neon(bufA, bufA, 11);
-    fdct64_new_neon(bufB, bufB, 11);
+    fdct64_neon(bufA, bufA, 11);
+    fdct64_neon(bufB, bufB, 11);
     shift_right_2_round_s32_x4(bufA, bufA, 32);
     shift_right_2_round_s32_x4(bufB, bufB, 32);
     round_shift_sqrt2_s32_s32_4xn_neon(bufA, bufA, 32);
@@ -3046,8 +3046,8 @@ static void lowbd_fwd_txfm2d_32x64_neon(const int16_t *input, int32_t *output,
       bufA[j] = vmovl_s16(vget_low_s16(buf[j]));
       bufB[j] = vmovl_s16(vget_high_s16(buf[j]));
     }
-    fdct32_new_neon(bufA, bufA, 11);
-    fdct32_new_neon(bufB, bufB, 11);
+    fdct32_neon(bufA, bufA, 11);
+    fdct32_neon(bufB, bufB, 11);
     shift_right_2_round_s32_x4(bufA, bufA, 32);
     shift_right_2_round_s32_x4(bufB, bufB, 32);
     round_shift_sqrt2_s32_s32_4xn_neon(bufA, bufA, 32);
