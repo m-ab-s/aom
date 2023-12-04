@@ -1645,13 +1645,10 @@ static AOM_INLINE void fp_prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       thread_data->td = &cpi->td;
     } else {
       thread_data->td = thread_data->original_td;
-    }
-
-    if (thread_data->td != &cpi->td) {
       // Before encoding a frame, copy the thread data from cpi.
       thread_data->td->mb = cpi->td.mb;
-      av1_alloc_src_diff_buf(cm, &thread_data->td->mb);
     }
+    av1_alloc_src_diff_buf(cm, &thread_data->td->mb);
   }
 }
 #endif

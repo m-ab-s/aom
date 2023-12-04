@@ -1758,6 +1758,11 @@ void av1_dealloc_src_diff_buf(struct macroblock *mb, int num_planes) {
 
 void av1_alloc_src_diff_buf(const struct AV1Common *cm, struct macroblock *mb) {
   const int num_planes = av1_num_planes(cm);
+#ifndef NDEBUG
+  for (int plane = 0; plane < num_planes; ++plane) {
+    assert(!mb->plane[plane].src_diff);
+  }
+#endif
   for (int plane = 0; plane < num_planes; ++plane) {
     const int subsampling_xy =
         plane ? cm->seq_params->subsampling_x + cm->seq_params->subsampling_y
