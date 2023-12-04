@@ -119,86 +119,72 @@ static INLINE void warp_affine_horizontal(
     return;
   }
 
-  uint8x16_t in[15];
-  if (((ix4 - 7) < 0) || ((ix4 + 9) > width)) {
-    const int out_of_boundary_left = -(ix4 - 6);
-    const int out_of_boundary_right = (ix4 + 8) - width;
-
-    for (int k = 0; k < height_limit; ++k) {
-      const int iy = clamp_iy(iy4 + k - 7, height);
-      const uint8_t *src = ref + iy * stride + ix4 - 7;
-      uint8x16_t src_1 = vld1q_u8(src);
-
-      if (out_of_boundary_left >= 0) {
-        int limit = out_of_boundary_left + 1;
-        uint8x16_t cmp_vec = vdupq_n_u8(out_of_boundary_left);
-        uint8x16_t vec_dup = vdupq_n_u8(*(src + limit));
-        uint8x16_t mask_val = vcleq_u8(indx_vec, cmp_vec);
-        src_1 = vbslq_u8(mask_val, vec_dup, src_1);
-      }
-      if (out_of_boundary_right >= 0) {
-        int limit = 15 - (out_of_boundary_right + 1);
-        uint8x16_t cmp_vec = vdupq_n_u8(15 - out_of_boundary_right);
-        uint8x16_t vec_dup = vdupq_n_u8(*(src + limit));
-        uint8x16_t mask_val = vcgeq_u8(indx_vec, cmp_vec);
-        src_1 = vbslq_u8(mask_val, vec_dup, src_1);
-      }
-      in[k] = src_1;
-    }
-  } else {
-    for (int k = 0; k < height_limit; ++k) {
-      const int iy = clamp_iy(iy4 + k - 7, height);
-      const uint8_t *src = ref + iy * stride + ix4 - 7;
-      in[k] = vld1q_u8(src);
-    }
-  }
+#define APPLY_HORIZONTAL_SHIFT(fn, ...)                                \
+  do {                                                                 \
+    if (((ix4 - 7) < 0) || ((ix4 + 9) > width)) {                      \
+      const int out_of_boundary_left = -(ix4 - 6);                     \
+      const int out_of_boundary_right = (ix4 + 8) - width;             \
+      for (int k = 0; k < height_limit; ++k) {                         \
+        const int iy = clamp_iy(iy4 + k - 7, height);                  \
+        const uint8_t *src = ref + iy * stride + ix4 - 7;              \
+        uint8x16_t src_1 = vld1q_u8(src);                              \
+                                                                       \
+        if (out_of_boundary_left >= 0) {                               \
+          int limit = out_of_boundary_left + 1;                        \
+          uint8x16_t cmp_vec = vdupq_n_u8(out_of_boundary_left);       \
+          uint8x16_t vec_dup = vdupq_n_u8(*(src + limit));             \
+          uint8x16_t mask_val = vcleq_u8(indx_vec, cmp_vec);           \
+          src_1 = vbslq_u8(mask_val, vec_dup, src_1);                  \
+        }                                                              \
+        if (out_of_boundary_right >= 0) {                              \
+          int limit = 15 - (out_of_boundary_right + 1);                \
+          uint8x16_t cmp_vec = vdupq_n_u8(15 - out_of_boundary_right); \
+          uint8x16_t vec_dup = vdupq_n_u8(*(src + limit));             \
+          uint8x16_t mask_val = vcgeq_u8(indx_vec, cmp_vec);           \
+          src_1 = vbslq_u8(mask_val, vec_dup, src_1);                  \
+        }                                                              \
+        tmp[k] = (fn)(src_1, __VA_ARGS__);                             \
+      }                                                                \
+    } else {                                                           \
+      for (int k = 0; k < height_limit; ++k) {                         \
+        const int iy = clamp_iy(iy4 + k - 7, height);                  \
+        const uint8_t *src = ref + iy * stride + ix4 - 7;              \
+        uint8x16_t src_1 = vld1q_u8(src);                              \
+        tmp[k] = (fn)(src_1, __VA_ARGS__);                             \
+      }                                                                \
+    }                                                                  \
+  } while (0)
 
   if (p_width == 4) {
     if (beta == 0) {
       if (alpha == 0) {
-        for (int k = 0; k < height_limit; ++k) {
-          tmp[k] = horizontal_filter_4x1_f1(in[k], sx4);
-        }
+        APPLY_HORIZONTAL_SHIFT(horizontal_filter_4x1_f1, sx4);
       } else {
-        for (int k = 0; k < height_limit; ++k) {
-          tmp[k] = horizontal_filter_4x1_f4(in[k], sx4, alpha);
-        }
+        APPLY_HORIZONTAL_SHIFT(horizontal_filter_4x1_f4, sx4, alpha);
       }
     } else {
       if (alpha == 0) {
-        for (int k = 0; k < height_limit; ++k) {
-          const int sx = sx4 + beta * (k - 3);
-          tmp[k] = horizontal_filter_4x1_f1(in[k], sx);
-        }
+        APPLY_HORIZONTAL_SHIFT(horizontal_filter_4x1_f1,
+                               (sx4 + beta * (k - 3)));
       } else {
-        for (int k = 0; k < height_limit; ++k) {
-          const int sx = sx4 + beta * (k - 3);
-          tmp[k] = horizontal_filter_4x1_f4(in[k], sx, alpha);
-        }
+        APPLY_HORIZONTAL_SHIFT(horizontal_filter_4x1_f4, (sx4 + beta * (k - 3)),
+                               alpha);
       }
     }
   } else {
     if (beta == 0) {
       if (alpha == 0) {
-        for (int k = 0; k < height_limit; ++k) {
-          tmp[k] = horizontal_filter_8x1_f1(in[k], sx4);
-        }
+        APPLY_HORIZONTAL_SHIFT(horizontal_filter_8x1_f1, sx4);
       } else {
-        for (int k = 0; k < height_limit; ++k) {
-          tmp[k] = horizontal_filter_8x1_f8(in[k], sx4, alpha);
-        }
+        APPLY_HORIZONTAL_SHIFT(horizontal_filter_8x1_f8, sx4, alpha);
       }
     } else {
       if (alpha == 0) {
-        for (int k = 0; k < height_limit; ++k) {
-          const int sx = sx4 + beta * (k - 3);
-          tmp[k] = horizontal_filter_8x1_f1(in[k], sx);
-        }
+        APPLY_HORIZONTAL_SHIFT(horizontal_filter_8x1_f1,
+                               (sx4 + beta * (k - 3)));
       } else {
-        for (int k = 0; k < height_limit; ++k) {
-          const int sx = sx4 + beta * (k - 3);
-          tmp[k] = horizontal_filter_8x1_f8(in[k], sx, alpha);
-        }
+        APPLY_HORIZONTAL_SHIFT(horizontal_filter_8x1_f8, (sx4 + beta * (k - 3)),
+                               alpha);
       }
     }
   }
