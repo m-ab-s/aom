@@ -3536,12 +3536,13 @@ void av1_mark_flashes(FIRSTPASS_STATS *first_stats,
 }
 
 // Smooth-out the noise variance so it is more stable
+// Returns 0 on success, -1 on memory allocation failure.
 // TODO(bohanli): Use a better low-pass filter than averaging
-static void smooth_filter_noise(FIRSTPASS_STATS *first_stats,
-                                FIRSTPASS_STATS *last_stats) {
+static int smooth_filter_noise(FIRSTPASS_STATS *first_stats,
+                               FIRSTPASS_STATS *last_stats) {
   int len = (int)(last_stats - first_stats);
   double *smooth_noise = aom_malloc(len * sizeof(*smooth_noise));
-  if (!smooth_noise) return;
+  if (!smooth_noise) return -1;
 
   for (int i = 0; i < len; i++) {
     double total_noise = 0;
@@ -3566,11 +3567,13 @@ static void smooth_filter_noise(FIRSTPASS_STATS *first_stats,
   }
 
   aom_free(smooth_noise);
+  return 0;
 }
 
 // Estimate the noise variance of each frame from the first pass stats
 void av1_estimate_noise(FIRSTPASS_STATS *first_stats,
-                        FIRSTPASS_STATS *last_stats) {
+                        FIRSTPASS_STATS *last_stats,
+                        struct aom_internal_error_info *error_info) {
   FIRSTPASS_STATS *this_stats, *next_stats;
   double C1, C2, C3, noise;
   for (this_stats = first_stats + 2; this_stats < last_stats; this_stats++) {
@@ -3656,7 +3659,10 @@ void av1_estimate_noise(FIRSTPASS_STATS *first_stats,
     this_stats->noise_var = (first_stats + 2)->noise_var;
   }
 
-  smooth_filter_noise(first_stats, last_stats);
+  if (smooth_filter_noise(first_stats, last_stats) == -1) {
+    aom_internal_error(error_info, AOM_CODEC_MEM_ERROR,
+                       "Error allocating buffers in smooth_filter_noise()");
+  }
 }
 
 // Estimate correlation coefficient of each frame with its previous frame.
@@ -3823,7 +3829,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
         av1_mark_flashes(twopass->stats_buf_ctx->stats_in_start,
                          twopass->stats_buf_ctx->stats_in_end);
         av1_estimate_noise(twopass->stats_buf_ctx->stats_in_start,
-                           twopass->stats_buf_ctx->stats_in_end);
+                           twopass->stats_buf_ctx->stats_in_end,
+                           cpi->common.error);
         av1_estimate_coeff(twopass->stats_buf_ctx->stats_in_start,
                            twopass->stats_buf_ctx->stats_in_end);
         ret = identify_regions(cpi->twopass_frame.stats_in, rest_frames,
@@ -3997,7 +4004,7 @@ void av1_init_second_pass(AV1_COMP *cpi) {
   av1_mark_flashes(twopass->stats_buf_ctx->stats_in_start,
                    twopass->stats_buf_ctx->stats_in_end);
   av1_estimate_noise(twopass->stats_buf_ctx->stats_in_start,
-                     twopass->stats_buf_ctx->stats_in_end);
+                     twopass->stats_buf_ctx->stats_in_end, cpi->common.error);
   av1_estimate_coeff(twopass->stats_buf_ctx->stats_in_start,
                      twopass->stats_buf_ctx->stats_in_end);
 
