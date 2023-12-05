@@ -1162,13 +1162,13 @@ static INLINE uint8x8_t load_u8_gather_s16_x8(const uint8_t *src,
 }
 
 // The `lane` parameter here must be an immediate.
-#define store_u8_2x1(dst, src, lane)                            \
+#define store_u8_2x1_lane(dst, src, lane)                       \
   do {                                                          \
     uint16_t a = vget_lane_u16(vreinterpret_u16_u8(src), lane); \
     memcpy(dst, &a, 2);                                         \
   } while (0)
 
-#define store_u8_4x1(dst, src, lane)                            \
+#define store_u8_4x1_lane(dst, src, lane)                       \
   do {                                                          \
     uint32_t a = vget_lane_u32(vreinterpret_u32_u8(src), lane); \
     memcpy(dst, &a, 4);                                         \
@@ -1186,32 +1186,42 @@ static INLINE uint8x8_t load_u8_gather_s16_x8(const uint8_t *src,
     memcpy(dst, &a, 8);                                            \
   } while (0)
 
+// Store the low 16-bits from a single vector.
+static INLINE void store_u8_2x1(uint8_t *dst, const uint8x8_t src) {
+  store_u8_2x1_lane(dst, src, 0);
+}
+
+// Store the low 32-bits from a single vector.
+static INLINE void store_u8_4x1(uint8_t *dst, const uint8x8_t src) {
+  store_u8_4x1_lane(dst, src, 0);
+}
+
 // Store two blocks of 16-bits from a single vector.
 static INLINE void store_u8x2_strided_x2(uint8_t *dst, uint32_t dst_stride,
                                          uint8x8_t src) {
-  store_u8_2x1(dst, src, 0);
+  store_u8_2x1_lane(dst, src, 0);
   dst += dst_stride;
-  store_u8_2x1(dst, src, 1);
+  store_u8_2x1_lane(dst, src, 1);
 }
 
 // Store two blocks of 32-bits from a single vector.
 static INLINE void store_u8x4_strided_x2(uint8_t *dst, ptrdiff_t stride,
                                          uint8x8_t src) {
-  store_u8_4x1(dst, src, 0);
+  store_u8_4x1_lane(dst, src, 0);
   dst += stride;
-  store_u8_4x1(dst, src, 1);
+  store_u8_4x1_lane(dst, src, 1);
 }
 
 // Store four blocks of 32-bits from a single vector.
 static INLINE void store_u8x4_strided_x4(uint8_t *dst, ptrdiff_t stride,
                                          uint8x16_t src) {
-  store_u8_4x1(dst, vget_low_u8(src), 0);
+  store_u8_4x1_lane(dst, vget_low_u8(src), 0);
   dst += stride;
-  store_u8_4x1(dst, vget_low_u8(src), 1);
+  store_u8_4x1_lane(dst, vget_low_u8(src), 1);
   dst += stride;
-  store_u8_4x1(dst, vget_high_u8(src), 0);
+  store_u8_4x1_lane(dst, vget_high_u8(src), 0);
   dst += stride;
-  store_u8_4x1(dst, vget_high_u8(src), 1);
+  store_u8_4x1_lane(dst, vget_high_u8(src), 1);
 }
 
 // Store the low 32-bits from a single vector.
@@ -1235,8 +1245,8 @@ static INLINE void store_u16x4_strided_x2(uint16_t *dst, uint32_t dst_stride,
   store_u16_4x1_lane(dst, src, 1);
 }
 
-// The store_u8_2x1 and store_u8_4x1 macros are needed elsewhere so don't
-// #undef them.
+#undef store_u8_2x1_lane
+#undef store_u8_4x1_lane
 #undef store_u16_2x1_lane
 #undef store_u16_4x1_lane
 

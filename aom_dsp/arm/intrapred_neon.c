@@ -35,7 +35,7 @@ static INLINE uint16x8_t dc_load_sum_4(const uint8_t *in) {
 static INLINE void dc_store_4xh(uint8_t *dst, ptrdiff_t stride, int h,
                                 uint8x8_t dc) {
   for (int i = 0; i < h; ++i) {
-    store_u8_4x1(dst + i * stride, dc, 0);
+    store_u8_4x1(dst + i * stride, dc);
   }
 }
 
@@ -580,7 +580,7 @@ DC_PREDICTOR_TOP(64, 32, 6, q)
 static INLINE void v_store_4xh(uint8_t *dst, ptrdiff_t stride, int h,
                                uint8x8_t d0) {
   for (int i = 0; i < h; ++i) {
-    store_u8_4x1(dst + i * stride, d0, 0);
+    store_u8_4x1(dst + i * stride, d0);
   }
 }
 
@@ -756,14 +756,14 @@ void aom_v_predictor_64x64_neon(uint8_t *dst, ptrdiff_t stride,
 // -----------------------------------------------------------------------------
 
 static INLINE void h_store_4x8(uint8_t *dst, ptrdiff_t stride, uint8x8_t d0) {
-  store_u8_4x1(dst + 0 * stride, vdup_lane_u8(d0, 0), 0);
-  store_u8_4x1(dst + 1 * stride, vdup_lane_u8(d0, 1), 0);
-  store_u8_4x1(dst + 2 * stride, vdup_lane_u8(d0, 2), 0);
-  store_u8_4x1(dst + 3 * stride, vdup_lane_u8(d0, 3), 0);
-  store_u8_4x1(dst + 4 * stride, vdup_lane_u8(d0, 4), 0);
-  store_u8_4x1(dst + 5 * stride, vdup_lane_u8(d0, 5), 0);
-  store_u8_4x1(dst + 6 * stride, vdup_lane_u8(d0, 6), 0);
-  store_u8_4x1(dst + 7 * stride, vdup_lane_u8(d0, 7), 0);
+  store_u8_4x1(dst + 0 * stride, vdup_lane_u8(d0, 0));
+  store_u8_4x1(dst + 1 * stride, vdup_lane_u8(d0, 1));
+  store_u8_4x1(dst + 2 * stride, vdup_lane_u8(d0, 2));
+  store_u8_4x1(dst + 3 * stride, vdup_lane_u8(d0, 3));
+  store_u8_4x1(dst + 4 * stride, vdup_lane_u8(d0, 4));
+  store_u8_4x1(dst + 5 * stride, vdup_lane_u8(d0, 5));
+  store_u8_4x1(dst + 6 * stride, vdup_lane_u8(d0, 6));
+  store_u8_4x1(dst + 7 * stride, vdup_lane_u8(d0, 7));
 }
 
 static INLINE void h_store_8x8(uint8_t *dst, ptrdiff_t stride, uint8x8_t d0) {
@@ -860,10 +860,10 @@ void aom_h_predictor_4x4_neon(uint8_t *dst, ptrdiff_t stride,
                               const uint8_t *above, const uint8_t *left) {
   const uint8x8_t d0 = load_u8_4x1(left);
   (void)above;
-  store_u8_4x1(dst + 0 * stride, vdup_lane_u8(d0, 0), 0);
-  store_u8_4x1(dst + 1 * stride, vdup_lane_u8(d0, 1), 0);
-  store_u8_4x1(dst + 2 * stride, vdup_lane_u8(d0, 2), 0);
-  store_u8_4x1(dst + 3 * stride, vdup_lane_u8(d0, 3), 0);
+  store_u8_4x1(dst + 0 * stride, vdup_lane_u8(d0, 0));
+  store_u8_4x1(dst + 1 * stride, vdup_lane_u8(d0, 1));
+  store_u8_4x1(dst + 2 * stride, vdup_lane_u8(d0, 2));
+  store_u8_4x1(dst + 3 * stride, vdup_lane_u8(d0, 3));
 }
 
 void aom_h_predictor_8x8_neon(uint8_t *dst, ptrdiff_t stride,
@@ -2973,7 +2973,7 @@ static INLINE void paeth_4or8_x_h_neon(uint8_t *dest, ptrdiff_t stride,
     result = vbsl_u8(left_or_top_mask, result, top_left);
 
     if (width == 4) {
-      store_u8_4x1(dest, result, 0);
+      store_u8_4x1(dest, result);
     } else {  // width == 8
       vst1_u8(dest, result);
     }

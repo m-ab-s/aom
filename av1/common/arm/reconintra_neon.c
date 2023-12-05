@@ -127,11 +127,10 @@ void av1_filter_intra_predictor_neon(uint8_t *dst, ptrdiff_t stride,
         uint8x8_t res =
             vqrshrun_n_s16(vreinterpretq_s16_u16(sum), FILTER_INTRA_SCALE_BITS);
 
-        store_u8_4x1(&buffer[r + 0][c], res, 0);
-        store_u8_4x1(&buffer[r + 1][c], res, 1);
+        // Store buffer[r + 0][c] and buffer[r + 1][c].
+        store_u8x4_strided_x2(&buffer[r][c], 33, res);
 
-        store_u8_4x1(dst + (r - 1) * stride + c - 1, res, 0);
-        store_u8_4x1(dst + (r + 0) * stride + c - 1, res, 1);
+        store_u8x4_strided_x2(dst + (r - 1) * stride + c - 1, stride, res);
 
         s0 = s4;
         s5 = vdup_lane_u8(res, 3);
