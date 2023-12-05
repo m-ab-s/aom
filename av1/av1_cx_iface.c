@@ -1507,7 +1507,17 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
   if (cfg->g_w != ctx->cfg.g_w || cfg->g_h != ctx->cfg.g_h) {
     if (cfg->g_lag_in_frames > 1 || cfg->g_pass != AOM_RC_ONE_PASS)
       ERROR("Cannot change width or height after initialization");
-    if (!valid_ref_frame_size(ctx->cfg.g_w, ctx->cfg.g_h, cfg->g_w, cfg->g_h) ||
+    // Note: function encoder_set_config() is allowed to be called multiple
+    // times. However, when the original frame width or height is less than two
+    // times of the new frame width or height, a forced key frame should be
+    // used. To make sure the correct detection of a forced key frame, we need
+    // to update the frame width and height only when the actual encoding is
+    // performed. cpi->last_coded_width and cpi->last_coded_height are used to
+    // track the actual coded frame size.
+    if ((ctx->ppi->cpi->last_coded_width && ctx->ppi->cpi->last_coded_height &&
+         !valid_ref_frame_size(ctx->ppi->cpi->last_coded_width,
+                               ctx->ppi->cpi->last_coded_height, cfg->g_w,
+                               cfg->g_h)) ||
         (initial_dimensions->width &&
          (int)cfg->g_w > initial_dimensions->width) ||
         (initial_dimensions->height &&
@@ -2938,6 +2948,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   // LAP context
   AV1_COMP *cpi_lap = ppi->cpi_lap;
   if (ppi->cpi == NULL) return AOM_CODEC_INVALID_PARAM;
+
+  ppi->cpi->last_coded_width = ppi->cpi->oxcf.frm_dim_cfg.width;
+  ppi->cpi->last_coded_height = ppi->cpi->oxcf.frm_dim_cfg.height;
 
   if (ppi->lap_enabled && cpi_lap == NULL &&
       ppi->cpi->oxcf.pass == AOM_RC_ONE_PASS)

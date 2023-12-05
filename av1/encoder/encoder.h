@@ -3183,6 +3183,18 @@ typedef struct AV1_COMP {
   int initial_mbs;
 
   /*!
+   * The width of the frame that is lastly encoded.
+   * It is updated in the function "encoder_encode()".
+   */
+  int last_coded_width;
+
+  /*!
+   * The height of the frame that is lastly encoded.
+   * It is updated in the function "encoder_encode()".
+   */
+  int last_coded_height;
+
+  /*!
    * Resize related parameters.
    */
   ResizePendingParams resize_pending_params;
