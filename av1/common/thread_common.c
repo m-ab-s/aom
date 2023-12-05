@@ -611,7 +611,8 @@ void av1_loop_restoration_alloc(AV1LrSync *lr_sync, AV1_COMMON *cm,
   }
 #endif  // CONFIG_MULTITHREAD
   CHECK_MEM_ERROR(cm, lr_sync->lrworkerdata,
-                  aom_malloc(num_workers * sizeof(*(lr_sync->lrworkerdata))));
+                  aom_calloc(num_workers, sizeof(*(lr_sync->lrworkerdata))));
+  lr_sync->num_workers = num_workers;
 
   for (int worker_idx = 0; worker_idx < num_workers; ++worker_idx) {
     if (worker_idx < num_workers - 1) {
@@ -625,8 +626,6 @@ void av1_loop_restoration_alloc(AV1LrSync *lr_sync, AV1_COMMON *cm,
       lr_sync->lrworkerdata[worker_idx].rlbs = cm->rlbs;
     }
   }
-
-  lr_sync->num_workers = num_workers;
 
   for (int j = 0; j < num_planes; j++) {
     CHECK_MEM_ERROR(
