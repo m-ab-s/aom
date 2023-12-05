@@ -902,4 +902,12 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(TestFuncVar2D(&aom_var_2d_u16_c, &aom_var_2d_u16_neon)));
 
 #endif  // HAVE_NEON
+
+#if HAVE_SVE
+
+INSTANTIATE_TEST_SUITE_P(SVE, Highbd2dVarTest,
+                         ::testing::Values(TestFuncVar2D(&aom_var_2d_u16_c,
+                                                         &aom_var_2d_u16_sve)));
+
+#endif  // HAVE_SVE
 }  // namespace

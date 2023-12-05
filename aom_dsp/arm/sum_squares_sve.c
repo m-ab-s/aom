@@ -104,3 +104,167 @@ uint64_t aom_sum_sse_2d_i16_sve(const int16_t *src, int stride, int width,
 
   return sse;
 }
+
+static INLINE uint64_t aom_var_2d_u16_4xh_sve(uint8_t *src, int src_stride,
+                                              int width, int height) {
+  uint16_t *src_u16 = CONVERT_TO_SHORTPTR(src);
+  uint64_t sum = 0;
+  uint64_t sse = 0;
+  uint32x4_t sum_u32 = vdupq_n_u32(0);
+  uint64x2_t sse_u64 = vdupq_n_u64(0);
+
+  int h = height;
+  do {
+    uint16x8_t s0 =
+        vcombine_u16(vld1_u16(src_u16), vld1_u16(src_u16 + src_stride));
+
+    sum_u32 = vpadalq_u16(sum_u32, s0);
+
+    sse_u64 = aom_udotq_u16(sse_u64, s0, s0);
+
+    src_u16 += 2 * src_stride;
+    h -= 2;
+  } while (h != 0);
+
+  sum += vaddlvq_u32(sum_u32);
+  sse += vaddvq_u64(sse_u64);
+
+  return sse - sum * sum / (width * height);
+}
+
+static INLINE uint64_t aom_var_2d_u16_8xh_sve(uint8_t *src, int src_stride,
+                                              int width, int height) {
+  uint16_t *src_u16 = CONVERT_TO_SHORTPTR(src);
+  uint64_t sum = 0;
+  uint64_t sse = 0;
+  uint32x4_t sum_u32 = vdupq_n_u32(0);
+  uint64x2_t sse_u64 = vdupq_n_u64(0);
+
+  int h = height;
+  do {
+    int w = width;
+    uint16_t *src_ptr = src_u16;
+    do {
+      uint16x8_t s0 = vld1q_u16(src_ptr);
+
+      sum_u32 = vpadalq_u16(sum_u32, s0);
+
+      sse_u64 = aom_udotq_u16(sse_u64, s0, s0);
+
+      src_ptr += 8;
+      w -= 8;
+    } while (w != 0);
+
+    src_u16 += src_stride;
+  } while (--h != 0);
+
+  sum += vaddlvq_u32(sum_u32);
+  sse += vaddvq_u64(sse_u64);
+
+  return sse - sum * sum / (width * height);
+}
+
+static INLINE uint64_t aom_var_2d_u16_16xh_sve(uint8_t *src, int src_stride,
+                                               int width, int height) {
+  uint16_t *src_u16 = CONVERT_TO_SHORTPTR(src);
+  uint64_t sum = 0;
+  uint64_t sse = 0;
+  uint32x4_t sum_u32[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
+  uint64x2_t sse_u64[2] = { vdupq_n_u64(0), vdupq_n_u64(0) };
+
+  int h = height;
+  do {
+    int w = width;
+    uint16_t *src_ptr = src_u16;
+    do {
+      uint16x8_t s0 = vld1q_u16(src_ptr);
+      uint16x8_t s1 = vld1q_u16(src_ptr + 8);
+
+      sum_u32[0] = vpadalq_u16(sum_u32[0], s0);
+      sum_u32[1] = vpadalq_u16(sum_u32[1], s1);
+
+      sse_u64[0] = aom_udotq_u16(sse_u64[0], s0, s0);
+      sse_u64[1] = aom_udotq_u16(sse_u64[1], s1, s1);
+
+      src_ptr += 16;
+      w -= 16;
+    } while (w != 0);
+
+    src_u16 += src_stride;
+  } while (--h != 0);
+
+  sum_u32[0] = vaddq_u32(sum_u32[0], sum_u32[1]);
+  sse_u64[0] = vaddq_u64(sse_u64[0], sse_u64[1]);
+
+  sum += vaddlvq_u32(sum_u32[0]);
+  sse += vaddvq_u64(sse_u64[0]);
+
+  return sse - sum * sum / (width * height);
+}
+
+static INLINE uint64_t aom_var_2d_u16_large_sve(uint8_t *src, int src_stride,
+                                                int width, int height) {
+  uint16_t *src_u16 = CONVERT_TO_SHORTPTR(src);
+  uint64_t sum = 0;
+  uint64_t sse = 0;
+  uint32x4_t sum_u32[4] = { vdupq_n_u32(0), vdupq_n_u32(0), vdupq_n_u32(0),
+                            vdupq_n_u32(0) };
+  uint64x2_t sse_u64[4] = { vdupq_n_u64(0), vdupq_n_u64(0), vdupq_n_u64(0),
+                            vdupq_n_u64(0) };
+
+  int h = height;
+  do {
+    int w = width;
+    uint16_t *src_ptr = src_u16;
+    do {
+      uint16x8_t s0 = vld1q_u16(src_ptr);
+      uint16x8_t s1 = vld1q_u16(src_ptr + 8);
+      uint16x8_t s2 = vld1q_u16(src_ptr + 16);
+      uint16x8_t s3 = vld1q_u16(src_ptr + 24);
+
+      sum_u32[0] = vpadalq_u16(sum_u32[0], s0);
+      sum_u32[1] = vpadalq_u16(sum_u32[1], s1);
+      sum_u32[2] = vpadalq_u16(sum_u32[2], s2);
+      sum_u32[3] = vpadalq_u16(sum_u32[3], s3);
+
+      sse_u64[0] = aom_udotq_u16(sse_u64[0], s0, s0);
+      sse_u64[1] = aom_udotq_u16(sse_u64[1], s1, s1);
+      sse_u64[2] = aom_udotq_u16(sse_u64[2], s2, s2);
+      sse_u64[3] = aom_udotq_u16(sse_u64[3], s3, s3);
+
+      src_ptr += 32;
+      w -= 32;
+    } while (w != 0);
+
+    src_u16 += src_stride;
+  } while (--h != 0);
+
+  sum_u32[0] = vaddq_u32(sum_u32[0], sum_u32[1]);
+  sum_u32[2] = vaddq_u32(sum_u32[2], sum_u32[3]);
+  sum_u32[0] = vaddq_u32(sum_u32[0], sum_u32[2]);
+  sse_u64[0] = vaddq_u64(sse_u64[0], sse_u64[1]);
+  sse_u64[2] = vaddq_u64(sse_u64[2], sse_u64[3]);
+  sse_u64[0] = vaddq_u64(sse_u64[0], sse_u64[2]);
+
+  sum += vaddlvq_u32(sum_u32[0]);
+  sse += vaddvq_u64(sse_u64[0]);
+
+  return sse - sum * sum / (width * height);
+}
+
+uint64_t aom_var_2d_u16_sve(uint8_t *src, int src_stride, int width,
+                            int height) {
+  if (width == 4) {
+    return aom_var_2d_u16_4xh_sve(src, src_stride, width, height);
+  }
+  if (width == 8) {
+    return aom_var_2d_u16_8xh_sve(src, src_stride, width, height);
+  }
+  if (width == 16) {
+    return aom_var_2d_u16_16xh_sve(src, src_stride, width, height);
+  }
+  if (width % 32 == 0) {
+    return aom_var_2d_u16_large_sve(src, src_stride, width, height);
+  }
+  return aom_var_2d_u16_neon(src, src_stride, width, height);
+}
