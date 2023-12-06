@@ -750,7 +750,7 @@ int64_t av1_highbd_pixel_proj_error_neon(
   int64x2_t sse_s64 = vdupq_n_s64(0);
 
   if (params->r[0] > 0 && params->r[1] > 0) {
-    int32x2_t xq_v = { xq[0], xq[1] };
+    int32x2_t xq_v = vld1_s32(xq);
     int32x2_t xq_sum_v = vshl_n_s32(vpadd_s32(xq_v, xq_v), 4);
 
     do {
