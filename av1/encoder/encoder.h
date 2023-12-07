@@ -3601,6 +3601,8 @@ typedef struct AV1_COMP {
 
   /*!
    * SSE between the current frame and the reconstructed last frame
+   * It is only used for CBR mode.
+   * It is not used if the reference frame has a different frame size.
    */
   uint64_t rec_sse;
 

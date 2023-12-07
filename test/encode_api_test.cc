@@ -392,7 +392,6 @@ class AV1Encoder {
  public:
   explicit AV1Encoder(int speed) : speed_(speed) {}
   ~AV1Encoder();
-
   void Configure(unsigned int threads, unsigned int width, unsigned int height,
                  aom_rc_mode end_usage, unsigned int usage);
   void Encode(bool key_frame);
@@ -481,6 +480,25 @@ void AV1Encoder::Flush() {
       got_data = true;
     }
   } while (got_data);
+}
+
+TEST(EncodeAPI, Buganizer314858909) {
+  AV1Encoder encoder(7);
+
+  encoder.Configure(6, 1582, 750, AOM_CBR, AOM_USAGE_REALTIME);
+
+  // Encode a frame.
+  encoder.Encode(false);
+
+  encoder.Configure(0, 1582, 23, AOM_CBR, AOM_USAGE_REALTIME);
+
+  // Encode a frame..
+  encoder.Encode(false);
+
+  encoder.Configure(16, 1542, 363, AOM_CBR, AOM_USAGE_REALTIME);
+
+  // Encode a frame..
+  encoder.Encode(false);
 }
 
 // Run this test to reproduce the bug in fuzz test: ASSERT: cpi->rec_sse !=
