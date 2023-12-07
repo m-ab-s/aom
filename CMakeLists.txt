@@ -940,7 +940,7 @@ get_cmake_property(all_cmake_vars VARIABLES)
 foreach(var ${all_cmake_vars})
   if("${var}" MATCHES "SOURCES$\|_INTRIN_\|_ASM_"
      AND NOT "${var}" MATCHES "DOXYGEN\|LIBYUV\|_PKG_\|TEST"
-     AND NOT "${var}" MATCHES "_ASM_NASM\|_ASM_COMPILER_")
+     AND NOT "${var}" MATCHES "_ASM_NASM\|_ASM_COMPILER")
     list(APPEND aom_source_vars ${var})
   endif()
 endforeach()
