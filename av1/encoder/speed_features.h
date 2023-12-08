@@ -720,6 +720,28 @@ typedef struct PARTITION_SPEED_FEATURES {
   // speed feature is not applicable to speed >= 7.
   bool prune_rect_part_using_4x4_var_deviation;
 
+  // Prune rectangular partitions based on prediction mode chosen by NONE
+  // partition.
+  // false : no pruning
+  // true : prunes rectangular partition as described below
+  // If prediction mode chosen by NONE partition is
+  // DC_PRED or SMOOTH_PRED: Prunes both horizontal and vertical partitions if
+  // at least one of the left and top neighbor blocks is larger than the
+  // current block.
+  // Directional Mode: Prunes either of the horizontal and vertical partition
+  // based on center angle of the prediction mode chosen by NONE partition. For
+  // example, vertical partition is pruned if center angle of the prediction
+  // mode chosen by NONE partition is close to 180 degrees (i.e. horizontal
+  // direction) and vice versa.
+  // For allintra encode, this speed feature reduces instruction count by 5.1%
+  // for speed=6 with coding performance change less than 0.22%. For AVIF image
+  // encode, this speed feature reduces encode time by 4.44% for speed 6 on a
+  // typical image dataset with coding performance change less than 0.15%.
+  // For speed >= 7, variance-based logic is used to determine the partition
+  // structure instead of recursive partition search. Therefore, this speed
+  // feature is not applicable in such cases.
+  bool prune_rect_part_using_none_pred_mode;
+
   // Terminate partition search for child partition,
   // when NONE and SPLIT partition rd_costs are INT64_MAX.
   int early_term_after_none_split;
