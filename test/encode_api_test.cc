@@ -392,6 +392,7 @@ class AV1Encoder {
  public:
   explicit AV1Encoder(int speed) : speed_(speed) {}
   ~AV1Encoder();
+
   void Configure(unsigned int threads, unsigned int width, unsigned int height,
                  aom_rc_mode end_usage, unsigned int usage);
   void Encode(bool key_frame);
