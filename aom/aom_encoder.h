@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-#include "aom/aom_codec.h"
+#include "aom/aom_codec.h"  // IWYU pragma: export
 #include "aom/aom_external_partition.h"
 
 /*!\brief Current ABI version number
