@@ -26,6 +26,13 @@
 // remainder of the vector is unused - this approach is still beneficial when
 // compared to a Neon-only solution.
 
+static INLINE uint64x2_t aom_udotq_u16(uint64x2_t acc, uint16x8_t x,
+                                       uint16x8_t y) {
+  return svget_neonq_u64(svdot_u64(svset_neonq_u64(svundef_u64(), acc),
+                                   svset_neonq_u16(svundef_u16(), x),
+                                   svset_neonq_u16(svundef_u16(), y)));
+}
+
 static INLINE int64x2_t aom_sdotq_s16(int64x2_t acc, int16x8_t x, int16x8_t y) {
   return svget_neonq_s64(svdot_s64(svset_neonq_s64(svundef_s64(), acc),
                                    svset_neonq_s16(svundef_s16(), x),
