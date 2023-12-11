@@ -2147,6 +2147,31 @@ INSTANTIATE_TEST_SUITE_P(
                       MseParams(3, 3, &aom_highbd_8_mse8x8_neon_dotprod, 8)));
 #endif  // HAVE_NEON_DOTPROD
 
+#if HAVE_SVE
+INSTANTIATE_TEST_SUITE_P(
+    SVE, MseHBDWxHTest,
+    ::testing::Values(MseHBDWxHParams(3, 3, &aom_mse_wxh_16bit_highbd_sve, 10),
+                      MseHBDWxHParams(3, 2, &aom_mse_wxh_16bit_highbd_sve, 10),
+                      MseHBDWxHParams(2, 3, &aom_mse_wxh_16bit_highbd_sve, 10),
+                      MseHBDWxHParams(2, 2, &aom_mse_wxh_16bit_highbd_sve,
+                                      10)));
+
+INSTANTIATE_TEST_SUITE_P(
+    SVE, AvxHBDMseTest,
+    ::testing::Values(MseParams(4, 4, &aom_highbd_12_mse16x16_sve, 12),
+                      MseParams(4, 3, &aom_highbd_12_mse16x8_sve, 12),
+                      MseParams(3, 4, &aom_highbd_12_mse8x16_sve, 12),
+                      MseParams(3, 3, &aom_highbd_12_mse8x8_sve, 12),
+                      MseParams(4, 4, &aom_highbd_10_mse16x16_sve, 10),
+                      MseParams(4, 3, &aom_highbd_10_mse16x8_sve, 10),
+                      MseParams(3, 4, &aom_highbd_10_mse8x16_sve, 10),
+                      MseParams(3, 3, &aom_highbd_10_mse8x8_sve, 10),
+                      MseParams(4, 4, &aom_highbd_8_mse16x16_sve, 8),
+                      MseParams(4, 3, &aom_highbd_8_mse16x8_sve, 8),
+                      MseParams(3, 4, &aom_highbd_8_mse8x16_sve, 8),
+                      MseParams(3, 3, &aom_highbd_8_mse8x8_sve, 8)));
+#endif  // HAVE_SVE
+
 const VarianceParams kArrayHBDVariance_c[] = {
   VarianceParams(7, 7, &aom_highbd_12_variance128x128_c, 12),
   VarianceParams(7, 6, &aom_highbd_12_variance128x64_c, 12),

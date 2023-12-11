@@ -1352,10 +1352,10 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       add_proto qw/unsigned int/, "aom_highbd_${bd}_mse8x16", "const uint8_t *src_ptr, int  source_stride, const uint8_t *ref_ptr, int  recon_stride, unsigned int *sse";
       add_proto qw/unsigned int/, "aom_highbd_${bd}_mse8x8", "const uint8_t *src_ptr, int  source_stride, const uint8_t *ref_ptr, int  recon_stride, unsigned int *sse";
 
-      specialize "aom_highbd_${bd}_mse16x16", qw/sse2 neon/;
-      specialize "aom_highbd_${bd}_mse16x8", qw/neon/;
-      specialize "aom_highbd_${bd}_mse8x16", qw/neon/;
-      specialize "aom_highbd_${bd}_mse8x8", qw/sse2 neon/;
+      specialize "aom_highbd_${bd}_mse16x16", qw/sse2 neon sve/;
+      specialize "aom_highbd_${bd}_mse16x8", qw/neon sve/;
+      specialize "aom_highbd_${bd}_mse8x16", qw/neon sve/;
+      specialize "aom_highbd_${bd}_mse8x8", qw/sse2 neon sve/;
     }
 
     specialize "aom_highbd_8_mse16x16", qw/neon_dotprod/;
@@ -1773,7 +1773,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_dist_wtd_comp_avg_pred sse2 neon/;
 
     add_proto qw/uint64_t/, "aom_mse_wxh_16bit_highbd", "uint16_t *dst, int dstride,uint16_t *src, int sstride, int w, int h";
-    specialize qw/aom_mse_wxh_16bit_highbd   sse2 avx2 neon/;
+    specialize qw/aom_mse_wxh_16bit_highbd   sse2 avx2 neon sve/;
   }
 
   add_proto qw/void aom_comp_mask_pred/, "uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride, const uint8_t *mask, int mask_stride, int invert_mask";
