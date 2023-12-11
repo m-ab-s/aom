@@ -58,6 +58,7 @@ static void od_ec_enc_normalize(od_ec_enc *enc, od_ec_enc_window low,
   int d;
   int c;
   int s;
+  if (enc->error) return;
   c = enc->cnt;
   assert(rng <= 65535U);
   /*The number of leading zeros in the 16-bit binary representation of rng.*/
@@ -83,7 +84,6 @@ static void od_ec_enc_normalize(od_ec_enc *enc, od_ec_enc_window low,
       out = (unsigned char *)realloc(out, sizeof(*out) * storage);
       if (out == NULL) {
         enc->error = -1;
-        enc->offs = 0;
         return;
       }
       enc->buf = out;
