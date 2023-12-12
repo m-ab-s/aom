@@ -642,6 +642,12 @@ static void init_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->height = oxcf->frm_dim_cfg.height;
   cpi->is_dropped_frame = false;
 
+  InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
+  initial_dimensions->width = cm->width;
+  initial_dimensions->height = cm->height;
+
+  cpi->frame_size_related_setup_done = false;
+
   alloc_compressor_data(cpi);
 
   // Single thread case: use counts in common.
@@ -916,7 +922,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
     cpi->td.firstpass_ctx = NULL;
     alloc_compressor_data(cpi);
     realloc_segmentation_maps(cpi);
-    initial_dimensions->width = initial_dimensions->height = 0;
+    initial_dimensions->width = cm->width;
+    initial_dimensions->height = cm->height;
+    cpi->frame_size_related_setup_done = false;
   }
   av1_update_frame_size(cpi);
 
@@ -2061,13 +2069,15 @@ static void init_ref_frame_bufs(AV1_COMP *cpi) {
 #endif
 }
 
+// TODO(chengchen): consider renaming this function as it is necessary
+// for the encoder to setup critical parameters, and it does not
+// deal with initial width any longer.
 void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
                              int subsampling_x, int subsampling_y) {
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = cm->seq_params;
-  InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
 
-  if (!initial_dimensions->width ||
+  if (!cpi->frame_size_related_setup_done ||
       seq_params->use_highbitdepth != use_highbitdepth ||
       seq_params->subsampling_x != subsampling_x ||
       seq_params->subsampling_y != subsampling_y) {
@@ -2087,9 +2097,8 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
 
     init_motion_estimation(cpi);  // TODO(agrange) This can be removed.
 
-    initial_dimensions->width = cm->width;
-    initial_dimensions->height = cm->height;
     cpi->initial_mbs = cm->mi_params.MBs;
+    cpi->frame_size_related_setup_done = true;
   }
 }
 
@@ -2112,7 +2121,6 @@ static void setup_denoiser_buffer(AV1_COMP *cpi) {
 // Returns 1 if the assigned width or height was <= 0.
 int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
   AV1_COMMON *cm = &cpi->common;
-  InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   av1_check_initial_width(cpi, cm->seq_params->use_highbitdepth,
                           cm->seq_params->subsampling_x,
                           cm->seq_params->subsampling_y);
@@ -2126,18 +2134,10 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
   setup_denoiser_buffer(cpi);
 #endif
 
-  if (initial_dimensions->width && initial_dimensions->height &&
-      (cm->width > initial_dimensions->width ||
-       cm->height > initial_dimensions->height)) {
-    av1_free_context_buffers(cm);
-    av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
-    av1_free_sms_tree(&cpi->td);
-    av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
-    cpi->td.firstpass_ctx = NULL;
-    alloc_compressor_data(cpi);
-    realloc_segmentation_maps(cpi);
-    initial_dimensions->width = initial_dimensions->height = 0;
-  }
+  // No need to reallocate compressor data.
+  assert(cm->width <= cpi->initial_dimensions.width &&
+         cm->height <= cpi->initial_dimensions.height);
+
   alloc_mb_mode_info_buffers(cpi);
   av1_update_frame_size(cpi);
 
