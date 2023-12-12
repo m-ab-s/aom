@@ -115,6 +115,38 @@ uint64_t aom_sum_squares_2d_i16_sve(const int16_t *src, int stride, int width,
   return aom_sum_squares_2d_i16_wxh_sve(src, stride, width, height);
 }
 
+uint64_t aom_sum_squares_i16_sve(const int16_t *src, uint32_t n) {
+  // This function seems to be called only for values of N >= 64. See
+  // av1/encoder/compound_type.c. Additionally, because N = width x height for
+  // width and height between the standard block sizes, N will also be a
+  // multiple of 64.
+  if (LIKELY(n % 64 == 0)) {
+    int64x2_t sum[4] = { vdupq_n_s64(0), vdupq_n_s64(0), vdupq_n_s64(0),
+                         vdupq_n_s64(0) };
+
+    do {
+      int16x8_t s0 = vld1q_s16(src);
+      int16x8_t s1 = vld1q_s16(src + 8);
+      int16x8_t s2 = vld1q_s16(src + 16);
+      int16x8_t s3 = vld1q_s16(src + 24);
+
+      sum[0] = aom_sdotq_s16(sum[0], s0, s0);
+      sum[1] = aom_sdotq_s16(sum[1], s1, s1);
+      sum[2] = aom_sdotq_s16(sum[2], s2, s2);
+      sum[3] = aom_sdotq_s16(sum[3], s3, s3);
+
+      src += 32;
+      n -= 32;
+    } while (n != 0);
+
+    sum[0] = vaddq_s64(sum[0], sum[1]);
+    sum[2] = vaddq_s64(sum[2], sum[3]);
+    sum[0] = vaddq_s64(sum[0], sum[2]);
+    return vaddvq_s64(sum[0]);
+  }
+  return aom_sum_squares_i16_c(src, n);
+}
+
 static INLINE uint64_t aom_sum_sse_2d_i16_4xh_sve(const int16_t *src,
                                                   int stride, int height,
                                                   int *sum) {

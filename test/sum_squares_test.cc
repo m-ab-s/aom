@@ -254,6 +254,13 @@ INSTANTIATE_TEST_SUITE_P(NEON, SumSquares1DTest,
 
 #endif  // HAVE_NEON
 
+#if HAVE_SVE
+INSTANTIATE_TEST_SUITE_P(SVE, SumSquares1DTest,
+                         ::testing::Values(TestFuncs1D(
+                             aom_sum_squares_i16_c, aom_sum_squares_i16_sve)));
+
+#endif  // HAVE_SVE
+
 typedef int64_t (*SSEFunc)(const uint8_t *a, int a_stride, const uint8_t *b,
                            int b_stride, int width, int height);
 typedef libaom_test::FuncParam<SSEFunc> TestSSEFuncs;
