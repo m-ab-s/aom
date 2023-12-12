@@ -922,16 +922,17 @@ static aom_codec_err_t decoder_set_fb_fn(
     aom_release_frame_buffer_cb_fn_t cb_release, void *cb_priv) {
   if (cb_get == NULL || cb_release == NULL) {
     return AOM_CODEC_INVALID_PARAM;
-  } else if (ctx->frame_worker == NULL) {
+  }
+  if (ctx->frame_worker != NULL) {
     // If the decoder has already been initialized, do not accept changes to
     // the frame buffer functions.
-    ctx->get_ext_fb_cb = cb_get;
-    ctx->release_ext_fb_cb = cb_release;
-    ctx->ext_priv = cb_priv;
-    return AOM_CODEC_OK;
+    return AOM_CODEC_ERROR;
   }
 
-  return AOM_CODEC_ERROR;
+  ctx->get_ext_fb_cb = cb_get;
+  ctx->release_ext_fb_cb = cb_release;
+  ctx->ext_priv = cb_priv;
+  return AOM_CODEC_OK;
 }
 
 static aom_codec_err_t ctrl_set_reference(aom_codec_alg_priv_t *ctx,
