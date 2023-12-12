@@ -172,6 +172,14 @@ INSTANTIATE_TEST_SUITE_P(
 
 #endif  // HAVE_NEON
 
+#if HAVE_SVE
+INSTANTIATE_TEST_SUITE_P(
+    SVE, SumSquaresTest,
+    ::testing::Values(TestFuncs(&aom_sum_squares_2d_i16_c,
+                                &aom_sum_squares_2d_i16_sve)));
+
+#endif  // HAVE_SVE
+
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, SumSquaresTest,

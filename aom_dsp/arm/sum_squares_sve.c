@@ -15,6 +15,106 @@
 #include "aom_dsp/arm/mem_neon.h"
 #include "config/aom_dsp_rtcd.h"
 
+static INLINE uint64_t aom_sum_squares_2d_i16_4xh_sve(const int16_t *src,
+                                                      int stride, int height) {
+  int64x2_t sum_squares = vdupq_n_s64(0);
+
+  do {
+    int16x8_t s = vcombine_s16(vld1_s16(src), vld1_s16(src + stride));
+
+    sum_squares = aom_sdotq_s16(sum_squares, s, s);
+
+    src += 2 * stride;
+    height -= 2;
+  } while (height != 0);
+
+  return (uint64_t)vaddvq_s64(sum_squares);
+}
+
+static INLINE uint64_t aom_sum_squares_2d_i16_8xh_sve(const int16_t *src,
+                                                      int stride, int height) {
+  int64x2_t sum_squares[2] = { vdupq_n_s64(0), vdupq_n_s64(0) };
+
+  do {
+    int16x8_t s0 = vld1q_s16(src + 0 * stride);
+    int16x8_t s1 = vld1q_s16(src + 1 * stride);
+
+    sum_squares[0] = aom_sdotq_s16(sum_squares[0], s0, s0);
+    sum_squares[1] = aom_sdotq_s16(sum_squares[1], s1, s1);
+
+    src += 2 * stride;
+    height -= 2;
+  } while (height != 0);
+
+  sum_squares[0] = vaddq_s64(sum_squares[0], sum_squares[1]);
+  return (uint64_t)vaddvq_s64(sum_squares[0]);
+}
+
+static INLINE uint64_t aom_sum_squares_2d_i16_large_sve(const int16_t *src,
+                                                        int stride, int width,
+                                                        int height) {
+  int64x2_t sum_squares[2] = { vdupq_n_s64(0), vdupq_n_s64(0) };
+
+  do {
+    const int16_t *src_ptr = src;
+    int w = width;
+    do {
+      int16x8_t s0 = vld1q_s16(src_ptr);
+      int16x8_t s1 = vld1q_s16(src_ptr + 8);
+
+      sum_squares[0] = aom_sdotq_s16(sum_squares[0], s0, s0);
+      sum_squares[1] = aom_sdotq_s16(sum_squares[1], s1, s1);
+
+      src_ptr += 16;
+      w -= 16;
+    } while (w != 0);
+
+    src += stride;
+  } while (--height != 0);
+
+  sum_squares[0] = vaddq_s64(sum_squares[0], sum_squares[1]);
+  return (uint64_t)vaddvq_s64(sum_squares[0]);
+}
+
+static INLINE uint64_t aom_sum_squares_2d_i16_wxh_sve(const int16_t *src,
+                                                      int stride, int width,
+                                                      int height) {
+  svint64_t sum_squares = svdup_n_s64(0);
+  uint64_t step = svcnth();
+
+  do {
+    const int16_t *src_ptr = src;
+    int w = 0;
+    do {
+      svbool_t pred = svwhilelt_b16_u32(w, width);
+      svint16_t s0 = svld1_s16(pred, src_ptr);
+
+      sum_squares = svdot_s64(sum_squares, s0, s0);
+
+      src_ptr += step;
+      w += step;
+    } while (w < width);
+
+    src += stride;
+  } while (--height != 0);
+
+  return (uint64_t)svaddv_s64(svptrue_b64(), sum_squares);
+}
+
+uint64_t aom_sum_squares_2d_i16_sve(const int16_t *src, int stride, int width,
+                                    int height) {
+  if (width == 4) {
+    return aom_sum_squares_2d_i16_4xh_sve(src, stride, height);
+  }
+  if (width == 8) {
+    return aom_sum_squares_2d_i16_8xh_sve(src, stride, height);
+  }
+  if (width % 16 == 0) {
+    return aom_sum_squares_2d_i16_large_sve(src, stride, width, height);
+  }
+  return aom_sum_squares_2d_i16_wxh_sve(src, stride, width, height);
+}
+
 static INLINE uint64_t aom_sum_sse_2d_i16_4xh_sve(const int16_t *src,
                                                   int stride, int height,
                                                   int *sum) {
