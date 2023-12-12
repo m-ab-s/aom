@@ -2429,6 +2429,7 @@ void av1_highbd_dr_prediction_z2_neon(uint16_t *dst, ptrdiff_t stride, int bw,
                                       int bd) {
   highbd_dr_prediction_z2_ptr f =
       dr_predictor_z2_arr_neon[get_msb(bw)][get_msb(bh)];
+  assert(f != NULL);
   f(dst, stride, above, left, upsample_above, upsample_left, dx, dy, bd);
 }
 
