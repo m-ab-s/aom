@@ -1586,8 +1586,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   const int64_t *const vbp_thresholds = cpi->vbp_info.thresholds;
-  VP128x128 *vt;
-  VP16x16 *vt2 = NULL;
   PART_EVAL_STATUS force_split[85];
   int avg_64x64;
   int max_var_32x32[4];
@@ -1629,10 +1627,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
 
   // Ref frame used in partitioning.
   MV_REFERENCE_FRAME ref_frame_partition = LAST_FRAME;
-
-  AOM_CHECK_MEM_ERROR(xd->error_info, vt, aom_malloc(sizeof(*vt)));
-
-  vt->split = td->vt64x64;
 
   int64_t thresholds[5] = { vbp_thresholds[0], vbp_thresholds[1],
                             vbp_thresholds[2], vbp_thresholds[3],
@@ -1732,6 +1726,11 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                is_zero_motion, uv_sad);
 
   x->force_zeromv_skip_for_sb = 0;
+
+  VP128x128 *vt;
+  VP16x16 *vt2 = NULL;
+  AOM_CHECK_MEM_ERROR(xd->error_info, vt, aom_malloc(sizeof(*vt)));
+  vt->split = td->vt64x64;
 
   // If the superblock is completely static (zero source sad) and
   // the y_sad (relative to LAST ref) is very small, take the sb_size partition
