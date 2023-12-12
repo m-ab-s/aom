@@ -3170,7 +3170,9 @@ typedef struct AV1_COMP {
   FRAME_INDEX_SET frame_index_set;
 
   /*!
-   * Structure to store the dimensions of current frame.
+   * Structure to store the cm->width and cm->height in the last call
+   * of alloc_compressor_data().
+   * TODO(chengchen): rename this variable or delete it.
    */
   InitialDimensions initial_dimensions;
 
@@ -3181,6 +3183,12 @@ typedef struct AV1_COMP {
    * scaled.
    */
   int initial_mbs;
+
+  /*!
+   * Flag to indicate whether the frame size inforamation has been
+   * setup and propagated to associated allocations.
+   */
+  bool frame_size_related_setup_done;
 
   /*!
    * The width of the frame that is lastly encoded.
