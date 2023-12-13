@@ -208,8 +208,8 @@ TEST_P(SumSquares1DTest, RandomValues) {
     for (int i = 0; i < kMaxSize * kMaxSize; ++i)
       src[i] = rng_(kInt13Max * 2 + 1) - kInt13Max;
 
-    const int n = rng_(2) ? rng_(kMaxSize * kMaxSize + 1 - kMaxSize) + kMaxSize
-                          : rng_(kMaxSize) + 1;
+    // Block size is between 64 and 128 * 128 and is always a multiple of 64.
+    const int n = (rng_(255) + 1) * 64;
 
     const uint64_t ref_res = params_.ref_func(src, n);
     uint64_t tst_res;
@@ -229,8 +229,8 @@ TEST_P(SumSquares1DTest, ExtremeValues) {
       for (int i = 0; i < kMaxSize * kMaxSize; ++i) src[i] = -kInt13Max;
     }
 
-    const int n = rng_(2) ? rng_(kMaxSize * kMaxSize + 1 - kMaxSize) + kMaxSize
-                          : rng_(kMaxSize) + 1;
+    // Block size is between 64 and 128 * 128 and is always a multiple of 64.
+    const int n = (rng_(255) + 1) * 64;
 
     const uint64_t ref_res = params_.ref_func(src, n);
     uint64_t tst_res;
