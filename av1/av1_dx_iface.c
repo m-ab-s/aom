@@ -830,7 +830,8 @@ static aom_image_t *decoder_get_frame(aom_codec_alg_priv_t *ctx,
     // Decoding failed. Release the worker thread.
     frame_worker_data->received_frame = 0;
     ctx->need_resync = 1;
-    if (ctx->flushed != 1) return NULL;
+    // TODO(aomedia:3519): Set an error code. Check if a different error code
+    // should be used if ctx->flushed != 1.
     return NULL;
   }
   // Check if worker has received any frames.
