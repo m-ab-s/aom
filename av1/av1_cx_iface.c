@@ -564,7 +564,10 @@ static void reduce_ratio(aom_rational64_t *ratio) {
   ratio->den /= denom;
 }
 
-// Called by encoder_encode() only. Must not be called by encoder_init().
+// Called by encoder_encode() only. Must not be called by encoder_init()
+// because the `error` paramerer will be destroyed by aom_codec_enc_init_ver()
+// after encoder_init() returns an error. See the "IMPORTANT" comment in
+// aom_codec_enc_init_ver().
 static aom_codec_err_t update_error_state(
     aom_codec_alg_priv_t *ctx, const struct aom_internal_error_info *error) {
   const aom_codec_err_t res = error->error_code;
