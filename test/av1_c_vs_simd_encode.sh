@@ -315,8 +315,16 @@ av1_enc_build() {
       elog "Invalid preset"
       return 1
     fi
-    eval "$cmake_command" "${cmake_common_args}" "${cmake_extra_args}" ${devnull}
-    eval make -j$(nproc) ${devnull}
+    if ! eval "$cmake_command" "${cmake_common_args}" "${cmake_extra_args}" \
+      ${devnull}; then
+      elog "cmake failure"
+      return 1
+    fi
+    if ! eval make -j$(nproc) ${devnull}; then
+      elog "build failure"
+      return 1
+    fi
+
     mv aomenc aomenc_${preset}
   done
   echo "Done building target: ${target}"
@@ -426,7 +434,9 @@ av1_test_generic() {
   fi
 
   echo "Build for: Generic ${arch}"
-  av1_enc_build "${target}" "${cmake_command}"
+  if ! av1_enc_build "${target}" "${cmake_command}"; then
+    return 1
+  fi
 
   for preset in $PRESETS; do
     local encoder="$(av1_enc_tool_path "${target}" "${preset}")"
@@ -473,7 +483,9 @@ av1_test_x86() {
   local x86_isa_variants="avx2 sse4_1 sse2"
 
   echo "Build for x86: ${target}"
-  av1_enc_build "${target}" "${cmake_command}"
+  if ! av1_enc_build "${target}" "${cmake_command}"; then
+    return 1
+  fi
 
   for preset in $PRESETS; do
     local encoder="$(av1_enc_tool_path "${target}" "${preset}")"
@@ -500,7 +512,9 @@ av1_test_arm() {
         -DCMAKE_TOOLCHAIN_FILE=$LIBAOM_SOURCE_DIR/build/cmake/toolchains/${target}.cmake \
         -DCMAKE_C_FLAGS=-Wno-maybe-uninitialized"
   echo "Build for arm64: ${target}"
-  av1_enc_build "${target}" "${cmake_command}"
+  if ! av1_enc_build "${target}" "${cmake_command}"; then
+    return 1
+  fi
 
   for preset in $PRESETS; do
     # Enable armv8 test for real-time only
