@@ -303,7 +303,8 @@ av1_enc_build() {
            -DCMAKE_BUILD_TYPE=Release \
            -DENABLE_CCACHE=1 \
            '-DCMAKE_C_FLAGS_RELEASE=-O3 -g' \
-           '-DCMAKE_CXX_FLAGS_RELEASE=-O3 -g'"
+           '-DCMAKE_CXX_FLAGS_RELEASE=-O3 -g' \
+           -DENABLE_DOCS=0 -DENABLE_TESTS=0 -DENABLE_TOOLS=0"
 
   for preset in $PRESETS; do
     echo "Building target[${preset} encoding]: ${target}"
@@ -320,7 +321,7 @@ av1_enc_build() {
       elog "cmake failure"
       return 1
     fi
-    if ! eval make -j$(nproc) ${devnull}; then
+    if ! eval make -j$(nproc) aomenc ${devnull}; then
       elog "build failure"
       return 1
     fi
