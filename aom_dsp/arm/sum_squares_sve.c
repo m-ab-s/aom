@@ -150,7 +150,7 @@ uint64_t aom_sum_squares_i16_sve(const int16_t *src, uint32_t n) {
 static INLINE uint64_t aom_sum_sse_2d_i16_4xh_sve(const int16_t *src,
                                                   int stride, int height,
                                                   int *sum) {
-  int64x2_t sse = vdupq_n_s32(0);
+  int64x2_t sse = vdupq_n_s64(0);
   int32x4_t sum_s32 = vdupq_n_s32(0);
 
   do {
