@@ -1092,7 +1092,14 @@ void av1_cnn_convolve_no_maxpool_padding_valid_neon(
   assert(layer_config->pad == PADDING_VALID);
   assert(channel_step == 1);
   assert(cstep == layer_config->in_channels * layer_config->out_channels);
-  (void)cstep;
+
+  // TODO(aomedia:3521) Delete this if statement after the bug is fixed.
+  if (/* DISABLES CODE */ (1)) {
+    av1_cnn_convolve_no_maxpool_padding_valid_c(
+        input, in_width, in_height, in_stride, layer_config, output, out_stride,
+        start_idx, cstep, channel_step);
+    return;
+  }
 
   if (layer_config->output_num == -1) {
     av1_cnn_convolve_no_maxpool_padding_valid_5x5_neon(
