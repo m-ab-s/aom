@@ -3180,18 +3180,16 @@ static int row_mt_worker_hook(void *arg1, void *arg2) {
     pthread_mutex_lock(pbi->row_mt_mutex_);
 #endif
     frame_row_mt_info->row_mt_exit = 1;
-
+#if CONFIG_MULTITHREAD
+    pthread_cond_broadcast(pbi->row_mt_cond_);
+    pthread_mutex_unlock(pbi->row_mt_mutex_);
+#endif
     // If any SB row (erroneous row) processed by a thread encounters an
     // internal error, there is a need to indicate other threads that decoding
     // of the erroneous row is complete. This ensures that other threads which
     // wait upon the completion of SB's present in erroneous row are not waiting
     // indefinitely.
     signal_decoding_done_for_erroneous_row(pbi, &thread_data->td->dcb.xd);
-
-#if CONFIG_MULTITHREAD
-    pthread_cond_broadcast(pbi->row_mt_cond_);
-    pthread_mutex_unlock(pbi->row_mt_mutex_);
-#endif
     return 0;
   }
   thread_data->error_info.setjmp = 1;
