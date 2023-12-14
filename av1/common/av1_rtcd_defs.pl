@@ -318,7 +318,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # the transform coefficients are held in 32-bit
   # values, so the assembler code for  av1_block_error can no longer be used.
   add_proto qw/int64_t av1_block_error/, "const tran_low_t *coeff, const tran_low_t *dqcoeff, intptr_t block_size, int64_t *ssz";
-  specialize qw/av1_block_error sse2 avx2 neon/;
+  specialize qw/av1_block_error sse2 avx2 neon sve/;
 
   add_proto qw/int64_t av1_block_error_lp/, "const int16_t *coeff, const int16_t *dqcoeff, intptr_t block_size";
   specialize qw/av1_block_error_lp sse2 avx2 neon/;

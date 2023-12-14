@@ -370,6 +370,9 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD
             "${AOM_ROOT}/av1/encoder/arm/neon/temporal_filter_neon_dotprod.c")
 
+list(APPEND AOM_AV1_ENCODER_INTRIN_SVE
+            "${AOM_ROOT}/av1/encoder/arm/neon/av1_error_sve.c")
+
 list(APPEND AOM_AV1_ENCODER_INTRIN_ARM_CRC32
             "${AOM_ROOT}/av1/encoder/arm/crc32/hash_arm_crc32.c")
 
@@ -692,6 +695,10 @@ function(setup_av1_targets)
   if(HAVE_SVE)
     add_intrinsics_object_library("${AOM_SVE_FLAG}" "sve" "aom_av1_common"
                                   "AOM_AV1_COMMON_INTRIN_SVE")
+    if(CONFIG_AV1_ENCODER)
+      add_intrinsics_object_library("${AOM_SVE_FLAG}" "sve" "aom_av1_encoder"
+                                    "AOM_AV1_ENCODER_INTRIN_SVE")
+    endif()
   endif()
 
   if(HAVE_VSX)

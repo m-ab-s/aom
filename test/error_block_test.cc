@@ -304,4 +304,14 @@ const ErrorBlockParam kErrorBlockTestParamsNeon[] = {
 INSTANTIATE_TEST_SUITE_P(NEON, ErrorBlockTest,
                          ::testing::ValuesIn(kErrorBlockTestParamsNeon));
 #endif  // HAVE_NEON
+
+#if (HAVE_SVE)
+const ErrorBlockParam kErrorBlockTestParamsSVE[] = {
+  make_tuple(&BlockError8BitWrapper<av1_block_error_sve>,
+             &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8),
+};
+
+INSTANTIATE_TEST_SUITE_P(SVE, ErrorBlockTest,
+                         ::testing::ValuesIn(kErrorBlockTestParamsSVE));
+#endif  // HAVE_SVE
 }  // namespace
