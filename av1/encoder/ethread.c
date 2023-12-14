@@ -1085,7 +1085,7 @@ void av1_create_workers(AV1_PRIMARY *ppi, int num_workers) {
       &ppi->error, p_mt_info->tile_thr_data,
       aom_calloc(num_workers, sizeof(*p_mt_info->tile_thr_data)));
 
-  for (int i = num_workers - 1; i >= 0; i--) {
+  for (int i = 0; i < num_workers; ++i) {
     AVxWorker *const worker = &p_mt_info->workers[i];
     EncWorkerData *const thread_data = &p_mt_info->tile_thr_data[i];
 
