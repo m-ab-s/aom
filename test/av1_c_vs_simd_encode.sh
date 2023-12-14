@@ -385,9 +385,7 @@ av1_enc_test() {
       elif [ "${arch}" = "x86" ]; then
         local test_clips="${LOWBD_CIF_CLIP} ${HIGHBD_CLIP}"
       elif [ "${arch}" = "arm64" ]; then
-        # TODO(BUG=aomedia:3474): Enable testing of high bit-depth clips after
-        # fixing C vs SIMD mismatches.
-        local test_clips="${LOWBD_CIF_CLIP}"
+        local test_clips="${LOWBD_CIF_CLIP} ${HIGHBD_CLIP}"
       fi
     elif [ "${preset}" = "rt" ]; then
       if [ "${cpu}" -lt 8 ]; then
@@ -518,12 +516,6 @@ av1_test_arm() {
   fi
 
   for preset in $PRESETS; do
-    # Enable armv8 test for real-time only
-    # TODO(BUG=aomedia:3486, BUG=aomedia:3474): Enable testing for 'good' preset
-    # after fixing C vs NEON mismatches.
-    if [ "${preset}" = "good" ]; then
-      continue
-    fi
     local encoder="$(av1_enc_tool_path "${target}" "${preset}")"
     if ! av1_enc_test "qemu-aarch64 -L /usr/aarch64-linux-gnu ${encoder}" "${arch}" "${target}" "${preset}"; then
       # Found a mismatch
