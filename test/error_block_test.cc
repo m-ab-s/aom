@@ -309,6 +309,8 @@ INSTANTIATE_TEST_SUITE_P(NEON, ErrorBlockTest,
 const ErrorBlockParam kErrorBlockTestParamsSVE[] = {
   make_tuple(&BlockError8BitWrapper<av1_block_error_sve>,
              &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8),
+  make_tuple(&BlockErrorLpWrapper<av1_block_error_lp_sve>,
+             &BlockErrorLpWrapper<av1_block_error_lp_c>, AOM_BITS_8)
 };
 
 INSTANTIATE_TEST_SUITE_P(SVE, ErrorBlockTest,
