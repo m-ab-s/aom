@@ -960,48 +960,45 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
 
     if (i > 0) {
       // Allocate thread data.
-      AOM_CHECK_MEM_ERROR(&ppi->error, thread_data->td,
-                          aom_memalign(32, sizeof(*thread_data->td)));
-      av1_zero(*thread_data->td);
-      thread_data->original_td = thread_data->td;
+      ThreadData *td;
+      AOM_CHECK_MEM_ERROR(&ppi->error, td, aom_memalign(32, sizeof(*td)));
+      av1_zero(*td);
+      thread_data->original_td = thread_data->td = td;
 
       // Set up shared coeff buffers.
-      av1_setup_shared_coeff_buffer(
-          &ppi->seq_params, &thread_data->td->shared_coeff_buf, &ppi->error);
-      AOM_CHECK_MEM_ERROR(
-          &ppi->error, thread_data->td->tmp_conv_dst,
-          aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE *
-                               sizeof(*thread_data->td->tmp_conv_dst)));
+      av1_setup_shared_coeff_buffer(&ppi->seq_params, &td->shared_coeff_buf,
+                                    &ppi->error);
+      AOM_CHECK_MEM_ERROR(&ppi->error, td->tmp_conv_dst,
+                          aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE *
+                                               sizeof(*td->tmp_conv_dst)));
 
       if (i < p_mt_info->num_mod_workers[MOD_FP]) {
         // Set up firstpass PICK_MODE_CONTEXT.
-        thread_data->td->firstpass_ctx = av1_alloc_pmc(
-            ppi->cpi, BLOCK_16X16, &thread_data->td->shared_coeff_buf);
-        if (!thread_data->td->firstpass_ctx)
+        td->firstpass_ctx =
+            av1_alloc_pmc(ppi->cpi, BLOCK_16X16, &td->shared_coeff_buf);
+        if (!td->firstpass_ctx)
           aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
                              "Failed to allocate PICK_MODE_CONTEXT");
       }
 
       if (!is_first_pass && i < num_enc_workers) {
         // Set up sms_tree.
-        av1_setup_sms_tree(ppi->cpi, thread_data->td);
+        av1_setup_sms_tree(ppi->cpi, td);
 
         for (int x = 0; x < 2; x++)
           for (int y = 0; y < 2; y++)
             AOM_CHECK_MEM_ERROR(
-                &ppi->error, thread_data->td->hash_value_buffer[x][y],
-                (uint32_t *)aom_malloc(
-                    AOM_BUFFER_SIZE_FOR_BLOCK_HASH *
-                    sizeof(*thread_data->td->hash_value_buffer[0][0])));
+                &ppi->error, td->hash_value_buffer[x][y],
+                (uint32_t *)aom_malloc(AOM_BUFFER_SIZE_FOR_BLOCK_HASH *
+                                       sizeof(*td->hash_value_buffer[0][0])));
 
         // Allocate frame counters in thread data.
-        AOM_CHECK_MEM_ERROR(&ppi->error, thread_data->td->counts,
-                            aom_calloc(1, sizeof(*thread_data->td->counts)));
+        AOM_CHECK_MEM_ERROR(&ppi->error, td->counts,
+                            aom_calloc(1, sizeof(*td->counts)));
 
         // Allocate buffers used by palette coding mode.
-        AOM_CHECK_MEM_ERROR(
-            &ppi->error, thread_data->td->palette_buffer,
-            aom_memalign(16, sizeof(*thread_data->td->palette_buffer)));
+        AOM_CHECK_MEM_ERROR(&ppi->error, td->palette_buffer,
+                            aom_memalign(16, sizeof(*td->palette_buffer)));
 
         // The buffers 'tmp_pred_bufs[]', 'comp_rd_buffer' and 'obmc_buffer' are
         // used in inter frames to store intermediate inter mode prediction
@@ -1009,26 +1006,23 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
         // memory allocations for these buffers are avoided for allintra
         // encoding mode.
         if (ppi->cpi->oxcf.kf_cfg.key_freq_max != 0) {
-          alloc_obmc_buffers(&thread_data->td->obmc_buffer, &ppi->error);
+          alloc_obmc_buffers(&td->obmc_buffer, &ppi->error);
 
-          alloc_compound_type_rd_buffers(&ppi->error,
-                                         &thread_data->td->comp_rd_buffer);
+          alloc_compound_type_rd_buffers(&ppi->error, &td->comp_rd_buffer);
 
           for (int j = 0; j < 2; ++j) {
             AOM_CHECK_MEM_ERROR(
-                &ppi->error, thread_data->td->tmp_pred_bufs[j],
-                aom_memalign(32,
-                             2 * MAX_MB_PLANE * MAX_SB_SQUARE *
-                                 sizeof(*thread_data->td->tmp_pred_bufs[j])));
+                &ppi->error, td->tmp_pred_bufs[j],
+                aom_memalign(32, 2 * MAX_MB_PLANE * MAX_SB_SQUARE *
+                                     sizeof(*td->tmp_pred_bufs[j])));
           }
         }
 
         if (is_gradient_caching_for_hog_enabled(ppi->cpi)) {
           const int plane_types = PLANE_TYPES >> ppi->seq_params.monochrome;
-          AOM_CHECK_MEM_ERROR(
-              &ppi->error, thread_data->td->pixel_gradient_info,
-              aom_malloc(sizeof(*thread_data->td->pixel_gradient_info) *
-                         plane_types * MAX_SB_SQUARE));
+          AOM_CHECK_MEM_ERROR(&ppi->error, td->pixel_gradient_info,
+                              aom_malloc(sizeof(*td->pixel_gradient_info) *
+                                         plane_types * MAX_SB_SQUARE));
         }
 
         if (is_src_var_for_4x4_sub_blocks_caching_enabled(ppi->cpi)) {
@@ -1037,18 +1031,17 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
               mi_size_wide[sb_size] * mi_size_high[sb_size];
 
           AOM_CHECK_MEM_ERROR(
-              &ppi->error, thread_data->td->src_var_info_of_4x4_sub_blocks,
-              aom_malloc(
-                  sizeof(*thread_data->td->src_var_info_of_4x4_sub_blocks) *
-                  mi_count_in_sb));
+              &ppi->error, td->src_var_info_of_4x4_sub_blocks,
+              aom_malloc(sizeof(*td->src_var_info_of_4x4_sub_blocks) *
+                         mi_count_in_sb));
         }
 
         if (ppi->cpi->sf.part_sf.partition_search_type == VAR_BASED_PARTITION) {
           const int num_64x64_blocks =
               (ppi->seq_params.sb_size == BLOCK_64X64) ? 1 : 4;
           AOM_CHECK_MEM_ERROR(
-              &ppi->error, thread_data->td->vt64x64,
-              aom_malloc(sizeof(*thread_data->td->vt64x64) * num_64x64_blocks));
+              &ppi->error, td->vt64x64,
+              aom_malloc(sizeof(*td->vt64x64) * num_64x64_blocks));
         }
       }
     }
