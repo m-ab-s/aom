@@ -70,7 +70,7 @@
     * aomedia:3478: GCC 12.2.0 emits a -Wstringop-overflow warning on
       aom/av1/encoder/motion_search_facade.c
     * aomedia:3489: Detect encoder and image high bit depth mismatch
-    * aomedia:3491: heap-buffer-overflow on frame size change
+    * aomedia:3491: heap-buffer-overflow on frame size change (CVE-2023-6879)
     * b/303023614:  Segfault at encoding time for high bit depth images
 
 2023-08-10 v3.7.0
