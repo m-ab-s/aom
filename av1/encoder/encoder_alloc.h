@@ -458,62 +458,60 @@ static AOM_INLINE void free_thread_data(AV1_PRIMARY *ppi) {
   for (int t = 1; t < p_mt_info->num_workers; ++t) {
     EncWorkerData *const thread_data = &p_mt_info->tile_thr_data[t];
     thread_data->td = thread_data->original_td;
-    if (!thread_data->td) continue;
-    aom_free(thread_data->td->tctx);
-    aom_free(thread_data->td->palette_buffer);
-    aom_free(thread_data->td->tmp_conv_dst);
-    release_compound_type_rd_buffers(&thread_data->td->comp_rd_buffer);
+    ThreadData *const td = thread_data->td;
+    if (!td) continue;
+    aom_free(td->tctx);
+    aom_free(td->palette_buffer);
+    aom_free(td->tmp_conv_dst);
+    release_compound_type_rd_buffers(&td->comp_rd_buffer);
     for (int j = 0; j < 2; ++j) {
-      aom_free(thread_data->td->tmp_pred_bufs[j]);
+      aom_free(td->tmp_pred_bufs[j]);
     }
-    aom_free(thread_data->td->pixel_gradient_info);
-    aom_free(thread_data->td->src_var_info_of_4x4_sub_blocks);
-    release_obmc_buffers(&thread_data->td->obmc_buffer);
-    aom_free(thread_data->td->vt64x64);
+    aom_free(td->pixel_gradient_info);
+    aom_free(td->src_var_info_of_4x4_sub_blocks);
+    release_obmc_buffers(&td->obmc_buffer);
+    aom_free(td->vt64x64);
 
     for (int x = 0; x < 2; x++) {
       for (int y = 0; y < 2; y++) {
-        aom_free(thread_data->td->hash_value_buffer[x][y]);
-        thread_data->td->hash_value_buffer[x][y] = NULL;
+        aom_free(td->hash_value_buffer[x][y]);
+        td->hash_value_buffer[x][y] = NULL;
       }
     }
-    aom_free(thread_data->td->mv_costs_alloc);
-    thread_data->td->mv_costs_alloc = NULL;
-    aom_free(thread_data->td->dv_costs_alloc);
-    thread_data->td->dv_costs_alloc = NULL;
-    aom_free(thread_data->td->counts);
-    av1_free_pmc(thread_data->td->firstpass_ctx, num_planes);
-    thread_data->td->firstpass_ctx = NULL;
-    av1_free_shared_coeff_buffer(&thread_data->td->shared_coeff_buf);
-    av1_free_sms_tree(thread_data->td);
+    aom_free(td->mv_costs_alloc);
+    td->mv_costs_alloc = NULL;
+    aom_free(td->dv_costs_alloc);
+    td->dv_costs_alloc = NULL;
+    aom_free(td->counts);
+    av1_free_pmc(td->firstpass_ctx, num_planes);
+    td->firstpass_ctx = NULL;
+    av1_free_shared_coeff_buffer(&td->shared_coeff_buf);
+    av1_free_sms_tree(td);
     // This call ensures that the buffers allocated by tf_alloc_and_reset_data()
     // in prepare_tf_workers() for MT encode are freed in case an error is
     // encountered during temporal filtering (due to early termination
     // tf_dealloc_thread_data() in av1_tf_do_filtering_mt() would not be
     // invoked).
-    if (t < num_tf_workers)
-      tf_dealloc_data(&thread_data->td->tf_data, is_highbitdepth);
+    if (t < num_tf_workers) tf_dealloc_data(&td->tf_data, is_highbitdepth);
     // This call ensures that tpl_tmp_buffers for MT encode are freed in case of
     // an error during tpl.
-    if (t < num_tpl_workers)
-      tpl_dealloc_temp_buffers(&thread_data->td->tpl_tmp_buffers);
+    if (t < num_tpl_workers) tpl_dealloc_temp_buffers(&td->tpl_tmp_buffers);
     // This call ensures that the buffers in gm_data for MT encode are freed in
     // case of an error during gm.
-    gm_dealloc_data(&thread_data->td->gm_data);
-    av1_dealloc_mb_data(&thread_data->td->mb, num_planes);
-    aom_free(thread_data->td->mb.sb_stats_cache);
-    thread_data->td->mb.sb_stats_cache = NULL;
-    aom_free(thread_data->td->mb.sb_fp_stats);
-    thread_data->td->mb.sb_fp_stats = NULL;
+    gm_dealloc_data(&td->gm_data);
+    av1_dealloc_mb_data(&td->mb, num_planes);
+    aom_free(td->mb.sb_stats_cache);
+    td->mb.sb_stats_cache = NULL;
+    aom_free(td->mb.sb_fp_stats);
+    td->mb.sb_fp_stats = NULL;
 #if CONFIG_PARTITION_SEARCH_ORDER
-    aom_free(thread_data->td->mb.rdcost);
-    thread_data->td->mb.rdcost = NULL;
+    aom_free(td->mb.rdcost);
+    td->mb.rdcost = NULL;
 #endif
-    av1_free_pc_tree_recursive(thread_data->td->pc_root, num_planes, 0, 0,
-                               SEARCH_PARTITION);
-    thread_data->td->pc_root = NULL;
-    av1_dealloc_mb_wiener_var_pred_buf(thread_data->td);
-    aom_free(thread_data->td);
+    av1_free_pc_tree_recursive(td->pc_root, num_planes, 0, 0, SEARCH_PARTITION);
+    td->pc_root = NULL;
+    av1_dealloc_mb_wiener_var_pred_buf(td);
+    aom_free(td);
     thread_data->td = NULL;
     thread_data->original_td = NULL;
   }
