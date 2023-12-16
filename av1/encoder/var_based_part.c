@@ -1159,7 +1159,6 @@ static void fill_variance_tree_leaves(
         force_split[split_index] = PART_EVAL_ALL;
         variance4x4downsample[lvl1_scale_idx + lvl2_idx] = 0;
         if (is_key_frame) {
-          force_split[split_index] = PART_EVAL_ALL;
           // Go down to 4x4 down-sampling for variance.
           variance4x4downsample[lvl1_scale_idx + lvl2_idx] = 1;
           for (int lvl3_idx = 0; lvl3_idx < 4; lvl3_idx++) {
