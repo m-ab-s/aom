@@ -1109,8 +1109,8 @@ static AOM_INLINE void chroma_check(AV1_COMP *cpi, MACROBLOCK *x,
 static void fill_variance_tree_leaves(
     AV1_COMP *cpi, MACROBLOCK *x, VP128x128 *vt, PART_EVAL_STATUS *force_split,
     int avg_16x16[][4], int maxvar_16x16[][4], int minvar_16x16[][4],
-    int *variance4x4downsample, int64_t *thresholds, const uint8_t *src_buf,
-    int src_stride, const uint8_t *dst_buf, int dst_stride, bool is_key_frame,
+    int64_t *thresholds, const uint8_t *src_buf, int src_stride,
+    const uint8_t *dst_buf, int dst_stride, bool is_key_frame,
     const bool is_small_sb) {
   MACROBLOCKD *xd = &x->e_mbd;
   const int num_64x64_blocks = is_small_sb ? 1 : 4;
@@ -1157,10 +1157,8 @@ static void fill_variance_tree_leaves(
         const int split_index = 21 + lvl1_scale_idx + lvl2_idx;
         VP16x16 *vst = &vt->split[blk64_idx].split[lvl1_idx].split[lvl2_idx];
         force_split[split_index] = PART_EVAL_ALL;
-        variance4x4downsample[lvl1_scale_idx + lvl2_idx] = 0;
         if (is_key_frame) {
           // Go down to 4x4 down-sampling for variance.
-          variance4x4downsample[lvl1_scale_idx + lvl2_idx] = 1;
           for (int lvl3_idx = 0; lvl3_idx < 4; lvl3_idx++) {
             const int x8_idx = x16_idx + GET_BLK_IDX_X(lvl3_idx, 3);
             const int y8_idx = y16_idx + GET_BLK_IDX_Y(lvl3_idx, 3);
@@ -1538,9 +1536,9 @@ static AOM_INLINE bool is_set_force_zeromv_skip_based_on_src_sad(
 }
 
 static AOM_INLINE bool set_force_zeromv_skip_for_sb(
-    AV1_COMP *cpi, MACROBLOCK *x, const TileInfo *const tile, VP16x16 *vt2,
-    VP128x128 *vt, unsigned int *uv_sad, int mi_row, int mi_col,
-    unsigned int y_sad, BLOCK_SIZE bsize) {
+    AV1_COMP *cpi, MACROBLOCK *x, const TileInfo *const tile, VP128x128 *vt,
+    unsigned int *uv_sad, int mi_row, int mi_col, unsigned int y_sad,
+    BLOCK_SIZE bsize) {
   AV1_COMMON *const cm = &cpi->common;
   if (!is_set_force_zeromv_skip_based_on_src_sad(
           cpi->sf.rt_sf.set_zeromv_skip_based_on_source_sad,
@@ -1565,7 +1563,6 @@ static AOM_INLINE bool set_force_zeromv_skip_for_sb(
       uv_sad[0] < thresh_exit_part_uv && uv_sad[1] < thresh_exit_part_uv) {
     set_block_size(cpi, mi_row, mi_col, bsize);
     x->force_zeromv_skip_for_sb = 1;
-    aom_free(vt2);
     aom_free(vt);
     // Partition shape is set here at SB level.
     // Exit needs to happen from av1_choose_var_based_partitioning().
@@ -1596,7 +1593,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   int avg_16x16[4][4];
   int maxvar_16x16[4][4];
   int minvar_16x16[4][4];
-  int64_t threshold_4x4avg;
   const uint8_t *src_buf;
   const uint8_t *dst_buf;
   int dst_stride;
@@ -1631,8 +1627,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                             vbp_thresholds[2], vbp_thresholds[3],
                             vbp_thresholds[4] };
 
-  const int low_res = (cm->width <= 352 && cm->height <= 288);
-  int variance4x4downsample[64];
   const int segment_id = xd->mi[0]->segment_id;
   uint64_t blk_sad = 0;
   if (cpi->src_sad_blk_64x64 != NULL &&
@@ -1658,9 +1652,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       cpi, thresholds, blk_sad, qindex, x->content_state_sb.low_sumdiff,
       x->content_state_sb.source_sad_nonrd, x->content_state_sb.source_sad_rd,
       is_segment_id_boosted, x->content_state_sb.lighting_change);
-
-  // For non keyframes, disable 4x4 average for low resolution when speed = 8
-  threshold_4x4avg = INT64_MAX;
 
   src_buf = x->plane[AOM_PLANE_Y].src.buf;
   int src_stride = x->plane[AOM_PLANE_Y].src.stride;
@@ -1727,7 +1718,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   x->force_zeromv_skip_for_sb = 0;
 
   VP128x128 *vt;
-  VP16x16 *vt2 = NULL;
   AOM_CHECK_MEM_ERROR(xd->error_info, vt, aom_malloc(sizeof(*vt)));
   vt->split = td->vt64x64;
 
@@ -1741,28 +1731,19 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
       cpi->rc.frames_since_key > 30 && segment_id == CR_SEGMENT_ID_BASE &&
       ref_frame_partition == LAST_FRAME && xd->mi[0]->mv[0].as_int == 0) {
     // Exit here, if zero mv skip flag is set at SB level.
-    if (set_force_zeromv_skip_for_sb(cpi, x, tile, vt2, vt, uv_sad, mi_row,
-                                     mi_col, y_sad, bsize))
+    if (set_force_zeromv_skip_for_sb(cpi, x, tile, vt, uv_sad, mi_row, mi_col,
+                                     y_sad, bsize))
       return 0;
   }
 
   if (cpi->noise_estimate.enabled)
     noise_level = av1_noise_estimate_extract_level(&cpi->noise_estimate);
 
-  if (low_res && threshold_4x4avg < INT64_MAX) {
-    vt2 = aom_malloc(sizeof(*vt2));
-    if (!vt2) {
-      aom_free(vt);
-      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
-                         "Error allocating partition buffer vt2");
-    }
-  }
-  // Fill in the entire tree of 8x8 (or 4x4 under some conditions) variances
-  // for splits.
+  // Fill in the entire tree of 8x8 (for inter frames) or 4x4 (for key frames)
+  // variances for splits.
   fill_variance_tree_leaves(cpi, x, vt, force_split, avg_16x16, maxvar_16x16,
-                            minvar_16x16, variance4x4downsample, thresholds,
-                            src_buf, src_stride, dst_buf, dst_stride,
-                            is_key_frame, is_small_sb);
+                            minvar_16x16, thresholds, src_buf, src_stride,
+                            dst_buf, dst_stride, is_key_frame, is_small_sb);
 
   avg_64x64 = 0;
   for (int blk64_idx = 0; blk64_idx < num_64x64_blocks; ++blk64_idx) {
@@ -1772,11 +1753,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
     for (int lvl1_idx = 0; lvl1_idx < 4; lvl1_idx++) {
       const int lvl1_scale_idx = (blk64_scale_idx + lvl1_idx) << 2;
       for (int lvl2_idx = 0; lvl2_idx < 4; lvl2_idx++) {
-        if (variance4x4downsample[lvl1_scale_idx + lvl2_idx] != 1) continue;
-        VP16x16 *vtemp =
-            (!is_key_frame)
-                ? &vt2[lvl1_scale_idx + lvl2_idx]
-                : &vt->split[blk64_idx].split[lvl1_idx].split[lvl2_idx];
+        if (!is_key_frame) continue;
+        VP16x16 *vtemp = &vt->split[blk64_idx].split[lvl1_idx].split[lvl2_idx];
         for (int lvl3_idx = 0; lvl3_idx < 4; lvl3_idx++)
           fill_variance_tree(&vtemp->split[lvl3_idx], BLOCK_8X8);
         fill_variance_tree(vtemp, BLOCK_16X16);
@@ -1903,14 +1881,8 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
           const int x16_idx = GET_BLK_IDX_X(lvl2_idx, 2);
           const int y16_idx = GET_BLK_IDX_Y(lvl2_idx, 2);
           const int split_index = 21 + lvl1_scale_idx + lvl2_idx;
-          // For inter frames: if variance4x4downsample[] == 1 for this
-          // 16x16 block, then the variance is based on 4x4 down-sampling,
-          // so use vt2 in set_vt_partioning(), otherwise use vt.
           VP16x16 *vtemp =
-              (!is_key_frame &&
-               variance4x4downsample[lvl1_scale_idx + lvl2_idx] == 1)
-                  ? &vt2[lvl1_scale_idx + lvl2_idx]
-                  : &vt->split[blk64_idx].split[lvl1_idx].split[lvl2_idx];
+              &vt->split[blk64_idx].split[lvl1_idx].split[lvl2_idx];
           if (set_vt_partitioning(cpi, xd, tile, vtemp, BLOCK_16X16,
                                   mi_row + y64_idx + y32_idx + y16_idx,
                                   mi_col + x64_idx + x32_idx + x16_idx,
@@ -1934,7 +1906,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                           ref_frame_partition, mi_col, mi_row, is_small_sb);
   }
 
-  aom_free(vt2);
   aom_free(vt);
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, choose_var_based_partitioning_time);
