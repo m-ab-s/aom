@@ -83,10 +83,12 @@ static INLINE int clamp_iy(int iy, int height) {
   return clamp(iy, 0, height - 1);
 }
 
-static INLINE void warp_affine_horizontal(
-    const uint8_t *ref, int width, int height, int stride, int p_width,
-    int p_height, int16_t alpha, int16_t beta, const int64_t x4,
-    const int64_t y4, const int i, int16x8_t tmp[], const uint8x16_t indx_vec) {
+static INLINE void warp_affine_horizontal(const uint8_t *ref, int width,
+                                          int height, int stride, int p_width,
+                                          int p_height, int16_t alpha,
+                                          int16_t beta, const int64_t x4,
+                                          const int64_t y4, const int i,
+                                          int16x8_t tmp[]) {
   const int bd = 8;
   const int reduce_bits_horiz = ROUND0_BITS;
   const int height_limit = AOMMIN(8, p_height - i) + 7;
@@ -119,11 +121,16 @@ static INLINE void warp_affine_horizontal(
     return;
   }
 
+  static const uint8_t kIotaArr[] = { 0, 1, 2,  3,  4,  5,  6,  7,
+                                      8, 9, 10, 11, 12, 13, 14, 15 };
+  const uint8x16_t indx = vld1q_u8(kIotaArr);
+
+  const int out_of_boundary_left = -(ix4 - 6);
+  const int out_of_boundary_right = (ix4 + 8) - width;
+
 #define APPLY_HORIZONTAL_SHIFT(fn, ...)                                \
   do {                                                                 \
-    if (((ix4 - 7) < 0) || ((ix4 + 9) > width)) {                      \
-      const int out_of_boundary_left = -(ix4 - 6);                     \
-      const int out_of_boundary_right = (ix4 + 8) - width;             \
+    if (out_of_boundary_left >= 0 || out_of_boundary_right >= 0) {     \
       for (int k = 0; k < height_limit; ++k) {                         \
         const int iy = clamp_iy(iy4 + k - 7, height);                  \
         const uint8_t *src = ref + iy * stride + ix4 - 7;              \
@@ -133,14 +140,14 @@ static INLINE void warp_affine_horizontal(
           int limit = out_of_boundary_left + 1;                        \
           uint8x16_t cmp_vec = vdupq_n_u8(out_of_boundary_left);       \
           uint8x16_t vec_dup = vdupq_n_u8(*(src + limit));             \
-          uint8x16_t mask_val = vcleq_u8(indx_vec, cmp_vec);           \
+          uint8x16_t mask_val = vcleq_u8(indx, cmp_vec);               \
           src_1 = vbslq_u8(mask_val, vec_dup, src_1);                  \
         }                                                              \
         if (out_of_boundary_right >= 0) {                              \
           int limit = 15 - (out_of_boundary_right + 1);                \
           uint8x16_t cmp_vec = vdupq_n_u8(15 - out_of_boundary_right); \
           uint8x16_t vec_dup = vdupq_n_u8(*(src + limit));             \
-          uint8x16_t mask_val = vcgeq_u8(indx_vec, cmp_vec);           \
+          uint8x16_t mask_val = vcgeq_u8(indx, cmp_vec);               \
           src_1 = vbslq_u8(mask_val, vec_dup, src_1);                  \
         }                                                              \
         tmp[k] = (fn)(src_1, __VA_ARGS__);                             \
@@ -332,10 +339,6 @@ static INLINE void av1_warp_affine_common(
   const int do_average = conv_params->do_average;
   const int use_dist_wtd_comp_avg = conv_params->use_dist_wtd_comp_avg;
 
-  static const uint8_t k0To15[16] = { 0, 1, 2,  3,  4,  5,  6,  7,
-                                      8, 9, 10, 11, 12, 13, 14, 15 };
-  const uint8x16_t indx_vec = vld1q_u8(k0To15);
-
   assert(IMPLIES(is_compound, dst != NULL));
   assert(IMPLIES(do_average, is_compound));
 
@@ -353,7 +356,7 @@ static INLINE void av1_warp_affine_common(
 
       int16x8_t tmp[15];
       warp_affine_horizontal(ref, width, height, stride, p_width, p_height,
-                             alpha, beta, x4, y4, i, tmp, indx_vec);
+                             alpha, beta, x4, y4, i, tmp);
       warp_affine_vertical(pred, p_width, p_height, p_stride, is_compound, dst,
                            dst_stride, do_average, use_dist_wtd_comp_avg, gamma,
                            delta, y4, i, j, tmp, w0, w1);
