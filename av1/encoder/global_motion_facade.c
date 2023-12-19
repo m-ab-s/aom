@@ -115,6 +115,9 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
       WarpedMotionParams tmp_wm_params;
       av1_convert_model_to_params(motion_models[i].params, &tmp_wm_params);
 
+      // Check that the generated model is warp-able
+      if (!av1_get_shear_params(&tmp_wm_params)) continue;
+
       // Skip models that we won't use (IDENTITY or TRANSLATION)
       //
       // For IDENTITY type models, we don't need to evaluate anything because
@@ -151,6 +154,14 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
 
       double erroradvantage = (double)warp_error / ref_frame_error;
 
+      // Check that the model signaling cost is not too high
+      if (!av1_is_enough_erroradvantage(
+              erroradvantage,
+              gm_get_params_cost(&tmp_wm_params, ref_params,
+                                 cm->features.allow_high_precision_mv))) {
+        continue;
+      }
+
       if (erroradvantage < best_erroradv) {
         best_erroradv = erroradvantage;
         // Save the wm_params modified by
@@ -160,34 +171,6 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
                sizeof(WarpedMotionParams));
       }
     }
-  }
-
-  if (!av1_get_shear_params(&cm->global_motion[frame]))
-    cm->global_motion[frame] = default_warp_params;
-
-#if 0
-  // We never choose translational models, so this code is disabled
-  if (cm->global_motion[frame].wmtype == TRANSLATION) {
-    cm->global_motion[frame].wmmat[0] =
-        convert_to_trans_prec(cm->features.allow_high_precision_mv,
-                              cm->global_motion[frame].wmmat[0]) *
-        GM_TRANS_ONLY_DECODE_FACTOR;
-    cm->global_motion[frame].wmmat[1] =
-        convert_to_trans_prec(cm->features.allow_high_precision_mv,
-                              cm->global_motion[frame].wmmat[1]) *
-        GM_TRANS_ONLY_DECODE_FACTOR;
-  }
-#endif
-
-  if (cm->global_motion[frame].wmtype == IDENTITY) return;
-
-  // If the best error advantage found doesn't meet the threshold for
-  // this motion type, revert to IDENTITY.
-  if (!av1_is_enough_erroradvantage(
-          best_erroradv,
-          gm_get_params_cost(&cm->global_motion[frame], ref_params,
-                             cm->features.allow_high_precision_mv))) {
-    cm->global_motion[frame] = default_warp_params;
   }
 }
 

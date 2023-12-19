@@ -541,6 +541,11 @@ int64_t av1_refine_integerized_param(
   }
 
   wm->wmtype = get_wmtype(wm);
+  // Recompute shear params for the refined model
+  // This should never fail, because we only ever consider warp-able models
+  if (!av1_get_shear_params(wm)) {
+    assert(0);
+  }
   return best_error;
 }
 
