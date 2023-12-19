@@ -2614,6 +2614,18 @@ static aom_codec_err_t ctrl_set_max_consec_frame_drop_cbr(
   return AOM_CODEC_OK;
 }
 
+static aom_codec_err_t ctrl_set_svc_frame_drop_mode(aom_codec_alg_priv_t *ctx,
+                                                    va_list args) {
+  AV1_PRIMARY *const ppi = ctx->ppi;
+  AV1_COMP *const cpi = ppi->cpi;
+  cpi->svc.framedrop_mode = CAST(AV1E_SET_SVC_FRAME_DROP_MODE, args);
+  if (cpi->svc.framedrop_mode != LAYER_DROP &&
+      cpi->svc.framedrop_mode != FULL_SUPERFRAME_DROP)
+    return AOM_CODEC_INVALID_PARAM;
+  else
+    return AOM_CODEC_OK;
+}
+
 #if !CONFIG_REALTIME_ONLY
 static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
                                            STATS_BUFFER_CTX *stats_buf_context,
@@ -4410,6 +4422,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_QUANTIZER_ONE_PASS, ctrl_set_quantizer_one_pass },
   { AV1E_SET_BITRATE_ONE_PASS_CBR, ctrl_set_bitrate_one_pass_cbr },
   { AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR, ctrl_set_max_consec_frame_drop_cbr },
+  { AV1E_SET_SVC_FRAME_DROP_MODE, ctrl_set_svc_frame_drop_mode },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

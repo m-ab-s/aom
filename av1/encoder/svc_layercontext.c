@@ -77,6 +77,8 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
     }
     svc->downsample_filter_type[sl] = BILINEAR;
     svc->downsample_filter_phase[sl] = 8;
+    svc->last_layer_dropped[sl] = false;
+    svc->drop_spatial_layer[sl] = false;
   }
   if (svc->number_spatial_layers == 3) {
     svc->downsample_filter_type[0] = EIGHTTAP_SMOOTH;
@@ -320,8 +322,12 @@ void av1_save_layer_context(AV1_COMP *const cpi) {
       svc->temporal_layer_fb[i] = svc->temporal_layer_id;
     }
   }
-  if (svc->spatial_layer_id == svc->number_spatial_layers - 1)
+  if (svc->spatial_layer_id == svc->number_spatial_layers - 1) {
     svc->current_superframe++;
+    // Reset drop flag to false for next superframe.
+    for (int sl = 0; sl < svc->number_spatial_layers; sl++)
+      svc->drop_spatial_layer[sl] = false;
+  }
 }
 
 int av1_svc_primary_ref_frame(const AV1_COMP *const cpi) {
