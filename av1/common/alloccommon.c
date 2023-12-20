@@ -468,11 +468,11 @@ static int alloc_mi(CommonModeInfoParams *mi_params) {
     mi_params->mi_grid_base = (MB_MODE_INFO **)aom_calloc(
         mi_grid_size, sizeof(*mi_params->mi_grid_base));
     if (!mi_params->mi_grid_base) return 1;
-    mi_params->mi_grid_size = mi_grid_size;
 
     mi_params->tx_type_map =
         aom_calloc(mi_grid_size, sizeof(*mi_params->tx_type_map));
     if (!mi_params->tx_type_map) return 1;
+    mi_params->mi_grid_size = mi_grid_size;
   }
 
   return 0;
