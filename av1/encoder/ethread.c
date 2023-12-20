@@ -253,7 +253,6 @@ static void row_mt_mem_alloc(AV1_COMP *cpi, int max_rows, int max_cols,
 
       row_mt_sync_mem_alloc(&this_tile->row_mt_sync, cm, max_rows);
 
-      this_tile->row_ctx = NULL;
       if (alloc_row_ctx) {
         assert(max_cols > 0);
         const int num_row_ctx = AOMMAX(1, (max_cols - 1));
@@ -268,8 +267,6 @@ static void row_mt_mem_alloc(AV1_COMP *cpi, int max_rows, int max_cols,
       cm, enc_row_mt->num_tile_cols_done,
       aom_malloc(sizeof(*enc_row_mt->num_tile_cols_done) * sb_rows));
 
-  enc_row_mt->allocated_tile_cols = tile_cols;
-  enc_row_mt->allocated_tile_rows = tile_rows;
   enc_row_mt->allocated_rows = max_rows;
   enc_row_mt->allocated_cols = max_cols - 1;
   enc_row_mt->allocated_sb_rows = sb_rows;
@@ -289,15 +286,16 @@ void av1_row_mt_mem_dealloc(AV1_COMP *cpi) {
 
       av1_row_mt_sync_mem_dealloc(&this_tile->row_mt_sync);
 
-      if (cpi->oxcf.algo_cfg.cdf_update_mode) aom_free(this_tile->row_ctx);
+      if (cpi->oxcf.algo_cfg.cdf_update_mode) {
+        aom_free(this_tile->row_ctx);
+        this_tile->row_ctx = NULL;
+      }
     }
   }
   aom_free(enc_row_mt->num_tile_cols_done);
   enc_row_mt->num_tile_cols_done = NULL;
   enc_row_mt->allocated_rows = 0;
   enc_row_mt->allocated_cols = 0;
-  enc_row_mt->allocated_tile_cols = 0;
-  enc_row_mt->allocated_tile_rows = 0;
   enc_row_mt->allocated_sb_rows = 0;
 }
 

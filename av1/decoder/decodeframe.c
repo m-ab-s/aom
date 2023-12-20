@@ -2440,6 +2440,7 @@ static AOM_INLINE void decoder_alloc_tile_data(AV1Decoder *pbi,
                                                const int n_tiles) {
   AV1_COMMON *const cm = &pbi->common;
   aom_free(pbi->tile_data);
+  pbi->allocated_tiles = 0;
   CHECK_MEM_ERROR(cm, pbi->tile_data,
                   aom_memalign(32, n_tiles * sizeof(*pbi->tile_data)));
   pbi->allocated_tiles = n_tiles;

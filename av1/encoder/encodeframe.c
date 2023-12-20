@@ -1273,17 +1273,32 @@ static AOM_INLINE void init_encode_frame_mb_context(AV1_COMP *cpi) {
 
 void av1_alloc_tile_data(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
+  AV1EncRowMultiThreadInfo *const enc_row_mt = &cpi->mt_info.enc_row_mt;
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
 
   av1_row_mt_mem_dealloc(cpi);
 
   aom_free(cpi->tile_data);
+  cpi->allocated_tiles = 0;
+  enc_row_mt->allocated_tile_cols = 0;
+  enc_row_mt->allocated_tile_rows = 0;
+
   CHECK_MEM_ERROR(
       cm, cpi->tile_data,
       aom_memalign(32, tile_cols * tile_rows * sizeof(*cpi->tile_data)));
 
   cpi->allocated_tiles = tile_cols * tile_rows;
+  enc_row_mt->allocated_tile_cols = tile_cols;
+  enc_row_mt->allocated_tile_rows = tile_rows;
+  for (int tile_row = 0; tile_row < tile_rows; ++tile_row) {
+    for (int tile_col = 0; tile_col < tile_cols; ++tile_col) {
+      const int tile_index = tile_row * tile_cols + tile_col;
+      TileDataEnc *const this_tile = &cpi->tile_data[tile_index];
+      av1_zero(this_tile->row_mt_sync);
+      this_tile->row_ctx = NULL;
+    }
+  }
 }
 
 void av1_init_tile_data(AV1_COMP *cpi) {
