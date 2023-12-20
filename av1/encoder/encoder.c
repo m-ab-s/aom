@@ -922,8 +922,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
 
   rc->is_src_frame_alt_ref = 0;
 
-  set_tile_info(cm, &cpi->oxcf.tile_cfg);
-
   if (!cpi->ppi->rtc_ref.set_ref_frame_config)
     cpi->ext_flags.refresh_frame.update_pending = 0;
   cpi->ext_flags.refresh_frame_context_pending = 0;
