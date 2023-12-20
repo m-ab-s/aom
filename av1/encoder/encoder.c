@@ -2137,7 +2137,6 @@ int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
     av1_free_sms_tree(&cpi->td);
     av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
     cpi->td.firstpass_ctx = NULL;
-    alloc_mb_mode_info_buffers(cpi);
     alloc_compressor_data(cpi);
     realloc_segmentation_maps(cpi);
     initial_dimensions->width = initial_dimensions->height = 0;
