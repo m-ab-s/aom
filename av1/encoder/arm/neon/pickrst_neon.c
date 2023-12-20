@@ -250,7 +250,7 @@ static void update_H(int64_t *dst, const int64_t *src_s64,
   // 2,   21,   24,   11,   22,   25,   20,   23,   26,
   // 5,   32,   51,   14,   41,   52,   23,   50,   53,
   // 8,   35,   62,   17,   44,   71,   26,   53,   80,
-  int wiener_win2 = wiener_win * wiener_win;
+  const int wiener_win2 = wiener_win * wiener_win;
 
   // Loop through the indices according to the remapping above, along the
   // columns:
