@@ -204,8 +204,10 @@ int av1_is_temporal_filter_on(const struct AV1EncoderConfig *oxcf);
 /*!\brief Allocate buffers for TEMPORAL_FILTER_INFO
  * \param[in,out]   tf_info           Temporal filter info for a gop
  * \param[in,out]   cpi               Top level encoder instance structure
+ *
+ * \return True on success, false on memory allocation failure.
  */
-void av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info,
+bool av1_tf_info_alloc(TEMPORAL_FILTER_INFO *tf_info,
                        const struct AV1_COMP *cpi);
 
 /*!\brief Free buffers for TEMPORAL_FILTER_INFO

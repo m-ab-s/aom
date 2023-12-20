@@ -3093,12 +3093,21 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate lag buffers");
       for (int i = 0; i < ppi->num_fp_contexts; i++) {
-        av1_check_initial_width(ppi->parallel_cpi[i], use_highbitdepth,
-                                subsampling_x, subsampling_y);
+        aom_codec_err_t err =
+            av1_check_initial_width(ppi->parallel_cpi[i], use_highbitdepth,
+                                    subsampling_x, subsampling_y);
+        if (err != AOM_CODEC_OK) {
+          aom_internal_error(&ppi->error, err,
+                             "av1_check_initial_width() failed");
+        }
       }
       if (cpi_lap != NULL) {
-        av1_check_initial_width(cpi_lap, use_highbitdepth, subsampling_x,
-                                subsampling_y);
+        aom_codec_err_t err = av1_check_initial_width(
+            cpi_lap, use_highbitdepth, subsampling_x, subsampling_y);
+        if (err != AOM_CODEC_OK) {
+          aom_internal_error(&ppi->error, err,
+                             "av1_check_initial_width() failed");
+        }
       }
 
       // Store the original flags in to the frame buffer. Will extract the

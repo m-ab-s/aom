@@ -2073,8 +2073,8 @@ static void init_ref_frame_bufs(AV1_COMP *cpi) {
 // TODO(chengchen): consider renaming this function as it is necessary
 // for the encoder to setup critical parameters, and it does not
 // deal with initial width any longer.
-void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
-                             int subsampling_x, int subsampling_y) {
+aom_codec_err_t av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
+                                        int subsampling_x, int subsampling_y) {
   AV1_COMMON *const cm = &cpi->common;
   SequenceHeader *const seq_params = cm->seq_params;
 
@@ -2091,7 +2091,8 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
 
     if (!is_stat_generation_stage(cpi)) {
 #if !CONFIG_REALTIME_ONLY
-      av1_tf_info_alloc(&cpi->ppi->tf_info, cpi);
+      if (!av1_tf_info_alloc(&cpi->ppi->tf_info, cpi))
+        return AOM_CODEC_MEM_ERROR;
 #endif  // !CONFIG_REALTIME_ONLY
     }
     init_ref_frame_bufs(cpi);
@@ -2101,6 +2102,7 @@ void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
     cpi->initial_mbs = cm->mi_params.MBs;
     cpi->frame_size_related_setup_done = true;
   }
+  return AOM_CODEC_OK;
 }
 
 #if CONFIG_AV1_TEMPORAL_DENOISING
@@ -2123,9 +2125,12 @@ static void setup_denoiser_buffer(AV1_COMP *cpi) {
 static int set_size_literal(AV1_COMP *cpi, int width, int height) {
   AV1_COMMON *cm = &cpi->common;
   InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
-  av1_check_initial_width(cpi, cm->seq_params->use_highbitdepth,
-                          cm->seq_params->subsampling_x,
-                          cm->seq_params->subsampling_y);
+  aom_codec_err_t err = av1_check_initial_width(
+      cpi, cm->seq_params->use_highbitdepth, cm->seq_params->subsampling_x,
+      cm->seq_params->subsampling_y);
+  if (err != AOM_CODEC_OK) {
+    aom_internal_error(cm->error, err, "av1_check_initial_width() failed");
+  }
 
   if (width <= 0 || height <= 0) return 1;
 

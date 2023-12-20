@@ -3769,8 +3769,8 @@ void av1_change_config_seq(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
 void av1_change_config(AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
                        bool sb_size_changed);
 
-void av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
-                             int subsampling_x, int subsampling_y);
+aom_codec_err_t av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
+                                        int subsampling_x, int subsampling_y);
 
 void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
                                const AV1EncoderConfig *oxcf, int use_svc);
@@ -3835,7 +3835,9 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  * \retval #AOM_CODEC_OK
  * \retval -1
  *     No frame encoded; more input is required.
- * \retval #AOM_CODEC_ERROR
+ *
+ * \remark Sets the error code and error message in \c cpi->common.error and
+ * returns error code on failure.
  */
 int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data);
 
