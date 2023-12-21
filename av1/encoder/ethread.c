@@ -839,6 +839,11 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
 
+  if (setjmp(cm->error->jmp)) {
+    cm->error->setjmp = 0;
+    aom_internal_error_copy(&cpi->ppi->error, cm->error);
+  }
+  cm->error->setjmp = 1;
   // Initialize enc row MT object.
   if (is_first_pass || cpi->oxcf.row_mt == 1) {
     AV1EncRowMultiThreadInfo *enc_row_mt = &mt_info->enc_row_mt;
@@ -926,6 +931,7 @@ void av1_init_mt_sync(AV1_COMP *cpi, int is_first_pass) {
       if (pack_bs_sync->mutex_) pthread_mutex_init(pack_bs_sync->mutex_, NULL);
     }
   }
+  cm->error->setjmp = 0;
 }
 #endif  // CONFIG_MULTITHREAD
 

@@ -3171,17 +3171,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       av1_create_workers(ppi, num_workers);
       av1_init_tile_thread_data(ppi, cpi->oxcf.pass == AOM_RC_FIRST_PASS);
     }
-#if CONFIG_MULTITHREAD
-    if (ppi->p_mt_info.num_workers > 1) {
-      for (int i = 0; i < ppi->num_fp_contexts; i++) {
-        av1_init_mt_sync(ppi->parallel_cpi[i],
-                         ppi->parallel_cpi[i]->oxcf.pass == AOM_RC_FIRST_PASS);
-      }
-      if (cpi_lap != NULL) {
-        av1_init_mt_sync(cpi_lap, 1);
-      }
-    }
-#endif  // CONFIG_MULTITHREAD
 
     // Re-allocate thread data if workers for encoder multi-threading stage
     // exceeds prev_num_enc_workers.
@@ -3203,6 +3192,17 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     if (cpi_lap != NULL) {
       av1_init_frame_mt(ppi, cpi_lap);
     }
+#if CONFIG_MULTITHREAD
+    if (ppi->p_mt_info.num_workers > 1) {
+      for (int i = 0; i < ppi->num_fp_contexts; i++) {
+        av1_init_mt_sync(ppi->parallel_cpi[i],
+                         ppi->parallel_cpi[i]->oxcf.pass == AOM_RC_FIRST_PASS);
+      }
+      if (cpi_lap != NULL) {
+        av1_init_mt_sync(cpi_lap, 1);
+      }
+    }
+#endif  // CONFIG_MULTITHREAD
 
     // Call for LAP stage
     if (cpi_lap != NULL) {
