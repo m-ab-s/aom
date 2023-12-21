@@ -77,7 +77,10 @@ static AOM_INLINE void alloc_compressor_data(AV1_COMP *cpi) {
 
   av1_setup_shared_coeff_buffer(cm->seq_params, &cpi->td.shared_coeff_buf,
                                 cm->error);
-  av1_setup_sms_tree(cpi, &cpi->td);
+  if (av1_setup_sms_tree(cpi, &cpi->td)) {
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate SMS tree");
+  }
   cpi->td.firstpass_ctx =
       av1_alloc_pmc(cpi, BLOCK_16X16, &cpi->td.shared_coeff_buf);
   if (!cpi->td.firstpass_ctx)

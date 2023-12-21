@@ -981,7 +981,10 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
 
       if (!is_first_pass && i < num_enc_workers) {
         // Set up sms_tree.
-        av1_setup_sms_tree(ppi->cpi, td);
+        if (av1_setup_sms_tree(ppi->cpi, td)) {
+          aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
+                             "Failed to allocate SMS tree");
+        }
 
         for (int x = 0; x < 2; x++)
           for (int y = 0; y < 2; y++)
