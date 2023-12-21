@@ -402,6 +402,7 @@ void av1_get_layer_resolution(const int width_org, const int height_org,
 
 void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   SVC *const svc = &cpi->svc;
+  AV1_COMMON *const cm = &cpi->common;
   LAYER_CONTEXT *lc = NULL;
   int width = 0, height = 0;
   lc = &svc->layer_context[svc->spatial_layer_id * svc->number_temporal_layers +
@@ -423,13 +424,13 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
   if (width * height <= 320 * 240)
     svc->downsample_filter_type[svc->spatial_layer_id] = EIGHTTAP_SMOOTH;
 
-  cpi->common.width = width;
-  cpi->common.height = height;
+  cm->width = width;
+  cm->height = height;
   alloc_mb_mode_info_buffers(cpi);
   av1_update_frame_size(cpi);
   if (svc->spatial_layer_id == svc->number_spatial_layers - 1) {
-    svc->mi_cols_full_resoln = cpi->common.mi_params.mi_cols;
-    svc->mi_rows_full_resoln = cpi->common.mi_params.mi_rows;
+    svc->mi_cols_full_resoln = cm->mi_params.mi_cols;
+    svc->mi_rows_full_resoln = cm->mi_params.mi_rows;
   }
 }
 
