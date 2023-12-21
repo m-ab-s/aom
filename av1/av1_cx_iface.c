@@ -950,7 +950,7 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
-int av1_get_image_bps(const aom_image_t *img) {
+static int get_image_bps(const aom_image_t *img) {
   switch (img->fmt) {
     case AOM_IMG_FMT_YV12:
     case AOM_IMG_FMT_NV12:
@@ -1491,13 +1491,6 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->kf_max_pyr_height = extra_cfg->kf_max_pyr_height;
 
   oxcf->sb_qp_sweep = extra_cfg->sb_qp_sweep;
-}
-
-AV1EncoderConfig av1_get_encoder_config(const aom_codec_enc_cfg_t *cfg) {
-  AV1EncoderConfig oxcf;
-  struct av1_extracfg extra_cfg = default_extra_cfg;
-  set_encoder_config(&oxcf, cfg, &extra_cfg);
-  return oxcf;
 }
 
 static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
@@ -2622,9 +2615,9 @@ static aom_codec_err_t ctrl_set_max_consec_frame_drop_cbr(
 }
 
 #if !CONFIG_REALTIME_ONLY
-aom_codec_err_t av1_create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
-                                        STATS_BUFFER_CTX *stats_buf_context,
-                                        int num_lap_buffers) {
+static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
+                                           STATS_BUFFER_CTX *stats_buf_context,
+                                           int num_lap_buffers) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
   int size = get_stats_buf_size(num_lap_buffers, MAX_LAG_BUFFERS);
@@ -2647,12 +2640,10 @@ aom_codec_err_t av1_create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
 }
 #endif
 
-aom_codec_err_t av1_create_context_and_bufferpool(AV1_PRIMARY *ppi,
-                                                  AV1_COMP **p_cpi,
-                                                  BufferPool **p_buffer_pool,
-                                                  const AV1EncoderConfig *oxcf,
-                                                  COMPRESSOR_STAGE stage,
-                                                  int lap_lag_in_frames) {
+static aom_codec_err_t create_context_and_bufferpool(
+    AV1_PRIMARY *ppi, AV1_COMP **p_cpi, BufferPool **p_buffer_pool,
+    const AV1EncoderConfig *oxcf, COMPRESSOR_STAGE stage,
+    int lap_lag_in_frames) {
   aom_codec_err_t res = AOM_CODEC_OK;
   BufferPool *buffer_pool = *p_buffer_pool;
 
@@ -2697,7 +2688,7 @@ static aom_codec_err_t ctrl_set_fp_mt(aom_codec_alg_priv_t *ctx, va_list args) {
     if (num_fp_contexts > 1) {
       int i;
       for (i = 1; i < num_fp_contexts; i++) {
-        int res = av1_create_context_and_bufferpool(
+        int res = create_context_and_bufferpool(
             ctx->ppi, &ctx->ppi->parallel_cpi[i], &ctx->buffer_pool, &ctx->oxcf,
             ENCODE_STAGE, -1);
         if (res != AOM_CODEC_OK) {
@@ -2781,8 +2772,8 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       if (!priv->ppi) return AOM_CODEC_MEM_ERROR;
 
 #if !CONFIG_REALTIME_ONLY
-      res = av1_create_stats_buffer(&priv->frame_stats_buffer,
-                                    &priv->stats_buf_context, *num_lap_buffers);
+      res = create_stats_buffer(&priv->frame_stats_buffer,
+                                &priv->stats_buf_context, *num_lap_buffers);
       if (res != AOM_CODEC_OK) return AOM_CODEC_MEM_ERROR;
 
       assert(MAX_LAP_BUFFERS >= MAX_LAG_BUFFERS);
@@ -2794,7 +2785,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 #endif
 
       assert(priv->ppi->num_fp_contexts >= 1);
-      res = av1_create_context_and_bufferpool(
+      res = create_context_and_bufferpool(
           priv->ppi, &priv->ppi->parallel_cpi[0], &priv->buffer_pool,
           &priv->oxcf, ENCODE_STAGE, -1);
       if (res != AOM_CODEC_OK) {
@@ -2808,7 +2799,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 
       // Create another compressor if look ahead is enabled
       if (res == AOM_CODEC_OK && *num_lap_buffers) {
-        res = av1_create_context_and_bufferpool(
+        res = create_context_and_bufferpool(
             priv->ppi, &priv->ppi->cpi_lap, &priv->buffer_pool_lap, &priv->oxcf,
             LAP_STAGE, clamp(lap_lag_in_frames, 0, MAX_LAG_BUFFERS));
       }
@@ -2818,8 +2809,8 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
   return res;
 }
 
-void av1_destroy_context_and_bufferpool(AV1_COMP *cpi,
-                                        BufferPool **p_buffer_pool) {
+static void destroy_context_and_bufferpool(AV1_COMP *cpi,
+                                           BufferPool **p_buffer_pool) {
   av1_remove_compressor(cpi);
   if (*p_buffer_pool) {
     av1_free_ref_frame_buffers(*p_buffer_pool);
@@ -2831,8 +2822,8 @@ void av1_destroy_context_and_bufferpool(AV1_COMP *cpi,
   }
 }
 
-void av1_destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
-                              FIRSTPASS_STATS *frame_stats_buffer) {
+static void destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
+                                 FIRSTPASS_STATS *frame_stats_buffer) {
   aom_free(stats_buf_context->total_left_stats);
   aom_free(stats_buf_context->total_stats);
   aom_free(frame_stats_buffer);
@@ -2883,17 +2874,16 @@ static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
 #endif
 
     for (int i = 0; i < MAX_PARALLEL_FRAMES; i++) {
-      av1_destroy_context_and_bufferpool(ppi->parallel_cpi[i],
-                                         &ctx->buffer_pool);
+      destroy_context_and_bufferpool(ppi->parallel_cpi[i], &ctx->buffer_pool);
     }
     ppi->cpi = NULL;
 
     if (ppi->cpi_lap) {
-      av1_destroy_context_and_bufferpool(ppi->cpi_lap, &ctx->buffer_pool_lap);
+      destroy_context_and_bufferpool(ppi->cpi_lap, &ctx->buffer_pool_lap);
     }
     av1_remove_primary_compressor(ppi);
   }
-  av1_destroy_stats_buffer(&ctx->stats_buf_context, ctx->frame_stats_buffer);
+  destroy_stats_buffer(&ctx->stats_buf_context, ctx->frame_stats_buffer);
   aom_free(ctx);
   return AOM_CODEC_OK;
 }
@@ -2961,8 +2951,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     if (res == AOM_CODEC_OK) {
       const size_t uncompressed_frame_sz =
           ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_w, 5) *
-          ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_h, 5) *
-          av1_get_image_bps(img) / 8;
+          ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_h, 5) * get_image_bps(img) / 8;
 
       // Due to the presence of no-show frames, the ctx->cx_data buffer holds
       // compressed data corresponding to multiple frames. As no-show frames are
