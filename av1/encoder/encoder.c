@@ -2120,7 +2120,7 @@ static void setup_denoiser_buffer(AV1_COMP *cpi) {
 #endif
 
 // Returns 1 if the assigned width or height was <= 0.
-int av1_set_size_literal(AV1_COMP *cpi, int width, int height) {
+static int set_size_literal(AV1_COMP *cpi, int width, int height) {
   AV1_COMMON *cm = &cpi->common;
   av1_check_initial_width(cpi, cm->seq_params->use_highbitdepth,
                           cm->seq_params->subsampling_x,
@@ -2154,7 +2154,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
 
   if (width != cm->width || height != cm->height) {
     // There has been a change in the encoded frame size
-    av1_set_size_literal(cpi, width, height);
+    set_size_literal(cpi, width, height);
     // Recalculate 'all_lossless' in case super-resolution was (un)selected.
     cm->features.all_lossless =
         cm->features.coded_lossless && !av1_superres_scaled(cm);
