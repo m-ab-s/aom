@@ -4042,16 +4042,16 @@ static int apply_denoise_2d(AV1_COMP *cpi, YV12_BUFFER_CONFIG *sd,
     cpi->denoise_and_model = aom_denoise_and_model_alloc(
         cm->seq_params->bit_depth, block_size, noise_level);
     if (!cpi->denoise_and_model) {
-      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
-                         "Error allocating denoise and model");
+      aom_set_error(cm->error, AOM_CODEC_MEM_ERROR,
+                    "Error allocating denoise and model");
       return -1;
     }
   }
   if (!cpi->film_grain_table) {
     cpi->film_grain_table = aom_malloc(sizeof(*cpi->film_grain_table));
     if (!cpi->film_grain_table) {
-      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
-                         "Error allocating grain table");
+      aom_set_error(cm->error, AOM_CODEC_MEM_ERROR,
+                    "Error allocating grain table");
       return -1;
     }
     memset(cpi->film_grain_table, 0, sizeof(*cpi->film_grain_table));
@@ -4133,8 +4133,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
   if (av1_lookahead_push(cpi->ppi->lookahead, sd, time_stamp, end_time,
                          use_highbitdepth, cpi->image_pyramid_levels,
                          frame_flags)) {
-    aom_internal_error(cm->error, AOM_CODEC_ERROR,
-                       "av1_lookahead_push() failed");
+    aom_set_error(cm->error, AOM_CODEC_ERROR, "av1_lookahead_push() failed");
     res = -1;
   }
 #if CONFIG_INTERNAL_STATS
@@ -4151,21 +4150,21 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
   // header.
   if ((seq_params->profile == PROFILE_0) && !seq_params->monochrome &&
       (subsampling_x != 1 || subsampling_y != 1)) {
-    aom_internal_error(cm->error, AOM_CODEC_INVALID_PARAM,
-                       "Non-4:2:0 color format requires profile 1 or 2");
+    aom_set_error(cm->error, AOM_CODEC_INVALID_PARAM,
+                  "Non-4:2:0 color format requires profile 1 or 2");
     res = -1;
   }
   if ((seq_params->profile == PROFILE_1) &&
       !(subsampling_x == 0 && subsampling_y == 0)) {
-    aom_internal_error(cm->error, AOM_CODEC_INVALID_PARAM,
-                       "Profile 1 requires 4:4:4 color format");
+    aom_set_error(cm->error, AOM_CODEC_INVALID_PARAM,
+                  "Profile 1 requires 4:4:4 color format");
     res = -1;
   }
   if ((seq_params->profile == PROFILE_2) &&
       (seq_params->bit_depth <= AOM_BITS_10) &&
       !(subsampling_x == 1 && subsampling_y == 0)) {
-    aom_internal_error(cm->error, AOM_CODEC_INVALID_PARAM,
-                       "Profile 2 bit-depth <= 10 requires 4:2:2 color format");
+    aom_set_error(cm->error, AOM_CODEC_INVALID_PARAM,
+                  "Profile 2 bit-depth <= 10 requires 4:2:2 color format");
     res = -1;
   }
 

@@ -395,6 +395,10 @@ struct aom_internal_error_info {
 #endif
 #endif
 
+// Records the error code and error message. Does not call longjmp().
+void aom_set_error(struct aom_internal_error_info *info, aom_codec_err_t error,
+                   const char *fmt, ...) LIBAOM_FORMAT_PRINTF(3, 4);
+
 void aom_internal_error(struct aom_internal_error_info *info,
                         aom_codec_err_t error, const char *fmt, ...)
     LIBAOM_FORMAT_PRINTF(3, 4) CLANG_ANALYZER_NORETURN;
