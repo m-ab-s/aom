@@ -116,6 +116,12 @@ TEST_P(AV1ResolutionChange, InvalidRefSize) {
   cfg.g_pass = AOM_RC_ONE_PASS;
   cfg.g_lag_in_frames = 0;
   cfg.rc_end_usage = rc_mode_;
+  // TODO(https://crbug.com/aomedia/3349): Setting g_w and g_h shouldn't be
+  // necessary due to the call to aom_codec_enc_config_set() at the start of
+  // the loop. Without this, however, there will be some heap overflows due to
+  // the default being a lower resolution (320x240).
+  cfg.g_w = kFrameSizes[0].width;
+  cfg.g_h = kFrameSizes[0].height;
 
   aom_codec_ctx_t ctx;
   EXPECT_EQ(aom_codec_enc_init(&ctx, iface, &cfg, 0), AOM_CODEC_OK);
@@ -255,6 +261,12 @@ TEST_P(AV1ResolutionChange, InvalidInputSize) {
   cfg.g_pass = AOM_RC_ONE_PASS;
   cfg.g_lag_in_frames = 0;
   cfg.rc_end_usage = rc_mode_;
+  // TODO(https://crbug.com/aomedia/3349): Setting g_w and g_h shouldn't be
+  // necessary due to the call to aom_codec_enc_config_set() at the start of
+  // the loop. Without this, however, there will be some heap overflows due to
+  // the default being a lower resolution (320x240).
+  cfg.g_w = kFrameSizes[2].width;
+  cfg.g_h = kFrameSizes[2].height;
 
   aom_codec_ctx_t ctx;
   EXPECT_EQ(aom_codec_enc_init(&ctx, iface, &cfg, 0), AOM_CODEC_OK);
