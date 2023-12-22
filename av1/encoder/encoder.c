@@ -642,11 +642,13 @@ static void init_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf) {
   cm->height = oxcf->frm_dim_cfg.height;
   cpi->is_dropped_frame = false;
 
-  alloc_compressor_data(cpi);
+  InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
+  initial_dimensions->width = cm->width;
+  initial_dimensions->height = cm->height;
 
-  cpi->compressor_data_alloc_width = cm->width;
-  cpi->compressor_data_alloc_height = cm->height;
   cpi->frame_size_related_setup_done = false;
+
+  alloc_compressor_data(cpi);
 
   // Single thread case: use counts in common.
   cpi->td.counts = &cpi->counts;
@@ -771,6 +773,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   MACROBLOCK *const x = &cpi->td.mb;
   AV1LevelParams *const level_params = &cpi->ppi->level_params;
+  InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
@@ -910,8 +913,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   cm->width = frm_dim_cfg->width;
   cm->height = frm_dim_cfg->height;
 
-  if (cm->width > cpi->compressor_data_alloc_width ||
-      cm->height > cpi->compressor_data_alloc_height || is_sb_size_changed) {
+  if (cm->width > initial_dimensions->width ||
+      cm->height > initial_dimensions->height || is_sb_size_changed) {
     av1_free_context_buffers(cm);
     av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
     av1_free_sms_tree(&cpi->td);
@@ -919,8 +922,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
     cpi->td.firstpass_ctx = NULL;
     alloc_compressor_data(cpi);
     realloc_segmentation_maps(cpi);
-    cpi->compressor_data_alloc_width = cm->width;
-    cpi->compressor_data_alloc_height = cm->height;
+    initial_dimensions->width = cm->width;
+    initial_dimensions->height = cm->height;
     cpi->frame_size_related_setup_done = false;
   }
   av1_update_frame_size(cpi);
@@ -2133,8 +2136,8 @@ static int set_size_literal(AV1_COMP *cpi, int width, int height) {
 #endif
 
   // No need to reallocate compressor data.
-  assert(cm->width <= cpi->compressor_data_alloc_width &&
-         cm->height <= cpi->compressor_data_alloc_height);
+  assert(cm->width <= cpi->initial_dimensions.width &&
+         cm->height <= cpi->initial_dimensions.height);
 
   alloc_mb_mode_info_buffers(cpi);
   av1_update_frame_size(cpi);

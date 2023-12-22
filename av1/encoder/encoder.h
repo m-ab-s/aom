@@ -2088,6 +2088,20 @@ typedef struct {
 } GlobalMotionInfo;
 
 /*!
+ * \brief Initial frame dimensions
+ *
+ * Tracks the frame dimensions using which:
+ *  - Frame buffers (like altref and util frame buffers) were allocated
+ *  - Motion estimation related initializations were done
+ * This structure is helpful to reallocate / reinitialize the above when there
+ * is a change in frame dimensions.
+ */
+typedef struct {
+  int width;  /*!< initial width */
+  int height; /*!< initial height */
+} InitialDimensions;
+
+/*!
  * \brief Flags related to interpolation filter search
  */
 typedef struct {
@@ -3156,18 +3170,11 @@ typedef struct AV1_COMP {
   FRAME_INDEX_SET frame_index_set;
 
   /*!
-   * Store the cm->width in the last call of alloc_compressor_data(). Help
-   * determine whether compressor data should be reallocated when cm->width
-   * changes.
+   * Structure to store the cm->width and cm->height in the last call
+   * of alloc_compressor_data().
+   * TODO(chengchen): rename this variable or delete it.
    */
-  int compressor_data_alloc_width;
-
-  /*!
-   * Store the cm->height in the last call of alloc_compressor_data(). Help
-   * determine whether compressor data should be reallocated when cm->height
-   * changes.
-   */
-  int compressor_data_alloc_height;
+  InitialDimensions initial_dimensions;
 
   /*!
    * Number of MBs in the full-size frame; to be used to
