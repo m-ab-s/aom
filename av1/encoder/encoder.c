@@ -2122,6 +2122,7 @@ static void setup_denoiser_buffer(AV1_COMP *cpi) {
 // Returns 1 if the assigned width or height was <= 0.
 static int set_size_literal(AV1_COMP *cpi, int width, int height) {
   AV1_COMMON *cm = &cpi->common;
+  InitialDimensions *const initial_dimensions = &cpi->initial_dimensions;
   av1_check_initial_width(cpi, cm->seq_params->use_highbitdepth,
                           cm->seq_params->subsampling_x,
                           cm->seq_params->subsampling_y);
@@ -2135,10 +2136,19 @@ static int set_size_literal(AV1_COMP *cpi, int width, int height) {
   setup_denoiser_buffer(cpi);
 #endif
 
-  // No need to reallocate compressor data.
-  assert(cm->width <= cpi->initial_dimensions.width &&
-         cm->height <= cpi->initial_dimensions.height);
-
+  if (cm->width > initial_dimensions->width ||
+      cm->height > initial_dimensions->height) {
+    av1_free_context_buffers(cm);
+    av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
+    av1_free_sms_tree(&cpi->td);
+    av1_free_pmc(cpi->td.firstpass_ctx, av1_num_planes(cm));
+    cpi->td.firstpass_ctx = NULL;
+    alloc_compressor_data(cpi);
+    realloc_segmentation_maps(cpi);
+    initial_dimensions->width = cm->width;
+    initial_dimensions->height = cm->height;
+    cpi->frame_size_related_setup_done = false;
+  }
   alloc_mb_mode_info_buffers(cpi);
   av1_update_frame_size(cpi);
 
