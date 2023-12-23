@@ -4310,7 +4310,7 @@ static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
   const AV1_COMMON *const cm = &cpi->common;
 
   return cpi->ppi->b_calculate_psnr && !is_stat_generation_stage(cpi) &&
-         cm->show_frame;
+         cm->show_frame && !cpi->is_dropped_frame;
 }
 
 static INLINE int is_frame_resize_pending(const AV1_COMP *const cpi) {
