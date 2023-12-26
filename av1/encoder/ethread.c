@@ -1401,8 +1401,7 @@ static AOM_INLINE void sync_fpmt_workers(AV1_PRIMARY *ppi,
 
   restore_workers_after_fpmt(ppi, frames_in_parallel_set);
 
-  if (had_error)
-    aom_internal_error(&ppi->error, error->error_code, "%s", error->detail);
+  if (had_error) aom_internal_error_copy(&ppi->error, error);
 }
 
 static int get_compressed_data_hook(void *arg1, void *arg2) {
@@ -1472,9 +1471,7 @@ static AOM_INLINE void sync_enc_workers(MultiThreadInfo *const mt_info,
     }
   }
 
-  if (had_error)
-    aom_internal_error(cm->error, error_info.error_code, "%s",
-                       error_info.detail);
+  if (had_error) aom_internal_error_copy(cm->error, &error_info);
 
   // Restore xd->error_info of the main thread back to cm->error so that the
   // multithreaded code, when executed using a single thread, has a valid

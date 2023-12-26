@@ -403,6 +403,13 @@ void aom_internal_error(struct aom_internal_error_info *info,
                         aom_codec_err_t error, const char *fmt, ...)
     LIBAOM_FORMAT_PRINTF(3, 4) CLANG_ANALYZER_NORETURN;
 
+// Calls aom_internal_error() with the error code and error message in `src`.
+// `info` and `src` must not point to the same struct, i.e., self copy is
+// prohibited.
+void aom_internal_error_copy(struct aom_internal_error_info *info,
+                             const struct aom_internal_error_info *src)
+    CLANG_ANALYZER_NORETURN;
+
 void aom_merge_corrupted_flag(int *corrupted, int value);
 #ifdef __cplusplus
 }  // extern "C"

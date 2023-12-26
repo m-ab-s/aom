@@ -377,9 +377,7 @@ static AOM_INLINE void sync_lf_workers(AVxWorker *const workers,
       error_info = ((LFWorkerData *)worker->data2)->error_info;
     }
   }
-  if (had_error)
-    aom_internal_error(cm->error, error_info.error_code, "%s",
-                       error_info.detail);
+  if (had_error) aom_internal_error_copy(cm->error, &error_info);
 }
 
 // Row-based multi-threaded loopfilter hook
@@ -906,9 +904,7 @@ static AOM_INLINE void sync_lr_workers(AVxWorker *const workers,
       error_info = ((LRWorkerData *)worker->data2)->error_info;
     }
   }
-  if (had_error)
-    aom_internal_error(cm->error, error_info.error_code, "%s",
-                       error_info.detail);
+  if (had_error) aom_internal_error_copy(cm->error, &error_info);
 }
 
 static void foreach_rest_unit_in_planes_mt(AV1LrStruct *lr_ctxt,
@@ -1031,9 +1027,7 @@ static AOM_INLINE void sync_cdef_workers(AVxWorker *const workers,
       error_info = ((AV1CdefWorkerData *)worker->data2)->error_info;
     }
   }
-  if (had_error)
-    aom_internal_error(cm->error, error_info.error_code, "%s",
-                       error_info.detail);
+  if (had_error) aom_internal_error_copy(cm->error, &error_info);
 }
 
 // Updates the row index of the next job to be processed.

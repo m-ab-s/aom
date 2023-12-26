@@ -167,6 +167,17 @@ void aom_internal_error(struct aom_internal_error_info *info,
   if (info->setjmp) longjmp(info->jmp, info->error_code);
 }
 
+void aom_internal_error_copy(struct aom_internal_error_info *info,
+                             const struct aom_internal_error_info *src) {
+  assert(info != src);
+
+  if (!src->has_detail) {
+    aom_internal_error(info, src->error_code, NULL);
+  } else {
+    aom_internal_error(info, src->error_code, "%s", src->detail);
+  }
+}
+
 void aom_merge_corrupted_flag(int *corrupted, int value) {
   *corrupted |= value;
 }
