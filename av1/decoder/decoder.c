@@ -214,8 +214,6 @@ void av1_decoder_remove(AV1Decoder *pbi) {
     av1_dec_row_mt_dealloc(&tile_data->dec_row_mt_sync);
   }
   aom_free(pbi->tile_data);
-  pbi->tile_data = NULL;
-  pbi->allocated_tiles = 0;
   aom_free(pbi->tile_workers);
 
   if (pbi->num_workers > 0) {
