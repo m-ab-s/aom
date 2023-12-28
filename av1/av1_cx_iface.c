@@ -3212,7 +3212,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       const int status = av1_get_compressed_data(cpi_lap, &cpi_lap_data);
       if (status != -1) {
         if (status != AOM_CODEC_OK) {
-          aom_internal_error_copy(&ppi->error, cpi->common.error);
+          aom_internal_error_copy(&ppi->error, cpi_lap->common.error);
         }
       }
       av1_post_encode_updates(cpi_lap, &cpi_lap_data);
