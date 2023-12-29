@@ -3835,9 +3835,9 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
  * \retval #AOM_CODEC_OK
  * \retval -1
  *     No frame encoded; more input is required.
- *
- * \remark Sets the error code and error message in \c cpi->common.error and
- * returns error code on failure.
+ * \retval "A nonzero (positive) aom_codec_err_t code"
+ *     The encoding failed with the error. Sets the error code and error message
+ * in \c cpi->common.error.
  */
 int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data);
 
