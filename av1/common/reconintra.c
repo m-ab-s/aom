@@ -959,21 +959,18 @@ static int is_smooth(const MB_MODE_INFO *mbmi, int plane) {
 }
 
 static int get_intra_edge_filter_type(const MACROBLOCKD *xd, int plane) {
-  int ab_sm, le_sm;
+  const MB_MODE_INFO *above;
+  const MB_MODE_INFO *left;
 
   if (plane == 0) {
-    const MB_MODE_INFO *ab = xd->above_mbmi;
-    const MB_MODE_INFO *le = xd->left_mbmi;
-    ab_sm = ab ? is_smooth(ab, plane) : 0;
-    le_sm = le ? is_smooth(le, plane) : 0;
+    above = xd->above_mbmi;
+    left = xd->left_mbmi;
   } else {
-    const MB_MODE_INFO *ab = xd->chroma_above_mbmi;
-    const MB_MODE_INFO *le = xd->chroma_left_mbmi;
-    ab_sm = ab ? is_smooth(ab, plane) : 0;
-    le_sm = le ? is_smooth(le, plane) : 0;
+    above = xd->chroma_above_mbmi;
+    left = xd->chroma_left_mbmi;
   }
 
-  return (ab_sm || le_sm) ? 1 : 0;
+  return (above && is_smooth(above, plane)) || (left && is_smooth(left, plane));
 }
 
 static int intra_edge_filter_strength(int bs0, int bs1, int delta, int type) {
