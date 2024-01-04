@@ -1424,8 +1424,8 @@ static int get_compressed_data_hook(void *arg1, void *arg2) {
 
 // This function encodes the raw frame data for each frame in parallel encode
 // set, and outputs the frame bit stream to the designated buffers.
-int av1_compress_parallel_frames(AV1_PRIMARY *const ppi,
-                                 AV1_COMP_DATA *const first_cpi_data) {
+void av1_compress_parallel_frames(AV1_PRIMARY *const ppi,
+                                  AV1_COMP_DATA *const first_cpi_data) {
   // Bitmask for the frame buffers referenced by cpi->scaled_ref_buf
   // corresponding to frames in the current parallel encode set.
   int ref_buffers_used_map = 0;
@@ -1443,7 +1443,6 @@ int av1_compress_parallel_frames(AV1_PRIMARY *const ppi,
   }
   av1_decrement_ref_counts_fpmt(ppi->cpi->common.buffer_pool,
                                 ref_buffers_used_map);
-  return AOM_CODEC_OK;
 }
 
 static AOM_INLINE void launch_workers(MultiThreadInfo *const mt_info,

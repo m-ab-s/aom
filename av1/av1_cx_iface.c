@@ -3264,8 +3264,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           status = av1_get_compressed_data(cpi, &cpi_data);
         } else if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] ==
                    1) {
-          status = av1_compress_parallel_frames(ppi, &cpi_data);
+          // In case of an error, longjmp() would be invoked and hence "status"
+          // is set to AOM_CODEC_OK here.
+          av1_compress_parallel_frames(ppi, &cpi_data);
+          status = AOM_CODEC_OK;
         } else {
+          // No possibility of failures from this function and hence "status" is
+          // set to AOM_CODEC_OK here.
           cpi = av1_get_parallel_frame_enc_data(ppi, &cpi_data);
           status = AOM_CODEC_OK;
         }
