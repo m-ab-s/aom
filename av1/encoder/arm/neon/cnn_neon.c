@@ -1093,22 +1093,17 @@ void av1_cnn_convolve_no_maxpool_padding_valid_neon(
   assert(channel_step == 1);
   assert(cstep == layer_config->in_channels * layer_config->out_channels);
 
-  // TODO(aomedia:3521) Delete this if statement after the bug is fixed.
-  if (/* DISABLES CODE */ (1)) {
-    av1_cnn_convolve_no_maxpool_padding_valid_c(
-        input, in_width, in_height, in_stride, layer_config, output, out_stride,
-        start_idx, cstep, channel_step);
-    return;
-  }
-
-  if (layer_config->output_num == -1) {
+  if (layer_config->filter_width == 5 && layer_config->filter_height == 5 &&
+      layer_config->skip_width == 4 && layer_config->skip_height == 4) {
     av1_cnn_convolve_no_maxpool_padding_valid_5x5_neon(
         input, in_width, in_height, in_stride, layer_config->bias,
         layer_config->skip_width, layer_config->skip_height,
         layer_config->filter_width, layer_config->filter_height,
         layer_config->in_channels, layer_config->out_channels, output,
         out_stride, start_idx, weights_layer_5);
-  } else {
+  } else if (layer_config->filter_width == 2 &&
+             layer_config->filter_height == 2 &&
+             layer_config->skip_width == 2 && layer_config->skip_height == 2) {
     const float *weights = weights_layer_1;
     if (layer_config->output_num ==
         av1_intra_mode_cnn_partition_cnn_config.layer_config[2].output_num) {
@@ -1141,5 +1136,9 @@ void av1_cnn_convolve_no_maxpool_padding_valid_neon(
           input, in_width, in_height, in_stride, layer_config, output,
           out_stride, start_idx, cstep, channel_step);
     }
+  } else {
+    av1_cnn_convolve_no_maxpool_padding_valid_c(
+        input, in_width, in_height, in_stride, layer_config, output, out_stride,
+        start_idx, cstep, channel_step);
   }
 }
