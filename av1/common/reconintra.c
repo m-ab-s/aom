@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <assert.h>
 #include <math.h>
 
 #include "config/aom_config.h"
@@ -1608,6 +1609,8 @@ void av1_predict_intra_block(const MACROBLOCKD *xd, BLOCK_SIZE sb_size,
   const int x = col_off << MI_SIZE_LOG2;
   const int y = row_off << MI_SIZE_LOG2;
   const int is_hbd = is_cur_buf_hbd(xd);
+
+  assert(mode < INTRA_MODES);
 
   if (use_palette) {
     int r, c;
