@@ -1675,7 +1675,8 @@ int main(int argc, const char **argv) {
 
   aom_codec_control(&codec, AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR, INT_MAX);
 
-  aom_codec_control(&codec, AV1E_SET_SVC_FRAME_DROP_MODE, FULL_SUPERFRAME_DROP);
+  aom_codec_control(&codec, AV1E_SET_SVC_FRAME_DROP_MODE,
+                    AOM_FULL_SUPERFRAME_DROP);
 
   svc_params.number_spatial_layers = ss_number_layers;
   svc_params.number_temporal_layers = ts_number_layers;

@@ -150,9 +150,9 @@ typedef struct SVC {
 
   /*!
    * Flag to indicate the frame drop mode for SVC: one of the two settings:
-   * LAYER_DROP (default) or FULL_SUPERFRAME_DROP.
+   * AOM_LAYER_DROP (default) or AOM_FULL_SUPERFRAME_DROP.
    */
-  SVC_FRAME_DROP_MODE framedrop_mode;
+  AOM_SVC_FRAME_DROP_MODE framedrop_mode;
 
   /*!
    * Flag to indicate if frame was dropped for a given spatial_layer_id on

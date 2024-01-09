@@ -2619,8 +2619,8 @@ static aom_codec_err_t ctrl_set_svc_frame_drop_mode(aom_codec_alg_priv_t *ctx,
   AV1_PRIMARY *const ppi = ctx->ppi;
   AV1_COMP *const cpi = ppi->cpi;
   cpi->svc.framedrop_mode = CAST(AV1E_SET_SVC_FRAME_DROP_MODE, args);
-  if (cpi->svc.framedrop_mode != LAYER_DROP &&
-      cpi->svc.framedrop_mode != FULL_SUPERFRAME_DROP)
+  if (cpi->svc.framedrop_mode != AOM_LAYER_DROP &&
+      cpi->svc.framedrop_mode != AOM_FULL_SUPERFRAME_DROP)
     return AOM_CODEC_INVALID_PARAM;
   else
     return AOM_CODEC_OK;

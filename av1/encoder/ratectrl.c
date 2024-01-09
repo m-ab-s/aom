@@ -445,10 +445,10 @@ static bool check_buffer_below_thresh(AV1_COMP *cpi, int64_t buffer_level,
                                       int drop_mark) {
   SVC *svc = &cpi->svc;
   if (!cpi->ppi->use_svc || cpi->svc.number_spatial_layers == 1 ||
-      cpi->svc.framedrop_mode == LAYER_DROP) {
+      cpi->svc.framedrop_mode == AOM_LAYER_DROP) {
     return (buffer_level <= drop_mark);
   } else {
-    // For SVC in the FULL_SUPERFRAME_DROP): the condition on
+    // For SVC in the AOM_FULL_SUPERFRAME_DROP): the condition on
     // buffer is checked on current and upper spatial layers.
     for (int i = svc->spatial_layer_id; i < svc->number_spatial_layers; ++i) {
       const int layer = LAYER_IDS_TO_IDX(i, svc->temporal_layer_id,
@@ -495,7 +495,7 @@ int av1_rc_drop_frame(AV1_COMP *cpi) {
     // layer was dropped, drop the current spatial layer.
     if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
         svc->drop_spatial_layer[svc->spatial_layer_id - 1] &&
-        svc->framedrop_mode == FULL_SUPERFRAME_DROP)
+        svc->framedrop_mode == AOM_FULL_SUPERFRAME_DROP)
       return 1;
     // -1 is passed here for drop_mark since we are checking if
     // buffer goes below 0 (<= -1).

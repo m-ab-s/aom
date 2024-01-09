@@ -1533,7 +1533,9 @@ enum aome_enc_control_id {
    */
   AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR = 164,
 
-  /*!\brief Codec control to set the frame drop mode for SVC.
+  /*!\brief Codec control to set the frame drop mode for SVC,
+   * unsigned int parameter. The valid values are constants of the
+   * AOM_SVC_FRAME_DROP_MODE enum: AOM_LAYER_DROP or AOM_FULL_SUPERFRAME_DROP.
    */
   AV1E_SET_SVC_FRAME_DROP_MODE = 165,
 
@@ -1705,9 +1707,9 @@ typedef struct aom_svc_ref_frame_comp_pred {
 
 /*!brief Frame drop modes for spatial/quality layer SVC */
 typedef enum {
-  LAYER_DROP,           /**< Any spatial layer can drop. */
-  FULL_SUPERFRAME_DROP, /**< Only full superframe can drop. */
-} SVC_FRAME_DROP_MODE;
+  AOM_LAYER_DROP,           /**< Any spatial layer can drop. */
+  AOM_FULL_SUPERFRAME_DROP, /**< Only full superframe can drop. */
+} AOM_SVC_FRAME_DROP_MODE;
 
 /*!\cond */
 /*!\brief Encoder control function parameter type
