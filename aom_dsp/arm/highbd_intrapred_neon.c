@@ -13,6 +13,7 @@
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
+#include "config/av1_rtcd.h"
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/arm/sum_neon.h"
@@ -2715,6 +2716,16 @@ void av1_highbd_dr_prediction_z3_neon(uint16_t *dst, ptrdiff_t stride, int bw,
   assert(bh % 4 == 0);
   assert(dx == 1);
   assert(dy > 0);
+
+  // TODO(aomedia:3536): There is apparently an over write in
+  // highbd_dr_prediction_z3_upsample1_neon() that causes data race reports
+  // under TSan. Disable av1_highbd_dr_prediction_z3_neon() until this bug is
+  // fixed.
+  if (/* DISABLES CODE */ (1)) {
+    av1_highbd_dr_prediction_z3_c(dst, stride, bw, bh, above, left,
+                                  upsample_left, dx, dy, bd);
+    return;
+  }
 
   if (upsample_left) {
     highbd_dr_prediction_z3_upsample1_neon(dst, stride, bw, bh, left, dy);
