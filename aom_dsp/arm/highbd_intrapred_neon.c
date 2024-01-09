@@ -2662,12 +2662,14 @@ static void highbd_dr_prediction_z3_upsample1_neon(uint16_t *dst,
       c += 4;
     } while (c < bw);
   } else {
+    assert(bh % 8 == 0);
+
     int y = dy;
     int c = 0;
     do {
       int r = 0;
       do {
-        // Fully unroll the 4x4 block to allow us to use immediate lane-indexed
+        // Fully unroll the 4x8 block to allow us to use immediate lane-indexed
         // multiply instructions.
         const uint16x4_t shifts1 =
             vand_u16(vmla_n_u16(vdup_n_u16(y), iota1x4, dy), shift_mask);
@@ -2696,7 +2698,7 @@ static void highbd_dr_prediction_z3_upsample1_neon(uint16_t *dst,
         for (int r2 = 0; r2 < 4; ++r2) {
           vst1_u16(dst + (r + r2 + 4) * stride + c, vget_high_u16(out[r2]));
         }
-        r += 4;
+        r += 8;
       } while (r < bh);
       y += 4 * dy;
       c += 4;
@@ -2716,16 +2718,6 @@ void av1_highbd_dr_prediction_z3_neon(uint16_t *dst, ptrdiff_t stride, int bw,
   assert(bh % 4 == 0);
   assert(dx == 1);
   assert(dy > 0);
-
-  // TODO(aomedia:3536): There is apparently an over write in
-  // highbd_dr_prediction_z3_upsample1_neon() that causes data race reports
-  // under TSan. Disable av1_highbd_dr_prediction_z3_neon() until this bug is
-  // fixed.
-  if (/* DISABLES CODE */ (1)) {
-    av1_highbd_dr_prediction_z3_c(dst, stride, bw, bh, above, left,
-                                  upsample_left, dx, dy, bd);
-    return;
-  }
 
   if (upsample_left) {
     highbd_dr_prediction_z3_upsample1_neon(dst, stride, bw, bh, left, dy);
