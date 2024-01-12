@@ -2594,15 +2594,24 @@ static int encode_without_recode(AV1_COMP *cpi) {
       if (cpi->ref_frame_flags & av1_ref_frame_flag_list[GOLDEN_FRAME]) {
         const YV12_BUFFER_CONFIG *const ref =
             get_ref_frame_yv12_buf(cm, GOLDEN_FRAME);
-        if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
+        if (ref == NULL) {
           cpi->ref_frame_flags ^= AOM_GOLD_FLAG;
+        } else {
+          if (ref->y_crop_width != cm->width ||
+              ref->y_crop_height != cm->height)
+            cpi->ref_frame_flags ^= AOM_GOLD_FLAG;
+        }
       }
     }
     if (cpi->ref_frame_flags & av1_ref_frame_flag_list[ALTREF_FRAME]) {
       const YV12_BUFFER_CONFIG *const ref =
           get_ref_frame_yv12_buf(cm, ALTREF_FRAME);
-      if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
+      if (ref == NULL) {
         cpi->ref_frame_flags ^= AOM_ALT_FLAG;
+      } else {
+        if (ref->y_crop_width != cm->width || ref->y_crop_height != cm->height)
+          cpi->ref_frame_flags ^= AOM_ALT_FLAG;
+      }
     }
   }
 
