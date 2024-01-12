@@ -951,7 +951,7 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
-int av1_get_image_bps(const aom_image_t *img) {
+static int get_image_bps(const aom_image_t *img) {
   switch (img->fmt) {
     case AOM_IMG_FMT_YV12:
     case AOM_IMG_FMT_NV12:
@@ -2635,9 +2635,9 @@ static aom_codec_err_t ctrl_set_svc_frame_drop_mode(aom_codec_alg_priv_t *ctx,
 }
 
 #if !CONFIG_REALTIME_ONLY
-aom_codec_err_t av1_create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
-                                        STATS_BUFFER_CTX *stats_buf_context,
-                                        int num_lap_buffers) {
+static aom_codec_err_t create_stats_buffer(FIRSTPASS_STATS **frame_stats_buffer,
+                                           STATS_BUFFER_CTX *stats_buf_context,
+                                           int num_lap_buffers) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
   int size = get_stats_buf_size(num_lap_buffers, MAX_LAG_BUFFERS);
@@ -2794,8 +2794,8 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       if (!priv->ppi) return AOM_CODEC_MEM_ERROR;
 
 #if !CONFIG_REALTIME_ONLY
-      res = av1_create_stats_buffer(&priv->frame_stats_buffer,
-                                    &priv->stats_buf_context, *num_lap_buffers);
+      res = create_stats_buffer(&priv->frame_stats_buffer,
+                                &priv->stats_buf_context, *num_lap_buffers);
       if (res != AOM_CODEC_OK) return AOM_CODEC_MEM_ERROR;
 
       assert(MAX_LAP_BUFFERS >= MAX_LAG_BUFFERS);
@@ -2844,8 +2844,8 @@ void av1_destroy_context_and_bufferpool(AV1_COMP *cpi,
   }
 }
 
-void av1_destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
-                              FIRSTPASS_STATS *frame_stats_buffer) {
+static void destroy_stats_buffer(STATS_BUFFER_CTX *stats_buf_context,
+                                 FIRSTPASS_STATS *frame_stats_buffer) {
   aom_free(stats_buf_context->total_left_stats);
   aom_free(stats_buf_context->total_stats);
   aom_free(frame_stats_buffer);
@@ -2906,7 +2906,7 @@ static aom_codec_err_t encoder_destroy(aom_codec_alg_priv_t *ctx) {
     }
     av1_remove_primary_compressor(ppi);
   }
-  av1_destroy_stats_buffer(&ctx->stats_buf_context, ctx->frame_stats_buffer);
+  destroy_stats_buffer(&ctx->stats_buf_context, ctx->frame_stats_buffer);
   aom_free(ctx);
   return AOM_CODEC_OK;
 }
@@ -2974,8 +2974,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     if (res == AOM_CODEC_OK) {
       const size_t uncompressed_frame_sz =
           ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_w, 5) *
-          ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_h, 5) *
-          av1_get_image_bps(img) / 8;
+          ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_h, 5) * get_image_bps(img) / 8;
 
       // Due to the presence of no-show frames, the ctx->cx_data buffer holds
       // compressed data corresponding to multiple frames. As no-show frames are
