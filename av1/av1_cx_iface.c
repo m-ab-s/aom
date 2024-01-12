@@ -23,6 +23,7 @@
 
 #include "aom_dsp/flow_estimation/flow_estimation.h"
 
+#include "av1/av1_cx_iface.h"
 #include "av1/av1_iface_common.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encoder.h"
