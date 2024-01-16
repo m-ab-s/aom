@@ -2704,10 +2704,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
     update_motion_stat(cpi);
 
   // Adjust the refresh of the golden (longer-term) reference based on QP
-  // selected for this frame. This is for CBR with 1 layer/non-svc RTC mode.
+  // selected for this frame. This is for CBR real-time mode, and only
+  // for single layer without usage of the set_ref_frame_config (so
+  // reference structure for 1 layer is set internally).
   if (!frame_is_intra_only(cm) && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
       cpi->oxcf.mode == REALTIME && svc->number_spatial_layers == 1 &&
       svc->number_temporal_layers == 1 && !cpi->rc.rtc_external_ratectrl &&
+      !cpi->ppi->rtc_ref.set_ref_frame_config &&
       sf->rt_sf.gf_refresh_based_on_qp)
     av1_adjust_gf_refresh_qp_one_pass_rt(cpi);
 
