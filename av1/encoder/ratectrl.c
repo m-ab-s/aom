@@ -3565,13 +3565,11 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     cpi->ppi->p_rc.rate_correction_factors[INTER_NORMAL] =
         rate_correction_factor;
   }
-  // For temporal layers: reset the rate control parameters across
-  // lower temporal layers.
-  // TODO(marpan): Look into whether we should reset for all spatial
-  // layers if no inter-layer prediction is used.
+  // For temporal layers: reset the rate control parameters across all
+  // temporal layers.
   if (cpi->svc.number_temporal_layers > 1) {
     SVC *svc = &cpi->svc;
-    for (int tl = 0; tl < svc->temporal_layer_id; ++tl) {
+    for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
       int sl = svc->spatial_layer_id;
       const int layer = LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
       LAYER_CONTEXT *lc = &svc->layer_context[layer];
