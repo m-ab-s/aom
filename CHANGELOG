@@ -1,3 +1,16 @@
+2024-01-17 v3.7.2
+  This release includes three bug fixes. This release is ABI compatible
+  with the last release. See
+  https://aomedia.googlesource.com/aom/+log/v3.7.1..v3.7.2 for all the
+  commits in this release.
+
+  - Bug Fixes
+    * aomedia:3526: alloc_compressor_data() is called during every
+      aom_codec_control() call on the encoder. Note that this partially
+      reverts the fix for bug aomedia:3349.
+    * b/310457427 and b/310766628: Only use rec_sse in CBR mode.
+    * Fix a hang of cmake on arm64 macOS with cmake 3.27.0 or later.
+
 2023-11-17 v3.7.1
   This release includes several bug fixes. This release is ABI
   compatible with the last release. See
