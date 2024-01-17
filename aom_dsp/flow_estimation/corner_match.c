@@ -17,13 +17,11 @@
 
 #include "aom_dsp/flow_estimation/corner_detect.h"
 #include "aom_dsp/flow_estimation/corner_match.h"
+#include "aom_dsp/flow_estimation/disflow.h"
 #include "aom_dsp/flow_estimation/flow_estimation.h"
 #include "aom_dsp/flow_estimation/ransac.h"
 #include "aom_dsp/pyramid.h"
 #include "aom_scale/yv12config.h"
-
-#define SEARCH_SZ 9
-#define SEARCH_SZ_BY2 ((SEARCH_SZ - 1) / 2)
 
 #define THRESHOLD_NCC 0.75
 
@@ -87,66 +85,6 @@ static int is_eligible_distance(int point1x, int point1y, int point2x,
           (point1y - point2y) * (point1y - point2y)) <= thresh * thresh;
 }
 
-static void improve_correspondence(const unsigned char *src,
-                                   const unsigned char *ref, int width,
-                                   int height, int src_stride, int ref_stride,
-                                   Correspondence *correspondences,
-                                   int num_correspondences) {
-  int i;
-  for (i = 0; i < num_correspondences; ++i) {
-    int x, y, best_x = 0, best_y = 0;
-    double best_match_ncc = 0.0;
-    // For this algorithm, all points have integer coordinates.
-    // It's a little more efficient to convert them to ints once,
-    // before the inner loops
-    int x0 = (int)correspondences[i].x;
-    int y0 = (int)correspondences[i].y;
-    int rx0 = (int)correspondences[i].rx;
-    int ry0 = (int)correspondences[i].ry;
-    for (y = -SEARCH_SZ_BY2; y <= SEARCH_SZ_BY2; ++y) {
-      for (x = -SEARCH_SZ_BY2; x <= SEARCH_SZ_BY2; ++x) {
-        double match_ncc;
-        if (!is_eligible_point(rx0 + x, ry0 + y, width, height)) continue;
-        if (!is_eligible_distance(x0, y0, rx0 + x, ry0 + y, width, height))
-          continue;
-        match_ncc = av1_compute_cross_correlation(src, src_stride, x0, y0, ref,
-                                                  ref_stride, rx0 + x, ry0 + y);
-        if (match_ncc > best_match_ncc) {
-          best_match_ncc = match_ncc;
-          best_y = y;
-          best_x = x;
-        }
-      }
-    }
-    correspondences[i].rx += best_x;
-    correspondences[i].ry += best_y;
-  }
-  for (i = 0; i < num_correspondences; ++i) {
-    int x, y, best_x = 0, best_y = 0;
-    double best_match_ncc = 0.0;
-    int x0 = (int)correspondences[i].x;
-    int y0 = (int)correspondences[i].y;
-    int rx0 = (int)correspondences[i].rx;
-    int ry0 = (int)correspondences[i].ry;
-    for (y = -SEARCH_SZ_BY2; y <= SEARCH_SZ_BY2; ++y)
-      for (x = -SEARCH_SZ_BY2; x <= SEARCH_SZ_BY2; ++x) {
-        double match_ncc;
-        if (!is_eligible_point(x0 + x, y0 + y, width, height)) continue;
-        if (!is_eligible_distance(x0 + x, y0 + y, rx0, ry0, width, height))
-          continue;
-        match_ncc = av1_compute_cross_correlation(
-            ref, ref_stride, rx0, ry0, src, src_stride, x0 + x, y0 + y);
-        if (match_ncc > best_match_ncc) {
-          best_match_ncc = match_ncc;
-          best_y = y;
-          best_x = x;
-        }
-      }
-    correspondences[i].x += best_x;
-    correspondences[i].y += best_y;
-  }
-}
-
 static int determine_correspondence(const unsigned char *src,
                                     const int *src_corners, int num_src_corners,
                                     const unsigned char *ref,
@@ -187,16 +125,27 @@ static int determine_correspondence(const unsigned char *src,
     template_norm = compute_variance(src, src_stride, src_corners[2 * i],
                                      src_corners[2 * i + 1]);
     if (best_match_ncc > THRESHOLD_NCC * sqrt(template_norm)) {
-      correspondences[num_correspondences].x = src_corners[2 * i];
-      correspondences[num_correspondences].y = src_corners[2 * i + 1];
-      correspondences[num_correspondences].rx = ref_corners[2 * best_match_j];
-      correspondences[num_correspondences].ry =
-          ref_corners[2 * best_match_j + 1];
+      // Apply refinement
+      const int sx = src_corners[2 * i];
+      const int sy = src_corners[2 * i + 1];
+      const int rx = ref_corners[2 * best_match_j];
+      const int ry = ref_corners[2 * best_match_j + 1];
+      double u = (double)(rx - sx);
+      double v = (double)(ry - sy);
+
+      const int patch_tl_x = sx - DISFLOW_PATCH_CENTER;
+      const int patch_tl_y = sy - DISFLOW_PATCH_CENTER;
+
+      aom_compute_flow_at_point(src, ref, patch_tl_x, patch_tl_y, width, height,
+                                src_stride, &u, &v);
+
+      correspondences[num_correspondences].x = (double)sx;
+      correspondences[num_correspondences].y = (double)sy;
+      correspondences[num_correspondences].rx = (double)sx + u;
+      correspondences[num_correspondences].ry = (double)sy + v;
       num_correspondences++;
     }
   }
-  improve_correspondence(src, ref, width, height, src_stride, ref_stride,
-                         correspondences, num_correspondences);
   return num_correspondences;
 }
 
