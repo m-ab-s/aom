@@ -29,7 +29,12 @@
 
 #define INLIER_THRESHOLD 1.25
 #define INLIER_THRESHOLD_SQUARED (INLIER_THRESHOLD * INLIER_THRESHOLD)
+
+// Number of initial models to generate
 #define NUM_TRIALS 20
+
+// Number of times to refine the best model found
+#define NUM_REFINES 5
 
 // Flag to enable functions for finding TRANSLATION type models.
 //
@@ -41,7 +46,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // ransac
-typedef bool (*IsDegenerateFunc)(double *p);
 typedef bool (*FindTransformationFunc)(int points, const double *points1,
                                        const double *points2, double *params);
 typedef void (*ProjectPointsFunc)(const double *mat, const double *points,
@@ -51,9 +55,26 @@ typedef void (*ProjectPointsFunc)(const double *mat, const double *points,
 // vtable-like structure which stores all of the information needed by RANSAC
 // for a particular model type
 typedef struct {
-  IsDegenerateFunc is_degenerate;
   FindTransformationFunc find_transformation;
   ProjectPointsFunc project_points;
+
+  // The minimum number of points which can be passed to find_transformation
+  // to generate a model.
+  //
+  // This should be set as small as possible. This is due to an observation
+  // from section 4 of "Optimal Ransac" by A. Hast, J. Nysjö and
+  // A. Marchetti (https://dspace5.zcu.cz/bitstream/11025/6869/1/Hast.pdf):
+  // using the minimum possible number of points in the initial model maximizes
+  // the chance that all of the selected points are inliers.
+  //
+  // That paper proposes a method which can deal with models which are
+  // contaminated by outliers, which helps in cases where the inlier fraction
+  // is low. However, for our purposes, global motion only gives significant
+  // gains when the inlier fraction is high.
+  //
+  // So we do not use the method from this paper, but we do find that
+  // minimizing the number of points used for initial model fitting helps
+  // make the best use of the limited number of models we consider.
   int minpts;
 } RansacModelInfo;
 
@@ -271,6 +292,13 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
   // currently under consideration.
   double params_this_motion[MAX_PARAMDIM];
 
+  // Initialize output models, as a fallback in case we can't find a model
+  for (i = 0; i < num_desired_motions; i++) {
+    memcpy(motion_models[i].params, kIdentityParams,
+           MAX_PARAMDIM * sizeof(*(motion_models[i].params)));
+    motion_models[i].num_inliers = 0;
+  }
+
   if (npoints < minpts * MINPTS_MULTIPLIER || npoints == 0) {
     return false;
   }
@@ -323,10 +351,6 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
 
     copy_points_at_indices(points1, corners1, indices, minpts);
     copy_points_at_indices(points2, corners2, indices, minpts);
-
-    if (model_info->is_degenerate(points1)) {
-      continue;
-    }
 
     if (!model_info->find_transformation(minpts, points1, points2,
                                          params_this_motion)) {
@@ -386,11 +410,27 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
   // Sort the motions, best first.
   qsort(motions, num_desired_motions, sizeof(RANSAC_MOTION), compare_motions);
 
-  // Recompute the motions using only the inliers.
+  // Refine each of the best N models using iterative estimation.
+  //
+  // The idea here is loosely based on the iterative method from
+  // "Locally Optimized RANSAC" by O. Chum, J. Matas and Josef Kittler:
+  // https://cmp.felk.cvut.cz/ftp/articles/matas/chum-dagm03.pdf
+  //
+  // However, we implement a simpler version than their proposal, and simply
+  // refit the model repeatedly until the number of inliers stops increasing,
+  // with a cap on the number of iterations to defend against edge cases which
+  // only improve very slowly.
   for (i = 0; i < num_desired_motions; ++i) {
-    int num_inliers = motions[i].num_inliers;
-    if (num_inliers > 0) {
-      assert(num_inliers >= minpts);
+    if (motions[i].num_inliers <= 0) {
+      // Output model has already been initialized to the identity model,
+      // so just skip setup
+      continue;
+    }
+
+    bool bad_model = false;
+    for (int refine_count = 0; refine_count < NUM_REFINES; refine_count++) {
+      int num_inliers = motions[i].num_inliers;
+      assert(num_inliers >= min_inliers);
 
       copy_points_at_indices(points1, corners1, motions[i].inlier_indices,
                              num_inliers);
@@ -398,29 +438,65 @@ static bool ransac_internal(const Correspondence *matched_points, int npoints,
                              num_inliers);
 
       if (!model_info->find_transformation(num_inliers, points1, points2,
-                                           motion_models[i].params)) {
-        // In the unlikely event that this model fitting fails,
-        // we don't have a good fallback. So just clear the output
-        // model and move on
-        memcpy(motion_models[i].params, kIdentityParams,
-               MAX_PARAMDIM * sizeof(*(motion_models[i].params)));
-        motion_models[i].num_inliers = 0;
-        continue;
+                                           params_this_motion)) {
+        // In the unlikely event that this model fitting fails, we don't have a
+        // good fallback. So leave this model set to the identity model
+        bad_model = true;
+        break;
       }
 
-      // Populate inliers array
-      for (int j = 0; j < num_inliers; j++) {
-        int index = motions[i].inlier_indices[j];
-        const Correspondence *corr = &matched_points[index];
-        motion_models[i].inliers[2 * j + 0] = (int)rint(corr->x);
-        motion_models[i].inliers[2 * j + 1] = (int)rint(corr->y);
+      // Score the newly generated model
+      model_info->project_points(params_this_motion, corners1,
+                                 projected_corners, npoints, 2, 2);
+      current_motion.num_inliers = 0;
+      double sse = 0.0;
+      for (int k = 0; k < npoints; ++k) {
+        double dx = projected_corners[k * 2] - corners2[k * 2];
+        double dy = projected_corners[k * 2 + 1] - corners2[k * 2 + 1];
+        double squared_error = dx * dx + dy * dy;
+
+        if (squared_error < INLIER_THRESHOLD_SQUARED) {
+          current_motion.inlier_indices[current_motion.num_inliers++] = k;
+          sse += squared_error;
+        }
       }
-      motion_models[i].num_inliers = num_inliers;
-    } else {
-      memcpy(motion_models[i].params, kIdentityParams,
-             MAX_PARAMDIM * sizeof(*(motion_models[i].params)));
-      motion_models[i].num_inliers = 0;
+      current_motion.sse = sse;
+
+      // At this point, there are three possibilities:
+      // 1) If we found more inliers, keep refining.
+      // 2) If we found the same number of inliers but a lower SSE, we want to
+      //    keep the new model, but further refinement is unlikely to gain much.
+      //    So commit to this new model
+      // 3) It is possible, but very unlikely, that the new model will have
+      //    fewer inliers. If it does happen, we probably just lost a few
+      //    borderline inliers. So treat the same as case (2).
+      if (current_motion.num_inliers > motions[i].num_inliers) {
+        motions[i].num_inliers = current_motion.num_inliers;
+        motions[i].sse = current_motion.sse;
+        int *tmp = motions[i].inlier_indices;
+        motions[i].inlier_indices = current_motion.inlier_indices;
+        current_motion.inlier_indices = tmp;
+      } else {
+        // Refined model is no better, so stop
+        // This shouldn't be significantly worse than the previous model,
+        // so it's fine to use the parameters in params_this_motion.
+        // This saves us from having to cache the previous iteration's params.
+        break;
+      }
     }
+
+    if (bad_model) continue;
+
+    // Fill in output struct
+    memcpy(motion_models[i].params, params_this_motion,
+           MAX_PARAMDIM * sizeof(*motion_models[i].params));
+    for (int j = 0; j < motions[i].num_inliers; j++) {
+      int index = motions[i].inlier_indices[j];
+      const Correspondence *corr = &matched_points[index];
+      motion_models[i].inliers[2 * j + 0] = (int)rint(corr->x);
+      motion_models[i].inliers[2 * j + 1] = (int)rint(corr->y);
+    }
+    motion_models[i].num_inliers = motions[i].num_inliers;
   }
 
 finish_ransac:
@@ -435,37 +511,19 @@ finish_ransac:
   return ret_val;
 }
 
-static bool is_collinear3(double *p1, double *p2, double *p3) {
-  static const double collinear_eps = 1e-3;
-  const double v =
-      (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0]);
-  return fabs(v) < collinear_eps;
-}
-
-#if ALLOW_TRANSLATION_MODELS
-static bool is_degenerate_translation(double *p) {
-  return (p[0] - p[2]) * (p[0] - p[2]) + (p[1] - p[3]) * (p[1] - p[3]) <= 2;
-}
-#endif  // ALLOW_TRANSLATION_MODELS
-
-static bool is_degenerate_affine(double *p) {
-  return is_collinear3(p, p + 2, p + 4);
-}
-
 static const RansacModelInfo ransac_model_info[TRANS_TYPES] = {
   // IDENTITY
-  { NULL, NULL, NULL, 0 },
+  { NULL, NULL, 0 },
 // TRANSLATION
 #if ALLOW_TRANSLATION_MODELS
-  { is_degenerate_translation, find_translation, project_points_translation,
-    3 },
+  { find_translation, project_points_translation, 1 },
 #else
-  { NULL, NULL, NULL, 0 },
+  { NULL, NULL, 0 },
 #endif
   // ROTZOOM
-  { is_degenerate_affine, find_rotzoom, project_points_affine, 3 },
+  { find_rotzoom, project_points_affine, 2 },
   // AFFINE
-  { is_degenerate_affine, find_affine, project_points_affine, 3 },
+  { find_affine, project_points_affine, 3 },
 };
 
 // Returns true on success, false on error
