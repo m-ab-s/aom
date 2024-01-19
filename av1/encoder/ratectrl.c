@@ -3520,6 +3520,10 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
   }
 }
 
+#define CHECK_INTER_LAYER_PRED(ref_frame)                         \
+  ((cpi->ref_frame_flags & av1_ref_frame_flag_list[ref_frame]) && \
+   (av1_check_ref_is_low_spatial_res_super_frame(cpi, ref_frame)))
+
 int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
   AV1_COMMON *const cm = &cpi->common;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
@@ -3530,12 +3534,26 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
   int target_bits_per_mb;
   double q2;
   int enumerator;
+  int inter_layer_pred_on = 0;
   int is_screen_content = (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN);
-  *q = (3 * cpi->rc.worst_quality + *q) >> 2;
-  // For screen content use the max-q set by the user to allow for less
-  // overshoot on slide changes.
-  if (is_screen_content) *q = cpi->rc.worst_quality;
   cpi->cyclic_refresh->counter_encode_maxq_scene_change = 0;
+  if (cpi->svc.spatial_layer_id > 0) {
+    // For spatial layers: check if inter-layer (spatial) prediction is used
+    // (check if any reference is being used that is the lower spatial layer),
+    inter_layer_pred_on = CHECK_INTER_LAYER_PRED(LAST_FRAME) ||
+                          CHECK_INTER_LAYER_PRED(GOLDEN_FRAME) ||
+                          CHECK_INTER_LAYER_PRED(ALTREF_FRAME);
+  }
+  // If inter-layer prediction is on: we expect to pull up the quality from
+  // the lower spatial layer, so we can use a lower q.
+  if (cpi->svc.spatial_layer_id > 0 && inter_layer_pred_on) {
+    *q = (cpi->rc.worst_quality + *q) >> 1;
+  } else {
+    *q = (3 * cpi->rc.worst_quality + *q) >> 2;
+    // For screen content use the max-q set by the user to allow for less
+    // overshoot on slide changes.
+    if (is_screen_content) *q = cpi->rc.worst_quality;
+  }
   // Adjust avg_frame_qindex, buffer_level, and rate correction factors, as
   // these parameters will affect QP selection for subsequent frames. If they
   // have settled down to a very different (low QP) state, then not adjusting
@@ -3564,8 +3582,10 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
         rate_correction_factor;
   }
   // For temporal layers: reset the rate control parameters across all
-  // temporal layers.
-  if (cpi->svc.number_temporal_layers > 1) {
+  // temporal layers. Only do it for spatial enhancement layers when
+  // inter_layer_pred_on is not set (off).
+  if (cpi->svc.number_temporal_layers > 1 &&
+      (cpi->svc.spatial_layer_id == 0 || inter_layer_pred_on == 0)) {
     SVC *svc = &cpi->svc;
     for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
       int sl = svc->spatial_layer_id;
