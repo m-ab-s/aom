@@ -372,7 +372,8 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD
             "${AOM_ROOT}/av1/encoder/arm/neon/temporal_filter_neon_dotprod.c")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SVE
-            "${AOM_ROOT}/av1/encoder/arm/neon/av1_error_sve.c")
+            "${AOM_ROOT}/av1/encoder/arm/neon/av1_error_sve.c"
+            "${AOM_ROOT}/av1/encoder/arm/neon/wedge_utils_sve.c")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_ARM_CRC32
             "${AOM_ROOT}/av1/encoder/arm/crc32/hash_arm_crc32.c")
