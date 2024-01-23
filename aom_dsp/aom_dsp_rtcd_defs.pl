@@ -509,7 +509,7 @@ if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   specialize qw/aom_highbd_convolve_copy sse2 avx2 neon/;
 
   add_proto qw/void aom_highbd_convolve8_horiz/, "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bd";
-  specialize qw/aom_highbd_convolve8_horiz sse2 avx2 neon/;
+  specialize qw/aom_highbd_convolve8_horiz sse2 avx2 neon sve/;
 
   add_proto qw/void aom_highbd_convolve8_vert/, "const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bd";
   specialize qw/aom_highbd_convolve8_vert sse2 avx2 neon/;

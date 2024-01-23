@@ -142,6 +142,9 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/aom_dsp/arm/highbd_convolve8_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/highbd_intrapred_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/highbd_loopfilter_neon.c")
+
+  list(APPEND AOM_DSP_COMMON_INTRIN_SVE
+              "${AOM_ROOT}/aom_dsp/arm/highbd_convolve8_sve.c")
 endif()
 
 if(CONFIG_AV1_DECODER)
@@ -492,6 +495,8 @@ function(setup_aom_dsp_targets)
   endif()
 
   if(HAVE_SVE)
+    add_intrinsics_object_library("${AOM_SVE_FLAG}" "sve" "aom_dsp_common"
+                                  "AOM_DSP_COMMON_INTRIN_SVE")
     if(CONFIG_AV1_ENCODER)
       add_intrinsics_object_library("${AOM_SVE_FLAG}" "sve" "aom_dsp_encoder"
                                     "AOM_DSP_ENCODER_INTRIN_SVE")
