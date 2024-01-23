@@ -627,6 +627,11 @@ static aom_codec_err_t allocate_and_set_string(const char *src,
       ERROR(#memb " out of range [" #lo ".." #hi "]"); \
   } while (0)
 
+#define RANGE_CHECK_LO(p, memb, lo)                                     \
+  do {                                                                  \
+    if (!((p)->memb >= (lo))) ERROR(#memb " out of range [" #lo "..]"); \
+  } while (0)
+
 #define RANGE_CHECK_HI(p, memb, hi)                                     \
   do {                                                                  \
     if (!((p)->memb <= (hi))) ERROR(#memb " out of range [.." #hi "]"); \
@@ -666,6 +671,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(cfg, g_timebase.num, 1, cfg->g_timebase.den);
   RANGE_CHECK_HI(cfg, g_profile, MAX_PROFILES - 1);
 
+  RANGE_CHECK_LO(cfg, rc_target_bitrate, 1);
   RANGE_CHECK_HI(cfg, rc_max_quantizer, 63);
   RANGE_CHECK_HI(cfg, rc_min_quantizer, cfg->rc_max_quantizer);
   RANGE_CHECK_BOOL(extra_cfg, lossless);
