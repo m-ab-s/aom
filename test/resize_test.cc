@@ -15,7 +15,6 @@
 #include "aom/aomcx.h"
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/encoder/encoder.h"
-#include "common/tools_common.h"
 #include "third_party/googletest/src/googletest/include/gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
