@@ -52,15 +52,12 @@ list(APPEND AOM_DSP_COMMON_SOURCES
 list(APPEND AOM_DSP_COMMON_ASM_SSE2
             "${AOM_ROOT}/aom_dsp/x86/aom_high_subpixel_8t_sse2.asm"
             "${AOM_ROOT}/aom_dsp/x86/aom_high_subpixel_bilinear_sse2.asm"
-            "${AOM_ROOT}/aom_dsp/x86/aom_subpixel_8t_sse2.asm"
-            "${AOM_ROOT}/aom_dsp/x86/aom_subpixel_bilinear_sse2.asm"
             "${AOM_ROOT}/aom_dsp/x86/highbd_intrapred_asm_sse2.asm"
             "${AOM_ROOT}/aom_dsp/x86/intrapred_asm_sse2.asm"
             "${AOM_ROOT}/aom_dsp/x86/inv_wht_sse2.asm")
 
 list(APPEND AOM_DSP_COMMON_INTRIN_SSE2
             "${AOM_ROOT}/aom_dsp/x86/aom_convolve_copy_sse2.c"
-            "${AOM_ROOT}/aom_dsp/x86/aom_subpixel_8t_intrin_sse2.c"
             "${AOM_ROOT}/aom_dsp/x86/aom_asm_stubs.c"
             "${AOM_ROOT}/aom_dsp/x86/convolve.h"
             "${AOM_ROOT}/aom_dsp/x86/convolve_sse2.h"
@@ -208,7 +205,6 @@ if(CONFIG_AV1_ENCODER)
 
   list(APPEND AOM_DSP_ENCODER_ASM_SSE2 "${AOM_ROOT}/aom_dsp/x86/sad4d_sse2.asm"
               "${AOM_ROOT}/aom_dsp/x86/sad_sse2.asm"
-              "${AOM_ROOT}/aom_dsp/x86/subpel_variance_sse2.asm"
               "${AOM_ROOT}/aom_dsp/x86/subtract_sse2.asm")
 
   list(APPEND AOM_DSP_ENCODER_ASM_SSE2_X86_64
@@ -226,6 +222,9 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/sum_squares_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/variance_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/jnt_sad_sse2.c")
+
+  list(APPEND AOM_DSP_ENCODER_ASM_SSSE3
+              "${AOM_ROOT}/aom_dsp/x86/subpel_variance_ssse3.asm")
 
   list(APPEND AOM_DSP_ENCODER_ASM_SSSE3_X86_64
               "${AOM_ROOT}/aom_dsp/x86/fwd_txfm_ssse3_x86_64.asm"

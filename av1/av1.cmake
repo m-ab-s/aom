@@ -262,7 +262,6 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
 
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE2
             "${AOM_ROOT}/av1/common/x86/av1_txfm_sse2.h"
-            "${AOM_ROOT}/av1/common/x86/cdef_block_sse2.c"
             "${AOM_ROOT}/av1/common/x86/cfl_sse2.c"
             "${AOM_ROOT}/av1/common/x86/convolve_2d_sse2.c"
             "${AOM_ROOT}/av1/common/x86/convolve_sse2.c"
@@ -272,7 +271,6 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSE2
 list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/av1_inv_txfm_ssse3.h"
-            "${AOM_ROOT}/av1/common/x86/cdef_block_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/cfl_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/resize_ssse3.c")

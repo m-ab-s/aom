@@ -2312,11 +2312,6 @@ TEST_P(AV1Convolve2DCompoundTest, RunTest) { RunTest(); }
 INSTANTIATE_TEST_SUITE_P(C, AV1Convolve2DCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_c));
 
-#if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1Convolve2DCompoundTest,
-                         BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_sse2));
-#endif
-
 #if HAVE_SSSE3
 INSTANTIATE_TEST_SUITE_P(SSSE3, AV1Convolve2DCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_2d_ssse3));

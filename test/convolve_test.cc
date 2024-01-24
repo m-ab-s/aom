@@ -832,12 +832,6 @@ const ConvolveParam kArrayHighbdConvolve_sse2[] = {
 INSTANTIATE_TEST_SUITE_P(SSE2, HighbdConvolveTest,
                          ::testing::ValuesIn(kArrayHighbdConvolve_sse2));
 #endif
-const ConvolveFunctions convolve8_sse2(aom_convolve8_horiz_sse2,
-                                       aom_convolve8_vert_sse2, 0);
-const ConvolveParam kArrayConvolve_sse2[] = { ALL_SIZES(convolve8_sse2) };
-
-INSTANTIATE_TEST_SUITE_P(SSE2, LowbdConvolveTest,
-                         ::testing::ValuesIn(kArrayConvolve_sse2));
 #endif
 
 #if HAVE_SSSE3
