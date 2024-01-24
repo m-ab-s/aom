@@ -30,9 +30,9 @@
 static void yv12_copy_plane(const YV12_BUFFER_CONFIG *src_bc,
                             YV12_BUFFER_CONFIG *dst_bc, int plane) {
   switch (plane) {
-    case 0: aom_yv12_copy_y(src_bc, dst_bc); break;
-    case 1: aom_yv12_copy_u(src_bc, dst_bc); break;
-    case 2: aom_yv12_copy_v(src_bc, dst_bc); break;
+    case 0: aom_yv12_copy_y(src_bc, dst_bc, 0); break;
+    case 1: aom_yv12_copy_u(src_bc, dst_bc, 0); break;
+    case 2: aom_yv12_copy_v(src_bc, dst_bc, 0); break;
     default: assert(plane >= 0 && plane <= 2); break;
   }
 }

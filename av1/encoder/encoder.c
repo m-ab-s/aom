@@ -2667,13 +2667,12 @@ static int encode_without_recode(AV1_COMP *cpi) {
   cm->cur_frame->seg.enabled = cm->seg.enabled;
 
   // This is for rtc temporal filtering case.
-  if (is_psnr_calc_enabled(cpi) && cpi->sf.rt_sf.use_rtc_tf &&
-      cm->current_frame.frame_type != KEY_FRAME) {
+  if (is_psnr_calc_enabled(cpi) && cpi->sf.rt_sf.use_rtc_tf) {
     const SequenceHeader *seq_params = cm->seq_params;
 
     if (cpi->orig_source.buffer_alloc_sz == 0 ||
-        cpi->last_source->y_width != cpi->source->y_width ||
-        cpi->last_source->y_height != cpi->source->y_height) {
+        cpi->rc.prev_coded_width != cpi->oxcf.frm_dim_cfg.width ||
+        cpi->rc.prev_coded_height != cpi->oxcf.frm_dim_cfg.height) {
       // Allocate a source buffer to store the true source for psnr calculation.
       if (aom_alloc_frame_buffer(
               &cpi->orig_source, cpi->oxcf.frm_dim_cfg.width,
@@ -2684,9 +2683,12 @@ static int encode_without_recode(AV1_COMP *cpi) {
                            "Failed to allocate scaled buffer");
     }
 
-    aom_yv12_copy_y(cpi->source, &cpi->orig_source);
-    aom_yv12_copy_u(cpi->source, &cpi->orig_source);
-    aom_yv12_copy_v(cpi->source, &cpi->orig_source);
+    // Copy source into orig_source, needed for the psnr computation.
+    // Use crop_width/height for aom_yv12_copy, as the psnr computation
+    // uses crop_width/height.
+    aom_yv12_copy_y(cpi->source, &cpi->orig_source, 1);
+    aom_yv12_copy_u(cpi->source, &cpi->orig_source, 1);
+    aom_yv12_copy_v(cpi->source, &cpi->orig_source, 1);
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
@@ -2725,9 +2727,9 @@ static int encode_without_recode(AV1_COMP *cpi) {
       (cm->width != cpi->unscaled_source->y_crop_width ||
        cm->height != cpi->unscaled_source->y_crop_height)) {
     cpi->scaled_last_source_available = 1;
-    aom_yv12_copy_y(&cpi->scaled_source, &cpi->scaled_last_source);
-    aom_yv12_copy_u(&cpi->scaled_source, &cpi->scaled_last_source);
-    aom_yv12_copy_v(&cpi->scaled_source, &cpi->scaled_last_source);
+    aom_yv12_copy_y(&cpi->scaled_source, &cpi->scaled_last_source, 0);
+    aom_yv12_copy_u(&cpi->scaled_source, &cpi->scaled_last_source, 0);
+    aom_yv12_copy_v(&cpi->scaled_source, &cpi->scaled_last_source, 0);
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING
