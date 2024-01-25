@@ -124,9 +124,9 @@ int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
                    height != buf->img.y_crop_height ||
                    uv_width != buf->img.uv_crop_width ||
                    uv_height != buf->img.uv_crop_height;
-  larger_dimensions = width > buf->img.y_width || height > buf->img.y_height ||
-                      uv_width > buf->img.uv_width ||
-                      uv_height > buf->img.uv_height;
+  larger_dimensions =
+      width > buf->img.y_crop_width || height > buf->img.y_crop_height ||
+      uv_width > buf->img.uv_crop_width || uv_height > buf->img.uv_crop_height;
   assert(!larger_dimensions || new_dimensions);
 
   if (larger_dimensions) {
@@ -139,6 +139,10 @@ int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
     aom_free_frame_buffer(&buf->img);
     buf->img = new_img;
   } else if (new_dimensions) {
+    buf->img.y_width = src->y_width;
+    buf->img.y_height = src->y_height;
+    buf->img.uv_width = src->uv_width;
+    buf->img.uv_height = src->uv_height;
     buf->img.y_crop_width = src->y_crop_width;
     buf->img.y_crop_height = src->y_crop_height;
     buf->img.uv_crop_width = src->uv_crop_width;
