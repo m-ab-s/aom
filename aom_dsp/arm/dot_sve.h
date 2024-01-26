@@ -39,4 +39,9 @@ static INLINE int64x2_t aom_sdotq_s16(int64x2_t acc, int16x8_t x, int16x8_t y) {
                                    svset_neonq_s16(svundef_s16(), y)));
 }
 
+#define aom_svdot_lane_s16(sum, s0, f, lane)                          \
+  svget_neonq_s64(svdot_lane_s64(svset_neonq_s64(svundef_s64(), sum), \
+                                 svset_neonq_s16(svundef_s16(), s0),  \
+                                 svset_neonq_s16(svundef_s16(), f), lane))
+
 #endif  // AOM_AOM_DSP_ARM_DOT_SVE_H_

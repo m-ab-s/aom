@@ -776,10 +776,13 @@ WRAP(convolve8_vert_neon, 12)
 
 #if HAVE_SVE
 WRAP(convolve8_horiz_sve, 8)
+WRAP(convolve8_vert_sve, 8)
 
 WRAP(convolve8_horiz_sve, 10)
+WRAP(convolve8_vert_sve, 10)
 
 WRAP(convolve8_horiz_sve, 12)
+WRAP(convolve8_vert_sve, 12)
 #endif  // HAVE_SVE
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
@@ -922,16 +925,13 @@ INSTANTIATE_TEST_SUITE_P(NEON_I8MM, LowbdConvolveTest,
 #endif  // HAVE_NEON_I8MM
 
 #if HAVE_SVE
-// The tests don't allow separate testing of the vertical and horizontal pass,
-// so use the Neon implementation of aom_highbd_convolve8_vert until an SVE one
-// is added.
 #if CONFIG_AV1_HIGHBITDEPTH
 const ConvolveFunctions wrap_convolve8_sve(wrap_convolve8_horiz_sve_8,
-                                           wrap_convolve8_vert_neon_8, 8);
+                                           wrap_convolve8_vert_sve_8, 8);
 const ConvolveFunctions wrap_convolve10_sve(wrap_convolve8_horiz_sve_10,
-                                            wrap_convolve8_vert_neon_10, 10);
+                                            wrap_convolve8_vert_sve_10, 10);
 const ConvolveFunctions wrap_convolve12_sve(wrap_convolve8_horiz_sve_12,
-                                            wrap_convolve8_vert_neon_12, 12);
+                                            wrap_convolve8_vert_sve_12, 12);
 const ConvolveParam kArray_HighbdConvolve8_sve[] = {
   ALL_SIZES_64(wrap_convolve8_sve), ALL_SIZES_64(wrap_convolve10_sve),
   ALL_SIZES_64(wrap_convolve12_sve)
