@@ -2683,9 +2683,6 @@ static int encode_without_recode(AV1_COMP *cpi) {
                            "Failed to allocate scaled buffer");
     }
 
-    // Copy source into orig_source, needed for the psnr computation.
-    // Use crop_width/height for aom_yv12_copy, as the psnr computation
-    // uses crop_width/height.
     aom_yv12_copy_y(cpi->source, &cpi->orig_source, 1);
     aom_yv12_copy_u(cpi->source, &cpi->orig_source, 1);
     aom_yv12_copy_v(cpi->source, &cpi->orig_source, 1);
@@ -2727,9 +2724,9 @@ static int encode_without_recode(AV1_COMP *cpi) {
       (cm->width != cpi->unscaled_source->y_crop_width ||
        cm->height != cpi->unscaled_source->y_crop_height)) {
     cpi->scaled_last_source_available = 1;
-    aom_yv12_copy_y(&cpi->scaled_source, &cpi->scaled_last_source, 0);
-    aom_yv12_copy_u(&cpi->scaled_source, &cpi->scaled_last_source, 0);
-    aom_yv12_copy_v(&cpi->scaled_source, &cpi->scaled_last_source, 0);
+    aom_yv12_copy_y(&cpi->scaled_source, &cpi->scaled_last_source, 1);
+    aom_yv12_copy_u(&cpi->scaled_source, &cpi->scaled_last_source, 1);
+    aom_yv12_copy_v(&cpi->scaled_source, &cpi->scaled_last_source, 1);
   }
 
 #if CONFIG_COLLECT_COMPONENT_TIMING

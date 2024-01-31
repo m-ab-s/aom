@@ -27,6 +27,9 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/picklpf.h"
 
+// TODO(marpan/wtc): Look into why crop_width/height can't be used
+// (use_crop set to 1) in aom_yv12_copy_y/u/v below. Some tests
+// are failing if this is done.
 static void yv12_copy_plane(const YV12_BUFFER_CONFIG *src_bc,
                             YV12_BUFFER_CONFIG *dst_bc, int plane) {
   switch (plane) {

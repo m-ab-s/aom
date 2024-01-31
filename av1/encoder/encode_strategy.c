@@ -1758,9 +1758,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cpi->svc.temporal_layer_id == 0 &&
       cpi->unscaled_source->y_width == cpi->svc.source_last_TL0.y_width &&
       cpi->unscaled_source->y_height == cpi->svc.source_last_TL0.y_height) {
-    aom_yv12_copy_y(cpi->unscaled_source, &cpi->svc.source_last_TL0, 0);
-    aom_yv12_copy_u(cpi->unscaled_source, &cpi->svc.source_last_TL0, 0);
-    aom_yv12_copy_v(cpi->unscaled_source, &cpi->svc.source_last_TL0, 0);
+    aom_yv12_copy_y(cpi->unscaled_source, &cpi->svc.source_last_TL0, 1);
+    aom_yv12_copy_u(cpi->unscaled_source, &cpi->svc.source_last_TL0, 1);
+    aom_yv12_copy_v(cpi->unscaled_source, &cpi->svc.source_last_TL0, 1);
   }
 
   return AOM_CODEC_OK;

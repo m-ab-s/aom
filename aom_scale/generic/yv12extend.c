@@ -302,7 +302,8 @@ void aom_yv12_copy_frame_c(const YV12_BUFFER_CONFIG *src_bc,
 }
 
 // TODO(marpan/wtc): Look into why use_crop can't always be 1.
-// Some tests are currently failing if 1 is used everywhere.
+// Some tests are currently failing if 1 is used in
+// av1/encoder/picklpf.c (function yv12_copy_plane).
 void aom_yv12_copy_y_c(const YV12_BUFFER_CONFIG *src_ybc,
                        YV12_BUFFER_CONFIG *dst_ybc, int use_crop) {
   int row;
