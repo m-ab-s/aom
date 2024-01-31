@@ -1702,8 +1702,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
 
   // This is used in rtc temporal filter case. Use true source in the PSNR
   // calculation.
-  if (is_psnr_calc_enabled(cpi) && cpi->sf.rt_sf.use_rtc_tf &&
-      cpi->common.current_frame.frame_type != KEY_FRAME) {
+  if (is_psnr_calc_enabled(cpi) && cpi->sf.rt_sf.use_rtc_tf) {
     assert(cpi->orig_source.buffer_alloc_sz > 0);
     cpi->source = &cpi->orig_source;
   }
