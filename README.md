@@ -54,9 +54,10 @@ README.md                {#LREADME}
    recommended. A C++ compiler is necessary to build the unit tests and some
    features contained in the examples.
 4. [Perl](https://www.perl.org/).
-5. For x86 targets, [yasm](http://yasm.tortall.net/) or a recent version of
-   [nasm](http://www.nasm.us/). (If both yasm and nasm are present, yasm will
-   be used.) If you download yasm with the intention to work with Visual
+5. For x86 targets, [yasm](http://yasm.tortall.net/) or a recent version (2.14
+   or later) of [nasm](http://www.nasm.us/). (If both yasm and nasm are
+   present, yasm will be used by default. Pass -DENABLE_NASM=ON to cmake to
+   select nasm.) If you download yasm with the intention to work with Visual
    Studio, please download win32.exe or win64.exe and rename it into yasm.exe.
    DO NOT download or use vsyasm.exe.
 6. Building the documentation requires
