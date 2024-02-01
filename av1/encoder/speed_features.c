@@ -1465,6 +1465,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (is_360p_or_larger) {
       sf->part_sf.fixed_partition_size = BLOCK_32X32;
       sf->rt_sf.use_fast_fixed_part = 1;
+      sf->mv_sf.subpel_force_stop = HALF_PEL;
     }
     sf->rt_sf.increase_source_sad_thresh = 1;
     sf->rt_sf.part_early_exit_zeromv = 2;
