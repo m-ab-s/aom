@@ -150,7 +150,6 @@ int av1_lookahead_push(struct lookahead_ctx *ctx, const YV12_BUFFER_CONFIG *src,
     buf->img.subsampling_x = src->subsampling_x;
     buf->img.subsampling_y = src->subsampling_y;
   }
-  // Partial copy not implemented yet
   av1_copy_and_extend_frame(src, &buf->img);
 
   buf->ts_start = ts_start;
