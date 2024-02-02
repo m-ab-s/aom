@@ -1236,7 +1236,7 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
 
     // Grade the temporal variation of the sb, the grade will be used to decide
     // fast mode search strategy for coding blocks
-    grade_source_content_sb(cpi, x, tile_data, mi_row, mi_col);
+    if (!seg_skip) grade_source_content_sb(cpi, x, tile_data, mi_row, mi_col);
 
     // encode the superblock
     if (use_nonrd_mode) {

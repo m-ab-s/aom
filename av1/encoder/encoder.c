@@ -153,24 +153,26 @@ int av1_set_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
     unsigned char *const active_map_4x4 = cpi->active_map.map;
     const int mi_rows = mi_params->mi_rows;
     const int mi_cols = mi_params->mi_cols;
-    const int row_scale = mi_size_high_log2[BLOCK_16X16];
-    const int col_scale = mi_size_wide_log2[BLOCK_16X16];
     cpi->active_map.update = 0;
     assert(mi_rows % 2 == 0);
     assert(mi_cols % 2 == 0);
     if (new_map_16x16) {
-      for (int r = 0; r < (mi_rows >> row_scale); ++r) {
-        for (int c = 0; c < (mi_cols >> col_scale); ++c) {
-          const uint8_t val = new_map_16x16[r * cols + c]
+      for (int r = 0; r < mi_rows; r += 4) {
+        for (int c = 0; c < mi_cols; c += 4) {
+          const uint8_t val = new_map_16x16[(r >> 2) * cols + (c >> 2)]
                                   ? AM_SEGMENT_ID_ACTIVE
                                   : AM_SEGMENT_ID_INACTIVE;
-          active_map_4x4[(2 * r + 0) * mi_cols + (c + 0)] = val;
-          active_map_4x4[(2 * r + 0) * mi_cols + (c + 1)] = val;
-          active_map_4x4[(2 * r + 1) * mi_cols + (c + 0)] = val;
-          active_map_4x4[(2 * r + 1) * mi_cols + (c + 1)] = val;
+          const int row_max = AOMMIN(4, mi_rows - r);
+          const int col_max = AOMMIN(4, mi_cols - c);
+          for (int x = 0; x < row_max; ++x) {
+            for (int y = 0; y < col_max; ++y) {
+              active_map_4x4[(r + x) * mi_cols + (c + y)] = val;
+            }
+          }
         }
       }
       cpi->active_map.enabled = 1;
+      cpi->active_map.update = 1;
     }
     return 0;
   }
