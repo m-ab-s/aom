@@ -27,9 +27,19 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/picklpf.h"
 
-// TODO(marpan/wtc): Look into why crop_width/height can't be used
-// (use_crop set to 1) in aom_yv12_copy_y/u/v below. Some tests
-// are failing if this is done.
+// AV1 loop filter applies to the whole frame accoring to mi_rows and mi_cols,
+// which are calculated based on aligned width and aligned height,
+// In addition, if super res is enabled, it copies the whole frame
+// according to the alighed with and height (av1_superres_upscale()).
+// So we need to copy the whole filtered region, instead of the cropped region.
+// For example, input image size is: 160x90.
+// Then src->y_crop_width = 160, src->y_crop_height = 90.
+// The aligned frame size is: src->y_width = 160, src->y_height = 96.
+// AV1 aligns frame size to a multiple of 8, if there is
+// chroma subsampling, it is able to ensure the chroma is also
+// an integer number of mi units. mi unit is 4x4, 8 = 4 * 2, and 2 luma mi
+// units correspond to 1 chroma mi unit if there is subsampling.
+// See: aom_realloc_frame_buffer() in yv12config.c.
 static void yv12_copy_plane(const YV12_BUFFER_CONFIG *src_bc,
                             YV12_BUFFER_CONFIG *dst_bc, int plane) {
   switch (plane) {

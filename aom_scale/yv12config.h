@@ -45,18 +45,29 @@ typedef struct yv12_buffer_config {
   /*!\cond */
   union {
     struct {
+      // The aligned frame width of luma.
+      // It is aligned to a multiple of 8:
+      // y_width = (y_crop_width + 7) & ~7
       int y_width;
+      // The aligned frame width of chroma.
+      // uv_width = y_width >> subsampling_x
       int uv_width;
     };
     int widths[2];
   };
   union {
     struct {
+      // The aligned frame height of luma.
+      // It is aligned to a multiple of 8:
+      // y_height = (y_crop_height + 7) & ~7
       int y_height;
+      // The aligned frame height of chroma.
+      // uv_height = y_height >> subsampling_y
       int uv_height;
     };
     int heights[2];
   };
+  // The frame size en/decoded by AV1
   union {
     struct {
       int y_crop_width;
