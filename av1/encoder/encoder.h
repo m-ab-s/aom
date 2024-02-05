@@ -3808,7 +3808,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
  * copy of the pointer.
  */
 int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
-                          YV12_BUFFER_CONFIG *sd, int64_t time_stamp,
+                          const YV12_BUFFER_CONFIG *sd, int64_t time_stamp,
                           int64_t end_time_stamp);
 
 /*!\brief Encode a frame

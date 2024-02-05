@@ -4041,7 +4041,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
 }
 
 #if CONFIG_DENOISE
-static int apply_denoise_2d(AV1_COMP *cpi, YV12_BUFFER_CONFIG *sd,
+static int apply_denoise_2d(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *sd,
                             int block_size, float noise_level,
                             int64_t time_stamp, int64_t end_time) {
   AV1_COMMON *const cm = &cpi->common;
@@ -4076,7 +4076,7 @@ static int apply_denoise_2d(AV1_COMP *cpi, YV12_BUFFER_CONFIG *sd,
 #endif
 
 int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
-                          YV12_BUFFER_CONFIG *sd, int64_t time_stamp,
+                          const YV12_BUFFER_CONFIG *sd, int64_t time_stamp,
                           int64_t end_time) {
   AV1_COMMON *const cm = &cpi->common;
   const SequenceHeader *const seq_params = cm->seq_params;
