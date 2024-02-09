@@ -1796,7 +1796,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_compute_correlation sse4_1 avx2/;
 
     add_proto qw/void aom_compute_flow_at_point/, "const uint8_t *src, const uint8_t *ref, int x, int y, int width, int height, int stride, double *u, double *v";
-    specialize qw/aom_compute_flow_at_point sse4_1 neon/;
+    specialize qw/aom_compute_flow_at_point sse4_1 avx2 neon/;
   }
 
 }  # CONFIG_AV1_ENCODER
