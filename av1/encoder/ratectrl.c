@@ -1719,41 +1719,39 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
-  const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
   int active_best_quality = *active_best;
   int active_worst_quality = *active_worst;
 #if CONFIG_FPMT_TEST
-  const int simulate_parallel_frame =
-      cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
-      cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
-  int extend_minq = simulate_parallel_frame ? p_rc->temp_extend_minq
-                                            : cpi->ppi->twopass.extend_minq;
-  int extend_maxq = simulate_parallel_frame ? p_rc->temp_extend_maxq
-                                            : cpi->ppi->twopass.extend_maxq;
 #endif
   // Extension to max or min Q if undershoot or overshoot is outside
   // the permitted range.
   if (cpi->oxcf.rc_cfg.mode != AOM_Q) {
+#if CONFIG_FPMT_TEST
+    const int simulate_parallel_frame =
+        cpi->ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] > 0 &&
+        cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE;
+    const int extend_minq = simulate_parallel_frame
+                                ? p_rc->temp_extend_minq
+                                : cpi->ppi->twopass.extend_minq;
+    const int extend_maxq = simulate_parallel_frame
+                                ? p_rc->temp_extend_maxq
+                                : cpi->ppi->twopass.extend_maxq;
+    const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
     if (frame_is_intra_only(cm) ||
         (!rc->is_src_frame_alt_ref &&
          (refresh_frame->golden_frame || is_intrl_arf_boost ||
           refresh_frame->alt_ref_frame))) {
-#if CONFIG_FPMT_TEST
       active_best_quality -= extend_minq;
       active_worst_quality += (extend_maxq / 2);
-#else
-      active_best_quality -= cpi->ppi->twopass.extend_minq / 8;
-      active_worst_quality += (cpi->ppi->twopass.extend_maxq / 4);
-#endif
     } else {
-#if CONFIG_FPMT_TEST
       active_best_quality -= extend_minq / 2;
       active_worst_quality += extend_maxq;
-#else
-      active_best_quality -= cpi->ppi->twopass.extend_minq / 8;
-      active_worst_quality += cpi->ppi->twopass.extend_maxq / 4;
-#endif
     }
+#else
+    (void)is_intrl_arf_boost;
+    active_best_quality -= cpi->ppi->twopass.extend_minq / 8;
+    active_worst_quality += cpi->ppi->twopass.extend_maxq / 4;
+#endif
   }
 
 #ifndef STRICT_RC
