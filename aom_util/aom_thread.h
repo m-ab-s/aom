@@ -58,7 +58,12 @@ typedef CONDITION_VARIABLE pthread_cond_t;
 // simplistic pthread emulation layer
 
 // _beginthreadex requires __stdcall
+#if defined(__GNUC__) && \
+    (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 2))
+#define THREADFN __attribute__((force_align_arg_pointer)) unsigned int __stdcall
+#else
 #define THREADFN unsigned int __stdcall
+#endif
 #define THREAD_RETURN(val) (unsigned int)((DWORD_PTR)val)
 
 static INLINE int pthread_attr_init(pthread_attr_t *attr) {
