@@ -20,6 +20,7 @@
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/flow_estimation/corner_detect.h"
 #include "aom_mem/aom_mem.h"
+#include "aom_util/aom_pthread.h"
 #include "av1/common/common.h"
 
 #define FAST_BARRIER 18

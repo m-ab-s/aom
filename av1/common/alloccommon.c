@@ -13,6 +13,7 @@
 #include "config/aom_config.h"
 
 #include "aom_mem/aom_mem.h"
+#include "aom_util/aom_pthread.h"
 
 #include "av1/common/alloccommon.h"
 #include "av1/common/av1_common_int.h"

@@ -19,7 +19,7 @@
 #include "config/aom_config.h"
 
 #include "aom_scale/yv12config.h"
-#include "aom_util/aom_thread.h"
+#include "aom_util/aom_pthread.h"
 
 #ifdef __cplusplus
 extern "C" {

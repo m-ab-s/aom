@@ -18,7 +18,7 @@
 #include <memory.h>
 
 #include "aom_dsp/pyramid.h"
-#include "aom_util/aom_thread.h"
+#include "aom_util/aom_pthread.h"
 
 #ifdef __cplusplus
 extern "C" {

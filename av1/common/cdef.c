@@ -16,6 +16,7 @@
 #include "config/aom_scale_rtcd.h"
 
 #include "aom/aom_integer.h"
+#include "aom_util/aom_pthread.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/cdef.h"
 #include "av1/common/cdef_block.h"

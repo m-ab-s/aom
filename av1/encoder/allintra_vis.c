@@ -13,6 +13,8 @@
 
 #include "config/aom_config.h"
 
+#include "aom_util/aom_pthread.h"
+
 #if CONFIG_TFLITE
 #include "tensorflow/lite/c/c_api.h"
 #include "av1/encoder/deltaq4_model.c"

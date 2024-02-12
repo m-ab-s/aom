@@ -12,7 +12,7 @@
 #include "aom_dsp/pyramid.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/bitops.h"
-#include "aom_util/aom_thread.h"
+#include "aom_util/aom_pthread.h"
 
 // TODO(rachelbarker): Move needed code from av1/ to aom_dsp/
 #include "av1/common/resize.h"

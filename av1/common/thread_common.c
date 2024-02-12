@@ -15,6 +15,7 @@
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_mem/aom_mem.h"
+#include "aom_util/aom_pthread.h"
 #include "av1/common/av1_loopfilter.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/thread_common.h"

@@ -17,6 +17,7 @@
 #include "config/aom_version.h"
 
 #include "aom_ports/mem_ops.h"
+#include "aom_util/aom_pthread.h"
 
 #include "aom/aom_encoder.h"
 #include "aom/internal/aom_codec_internal.h"

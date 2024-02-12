@@ -23,11 +23,28 @@
 #include <assert.h>
 #include <string.h>  // for memset()
 
+#include "config/aom_config.h"
+
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/sanitizer.h"
+#include "aom_util/aom_pthread.h"
 #include "aom_util/aom_thread.h"
 
 #if CONFIG_MULTITHREAD
+
+#if defined(_WIN32) && !HAVE_PTHREAD_H
+// _beginthreadex requires __stdcall
+#if defined(__GNUC__) && \
+    (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 2))
+#define THREADFN __attribute__((force_align_arg_pointer)) unsigned int __stdcall
+#else
+#define THREADFN unsigned int __stdcall
+#endif
+#define THREAD_EXIT_SUCCESS 0
+#else  // _WIN32
+#define THREADFN void *
+#define THREAD_EXIT_SUCCESS NULL
+#endif
 
 struct AVxWorkerImpl {
   pthread_mutex_t mutex_;
@@ -87,7 +104,7 @@ static THREADFN thread_loop(void *ptr) {
     }
   }
   pthread_mutex_unlock(&worker->impl_->mutex_);
-  return THREAD_RETURN(NULL);  // Thread is finished
+  return THREAD_EXIT_SUCCESS;  // Thread is finished
 }
 
 // main thread state control

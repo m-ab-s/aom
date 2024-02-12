@@ -28,6 +28,7 @@
 #include "aom_ports/mem.h"
 #include "aom_ports/mem_ops.h"
 #include "aom_scale/aom_scale.h"
+#include "aom_util/aom_pthread.h"
 #include "aom_util/aom_thread.h"
 
 #if CONFIG_BITSTREAM_DEBUG || CONFIG_MISMATCH_DEBUG

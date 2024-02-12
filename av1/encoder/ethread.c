@@ -12,6 +12,8 @@
 #include <assert.h>
 #include <stdbool.h>
 
+#include "aom_util/aom_pthread.h"
+
 #include "av1/common/warped_motion.h"
 #include "av1/common/thread_common.h"
 
