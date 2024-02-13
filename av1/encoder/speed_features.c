@@ -1177,6 +1177,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->gm_sf.prune_zero_mv_with_sse = 2;
+    sf->gm_sf.downsample_level = 1;
 
     sf->part_sf.simple_motion_search_prune_agg =
         allow_screen_content_tools ? SIMPLE_AGG_LVL0 : SIMPLE_AGG_LVL2;
@@ -1281,6 +1282,8 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 6) {
     sf->hl_sf.disable_extra_sc_testing = 1;
     sf->hl_sf.second_alt_ref_filtering = 0;
+
+    sf->gm_sf.downsample_level = 2;
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 0 : 3;
     sf->inter_sf.selective_ref_frame = 6;
@@ -1975,6 +1978,7 @@ static AOM_INLINE void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
   gm_sf->prune_ref_frame_for_gm_search = 0;
   gm_sf->prune_zero_mv_with_sse = 0;
   gm_sf->disable_gm_search_based_on_stats = 0;
+  gm_sf->downsample_level = 0;
   gm_sf->num_refinement_steps = GM_MAX_REFINEMENT_STEPS;
 }
 

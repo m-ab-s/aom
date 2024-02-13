@@ -35,17 +35,17 @@ const double kIdentityParams[MAX_PARAMDIM] = {
 bool aom_compute_global_motion(TransformationType type, YV12_BUFFER_CONFIG *src,
                                YV12_BUFFER_CONFIG *ref, int bit_depth,
                                GlobalMotionMethod gm_method,
-                               MotionModel *motion_models,
+                               int downsample_level, MotionModel *motion_models,
                                int num_motion_models, bool *mem_alloc_failed) {
   switch (gm_method) {
     case GLOBAL_MOTION_METHOD_FEATURE_MATCH:
       return av1_compute_global_motion_feature_match(
-          type, src, ref, bit_depth, motion_models, num_motion_models,
-          mem_alloc_failed);
+          type, src, ref, bit_depth, downsample_level, motion_models,
+          num_motion_models, mem_alloc_failed);
     case GLOBAL_MOTION_METHOD_DISFLOW:
-      return av1_compute_global_motion_disflow(type, src, ref, bit_depth,
-                                               motion_models, num_motion_models,
-                                               mem_alloc_failed);
+      return av1_compute_global_motion_disflow(
+          type, src, ref, bit_depth, downsample_level, motion_models,
+          num_motion_models, mem_alloc_failed);
     default: assert(0 && "Unknown global motion estimation type");
   }
   return false;

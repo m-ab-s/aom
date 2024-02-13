@@ -762,12 +762,10 @@ static void free_flow_field(FlowField *flow) {
 // Following the convention in flow_estimation.h, the flow vectors are computed
 // at fixed points in `src` and point to the corresponding locations in `ref`,
 // regardless of the temporal ordering of the frames.
-bool av1_compute_global_motion_disflow(TransformationType type,
-                                       YV12_BUFFER_CONFIG *src,
-                                       YV12_BUFFER_CONFIG *ref, int bit_depth,
-                                       MotionModel *motion_models,
-                                       int num_motion_models,
-                                       bool *mem_alloc_failed) {
+bool av1_compute_global_motion_disflow(
+    TransformationType type, YV12_BUFFER_CONFIG *src, YV12_BUFFER_CONFIG *ref,
+    int bit_depth, int downsample_level, MotionModel *motion_models,
+    int num_motion_models, bool *mem_alloc_failed) {
   // Precompute information we will need about each frame
   ImagePyramid *src_pyramid = src->y_pyramid;
   CornerList *src_corners = src->corners;
@@ -782,7 +780,7 @@ bool av1_compute_global_motion_disflow(TransformationType type,
     *mem_alloc_failed = true;
     return false;
   }
-  if (!av1_compute_corner_list(src_pyramid, src_corners)) {
+  if (!av1_compute_corner_list(src, bit_depth, downsample_level, src_corners)) {
     *mem_alloc_failed = true;
     return false;
   }

@@ -89,6 +89,7 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   assert(ref_buf[frame] != NULL);
   int bit_depth = cpi->common.seq_params->bit_depth;
   GlobalMotionMethod global_motion_method = default_global_motion_method;
+  int downsample_level = cpi->sf.gm_sf.downsample_level;
   int num_refinements = cpi->sf.gm_sf.num_refinement_steps;
   bool mem_alloc_failed = false;
 
@@ -99,9 +100,10 @@ static AOM_INLINE void compute_global_motion_for_ref_frame(
   double best_erroradv = erroradv_tr;
   for (TransformationType model = FIRST_GLOBAL_TRANS_TYPE;
        model <= LAST_GLOBAL_TRANS_TYPE; ++model) {
-    if (!aom_compute_global_motion(
-            model, cpi->source, ref_buf[frame], bit_depth, global_motion_method,
-            motion_models, RANSAC_NUM_MOTIONS, &mem_alloc_failed)) {
+    if (!aom_compute_global_motion(model, cpi->source, ref_buf[frame],
+                                   bit_depth, global_motion_method,
+                                   downsample_level, motion_models,
+                                   RANSAC_NUM_MOTIONS, &mem_alloc_failed)) {
       if (mem_alloc_failed) {
         aom_internal_error(error_info, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate global motion buffers");
