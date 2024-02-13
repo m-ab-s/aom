@@ -61,11 +61,6 @@ typedef struct {
   double rx, ry;
 } Correspondence;
 
-// For each global motion method, how many pyramid levels should we allocate?
-// Note that this is a maximum, and fewer levels will be allocated if the frame
-// is not large enough to need all of the specified levels
-extern const int global_motion_pyr_levels[GLOBAL_MOTION_METHODS];
-
 // Which global motion method should we use in practice?
 // Disflow is both faster and gives better results than feature matching in
 // practically all cases, so we use disflow by default

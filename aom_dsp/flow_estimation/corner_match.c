@@ -263,7 +263,7 @@ bool av1_compute_global_motion_feature_match(
   CornerList *ref_corners = ref->corners;
 
   // Precompute information we will need about each frame
-  if (!aom_compute_pyramid(src, bit_depth, src_pyramid)) {
+  if (aom_compute_pyramid(src, bit_depth, 1, src_pyramid) < 0) {
     *mem_alloc_failed = true;
     return false;
   }
@@ -271,7 +271,7 @@ bool av1_compute_global_motion_feature_match(
     *mem_alloc_failed = true;
     return false;
   }
-  if (!aom_compute_pyramid(ref, bit_depth, ref_pyramid)) {
+  if (aom_compute_pyramid(ref, bit_depth, 1, ref_pyramid) < 0) {
     *mem_alloc_failed = true;
     return false;
   }

@@ -944,14 +944,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
 
 #if CONFIG_REALTIME_ONLY
   assert(!oxcf->tool_cfg.enable_global_motion);
-  cpi->image_pyramid_levels = 0;
+  cpi->alloc_pyramid = false;
 #else
-  if (oxcf->tool_cfg.enable_global_motion) {
-    cpi->image_pyramid_levels =
-        global_motion_pyr_levels[default_global_motion_method];
-  } else {
-    cpi->image_pyramid_levels = 0;
-  }
+  cpi->alloc_pyramid = oxcf->tool_cfg.enable_global_motion;
 #endif  // CONFIG_REALTIME_ONLY
 }
 
@@ -2209,7 +2204,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
-          NULL, cpi->image_pyramid_levels, 0))
+          NULL, cpi->alloc_pyramid, 0))
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
 
@@ -2499,7 +2494,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
             &cpi->svc.source_last_TL0, cpi->oxcf.frm_dim_cfg.width,
             cpi->oxcf.frm_dim_cfg.height, seq_params->subsampling_x,
             seq_params->subsampling_y, seq_params->use_highbitdepth,
-            cpi->oxcf.border_in_pixels, cm->features.byte_alignment, 0, 0)) {
+            cpi->oxcf.border_in_pixels, cm->features.byte_alignment, false,
+            0)) {
       aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate buffer for source_last_TL0");
     }
@@ -2548,7 +2544,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
 
   cpi->source = av1_realloc_and_scale_if_required(
       cm, unscaled, &cpi->scaled_source, filter_scaler, phase_scaler, true,
-      false, cpi->oxcf.border_in_pixels, cpi->image_pyramid_levels);
+      false, cpi->oxcf.border_in_pixels, cpi->alloc_pyramid);
   if (frame_is_intra_only(cm) || resize_pending != 0) {
     const int current_size =
         (cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2;
@@ -2571,7 +2567,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
     cpi->last_source = av1_realloc_and_scale_if_required(
         cm, cpi->unscaled_last_source, &cpi->scaled_last_source, filter_scaler,
         phase_scaler, true, false, cpi->oxcf.border_in_pixels,
-        cpi->image_pyramid_levels);
+        cpi->alloc_pyramid);
   }
 
   if (cpi->sf.rt_sf.use_temporal_noise_estimate) {
@@ -2679,7 +2675,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
               &cpi->orig_source, cpi->oxcf.frm_dim_cfg.width,
               cpi->oxcf.frm_dim_cfg.height, seq_params->subsampling_x,
               seq_params->subsampling_y, seq_params->use_highbitdepth,
-              cpi->oxcf.border_in_pixels, cm->features.byte_alignment, 0, 0))
+              cpi->oxcf.border_in_pixels, cm->features.byte_alignment, false,
+              0))
         aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate scaled buffer");
     }
@@ -2846,7 +2843,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
     }
     cpi->source = av1_realloc_and_scale_if_required(
         cm, cpi->unscaled_source, &cpi->scaled_source, EIGHTTAP_REGULAR, 0,
-        false, false, cpi->oxcf.border_in_pixels, cpi->image_pyramid_levels);
+        false, false, cpi->oxcf.border_in_pixels, cpi->alloc_pyramid);
 
 #if CONFIG_TUNE_BUTTERAUGLI
     if (oxcf->tune_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
@@ -2866,7 +2863,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       cpi->last_source = av1_realloc_and_scale_if_required(
           cm, cpi->unscaled_last_source, &cpi->scaled_last_source,
           EIGHTTAP_REGULAR, 0, false, false, cpi->oxcf.border_in_pixels,
-          cpi->image_pyramid_levels);
+          cpi->alloc_pyramid);
     }
 
     int scale_references = 0;
@@ -4139,8 +4136,7 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
 #endif  //  CONFIG_DENOISE
 
   if (av1_lookahead_push(cpi->ppi->lookahead, sd, time_stamp, end_time,
-                         use_highbitdepth, cpi->image_pyramid_levels,
-                         frame_flags)) {
+                         use_highbitdepth, cpi->alloc_pyramid, frame_flags)) {
     aom_set_error(cm->error, AOM_CODEC_ERROR, "av1_lookahead_push() failed");
     res = -1;
   }

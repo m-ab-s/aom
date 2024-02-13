@@ -2050,7 +2050,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
           &cpi->trial_frame_rst, cm->superres_upscaled_width,
           cm->superres_upscaled_height, seq_params->subsampling_x,
           seq_params->subsampling_y, highbd, AOM_RESTORATION_FRAME_BORDER,
-          cm->features.byte_alignment, NULL, NULL, NULL, 0, 0))
+          cm->features.byte_alignment, NULL, NULL, NULL, false, 0))
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate trial restored frame buffer");
 

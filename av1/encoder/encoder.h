@@ -3632,10 +3632,10 @@ typedef struct AV1_COMP {
   unsigned int zeromv_skip_thresh_exit_part[BLOCK_SIZES_ALL];
 
   /*!
-   *  Number of downsampling pyramid levels to allocate for each frame
+   *  Should we allocate a downsampling pyramid for each frame buffer?
    *  This is currently only used for global motion
    */
-  int image_pyramid_levels;
+  bool alloc_pyramid;
 
 #if CONFIG_SALIENCY_MAP
   /*!

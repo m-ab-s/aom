@@ -497,8 +497,8 @@ void aom_yv12_partial_coloc_copy_v_c(const YV12_BUFFER_CONFIG *src_bc,
 }
 
 int aom_yv12_realloc_with_new_border_c(YV12_BUFFER_CONFIG *ybf, int new_border,
-                                       int byte_alignment,
-                                       int num_pyramid_levels, int num_planes) {
+                                       int byte_alignment, bool alloc_pyramid,
+                                       int num_planes) {
   if (ybf) {
     if (new_border == ybf->border) return 0;
     YV12_BUFFER_CONFIG new_buf;
@@ -506,7 +506,7 @@ int aom_yv12_realloc_with_new_border_c(YV12_BUFFER_CONFIG *ybf, int new_border,
     const int error = aom_alloc_frame_buffer(
         &new_buf, ybf->y_crop_width, ybf->y_crop_height, ybf->subsampling_x,
         ybf->subsampling_y, ybf->flags & YV12_FLAG_HIGHBITDEPTH, new_border,
-        byte_alignment, num_pyramid_levels, 0);
+        byte_alignment, alloc_pyramid, 0);
     if (error) return error;
     // Copy image buffer
     aom_yv12_copy_frame(ybf, &new_buf, num_planes);

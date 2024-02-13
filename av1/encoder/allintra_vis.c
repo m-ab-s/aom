@@ -590,7 +590,7 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
           &cm->cur_frame->buf, cm->width, cm->height, seq_params->subsampling_x,
           seq_params->subsampling_y, seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
-          NULL, cpi->image_pyramid_levels, 0))
+          NULL, cpi->alloc_pyramid, 0))
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate frame buffer");
   av1_alloc_mb_wiener_var_pred_buf(&cpi->common, &cpi->td);

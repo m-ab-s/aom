@@ -18,14 +18,6 @@
 #include "aom_ports/mem.h"
 #include "aom_scale/yv12config.h"
 
-// For each global motion method, how many pyramid levels should we allocate?
-// Note that this is a maximum, and fewer levels will be allocated if the frame
-// is not large enough to need all of the specified levels
-const int global_motion_pyr_levels[GLOBAL_MOTION_METHODS] = {
-  1,   // GLOBAL_MOTION_METHOD_FEATURE_MATCH
-  16,  // GLOBAL_MOTION_METHOD_DISFLOW
-};
-
 // clang-format off
 const double kIdentityParams[MAX_PARAMDIM] = {
   0.0, 0.0, 1.0, 0.0, 0.0, 1.0

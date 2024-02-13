@@ -2337,7 +2337,7 @@ void av1_encode_frame(AV1_COMP *cpi) {
   // a source or a ref frame should have an image pyramid allocated.
   // Check here so that issues can be caught early in debug mode
 #if !defined(NDEBUG) && !CONFIG_REALTIME_ONLY
-  if (cpi->image_pyramid_levels > 0) {
+  if (cpi->alloc_pyramid) {
     assert(cpi->source->y_pyramid);
     for (int ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
       const RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
