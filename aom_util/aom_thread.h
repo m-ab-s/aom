@@ -25,9 +25,9 @@ extern "C" {
 
 // State of the worker thread object
 typedef enum {
-  NOT_OK = 0,  // object is unusable
-  OK,          // ready to work
-  WORK         // busy finishing the current task
+  AVX_WORKER_STATUS_NOT_OK = 0,  // object is unusable
+  AVX_WORKER_STATUS_OK,          // ready to work
+  AVX_WORKER_STATUS_WORKING      // busy finishing the current task
 } AVxWorkerStatus;
 
 // Function to be called by the worker thread. Takes two opaque pointers as
