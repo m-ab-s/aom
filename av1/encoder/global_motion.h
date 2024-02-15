@@ -14,9 +14,8 @@
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/flow_estimation/flow_estimation.h"
-#include "aom_scale/yv12config.h"
 #include "aom_util/aom_pthread.h"
-#include "aom_util/aom_thread.h"
+#include "av1/encoder/enc_enums.h"
 
 #ifdef __cplusplus
 extern "C" {
