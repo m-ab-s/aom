@@ -15,7 +15,6 @@
 #include <stdbool.h>
 
 #include "aom_dsp/flow_estimation/flow_estimation.h"
-#include "aom_dsp/rect.h"
 #include "aom_scale/yv12config.h"
 
 #ifdef __cplusplus

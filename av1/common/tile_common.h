@@ -17,7 +17,6 @@ extern "C" {
 #endif
 
 #include "config/aom_config.h"
-#include "aom_dsp/rect.h"
 
 struct AV1Common;
 struct SequenceHeader;
@@ -42,10 +41,6 @@ void av1_tile_set_col(TileInfo *tile, const struct AV1Common *cm, int col);
 
 int av1_get_sb_rows_in_tile(const struct AV1Common *cm, const TileInfo *tile);
 int av1_get_sb_cols_in_tile(const struct AV1Common *cm, const TileInfo *tile);
-
-// Return the pixel extents of the given tile
-PixelRect av1_get_tile_rect(const TileInfo *tile_info,
-                            const struct AV1Common *cm, int is_uv);
 
 // Define tile maximum width and area
 // There is no maximum height since height is limited by area and width limits
