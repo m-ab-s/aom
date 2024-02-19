@@ -1533,6 +1533,11 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1Convolve2DHighbdTest,
                          BuildHighbdParams(av1_highbd_convolve_2d_sr_neon));
 #endif
 
+#if HAVE_SVE2
+INSTANTIATE_TEST_SUITE_P(SVE2, AV1Convolve2DHighbdTest,
+                         BuildHighbdParams(av1_highbd_convolve_2d_sr_sve2));
+#endif
+
 //////////////////////////////////////////////////////////////////
 // Single reference convolve-2d IntraBC functions (high bit-depth)
 //////////////////////////////////////////////////////////////////
