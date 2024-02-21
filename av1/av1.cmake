@@ -476,6 +476,9 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/av1/common/arm/highbd_warp_plane_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_wiener_convolve_neon.c")
 
+  list(APPEND AOM_AV1_COMMON_INTRIN_SVE2
+              "${AOM_ROOT}/av1/common/arm/highbd_convolve_sve2.c")
+
   list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
               "${AOM_ROOT}/av1/encoder/x86/highbd_block_error_intrin_sse2.c"
               "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c")
@@ -700,6 +703,11 @@ function(setup_av1_targets)
       add_intrinsics_object_library("${AOM_SVE_FLAG}" "sve" "aom_av1_encoder"
                                     "AOM_AV1_ENCODER_INTRIN_SVE")
     endif()
+  endif()
+
+  if(HAVE_SVE2)
+    add_intrinsics_object_library("${AOM_SVE2_FLAG}" "sve2" "aom_av1_common"
+                                  "AOM_AV1_COMMON_INTRIN_SVE2")
   endif()
 
   if(HAVE_VSX)
