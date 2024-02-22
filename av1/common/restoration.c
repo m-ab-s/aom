@@ -11,6 +11,7 @@
  */
 
 #include <math.h>
+#include <stddef.h>
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
@@ -116,8 +117,9 @@ void av1_loop_restoration_precal(void) {
 #endif
 }
 
-static void extend_frame_lowbd(uint8_t *data, int width, int height, int stride,
-                               int border_horz, int border_vert) {
+static void extend_frame_lowbd(uint8_t *data, int width, int height,
+                               ptrdiff_t stride, int border_horz,
+                               int border_vert) {
   uint8_t *data_p;
   int i;
   for (i = 0; i < height; ++i) {
@@ -137,7 +139,8 @@ static void extend_frame_lowbd(uint8_t *data, int width, int height, int stride,
 
 #if CONFIG_AV1_HIGHBITDEPTH
 static void extend_frame_highbd(uint16_t *data, int width, int height,
-                                int stride, int border_horz, int border_vert) {
+                                ptrdiff_t stride, int border_horz,
+                                int border_vert) {
   uint16_t *data_p;
   int i, j;
   for (i = 0; i < height; ++i) {
@@ -989,8 +992,10 @@ void av1_loop_restoration_filter_unit(
 
   int unit_h = limits->v_end - limits->v_start;
   int unit_w = limits->h_end - limits->h_start;
-  uint8_t *data8_tl = data8 + limits->v_start * stride + limits->h_start;
-  uint8_t *dst8_tl = dst8 + limits->v_start * dst_stride + limits->h_start;
+  uint8_t *data8_tl =
+      data8 + limits->v_start * (ptrdiff_t)stride + limits->h_start;
+  uint8_t *dst8_tl =
+      dst8 + limits->v_start * (ptrdiff_t)dst_stride + limits->h_start;
 
   if (unit_rtype == RESTORE_NONE) {
     copy_rest_unit(unit_w, unit_h, data8_tl, stride, dst8_tl, dst_stride,
@@ -1351,7 +1356,7 @@ static void save_deblock_boundary_lines(
   const int is_uv = plane > 0;
   const uint8_t *src_buf = REAL_PTR(use_highbd, frame->buffers[plane]);
   const int src_stride = frame->strides[is_uv] << use_highbd;
-  const uint8_t *src_rows = src_buf + row * src_stride;
+  const uint8_t *src_rows = src_buf + row * (ptrdiff_t)src_stride;
 
   uint8_t *bdry_buf = is_above ? boundaries->stripe_boundary_above
                                : boundaries->stripe_boundary_below;
@@ -1406,7 +1411,7 @@ static void save_cdef_boundary_lines(const YV12_BUFFER_CONFIG *frame,
   const int is_uv = plane > 0;
   const uint8_t *src_buf = REAL_PTR(use_highbd, frame->buffers[plane]);
   const int src_stride = frame->strides[is_uv] << use_highbd;
-  const uint8_t *src_rows = src_buf + row * src_stride;
+  const uint8_t *src_rows = src_buf + row * (ptrdiff_t)src_stride;
 
   uint8_t *bdry_buf = is_above ? boundaries->stripe_boundary_above
                                : boundaries->stripe_boundary_below;
