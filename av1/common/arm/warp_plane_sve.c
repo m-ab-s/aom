@@ -11,7 +11,7 @@
 
 #include <arm_neon.h>
 
-#include "aom_dsp/arm/dot_sve.h"
+#include "aom_dsp/arm/aom_neon_sve_bridge.h"
 #include "warp_plane_neon.h"
 
 DECLARE_ALIGNED(16, static const uint8_t, usdot_permute_idx[48]) = {

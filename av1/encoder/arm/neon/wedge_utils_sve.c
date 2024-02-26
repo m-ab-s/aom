@@ -12,7 +12,7 @@
 #include <arm_neon.h>
 #include <assert.h>
 
-#include "aom_dsp/arm/dot_sve.h"
+#include "aom_dsp/arm/aom_neon_sve_bridge.h"
 #include "aom_dsp/arm/sum_neon.h"
 #include "av1/common/reconinter.h"
 

@@ -16,7 +16,8 @@
 #include "config/av1_rtcd.h"
 
 #include "aom_dsp/aom_dsp_common.h"
-#include "aom_dsp/arm/dot_sve.h"
+#include "aom_dsp/arm/aom_neon_sve_bridge.h"
+#include "aom_dsp/arm/aom_neon_sve2_bridge.h"
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_ports/mem.h"
 #include "av1/common/convolve.h"
@@ -26,19 +27,6 @@ DECLARE_ALIGNED(16, static const uint16_t, kDotProdTbl[32]) = {
   0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
   4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10,
 };
-
-static INLINE int16x8_t aom_tbl_s16(int16x8_t s, uint16x8_t tbl) {
-  return svget_neonq_s16(svtbl_s16(svset_neonq_s16(svundef_s16(), s),
-                                   svset_neonq_u16(svundef_u16(), tbl)));
-}
-
-static INLINE int16x8_t aom_tbl2_s16(int16x8_t s0, int16x8_t s1,
-                                     uint16x8_t tbl) {
-  svint16x2_t samples = svcreate2_s16(svset_neonq_s16(svundef_s16(), s0),
-                                      svset_neonq_s16(svundef_s16(), s1));
-  return svget_neonq_s16(
-      svtbl2_s16(samples, svset_neonq_u16(svundef_u16(), tbl)));
-}
 
 static INLINE uint16x4_t convolve12_4_x(
     int16x8_t s0, int16x8_t s1, int16x8_t filter_0_7, int16x8_t filter_4_11,
@@ -258,11 +246,6 @@ DECLARE_ALIGNED(16, static const uint16_t, kDeinterleaveTbl[8]) = {
   0, 2, 4, 6, 1, 3, 5, 7,
 };
 // clang-format on
-
-static INLINE uint16x8_t aom_tbl_u16(uint16x8_t src, uint16x8_t table) {
-  return svget_neonq_u16(svtbl_u16(svset_neonq_u16(svundef_u16(), src),
-                                   svset_neonq_u16(svundef_u16(), table)));
-}
 
 static INLINE uint16x4_t convolve4_4_x(int16x8_t s0, int16x8_t filter,
                                        int64x2_t offset,

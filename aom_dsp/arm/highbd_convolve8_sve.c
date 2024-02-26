@@ -16,7 +16,7 @@
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
-#include "aom_dsp/arm/dot_sve.h"
+#include "aom_dsp/arm/aom_neon_sve_bridge.h"
 #include "aom_dsp/arm/mem_neon.h"
 
 static INLINE uint16x4_t highbd_convolve8_4_h(int16x8_t s[4], int16x8_t filter,

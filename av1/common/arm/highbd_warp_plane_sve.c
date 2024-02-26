@@ -15,7 +15,7 @@
 #include <arm_neon_sve_bridge.h>
 
 #include "aom_dsp/aom_dsp_common.h"
-#include "aom_dsp/arm/dot_sve.h"
+#include "aom_dsp/arm/aom_neon_sve_bridge.h"
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/transpose_neon.h"
 #include "aom_ports/mem.h"
