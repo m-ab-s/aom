@@ -825,7 +825,8 @@ if(BUILD_SHARED_LIBS)
   # Clang's AddressSanitizer documentation says "When linking shared libraries,
   # the AddressSanitizer run-time is not linked, so -Wl,-z,defs may cause link
   # errors (don't use it with AddressSanitizer)." See
-  # https://clang.llvm.org/docs/AddressSanitizer.html#usage.
+  # https://clang.llvm.org/docs/AddressSanitizer.html#usage. Similarly, see
+  # https://clang.llvm.org/docs/MemorySanitizer.html#usage.
   if(NOT WIN32
      AND NOT APPLE
      AND NOT (CMAKE_C_COMPILER_ID MATCHES "Clang" AND SANITIZE))
