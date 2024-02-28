@@ -203,8 +203,8 @@ void av1_update_temporal_layer_framerate(AV1_COMP *const cpi) {
   }
 }
 
-AOM_INLINE bool av1_check_ref_is_low_spatial_res_super_frame(
-    AV1_COMP *const cpi, int ref_frame) {
+bool av1_check_ref_is_low_spatial_res_super_frame(AV1_COMP *const cpi,
+                                                  int ref_frame) {
   SVC *svc = &cpi->svc;
   RTC_REF *const rtc_ref = &cpi->ppi->rtc_ref;
   int ref_frame_idx = rtc_ref->ref_idx[ref_frame - 1];
