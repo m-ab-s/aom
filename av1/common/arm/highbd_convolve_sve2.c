@@ -263,7 +263,7 @@ static INLINE uint16x4_t convolve4_4_x(int16x8_t s0, int16x8_t filter,
   return vmin_u16(res, max);
 }
 
-static INLINE uint16x8_t convolve4_8_x(int16x8_t s0[8], int16x8_t filter,
+static INLINE uint16x8_t convolve4_8_x(int16x8_t s0[4], int16x8_t filter,
                                        int64x2_t offset, uint16x8_t tbl,
                                        uint16x8_t max) {
   int64x2_t sum04 = aom_svdot_lane_s16(offset, s0[0], filter, 0);
@@ -322,15 +322,11 @@ static INLINE void highbd_convolve_x_sr_4tap_sve2(
       int w = width;
 
       do {
-        int16x8_t s0[8], s1[8], s2[8], s3[8];
-        load_s16_8x8(s + 0 * src_stride, 1, &s0[0], &s0[1], &s0[2], &s0[3],
-                     &s0[4], &s0[5], &s0[6], &s0[7]);
-        load_s16_8x8(s + 1 * src_stride, 1, &s1[0], &s1[1], &s1[2], &s1[3],
-                     &s1[4], &s1[5], &s1[6], &s1[7]);
-        load_s16_8x8(s + 2 * src_stride, 1, &s2[0], &s2[1], &s2[2], &s2[3],
-                     &s2[4], &s2[5], &s2[6], &s2[7]);
-        load_s16_8x8(s + 3 * src_stride, 1, &s3[0], &s3[1], &s3[2], &s3[3],
-                     &s3[4], &s3[5], &s3[6], &s3[7]);
+        int16x8_t s0[4], s1[4], s2[4], s3[4];
+        load_s16_8x4(s + 0 * src_stride, 1, &s0[0], &s0[1], &s0[2], &s0[3]);
+        load_s16_8x4(s + 1 * src_stride, 1, &s1[0], &s1[1], &s1[2], &s1[3]);
+        load_s16_8x4(s + 2 * src_stride, 1, &s2[0], &s2[1], &s2[2], &s2[3]);
+        load_s16_8x4(s + 3 * src_stride, 1, &s3[0], &s3[1], &s3[2], &s3[3]);
 
         uint16x8_t d0 = convolve4_8_x(s0, filter, offset, idx, max);
         uint16x8_t d1 = convolve4_8_x(s1, filter, offset, idx, max);
