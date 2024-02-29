@@ -1175,7 +1175,8 @@ static int linsolve_wiener(int n, int64_t *A, int stride, int64_t *b,
 
 // Fix vector b, update vector a
 static AOM_INLINE void update_a_sep_sym(int wiener_win, int64_t **Mc,
-                                        int64_t **Hc, int32_t *a, int32_t *b) {
+                                        int64_t **Hc, int32_t *a,
+                                        const int32_t *b) {
   int i, j;
   int64_t S[WIENER_WIN];
   int64_t A[WIENER_HALFWIN1], B[WIENER_HALFWIN1 * WIENER_HALFWIN1];
@@ -1246,7 +1247,8 @@ static AOM_INLINE void update_a_sep_sym(int wiener_win, int64_t **Mc,
 
 // Fix vector a, update vector b
 static AOM_INLINE void update_b_sep_sym(int wiener_win, int64_t **Mc,
-                                        int64_t **Hc, int32_t *a, int32_t *b) {
+                                        int64_t **Hc, const int32_t *a,
+                                        int32_t *b) {
   int i, j;
   int64_t S[WIENER_WIN];
   int64_t A[WIENER_HALFWIN1], B[WIENER_HALFWIN1 * WIENER_HALFWIN1];
