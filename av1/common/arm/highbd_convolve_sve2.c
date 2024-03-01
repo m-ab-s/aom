@@ -25,7 +25,7 @@
 
 DECLARE_ALIGNED(16, static const uint16_t, kDotProdTbl[32]) = {
   0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
-  4, 5, 6, 7, 5, 6, 7, 8, 6, 7, 8, 9, 7, 8, 9, 10,
+  4, 5, 6, 7, 5, 6, 7, 0, 6, 7, 0, 1, 7, 0, 1, 2,
 };
 
 static INLINE uint16x4_t convolve12_4_x(
@@ -110,6 +110,16 @@ static INLINE void highbd_convolve_x_sr_12tap_sve2(
   const int16x8_t y_filter_4_11 = vld1q_s16(y_filter_ptr + 4);
 
   uint16x8x4_t permute_tbl = vld1q_u16_x4(kDotProdTbl);
+  // Scale indices by size of the true vector length to avoid reading from an
+  // 'undefined' portion of a vector on a system with SVE vectors > 128-bit.
+  uint16x8_t correction0 = vreinterpretq_u16_u64(vcombine_u64(
+      vdup_n_u64(0), vdup_n_u64(svcnth() * 0x0001000000000000ULL)));
+  permute_tbl.val[2] = vaddq_u16(permute_tbl.val[2], correction0);
+
+  uint16x8_t correction1 = vreinterpretq_u16_u64(
+      vcombine_u64(vdup_n_u64(svcnth() * 0x0001000100000000ULL),
+                   vdup_n_u64(svcnth() * 0x0001000100010000ULL)));
+  permute_tbl.val[3] = vaddq_u16(permute_tbl.val[3], correction1);
 
   if (width == 4) {
     const uint16x4_t max = vdup_n_u16((1 << bd) - 1);
