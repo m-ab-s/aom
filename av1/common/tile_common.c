@@ -187,7 +187,12 @@ void av1_get_uniform_tile_size(const AV1_COMMON *cm, int *w, int *h) {
       const int tile_width_sb =
           tiles->col_start_sb[i + 1] - tiles->col_start_sb[i];
       const int tile_w = tile_width_sb * cm->seq_params->mib_size;
-      assert(i == 0 || tile_w == *w);  // ensure all tiles have same dimension
+      // ensure all tiles have same dimension
+      if (i != 0 && tile_w != *w) {
+        aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                           "tile %d does not have the same width: %d != %d", i,
+                           tile_w, *w);
+      }
       *w = tile_w;
     }
 
@@ -195,7 +200,12 @@ void av1_get_uniform_tile_size(const AV1_COMMON *cm, int *w, int *h) {
       const int tile_height_sb =
           tiles->row_start_sb[i + 1] - tiles->row_start_sb[i];
       const int tile_h = tile_height_sb * cm->seq_params->mib_size;
-      assert(i == 0 || tile_h == *h);  // ensure all tiles have same dimension
+      // ensure all tiles have same dimension
+      if (i != 0 && tile_h != *h) {
+        aom_internal_error(cm->error, AOM_CODEC_UNSUP_BITSTREAM,
+                           "tile %d does not have the same height: %d != %d", i,
+                           tile_h, *h);
+      }
       *h = tile_h;
     }
   }
