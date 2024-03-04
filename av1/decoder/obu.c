@@ -501,7 +501,10 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
   }
 
   int tile_width, tile_height;
-  av1_get_uniform_tile_size(cm, &tile_width, &tile_height);
+  if (!av1_get_uniform_tile_size(cm, &tile_width, &tile_height)) {
+    pbi->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
   const int tile_width_in_pixels = tile_width * MI_SIZE;
   const int tile_height_in_pixels = tile_height * MI_SIZE;
 

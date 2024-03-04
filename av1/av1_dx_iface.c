@@ -866,7 +866,9 @@ static aom_image_t *decoder_get_frame(aom_codec_alg_priv_t *ctx,
   if (pbi->ext_tile_debug && tiles->single_tile_decoding &&
       pbi->dec_tile_row >= 0) {
     int tile_width, tile_height;
-    av1_get_uniform_tile_size(cm, &tile_width, &tile_height);
+    if (!av1_get_uniform_tile_size(cm, &tile_width, &tile_height)) {
+      return NULL;
+    }
     const int tile_row = AOMMIN(pbi->dec_tile_row, tiles->rows - 1);
     const int mi_row = tile_row * tile_height;
     const int ssy = ctx->img.y_chroma_shift;
@@ -885,7 +887,9 @@ static aom_image_t *decoder_get_frame(aom_codec_alg_priv_t *ctx,
   if (pbi->ext_tile_debug && tiles->single_tile_decoding &&
       pbi->dec_tile_col >= 0) {
     int tile_width, tile_height;
-    av1_get_uniform_tile_size(cm, &tile_width, &tile_height);
+    if (!av1_get_uniform_tile_size(cm, &tile_width, &tile_height)) {
+      return NULL;
+    }
     const int tile_col = AOMMIN(pbi->dec_tile_col, tiles->cols - 1);
     const int mi_col = tile_col * tile_width;
     const int ssx = ctx->img.x_chroma_shift;
@@ -1429,7 +1433,9 @@ static aom_codec_err_t ctrl_get_tile_size(aom_codec_alg_priv_t *ctx,
           (FrameWorkerData *)worker->data1;
       const AV1_COMMON *const cm = &frame_worker_data->pbi->common;
       int tile_width, tile_height;
-      av1_get_uniform_tile_size(cm, &tile_width, &tile_height);
+      if (!av1_get_uniform_tile_size(cm, &tile_width, &tile_height)) {
+        return AOM_CODEC_CORRUPT_FRAME;
+      }
       *tile_size = ((tile_width * MI_SIZE) << 16) + tile_height * MI_SIZE;
       return AOM_CODEC_OK;
     } else {
