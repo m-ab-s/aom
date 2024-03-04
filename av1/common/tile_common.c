@@ -177,6 +177,15 @@ int av1_get_sb_cols_in_tile(const AV1_COMMON *cm, const TileInfo *tile) {
                            cm->seq_params->mib_size_log2);
 }
 
+// Section 7.3.1 of the AV1 spec says, on pages 200-201:
+//   It is a requirement of bitstream conformance that the following conditions
+//   are met:
+//     ...
+//     * TileHeight is equal to (use_128x128_superblock ? 128 : 64) for all
+//       tiles (i.e. the tile is exactly one superblock high)
+//     * TileWidth is identical for all tiles and is an integer multiple of
+//       TileHeight (i.e. the tile is an integer number of superblocks wide)
+//     ...
 bool av1_get_uniform_tile_size(const AV1_COMMON *cm, int *w, int *h) {
   const CommonTileParams *const tiles = &cm->tiles;
   if (tiles->uniform_spacing) {
