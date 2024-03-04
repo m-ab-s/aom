@@ -2637,3 +2637,43 @@ void av1_lowbd_fwd_txfm2d_16x64_sse2(const int16_t *input, int32_t *output,
     store_buffer_16bit_to_32bit_w8(buf, output + 8 * i, 32, 16);
   }
 }
+
+// Include top-level function only for 32-bit x86, to support Valgrind.
+// For normal use, we require SSE4.1, so av1_lowbd_fwd_txfm_sse4_1 will be used
+// instead of this function. However, 32-bit Valgrind does not support SSE4.1,
+// so we include a fallback to SSE2 to improve performance
+#if AOM_ARCH_X86
+static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
+  av1_lowbd_fwd_txfm2d_4x4_sse2,    // 4x4 transform
+  av1_lowbd_fwd_txfm2d_8x8_sse2,    // 8x8 transform
+  av1_lowbd_fwd_txfm2d_16x16_sse2,  // 16x16 transform
+  av1_lowbd_fwd_txfm2d_32x32_sse2,  // 32x32 transform
+  NULL,                             // 64x64 transform
+  av1_lowbd_fwd_txfm2d_4x8_sse2,    // 4x8 transform
+  av1_lowbd_fwd_txfm2d_8x4_sse2,    // 8x4 transform
+  av1_lowbd_fwd_txfm2d_8x16_sse2,   // 8x16 transform
+  av1_lowbd_fwd_txfm2d_16x8_sse2,   // 16x8 transform
+  av1_lowbd_fwd_txfm2d_16x32_sse2,  // 16x32 transform
+  av1_lowbd_fwd_txfm2d_32x16_sse2,  // 32x16 transform
+  NULL,                             // 32x64 transform
+  NULL,                             // 64x32 transform
+  av1_lowbd_fwd_txfm2d_4x16_sse2,   // 4x16 transform
+  av1_lowbd_fwd_txfm2d_16x4_sse2,   // 16x4 transform
+  av1_lowbd_fwd_txfm2d_8x32_sse2,   // 8x32 transform
+  av1_lowbd_fwd_txfm2d_32x8_sse2,   // 32x8 transform
+  av1_lowbd_fwd_txfm2d_16x64_sse2,  // 16x64 transform
+  av1_lowbd_fwd_txfm2d_64x16_sse2,  // 64x16 transform
+};
+
+void av1_lowbd_fwd_txfm_sse2(const int16_t *src_diff, tran_low_t *coeff,
+                             int diff_stride, TxfmParam *txfm_param) {
+  FwdTxfm2dFunc fwd_txfm2d_func = fwd_txfm2d_func_ls[txfm_param->tx_size];
+
+  if ((fwd_txfm2d_func == NULL) ||
+      (txfm_param->lossless && txfm_param->tx_size == TX_4X4))
+    av1_lowbd_fwd_txfm_c(src_diff, coeff, diff_stride, txfm_param);
+  else
+    fwd_txfm2d_func(src_diff, coeff, diff_stride, txfm_param->tx_type,
+                    txfm_param->bd);
+}
+#endif  // AOM_ARCH_X86

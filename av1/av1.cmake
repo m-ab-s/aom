@@ -275,6 +275,12 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_ssse3.c"
             "${AOM_ROOT}/av1/common/x86/resize_ssse3.c")
 
+# Fallbacks to support Valgrind on 32-bit x86
+if(AOM_ARCH_X86)
+  list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
+              "${AOM_ROOT}/av1/common/x86/cdef_block_ssse3.c")
+endif()
+
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/common/x86/av1_convolve_horiz_rs_sse4.c"
             "${AOM_ROOT}/av1/common/x86/av1_convolve_scale_sse4.c"

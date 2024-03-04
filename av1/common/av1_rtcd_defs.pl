@@ -77,6 +77,16 @@ EOF
 }
 forward_decls qw/av1_common_forward_decls/;
 
+# Fallbacks for Valgrind support
+# For normal use, we require SSE4.1. However, 32-bit Valgrind does not support
+# SSE4.1, so we include fallbacks for some critical functions to improve
+# performance
+$ssse3_x86 = '';
+if ($opts{arch} eq "x86") {
+  $sse2_x86 = 'sse2';
+  $ssse3_x86 = 'ssse3';
+}
+
 # functions that are 64 bit only.
 $mmx_x86_64 = $sse2_x86_64 = $ssse3_x86_64 = $avx_x86_64 = $avx2_x86_64 = '';
 if ($opts{arch} eq "x86_64") {
@@ -345,7 +355,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
   #fwd txfm
   add_proto qw/void av1_lowbd_fwd_txfm/, "const int16_t *src_diff, tran_low_t *coeff, int diff_stride, TxfmParam *txfm_param";
-  specialize qw/av1_lowbd_fwd_txfm sse4_1 avx2 neon/;
+  specialize qw/av1_lowbd_fwd_txfm sse4_1 avx2 neon/, $sse2_x86;
 
   add_proto qw/void av1_fwd_txfm2d_4x8/, "const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, int bd";
   specialize qw/av1_fwd_txfm2d_4x8 sse4_1 neon/;
@@ -521,21 +531,21 @@ add_proto qw/void cdef_copy_rect8_16bit_to_16bit/, "uint16_t *dst, int dstride, 
 # structs as arguments, which makes the v256 type of the intrinsics
 # hard to support, so optimizations for this target are disabled.
 if ($opts{config} !~ /libs-x86-win32-vs.*/) {
-  specialize qw/cdef_find_dir sse4_1 avx2 neon/;
-  specialize qw/cdef_find_dir_dual sse4_1 avx2 neon/;
+  specialize qw/cdef_find_dir sse4_1 avx2 neon/, "$ssse3_x86";
+  specialize qw/cdef_find_dir_dual sse4_1 avx2 neon/, "$ssse3_x86";
 
-  specialize qw/cdef_filter_8_0 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_8_1 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_8_2 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_8_3 sse4_1 avx2 neon/;
+  specialize qw/cdef_filter_8_0 sse4_1 avx2 neon/, "$ssse3_x86";
+  specialize qw/cdef_filter_8_1 sse4_1 avx2 neon/, "$ssse3_x86";
+  specialize qw/cdef_filter_8_2 sse4_1 avx2 neon/, "$ssse3_x86";
+  specialize qw/cdef_filter_8_3 sse4_1 avx2 neon/, "$ssse3_x86";
 
-  specialize qw/cdef_filter_16_0 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_16_1 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_16_2 sse4_1 avx2 neon/;
-  specialize qw/cdef_filter_16_3 sse4_1 avx2 neon/;
+  specialize qw/cdef_filter_16_0 sse4_1 avx2 neon/, "$ssse3_x86";
+  specialize qw/cdef_filter_16_1 sse4_1 avx2 neon/, "$ssse3_x86";
+  specialize qw/cdef_filter_16_2 sse4_1 avx2 neon/, "$ssse3_x86";
+  specialize qw/cdef_filter_16_3 sse4_1 avx2 neon/, "$ssse3_x86";
 
-  specialize qw/cdef_copy_rect8_8bit_to_16bit sse4_1 avx2 neon/;
-  specialize qw/cdef_copy_rect8_16bit_to_16bit sse4_1 avx2 neon/;
+  specialize qw/cdef_copy_rect8_8bit_to_16bit sse4_1 avx2 neon/, "$ssse3_x86";
+  specialize qw/cdef_copy_rect8_16bit_to_16bit sse4_1 avx2 neon/, "$ssse3_x86";
 }
 
 # WARPED_MOTION / GLOBAL_MOTION functions
