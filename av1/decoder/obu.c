@@ -367,16 +367,13 @@ static uint32_t read_one_tile_group_obu(
   return header_size + tg_payload_size;
 }
 
-static void alloc_tile_list_buffer(AV1Decoder *pbi) {
+static void alloc_tile_list_buffer(AV1Decoder *pbi, int tile_width_in_pixels,
+                                   int tile_height_in_pixels) {
   // The resolution of the output frame is read out from the bitstream. The data
   // are stored in the order of Y plane, U plane and V plane. As an example, for
   // image format 4:2:0, the output frame of U plane and V plane is 1/4 of the
   // output frame.
   AV1_COMMON *const cm = &pbi->common;
-  int tile_width, tile_height;
-  av1_get_uniform_tile_size(cm, &tile_width, &tile_height);
-  const int tile_width_in_pixels = tile_width * MI_SIZE;
-  const int tile_height_in_pixels = tile_height * MI_SIZE;
   const int output_frame_width =
       (pbi->output_frame_width_in_tiles_minus_1 + 1) * tile_width_in_pixels;
   const int output_frame_height =
@@ -424,13 +421,10 @@ static void yv12_tile_copy(const YV12_BUFFER_CONFIG *src, int hstart1,
   return;
 }
 
-static void copy_decoded_tile_to_tile_list_buffer(AV1Decoder *pbi,
-                                                  int tile_idx) {
+static void copy_decoded_tile_to_tile_list_buffer(AV1Decoder *pbi, int tile_idx,
+                                                  int tile_width_in_pixels,
+                                                  int tile_height_in_pixels) {
   AV1_COMMON *const cm = &pbi->common;
-  int tile_width, tile_height;
-  av1_get_uniform_tile_size(cm, &tile_width, &tile_height);
-  const int tile_width_in_pixels = tile_width * MI_SIZE;
-  const int tile_height_in_pixels = tile_height * MI_SIZE;
   const int ssy = cm->seq_params->subsampling_y;
   const int ssx = cm->seq_params->subsampling_x;
   const int num_planes = av1_num_planes(cm);
@@ -506,8 +500,13 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
     return 0;
   }
 
+  int tile_width, tile_height;
+  av1_get_uniform_tile_size(cm, &tile_width, &tile_height);
+  const int tile_width_in_pixels = tile_width * MI_SIZE;
+  const int tile_height_in_pixels = tile_height * MI_SIZE;
+
   // Allocate output frame buffer for the tile list.
-  alloc_tile_list_buffer(pbi);
+  alloc_tile_list_buffer(pbi, tile_width_in_pixels, tile_height_in_pixels);
 
   uint32_t tile_list_info_bytes = 4;
   tile_list_payload_size += tile_list_info_bytes;
@@ -558,7 +557,8 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
     assert(data <= data_end);
 
     // Copy the decoded tile to the tile list output buffer.
-    copy_decoded_tile_to_tile_list_buffer(pbi, tile_idx);
+    copy_decoded_tile_to_tile_list_buffer(pbi, tile_idx, tile_width_in_pixels,
+                                          tile_height_in_pixels);
     tile_idx++;
   }
 
