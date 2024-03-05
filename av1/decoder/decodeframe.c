@@ -2303,8 +2303,16 @@ static const uint8_t *get_ls_tile_buffers(
       size_t tile_col_size;
 
       if (!is_last) {
+        if (tile_col_size_bytes > data_end - data) {
+          aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
+                             "Not enough data to read tile_col_size");
+        }
         tile_col_size = mem_get_varsize(data, tile_col_size_bytes);
         data += tile_col_size_bytes;
+        if (tile_col_size > (size_t)(data_end - data)) {
+          aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
+                             "tile_col_data_end[%d] is out of bound", c);
+        }
         tile_col_data_end[c] = data + tile_col_size;
       } else {
         tile_col_size = data_end - data;
