@@ -10,7 +10,6 @@
  */
 
 #include <assert.h>
-#include <math.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -21,6 +20,9 @@
 #include "av1/common/av1_common_int.h"
 #include "av1/common/cdef.h"
 #include "av1/common/cdef_block.h"
+#include "av1/common/common.h"
+#include "av1/common/common_data.h"
+#include "av1/common/enums.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/thread_common.h"
 

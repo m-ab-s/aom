@@ -13,6 +13,7 @@
 #include "config/aom_config.h"
 
 #include "aom_mem/aom_mem.h"
+#include "aom_scale/yv12config.h"
 #include "aom_util/aom_pthread.h"
 
 #include "av1/common/alloccommon.h"
@@ -21,6 +22,8 @@
 #include "av1/common/cdef_block.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/entropymv.h"
+#include "av1/common/enums.h"
+#include "av1/common/restoration.h"
 #include "av1/common/thread_common.h"
 
 int av1_get_MBs(int width, int height) {

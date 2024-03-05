@@ -524,7 +524,7 @@ static void fill_arr_to_col(uint8_t *img, int stride, int len, uint8_t *arr) {
   }
 }
 
-bool av1_resize_plane(const uint8_t *const input, int height, int width,
+bool av1_resize_plane(const uint8_t *input, int height, int width,
                       int in_stride, uint8_t *output, int height2, int width2,
                       int out_stride) {
   int i;
@@ -881,7 +881,7 @@ static void highbd_fill_arr_to_col(uint16_t *img, int stride, int len,
   }
 }
 
-void av1_highbd_resize_plane(const uint8_t *const input, int height, int width,
+void av1_highbd_resize_plane(const uint8_t *input, int height, int width,
                              int in_stride, uint8_t *output, int height2,
                              int width2, int out_stride, int bd) {
   int i;
@@ -980,10 +980,9 @@ static bool highbd_upscale_normative_rect(const uint8_t *const input,
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-void av1_resize_frame420(const uint8_t *const y, int y_stride,
-                         const uint8_t *const u, const uint8_t *const v,
-                         int uv_stride, int height, int width, uint8_t *oy,
-                         int oy_stride, uint8_t *ou, uint8_t *ov,
+void av1_resize_frame420(const uint8_t *y, int y_stride, const uint8_t *u,
+                         const uint8_t *v, int uv_stride, int height, int width,
+                         uint8_t *oy, int oy_stride, uint8_t *ou, uint8_t *ov,
                          int ouv_stride, int oheight, int owidth) {
   if (!av1_resize_plane(y, height, width, y_stride, oy, oheight, owidth,
                         oy_stride))
@@ -996,10 +995,9 @@ void av1_resize_frame420(const uint8_t *const y, int y_stride,
     abort();
 }
 
-bool av1_resize_frame422(const uint8_t *const y, int y_stride,
-                         const uint8_t *const u, const uint8_t *const v,
-                         int uv_stride, int height, int width, uint8_t *oy,
-                         int oy_stride, uint8_t *ou, uint8_t *ov,
+bool av1_resize_frame422(const uint8_t *y, int y_stride, const uint8_t *u,
+                         const uint8_t *v, int uv_stride, int height, int width,
+                         uint8_t *oy, int oy_stride, uint8_t *ou, uint8_t *ov,
                          int ouv_stride, int oheight, int owidth) {
   if (!av1_resize_plane(y, height, width, y_stride, oy, oheight, owidth,
                         oy_stride))
@@ -1013,10 +1011,9 @@ bool av1_resize_frame422(const uint8_t *const y, int y_stride,
   return true;
 }
 
-bool av1_resize_frame444(const uint8_t *const y, int y_stride,
-                         const uint8_t *const u, const uint8_t *const v,
-                         int uv_stride, int height, int width, uint8_t *oy,
-                         int oy_stride, uint8_t *ou, uint8_t *ov,
+bool av1_resize_frame444(const uint8_t *y, int y_stride, const uint8_t *u,
+                         const uint8_t *v, int uv_stride, int height, int width,
+                         uint8_t *oy, int oy_stride, uint8_t *ou, uint8_t *ov,
                          int ouv_stride, int oheight, int owidth) {
   if (!av1_resize_plane(y, height, width, y_stride, oy, oheight, owidth,
                         oy_stride))
@@ -1031,8 +1028,8 @@ bool av1_resize_frame444(const uint8_t *const y, int y_stride,
 }
 
 #if CONFIG_AV1_HIGHBITDEPTH
-void av1_highbd_resize_frame420(const uint8_t *const y, int y_stride,
-                                const uint8_t *const u, const uint8_t *const v,
+void av1_highbd_resize_frame420(const uint8_t *y, int y_stride,
+                                const uint8_t *u, const uint8_t *v,
                                 int uv_stride, int height, int width,
                                 uint8_t *oy, int oy_stride, uint8_t *ou,
                                 uint8_t *ov, int ouv_stride, int oheight,
@@ -1045,8 +1042,8 @@ void av1_highbd_resize_frame420(const uint8_t *const y, int y_stride,
                           owidth / 2, ouv_stride, bd);
 }
 
-void av1_highbd_resize_frame422(const uint8_t *const y, int y_stride,
-                                const uint8_t *const u, const uint8_t *const v,
+void av1_highbd_resize_frame422(const uint8_t *y, int y_stride,
+                                const uint8_t *u, const uint8_t *v,
                                 int uv_stride, int height, int width,
                                 uint8_t *oy, int oy_stride, uint8_t *ou,
                                 uint8_t *ov, int ouv_stride, int oheight,
@@ -1059,8 +1056,8 @@ void av1_highbd_resize_frame422(const uint8_t *const y, int y_stride,
                           owidth / 2, ouv_stride, bd);
 }
 
-void av1_highbd_resize_frame444(const uint8_t *const y, int y_stride,
-                                const uint8_t *const u, const uint8_t *const v,
+void av1_highbd_resize_frame444(const uint8_t *y, int y_stride,
+                                const uint8_t *u, const uint8_t *v,
                                 int uv_stride, int height, int width,
                                 uint8_t *oy, int oy_stride, uint8_t *ou,
                                 uint8_t *ov, int ouv_stride, int oheight,
@@ -1126,7 +1123,7 @@ void av1_resize_and_extend_frame_c(const YV12_BUFFER_CONFIG *src,
 
 bool av1_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
                                               YV12_BUFFER_CONFIG *dst, int bd,
-                                              const int num_planes) {
+                                              int num_planes) {
   // TODO(dkovalev): replace YV12_BUFFER_CONFIG with aom_image_t
 
   // We use AOMMIN(num_planes, MAX_MB_PLANE) instead of num_planes to quiet

@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"

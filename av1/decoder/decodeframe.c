@@ -14,20 +14,22 @@
 #include <stddef.h>
 
 #include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
-#include "config/av1_rtcd.h"
 
 #include "aom/aom_codec.h"
+#include "aom/aom_image.h"
+#include "aom/internal/aom_codec_internal.h"
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/binary_codes_reader.h"
 #include "aom_dsp/bitreader.h"
 #include "aom_dsp/bitreader_buffer.h"
+#include "aom_dsp/txfm_common.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
 #include "aom_ports/mem_ops.h"
 #include "aom_scale/aom_scale.h"
+#include "aom_scale/yv12config.h"
 #include "aom_util/aom_pthread.h"
 #include "aom_util/aom_thread.h"
 
@@ -36,33 +38,41 @@
 #endif  // CONFIG_BITSTREAM_DEBUG || CONFIG_MISMATCH_DEBUG
 
 #include "av1/common/alloccommon.h"
+#include "av1/common/av1_common_int.h"
+#include "av1/common/blockd.h"
 #include "av1/common/cdef.h"
 #include "av1/common/cfl.h"
-#if CONFIG_INSPECTION
-#include "av1/decoder/inspection.h"
-#endif
+#include "av1/common/common_data.h"
 #include "av1/common/common.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
 #include "av1/common/entropymv.h"
+#include "av1/common/enums.h"
 #include "av1/common/frame_buffers.h"
 #include "av1/common/idct.h"
+#include "av1/common/mv.h"
 #include "av1/common/mvref_common.h"
+#include "av1/common/obmc.h"
 #include "av1/common/pred_common.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconinter.h"
 #include "av1/common/reconintra.h"
 #include "av1/common/resize.h"
+#include "av1/common/restoration.h"
+#include "av1/common/scale.h"
 #include "av1/common/seg_common.h"
 #include "av1/common/thread_common.h"
 #include "av1/common/tile_common.h"
 #include "av1/common/warped_motion.h"
-#include "av1/common/obmc.h"
+
 #include "av1/decoder/decodeframe.h"
 #include "av1/decoder/decodemv.h"
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/decodetxb.h"
 #include "av1/decoder/detokenize.h"
+#if CONFIG_INSPECTION
+#include "av1/decoder/inspection.h"
+#endif
 
 #define ACCT_STR __func__
 

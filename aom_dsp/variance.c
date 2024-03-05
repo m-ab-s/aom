@@ -10,7 +10,6 @@
  */
 #include <assert.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"

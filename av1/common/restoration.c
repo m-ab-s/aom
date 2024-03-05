@@ -14,19 +14,21 @@
 #include <stddef.h>
 
 #include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
 #include "config/aom_scale_rtcd.h"
 
+#include "aom/internal/aom_codec_internal.h"
 #include "aom_mem/aom_mem.h"
+#include "aom_dsp/aom_dsp_common.h"
+#include "aom_mem/aom_mem.h"
+#include "aom_ports/mem.h"
 #include "aom_util/aom_pthread.h"
+
 #include "av1/common/av1_common_int.h"
+#include "av1/common/convolve.h"
+#include "av1/common/enums.h"
 #include "av1/common/resize.h"
 #include "av1/common/restoration.h"
 #include "av1/common/thread_common.h"
-#include "aom_dsp/aom_dsp_common.h"
-#include "aom_mem/aom_mem.h"
-
-#include "aom_ports/mem.h"
 
 // The 's' values are calculated based on original 'r' and 'e' values in the
 // spec using GenSgrprojVtable().

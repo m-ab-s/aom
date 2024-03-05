@@ -19,6 +19,8 @@
 #include "aom_dsp/noise_model.h"
 #include "aom_dsp/noise_util.h"
 #include "aom_mem/aom_mem.h"
+#include "aom_ports/mem.h"
+#include "aom_scale/yv12config.h"
 
 #define kLowPolyNumParams 3
 

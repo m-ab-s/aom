@@ -9,7 +9,11 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "config/aom_config.h"
+
 #include "arm_cpudetect.h"
+
+#include "aom_ports/arm.h"
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>

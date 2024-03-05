@@ -19,19 +19,23 @@
 #include "aom/internal/aom_image_internal.h"
 #include "aom/aomdx.h"
 #include "aom/aom_decoder.h"
+#include "aom/aom_image.h"
 #include "aom_dsp/bitreader_buffer.h"
 #include "aom_dsp/aom_dsp_common.h"
+#include "aom_ports/mem.h"
 #include "aom_ports/mem_ops.h"
 #include "aom_util/aom_pthread.h"
 #include "aom_util/aom_thread.h"
 
 #include "av1/common/alloccommon.h"
+#include "av1/common/av1_common_int.h"
 #include "av1/common/frame_buffers.h"
 #include "av1/common/enums.h"
 #include "av1/common/obu_util.h"
 
 #include "av1/decoder/decoder.h"
 #include "av1/decoder/decodeframe.h"
+#include "av1/decoder/dthread.h"
 #include "av1/decoder/grain_synthesis.h"
 #include "av1/decoder/obu.h"
 

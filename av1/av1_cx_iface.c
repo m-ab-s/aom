@@ -12,20 +12,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "aom_mem/aom_mem.h"
 #include "config/aom_config.h"
 #include "config/aom_version.h"
 
-#include "aom_ports/mem_ops.h"
-#include "aom_util/aom_pthread.h"
-
+#include "aom/aomcx.h"
 #include "aom/aom_encoder.h"
+#include "aom/aom_external_partition.h"
+#include "aom/aom_image.h"
 #include "aom/internal/aom_codec_internal.h"
-
 #include "aom_dsp/flow_estimation/flow_estimation.h"
+#include "aom_mem/aom_mem.h"
+#include "aom_scale/yv12config.h"
+#include "aom_util/aom_pthread.h"
 
 #include "av1/av1_cx_iface.h"
 #include "av1/av1_iface_common.h"
+#include "av1/common/av1_common_int.h"
+#include "av1/common/enums.h"
+#include "av1/common/scale.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encoder_alloc.h"
@@ -33,6 +37,7 @@
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/external_partition.h"
 #include "av1/encoder/firstpass.h"
+#include "av1/encoder/lookahead.h"
 #include "av1/encoder/rc_utils.h"
 #include "av1/arg_defs.h"
 
