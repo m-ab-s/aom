@@ -233,7 +233,7 @@ void av1_update_temporal_layer_framerate(struct AV1_COMP *const cpi);
  * \param[in]       cpi  Top level encoder structure
  * \param[in]       ref_frame Reference frame
  *
- * \return  True if the ref_frame if lower spatial layer, otherwise fals.
+ * \return  True if the ref_frame if lower spatial layer, otherwise false.
  */
 bool av1_check_ref_is_low_spatial_res_super_frame(struct AV1_COMP *const cpi,
                                                   int ref_frame);

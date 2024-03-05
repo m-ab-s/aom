@@ -1349,7 +1349,7 @@ typedef struct macroblock {
   // the variance_partitioning.
   int_mv sb_me_mv;
   //! Flag to indicate if a fixed partition should be used, only if the
-  // speeed feature rt_sf->use_fast_fixed_part is enabled.
+  // speed feature rt_sf->use_fast_fixed_part is enabled.
   int sb_force_fixed_part;
   //! SSE of the current predictor.
   unsigned int pred_sse[REF_FRAMES];

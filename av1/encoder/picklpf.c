@@ -27,10 +27,10 @@
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/picklpf.h"
 
-// AV1 loop filter applies to the whole frame accoring to mi_rows and mi_cols,
+// AV1 loop filter applies to the whole frame according to mi_rows and mi_cols,
 // which are calculated based on aligned width and aligned height,
 // In addition, if super res is enabled, it copies the whole frame
-// according to the alighed with and height (av1_superres_upscale()).
+// according to the aligned width and height (av1_superres_upscale()).
 // So we need to copy the whole filtered region, instead of the cropped region.
 // For example, input image size is: 160x90.
 // Then src->y_crop_width = 160, src->y_crop_height = 90.
