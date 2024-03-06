@@ -1476,6 +1476,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     for (int i = 0; i < BLOCK_SIZES; ++i) {
       sf->rt_sf.intra_y_mode_bsize_mask_nrd[i] = INTRA_DC;
     }
+    sf->rt_sf.hybrid_intra_pickmode = 0;
   }
   // Setting for SVC, or when the ref_frame_config control is
   // used to set the reference structure.
