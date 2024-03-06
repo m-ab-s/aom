@@ -1238,8 +1238,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->fp_sf.reduce_mv_step_param = 4;
 
-    sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
-
     sf->part_sf.simple_motion_search_prune_agg =
         allow_screen_content_tools ? SIMPLE_AGG_LVL0 : SIMPLE_AGG_LVL3;
     sf->part_sf.ext_partition_eval_thresh =
