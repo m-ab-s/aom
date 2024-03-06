@@ -495,6 +495,16 @@ static uint32_t read_and_decode_one_tile_list(AV1Decoder *pbi,
   pbi->output_frame_width_in_tiles_minus_1 = aom_rb_read_literal(rb, 8);
   pbi->output_frame_height_in_tiles_minus_1 = aom_rb_read_literal(rb, 8);
   pbi->tile_count_minus_1 = aom_rb_read_literal(rb, 16);
+
+  // The output frame is used to store the decoded tile list. The decoded tile
+  // list has to fit into 1 output frame.
+  if ((pbi->tile_count_minus_1 + 1) >
+      (pbi->output_frame_width_in_tiles_minus_1 + 1) *
+          (pbi->output_frame_height_in_tiles_minus_1 + 1)) {
+    pbi->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+    return 0;
+  }
+
   if (pbi->tile_count_minus_1 > MAX_TILES - 1) {
     pbi->error.error_code = AOM_CODEC_CORRUPT_FRAME;
     return 0;
