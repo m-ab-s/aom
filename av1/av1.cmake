@@ -481,6 +481,7 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/av1/common/arm/highbd_wiener_convolve_neon.c")
 
   list(APPEND AOM_AV1_COMMON_INTRIN_SVE2
+              "${AOM_ROOT}/av1/common/arm/highbd_compound_convolve_sve2.c"
               "${AOM_ROOT}/av1/common/arm/highbd_convolve_sve2.c")
 
   list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
