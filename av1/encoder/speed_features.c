@@ -1583,7 +1583,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.skip_cdef_sb = 2;
       sf->rt_sf.part_early_exit_zeromv = 2;
       sf->rt_sf.prune_palette_nonrd = 1;
-      sf->rt_sf.set_zeromv_skip_based_on_source_sad = 2;
       sf->rt_sf.increase_color_thresh_palette = 0;
     }
     sf->rt_sf.use_nonrd_altref_frame = 0;
