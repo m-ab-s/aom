@@ -2044,6 +2044,12 @@ INSTANTIATE_TEST_SUITE_P(
     BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_y_neon));
 #endif
 
+#if HAVE_SVE2
+INSTANTIATE_TEST_SUITE_P(
+    SVE2, AV1ConvolveYHighbdCompoundTest,
+    BuildHighbdLumaParams(av1_highbd_dist_wtd_convolve_y_sve2));
+#endif
+
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 //////////////////////////////////////////////////////
