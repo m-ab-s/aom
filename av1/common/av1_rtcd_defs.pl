@@ -81,7 +81,7 @@ forward_decls qw/av1_common_forward_decls/;
 # For normal use, we require SSE4.1. However, 32-bit Valgrind does not support
 # SSE4.1, so we include fallbacks for some critical functions to improve
 # performance
-$ssse3_x86 = '';
+$sse2_x86 = $ssse3_x86 = '';
 if ($opts{arch} eq "x86") {
   $sse2_x86 = 'sse2';
   $ssse3_x86 = 'ssse3';
