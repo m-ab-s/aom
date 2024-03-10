@@ -2308,7 +2308,6 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
 #endif
     if (segfeature_active(&cm->seg, mbmi->segment_id, SEG_LVL_SKIP)) {
       x->force_zeromv_skip_for_blk = 1;
-      x->content_state_sb.source_sad_nonrd = kZeroSad;
       // TODO(marpan): Consider adding a function for nonrd:
       // av1_nonrd_pick_inter_mode_sb_seg_skip(), instead of setting
       // x->force_zeromv_skip flag and entering av1_nonrd_pick_inter_mode_sb().
