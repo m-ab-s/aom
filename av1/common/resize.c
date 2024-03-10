@@ -524,6 +524,61 @@ static void fill_arr_to_col(uint8_t *img, int stride, int len, uint8_t *arr) {
   }
 }
 
+static INLINE bool resize_vert_dir(uint8_t *intbuf, uint8_t *output,
+                                   int out_stride, int height, int height2,
+                                   int width2) {
+  bool mem_status = true;
+  uint8_t *arrbuf = (uint8_t *)aom_malloc(sizeof(*arrbuf) * height);
+  uint8_t *arrbuf2 = (uint8_t *)aom_malloc(sizeof(*arrbuf2) * height2);
+  if (arrbuf == NULL || arrbuf2 == NULL) {
+    mem_status = false;
+    goto Error;
+  }
+
+  for (int i = 0; i < width2; ++i) {
+    fill_col_to_arr(intbuf + i, width2, height, arrbuf);
+    down2_symeven(arrbuf, height, arrbuf2);
+    fill_arr_to_col(output + i, out_stride, height2, arrbuf2);
+  }
+
+Error:
+  aom_free(arrbuf);
+  aom_free(arrbuf2);
+  return mem_status;
+}
+
+static INLINE void resize_horz_dir(const uint8_t *const input, int in_stride,
+                                   uint8_t *intbuf, int height,
+                                   int filtered_length, int width2) {
+  for (int i = 0; i < height; ++i)
+    down2_symeven(input + in_stride * i, filtered_length, intbuf + width2 * i);
+}
+
+bool av1_resize_plane_to_half(const uint8_t *const input, int height, int width,
+                              int in_stride, uint8_t *output, int height2,
+                              int width2, int out_stride) {
+  uint8_t *intbuf = (uint8_t *)aom_malloc(sizeof(*intbuf) * width2 * height);
+  if (intbuf == NULL) {
+    return false;
+  }
+
+  // Resize in the horizontal direction
+  resize_horz_dir(input, in_stride, intbuf, height, width, width2);
+  // Resize in the vertical direction
+  bool mem_status =
+      resize_vert_dir(intbuf, output, out_stride, height, height2, width2);
+  aom_free(intbuf);
+  return mem_status;
+}
+
+// Check if both the output width and height are half of input width and
+// height respectively.
+bool should_resize_by_half(int height, int width, int height2, int width2) {
+  const bool is_width_by_2 = get_down2_length(width, 1) == width2;
+  const bool is_height_by_2 = get_down2_length(height, 1) == height2;
+  return (is_width_by_2 && is_height_by_2);
+}
+
 bool av1_resize_plane(const uint8_t *input, int height, int width,
                       int in_stride, uint8_t *output, int height2, int width2,
                       int out_stride) {
