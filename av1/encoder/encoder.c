@@ -154,14 +154,19 @@ int av1_set_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
     const int mi_rows = mi_params->mi_rows;
     const int mi_cols = mi_params->mi_cols;
     cpi->active_map.update = 0;
+    cpi->rc.percent_blocks_inactive = 0;
     assert(mi_rows % 2 == 0);
     assert(mi_cols % 2 == 0);
     if (new_map_16x16) {
+      int num_samples = 0;
+      int num_blocks_inactive = 0;
       for (int r = 0; r < mi_rows; r += 4) {
         for (int c = 0; c < mi_cols; c += 4) {
           const uint8_t val = new_map_16x16[(r >> 2) * cols + (c >> 2)]
                                   ? AM_SEGMENT_ID_ACTIVE
                                   : AM_SEGMENT_ID_INACTIVE;
+          num_samples++;
+          if (val == AM_SEGMENT_ID_INACTIVE) num_blocks_inactive++;
           const int row_max = AOMMIN(4, mi_rows - r);
           const int col_max = AOMMIN(4, mi_cols - c);
           for (int x = 0; x < row_max; ++x) {
@@ -173,6 +178,8 @@ int av1_set_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
       }
       cpi->active_map.enabled = 1;
       cpi->active_map.update = 1;
+      cpi->rc.percent_blocks_inactive =
+          (num_blocks_inactive * 100) / num_samples;
     }
     return 0;
   }

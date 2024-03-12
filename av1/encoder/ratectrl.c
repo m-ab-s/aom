@@ -30,6 +30,7 @@
 #include "av1/common/seg_common.h"
 
 #include "av1/encoder/encodemv.h"
+#include "av1/encoder/encoder_utils.h"
 #include "av1/encoder/encode_strategy.h"
 #include "av1/encoder/gop_structure.h"
 #include "av1/encoder/random.h"
@@ -439,6 +440,7 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
   rc->rtc_external_ratectrl = 0;
   rc->frame_level_fast_extra_bits = 0;
   rc->use_external_qp_one_pass = 0;
+  rc->percent_blocks_inactive = 0;
 }
 
 static bool check_buffer_below_thresh(AV1_COMP *cpi, int64_t buffer_level,
@@ -2989,6 +2991,24 @@ void av1_set_rtc_reference_structure_one_layer(AV1_COMP *cpi, int gf_update) {
     cpi->rt_reduce_num_ref_buffers &= (rtc_ref->ref_idx[2] < 7);
 }
 
+static int set_block_is_active(unsigned char *const active_map_4x4, int mi_cols,
+                               int mi_rows, int sbi_col, int sbi_row, int sh,
+                               int num_4x4) {
+  int r = sbi_row << sh;
+  int c = sbi_col << sh;
+  const int row_max = AOMMIN(num_4x4, mi_rows - r);
+  const int col_max = AOMMIN(num_4x4, mi_cols - c);
+  // Active map is set for 16x16 blocks, so only need to
+  // check over16x16,
+  for (int x = 0; x < row_max; x += 4) {
+    for (int y = 0; y < col_max; y += 4) {
+      if (active_map_4x4[(r + x) * mi_cols + (c + y)] == AM_SEGMENT_ID_ACTIVE)
+        return 1;
+    }
+  }
+  return 0;
+}
+
 /*!\brief Check for scene detection, for 1 pass real-time mode.
  *
  * Compute average source sad (temporal sad: between current source and
@@ -3091,11 +3111,26 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
                                              sizeof(*cpi->src_sad_blk_64x64)));
     }
   }
+  const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
+  const int mi_cols = mi_params->mi_cols;
+  const int mi_rows = mi_params->mi_rows;
+  int sh = (cm->seq_params->sb_size == BLOCK_128X128) ? 5 : 4;
+  int num_4x4 = (cm->seq_params->sb_size == BLOCK_128X128) ? 32 : 16;
+  unsigned char *const active_map_4x4 = cpi->active_map.map;
   // Avoid bottom and right border.
   for (int sbi_row = 0; sbi_row < sb_rows - border; ++sbi_row) {
     for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
-      tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
-                                            last_src_ystride);
+      int block_is_active = 1;
+      if (cpi->active_map.enabled && rc->percent_blocks_inactive > 0) {
+        block_is_active = set_block_is_active(active_map_4x4, mi_cols, mi_rows,
+                                              sbi_col, sbi_row, sh, num_4x4);
+      }
+      if (block_is_active) {
+        tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
+                                              last_src_ystride);
+      } else {
+        tmp_sad = 0;
+      }
       if (cpi->src_sad_blk_64x64 != NULL)
         cpi->src_sad_blk_64x64[sbi_col + sbi_row * sb_cols] = tmp_sad;
       if (check_light_change) {
@@ -3454,8 +3489,13 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
       }
     }
   }
-  // Check for scene change: for SVC check on base spatial layer only.
-  if (cpi->sf.rt_sf.check_scene_detection && svc->spatial_layer_id == 0) {
+  if (cpi->active_map.enabled && cpi->rc.percent_blocks_inactive == 100) {
+    rc->frame_source_sad = 0;
+    rc->avg_source_sad = (3 * rc->avg_source_sad + rc->frame_source_sad) >> 2;
+    rc->percent_blocks_with_motion = 0;
+    rc->high_source_sad = 0;
+  } else if (cpi->sf.rt_sf.check_scene_detection &&
+             svc->spatial_layer_id == 0) {
     if (rc->prev_coded_width == cm->width &&
         rc->prev_coded_height == cm->height) {
       rc_scene_detection_onepass_rt(cpi, frame_input);
