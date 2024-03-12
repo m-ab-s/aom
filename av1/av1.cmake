@@ -276,10 +276,8 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
             "${AOM_ROOT}/av1/common/x86/resize_ssse3.c")
 
 # Fallbacks to support Valgrind on 32-bit x86
-if(AOM_ARCH_X86)
-  list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3
-              "${AOM_ROOT}/av1/common/x86/cdef_block_ssse3.c")
-endif()
+list(APPEND AOM_AV1_COMMON_INTRIN_SSSE3_X86
+            "${AOM_ROOT}/av1/common/x86/cdef_block_ssse3.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/common/x86/av1_convolve_horiz_rs_sse4.c"
@@ -613,6 +611,10 @@ function(setup_av1_targets)
     require_compiler_flag_nomsvc("-mssse3" NO)
     add_intrinsics_object_library("-mssse3" "ssse3" "aom_av1_common"
                                   "AOM_AV1_COMMON_INTRIN_SSSE3")
+    if(AOM_ARCH_X86)
+      add_intrinsics_object_library("-mssse3" "ssse3_x86" "aom_av1_common"
+                                    "AOM_AV1_COMMON_INTRIN_SSSE3_X86")
+    endif()
 
     if(CONFIG_AV1_DECODER)
       if(AOM_AV1_DECODER_INTRIN_SSSE3)
