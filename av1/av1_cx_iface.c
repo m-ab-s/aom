@@ -3106,7 +3106,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         aom_internal_error(&ppi->error, AOM_CODEC_INVALID_PARAM,
                            "relative pts + duration is too big");
       }
-      aom_codec_pts_t pts_end = ptsvol + duration;
+      aom_codec_pts_t pts_end = ptsvol + (int64_t)duration;
       if (pts_end > INT64_MAX / cpi_data.timestamp_ratio->num) {
         aom_internal_error(
             &ppi->error, AOM_CODEC_INVALID_PARAM,

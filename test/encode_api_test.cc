@@ -579,9 +579,9 @@ TEST(EncodeAPI, PtsSmallerThanInitialPts) {
   ASSERT_NE(image, nullptr);
 
   // Encode frame.
-  ASSERT_EQ(aom_codec_encode(&enc, image, 11, 1, 0), AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_encode(&enc, image, 12, 1, 0), AOM_CODEC_OK);
-  // pts (10) is smaller than the initial pts (11).
+  ASSERT_EQ(aom_codec_encode(&enc, image, 13, 1, 0), AOM_CODEC_OK);
+  // pts (10) is smaller than the initial pts (12).
   ASSERT_EQ(aom_codec_encode(&enc, image, 10, 1, 0), AOM_CODEC_INVALID_PARAM);
 
   // Free resources.
@@ -611,7 +611,7 @@ TEST(EncodeAPI, PtsOrDurationTooBig) {
 
   // Encode frame.
   ASSERT_EQ(aom_codec_encode(&enc, image, 0, 1, 0), AOM_CODEC_OK);
-  // pts is too big.
+  // pts, when converted to ticks, is too big.
   ASSERT_EQ(aom_codec_encode(&enc, image, INT64_MAX / 1000000 + 1, 1, 0),
             AOM_CODEC_INVALID_PARAM);
 #if ULONG_MAX > INT64_MAX
