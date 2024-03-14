@@ -204,7 +204,7 @@ void av1_alloc_cdef_buffers(AV1_COMMON *const cm,
   const int is_num_workers_changed =
       cdef_info->allocated_num_workers != num_workers;
   const int is_cdef_enabled =
-      cm->seq_params->enable_cdef && !cm->tiles.large_scale;
+      cm->seq_params->enable_cdef && !cm->tiles.single_tile_decoding;
 
   // num-bufs=3 represents ping-pong buffers for top linebuf,
   // followed by bottom linebuf.
