@@ -223,9 +223,6 @@ void av1_highbd_dist_wtd_convolve_x_sve2(
   const int im_stride = MAX_SB_SIZE;
   const int horiz_offset = filter_params_x->taps / 2 - 1;
   assert(FILTER_BITS == COMPOUND_ROUND1_BITS);
-  const int offset_bits = bd + 2 * FILTER_BITS - conv_params->round_0;
-  const int offset_avg = (1 << (offset_bits - conv_params->round_1)) +
-                         (1 << (offset_bits - conv_params->round_1 - 1));
   const int offset_convolve = (1 << (conv_params->round_0 - 1)) +
                               (1 << (bd + FILTER_BITS)) +
                               (1 << (bd + FILTER_BITS - 1));
@@ -249,21 +246,21 @@ void av1_highbd_dist_wtd_convolve_x_sve2(
     if (conv_params->use_dist_wtd_comp_avg) {
       if (bd == 12) {
         highbd_12_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride,
-                                         w, h, conv_params, offset_avg, bd);
+                                         w, h, conv_params);
 
       } else {
         highbd_dist_wtd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w,
-                                      h, conv_params, offset_avg, bd);
+                                      h, conv_params, bd);
       }
 
     } else {
       if (bd == 12) {
         highbd_12_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                                conv_params, offset_avg, bd);
+                                conv_params);
 
       } else {
         highbd_comp_avg_neon(im_block, im_stride, dst, dst_stride, w, h,
-                             conv_params, offset_avg, bd);
+                             conv_params, bd);
       }
     }
   } else {
