@@ -2394,7 +2394,10 @@ static void loopfilter_frame(AV1_COMP *cpi, AV1_COMMON *cm) {
 
   const int use_loopfilter =
       is_loopfilter_used(cm) && !cpi->mt_info.pipeline_lpf_mt_with_enc;
-  const int use_cdef = is_cdef_used(cm);
+  const int use_cdef =
+      is_cdef_used(cm) && (!cpi->active_map.enabled ||
+                           cpi->rc.percent_blocks_inactive <=
+                               cpi->sf.rt_sf.thresh_active_maps_skip_lf_cdef);
   const int use_superres = av1_superres_scaled(cm);
   const int use_restoration = is_restoration_used(cm);
 

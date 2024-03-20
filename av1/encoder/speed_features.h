@@ -1774,6 +1774,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // where rc->high_source_sad = 0 (no slide-changes).
   int skip_lf_screen;
 
+  // Threshold on the active/inactive region percent to disable
+  // the loopfilter and cdef. Setting to 100 disables this feature.
+  int thresh_active_maps_skip_lf_cdef;
+
   // For nonrd: early exit out of variance partition that sets the
   // block size to superblock size, and sets mode to zeromv-last skip.
   // 0: disabled
