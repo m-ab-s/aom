@@ -179,6 +179,10 @@ void av1_cyclic_reset_segment_skip(const AV1_COMP *cpi, MACROBLOCK *const x,
         memset(&cm->cur_frame->seg_map[map_offset], segment_id, xmis);
       }
     }
+  } else if (prev_segment_id == AM_SEGMENT_ID_INACTIVE) {
+    // TODO(marpan): Look into why this condition is needed
+    // (when skip_over4x4 = 1) to prevent decoder failure.
+    mbmi->segment_id = 0;
   }
   if (!dry_run) {
     if (cyclic_refresh_segment_id(prev_segment_id) == CR_SEGMENT_ID_BOOST1)
@@ -434,7 +438,7 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   // function av1_cyclic_reset_segment_skip(). Skipping over
   // 4x4 will therefore have small bdrate loss (~0.2%), so
   // we use it only for speed > 9 for now.
-  cr->skip_over4x4 = (cpi->oxcf.speed > 9 && !cpi->active_map.enabled) ? 1 : 0;
+  cr->skip_over4x4 = (cpi->oxcf.speed > 9) ? 1 : 0;
 
   // should we enable cyclic refresh on this frame.
   cr->apply_cyclic_refresh = 1;
@@ -668,6 +672,10 @@ void av1_cyclic_refresh_reset_resize(AV1_COMP *const cpi) {
 int av1_cyclic_refresh_disable_lf_cdef(AV1_COMP *const cpi) {
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   const int qindex = cpi->common.quant_params.base_qindex;
+  if (cpi->active_map.enabled &&
+      cpi->rc.percent_blocks_inactive >
+          cpi->sf.rt_sf.thresh_active_maps_skip_lf_cdef)
+    return 1;
   if (cpi->rc.frames_since_key > 30 && cr->percent_refresh > 0 &&
       cr->counter_encode_maxq_scene_change > 300 / cr->percent_refresh &&
       cpi->rc.frame_source_sad < 1000 &&
