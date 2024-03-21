@@ -375,6 +375,7 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SVE
             "${AOM_ROOT}/av1/encoder/arm/neon/av1_error_sve.c"
+            "${AOM_ROOT}/av1/encoder/arm/neon/pickrst_sve.c"
             "${AOM_ROOT}/av1/encoder/arm/neon/wedge_utils_sve.c")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_ARM_CRC32

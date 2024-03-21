@@ -397,6 +397,12 @@ INSTANTIATE_TEST_SUITE_P(NEON, WienerTest,
                          ::testing::Values(av1_compute_stats_neon));
 #endif  // HAVE_NEON
 
+#if HAVE_SVE
+
+INSTANTIATE_TEST_SUITE_P(SVE, WienerTest,
+                         ::testing::Values(av1_compute_stats_sve));
+#endif  // HAVE_SVE
+
 }  // namespace wiener_lowbd
 
 #if CONFIG_AV1_HIGHBITDEPTH
