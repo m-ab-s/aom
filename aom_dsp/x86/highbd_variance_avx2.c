@@ -749,7 +749,7 @@ VAR_FN(8, 32, 8, 8)
 SSE2_HEIGHT(8)
 SSE2_HEIGHT(16)
 
-#undef SSE2_Height
+#undef SSE2_HEIGHT
 
 #define HIGHBD_SUBPIX_VAR(W, H)                                              \
   uint32_t aom_highbd_10_sub_pixel_variance##W##x##H##_avx2(                 \
