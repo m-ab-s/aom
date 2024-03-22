@@ -2828,6 +2828,11 @@ INSTANTIATE_TEST_SUITE_P(
                       MseParams(3, 3, &aom_highbd_10_mse8x8_sse2, 10),
                       MseParams(4, 4, &aom_highbd_8_mse16x16_sse2, 8),
                       MseParams(3, 3, &aom_highbd_8_mse8x8_sse2, 8)));
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(
+    AVX2, AvxHBDMseTest,
+    ::testing::Values(MseParams(4, 4, &aom_highbd_10_mse16x16_avx2, 10)));
+#endif  // HAVE_AVX2
 
 const VarianceParams kArrayHBDVariance_sse2[] = {
   VarianceParams(7, 7, &aom_highbd_12_variance128x128_sse2, 12),
