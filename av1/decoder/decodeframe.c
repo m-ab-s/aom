@@ -3016,19 +3016,13 @@ static const uint8_t *decode_tiles_mt(AV1Decoder *pbi, const uint8_t *data,
         sizeof(pbi->tile_mt_info.job_queue[0]), compare_tile_buffers);
 
   {
-    const int base = tile_count_tg / num_workers;
-    const int remain = tile_count_tg % num_workers;
-    int tile_start = start_tile;
     int corrupted = 0;
 
     for (worker_idx = 0; worker_idx < num_workers; ++worker_idx) {
-      // compute number of tiles assign to each worker
-      const int count = base + (remain + worker_idx) / num_workers;
       AVxWorker *const worker = &pbi->tile_workers[worker_idx];
       DecWorkerData *const thread_data = (DecWorkerData *)worker->data1;
 
       thread_data->data_end = data_end;
-      tile_start += count;
 
       worker->had_error = 0;
       if (worker_idx == num_workers - 1) {

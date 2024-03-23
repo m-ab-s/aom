@@ -114,7 +114,7 @@ typedef struct {
   const char *debug_file;
 } noise_model_args_t;
 
-void parse_args(noise_model_args_t *noise_args, int *argc, char **argv) {
+void parse_args(noise_model_args_t *noise_args, char **argv) {
   struct arg arg;
   static const arg_def_t *main_args[] = { &help,
                                           &input_arg,
@@ -129,7 +129,7 @@ void parse_args(noise_model_args_t *noise_args, int *argc, char **argv) {
                                           &use_i444,
                                           &debug_file_arg,
                                           NULL };
-  for (int argi = *argc + 1; *argv; argi++, argv++) {
+  for (; *argv; argv++) {
     if (arg_match(&arg, &help, argv)) {
       fprintf(stdout, "\nOptions:\n");
       arg_show_usage(stdout, main_args);
@@ -288,8 +288,9 @@ int main(int argc, char *argv[]) {
 
   memset(&info, 0, sizeof(info));
 
+  (void)argc;
   exec_name = argv[0];
-  parse_args(&args, &argc, argv + 1);
+  parse_args(&args, argv + 1);
 
   info.frame_width = args.width;
   info.frame_height = args.height;
