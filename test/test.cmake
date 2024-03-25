@@ -222,25 +222,26 @@ if(ENABLE_TESTS)
                   "make sure it's in your PATH.")
   endif()
 
-  if(MSVC) # Force static run time to avoid collisions with googletest.
-    include("${AOM_ROOT}/build/cmake/msvc_runtime.cmake")
-  endif()
-
   if(BUILD_SHARED_LIBS AND APPLE) # Silence an RPATH warning.
     set(CMAKE_MACOSX_RPATH 1)
   endif()
 
-  include_directories(
-    "${AOM_ROOT}/third_party/googletest/src/googletest/include")
+  add_library(
+    aom_gtest STATIC
+    "${AOM_ROOT}/third_party/googletest/src/googletest/src/gtest-all.cc")
+  target_include_directories(
+    aom_gtest
+    PUBLIC "${AOM_ROOT}/third_party/googletest/src/googletest/include"
+    PRIVATE "${AOM_ROOT}/third_party/googletest/src/googletest")
 
-  if(AOM_DISABLE_GTEST_CMAKE)
-    include_directories("${AOM_ROOT}/third_party/googletest/src/googletest")
-    add_library(
-      gtest STATIC
-      "${AOM_ROOT}/third_party/googletest/src/googletest/src/gtest-all.cc")
-  else()
-    add_subdirectory("${AOM_ROOT}/third_party/googletest/src/googletest"
-                     EXCLUDE_FROM_ALL)
+  # The definition of GTEST_HAS_PTHREAD must be public, since it's checked by
+  # interface headers, not just by the implementation.
+  if(NOT (MSVC OR WIN32))
+    if(CONFIG_MULTITHREAD AND CMAKE_USE_PTHREADS_INIT)
+      target_compile_definitions(aom_gtest PUBLIC GTEST_HAS_PTHREAD=1)
+    else()
+      target_compile_definitions(aom_gtest PUBLIC GTEST_HAS_PTHREAD=0)
+    endif()
   endif()
 endif()
 
@@ -255,15 +256,18 @@ function(setup_aom_test_targets)
   # test_libaom.
   add_library(test_aom_common OBJECT ${AOM_UNIT_TEST_COMMON_SOURCES})
   add_dependencies(test_aom_common aom)
+  target_link_libraries(test_aom_common ${AOM_LIB_LINK_TYPE} aom_gtest)
 
   if(CONFIG_AV1_DECODER)
     add_library(test_aom_decoder OBJECT ${AOM_UNIT_TEST_DECODER_SOURCES})
     add_dependencies(test_aom_decoder aom)
+    target_link_libraries(test_aom_decoder ${AOM_LIB_LINK_TYPE} aom_gtest)
   endif()
 
   if(CONFIG_AV1_ENCODER)
     add_library(test_aom_encoder OBJECT ${AOM_UNIT_TEST_ENCODER_SOURCES})
     add_dependencies(test_aom_encoder aom)
+    target_link_libraries(test_aom_encoder ${AOM_LIB_LINK_TYPE} aom_gtest)
   endif()
 
   add_executable(test_libaom ${AOM_UNIT_TEST_WRAPPER_SOURCES}
@@ -293,12 +297,12 @@ function(setup_aom_test_targets)
                      ${AOM_TEST_INTRA_PRED_SPEED_SOURCES}
                      $<TARGET_OBJECTS:aom_common_app_util>)
       target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE} aom
-                            gtest)
+                            aom_gtest)
       list(APPEND AOM_APP_TARGETS test_intra_pred_speed)
     endif()
   endif()
 
-  target_link_libraries(test_libaom ${AOM_LIB_LINK_TYPE} aom gtest)
+  target_link_libraries(test_libaom ${AOM_LIB_LINK_TYPE} aom aom_gtest)
 
   if(CONFIG_LIBYUV)
     target_sources(test_libaom PRIVATE $<TARGET_OBJECTS:yuv>)
