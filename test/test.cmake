@@ -225,6 +225,20 @@ if(ENABLE_TESTS)
     PUBLIC "${AOM_ROOT}/third_party/googletest/src/googletest/include"
     PRIVATE "${AOM_ROOT}/third_party/googletest/src/googletest")
 
+  # Disable the following Clang warning in googletest headers: definition of
+  # implicit copy constructor for 'foo' is deprecated because it has a user-
+  # provided copy assignment operator
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    check_cxx_compiler_flag(
+      "-Wdeprecated-copy-with-user-provided-copy"
+      HAVE_DEPRECATED_COPY_WITH_USER_PROVIDED_COPY_WARNING)
+    if(HAVE_DEPRECATED_COPY_WITH_USER_PROVIDED_COPY_WARNING)
+      target_compile_options(
+        aom_gtest
+        PUBLIC -Wno-deprecated-copy-with-user-provided-copy)
+    endif()
+  endif()
+
   # The definition of GTEST_HAS_PTHREAD must be public, since it's checked by
   # interface headers, not just by the implementation.
   if(NOT (MSVC OR WIN32))
