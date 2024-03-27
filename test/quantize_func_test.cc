@@ -19,6 +19,7 @@
 #include "config/av1_rtcd.h"
 
 #include "aom/aom_codec.h"
+#include "aom_dsp/txfm_common.h"
 #include "aom_ports/aom_timer.h"
 #include "av1/encoder/encoder.h"
 #include "av1/common/scan.h"
