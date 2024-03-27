@@ -9,8 +9,11 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <string.h>
+
 #include "aom/aomcx.h"
 
+#include "av1/common/av1_common_int.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encoder.h"
