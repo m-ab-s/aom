@@ -2357,6 +2357,10 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
     *ref_frame2 = NONE_FRAME;
   }
 
+  if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) &&
+      (*this_mode != GLOBALMV || *ref_frame != LAST_FRAME))
+    return true;
+
   if (x->sb_me_block && *ref_frame == LAST_FRAME) {
     // We want to make sure to test the superblock MV:
     // so don't skip (return false) for NEAREST_LAST or NEAR_LAST if they

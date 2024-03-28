@@ -179,10 +179,6 @@ void av1_cyclic_reset_segment_skip(const AV1_COMP *cpi, MACROBLOCK *const x,
         memset(&cm->cur_frame->seg_map[map_offset], segment_id, xmis);
       }
     }
-  } else if (prev_segment_id == AM_SEGMENT_ID_INACTIVE) {
-    // TODO(marpan): Look into why this condition is needed
-    // (when skip_over4x4 = 1) to prevent decoder failure.
-    mbmi->segment_id = 0;
   }
   if (!dry_run) {
     if (cyclic_refresh_segment_id(prev_segment_id) == CR_SEGMENT_ID_BOOST1)
