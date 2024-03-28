@@ -1739,7 +1739,7 @@ static void build_inter_predictors_single_buf(MACROBLOCKD *xd, int plane,
 
 void av1_build_inter_predictors_for_planes_single_buf(
     MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane_from, int plane_to, int mi_row,
-    int mi_col, int ref, uint8_t *ext_dst[3], int ext_dst_stride[3],
+    int mi_col, int ref, uint8_t *ext_dst[], int ext_dst_stride[],
     int can_use_previous) {
   int plane;
   const int mi_x = mi_col * MI_SIZE;
@@ -1801,10 +1801,10 @@ static void build_wedge_inter_predictor_from_buf(
 
 void av1_build_wedge_inter_predictor_from_buf(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                               int plane_from, int plane_to,
-                                              uint8_t *ext_dst0[3],
-                                              int ext_dst_stride0[3],
-                                              uint8_t *ext_dst1[3],
-                                              int ext_dst_stride1[3]) {
+                                              uint8_t *ext_dst0[],
+                                              int ext_dst_stride0[],
+                                              uint8_t *ext_dst1[],
+                                              int ext_dst_stride1[]) {
   int plane;
   for (plane = plane_from; plane <= plane_to; ++plane) {
     const BLOCK_SIZE plane_bsize = get_plane_block_size(

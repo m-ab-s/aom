@@ -434,16 +434,18 @@ void av1_combine_interintra(MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane,
                             const uint8_t *intra_pred, int intra_stride);
 
 // Encoder only
+// |ext_dst*| are indexed from |plane_from| to |plane_to| inclusive.
 void av1_build_inter_predictors_for_planes_single_buf(
     MACROBLOCKD *xd, BLOCK_SIZE bsize, int plane_from, int plane_to, int mi_row,
-    int mi_col, int ref, uint8_t *ext_dst[3], int ext_dst_stride[3],
+    int mi_col, int ref, uint8_t *ext_dst[], int ext_dst_stride[],
     int can_use_previous);
+// |ext_dst*| are indexed from |plane_from| to |plane_to| inclusive.
 void av1_build_wedge_inter_predictor_from_buf(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                               int plane_from, int plane_to,
-                                              uint8_t *ext_dst0[3],
-                                              int ext_dst_stride0[3],
-                                              uint8_t *ext_dst1[3],
-                                              int ext_dst_stride1[3]);
+                                              uint8_t *ext_dst0[],
+                                              int ext_dst_stride0[],
+                                              uint8_t *ext_dst1[],
+                                              int ext_dst_stride1[]);
 
 void av1_jnt_comp_weight_assign(const AV1_COMMON *cm, const MB_MODE_INFO *mbmi,
                                 int order_idx, int *fwd_offset, int *bck_offset,
