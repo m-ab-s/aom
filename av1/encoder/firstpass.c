@@ -944,18 +944,22 @@ void av1_first_pass(AV1_COMP *cpi, const struct lookahead_entry *source) {
 
       // Adjust to the next column of MBs.
       x->plane[0].src.buf += 16;
-      x->plane[1].src.buf += uv_mb_height;
-      x->plane[2].src.buf += uv_mb_height;
+      if (num_planes > 1) {
+        x->plane[1].src.buf += uv_mb_height;
+        x->plane[2].src.buf += uv_mb_height;
+      }
 
       recon_yoffset += 16;
       recon_uvoffset += uv_mb_height;
     }
     // Adjust to the next row of MBs.
     x->plane[0].src.buf += 16 * x->plane[0].src.stride - 16 * cm->mb_cols;
-    x->plane[1].src.buf +=
-        uv_mb_height * x->plane[1].src.stride - uv_mb_height * cm->mb_cols;
-    x->plane[2].src.buf +=
-        uv_mb_height * x->plane[1].src.stride - uv_mb_height * cm->mb_cols;
+    if (num_planes > 1) {
+      x->plane[1].src.buf +=
+          uv_mb_height * x->plane[1].src.stride - uv_mb_height * cm->mb_cols;
+      x->plane[2].src.buf +=
+          uv_mb_height * x->plane[1].src.stride - uv_mb_height * cm->mb_cols;
+    }
 
     aom_clear_system_state();
   }
