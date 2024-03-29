@@ -23,6 +23,7 @@
 #include "aom/aom_codec.h"
 #include "aom/aom_integer.h"
 #include "aom_mem/aom_mem.h"
+#include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
 
 namespace {
@@ -415,6 +416,7 @@ class MainTestClass
   int byte_shift() const { return params_.bit_depth - 8; }
   int block_size() const { return params_.block_size; }
   int width() const { return params_.width; }
+  int height() const { return params_.height; }
   uint32_t mask() const { return params_.mask; }
 };
 
@@ -528,18 +530,18 @@ void MainTestClass<VarianceFunctionType>::SpeedTest() {
       CONVERT_TO_SHORTPTR(ref_)[j] = rnd_.Rand16() & mask();
     }
   }
-  unsigned int sse1, sse2, var1, var2;
+  unsigned int sse;
   const int stride = width();
   int run_time = 1000000000 / block_size();
-
-  ASM_REGISTER_STATE_CHECK(var1 =
-                               params_.func(src_, stride, ref_, stride, &sse1));
+  aom_usec_timer timer;
+  aom_usec_timer_start(&timer);
   for (int i = 0; i < run_time; ++i) {
-    ASM_REGISTER_STATE_CHECK(
-        var2 = params_.func(src_, stride, ref_, stride, &sse2));
+    params_.func(src_, stride, ref_, stride, &sse);
   }
-  EXPECT_EQ(var1, var2);
-  EXPECT_EQ(sse1, sse2);
+
+  aom_usec_timer_mark(&timer);
+  const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+  printf("Variance %dx%d : %d us\n", width(), height(), elapsed_time);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
