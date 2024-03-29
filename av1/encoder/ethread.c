@@ -2229,8 +2229,8 @@ void av1_tpl_dealloc(AV1TplRowMultiThreadSync *tpl_sync) {
 }
 
 // Allocate memory for tpl row synchronization.
-void av1_tpl_alloc(AV1TplRowMultiThreadSync *tpl_sync, AV1_COMMON *cm,
-                   int mb_rows) {
+static void av1_tpl_alloc(AV1TplRowMultiThreadSync *tpl_sync, AV1_COMMON *cm,
+                          int mb_rows) {
   tpl_sync->rows = mb_rows;
 #if CONFIG_MULTITHREAD
   {
