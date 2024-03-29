@@ -19,7 +19,7 @@ include("${AOM_ROOT}/test/test_data_util.cmake")
 
 set(AOM_UNIT_TEST_DATA_LIST_FILE "${AOM_ROOT}/test/test-data.sha1")
 
-list(APPEND AOM_UNIT_TEST_WRAPPER_SOURCES "${AOM_CONFIG_DIR}/usage_exit.c"
+list(APPEND AOM_UNIT_TEST_WRAPPER_SOURCES "${AOM_CONFIG_DIR}/usage_exit.cc"
             "${AOM_ROOT}/test/test_libaom.cc")
 
 list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
@@ -77,7 +77,7 @@ list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES
 list(APPEND AOM_DECODE_PERF_TEST_SOURCES "${AOM_ROOT}/test/decode_perf_test.cc")
 list(APPEND AOM_ENCODE_PERF_TEST_SOURCES "${AOM_ROOT}/test/encode_perf_test.cc")
 list(APPEND AOM_UNIT_TEST_WEBM_SOURCES "${AOM_ROOT}/test/webm_video_source.h")
-list(APPEND AOM_TEST_INTRA_PRED_SPEED_SOURCES "${AOM_CONFIG_DIR}/usage_exit.c"
+list(APPEND AOM_TEST_INTRA_PRED_SPEED_SOURCES "${AOM_CONFIG_DIR}/usage_exit.cc"
             "${AOM_ROOT}/test/test_intra_pred_speed.cc")
 
 if(NOT BUILD_SHARED_LIBS)
@@ -236,6 +236,14 @@ if(ENABLE_TESTS)
       target_compile_options(
         aom_gtest
         PUBLIC -Wno-deprecated-copy-with-user-provided-copy)
+    endif()
+  endif()
+  # Disable the following GCC warning in googletest headers: implicitly-
+  # declared '...' is deprecated
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    check_cxx_compiler_flag("-Wdeprecated-copy" HAVE_DEPRECATED_COPY_WARNING)
+    if(HAVE_DEPRECATED_COPY_WARNING)
+      target_compile_options(aom_gtest PUBLIC -Wno-deprecated-copy)
     endif()
   endif()
 
