@@ -2361,6 +2361,15 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
       (*this_mode != GLOBALMV || *ref_frame != LAST_FRAME))
     return true;
 
+  // Skip mode for some modes and reference frames when
+  // force_zeromv_skip_for_blk flag is true.
+  if (x->force_zeromv_skip_for_blk &&
+      ((!(*this_mode == NEARESTMV &&
+          search_state->frame_mv[*this_mode][*ref_frame].as_int == 0) &&
+        *this_mode != GLOBALMV) ||
+       *ref_frame != LAST_FRAME))
+    return true;
+
   if (x->sb_me_block && *ref_frame == LAST_FRAME) {
     // We want to make sure to test the superblock MV:
     // so don't skip (return false) for NEAREST_LAST or NEAR_LAST if they
@@ -2402,15 +2411,6 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
 
   // Skip the mode if use reference frame mask flag is not set.
   if (!search_state->use_ref_frame_mask[*ref_frame]) return true;
-
-  // Skip mode for some modes and reference frames when
-  // force_zeromv_skip_for_blk flag is true.
-  if (x->force_zeromv_skip_for_blk &&
-      ((!(*this_mode == NEARESTMV &&
-          search_state->frame_mv[*this_mode][*ref_frame].as_int == 0) &&
-        *this_mode != GLOBALMV) ||
-       *ref_frame != LAST_FRAME))
-    return true;
 
   // Skip compound mode based on variance of previously evaluated single
   // reference modes.
