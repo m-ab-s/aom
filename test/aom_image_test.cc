@@ -70,3 +70,39 @@ TEST(AomImageTest, AomImgAllocNv12) {
   EXPECT_EQ(img.planes[AOM_PLANE_V], nullptr);
   aom_img_free(&img);
 }
+
+TEST(AomImageTest, AomImgAllocHugeWidth) {
+  // The stride (0x80000000 * 2) would overflow unsigned int.
+  aom_image_t *image =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, 0x80000000, 1, 1);
+  ASSERT_EQ(image, nullptr);
+
+  // The stride (0x80000000) would overflow int.
+  image = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 0x80000000, 1, 1);
+  ASSERT_EQ(image, nullptr);
+
+  image = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 0x7ffffffe, 1, 1);
+  if (image) {
+    aom_img_free(image);
+  }
+
+  image = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 285245883, 64, 1);
+  if (image) {
+    aom_img_free(image);
+  }
+
+  image = aom_img_alloc(nullptr, AOM_IMG_FMT_NV12, 285245883, 64, 1);
+  if (image) {
+    aom_img_free(image);
+  }
+
+  image = aom_img_alloc(nullptr, AOM_IMG_FMT_YV12, 285245883, 64, 1);
+  if (image) {
+    aom_img_free(image);
+  }
+
+  image = aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, 285245883, 2, 1);
+  if (image) {
+    aom_img_free(image);
+  }
+}
