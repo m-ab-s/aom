@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,11 +37,19 @@ static aom_image_t *img_alloc_helper(
   /* NOTE: In this function, bit_depth is either 8 or 16 (if
    * AOM_IMG_FMT_HIGHBITDEPTH is set), never 10 or 12.
    */
-  unsigned int h, w, xcs, ycs, bps, bit_depth;
+  unsigned int xcs, ycs, bps, bit_depth;
 
   if (img != NULL) memset(img, 0, sizeof(aom_image_t));
 
   if (fmt == AOM_IMG_FMT_NONE) goto fail;
+
+  /* Impose maximum values on input parameters so that this function can
+   * perform arithmetic operations without worrying about overflows.
+   */
+  if (d_w > 0x08000000 || d_h > 0x08000000 || buf_align > 65536 ||
+      stride_align > 65536 || size_align > 65536 || border > 65536) {
+    goto fail;
+  }
 
   /* Treat align==0 like align==1 */
   if (!buf_align) buf_align = 1;
@@ -104,11 +113,13 @@ static aom_image_t *img_alloc_helper(
   }
 
   /* Calculate storage sizes given the chroma subsampling */
-  w = align_image_dimension(d_w, xcs, size_align);
-  h = align_image_dimension(d_h, ycs, size_align);
+  const unsigned int w = align_image_dimension(d_w, xcs, size_align);
+  assert(d_w <= w);
+  const unsigned int h = align_image_dimension(d_h, ycs, size_align);
+  assert(d_h <= h);
 
   uint64_t s = (fmt & AOM_IMG_FMT_PLANAR) ? w : (uint64_t)bps * w / bit_depth;
-  s = (s + 2 * border + stride_align - 1) & ~(stride_align - 1);
+  s = (s + 2 * border + stride_align - 1) & ~((uint64_t)stride_align - 1);
   s = s * bit_depth / 8;
   if (s > INT_MAX) goto fail;
   const int stride_in_bytes = (int)s;

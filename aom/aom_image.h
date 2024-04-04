@@ -244,10 +244,13 @@ typedef struct aom_image {
  *                         is NULL, the storage for the descriptor will be
  *                         allocated on the heap.
  * \param[in]    fmt       Format for the image
- * \param[in]    d_w       Width of the image
- * \param[in]    d_h       Height of the image
+ * \param[in]    d_w       Width of the image. Must not exceed 0x08000000
+ *                         (2^27).
+ * \param[in]    d_h       Height of the image. Must not exceed 0x08000000
+ *                         (2^27).
  * \param[in]    align     Alignment, in bytes, of the image buffer and
- *                         each row in the image (stride).
+ *                         each row in the image (stride). Must not exceed
+ *                         65536.
  *
  * \return Returns a pointer to the initialized image descriptor. If the img
  *         parameter is non-null, the value of the img parameter will be
@@ -267,10 +270,12 @@ aom_image_t *aom_img_alloc(aom_image_t *img, aom_img_fmt_t fmt,
  *                         is NULL, the storage for the descriptor will be
  *                         allocated on the heap.
  * \param[in]    fmt       Format for the image
- * \param[in]    d_w       Width of the image
- * \param[in]    d_h       Height of the image
+ * \param[in]    d_w       Width of the image. Must not exceed 0x08000000
+ *                         (2^27).
+ * \param[in]    d_h       Height of the image. Must not exceed 0x08000000
+ *                         (2^27).
  * \param[in]    align     Alignment, in bytes, of each row in the image
- *                         (stride).
+ *                         (stride). Must not exceed 65536.
  * \param[in]    img_data  Storage to use for the image
  *
  * \return Returns a pointer to the initialized image descriptor. If the img
@@ -291,12 +296,17 @@ aom_image_t *aom_img_wrap(aom_image_t *img, aom_img_fmt_t fmt, unsigned int d_w,
  *                          is NULL, the storage for the descriptor will be
  *                          allocated on the heap.
  * \param[in]    fmt        Format for the image
- * \param[in]    d_w        Width of the image
- * \param[in]    d_h        Height of the image
+ * \param[in]    d_w        Width of the image. Must not exceed 0x08000000
+ *                          (2^27).
+ * \param[in]    d_h        Height of the image. Must not exceed 0x08000000
+ *                          (2^27).
  * \param[in]    align      Alignment, in bytes, of the image buffer and
- *                          each row in the image (stride).
+ *                          each row in the image (stride). Must not exceed
+ *                          65536.
  * \param[in]    size_align Alignment, in pixels, of the image width and height.
+ *                          Must not exceed 65536.
  * \param[in]    border     A border that is padded on four sides of the image.
+ *                          Must not exceed 65536.
  *
  * \return Returns a pointer to the initialized image descriptor. If the img
  *         parameter is non-null, the value of the img parameter will be
