@@ -58,11 +58,11 @@ typedef struct {
   // next_frame_to_process[i] will hold the count of next reference frame to be
   // processed in the direction 'i'.
   int8_t next_frame_to_process[MAX_DIRECTIONS];
-} JobInfo;
+} GlobalMotionJobInfo;
 
 typedef struct {
   // Data related to assigning jobs for global motion multi-threading.
-  JobInfo job_info;
+  GlobalMotionJobInfo job_info;
 
 #if CONFIG_MULTITHREAD
   // Mutex lock used while dispatching jobs.
