@@ -108,8 +108,7 @@ void aom_convolve8_horiz_neon_dotprod(const uint8_t *src, ptrdiff_t src_stride,
                                       const int16_t *filter_y, int y_step_q4,
                                       int w, int h) {
   const int8x8_t filter = vmovn_s16(vld1q_s16(filter_x));
-  const int16x8_t correct_tmp = vmulq_n_s16(vld1q_s16(filter_x), 128);
-  const int32x4_t correction = vdupq_n_s32((int32_t)vaddvq_s16(correct_tmp));
+  const int32x4_t correction = vdupq_n_s32(128 << FILTER_BITS);
   const uint8x16_t range_limit = vdupq_n_u8(128);
   uint8x16_t s0, s1, s2, s3;
 
@@ -263,8 +262,7 @@ void aom_convolve8_vert_neon_dotprod(const uint8_t *src, ptrdiff_t src_stride,
                                      const int16_t *filter_y, int y_step_q4,
                                      int w, int h) {
   const int8x8_t filter = vmovn_s16(vld1q_s16(filter_y));
-  const int16x8_t correct_tmp = vmulq_n_s16(vld1q_s16(filter_y), 128);
-  const int32x4_t correction = vdupq_n_s32((int32_t)vaddvq_s16(correct_tmp));
+  const int32x4_t correction = vdupq_n_s32(128 << FILTER_BITS);
   const uint8x8_t range_limit = vdup_n_u8(128);
   const uint8x16x3_t merge_block_tbl = vld1q_u8_x3(dot_prod_merge_block_tbl);
   int8x16x2_t samples_LUT;
