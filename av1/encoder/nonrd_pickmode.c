@@ -1886,14 +1886,17 @@ static AOM_INLINE int skip_mode_by_low_temp(
 
 static AOM_INLINE int skip_mode_by_bsize_and_ref_frame(
     PREDICTION_MODE mode, MV_REFERENCE_FRAME ref_frame, BLOCK_SIZE bsize,
-    int extra_prune, unsigned int sse_zeromv_norm, int more_prune) {
+    int extra_prune, unsigned int sse_zeromv_norm, int more_prune,
+    int skip_nearmv) {
   const unsigned int thresh_skip_golden = 500;
 
   if (ref_frame != LAST_FRAME && sse_zeromv_norm < thresh_skip_golden &&
       mode == NEWMV)
     return 1;
 
-  if (bsize == BLOCK_128X128 && mode == NEWMV) return 1;
+  if ((bsize == BLOCK_128X128 && mode == NEWMV) ||
+      (skip_nearmv && mode == NEARMV))
+    return 1;
 
   // Skip testing non-LAST if this flag is set.
   if (extra_prune) {
@@ -2478,7 +2481,8 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
   // properties.
   if (skip_mode_by_bsize_and_ref_frame(
           *this_mode, *ref_frame, bsize, x->nonrd_prune_ref_frame_search,
-          sse_zeromv_norm, rt_sf->nonrd_aggressive_skip))
+          sse_zeromv_norm, rt_sf->nonrd_aggressive_skip,
+          rt_sf->increase_source_sad_thresh))
     return true;
 
   // Skip mode based on low temporal variance and souce sad.
