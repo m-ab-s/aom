@@ -22,7 +22,7 @@
 #include "aom_dsp/arm/transpose_neon.h"
 #include "av1/common/restoration.h"
 #include "av1/encoder/pickrst.h"
-#include "av1/encoder/arm/neon/pickrst_sve.h"
+#include "av1/encoder/arm/pickrst_sve.h"
 
 static INLINE uint8_t find_average_sve(const uint8_t *src, int src_stride,
                                        int width, int height) {

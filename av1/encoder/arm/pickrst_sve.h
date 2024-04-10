@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_ENCODER_ARM_NEON_PICKRST_SVE_H_
-#define AOM_AV1_ENCODER_ARM_NEON_PICKRST_SVE_H_
+#ifndef AOM_AV1_ENCODER_ARM_PICKRST_SVE_H_
+#define AOM_AV1_ENCODER_ARM_PICKRST_SVE_H_
 
 #include <arm_neon.h>
 #include <arm_sve.h>
@@ -148,4 +148,4 @@ static INLINE void compute_H_two_rows_win7(int16x8_t *dgd0, int16x8_t *dgd1,
   }
 }
 
-#endif  // AOM_AV1_ENCODER_ARM_NEON_PICKRST_SVE_H_
+#endif  // AOM_AV1_ENCODER_ARM_PICKRST_SVE_H_
