@@ -103,7 +103,8 @@ typedef enum aom_transfer_characteristics {
   AOM_CICP_TC_SMPTE_428 = 17,      /**< SMPTE ST 428 */
   AOM_CICP_TC_HLG = 18,            /**< BT.2100 HLG, ARIB STD-B67 */
   AOM_CICP_TC_RESERVED_19 = 19     /**< For future use (values 19-255) */
-} aom_transfer_characteristics_t;  /**< alias for enum aom_transfer_function */
+} aom_transfer_characteristics_t;  /**< alias for enum
+                                      aom_transfer_characteristics */
 
 /*!\brief List of supported matrix coefficients */
 typedef enum aom_matrix_coefficients {
@@ -125,7 +126,7 @@ typedef enum aom_matrix_coefficients {
   AOM_CICP_MC_CHROMAT_CL = 13, /**< Chromaticity-derived constant luminance */
   AOM_CICP_MC_ICTCP = 14,      /**< BT.2100 ICtCp */
   AOM_CICP_MC_RESERVED_15 = 15 /**< For future use (values 15-255)  */
-} aom_matrix_coefficients_t;
+} aom_matrix_coefficients_t;   /**< alias for enum aom_matrix_coefficients */
 
 /*!\brief List of supported color range */
 typedef enum aom_color_range {
@@ -144,7 +145,8 @@ typedef enum aom_chroma_sample_position {
                                 /**< sample, between two vertical samples */
   AOM_CSP_COLOCATED = 2,        /**< Co-located with luma(0, 0) sample */
   AOM_CSP_RESERVED = 3          /**< Reserved value */
-} aom_chroma_sample_position_t; /**< alias for enum aom_transfer_function */
+} aom_chroma_sample_position_t; /**< alias for enum aom_chroma_sample_position
+                                 */
 
 /*!\brief List of insert flags for Metadata
  *
