@@ -20,6 +20,10 @@
 extern "C" {
 #endif
 
+// Filters for factor of 2 downsampling.
+static const int16_t av1_down2_symeven_half_filter[] = { 56, 12, -3, -1 };
+static const int16_t av1_down2_symodd_half_filter[] = { 64, 35, 0, -3 };
+
 bool av1_resize_plane(const uint8_t *input, int height, int width,
                       int in_stride, uint8_t *output, int height2, int width2,
                       int out_stride);

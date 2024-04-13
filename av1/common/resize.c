@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "config/aom_config.h"
+#include "config/av1_rtcd.h"
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/flow_estimation/corner_detect.h"
@@ -215,10 +216,6 @@ const int16_t av1_resize_filter_normative[(
 
 // Filters for interpolation (full-band) - no filtering for integer pixels
 #define filteredinterp_filters1000 av1_resize_filter_normative
-
-// Filters for factor of 2 downsampling.
-static const int16_t av1_down2_symeven_half_filter[] = { 56, 12, -3, -1 };
-static const int16_t av1_down2_symodd_half_filter[] = { 64, 35, 0, -3 };
 
 static const InterpKernel *choose_interp_filter(int in_length, int out_length) {
   int out_length16 = out_length * 16;
@@ -524,9 +521,8 @@ static void fill_arr_to_col(uint8_t *img, int stride, int len, uint8_t *arr) {
   }
 }
 
-static INLINE bool resize_vert_dir(uint8_t *intbuf, uint8_t *output,
-                                   int out_stride, int height, int height2,
-                                   int width2) {
+bool resize_vert_dir_c(uint8_t *intbuf, uint8_t *output, int out_stride,
+                       int height, int height2, int width2, int start_col) {
   bool mem_status = true;
   uint8_t *arrbuf = (uint8_t *)aom_malloc(sizeof(*arrbuf) * height);
   uint8_t *arrbuf2 = (uint8_t *)aom_malloc(sizeof(*arrbuf2) * height2);
@@ -535,7 +531,7 @@ static INLINE bool resize_vert_dir(uint8_t *intbuf, uint8_t *output,
     goto Error;
   }
 
-  for (int i = 0; i < width2; ++i) {
+  for (int i = start_col; i < width2; ++i) {
     fill_col_to_arr(intbuf + i, width2, height, arrbuf);
     down2_symeven(arrbuf, height, arrbuf2);
     fill_arr_to_col(output + i, out_stride, height2, arrbuf2);
@@ -547,9 +543,8 @@ Error:
   return mem_status;
 }
 
-static INLINE void resize_horz_dir(const uint8_t *const input, int in_stride,
-                                   uint8_t *intbuf, int height,
-                                   int filtered_length, int width2) {
+void resize_horz_dir(const uint8_t *const input, int in_stride, uint8_t *intbuf,
+                     int height, int filtered_length, int width2) {
   for (int i = 0; i < height; ++i)
     down2_symeven(input + in_stride * i, filtered_length, intbuf + width2 * i);
 }
@@ -565,8 +560,8 @@ bool av1_resize_plane_to_half(const uint8_t *const input, int height, int width,
   // Resize in the horizontal direction
   resize_horz_dir(input, in_stride, intbuf, height, width, width2);
   // Resize in the vertical direction
-  bool mem_status =
-      resize_vert_dir(intbuf, output, out_stride, height, height2, width2);
+  bool mem_status = resize_vert_dir(intbuf, output, out_stride, height, height2,
+                                    width2, 0 /*start_col*/);
   aom_free(intbuf);
   return mem_status;
 }
