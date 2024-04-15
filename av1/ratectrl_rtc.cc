@@ -26,39 +26,46 @@
 #include "av1/encoder/rc_utils.h"
 #include "av1/encoder/svc_layercontext.h"
 
-namespace aom {
+void AV1RateControlRtcConfigInitDefault(AV1RateControlRtcConfig *config) {
+  if (config == nullptr) return;
+  config->is_screen = false;
+  config->width = 1280;
+  config->height = 720;
+  config->max_quantizer = 63;
+  config->min_quantizer = 2;
+  config->target_bandwidth = 1000;
+  config->buf_initial_sz = 600;
+  config->buf_optimal_sz = 600;
+  config->buf_sz = 1000;
+  config->undershoot_pct = 50;
+  config->overshoot_pct = 50;
+  config->max_intra_bitrate_pct = 50;
+  config->max_inter_bitrate_pct = 0;
+  config->frame_drop_thresh = 0;
+  config->max_consec_drop_ms = 0;
+  config->framerate = 30.0;
+  config->ss_number_layers = 1;
+  config->ts_number_layers = 1;
+  config->aq_mode = 0;
+  av1_zero(config->layer_target_bitrate);
+  config->layer_target_bitrate[0] = static_cast<int>(config->target_bandwidth);
+  av1_zero(config->ts_rate_decimator);
+  config->ts_rate_decimator[0] = 1;
+  av1_zero(config->max_quantizers);
+  av1_zero(config->min_quantizers);
+  av1_zero(config->scaling_factor_den);
+  av1_zero(config->scaling_factor_num);
+  config->scaling_factor_num[0] = 1;
+  config->scaling_factor_den[0] = 1;
+  config->max_quantizers[0] = config->max_quantizer;
+  config->min_quantizers[0] = config->min_quantizer;
+}
 
 AV1RateControlRtcConfig::AV1RateControlRtcConfig() {
-  width = 1280;
-  height = 720;
-  max_quantizer = 63;
-  min_quantizer = 2;
-  target_bandwidth = 1000;
-  buf_initial_sz = 600;
-  buf_optimal_sz = 600;
-  buf_sz = 1000;
-  undershoot_pct = overshoot_pct = 50;
-  max_intra_bitrate_pct = 50;
-  max_inter_bitrate_pct = 0;
-  frame_drop_thresh = 0;
-  max_consec_drop_ms = 0;
-  framerate = 30.0;
-  ss_number_layers = 1;
-  ts_number_layers = 1;
-  aq_mode = 0;
-  layer_target_bitrate[0] = static_cast<int>(target_bandwidth);
-  ts_rate_decimator[0] = 1;
-  av1_zero(max_quantizers);
-  av1_zero(min_quantizers);
-  av1_zero(scaling_factor_den);
-  av1_zero(scaling_factor_num);
-  av1_zero(layer_target_bitrate);
-  av1_zero(ts_rate_decimator);
-  scaling_factor_num[0] = 1;
-  scaling_factor_den[0] = 1;
-  max_quantizers[0] = max_quantizer;
-  min_quantizers[0] = min_quantizer;
+  AV1RateControlRtcConfigInitDefault(this);
 }
+
+namespace aom {
 
 std::unique_ptr<AV1RateControlRTC> AV1RateControlRTC::Create(
     const AV1RateControlRtcConfig &cfg) {
@@ -346,7 +353,6 @@ AV1LoopfilterLevel AV1RateControlRTC::GetLoopfilterLevel() const {
   lpf_level.filter_level[1] = cpi_->common.lf.filter_level[1];
   lpf_level.filter_level_u = cpi_->common.lf.filter_level_u;
   lpf_level.filter_level_v = cpi_->common.lf.filter_level_v;
-
   return lpf_level;
 }
 
@@ -356,7 +362,6 @@ AV1CdefInfo AV1RateControlRTC::GetCdefInfo() const {
   cdef_level.cdef_strength_y = cpi_->common.cdef_info.cdef_strengths[0];
   cdef_level.cdef_strength_uv = cpi_->common.cdef_info.cdef_uv_strengths[0];
   cdef_level.damping = cpi_->common.cdef_info.cdef_damping;
-
   return cdef_level;
 }
 
@@ -384,5 +389,75 @@ void AV1RateControlRTC::PostEncodeUpdate(uint64_t encoded_frame_size) {
       cpi_->svc.number_temporal_layers > 1)
     av1_save_layer_context(cpi_);
 }
-
 }  // namespace aom
+
+extern "C" {
+
+void *av1_ratecontrol_rtc_create(const AV1RateControlRtcConfig *rc_cfg) {
+  if (rc_cfg == nullptr) return nullptr;
+  return aom::AV1RateControlRTC::Create(*rc_cfg).release();
+}
+
+void av1_ratecontrol_rtc_destroy(void *controller) {
+  delete reinterpret_cast<aom::AV1RateControlRTC *>(controller);
+}
+
+bool av1_ratecontrol_rtc_update(void *controller,
+                                const struct AV1RateControlRtcConfig *rc_cfg) {
+  if (controller == nullptr || rc_cfg == nullptr) return false;
+
+  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
+      ->UpdateRateControl(*rc_cfg);
+}
+
+int av1_ratecontrol_rtc_get_qp(void *controller) {
+  if (controller == nullptr) return 0;
+  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)->GetQP();
+}
+
+AV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(void *controller) {
+  if (controller == nullptr) {
+    return { { 0, 0 }, 0, 0 };
+  }
+  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
+      ->GetLoopfilterLevel();
+}
+
+FrameDropDecision av1_ratecontrol_rtc_compute_qp(
+    void *controller, const AV1FrameParamsRTC *frame_params) {
+  if (controller == nullptr || frame_params == nullptr)
+    return FrameDropDecision::kOk;
+  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
+      ->ComputeQP(*frame_params);
+}
+
+void av1_ratecontrol_rtc_post_encode_update(void *controller,
+                                            uint64_t encoded_frame_size) {
+  if (controller == nullptr) return;
+  reinterpret_cast<aom::AV1RateControlRTC *>(controller)
+      ->PostEncodeUpdate(encoded_frame_size);
+}
+
+bool av1_ratecontrol_rtc_get_segmentation(
+    void *controller, AV1SegmentationData *segmentation_data) {
+  if (controller == nullptr || segmentation_data == nullptr) return false;
+
+  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
+      ->GetSegmentationData(segmentation_data);
+}
+
+AV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(void *controller) {
+  if (controller == nullptr) {
+    return { 0, 0, 0 };
+  }
+  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)->GetCdefInfo();
+}
+
+void av1_ratecontrol_rtc_init_ratecontrol_config(
+    AV1RateControlRtcConfig *config) {
+  if (config) {
+    *config = AV1RateControlRtcConfig();
+  }
+}
+
+}  // extern "C"
