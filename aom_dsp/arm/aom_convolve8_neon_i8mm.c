@@ -19,6 +19,7 @@
 #include "aom/aom_integer.h"
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/aom_filter.h"
+#include "aom_dsp/arm/aom_convolve8_neon.h"
 #include "aom_dsp/arm/aom_filter.h"
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/transpose_neon.h"
@@ -243,7 +244,12 @@ void aom_convolve8_horiz_neon_i8mm(const uint8_t *src, ptrdiff_t src_stride,
 
   src -= ((SUBPEL_TAPS / 2) - 1);
 
-  if (get_filter_taps_convolve8(filter_x) <= 4) {
+  int filter_taps = get_filter_taps_convolve8(filter_x);
+
+  if (filter_taps == 2) {
+    convolve8_horiz_2tap_neon(src + 3, src_stride, dst, dst_stride, filter_x, w,
+                              h);
+  } else if (filter_taps == 4) {
     convolve8_horiz_4tap_neon_i8mm(src + 2, src_stride, dst, dst_stride,
                                    filter_x, w, h);
   } else {
