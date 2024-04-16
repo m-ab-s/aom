@@ -340,23 +340,12 @@ static INLINE uint8x8_t convolve8_8_v(const uint8x16_t samples0_lo,
   return vqrshrun_n_s16(sum, FILTER_BITS);
 }
 
-void aom_convolve8_vert_neon_i8mm(const uint8_t *src, ptrdiff_t src_stride,
-                                  uint8_t *dst, ptrdiff_t dst_stride,
-                                  const int16_t *filter_x, int x_step_q4,
-                                  const int16_t *filter_y, int y_step_q4, int w,
-                                  int h) {
+static INLINE void convolve8_vert_8tap_neon_i8mm(
+    const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
+    ptrdiff_t dst_stride, const int16_t *filter_y, int w, int h) {
   const int8x8_t filter = vmovn_s16(vld1q_s16(filter_y));
   const uint8x16x3_t merge_block_tbl = vld1q_u8_x3(kDotProdMergeBlockTbl);
   uint8x16x2_t samples_LUT;
-
-  assert((intptr_t)dst % 4 == 0);
-  assert(dst_stride % 4 == 0);
-
-  (void)filter_x;
-  (void)x_step_q4;
-  (void)y_step_q4;
-
-  src -= ((SUBPEL_TAPS / 2) - 1) * src_stride;
 
   if (w == 4) {
     uint8x8_t s0, s1, s2, s3, s4, s5, s6;
@@ -476,5 +465,28 @@ void aom_convolve8_vert_neon_i8mm(const uint8_t *src, ptrdiff_t src_stride,
       dst += 8;
       w -= 8;
     } while (w != 0);
+  }
+}
+
+void aom_convolve8_vert_neon_i8mm(const uint8_t *src, ptrdiff_t src_stride,
+                                  uint8_t *dst, ptrdiff_t dst_stride,
+                                  const int16_t *filter_x, int x_step_q4,
+                                  const int16_t *filter_y, int y_step_q4, int w,
+                                  int h) {
+  assert((intptr_t)dst % 4 == 0);
+  assert(dst_stride % 4 == 0);
+
+  (void)filter_x;
+  (void)x_step_q4;
+  (void)y_step_q4;
+
+  src -= ((SUBPEL_TAPS / 2) - 1) * src_stride;
+
+  if (get_filter_taps_convolve8(filter_y) <= 4) {
+    convolve8_vert_4tap_neon(src + 2 * src_stride, src_stride, dst, dst_stride,
+                             filter_y, w, h);
+  } else {
+    convolve8_vert_8tap_neon_i8mm(src, src_stride, dst, dst_stride, filter_y, w,
+                                  h);
   }
 }
