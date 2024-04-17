@@ -472,7 +472,12 @@ void aom_convolve8_vert_neon(const uint8_t *src, ptrdiff_t src_stride,
 
   src -= ((SUBPEL_TAPS / 2) - 1) * src_stride;
 
-  if (get_filter_taps_convolve8(filter_y) <= 4) {
+  int filter_taps = get_filter_taps_convolve8(filter_y);
+
+  if (filter_taps == 2) {
+    convolve8_vert_2tap_neon(src + 3 * src_stride, src_stride, dst, dst_stride,
+                             filter_y, w, h);
+  } else if (filter_taps == 4) {
     convolve8_vert_4tap_neon(src + 2 * src_stride, src_stride, dst, dst_stride,
                              filter_y, w, h);
   } else {
