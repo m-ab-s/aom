@@ -24,10 +24,11 @@
       * Visual quality improved for scene changes for SVC with quality layers.
       * Removed visual artifacts for speed 11
 
-  - RTC speedups:
-    * Speed 11: aggressive speedup setting added for video mode,
+  - Speedups:
+    * RTC Speed 11: aggressive speedup setting added for video mode,
       resolutions <= VGA: ~30% faster than speed 10.
-    * Arm specific SIMD improvements
+    * 5-9% speed up for high bit-depth encoding with good mode on Arm, half of
+      which comes from SVE/SVE2 optimizations.
 
   - Other improvements
     * Further improvements to global motion estimation.
