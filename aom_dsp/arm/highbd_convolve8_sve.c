@@ -18,6 +18,7 @@
 
 #include "aom_dsp/arm/aom_neon_sve_bridge.h"
 #include "aom_dsp/arm/aom_filter.h"
+#include "aom_dsp/arm/highbd_convolve8_neon.h"
 #include "aom_dsp/arm/mem_neon.h"
 
 static INLINE uint16x4_t highbd_convolve8_4_h(int16x8_t s[4], int16x8_t filter,
@@ -252,7 +253,12 @@ void aom_highbd_convolve8_horiz_sve(const uint8_t *src8, ptrdiff_t src_stride,
 
   src -= SUBPEL_TAPS / 2 - 1;
 
-  if (get_filter_taps_convolve8(filter_x) <= 4) {
+  const int filter_taps = get_filter_taps_convolve8(filter_x);
+
+  if (filter_taps == 2) {
+    highbd_convolve8_horiz_2tap_neon(src + 3, src_stride, dst, dst_stride,
+                                     filter_x, width, height, bd);
+  } else if (filter_taps == 4) {
     highbd_convolve8_horiz_4tap_sve(src + 2, src_stride, dst, dst_stride,
                                     filter_x, width, height, bd);
   } else {
