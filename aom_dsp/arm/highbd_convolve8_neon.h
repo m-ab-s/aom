@@ -95,4 +95,108 @@ static INLINE void highbd_convolve8_horiz_2tap_neon(
   }
 }
 
+static INLINE uint16x4_t highbd_convolve4_4(
+    const int16x4_t s0, const int16x4_t s1, const int16x4_t s2,
+    const int16x4_t s3, const int16x4_t filter, const uint16x4_t max) {
+  int32x4_t sum = vmull_lane_s16(s0, filter, 0);
+  sum = vmlal_lane_s16(sum, s1, filter, 1);
+  sum = vmlal_lane_s16(sum, s2, filter, 2);
+  sum = vmlal_lane_s16(sum, s3, filter, 3);
+
+  uint16x4_t res = vqrshrun_n_s32(sum, FILTER_BITS);
+
+  return vmin_u16(res, max);
+}
+
+static INLINE uint16x8_t highbd_convolve4_8(
+    const int16x8_t s0, const int16x8_t s1, const int16x8_t s2,
+    const int16x8_t s3, const int16x4_t filter, const uint16x8_t max) {
+  int32x4_t sum0 = vmull_lane_s16(vget_low_s16(s0), filter, 0);
+  sum0 = vmlal_lane_s16(sum0, vget_low_s16(s1), filter, 1);
+  sum0 = vmlal_lane_s16(sum0, vget_low_s16(s2), filter, 2);
+  sum0 = vmlal_lane_s16(sum0, vget_low_s16(s3), filter, 3);
+
+  int32x4_t sum1 = vmull_lane_s16(vget_high_s16(s0), filter, 0);
+  sum1 = vmlal_lane_s16(sum1, vget_high_s16(s1), filter, 1);
+  sum1 = vmlal_lane_s16(sum1, vget_high_s16(s2), filter, 2);
+  sum1 = vmlal_lane_s16(sum1, vget_high_s16(s3), filter, 3);
+
+  uint16x8_t res = vcombine_u16(vqrshrun_n_s32(sum0, FILTER_BITS),
+                                vqrshrun_n_s32(sum1, FILTER_BITS));
+
+  return vminq_u16(res, max);
+}
+
+static INLINE void highbd_convolve8_vert_4tap_neon(
+    const uint16_t *src_ptr, ptrdiff_t src_stride, uint16_t *dst_ptr,
+    ptrdiff_t dst_stride, const int16_t *y_filter_ptr, int w, int h, int bd) {
+  assert(w >= 4 && h >= 4);
+  const int16x4_t y_filter = vld1_s16(y_filter_ptr + 2);
+
+  if (w == 4) {
+    const uint16x4_t max = vdup_n_u16((1 << bd) - 1);
+    const int16_t *s = (const int16_t *)src_ptr;
+    uint16_t *d = dst_ptr;
+
+    int16x4_t s0, s1, s2;
+    load_s16_4x3(s, src_stride, &s0, &s1, &s2);
+    s += 3 * src_stride;
+
+    do {
+      int16x4_t s3, s4, s5, s6;
+      load_s16_4x4(s, src_stride, &s3, &s4, &s5, &s6);
+
+      uint16x4_t d0 = highbd_convolve4_4(s0, s1, s2, s3, y_filter, max);
+      uint16x4_t d1 = highbd_convolve4_4(s1, s2, s3, s4, y_filter, max);
+      uint16x4_t d2 = highbd_convolve4_4(s2, s3, s4, s5, y_filter, max);
+      uint16x4_t d3 = highbd_convolve4_4(s3, s4, s5, s6, y_filter, max);
+
+      store_u16_4x4(d, dst_stride, d0, d1, d2, d3);
+
+      s0 = s4;
+      s1 = s5;
+      s2 = s6;
+
+      s += 4 * src_stride;
+      d += 4 * dst_stride;
+      h -= 4;
+    } while (h > 0);
+  } else {
+    const uint16x8_t max = vdupq_n_u16((1 << bd) - 1);
+
+    do {
+      int height = h;
+      const int16_t *s = (const int16_t *)src_ptr;
+      uint16_t *d = dst_ptr;
+
+      int16x8_t s0, s1, s2;
+      load_s16_8x3(s, src_stride, &s0, &s1, &s2);
+      s += 3 * src_stride;
+
+      do {
+        int16x8_t s3, s4, s5, s6;
+        load_s16_8x4(s, src_stride, &s3, &s4, &s5, &s6);
+
+        uint16x8_t d0 = highbd_convolve4_8(s0, s1, s2, s3, y_filter, max);
+        uint16x8_t d1 = highbd_convolve4_8(s1, s2, s3, s4, y_filter, max);
+        uint16x8_t d2 = highbd_convolve4_8(s2, s3, s4, s5, y_filter, max);
+        uint16x8_t d3 = highbd_convolve4_8(s3, s4, s5, s6, y_filter, max);
+
+        store_u16_8x4(d, dst_stride, d0, d1, d2, d3);
+
+        s0 = s4;
+        s1 = s5;
+        s2 = s6;
+
+        s += 4 * src_stride;
+        d += 4 * dst_stride;
+        height -= 4;
+      } while (height > 0);
+      src_ptr += 8;
+      dst_ptr += 8;
+      w -= 8;
+    } while (w > 0);
+  }
+}
+
 #endif  // AOM_AOM_DSP_ARM_HIGHBD_CONVOLVE8_NEON_H_
