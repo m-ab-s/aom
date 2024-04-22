@@ -254,16 +254,18 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
   }
 }
 
-static const double q_div_term[(QINDEX_RANGE >> 5) + 1] = { 32.0, 40.0, 46.0,
-                                                            52.0, 56.0, 60.0,
-                                                            64.0, 68.0, 72.0 };
+static const double q_div_term[(QINDEX_RANGE >> 4) + 1] = {
+  18.0, 30.0, 38.0, 44.0, 47.0, 50.0, 52.0, 54.0, 56.0,
+  58.0, 60.0, 62.0, 64.0, 66.0, 68.0, 70.0, 72.0
+};
+
 #define EPMB_SCALER 1250000
 static double calc_correction_factor(double err_per_mb, int q) {
   double power_term = 0.90;
-  const int index = q >> 5;
+  const int index = q >> 4;
   const double divisor =
       q_div_term[index] +
-      (((q_div_term[index + 1] - q_div_term[index]) * (q % 32)) / 32.0);
+      (((q_div_term[index + 1] - q_div_term[index]) * (q % 16)) / 16.0);
   double error_term = EPMB_SCALER * pow(err_per_mb, power_term);
   return error_term / divisor;
 }
@@ -337,6 +339,10 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
     const uint64_t target_norm_bits_per_mb =
         ((uint64_t)av_target_bandwidth << BPER_MB_NORMBITS) / active_mbs;
     int rate_err_tol = AOMMIN(rc_cfg->under_shoot_pct, rc_cfg->over_shoot_pct);
+    const double size_factor =
+        (active_mbs < 500) ? 0.925 : ((active_mbs > 3000) ? 1.05 : 1.0);
+    const double speed_factor =
+        AOMMIN(1.02, (0.975 + (0.005 * cpi->oxcf.speed)));
 
     // Update bpm correction factor based on previous GOP rate error.
     twopass_update_bpm_factor(cpi, rate_err_tol);
@@ -345,8 +351,9 @@ static int get_twopass_worst_quality(AV1_COMP *cpi, const double av_frame_err,
     // content at the given rate.
     int q = find_qindex_by_rate_with_correction(
         target_norm_bits_per_mb, cpi->common.seq_params->bit_depth,
-        av_err_per_mb, cpi->ppi->twopass.bpm_factor, rc->best_quality,
-        rc->worst_quality);
+        av_err_per_mb,
+        cpi->ppi->twopass.bpm_factor * speed_factor * size_factor,
+        rc->best_quality, rc->worst_quality);
 
     // Restriction on active max q for constrained quality mode.
     if (rc_cfg->mode == AOM_CQ) q = AOMMAX(q, rc_cfg->cq_level);
