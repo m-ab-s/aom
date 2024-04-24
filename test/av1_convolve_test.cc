@@ -827,6 +827,11 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveYTest,
                          BuildLowbdParams(av1_convolve_y_sr_neon));
 #endif
 
+#if HAVE_NEON_DOTPROD
+INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, AV1ConvolveYTest,
+                         BuildLowbdParams(av1_convolve_y_sr_neon_dotprod));
+#endif
+
 ////////////////////////////////////////////////////////////////
 // Single reference convolve-y IntraBC functions (low bit-depth)
 ////////////////////////////////////////////////////////////////
