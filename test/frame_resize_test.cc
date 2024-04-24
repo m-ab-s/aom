@@ -154,4 +154,11 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kFrameDim)));
 #endif
 
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, AV1ResizeYTest,
+    ::testing::Combine(::testing::Values(resize_vert_dir_sse2),
+                       ::testing::ValuesIn(kFrameDim)));
+#endif
+
 }  // namespace
