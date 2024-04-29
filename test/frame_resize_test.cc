@@ -29,13 +29,6 @@ const int kIters = 1000;
 
 typedef tuple<int, int> FrameDimension;
 
-// Resolutions (width x height) to be tested for resizing.
-const FrameDimension kFrameDim[] = {
-  make_tuple(3840, 2160), make_tuple(2560, 1440), make_tuple(1920, 1080),
-  make_tuple(1280, 720),  make_tuple(640, 480),   make_tuple(640, 360),
-  make_tuple(256, 256),
-};
-
 // Check that two 8-bit output buffers are identical.
 void AssertOutputBufferEq(const uint8_t *p1, const uint8_t *p2, int width,
                           int height) {
@@ -142,6 +135,15 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1ResizeYTest);
 TEST_P(AV1ResizeYTest, RunTest) { RunTest(); }
 
 TEST_P(AV1ResizeYTest, DISABLED_SpeedTest) { SpeedTest(); }
+
+#if HAVE_AVX2 || HAVE_SSE2
+// Resolutions (width x height) to be tested for resizing.
+const FrameDimension kFrameDim[] = {
+  make_tuple(3840, 2160), make_tuple(2560, 1440), make_tuple(1920, 1080),
+  make_tuple(1280, 720),  make_tuple(640, 480),   make_tuple(640, 360),
+  make_tuple(256, 256),
+};
+#endif
 
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
