@@ -1754,10 +1754,12 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Must be off for lossless mode.
   int use_rtc_tf;
 
-  // Prune the use of the identity transform in nonrd_pickmode,
-  // used for screen content mode: only for smaller blocks
-  // and higher spatial variance, and when skip_txfm is not
-  // already set.
+  // Use of the identity transform in nonrd_pickmode,
+  int use_idtx_nonrd;
+
+  // Prune the use of the identity transform in nonrd_pickmode:
+  // only for smaller blocks and higher spatial variance, and when skip_txfm
+  // is not already set.
   int prune_idtx_nonrd;
 
   // Prune the use of paletter mode in nonrd pickmode.
@@ -1902,6 +1904,12 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // This generally leads to better coding efficiency but with some speed loss.
   // Only used for screen content and for nonrd_pickmode.
   bool increase_color_thresh_palette;
+
+  // Flag to indicate selecting of higher threshold for scenee change detection.
+  int higher_thresh_scene_detection;
+
+  // FLag to indicate skip testing of NEWMV for flat blocks.
+  int skip_newmv_flat_blocks_screen;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

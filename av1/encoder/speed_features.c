@@ -1586,6 +1586,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.prune_palette_nonrd = 1;
       sf->rt_sf.increase_color_thresh_palette = 0;
     }
+    sf->rt_sf.skip_newmv_flat_blocks_screen = 1;
+    sf->rt_sf.use_idtx_nonrd = 1;
+    sf->rt_sf.higher_thresh_scene_detection = 0;
     sf->rt_sf.use_nonrd_altref_frame = 0;
     sf->rt_sf.use_rtc_tf = 0;
     sf->rt_sf.use_comp_ref_nonrd = 0;
@@ -2270,6 +2273,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->var_part_split_threshold_shift = 7;
   rt_sf->gf_refresh_based_on_qp = 0;
   rt_sf->use_rtc_tf = 0;
+  rt_sf->use_idtx_nonrd = 0;
   rt_sf->prune_idtx_nonrd = 0;
   rt_sf->prune_palette_nonrd = 0;
   rt_sf->dct_only_palette_nonrd = 0;
@@ -2299,6 +2303,8 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->increase_color_thresh_palette = false;
   rt_sf->selective_cdf_update = 0;
   rt_sf->force_only_last_ref = 0;
+  rt_sf->higher_thresh_scene_detection = 1;
+  rt_sf->skip_newmv_flat_blocks_screen = 0;
 }
 
 static fractional_mv_step_fp

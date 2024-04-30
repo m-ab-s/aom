@@ -2469,7 +2469,9 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
         return true;
     }
     // Skip NEWMV search for flat blocks.
-    if (*this_mode == NEWMV && x->source_variance < 100) return true;
+    if (rt_sf->skip_newmv_flat_blocks_screen && *this_mode == NEWMV &&
+        x->source_variance < 100)
+      return true;
     // Skip non-LAST for color on flat blocks.
     if (*ref_frame > LAST_FRAME && x->source_variance == 0 &&
         (x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] == 1 ||
@@ -2960,9 +2962,9 @@ static AOM_FORCE_INLINE void handle_screen_content_mode_nonrd(
 
   // TODO(marpan): Only allow for 8 bit-depth for now, re-enable for 10/12 bit
   // when issue 3359 is fixed.
-  if (cm->seq_params->bit_depth == 8 &&
-      cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN && !skip_idtx_palette &&
-      !cpi->oxcf.txfm_cfg.use_inter_dct_only && !x->force_zeromv_skip_for_blk &&
+  if (cm->seq_params->bit_depth == 8 && rt_sf->use_idtx_nonrd &&
+      !skip_idtx_palette && !cpi->oxcf.txfm_cfg.use_inter_dct_only &&
+      !x->force_zeromv_skip_for_blk &&
       is_inter_mode(best_pickmode->best_mode) &&
       best_pickmode->best_pred != NULL &&
       (!rt_sf->prune_idtx_nonrd ||
