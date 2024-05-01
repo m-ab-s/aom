@@ -174,7 +174,7 @@ bool resize_vert_dir_avx2(uint8_t *intbuf, uint8_t *output, int out_stride,
   const __m128i round_shift_bits = _mm_cvtsi32_si128(bits);
   const __m256i round_const_bits = _mm256_set1_epi32((1 << bits) >> 1);
   const uint8_t max_pixel = 255;
-  const __m256i clip_pixel = _mm256_set1_epi8(max_pixel);
+  const __m256i clip_pixel = _mm256_set1_epi8((char)max_pixel);
   const __m256i zero = _mm256_setzero_si256();
 
   prepare_filter_coeffs(av1_down2_symeven_half_filter, coeffs_y);
