@@ -1648,6 +1648,42 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     }
   }
 
+  const int64_t thresh_dist = cpi->sf.rt_sf.prune_palette_nonrd ? 80000 : 20000;
+  const int64_t best_dist_norm = best_rdc.dist >> (b_width_log2_lookup[bsize] +
+                                                   b_height_log2_lookup[bsize]);
+
+  // Try palette if it's enabled.
+  bool try_palette =
+      best_dist_norm > thresh_dist && cpi->oxcf.tool_cfg.enable_palette &&
+      bsize <= BLOCK_16X16 && x->source_variance > 200 &&
+      av1_allow_palette(cpi->common.features.allow_screen_content_tools,
+                        mi->bsize);
+  if (try_palette) {
+    const TxfmSearchInfo *txfm_info = &x->txfm_search_info;
+    const unsigned int intra_ref_frame_cost = 0;
+    // Search palette mode for Luma plane in intra frame.
+    av1_search_palette_mode_luma(cpi, x, bsize, intra_ref_frame_cost, ctx,
+                                 &this_rdc, best_rdc.rdcost);
+    // Update best mode data.
+    if (this_rdc.rdcost < best_rdc.rdcost &&
+        this_rdc.rate < (3 * (best_rdc.rate >> 1))) {
+      best_mode = DC_PRED;
+      mi->mv[0].as_int = INVALID_MV;
+      mi->mv[1].as_int = INVALID_MV;
+      best_rdc.rate = this_rdc.rate;
+      best_rdc.dist = this_rdc.dist;
+      best_rdc.rdcost = this_rdc.rdcost;
+      if (!this_rdc.skip_txfm) {
+        memcpy(ctx->blk_skip, txfm_info->blk_skip,
+               sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
+      }
+      if (xd->tx_type_map[0] != DCT_DCT)
+        av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
+    } else {
+      av1_zero(mi->palette_mode_info);
+    }
+  }
+
   mi->mode = best_mode;
   // Keep DC for UV since mode test is based on Y channel only.
   mi->uv_mode = UV_DC_PRED;
