@@ -81,8 +81,9 @@ static INLINE void prepare_filter_coeffs(const int16_t *filter,
   coeffs[1] = _mm_shuffle_epi32(tmp1, 0x00);
 }
 
-bool resize_vert_dir_sse2(uint8_t *intbuf, uint8_t *output, int out_stride,
-                          int height, int height2, int stride, int start_col) {
+bool av1_resize_vert_dir_sse2(uint8_t *intbuf, uint8_t *output, int out_stride,
+                              int height, int height2, int stride,
+                              int start_col) {
   // For the GM tool, the input layer height or width is assured to be an even
   // number. Hence the function 'down2_symodd()' is not invoked and SIMD
   // optimization of the same is not implemented.
@@ -92,8 +93,8 @@ bool resize_vert_dir_sse2(uint8_t *intbuf, uint8_t *output, int out_stride,
   // eliminate the need for conditional statements within the subsequent SIMD
   // code to manage these cases.
   if (height & 1 || height < 8) {
-    return resize_vert_dir_c(intbuf, output, out_stride, height, height2,
-                             stride, start_col);
+    return av1_resize_vert_dir_c(intbuf, output, out_stride, height, height2,
+                                 stride, start_col);
   }
 
   __m128i coeffs_y[2];
@@ -158,8 +159,8 @@ bool resize_vert_dir_sse2(uint8_t *intbuf, uint8_t *output, int out_stride,
   }
 
   if (remain_col)
-    return resize_vert_dir_c(intbuf, output, out_stride, height, height2,
-                             stride, stride - remain_col);
+    return av1_resize_vert_dir_c(intbuf, output, out_stride, height, height2,
+                                 stride, stride - remain_col);
 
   return true;
 }
