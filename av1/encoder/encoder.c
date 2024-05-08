@@ -178,6 +178,7 @@ int av1_set_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
       }
       cpi->active_map.enabled = 1;
       cpi->active_map.update = 1;
+      assert(num_samples);
       cpi->rc.percent_blocks_inactive =
           (num_blocks_inactive * 100) / num_samples;
     }
