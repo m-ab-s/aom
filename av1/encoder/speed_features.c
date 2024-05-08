@@ -1579,6 +1579,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.nonrd_aggressive_skip = 1;
       sf->rt_sf.thresh_active_maps_skip_lf_cdef = 90;
       sf->rt_sf.hybrid_intra_pickmode = 0;
+      sf->rt_sf.prune_screen_palette_search = true;
       sf->rt_sf.prune_intra_mode_using_best_sad_so_far = true;
     }
     if (speed >= 11) {
@@ -2253,6 +2254,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->use_nonrd_filter_search = 0;
   rt_sf->use_simple_rd_model = 0;
   rt_sf->hybrid_intra_pickmode = 0;
+  rt_sf->prune_screen_palette_search = false;
   rt_sf->source_metrics_sb_nonrd = 0;
   rt_sf->overshoot_detection_cbr = NO_DETECTION;
   rt_sf->check_scene_detection = 0;

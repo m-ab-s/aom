@@ -1629,6 +1629,12 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // 2 : use rd for bsize < 16x16 and src var >= 101, nonrd otherwise
   int hybrid_intra_pickmode;
 
+  // Filter blocks by certain criteria such as SAD, source variance, such that
+  // fewer blocks will go through the palette search.
+  // For screen content types, enable this feature reduces key frame encoding
+  // time. Disabling it leads to better compression efficiency.
+  bool prune_screen_palette_search;
+
   // Compute variance/sse on source difference, prior to encoding superblock.
   int source_metrics_sb_nonrd;
 

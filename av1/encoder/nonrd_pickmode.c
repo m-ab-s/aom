@@ -23,6 +23,7 @@
 #include "av1/encoder/model_rd.h"
 #include "av1/encoder/motion_search_facade.h"
 #include "av1/encoder/nonrd_opt.h"
+#include "av1/encoder/palette.h"
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
 
@@ -1655,11 +1656,15 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
 
   // Try palette if it's enabled.
   bool try_palette =
-      (!args.prune_mode_based_on_sad || best_sad_norm > thresh_sad) &&
-      cpi->oxcf.tool_cfg.enable_palette && bsize <= BLOCK_16X16 &&
-      x->source_variance > 200 &&
+      cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mi->bsize);
+  if (cpi->sf.rt_sf.prune_screen_palette_search) {
+    bool prune =
+        (!args.prune_mode_based_on_sad || best_sad_norm > thresh_sad) &&
+        bsize <= BLOCK_16X16 && x->source_variance > 200;
+    try_palette &= prune;
+  }
   if (try_palette) {
     const TxfmSearchInfo *txfm_info = &x->txfm_search_info;
     const unsigned int intra_ref_frame_cost = 0;
