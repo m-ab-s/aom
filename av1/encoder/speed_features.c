@@ -1586,6 +1586,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.part_early_exit_zeromv = 2;
       sf->rt_sf.prune_palette_nonrd = 1;
       sf->rt_sf.increase_color_thresh_palette = 0;
+      sf->rt_sf.prune_h_pred_using_best_mode_so_far = true;
+      sf->rt_sf.enable_intra_mode_pruning_using_neighbors = true;
+      sf->rt_sf.prune_intra_mode_using_best_sad_so_far = true;
     }
     sf->rt_sf.skip_newmv_flat_blocks_screen = 1;
     sf->rt_sf.use_idtx_nonrd = 1;

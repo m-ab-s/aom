@@ -1648,7 +1648,7 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     }
   }
 
-  const int64_t thresh_dist = cpi->sf.rt_sf.prune_palette_nonrd ? 80000 : 20000;
+  const int64_t thresh_dist = cpi->sf.rt_sf.prune_palette_nonrd ? 60000 : 20000;
   const int64_t best_dist_norm = best_rdc.dist >> (b_width_log2_lookup[bsize] +
                                                    b_height_log2_lookup[bsize]);
 
@@ -1665,8 +1665,7 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     av1_search_palette_mode_luma(cpi, x, bsize, intra_ref_frame_cost, ctx,
                                  &this_rdc, best_rdc.rdcost);
     // Update best mode data.
-    if (this_rdc.rdcost < best_rdc.rdcost &&
-        this_rdc.rate < (3 * (best_rdc.rate >> 1))) {
+    if (this_rdc.rdcost < best_rdc.rdcost) {
       best_mode = DC_PRED;
       mi->mv[0].as_int = INVALID_MV;
       mi->mv[1].as_int = INVALID_MV;
