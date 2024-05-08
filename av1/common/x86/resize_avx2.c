@@ -689,10 +689,9 @@ void av1_resize_horz_dir_avx2(const uint8_t *const input, int in_stride,
         res_out_row01 = _mm256_min_epu8(res_out_row01, clip_pixel);
         res_out_row01 = _mm256_max_epu8(res_out_row01, zero);
 
-        *((int *)(intbuf + out_idx)) =
-            _mm_cvtsi128_si32(CAST_LOW(res_out_row01));
-        *((int *)(intbuf + out_idx + dst_stride)) =
-            _mm_cvtsi128_si32(_mm256_extracti128_si256(res_out_row01, 1));
+        xx_storel_32(intbuf + out_idx, CAST_LOW(res_out_row01));
+        xx_storel_32(intbuf + out_idx + dst_stride,
+                     _mm256_extracti128_si256(res_out_row01, 1));
       }
 
       wd_processed = filtered_length - remain_col;
