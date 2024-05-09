@@ -384,6 +384,7 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_ARM_CRC32
             "${AOM_ROOT}/av1/encoder/arm/hash_arm_crc32.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_NEON
+            "${AOM_ROOT}/av1/common/arm/av1_convolve_scale_neon.c"
             "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.c"
             "${AOM_ROOT}/av1/common/arm/av1_inv_txfm_neon.h"
             "${AOM_ROOT}/av1/common/arm/av1_txfm_neon.c"

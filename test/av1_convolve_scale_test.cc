@@ -387,6 +387,13 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(av1_convolve_2d_scale_c),
                        ::testing::ValuesIn(kBlockDim)));
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, LowBDConvolveScaleTest,
+    ::testing::Combine(::testing::Values(av1_convolve_2d_scale_neon),
+                       ::testing::ValuesIn(kBlockDim)));
+#endif  // HAVE_NEON
+
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, LowBDConvolveScaleTest,
