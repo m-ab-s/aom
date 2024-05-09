@@ -1579,6 +1579,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.nonrd_aggressive_skip = 1;
       sf->rt_sf.thresh_active_maps_skip_lf_cdef = 90;
       sf->rt_sf.hybrid_intra_pickmode = 0;
+      sf->rt_sf.prune_intra_mode_using_best_sad_so_far = true;
     }
     if (speed >= 11) {
       sf->rt_sf.skip_lf_screen = 2;
@@ -1588,7 +1589,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.increase_color_thresh_palette = 0;
       sf->rt_sf.prune_h_pred_using_best_mode_so_far = true;
       sf->rt_sf.enable_intra_mode_pruning_using_neighbors = true;
-      sf->rt_sf.prune_intra_mode_using_best_sad_so_far = true;
     }
     sf->rt_sf.skip_newmv_flat_blocks_screen = 1;
     sf->rt_sf.use_idtx_nonrd = 1;

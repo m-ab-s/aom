@@ -1648,14 +1648,16 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     }
   }
 
-  const int64_t thresh_dist = cpi->sf.rt_sf.prune_palette_nonrd ? 60000 : 20000;
-  const int64_t best_dist_norm = best_rdc.dist >> (b_width_log2_lookup[bsize] +
-                                                   b_height_log2_lookup[bsize]);
+  const unsigned int thresh_sad = cpi->sf.rt_sf.prune_palette_nonrd ? 100 : 20;
+  const unsigned int best_sad_norm =
+      args.best_sad >>
+      (b_width_log2_lookup[bsize] + b_height_log2_lookup[bsize]);
 
   // Try palette if it's enabled.
   bool try_palette =
-      best_dist_norm > thresh_dist && cpi->oxcf.tool_cfg.enable_palette &&
-      bsize <= BLOCK_16X16 && x->source_variance > 200 &&
+      (!args.prune_mode_based_on_sad || best_sad_norm > thresh_sad) &&
+      cpi->oxcf.tool_cfg.enable_palette && bsize <= BLOCK_16X16 &&
+      x->source_variance > 200 &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mi->bsize);
   if (try_palette) {
