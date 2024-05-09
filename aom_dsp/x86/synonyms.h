@@ -70,28 +70,6 @@ static INLINE void xx_storeu_128(void *const a, const __m128i v) {
   _mm_storeu_si128((__m128i *)a, v);
 }
 
-// The _mm_set_epi64x() intrinsic is undefined for some Visual Studio
-// compilers. The following function is equivalent to _mm_set_epi64x()
-// acting on 32-bit integers.
-static INLINE __m128i xx_set_64_from_32i(int32_t e1, int32_t e0) {
-#if defined(_MSC_VER) && _MSC_VER < 1900
-  return _mm_set_epi32(0, e1, 0, e0);
-#else
-  return _mm_set_epi64x((uint32_t)e1, (uint32_t)e0);
-#endif
-}
-
-// The _mm_set1_epi64x() intrinsic is undefined for some Visual Studio
-// compilers. The following function is equivalent to _mm_set1_epi64x()
-// acting on a 32-bit integer.
-static INLINE __m128i xx_set1_64_from_32i(int32_t a) {
-#if defined(_MSC_VER) && _MSC_VER < 1900
-  return _mm_set_epi32(0, a, 0, a);
-#else
-  return _mm_set1_epi64x((uint32_t)a);
-#endif
-}
-
 // Fill an SSE register using an interleaved pair of values, ie. set the
 // 8 channels to {a, b, a, b, a, b, a, b}, using the same channel ordering
 // as when a register is stored to / loaded from memory.
