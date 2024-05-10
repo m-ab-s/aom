@@ -102,7 +102,7 @@ bool av1_resize_vert_dir_sse2(uint8_t *intbuf, uint8_t *output, int out_stride,
   const __m128i round_const_bits = _mm_set1_epi32((1 << bits) >> 1);
   const __m128i round_shift_bits = _mm_cvtsi32_si128(bits);
   const uint8_t max_pixel = 255;
-  const __m128i clip_pixel = _mm_set1_epi8(max_pixel);
+  const __m128i clip_pixel = _mm_set1_epi8((char)max_pixel);
   const __m128i zero = _mm_setzero_si128();
   prepare_filter_coeffs(av1_down2_symeven_half_filter, coeffs_y);
 
