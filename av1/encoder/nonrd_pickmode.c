@@ -1668,6 +1668,8 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   if (try_palette) {
     const TxfmSearchInfo *txfm_info = &x->txfm_search_info;
     const unsigned int intra_ref_frame_cost = 0;
+    x->color_palette_thresh = (best_sad_norm < 500) ? 32 : 64;
+
     // Search palette mode for Luma plane in intra frame.
     av1_search_palette_mode_luma(cpi, x, bsize, intra_ref_frame_cost, ctx,
                                  &this_rdc, best_rdc.rdcost);
