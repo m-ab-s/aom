@@ -201,7 +201,6 @@ void av1_convolve_y_sr_sse2(const uint8_t *src, int src_stride, uint8_t *dst,
     if (w <= 4) {
       __m128i s[8], src6, res, res_round, res16;
       int res_int;
-      src6 = xx_loadl_32(src_ptr + 6 * src_stride);
       s[0] = _mm_unpacklo_epi8(xx_loadl_32(src_ptr + 0 * src_stride),
                                xx_loadl_32(src_ptr + 1 * src_stride));
       s[1] = _mm_unpacklo_epi8(xx_loadl_32(src_ptr + 1 * src_stride),
@@ -212,6 +211,7 @@ void av1_convolve_y_sr_sse2(const uint8_t *src, int src_stride, uint8_t *dst,
                                xx_loadl_32(src_ptr + 4 * src_stride));
       s[4] = _mm_unpacklo_epi8(xx_loadl_32(src_ptr + 4 * src_stride),
                                xx_loadl_32(src_ptr + 5 * src_stride));
+      src6 = xx_loadl_32(src_ptr + 6 * src_stride);
       s[5] = _mm_unpacklo_epi8(xx_loadl_32(src_ptr + 5 * src_stride), src6);
 
       do {

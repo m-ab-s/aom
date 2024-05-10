@@ -179,7 +179,6 @@ void av1_dist_wtd_convolve_y_sse2(const uint8_t *src, int src_stride,
 
   if (w == 4) {
     __m128i s[8], src6, res, res_shift;
-    src6 = xx_loadl_32(src_ptr + 6 * src_stride);
     s[0] = _mm_unpacklo_epi8(xx_loadl_32(src_ptr + 0 * src_stride),
                              xx_loadl_32(src_ptr + 1 * src_stride));
     s[1] = _mm_unpacklo_epi8(xx_loadl_32(src_ptr + 1 * src_stride),
@@ -190,6 +189,7 @@ void av1_dist_wtd_convolve_y_sse2(const uint8_t *src, int src_stride,
                              xx_loadl_32(src_ptr + 4 * src_stride));
     s[4] = _mm_unpacklo_epi8(xx_loadl_32(src_ptr + 4 * src_stride),
                              xx_loadl_32(src_ptr + 5 * src_stride));
+    src6 = xx_loadl_32(src_ptr + 6 * src_stride);
     s[5] = _mm_unpacklo_epi8(xx_loadl_32(src_ptr + 5 * src_stride), src6);
 
     do {
