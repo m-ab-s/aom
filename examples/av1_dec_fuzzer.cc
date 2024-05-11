@@ -68,6 +68,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     frame_size = std::min(size, frame_size);
 
     aom_codec_stream_info_t stream_info;
+    stream_info.is_annexb = is_annexb;
     aom_codec_err_t err =
         aom_codec_peek_stream_info(codec_interface, data, size, &stream_info);
     static_cast<void>(err);
