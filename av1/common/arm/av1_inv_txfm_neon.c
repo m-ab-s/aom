@@ -3813,8 +3813,9 @@ static INLINE void lowbd_inv_txfm2d_add_4x4_neon(const int32_t *input,
   }
 }
 
-void lowbd_inv_txfm2d_add_4x8_neon(const int32_t *input, uint8_t *output,
-                                   int stride, TX_TYPE tx_type, int eob) {
+static void lowbd_inv_txfm2d_add_4x8_neon(const int32_t *input, uint8_t *output,
+                                          int stride, TX_TYPE tx_type,
+                                          int eob) {
   (void)eob;
   TX_SIZE tx_size = TX_4X8;
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 8 + 8 + 8]);
@@ -3878,8 +3879,9 @@ void lowbd_inv_txfm2d_add_4x8_neon(const int32_t *input, uint8_t *output,
   }
 }
 
-void lowbd_inv_txfm2d_add_8x4_neon(const int32_t *input, uint8_t *output,
-                                   int stride, TX_TYPE tx_type, int eob) {
+static void lowbd_inv_txfm2d_add_8x4_neon(const int32_t *input, uint8_t *output,
+                                          int stride, TX_TYPE tx_type,
+                                          int eob) {
   (void)eob;
   TX_SIZE tx_size = TX_8X4;
   DECLARE_ALIGNED(32, int, txfm_buf[8 * 4 + 8 + 8]);
@@ -3943,8 +3945,9 @@ void lowbd_inv_txfm2d_add_8x4_neon(const int32_t *input, uint8_t *output,
   }
 }
 
-void lowbd_inv_txfm2d_add_4x16_neon(const int32_t *input, uint8_t *output,
-                                    int stride, TX_TYPE tx_type, int eob) {
+static void lowbd_inv_txfm2d_add_4x16_neon(const int32_t *input,
+                                           uint8_t *output, int stride,
+                                           TX_TYPE tx_type, int eob) {
   (void)eob;
   TX_SIZE tx_size = TX_4X16;
   DECLARE_ALIGNED(32, int, txfm_buf[4 * 16 + 16 + 16]);
@@ -4007,8 +4010,9 @@ void lowbd_inv_txfm2d_add_4x16_neon(const int32_t *input, uint8_t *output,
   }
 }
 
-void lowbd_inv_txfm2d_add_16x4_neon(const int32_t *input, uint8_t *output,
-                                    int stride, TX_TYPE tx_type, int eob) {
+static void lowbd_inv_txfm2d_add_16x4_neon(const int32_t *input,
+                                           uint8_t *output, int stride,
+                                           TX_TYPE tx_type, int eob) {
   (void)eob;
   TX_SIZE tx_size = TX_16X4;
   DECLARE_ALIGNED(32, int, txfm_buf[16 * 4 + 16 + 16]);
