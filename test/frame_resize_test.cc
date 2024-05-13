@@ -245,6 +245,13 @@ TEST_P(AV1ResizeXTest, RunTest) { RunTest(); }
 
 TEST_P(AV1ResizeXTest, DISABLED_SpeedTest) { SpeedTest(); }
 
+#if HAVE_SSE2
+INSTANTIATE_TEST_SUITE_P(
+    SSE2, AV1ResizeXTest,
+    ::testing::Combine(::testing::Values(av1_resize_horz_dir_sse2),
+                       ::testing::ValuesIn(kFrameDim)));
+#endif
+
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1ResizeXTest,
