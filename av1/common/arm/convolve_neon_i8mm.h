@@ -33,21 +33,17 @@ static INLINE int16x4_t convolve12_4_2d_h(uint8x16_t samples,
                                           const int8x16_t filters,
                                           const uint8x16x3_t permute_tbl,
                                           int32x4_t horiz_const) {
-  uint8x16_t permuted_samples[3];
-  int32x4_t sum;
-
   // Permute samples ready for dot product.
   // { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 }
-  permuted_samples[0] = vqtbl1q_u8(samples, permute_tbl.val[0]);
   // { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 }
-  permuted_samples[1] = vqtbl1q_u8(samples, permute_tbl.val[1]);
   // { 8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14 }
-  permuted_samples[2] = vqtbl1q_u8(samples, permute_tbl.val[2]);
+  uint8x16_t perm_samples[3] = { vqtbl1q_u8(samples, permute_tbl.val[0]),
+                                 vqtbl1q_u8(samples, permute_tbl.val[1]),
+                                 vqtbl1q_u8(samples, permute_tbl.val[2]) };
 
-  // First 4 output values.
-  sum = vusdotq_laneq_s32(horiz_const, permuted_samples[0], filters, 0);
-  sum = vusdotq_laneq_s32(sum, permuted_samples[1], filters, 1);
-  sum = vusdotq_laneq_s32(sum, permuted_samples[2], filters, 2);
+  int32x4_t sum = vusdotq_laneq_s32(horiz_const, perm_samples[0], filters, 0);
+  sum = vusdotq_laneq_s32(sum, perm_samples[1], filters, 1);
+  sum = vusdotq_laneq_s32(sum, perm_samples[2], filters, 2);
 
   // Narrow and re-pack.
   return vshrn_n_s32(sum, ROUND0_BITS);
@@ -57,31 +53,29 @@ static INLINE int16x8_t convolve12_8_2d_h(uint8x16_t samples[2],
                                           const int8x16_t filters,
                                           const uint8x16x3_t permute_tbl,
                                           const int32x4_t horiz_const) {
-  uint8x16_t permuted_samples[4];
-  int32x4_t sum[2];
-
   // Permute samples ready for dot product.
   // { 0,  1,  2,  3,  1,  2,  3,  4,  2,  3,  4,  5,  3,  4,  5,  6 }
-  permuted_samples[0] = vqtbl1q_u8(samples[0], permute_tbl.val[0]);
   // { 4,  5,  6,  7,  5,  6,  7,  8,  6,  7,  8,  9,  7,  8,  9, 10 }
-  permuted_samples[1] = vqtbl1q_u8(samples[0], permute_tbl.val[1]);
   // { 8,  9, 10, 11,  9, 10, 11, 12, 10, 11, 12, 13, 11, 12, 13, 14 }
-  permuted_samples[2] = vqtbl1q_u8(samples[0], permute_tbl.val[2]);
   // {12, 13, 14, 15, 13, 14, 15, 16, 14, 15, 16, 17, 15, 16, 17, 18 }
-  permuted_samples[3] = vqtbl1q_u8(samples[1], permute_tbl.val[2]);
+  uint8x16_t perm_samples[4] = { vqtbl1q_u8(samples[0], permute_tbl.val[0]),
+                                 vqtbl1q_u8(samples[0], permute_tbl.val[1]),
+                                 vqtbl1q_u8(samples[0], permute_tbl.val[2]),
+                                 vqtbl1q_u8(samples[1], permute_tbl.val[2]) };
 
-  // First 4 output values.
-  sum[0] = vusdotq_laneq_s32(horiz_const, permuted_samples[0], filters, 0);
-  sum[0] = vusdotq_laneq_s32(sum[0], permuted_samples[1], filters, 1);
-  sum[0] = vusdotq_laneq_s32(sum[0], permuted_samples[2], filters, 2);
-  // Second 4 output values.
-  sum[1] = vusdotq_laneq_s32(horiz_const, permuted_samples[1], filters, 0);
-  sum[1] = vusdotq_laneq_s32(sum[1], permuted_samples[2], filters, 1);
-  sum[1] = vusdotq_laneq_s32(sum[1], permuted_samples[3], filters, 2);
+  int32x4_t sum0123 =
+      vusdotq_laneq_s32(horiz_const, perm_samples[0], filters, 0);
+  sum0123 = vusdotq_laneq_s32(sum0123, perm_samples[1], filters, 1);
+  sum0123 = vusdotq_laneq_s32(sum0123, perm_samples[2], filters, 2);
+
+  int32x4_t sum4567 =
+      vusdotq_laneq_s32(horiz_const, perm_samples[1], filters, 0);
+  sum4567 = vusdotq_laneq_s32(sum4567, perm_samples[2], filters, 1);
+  sum4567 = vusdotq_laneq_s32(sum4567, perm_samples[3], filters, 2);
 
   // Narrow and re-pack.
-  return vcombine_s16(vshrn_n_s32(sum[0], ROUND0_BITS),
-                      vshrn_n_s32(sum[1], ROUND0_BITS));
+  return vcombine_s16(vshrn_n_s32(sum0123, ROUND0_BITS),
+                      vshrn_n_s32(sum4567, ROUND0_BITS));
 }
 
 static INLINE void convolve_2d_sr_horiz_12tap_neon_i8mm(
