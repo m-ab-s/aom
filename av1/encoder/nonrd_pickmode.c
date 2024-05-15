@@ -1649,7 +1649,8 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
     }
   }
 
-  const unsigned int thresh_sad = cpi->sf.rt_sf.prune_palette_nonrd ? 100 : 20;
+  const unsigned int thresh_sad =
+      cpi->sf.rt_sf.prune_palette_search_nonrd > 1 ? 100 : 20;
   const unsigned int best_sad_norm =
       args.best_sad >>
       (b_width_log2_lookup[bsize] + b_height_log2_lookup[bsize]);
@@ -1659,7 +1660,7 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
       cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                         mi->bsize);
-  if (cpi->sf.rt_sf.prune_screen_palette_search) {
+  if (cpi->sf.rt_sf.prune_palette_search_nonrd > 0) {
     bool prune =
         (!args.prune_mode_based_on_sad || best_sad_norm > thresh_sad) &&
         bsize <= BLOCK_16X16 && x->source_variance > 200;
@@ -3477,7 +3478,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       x->source_variance > 0 && !x->force_zeromv_skip_for_blk &&
       (cpi->rc.high_source_sad || x->source_variance > 300);
 
-  if (rt_sf->prune_palette_nonrd && bsize > BLOCK_16X16) try_palette = 0;
+  if (rt_sf->prune_palette_search_nonrd > 1 && bsize > BLOCK_16X16)
+    try_palette = 0;
 
   // Perform screen content mode evaluation for non-rd
   handle_screen_content_mode_nonrd(
