@@ -2550,7 +2550,7 @@ void av1_rc_set_gf_interval_range(const AV1_COMP *const cpi,
 void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   RATE_CONTROL *const rc = &cpi->rc;
-  int vbr_max_bits;
+  int64_t vbr_max_bits;
   const int MBs = av1_get_MBs(width, height);
 
   rc->avg_frame_bandwidth =
@@ -2569,10 +2569,11 @@ void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
   // be acheived because of a user specificed max q (e.g. when the user
   // specifies lossless encode.
   vbr_max_bits =
-      (int)(((int64_t)rc->avg_frame_bandwidth * oxcf->rc_cfg.vbrmax_section) /
-            100);
+      ((int64_t)rc->avg_frame_bandwidth * oxcf->rc_cfg.vbrmax_section) / 100;
+  vbr_max_bits = (vbr_max_bits < INT_MAX) ? vbr_max_bits : INT_MAX;
+
   rc->max_frame_bandwidth =
-      AOMMAX(AOMMAX((MBs * MAX_MB_RATE), MAXRATE_1080P), vbr_max_bits);
+      AOMMAX(AOMMAX((MBs * MAX_MB_RATE), MAXRATE_1080P), (int)vbr_max_bits);
 
   av1_rc_set_gf_interval_range(cpi, rc);
 }
