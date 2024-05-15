@@ -415,6 +415,9 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SVE
             "${AOM_ROOT}/av1/common/arm/highbd_warp_plane_sve.c"
             "${AOM_ROOT}/av1/common/arm/warp_plane_sve.c")
 
+list(APPEND AOM_AV1_COMMON_INTRIN_SVE2
+            "${AOM_ROOT}/av1/common/arm/convolve_sve2.c")
+
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_2
             "${AOM_ROOT}/av1/encoder/x86/hash_sse42.c")
 

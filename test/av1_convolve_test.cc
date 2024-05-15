@@ -1331,6 +1331,11 @@ INSTANTIATE_TEST_SUITE_P(NEON_I8MM, AV1Convolve2DTest,
                          BuildLowbdParams(av1_convolve_2d_sr_neon_i8mm));
 #endif
 
+#if HAVE_SVE2
+INSTANTIATE_TEST_SUITE_P(SVE2, AV1Convolve2DTest,
+                         BuildLowbdParams(av1_convolve_2d_sr_sve2));
+#endif
+
 /////////////////////////////////////////////////////////////////
 // Single reference convolve-2D IntraBC functions (low bit-depth)
 /////////////////////////////////////////////////////////////////
