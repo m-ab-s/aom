@@ -194,6 +194,7 @@ void av1_resize_horz_dir_sse2(const uint8_t *const input, int in_stride,
   if (filtered_length < 16) {
     av1_resize_horz_dir_c(input, in_stride, intbuf, height, filtered_length,
                           width2);
+    return;
   }
 
   __m128i coeffs_x[2];
