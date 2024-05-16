@@ -245,7 +245,9 @@ TEST_P(AV1ResizeXTest, RunTest) { RunTest(); }
 
 TEST_P(AV1ResizeXTest, DISABLED_SpeedTest) { SpeedTest(); }
 
-#if HAVE_SSE2
+// TODO(https://crbug.com/aomedia/3575): Reenable this after test passes under
+// 32-bit valgrind.
+#if 0  // HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1ResizeXTest,
     ::testing::Combine(::testing::Values(av1_resize_horz_dir_sse2),

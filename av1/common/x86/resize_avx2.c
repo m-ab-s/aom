@@ -530,10 +530,12 @@ void av1_resize_horz_dir_avx2(const uint8_t *const input, int in_stride,
                               uint8_t *intbuf, int height, int filtered_length,
                               int width2) {
   assert(height % 2 == 0);
-  // Invoke SSE2 for width less than 32.
+  // Invoke C for width less than 32.
+  // TODO(https://crbug.com/aomedia/3575): Use sse2 after SSE2/AV1ResizeXTest
+  // passes under 32-bit valgrind.
   if (filtered_length < 32) {
-    av1_resize_horz_dir_sse2(input, in_stride, intbuf, height, filtered_length,
-                             width2);
+    av1_resize_horz_dir_c(input, in_stride, intbuf, height, filtered_length,
+                          width2);
     return;
   }
 
