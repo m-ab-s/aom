@@ -1034,39 +1034,22 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
   }
 
   TuneCfg *const tune_cfg = &oxcf->tune_cfg;
-
   FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
-
   TileConfig *const tile_cfg = &oxcf->tile_cfg;
-
   ResizeCfg *const resize_cfg = &oxcf->resize_cfg;
-
   GFConfig *const gf_cfg = &oxcf->gf_cfg;
-
   PartitionCfg *const part_cfg = &oxcf->part_cfg;
-
   IntraModeCfg *const intra_mode_cfg = &oxcf->intra_mode_cfg;
-
   TxfmSizeTypeCfg *const txfm_cfg = &oxcf->txfm_cfg;
-
   CompoundTypeCfg *const comp_type_cfg = &oxcf->comp_type_cfg;
-
   SuperResCfg *const superres_cfg = &oxcf->superres_cfg;
-
   KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
-
   DecoderModelCfg *const dec_model_cfg = &oxcf->dec_model_cfg;
-
   RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
-
   QuantizationCfg *const q_cfg = &oxcf->q_cfg;
-
   ColorCfg *const color_cfg = &oxcf->color_cfg;
-
   InputCfg *const input_cfg = &oxcf->input_cfg;
-
   AlgoCfg *const algo_cfg = &oxcf->algo_cfg;
-
   ToolCfg *const tool_cfg = &oxcf->tool_cfg;
 
   const int is_vbr = cfg->rc_end_usage == AOM_VBR;
