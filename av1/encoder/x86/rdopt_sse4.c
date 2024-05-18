@@ -10,7 +10,7 @@
  */
 
 #include <assert.h>
-#include <emmintrin.h>
+#include <smmintrin.h>
 #include "aom_dsp/x86/synonyms.h"
 
 #include "config/av1_rtcd.h"

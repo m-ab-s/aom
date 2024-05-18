@@ -12,7 +12,7 @@
 #ifndef AOM_AOM_DSP_X86_SYNONYMS_H_
 #define AOM_AOM_DSP_X86_SYNONYMS_H_
 
-#include <immintrin.h>
+#include <emmintrin.h>
 #include <string.h>
 
 #include "config/aom_config.h"
