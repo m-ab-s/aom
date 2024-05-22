@@ -1916,6 +1916,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // FLag to indicate skip testing of NEWMV for flat blocks.
   int skip_newmv_flat_blocks_screen;
+
+  // Flag to force skip encoding for non_reference_frame on slide/scene changes.
+  int skip_encoding_non_reference_slide_change;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */
