@@ -1721,7 +1721,7 @@ TEST(SearchWienerTest, 8bitSignedIntegerOverflowInUpdateBSepSym) {
 
 // A test that reproduces crbug.com/oss-fuzz/68195: signed integer overflow in
 // linsolve_wiener().
-TEST(SearchWienerTest, DISABLED_8bitSignedIntegerOverflowInLinsolveWiener) {
+TEST(SearchWienerTest, 8bitSignedIntegerOverflowInLinsolveWiener) {
   constexpr int kWidth = 4;
   constexpr int kHeight = 3;
   constexpr unsigned char kBuffer[kWidth * kHeight] = {
@@ -1889,7 +1889,7 @@ TEST(SearchWienerTest, 10bitSignedIntegerOverflowInLinsolveWiener) {
 
 // A test that reproduces b/330639949: signed integer overflow in
 // linsolve_wiener().
-TEST(SearchWienerTest, DISABLED_12bitSignedIntegerOverflowInLinsolveWiener) {
+TEST(SearchWienerTest, 12bitSignedIntegerOverflowInLinsolveWiener) {
   constexpr int kWidth = 173;
   constexpr int kHeight = 3;
   // Since the image format is YUV 4:2:0, aom_img_wrap() expects the buffer is
