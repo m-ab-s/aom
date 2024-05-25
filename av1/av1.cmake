@@ -409,6 +409,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_NEON_DOTPROD
             "${AOM_ROOT}/av1/common/arm/convolve_neon_dotprod.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_NEON_I8MM
+            "${AOM_ROOT}/av1/common/arm/av1_convolve_scale_neon_i8mm.c"
             "${AOM_ROOT}/av1/common/arm/compound_convolve_neon_i8mm.c"
             "${AOM_ROOT}/av1/common/arm/convolve_neon_i8mm.c"
             "${AOM_ROOT}/av1/common/arm/warp_plane_neon_i8mm.c")

@@ -401,6 +401,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kBlockDim)));
 #endif  // HAVE_NEON_DOTPROD
 
+#if HAVE_NEON_I8MM
+INSTANTIATE_TEST_SUITE_P(
+    NEON_I8MM, LowBDConvolveScaleTest,
+    ::testing::Combine(::testing::Values(av1_convolve_2d_scale_neon_i8mm),
+                       ::testing::ValuesIn(kBlockDim)));
+#endif  // HAVE_NEON_I8MM
+
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
     SSE4_1, LowBDConvolveScaleTest,
