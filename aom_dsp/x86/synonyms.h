@@ -50,7 +50,8 @@ static INLINE __m128i xx_loadu_128(const void *a) {
 // Since directly loading as `int64_t`s and using _mm_set_epi64 may violate
 // the strict aliasing rule, this takes a different approach
 static INLINE __m128i xx_loadu_2x64(const void *hi, const void *lo) {
-  return _mm_unpacklo_epi64(_mm_loadu_si64(lo), _mm_loadu_si64(hi));
+  return _mm_unpacklo_epi64(_mm_loadl_epi64((const __m128i *)lo),
+                            _mm_loadl_epi64((const __m128i *)hi));
 }
 
 static INLINE void xx_storel_32(void *const a, const __m128i v) {
