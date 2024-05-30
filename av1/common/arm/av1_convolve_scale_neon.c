@@ -227,25 +227,51 @@ void av1_convolve_2d_scale_neon(const uint8_t *src, int src_stride,
       im_h, filter_params_x->filter_ptr, subpel_x_qn, x_step_qn);
 
   // Vertical filter
-  if (UNLIKELY(conv_params->is_compound)) {
-    if (conv_params->do_average) {
-      if (conv_params->use_dist_wtd_comp_avg) {
-        compound_dist_wtd_convolve_vert_scale_neon(
-            im_block, im_stride, dst, dst_stride, dst16, dst16_stride, w, h,
-            filter_params_y->filter_ptr, conv_params, subpel_y_qn, y_step_qn);
+  if (filter_params_y->interp_filter == MULTITAP_SHARP) {
+    if (UNLIKELY(conv_params->is_compound)) {
+      if (conv_params->do_average) {
+        if (conv_params->use_dist_wtd_comp_avg) {
+          compound_dist_wtd_convolve_vert_scale_8tap_neon(
+              im_block, im_stride, dst, dst_stride, dst16, dst16_stride, w, h,
+              filter_params_y->filter_ptr, conv_params, subpel_y_qn, y_step_qn);
+        } else {
+          compound_avg_convolve_vert_scale_8tap_neon(
+              im_block, im_stride, dst, dst_stride, dst16, dst16_stride, w, h,
+              filter_params_y->filter_ptr, subpel_y_qn, y_step_qn);
+        }
       } else {
-        compound_avg_convolve_vert_scale_neon(
-            im_block, im_stride, dst, dst_stride, dst16, dst16_stride, w, h,
+        compound_convolve_vert_scale_8tap_neon(
+            im_block, im_stride, dst16, dst16_stride, w, h,
             filter_params_y->filter_ptr, subpel_y_qn, y_step_qn);
       }
     } else {
-      compound_convolve_vert_scale_neon(
-          im_block, im_stride, dst16, dst16_stride, w, h,
-          filter_params_y->filter_ptr, subpel_y_qn, y_step_qn);
+      convolve_vert_scale_8tap_neon(im_block, im_stride, dst, dst_stride, w, h,
+                                    filter_params_y->filter_ptr, subpel_y_qn,
+                                    y_step_qn);
     }
   } else {
-    convolve_vert_scale_neon(im_block, im_stride, dst, dst_stride, w, h,
-                             filter_params_y->filter_ptr, subpel_y_qn,
-                             y_step_qn);
+    if (UNLIKELY(conv_params->is_compound)) {
+      if (conv_params->do_average) {
+        if (conv_params->use_dist_wtd_comp_avg) {
+          compound_dist_wtd_convolve_vert_scale_6tap_neon(
+              im_block + im_stride, im_stride, dst, dst_stride, dst16,
+              dst16_stride, w, h, filter_params_y->filter_ptr, conv_params,
+              subpel_y_qn, y_step_qn);
+        } else {
+          compound_avg_convolve_vert_scale_6tap_neon(
+              im_block + im_stride, im_stride, dst, dst_stride, dst16,
+              dst16_stride, w, h, filter_params_y->filter_ptr, subpel_y_qn,
+              y_step_qn);
+        }
+      } else {
+        compound_convolve_vert_scale_6tap_neon(
+            im_block + im_stride, im_stride, dst16, dst16_stride, w, h,
+            filter_params_y->filter_ptr, subpel_y_qn, y_step_qn);
+      }
+    } else {
+      convolve_vert_scale_6tap_neon(
+          im_block + im_stride, im_stride, dst, dst_stride, w, h,
+          filter_params_y->filter_ptr, subpel_y_qn, y_step_qn);
+    }
   }
 }
