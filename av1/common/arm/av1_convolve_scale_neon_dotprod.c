@@ -19,6 +19,13 @@
 #include "aom_dsp/arm/transpose_neon.h"
 #include "av1/common/arm/convolve_scale_neon.h"
 
+// clang-format off
+DECLARE_ALIGNED(16, static const uint8_t, kScale2DotProdPermuteTbl[32]) = {
+  0, 1, 2, 3, 2, 3, 4, 5, 4, 5,  6,  7,  6,  7,  8,  9,
+  4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 10, 11, 10, 11, 12, 13
+};
+// clang-format on
+
 static INLINE int16x4_t convolve8_4_h(const uint8x8_t s0, const uint8x8_t s1,
                                       const uint8x8_t s2, const uint8x8_t s3,
                                       const int8x8_t filter,
@@ -173,6 +180,140 @@ static INLINE void convolve_horiz_scale_neon_dotprod(
   }
 }
 
+static INLINE int16x4_t convolve8_4_h_scale_2(uint8x16_t samples,
+                                              const int8x8_t filters,
+                                              const int32x4_t horiz_const,
+                                              const uint8x16x2_t permute_tbl) {
+  // Transform sample range to [-128, 127] for 8-bit signed dot product.
+  int8x16_t samples_128 =
+      vreinterpretq_s8_u8(vsubq_u8(samples, vdupq_n_u8(128)));
+
+  // Permute samples ready for dot product.
+  // { 0, 1, 2, 3, 2, 3, 4, 5, 4, 5,  6,  7,  6,  7,  8,  9 }
+  // { 4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 10, 11, 10, 11, 12, 13 }
+  int8x16_t perm_samples[2] = { vqtbl1q_s8(samples_128, permute_tbl.val[0]),
+                                vqtbl1q_s8(samples_128, permute_tbl.val[1]) };
+
+  int32x4_t sum = vdotq_lane_s32(horiz_const, perm_samples[0], filters, 0);
+  sum = vdotq_lane_s32(sum, perm_samples[1], filters, 1);
+
+  // We halved the filter values so -1 from right shift.
+  return vshrn_n_s32(sum, ROUND0_BITS - 1);
+}
+
+static INLINE int16x8_t convolve8_8_h_scale_2(uint8x16_t samples[2],
+                                              const int8x8_t filters,
+                                              const int32x4_t horiz_const,
+                                              const uint8x16x2_t permute_tbl) {
+  // Transform sample range to [-128, 127] for 8-bit signed dot product.
+  int8x16_t samples0_128 =
+      vreinterpretq_s8_u8(vsubq_u8(samples[0], vdupq_n_u8(128)));
+  int8x16_t samples1_128 =
+      vreinterpretq_s8_u8(vsubq_u8(samples[1], vdupq_n_u8(128)));
+
+  // Permute samples ready for dot product.
+  // { 0, 1, 2, 3, 2, 3, 4, 5, 4, 5,  6,  7,  6,  7,  8,  9 }
+  // { 4, 5, 6, 7, 6, 7, 8, 9, 8, 9, 10, 11, 10, 11, 12, 13 }
+  int8x16_t perm_samples[4] = { vqtbl1q_s8(samples0_128, permute_tbl.val[0]),
+                                vqtbl1q_s8(samples0_128, permute_tbl.val[1]),
+                                vqtbl1q_s8(samples1_128, permute_tbl.val[0]),
+                                vqtbl1q_s8(samples1_128, permute_tbl.val[1]) };
+
+  // First 4 output values.
+  int32x4_t sum0123 = vdotq_lane_s32(horiz_const, perm_samples[0], filters, 0);
+  sum0123 = vdotq_lane_s32(sum0123, perm_samples[1], filters, 1);
+  // Second 4 output values.
+  int32x4_t sum4567 = vdotq_lane_s32(horiz_const, perm_samples[2], filters, 0);
+  sum4567 = vdotq_lane_s32(sum4567, perm_samples[3], filters, 1);
+
+  // We halved the filter values so -1 from right shift.
+  return vcombine_s16(vshrn_n_s32(sum0123, ROUND0_BITS - 1),
+                      vshrn_n_s32(sum4567, ROUND0_BITS - 1));
+}
+
+static INLINE void convolve_horiz_scale_2_neon_dotprod(
+    const uint8_t *src, int src_stride, int16_t *dst, int dst_stride, int w,
+    int h, const int16_t *x_filter) {
+  const int bd = 8;
+  // A shim of 1 << (ROUND0_BITS - 1) enables us to use non-rounding
+  // shifts - which are generally faster than rounding shifts on modern CPUs.
+  const int32_t horiz_offset =
+      (1 << (bd + FILTER_BITS - 1)) + (1 << (ROUND0_BITS - 1));
+  // The shim of 128 << FILTER_BITS is needed because we are subtracting 128
+  // from every source value.
+  const int32_t dotprod_offset = 128 << FILTER_BITS;
+  // Divide the total by 2 because we halved the filter values.
+  const int32x4_t horiz_offset_vec =
+      vdupq_n_s32((horiz_offset + dotprod_offset) >> 1);
+
+  const uint8x16x2_t permute_tbl = vld1q_u8_x2(kScale2DotProdPermuteTbl);
+  // Filter values are all even so halve them to fit in int8_t.
+  const int8x8_t filter = vshrn_n_s16(vld1q_s16(x_filter), 1);
+
+  if (w == 4) {
+    do {
+      const uint8_t *s = src;
+      int16_t *d = dst;
+      int width = w;
+
+      do {
+        uint8x16_t s0, s1, s2, s3;
+        load_u8_16x4(s, src_stride, &s0, &s1, &s2, &s3);
+
+        int16x4_t d0 =
+            convolve8_4_h_scale_2(s0, filter, horiz_offset_vec, permute_tbl);
+        int16x4_t d1 =
+            convolve8_4_h_scale_2(s1, filter, horiz_offset_vec, permute_tbl);
+        int16x4_t d2 =
+            convolve8_4_h_scale_2(s2, filter, horiz_offset_vec, permute_tbl);
+        int16x4_t d3 =
+            convolve8_4_h_scale_2(s3, filter, horiz_offset_vec, permute_tbl);
+
+        store_s16_4x4(d, dst_stride, d0, d1, d2, d3);
+
+        s += 8;
+        d += 4;
+        width -= 4;
+      } while (width != 0);
+
+      dst += 4 * dst_stride;
+      src += 4 * src_stride;
+      h -= 4;
+    } while (h > 0);
+  } else {
+    do {
+      const uint8_t *s = src;
+      int16_t *d = dst;
+      int width = w;
+
+      do {
+        uint8x16_t s0[2], s1[2], s2[2], s3[2];
+        load_u8_16x4(s, src_stride, &s0[0], &s1[0], &s2[0], &s3[0]);
+        load_u8_16x4(s + 8, src_stride, &s0[1], &s1[1], &s2[1], &s3[1]);
+
+        int16x8_t d0 =
+            convolve8_8_h_scale_2(s0, filter, horiz_offset_vec, permute_tbl);
+        int16x8_t d1 =
+            convolve8_8_h_scale_2(s1, filter, horiz_offset_vec, permute_tbl);
+        int16x8_t d2 =
+            convolve8_8_h_scale_2(s2, filter, horiz_offset_vec, permute_tbl);
+        int16x8_t d3 =
+            convolve8_8_h_scale_2(s3, filter, horiz_offset_vec, permute_tbl);
+
+        store_s16_8x4(d, dst_stride, d0, d1, d2, d3);
+
+        s += 16;
+        d += 8;
+        width -= 8;
+      } while (width != 0);
+
+      dst += 4 * dst_stride;
+      src += 4 * src_stride;
+      h -= 4;
+    } while (h > 0);
+  }
+}
+
 void av1_convolve_2d_scale_neon_dotprod(
     const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride, int w,
     int h, const InterpFilterParams *filter_params_x,
@@ -203,9 +344,29 @@ void av1_convolve_2d_scale_neon_dotprod(
   const ptrdiff_t vert_offset = (filter_params_y->taps / 2 - 1) * src_stride;
 
   // Horizontal filter
-  convolve_horiz_scale_neon_dotprod(
-      src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
-      im_h, filter_params_x->filter_ptr, subpel_x_qn, x_step_qn);
+  if (x_step_qn != 2 * (1 << SCALE_SUBPEL_BITS)) {
+    convolve_horiz_scale_neon_dotprod(
+        src - horiz_offset - vert_offset, src_stride, im_block, im_stride, w,
+        im_h, filter_params_x->filter_ptr, subpel_x_qn, x_step_qn);
+  } else {
+    assert(subpel_x_qn < (1 << SCALE_SUBPEL_BITS));
+    // The filter index is calculated using the
+    // ((subpel_x_qn + x * x_step_qn) & SCALE_SUBPEL_MASK) >> SCALE_EXTRA_BITS
+    // equation, where the values of x are from 0 to w. If x_step_qn is a
+    // multiple of SCALE_SUBPEL_MASK we can leave it out of the equation.
+    const ptrdiff_t filter_offset =
+        SUBPEL_TAPS * ((subpel_x_qn & SCALE_SUBPEL_MASK) >> SCALE_EXTRA_BITS);
+    const int16_t *x_filter = filter_params_x->filter_ptr + filter_offset;
+
+    // The source index is calculated using the (subpel_x_qn + x * x_step_qn) >>
+    // SCALE_SUBPEL_BITS, where the values of x are from 0 to w. If subpel_x_qn
+    // < (1 << SCALE_SUBPEL_BITS) and x_step_qn % (1 << SCALE_SUBPEL_BITS) == 0,
+    // the source index can be determined using the value x * (x_step_qn /
+    // (1 << SCALE_SUBPEL_BITS)).
+    convolve_horiz_scale_2_neon_dotprod(src - horiz_offset - vert_offset,
+                                        src_stride, im_block, im_stride, w,
+                                        im_h, x_filter);
+  }
 
   // Vertical filter
   if (filter_params_y->interp_filter == MULTITAP_SHARP) {
