@@ -11,13 +11,21 @@
 
 #include <assert.h>
 #include <arm_neon.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
+#include "aom_dsp/aom_dsp_common.h"
+#include "aom_dsp/aom_filter.h"
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/transpose_neon.h"
+#include "aom_ports/mem.h"
 #include "av1/common/arm/convolve_scale_neon.h"
+#include "av1/common/convolve.h"
+#include "av1/common/enums.h"
+#include "av1/common/filter.h"
 
 // clang-format off
 DECLARE_ALIGNED(16, static const uint8_t, kScale2DotProdPermuteTbl[32]) = {
