@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 typedef void (*LowBDResize_x_Func)(const uint8_t *const input, int in_stride,
                                    uint8_t *intbuf, int height,
-                                   int filteredlength, int width2);
+                                   int filtered_length, int width2);
 
 typedef tuple<LowBDResize_x_Func, FrameDimension> Resize_x_TestParams;
 
