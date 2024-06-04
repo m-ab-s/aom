@@ -33,6 +33,7 @@
 #include "av1/encoder/encoder_utils.h"
 #include "av1/encoder/encode_strategy.h"
 #include "av1/encoder/gop_structure.h"
+#include "av1/encoder/mcomp.h"
 #include "av1/encoder/random.h"
 #include "av1/encoder/ratectrl.h"
 
@@ -3017,6 +3018,80 @@ static int set_block_is_active(unsigned char *const active_map_4x4, int mi_cols,
   return 0;
 }
 
+// Returns the best sad for column or row motion of the superblock.
+static unsigned int estimate_scroll_motion(
+    const AV1_COMP *cpi, uint8_t *src_buf, uint8_t *last_src_buf,
+    int src_stride, int ref_stride, BLOCK_SIZE bsize, int pos_col, int pos_row,
+    int *best_intmv_col, int *best_intmv_row) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+  const int full_search = 1;
+  // Keep border a multiple of 16.
+  const int border = (cpi->oxcf.border_in_pixels >> 4) << 4;
+  // Make search_size_height larger to capture more common vertical scroll.
+  // Increase the search if last two frames were dropped.
+  // Values set based on screen test set.
+  int search_size_width = 96;
+  int search_size_height = cpi->rc.drop_count_consec > 1 ? 224 : 192;
+  // Adjust based on boundary.
+  if ((pos_col - search_size_width < -border) ||
+      (pos_col + search_size_width > cm->width + border))
+    search_size_width = border;
+  if ((pos_row - search_size_height < -border) ||
+      (pos_row + search_size_height > cm->height + border))
+    search_size_height = border;
+  const uint8_t *ref_buf;
+  const int row_norm_factor = mi_size_high_log2[bsize] + 1;
+  const int col_norm_factor = 3 + (bw >> 5);
+  const int ref_buf_width = (search_size_width << 1) + bw;
+  const int ref_buf_height = (search_size_height << 1) + bh;
+  int16_t *hbuf = (int16_t *)aom_malloc(ref_buf_width * sizeof(*hbuf));
+  int16_t *vbuf = (int16_t *)aom_malloc(ref_buf_height * sizeof(*vbuf));
+  int16_t *src_hbuf = (int16_t *)aom_malloc(bw * sizeof(*src_hbuf));
+  int16_t *src_vbuf = (int16_t *)aom_malloc(bh * sizeof(*src_vbuf));
+  if (!hbuf || !vbuf || !src_hbuf || !src_vbuf) {
+    aom_free(hbuf);
+    aom_free(vbuf);
+    aom_free(src_hbuf);
+    aom_free(src_vbuf);
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate hbuf, vbuf, src_hbuf, or src_vbuf");
+  }
+  // Set up prediction 1-D reference set for rows.
+  ref_buf = last_src_buf - search_size_width;
+  aom_int_pro_row(hbuf, ref_buf, ref_stride, ref_buf_width, bh,
+                  row_norm_factor);
+  // Set up prediction 1-D reference set for cols
+  ref_buf = last_src_buf - search_size_height * ref_stride;
+  aom_int_pro_col(vbuf, ref_buf, ref_stride, bw, ref_buf_height,
+                  col_norm_factor);
+  // Set up src 1-D reference set
+  aom_int_pro_row(src_hbuf, src_buf, src_stride, bw, bh, row_norm_factor);
+  aom_int_pro_col(src_vbuf, src_buf, src_stride, bw, bh, col_norm_factor);
+  unsigned int best_sad;
+  int best_sad_col, best_sad_row;
+  // Find the best match per 1-D search
+  *best_intmv_col =
+      av1_vector_match(hbuf, src_hbuf, mi_size_wide_log2[bsize],
+                       search_size_width, full_search, &best_sad_col);
+  *best_intmv_row =
+      av1_vector_match(vbuf, src_vbuf, mi_size_high_log2[bsize],
+                       search_size_height, full_search, &best_sad_row);
+  if (best_sad_col < best_sad_row) {
+    *best_intmv_row = 0;
+    best_sad = best_sad_col;
+  } else {
+    *best_intmv_col = 0;
+    best_sad = best_sad_row;
+  }
+  aom_free(hbuf);
+  aom_free(vbuf);
+  aom_free(src_hbuf);
+  aom_free(src_vbuf);
+  return best_sad;
+}
+
 /*!\brief Check for scene detection, for 1 pass real-time mode.
  *
  * Compute average source sad (temporal sad: between current source and
@@ -3184,6 +3259,49 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   if (num_samples > 0)
     rc->percent_blocks_with_motion =
         ((num_samples - num_zero_temp_sad) * 100) / num_samples;
+  // Update the high_motion_screen_content flag on TL0. Avoid the update
+  // if too many consecutive frame drops occurred.
+  const uint64_t thresh_high_motion = 9 * 64 * 64;
+  if (cpi->svc.temporal_layer_id == 0 && rc->drop_count_consec < 3) {
+    cpi->rc.high_motion_screen_content = 0;
+    if (cpi->oxcf.speed >= 11 &&
+        cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        rc->percent_blocks_with_motion > 40 &&
+        rc->prev_avg_source_sad > thresh_high_motion &&
+        rc->avg_source_sad > thresh_high_motion &&
+        rc->avg_frame_low_motion < 60 && unscaled_src->y_width >= 1280 &&
+        unscaled_src->y_height >= 720) {
+      cpi->rc.high_motion_screen_content = 1;
+      // Compute fast coarse/global motion for 128x128 superblock centered
+      // at middle of frames, to determine if motion is scroll.
+      int pos_col = (unscaled_src->y_width >> 1) - 64;
+      int pos_row = (unscaled_src->y_height >> 1) - 64;
+      src_y = unscaled_src->y_buffer + pos_row * src_ystride + pos_col;
+      last_src_y =
+          unscaled_last_src->y_buffer + pos_row * last_src_ystride + pos_col;
+      int best_intmv_col = 0;
+      int best_intmv_row = 0;
+      unsigned int y_sad = estimate_scroll_motion(
+          cpi, src_y, last_src_y, src_ystride, last_src_ystride, BLOCK_128X128,
+          pos_col, pos_row, &best_intmv_col, &best_intmv_row);
+      if (y_sad < 100 && (abs(best_intmv_col) > 16 || abs(best_intmv_row) > 16))
+        cpi->rc.high_motion_screen_content = 0;
+    }
+    // Pass the flag value to all layer frames.
+    if (cpi->svc.number_spatial_layers > 1 ||
+        cpi->svc.number_temporal_layers > 1) {
+      SVC *svc = &cpi->svc;
+      for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
+        for (int tl = 1; tl < svc->number_temporal_layers; ++tl) {
+          const int layer =
+              LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
+          LAYER_CONTEXT *lc = &svc->layer_context[layer];
+          RATE_CONTROL *lrc = &lc->rc;
+          lrc->high_motion_screen_content = rc->high_motion_screen_content;
+        }
+      }
+    }
+  }
   // Scene detection is only on base SLO, and using full/orignal resolution.
   // Pass the state to the upper spatial layers.
   if (cpi->svc.number_spatial_layers > 1) {

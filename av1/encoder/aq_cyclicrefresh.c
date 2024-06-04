@@ -439,7 +439,8 @@ void av1_cyclic_refresh_update_parameters(AV1_COMP *const cpi) {
   // should we enable cyclic refresh on this frame.
   cr->apply_cyclic_refresh = 1;
   if (frame_is_intra_only(cm) || is_lossless_requested(&cpi->oxcf.rc_cfg) ||
-      scene_change_detected || svc->temporal_layer_id > 0 ||
+      cpi->rc.high_motion_screen_content || scene_change_detected ||
+      svc->temporal_layer_id > 0 ||
       svc->prev_number_spatial_layers != svc->number_spatial_layers ||
       p_rc->avg_frame_qindex[INTER_FRAME] < qp_thresh ||
       (svc->number_spatial_layers > 1 &&

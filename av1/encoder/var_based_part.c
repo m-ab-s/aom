@@ -627,14 +627,12 @@ static AOM_INLINE void tune_thresh_based_on_resolution(
   }
 }
 
-// Increase partition thresholds for noisy content. Apply it only for
-// superblocks where sumdiff is low, as we assume the sumdiff of superblock
-// whose only change is due to noise will be low (i.e, noise will average
-// out over large block).
-static AOM_INLINE int64_t tune_thresh_noisy_content(AV1_COMP *cpi,
-                                                    int64_t threshold_base,
-                                                    int content_lowsumdiff,
-                                                    int num_pixels) {
+// Increase the base partition threshold, based on content and noise level.
+static AOM_INLINE int64_t tune_base_thresh_content(AV1_COMP *cpi,
+                                                   int64_t threshold_base,
+                                                   int content_lowsumdiff,
+                                                   int source_sad_nonrd,
+                                                   int num_pixels) {
   AV1_COMMON *const cm = &cpi->common;
   int64_t updated_thresh_base = threshold_base;
   if (cpi->noise_estimate.enabled && content_lowsumdiff &&
@@ -647,23 +645,12 @@ static AOM_INLINE int64_t tune_thresh_noisy_content(AV1_COMP *cpi,
              !cpi->sf.rt_sf.prefer_large_partition_blocks)
       updated_thresh_base = (5 * updated_thresh_base) >> 2;
   }
-  // TODO(kyslov) Enable var based partition adjusment on temporal denoising
-#if 0  // CONFIG_AV1_TEMPORAL_DENOISING
-  if (cpi->oxcf.noise_sensitivity > 0 && denoise_svc(cpi) &&
-      cpi->oxcf.speed > 5 && cpi->denoiser.denoising_level >= kDenLow)
-      updated_thresh_base =
-          av1_scale_part_thresh(updated_thresh_base, cpi->denoiser.denoising_level,
-                                content_state, cpi->svc.temporal_layer_id);
-  else
-    threshold_base =
-        scale_part_thresh_content(updated_thresh_base, cpi->oxcf.speed, cm->width,
-                                  cm->height, cpi->ppi->rtc_ref.non_reference_frame);
-#else
-  // Increase base variance threshold based on content_state/sum_diff level.
   updated_thresh_base = scale_part_thresh_content(
       updated_thresh_base, cpi->oxcf.speed, cm->width, cm->height,
       cpi->ppi->rtc_ref.non_reference_frame);
-#endif
+  if (cpi->oxcf.speed >= 11 && source_sad_nonrd > kLowSad &&
+      cpi->rc.high_motion_screen_content)
+    updated_thresh_base = updated_thresh_base << 5;
   return updated_thresh_base;
 }
 
@@ -686,8 +673,8 @@ static AOM_INLINE void set_vbp_thresholds(
     return;
   }
 
-  threshold_base = tune_thresh_noisy_content(cpi, threshold_base,
-                                             content_lowsumdiff, num_pixels);
+  threshold_base = tune_base_thresh_content(
+      cpi, threshold_base, content_lowsumdiff, source_sad_nonrd, num_pixels);
   thresholds[0] = threshold_base >> 1;
   thresholds[1] = threshold_base;
   thresholds[3] = threshold_base << threshold_left_shift;

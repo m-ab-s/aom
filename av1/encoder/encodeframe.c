@@ -545,7 +545,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
     BLOCK_SIZE bsize_select = sf->part_sf.fixed_partition_size;
     if (sf->rt_sf.use_fast_fixed_part &&
         x->content_state_sb.source_sad_nonrd < kLowSad) {
-      bsize_select = BLOCK_64X64;
+      bsize_select = cm->seq_params->sb_size;
     }
     const BLOCK_SIZE bsize = seg_skip ? sb_size : bsize_select;
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
