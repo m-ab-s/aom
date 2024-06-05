@@ -2641,7 +2641,7 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
         AOMMIN(fast_extra_bits,
                AOMMAX(one_frame_bits / 8, p_rc->vbr_bits_off_target_fast / 8));
 #endif
-    fast_extra_bits = (fast_extra_bits < INT_MAX) ? fast_extra_bits : INT_MAX;
+    fast_extra_bits = AOMMIN(fast_extra_bits, INT_MAX);
     if (fast_extra_bits > 0) {
       // Update frame_target only if additional bits are available from
       // local undershoot.
@@ -2656,7 +2656,7 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
   }
 
   // Clamp the target for the frame to the maximum allowed for one frame.
-  *this_frame_target = (int)((frame_target < INT_MAX) ? frame_target : INT_MAX);
+  *this_frame_target = (int)AOMMIN(frame_target, INT_MAX);
 }
 
 void av1_set_target_rate(AV1_COMP *cpi, int width, int height) {

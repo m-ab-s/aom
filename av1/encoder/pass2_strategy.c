@@ -18,8 +18,10 @@
 /*! @} - end defgroup gf_group_algo */
 
 #include <assert.h>
+#include <limits.h>
 #include <stdint.h>
 
+#include "aom_dsp/aom_dsp_common.h"
 #include "aom_mem/aom_mem.h"
 #include "config/aom_config.h"
 #include "config/aom_scale_rtcd.h"
@@ -3408,9 +3410,7 @@ static int get_section_target_bandwidth(AV1_COMP *cpi) {
     section_target_bandwidth = rc->avg_frame_bandwidth;
   else {
     section_target_bandwidth = twopass->bits_left / frames_left;
-    section_target_bandwidth = (section_target_bandwidth < INT_MAX)
-                                   ? section_target_bandwidth
-                                   : INT_MAX;
+    section_target_bandwidth = AOMMIN(section_target_bandwidth, INT_MAX);
   }
   return (int)section_target_bandwidth;
 }
