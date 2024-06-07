@@ -12,6 +12,7 @@
     * aomedia:3561: libaom-3.8.2 armv7 Android build failed
     * aomedia:3580: Allow g_timebase.num to be greater than
       g_timebase.den
+    * Arm SVE build fixes.
     * av1_block_error_lp_neon: fix block_size param type
 
 2024-03-08 v3.8.2
