@@ -310,10 +310,8 @@ static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
         return AOM_CODEC_UNSUP_BITSTREAM;
       }
 
-      if (parse_operating_points(&rb, reduced_still_picture_hdr, si) !=
-          AOM_CODEC_OK) {
-        return AOM_CODEC_ERROR;
-      }
+      status = parse_operating_points(&rb, reduced_still_picture_hdr, si);
+      if (status != AOM_CODEC_OK) return status;
 
       int num_bits_width = aom_rb_read_literal(&rb, 4) + 1;
       int num_bits_height = aom_rb_read_literal(&rb, 4) + 1;
