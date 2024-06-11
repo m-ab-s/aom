@@ -1212,6 +1212,8 @@ static AOM_INLINE void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     x->sb_me_mv.as_int = 0;
     x->sb_force_fixed_part = 1;
     x->color_palette_thresh = 64;
+    x->nonrd_prune_ref_frame_search =
+        cpi->sf.rt_sf.nonrd_prune_ref_frame_search;
 
     if (cpi->oxcf.mode == ALLINTRA) {
       x->intra_sb_rdmult_modifier = 128;
