@@ -4177,6 +4177,11 @@ static INLINE void lowbd_inv_txfm2d_add_universe_neon(
   }
 }
 
+// This function is used by av1_inv_txfm2d_test.cc.
+void av1_lowbd_inv_txfm2d_add_neon(const int32_t *input, uint8_t *output,
+                                   int stride, TX_TYPE tx_type, TX_SIZE tx_size,
+                                   int eob);
+
 void av1_lowbd_inv_txfm2d_add_neon(const int32_t *input, uint8_t *output,
                                    int stride, TX_TYPE tx_type, TX_SIZE tx_size,
                                    int eob) {
