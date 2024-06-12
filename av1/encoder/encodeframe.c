@@ -1008,12 +1008,16 @@ static AOM_INLINE uint64_t get_sb_source_sad(const AV1_COMP *cpi, int mi_row,
   const int blk_64x64_col_index = mi_col / blk_64x64_in_mis;
   const int blk_64x64_row_index = mi_row / blk_64x64_in_mis;
   uint64_t curr_sb_sad = UINT64_MAX;
+  // Avoid the border as sad_blk_64x64 may not be set for the border
+  // in the scene detection.
+  if ((blk_64x64_row_index >= num_blk_64x64_rows - 1) ||
+      (blk_64x64_col_index >= num_blk_64x64_cols - 1)) {
+    return curr_sb_sad;
+  }
   const uint64_t *const src_sad_blk_64x64_data =
       &cpi->src_sad_blk_64x64[blk_64x64_col_index +
                               blk_64x64_row_index * num_blk_64x64_cols];
-  if (cm->seq_params->sb_size == BLOCK_128X128 &&
-      blk_64x64_col_index + 1 < num_blk_64x64_cols &&
-      blk_64x64_row_index + 1 < num_blk_64x64_rows) {
+  if (cm->seq_params->sb_size == BLOCK_128X128) {
     // Calculate SB source SAD by accumulating source SAD of 64x64 blocks in the
     // superblock
     curr_sb_sad = src_sad_blk_64x64_data[0] + src_sad_blk_64x64_data[1] +
