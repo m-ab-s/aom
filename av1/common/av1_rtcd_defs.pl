@@ -98,7 +98,7 @@ if ($opts{arch} eq "x86_64") {
 }
 
 add_proto qw/void av1_convolve_horiz_rs/, "const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride, int w, int h, const int16_t *x_filters, int x0_qn, int x_step_qn";
-specialize qw/av1_convolve_horiz_rs sse4_1/;
+specialize qw/av1_convolve_horiz_rs sse4_1 neon/;
 
 if(aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   add_proto qw/void av1_highbd_convolve_horiz_rs/, "const uint16_t *src, int src_stride, uint16_t *dst, int dst_stride, int w, int h, const int16_t *x_filters, int x0_qn, int x_step_qn, int bd";

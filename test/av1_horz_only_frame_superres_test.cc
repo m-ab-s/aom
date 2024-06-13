@@ -301,6 +301,11 @@ TEST_P(LowBDConvolveHorizRSTest, DISABLED_Speed) { SpeedTest(); }
 INSTANTIATE_TEST_SUITE_P(C, LowBDConvolveHorizRSTest,
                          ::testing::Values(av1_convolve_horiz_rs_c));
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, LowBDConvolveHorizRSTest,
+                         ::testing::Values(av1_convolve_horiz_rs_neon));
+#endif
+
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(SSE4_1, LowBDConvolveHorizRSTest,
                          ::testing::Values(av1_convolve_horiz_rs_sse4_1));
