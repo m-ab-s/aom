@@ -3558,7 +3558,7 @@ typedef struct {
 // Initialize OBU header for large scale tile case.
 static uint32_t init_large_scale_tile_obu_header(
     AV1_COMP *const cpi, uint8_t **data, struct aom_write_bit_buffer *saved_wb,
-    LargeTileFrameOBU *lst_obu) {
+    uint8_t obu_extension_header, LargeTileFrameOBU *lst_obu) {
   AV1LevelParams *const level_params = &cpi->ppi->level_params;
   CurrentFrame *const current_frame = &cpi->common.current_frame;
   // For large_scale_tile case, we always have only one tile group, so it can
@@ -3566,7 +3566,8 @@ static uint32_t init_large_scale_tile_obu_header(
   const OBU_TYPE obu_type = OBU_FRAME;
   lst_obu->tg_hdr_size = av1_write_obu_header(
       level_params, &cpi->frame_header_count, obu_type,
-      cpi->common.seq_params->has_nonzero_operating_point_idc, 0, *data);
+      cpi->common.seq_params->has_nonzero_operating_point_idc,
+      obu_extension_header, *data);
   *data += lst_obu->tg_hdr_size;
 
   const uint32_t frame_header_size =
@@ -3724,7 +3725,8 @@ static void write_large_scale_tile_obu(
 // Packs information in the obu header for large scale tiles.
 static INLINE uint32_t pack_large_scale_tiles_in_tg_obus(
     AV1_COMP *const cpi, uint8_t *const dst,
-    struct aom_write_bit_buffer *saved_wb, int *const largest_tile_id) {
+    struct aom_write_bit_buffer *saved_wb, uint8_t obu_extension_header,
+    int *const largest_tile_id) {
   AV1_COMMON *const cm = &cpi->common;
   const CommonTileParams *const tiles = &cm->tiles;
   uint32_t total_size = 0;
@@ -3735,8 +3737,8 @@ static INLINE uint32_t pack_large_scale_tiles_in_tg_obus(
 
   LargeTileFrameOBU lst_obu;
 
-  total_size +=
-      init_large_scale_tile_obu_header(cpi, &data, saved_wb, &lst_obu);
+  total_size += init_large_scale_tile_obu_header(
+      cpi, &data, saved_wb, obu_extension_header, &lst_obu);
 
   write_large_scale_tile_obu(cpi, dst, &lst_obu, largest_tile_id, &total_size,
                              have_tiles, &max_tile_size, &max_tile_col_size);
@@ -4128,8 +4130,8 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
   }
 
   if (tiles->large_scale)
-    return pack_large_scale_tiles_in_tg_obus(cpi, dst, saved_wb,
-                                             largest_tile_id);
+    return pack_large_scale_tiles_in_tg_obus(
+        cpi, dst, saved_wb, obu_extension_header, largest_tile_id);
 
   return pack_tiles_in_tg_obus(cpi, dst, saved_wb, obu_extension_header,
                                fh_info, largest_tile_id);
