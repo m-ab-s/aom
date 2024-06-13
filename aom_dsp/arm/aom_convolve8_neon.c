@@ -37,12 +37,12 @@ static INLINE int16x4_t convolve8_4(const int16x4_t s0, const int16x4_t s1,
   int16x4_t sum = vmul_lane_s16(s0, filter_lo, 0);
   sum = vmla_lane_s16(sum, s1, filter_lo, 1);
   sum = vmla_lane_s16(sum, s2, filter_lo, 2);
+  sum = vmla_lane_s16(sum, s3, filter_lo, 3);
+  sum = vmla_lane_s16(sum, s4, filter_hi, 0);
   sum = vmla_lane_s16(sum, s5, filter_hi, 1);
   sum = vmla_lane_s16(sum, s6, filter_hi, 2);
   sum = vmla_lane_s16(sum, s7, filter_hi, 3);
 
-  sum = vqadd_s16(sum, vmul_lane_s16(s3, filter_lo, 3));
-  sum = vqadd_s16(sum, vmul_lane_s16(s4, filter_hi, 0));
   return sum;
 }
 
@@ -57,13 +57,14 @@ static INLINE uint8x8_t convolve8_8(const int16x8_t s0, const int16x8_t s1,
   int16x8_t sum = vmulq_lane_s16(s0, filter_lo, 0);
   sum = vmlaq_lane_s16(sum, s1, filter_lo, 1);
   sum = vmlaq_lane_s16(sum, s2, filter_lo, 2);
+  sum = vmlaq_lane_s16(sum, s3, filter_lo, 3);
+  sum = vmlaq_lane_s16(sum, s4, filter_hi, 0);
   sum = vmlaq_lane_s16(sum, s5, filter_hi, 1);
   sum = vmlaq_lane_s16(sum, s6, filter_hi, 2);
   sum = vmlaq_lane_s16(sum, s7, filter_hi, 3);
 
-  sum = vqaddq_s16(sum, vmulq_lane_s16(s3, filter_lo, 3));
-  sum = vqaddq_s16(sum, vmulq_lane_s16(s4, filter_hi, 0));
-  return vqrshrun_n_s16(sum, FILTER_BITS);
+  // We halved the filter values so -1 from right shift.
+  return vqrshrun_n_s16(sum, FILTER_BITS - 1);
 }
 
 static INLINE void convolve8_horiz_8tap_neon(const uint8_t *src,
@@ -71,7 +72,9 @@ static INLINE void convolve8_horiz_8tap_neon(const uint8_t *src,
                                              ptrdiff_t dst_stride,
                                              const int16_t *filter_x, int w,
                                              int h) {
-  const int16x8_t filter = vld1q_s16(filter_x);
+  // All filter values are even so halve them to reduce intermediate precision
+  // requirements.
+  const int16x8_t filter = vshrq_n_s16(vld1q_s16(filter_x), 1);
 
   if (h == 4) {
     uint8x8_t t0, t1, t2, t3;
@@ -101,8 +104,9 @@ static INLINE void convolve8_horiz_8tap_neon(const uint8_t *src,
       int16x4_t d1 = convolve8_4(s1, s2, s3, s4, s5, s6, s7, s8, filter);
       int16x4_t d2 = convolve8_4(s2, s3, s4, s5, s6, s7, s8, s9, filter);
       int16x4_t d3 = convolve8_4(s3, s4, s5, s6, s7, s8, s9, s10, filter);
-      uint8x8_t d01 = vqrshrun_n_s16(vcombine_s16(d0, d1), FILTER_BITS);
-      uint8x8_t d23 = vqrshrun_n_s16(vcombine_s16(d2, d3), FILTER_BITS);
+      // We halved the filter values so -1 from right shift.
+      uint8x8_t d01 = vqrshrun_n_s16(vcombine_s16(d0, d1), FILTER_BITS - 1);
+      uint8x8_t d23 = vqrshrun_n_s16(vcombine_s16(d2, d3), FILTER_BITS - 1);
 
       transpose_elems_inplace_u8_4x4(&d01, &d23);
 
@@ -334,7 +338,9 @@ static INLINE void convolve8_vert_8tap_neon(const uint8_t *src,
                                             ptrdiff_t dst_stride,
                                             const int16_t *filter_y, int w,
                                             int h) {
-  const int16x8_t filter = vld1q_s16(filter_y);
+  // All filter values are even so halve them to reduce intermediate precision
+  // requirements.
+  const int16x8_t filter = vshrq_n_s16(vld1q_s16(filter_y), 1);
 
   if (w == 4) {
     uint8x8_t t0, t1, t2, t3, t4, t5, t6;
@@ -362,8 +368,9 @@ static INLINE void convolve8_vert_8tap_neon(const uint8_t *src,
       int16x4_t d1 = convolve8_4(s1, s2, s3, s4, s5, s6, s7, s8, filter);
       int16x4_t d2 = convolve8_4(s2, s3, s4, s5, s6, s7, s8, s9, filter);
       int16x4_t d3 = convolve8_4(s3, s4, s5, s6, s7, s8, s9, s10, filter);
-      uint8x8_t d01 = vqrshrun_n_s16(vcombine_s16(d0, d1), FILTER_BITS);
-      uint8x8_t d23 = vqrshrun_n_s16(vcombine_s16(d2, d3), FILTER_BITS);
+      // We halved the filter values so -1 from right shift.
+      uint8x8_t d01 = vqrshrun_n_s16(vcombine_s16(d0, d1), FILTER_BITS - 1);
+      uint8x8_t d23 = vqrshrun_n_s16(vcombine_s16(d2, d3), FILTER_BITS - 1);
 
       store_u8x4_strided_x2(dst + 0 * dst_stride, dst_stride, d01);
       store_u8x4_strided_x2(dst + 2 * dst_stride, dst_stride, d23);
