@@ -558,7 +558,6 @@ void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
     int i = 0;
     assert(seq->operating_points_cnt_minus_1 ==
            (int)(ppi->number_spatial_layers * ppi->number_temporal_layers - 1));
-    seq->has_nonzero_operating_point_idc = true;
     for (unsigned int sl = 0; sl < ppi->number_spatial_layers; sl++) {
       for (unsigned int tl = 0; tl < ppi->number_temporal_layers; tl++) {
         seq->operating_point_idc[i] =
@@ -568,6 +567,7 @@ void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
         i++;
       }
     }
+    seq->has_nonzero_operating_point_idc = true;
   }
 }
 
@@ -5393,7 +5393,6 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_PRIMARY *ppi) {
 
   if (av1_write_obu_header(&ppi->level_params, &ppi->cpi->frame_header_count,
                            OBU_SEQUENCE_HEADER,
-                           /*is_layer_specific_obu=*/false,
                            ppi->seq_params.has_nonzero_operating_point_idc, 0,
                            &header_buf[0]) != obu_header_size) {
     return NULL;

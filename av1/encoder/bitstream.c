@@ -3356,10 +3356,8 @@ static int remux_tiles(const CommonTileParams *const tiles, uint8_t *dst,
 
 uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
                               int *frame_header_count, OBU_TYPE obu_type,
-                              bool is_layer_specific_obu,
                               bool has_nonzero_operating_point_idc,
                               int obu_extension, uint8_t *const dst) {
-  assert(IMPLIES(!is_layer_specific_obu, obu_extension == 0));
   assert(IMPLIES(!has_nonzero_operating_point_idc, obu_extension == 0));
 
   if (level_params->keep_level_stats &&
@@ -3368,8 +3366,30 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 
   struct aom_write_bit_buffer wb = { dst, 0 };
   uint32_t size = 0;
-  int obu_extension_flag =
-      has_nonzero_operating_point_idc && is_layer_specific_obu;
+
+  // The AV1 spec Version 1.0.0 with Errata 1 has the following requirements on
+  // the OBU extension header:
+  //
+  // 6.4.1. General sequence header OBU semantics:
+  //   It is a requirement of bitstream conformance that if OperatingPointIdc
+  //   is equal to 0, then obu_extension_flag is equal to 0 for all OBUs that
+  //   follow this sequence header until the next sequence header.
+  //
+  // 7.5. Ordering of OBUs:
+  //   If a coded video sequence contains at least one enhancement layer (OBUs
+  //   with spatial_id greater than 0 or temporal_id greater than 0) then all
+  //   frame headers and tile group OBUs associated with base (spatial_id
+  //   equals 0 and temporal_id equals 0) and enhancement layer (spatial_id
+  //   greater than 0 or temporal_id greater than 0) data must include the OBU
+  //   extension header.
+  //
+  // Set obu_extension_flag to satisfy these requirements.
+  int obu_extension_flag = 0;
+  if (has_nonzero_operating_point_idc) {
+    obu_extension_flag =
+        (obu_type == OBU_FRAME_HEADER || obu_type == OBU_TILE_GROUP ||
+         obu_type == OBU_FRAME || obu_type == OBU_REDUNDANT_FRAME_HEADER);
+  }
 
   aom_wb_write_literal(&wb, 0, 1);  // forbidden bit.
   aom_wb_write_literal(&wb, (int)obu_type, 4);
@@ -3544,14 +3564,9 @@ static uint32_t init_large_scale_tile_obu_header(
   // For large_scale_tile case, we always have only one tile group, so it can
   // be written as an OBU_FRAME.
   const OBU_TYPE obu_type = OBU_FRAME;
-  // We pass obu_extension=0 to av1_write_obu_header(), so
-  // has_nonzero_operating_point_idc must be false.
-  assert(!cpi->common.seq_params->has_nonzero_operating_point_idc);
   lst_obu->tg_hdr_size = av1_write_obu_header(
       level_params, &cpi->frame_header_count, obu_type,
-      /*is_layer_specific_obu=*/true,
-      cpi->common.seq_params->has_nonzero_operating_point_idc,
-      /*obu_extension=*/0, *data);
+      cpi->common.seq_params->has_nonzero_operating_point_idc, 0, *data);
   *data += lst_obu->tg_hdr_size;
 
   const uint32_t frame_header_size =
@@ -3749,7 +3764,6 @@ void av1_write_obu_tg_tile_headers(AV1_COMP *const cpi, MACROBLOCKD *const xd,
   const OBU_TYPE obu_type = (cpi->num_tg == 1) ? OBU_FRAME : OBU_TILE_GROUP;
   *curr_tg_hdr_size = av1_write_obu_header(
       &cpi->ppi->level_params, &cpi->frame_header_count, obu_type,
-      /*is_layer_specific_obu=*/true,
       cm->seq_params->has_nonzero_operating_point_idc,
       pack_bs_params->obu_extn_header, pack_bs_params->tile_data_curr);
   pack_bs_params->obu_header_size = *curr_tg_hdr_size;
@@ -3852,7 +3866,6 @@ void av1_write_last_tile_info(
     av1_write_obu_header(
         &cpi->ppi->level_params, &cpi->frame_header_count,
         OBU_REDUNDANT_FRAME_HEADER,
-        /*is_layer_specific_obu=*/true,
         cpi->common.seq_params->has_nonzero_operating_point_idc,
         obu_extn_header, &curr_tg_start[fh_info->obu_header_byte_offset]);
 
@@ -4153,12 +4166,8 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst) {
           (cm->current_frame.frame_type != KEY_FRAME &&
            current_metadata->insert_flag == AOM_MIF_NON_KEY_FRAME) ||
           current_metadata->insert_flag == AOM_MIF_ANY_FRAME) {
-        // Whether METADATA_TYPE_ITUT_T35 is layer-specific or not is
-        // payload-specific. Other metadata types are not layer-specific.
-        const bool is_layer_specific_obu = false;
         obu_header_size = av1_write_obu_header(
             &cpi->ppi->level_params, &cpi->frame_header_count, OBU_METADATA,
-            is_layer_specific_obu,
             cm->seq_params->has_nonzero_operating_point_idc, 0, dst);
         obu_payload_size =
             av1_write_metadata_obu(current_metadata, dst + obu_header_size);
@@ -4209,7 +4218,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
       cm->current_frame.frame_type == KEY_FRAME) {
     obu_header_size = av1_write_obu_header(
         level_params, &cpi->frame_header_count, OBU_SEQUENCE_HEADER,
-        /*is_layer_specific_obu=*/false,
         cm->seq_params->has_nonzero_operating_point_idc, 0, data);
     obu_payload_size =
         av1_write_sequence_header_obu(cm->seq_params, data + obu_header_size);
@@ -4235,7 +4243,6 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     fh_info.frame_header = data;
     obu_header_size = av1_write_obu_header(
         level_params, &cpi->frame_header_count, OBU_FRAME_HEADER,
-        /*is_layer_specific_obu=*/true,
         cm->seq_params->has_nonzero_operating_point_idc, obu_extension_header,
         data);
     obu_payload_size = write_frame_header_obu(cpi, &cpi->td.mb.e_mbd, &saved_wb,

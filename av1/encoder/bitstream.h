@@ -91,11 +91,10 @@ uint32_t av1_write_sequence_header_obu(const SequenceHeader *seq_params,
                                        uint8_t *const dst);
 
 // Writes the OBU header byte, and the OBU header extension byte when
-// has_nonzero_operating_point_idc is true and the OBU is layer-specific.
+// has_nonzero_operating_point_idc is true and the OBU is part of a frame.
 // Returns number of bytes written to 'dst'.
 uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
                               int *frame_header_count, OBU_TYPE obu_type,
-                              bool is_layer_specific_obu,
                               bool has_nonzero_operating_point_idc,
                               int obu_extension, uint8_t *const dst);
 
