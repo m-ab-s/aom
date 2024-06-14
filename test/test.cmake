@@ -198,7 +198,6 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/blend_a64_mask_1d_test.cc"
               "${AOM_ROOT}/test/blend_a64_mask_test.cc"
               "${AOM_ROOT}/test/comp_avg_pred_test.cc"
-              "${AOM_ROOT}/test/comp_avg_pred_test.h"
               "${AOM_ROOT}/test/comp_mask_pred_test.cc"
               "${AOM_ROOT}/test/disflow_test.cc"
               "${AOM_ROOT}/test/encodemb_test.cc"
