@@ -45,10 +45,10 @@ typedef void (*DistWtdCompAvgFunc)(uint8_t *comp_pred, const uint8_t *pred,
                                    int ref_stride,
                                    const DIST_WTD_COMP_PARAMS *jcp_param);
 
-typedef std::tuple<distwtdcompavg_func, BLOCK_SIZE> DISTWTDCOMPAVGParam;
+typedef std::tuple<distwtdcompavg_func, BLOCK_SIZE> AV1DistWtdCompAvgParam;
 
 typedef std::tuple<distwtdcompavgupsampled_func, BLOCK_SIZE>
-    DISTWTDCOMPAVGUPSAMPLEDParam;
+    AV1DistWtdCompAvgUpsampledParam;
 
 typedef std::tuple<int, int, DistWtdCompAvgFunc, int> DistWtdCompAvgParam;
 
@@ -61,13 +61,13 @@ typedef void (*highbddistwtdcompavgupsampled_func)(
     int subpel_search);
 
 typedef std::tuple<int, highbddistwtdcompavgupsampled_func, BLOCK_SIZE>
-    HighbdDISTWTDCOMPAVGUPSAMPLEDParam;
+    HighbdDistWtdCompAvgUpsampledParam;
 
 typedef std::tuple<int, distwtdcompavg_func, BLOCK_SIZE>
-    HighbdDISTWTDCOMPAVGParam;
+    HighbdDistWtdCompAvgParam;
 
 #if HAVE_SSE2 || HAVE_NEON
-::testing::internal::ParamGenerator<HighbdDISTWTDCOMPAVGParam> BuildParams(
+::testing::internal::ParamGenerator<HighbdDistWtdCompAvgParam> BuildParams(
     distwtdcompavg_func filter, int is_hbd) {
   (void)is_hbd;
   return ::testing::Combine(::testing::Range(8, 13, 2),
@@ -75,7 +75,7 @@ typedef std::tuple<int, distwtdcompavg_func, BLOCK_SIZE>
                             ::testing::Range(BLOCK_4X4, BLOCK_SIZES_ALL));
 }
 
-::testing::internal::ParamGenerator<HighbdDISTWTDCOMPAVGUPSAMPLEDParam>
+::testing::internal::ParamGenerator<HighbdDistWtdCompAvgUpsampledParam>
 BuildParams(highbddistwtdcompavgupsampled_func filter) {
   return ::testing::Combine(::testing::Range(8, 13, 2),
                             ::testing::Values(filter),
@@ -85,7 +85,7 @@ BuildParams(highbddistwtdcompavgupsampled_func filter) {
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #if HAVE_SSSE3
-::testing::internal::ParamGenerator<DISTWTDCOMPAVGParam> BuildParams(
+::testing::internal::ParamGenerator<AV1DistWtdCompAvgParam> BuildParams(
     distwtdcompavg_func filter) {
   return ::testing::Combine(::testing::Values(filter),
                             ::testing::Range(BLOCK_4X4, BLOCK_SIZES_ALL));
@@ -93,17 +93,17 @@ BuildParams(highbddistwtdcompavgupsampled_func filter) {
 #endif  // HAVE_SSSE3
 
 #if HAVE_SSSE3 || HAVE_NEON
-::testing::internal::ParamGenerator<DISTWTDCOMPAVGUPSAMPLEDParam> BuildParams(
-    distwtdcompavgupsampled_func filter) {
+::testing::internal::ParamGenerator<AV1DistWtdCompAvgUpsampledParam>
+BuildParams(distwtdcompavgupsampled_func filter) {
   return ::testing::Combine(::testing::Values(filter),
                             ::testing::Range(BLOCK_4X4, BLOCK_SIZES_ALL));
 }
 #endif  // HAVE_SSSE3 || HAVE_NEON
 
-class AV1DISTWTDCOMPAVGTest
-    : public ::testing::TestWithParam<DISTWTDCOMPAVGParam> {
+class AV1DistWtdCompAvgTest
+    : public ::testing::TestWithParam<AV1DistWtdCompAvgParam> {
  public:
-  ~AV1DISTWTDCOMPAVGTest() override = default;
+  ~AV1DistWtdCompAvgTest() override = default;
   void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
@@ -144,7 +144,7 @@ class AV1DISTWTDCOMPAVGTest
           for (int j = 0; j < in_w; ++j) {
             int idx = i * in_w + j;
             ASSERT_EQ(output[idx], output2[idx])
-                << "Mismatch at unit tests for AV1DISTWTDCOMPAVGTest\n"
+                << "Mismatch at unit tests for AV1DistWtdCompAvgTest\n"
                 << in_w << "x" << in_h << " Pixel mismatch at index " << idx
                 << " = (" << i << ", " << j << ")";
           }
@@ -201,14 +201,14 @@ class AV1DISTWTDCOMPAVGTest
   }
 
   libaom_test::ACMRandom rnd_;
-};  // class AV1DISTWTDCOMPAVGTest
+};  // class AV1DistWtdCompAvgTest
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1DISTWTDCOMPAVGTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1DistWtdCompAvgTest);
 
-class AV1DISTWTDCOMPAVGUPSAMPLEDTest
-    : public ::testing::TestWithParam<DISTWTDCOMPAVGUPSAMPLEDParam> {
+class AV1DistWtdCompAvgUpsampledTest
+    : public ::testing::TestWithParam<AV1DistWtdCompAvgUpsampledParam> {
  public:
-  ~AV1DISTWTDCOMPAVGUPSAMPLEDTest() override = default;
+  ~AV1DistWtdCompAvgUpsampledTest() override = default;
   void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
@@ -261,7 +261,7 @@ class AV1DISTWTDCOMPAVGUPSAMPLEDTest
                   int idx = i * in_w + j;
                   ASSERT_EQ(output[idx], output2[idx])
                       << "Mismatch at unit tests for "
-                         "AV1DISTWTDCOMPAVGUPSAMPLEDTest\n"
+                         "AV1DistWtdCompAvgUpsampledTest\n"
                       << in_w << "x" << in_h << " Pixel mismatch at index "
                       << idx << " = (" << i << ", " << j
                       << "), sub pixel offset = (" << sub_y_q3 << ", "
@@ -330,9 +330,9 @@ class AV1DISTWTDCOMPAVGUPSAMPLEDTest
   }
 
   libaom_test::ACMRandom rnd_;
-};  // class AV1DISTWTDCOMPAVGUPSAMPLEDTest
+};  // class AV1DistWtdCompAvgUpsampledTest
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1DISTWTDCOMPAVGUPSAMPLEDTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1DistWtdCompAvgUpsampledTest);
 
 class DistWtdCompAvgTest
     : public ::testing::WithParamInterface<DistWtdCompAvgParam>,
@@ -536,10 +536,10 @@ uint16_t *DistWtdCompAvgTest::comp_pred16_test_ = nullptr;
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DistWtdCompAvgTest);
 
 #if CONFIG_AV1_HIGHBITDEPTH
-class AV1HighBDDISTWTDCOMPAVGTest
-    : public ::testing::TestWithParam<HighbdDISTWTDCOMPAVGParam> {
+class AV1HighBDDistWtdCompAvgTest
+    : public ::testing::TestWithParam<HighbdDistWtdCompAvgParam> {
  public:
-  ~AV1HighBDDISTWTDCOMPAVGTest() override = default;
+  ~AV1HighBDDistWtdCompAvgTest() override = default;
   void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
@@ -584,7 +584,7 @@ class AV1HighBDDISTWTDCOMPAVGTest
           for (int j = 0; j < in_w; ++j) {
             int idx = i * in_w + j;
             ASSERT_EQ(output[idx], output2[idx])
-                << "Mismatch at unit tests for AV1HighBDDISTWTDCOMPAVGTest\n"
+                << "Mismatch at unit tests for AV1HighBDDistWtdCompAvgTest\n"
                 << in_w << "x" << in_h << " Pixel mismatch at index " << idx
                 << " = (" << i << ", " << j << ")";
           }
@@ -643,14 +643,14 @@ class AV1HighBDDISTWTDCOMPAVGTest
   }
 
   libaom_test::ACMRandom rnd_;
-};  // class AV1HighBDDISTWTDCOMPAVGTest
+};  // class AV1HighBDDistWtdCompAvgTest
 
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighBDDISTWTDCOMPAVGTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1HighBDDistWtdCompAvgTest);
 
-class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
-    : public ::testing::TestWithParam<HighbdDISTWTDCOMPAVGUPSAMPLEDParam> {
+class AV1HighBDDistWtdCompAvgUpsampledTest
+    : public ::testing::TestWithParam<HighbdDistWtdCompAvgUpsampledParam> {
  public:
-  ~AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest() override = default;
+  ~AV1HighBDDistWtdCompAvgUpsampledTest() override = default;
   void SetUp() override { rnd_.Reset(ACMRandom::DeterministicSeed()); }
 
  protected:
@@ -706,7 +706,7 @@ class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
                   int idx = i * in_w + j;
                   ASSERT_EQ(output[idx], output2[idx])
                       << "Mismatch at unit tests for "
-                         "AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest\n"
+                         "AV1HighBDDistWtdCompAvgUpsampledTest\n"
                       << in_w << "x" << in_h << " Pixel mismatch at index "
                       << idx << " = (" << i << ", " << j
                       << "), sub pixel offset = (" << sub_y_q3 << ", "
@@ -775,38 +775,38 @@ class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
   }
 
   libaom_test::ACMRandom rnd_;
-};  // class AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest
+};  // class AV1HighBDDistWtdCompAvgUpsampledTest
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
-    AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest);
+    AV1HighBDDistWtdCompAvgUpsampledTest);
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-TEST_P(AV1DISTWTDCOMPAVGTest, DISABLED_Speed) { RunSpeedTest(GET_PARAM(0)); }
+TEST_P(AV1DistWtdCompAvgTest, DISABLED_Speed) { RunSpeedTest(GET_PARAM(0)); }
 
-TEST_P(AV1DISTWTDCOMPAVGTest, CheckOutput) { RunCheckOutput(GET_PARAM(0)); }
+TEST_P(AV1DistWtdCompAvgTest, CheckOutput) { RunCheckOutput(GET_PARAM(0)); }
 
 #if HAVE_SSSE3
-INSTANTIATE_TEST_SUITE_P(SSSE3, AV1DISTWTDCOMPAVGTest,
+INSTANTIATE_TEST_SUITE_P(SSSE3, AV1DistWtdCompAvgTest,
                          BuildParams(aom_dist_wtd_comp_avg_pred_ssse3));
 #endif
 
-TEST_P(AV1DISTWTDCOMPAVGUPSAMPLEDTest, DISABLED_Speed) {
+TEST_P(AV1DistWtdCompAvgUpsampledTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(0));
 }
 
-TEST_P(AV1DISTWTDCOMPAVGUPSAMPLEDTest, CheckOutput) {
+TEST_P(AV1DistWtdCompAvgUpsampledTest, CheckOutput) {
   RunCheckOutput(GET_PARAM(0));
 }
 
 #if HAVE_SSSE3
 INSTANTIATE_TEST_SUITE_P(
-    SSSE3, AV1DISTWTDCOMPAVGUPSAMPLEDTest,
+    SSSE3, AV1DistWtdCompAvgUpsampledTest,
     BuildParams(aom_dist_wtd_comp_avg_upsampled_pred_ssse3));
 #endif
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
-    NEON, AV1DISTWTDCOMPAVGUPSAMPLEDTest,
+    NEON, AV1DistWtdCompAvgUpsampledTest,
     BuildParams(aom_dist_wtd_comp_avg_upsampled_pred_neon));
 #endif  // HAVE_NEON
 
@@ -940,43 +940,43 @@ INSTANTIATE_TEST_SUITE_P(NEON, DistWtdCompAvgTest,
 #endif  // HAVE_NEON
 
 #if CONFIG_AV1_HIGHBITDEPTH
-TEST_P(AV1HighBDDISTWTDCOMPAVGTest, DISABLED_Speed) {
+TEST_P(AV1HighBDDistWtdCompAvgTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(1));
 }
 
-TEST_P(AV1HighBDDISTWTDCOMPAVGTest, CheckOutput) {
+TEST_P(AV1HighBDDistWtdCompAvgTest, CheckOutput) {
   RunCheckOutput(GET_PARAM(1));
 }
 
 #if HAVE_SSE2
-INSTANTIATE_TEST_SUITE_P(SSE2, AV1HighBDDISTWTDCOMPAVGTest,
+INSTANTIATE_TEST_SUITE_P(SSE2, AV1HighBDDistWtdCompAvgTest,
                          BuildParams(aom_highbd_dist_wtd_comp_avg_pred_sse2,
                                      1));
 #endif
 
 #if HAVE_NEON
-INSTANTIATE_TEST_SUITE_P(NEON, AV1HighBDDISTWTDCOMPAVGTest,
+INSTANTIATE_TEST_SUITE_P(NEON, AV1HighBDDistWtdCompAvgTest,
                          BuildParams(aom_highbd_dist_wtd_comp_avg_pred_neon,
                                      1));
 #endif
 
-TEST_P(AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest, DISABLED_Speed) {
+TEST_P(AV1HighBDDistWtdCompAvgUpsampledTest, DISABLED_Speed) {
   RunSpeedTest(GET_PARAM(1));
 }
 
-TEST_P(AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest, CheckOutput) {
+TEST_P(AV1HighBDDistWtdCompAvgUpsampledTest, CheckOutput) {
   RunCheckOutput(GET_PARAM(1));
 }
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
-    SSE2, AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest,
+    SSE2, AV1HighBDDistWtdCompAvgUpsampledTest,
     BuildParams(aom_highbd_dist_wtd_comp_avg_upsampled_pred_sse2));
 #endif
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
-    NEON, AV1HighBDDISTWTDCOMPAVGUPSAMPLEDTest,
+    NEON, AV1HighBDDistWtdCompAvgUpsampledTest,
     BuildParams(aom_highbd_dist_wtd_comp_avg_upsampled_pred_neon));
 #endif
 
