@@ -398,6 +398,8 @@ c_v256 c_imm_v256_align(c_v256 a, c_v256 b) {
   return c_v256_align(a, b, shift);
 }
 
+namespace {
+
 // Wrappers around the the SAD and SSD functions
 uint32_t v64_sad_u8(v64 a, v64 b) {
   return v64_sad_u8_sum(::v64_sad_u8(v64_sad_u8_init(), a, b));
@@ -460,8 +462,6 @@ uint32_t c_v256_sad_u16(c_v256 a, c_v256 b) {
 uint64_t c_v256_ssd_s16(c_v256 a, c_v256 b) {
   return c_v256_ssd_s16_sum(::c_v256_ssd_s16(c_v256_ssd_s16_init(), a, b));
 }
-
-namespace {
 
 typedef void (*fptr)();
 
