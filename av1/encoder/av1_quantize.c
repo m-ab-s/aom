@@ -343,10 +343,10 @@ void av1_quantize_b_facade(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
 #endif  // !CONFIG_REALTIME_ONLY
 
   if (qm_ptr != NULL && iqm_ptr != NULL) {
-    aom_quantize_b_helper_c(coeff_ptr, n_coeffs, p->zbin_QTX, p->round_QTX,
-                            p->quant_QTX, p->quant_shift_QTX, qcoeff_ptr,
-                            dqcoeff_ptr, p->dequant_QTX, eob_ptr, sc->scan,
-                            sc->iscan, qm_ptr, iqm_ptr, qparam->log_scale);
+    aom_quantize_b_helper(coeff_ptr, n_coeffs, p->zbin_QTX, p->round_QTX,
+                          p->quant_QTX, p->quant_shift_QTX, qcoeff_ptr,
+                          dqcoeff_ptr, p->dequant_QTX, eob_ptr, sc->scan,
+                          sc->iscan, qm_ptr, iqm_ptr, qparam->log_scale);
   } else {
     switch (qparam->log_scale) {
       case 0:
