@@ -1124,6 +1124,12 @@ INSTANTIATE_TEST_SUITE_P(NEON, ConvolveScale2DTest,
                          ::testing::Values(ALL_SIZES_64(aom_scaled_2d_neon)));
 #endif  // HAVE_NEON
 
+#if HAVE_NEON_DOTPROD
+INSTANTIATE_TEST_SUITE_P(
+    NEON_DOTPROD, ConvolveScale2DTest,
+    ::testing::Values(ALL_SIZES_64(aom_scaled_2d_neon_dotprod)));
+#endif  // HAVE_NEON_DOTPROD
+
 #if HAVE_SSSE3
 INSTANTIATE_TEST_SUITE_P(SSSE3, ConvolveScale2DTest,
                          ::testing::Values(ALL_SIZES_64(aom_scaled_2d_ssse3)));
