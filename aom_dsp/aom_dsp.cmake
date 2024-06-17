@@ -122,7 +122,8 @@ list(APPEND AOM_DSP_COMMON_INTRIN_NEON_DOTPROD
             "${AOM_ROOT}/aom_dsp/arm/aom_scaled_convolve8_neon_dotprod.c")
 
 list(APPEND AOM_DSP_COMMON_INTRIN_NEON_I8MM
-            "${AOM_ROOT}/aom_dsp/arm/aom_convolve8_neon_i8mm.c")
+            "${AOM_ROOT}/aom_dsp/arm/aom_convolve8_neon_i8mm.c"
+            "${AOM_ROOT}/aom_dsp/arm/aom_scaled_convolve8_neon_i8mm.c")
 
 if(CONFIG_AV1_HIGHBITDEPTH)
   list(APPEND AOM_DSP_COMMON_INTRIN_SSE2
