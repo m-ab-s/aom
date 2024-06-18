@@ -29,8 +29,6 @@ list(APPEND AOM_DSP_COMMON_SOURCES
             "${AOM_ROOT}/aom_dsp/blend_a64_vmask.c"
             "${AOM_ROOT}/aom_dsp/entcode.c"
             "${AOM_ROOT}/aom_dsp/entcode.h"
-            "${AOM_ROOT}/aom_dsp/fft.c"
-            "${AOM_ROOT}/aom_dsp/fft_common.h"
             "${AOM_ROOT}/aom_dsp/grain_params.h"
             "${AOM_ROOT}/aom_dsp/intrapred.c"
             "${AOM_ROOT}/aom_dsp/intrapred_common.h"
@@ -59,7 +57,6 @@ list(APPEND AOM_DSP_COMMON_INTRIN_SSE2
             "${AOM_ROOT}/aom_dsp/x86/aom_convolve_copy_sse2.c"
             "${AOM_ROOT}/aom_dsp/x86/convolve.h"
             "${AOM_ROOT}/aom_dsp/x86/convolve_sse2.h"
-            "${AOM_ROOT}/aom_dsp/x86/fft_sse2.c"
             "${AOM_ROOT}/aom_dsp/x86/highbd_intrapred_sse2.c"
             "${AOM_ROOT}/aom_dsp/x86/intrapred_sse2.c"
             "${AOM_ROOT}/aom_dsp/x86/intrapred_x86.h"
@@ -94,7 +91,6 @@ list(APPEND AOM_DSP_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/aom_dsp/x86/common_avx2.h"
             "${AOM_ROOT}/aom_dsp/x86/txfm_common_avx2.h"
             "${AOM_ROOT}/aom_dsp/x86/convolve_avx2.h"
-            "${AOM_ROOT}/aom_dsp/x86/fft_avx2.c"
             "${AOM_ROOT}/aom_dsp/x86/intrapred_avx2.c"
             "${AOM_ROOT}/aom_dsp/x86/loopfilter_avx2.c"
             "${AOM_ROOT}/aom_dsp/x86/blend_a64_mask_avx2.c"
@@ -166,6 +162,8 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/blk_sse_sum.c"
               "${AOM_ROOT}/aom_dsp/entenc.c"
               "${AOM_ROOT}/aom_dsp/entenc.h"
+              "${AOM_ROOT}/aom_dsp/fft.c"
+              "${AOM_ROOT}/aom_dsp/fft_common.h"
               "${AOM_ROOT}/aom_dsp/fwd_txfm.c"
               "${AOM_ROOT}/aom_dsp/grain_table.c"
               "${AOM_ROOT}/aom_dsp/grain_table.h"
@@ -220,6 +218,7 @@ if(CONFIG_AV1_ENCODER)
 
   list(APPEND AOM_DSP_ENCODER_INTRIN_SSE2
               "${AOM_ROOT}/aom_dsp/x86/avg_intrin_sse2.c"
+              "${AOM_ROOT}/aom_dsp/x86/fft_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/fwd_txfm_impl_sse2.h"
               "${AOM_ROOT}/aom_dsp/x86/fwd_txfm_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/fwd_txfm_sse2.h"
@@ -240,6 +239,7 @@ if(CONFIG_AV1_ENCODER)
 
   list(APPEND AOM_DSP_ENCODER_INTRIN_AVX2
               "${AOM_ROOT}/aom_dsp/x86/avg_intrin_avx2.c"
+              "${AOM_ROOT}/aom_dsp/x86/fft_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/masked_sad_intrin_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/subtract_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/highbd_quantize_intrin_avx2.c"
