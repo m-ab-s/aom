@@ -109,6 +109,7 @@ list(APPEND AOM_DSP_COMMON_INTRIN_AVX2
 list(APPEND AOM_DSP_COMMON_INTRIN_NEON
             "${AOM_ROOT}/aom_dsp/arm/aom_convolve_copy_neon.c"
             "${AOM_ROOT}/aom_dsp/arm/aom_convolve8_neon.c"
+            "${AOM_ROOT}/aom_dsp/arm/aom_scaled_convolve8_neon.c"
             "${AOM_ROOT}/aom_dsp/arm/fwd_txfm_neon.c"
             "${AOM_ROOT}/aom_dsp/arm/loopfilter_neon.c"
             "${AOM_ROOT}/aom_dsp/arm/intrapred_neon.c"
