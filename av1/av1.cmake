@@ -525,7 +525,8 @@ if(CONFIG_INSPECTION)
 endif()
 
 if(CONFIG_INTERNAL_STATS)
-  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/blockiness.c")
+  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/blockiness.c"
+              "${AOM_ROOT}/av1/encoder/blockiness.h")
 endif()
 
 if(CONFIG_REALTIME_ONLY)

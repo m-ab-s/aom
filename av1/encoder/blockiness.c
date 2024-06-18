@@ -9,15 +9,10 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#include "config/av1_rtcd.h"
-#include "config/aom_config.h"
-#include "config/aom_dsp_rtcd.h"
+#include "av1/encoder/blockiness.h"
 
-#include "av1/common/common.h"
-#include "av1/common/filter.h"
-#include "aom/aom_integer.h"
-#include "aom_dsp/aom_filter.h"
-#include "aom_ports/mem.h"
+#include <stdint.h>
+#include <stdlib.h>
 
 static int horizontal_filter(const uint8_t *s) {
   return (s[1] - s[-2]) * 2 + (s[-1] - s[0]) * 6;

@@ -56,6 +56,9 @@
 #include "av1/encoder/aq_cyclicrefresh.h"
 #include "av1/encoder/aq_variance.h"
 #include "av1/encoder/bitstream.h"
+#if CONFIG_INTERNAL_STATS
+#include "av1/encoder/blockiness.h"
+#endif
 #include "av1/encoder/context_tree.h"
 #include "av1/encoder/dwt.h"
 #include "av1/encoder/encodeframe.h"
@@ -4202,10 +4205,6 @@ void print_entropy_stats(AV1_PRIMARY *const ppi) {
 #endif  // CONFIG_ENTROPY_STATS
 
 #if CONFIG_INTERNAL_STATS
-extern double av1_get_blockiness(const unsigned char *img1, int img1_pitch,
-                                 const unsigned char *img2, int img2_pitch,
-                                 int width, int height);
-
 static void adjust_image_stat(double y, double u, double v, double all,
                               ImageStat *s) {
   s->stat[STAT_Y] += y;
