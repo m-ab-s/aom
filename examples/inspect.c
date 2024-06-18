@@ -773,6 +773,7 @@ int have_frame = 0;
 const unsigned char *frame;
 const unsigned char *end_frame;
 size_t frame_size = 0;
+struct av1_ref_frame ref_dec;
 
 EMSCRIPTEN_KEEPALIVE
 int read_frame(void) {
@@ -801,7 +802,6 @@ int read_frame(void) {
 
   int got_any_frames = 0;
   aom_image_t *frame_img;
-  struct av1_ref_frame ref_dec;
   ref_dec.idx = adr.idx;
 
   // ref_dec.idx is the index to the reference buffer idx to AV1_GET_REFERENCE
