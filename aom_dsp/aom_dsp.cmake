@@ -45,7 +45,6 @@ list(APPEND AOM_DSP_COMMON_SOURCES
             "${AOM_ROOT}/aom_dsp/simd/v256_intrinsics_c.h"
             "${AOM_ROOT}/aom_dsp/simd/v64_intrinsics.h"
             "${AOM_ROOT}/aom_dsp/simd/v64_intrinsics_c.h"
-            "${AOM_ROOT}/aom_dsp/subtract.c"
             "${AOM_ROOT}/aom_dsp/txfm_common.h"
             "${AOM_ROOT}/aom_dsp/x86/convolve_common_intrin.h")
 
@@ -113,7 +112,6 @@ list(APPEND AOM_DSP_COMMON_INTRIN_NEON
             "${AOM_ROOT}/aom_dsp/arm/fwd_txfm_neon.c"
             "${AOM_ROOT}/aom_dsp/arm/loopfilter_neon.c"
             "${AOM_ROOT}/aom_dsp/arm/intrapred_neon.c"
-            "${AOM_ROOT}/aom_dsp/arm/subtract_neon.c"
             "${AOM_ROOT}/aom_dsp/arm/blend_a64_mask_neon.c"
             "${AOM_ROOT}/aom_dsp/arm/avg_pred_neon.c")
 
@@ -181,6 +179,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/quantize.h"
               "${AOM_ROOT}/aom_dsp/sad.c"
               "${AOM_ROOT}/aom_dsp/sad_av1.c"
+              "${AOM_ROOT}/aom_dsp/subtract.c"
               "${AOM_ROOT}/aom_dsp/sse.c"
               "${AOM_ROOT}/aom_dsp/ssim.c"
               "${AOM_ROOT}/aom_dsp/ssim.h"
@@ -291,6 +290,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/arm/obmc_variance_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/obmc_sad_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/sse_neon.c"
+              "${AOM_ROOT}/aom_dsp/arm/subtract_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/sum_squares_neon.c"
               "${AOM_ROOT}/aom_dsp/arm/blk_sse_sum_neon.c")
 
