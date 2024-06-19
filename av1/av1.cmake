@@ -530,15 +530,25 @@ if(CONFIG_INTERNAL_STATS)
 endif()
 
 if(CONFIG_REALTIME_ONLY)
+  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE2
+                   "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_sse2.c"
+                   "${AOM_ROOT}/av1/encoder/x86/temporal_filter_sse2.c")
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE4_1
                    "${AOM_ROOT}/av1/encoder/x86/pickrst_sse4.c")
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_AVX2
+                   "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_avx2.c"
                    "${AOM_ROOT}/av1/encoder/x86/pickrst_avx2.c"
+                   "${AOM_ROOT}/av1/encoder/x86/temporal_filter_avx2.c"
                    "${AOM_ROOT}/av1/encoder/x86/cnn_avx2.c")
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_NEON
-                   "${AOM_ROOT}/av1/encoder/arm/cnn_neon.c")
+                   "${AOM_ROOT}/av1/encoder/arm/cnn_neon.c"
+                   "${AOM_ROOT}/av1/encoder/arm/highbd_temporal_filter_neon.c"
+                   "${AOM_ROOT}/av1/encoder/arm/temporal_filter_neon.c")
+
+  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD
+                   "${AOM_ROOT}/av1/encoder/arm/temporal_filter_neon_dotprod.c")
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_SOURCES
                    "${AOM_ROOT}/av1/encoder/cnn.c"
