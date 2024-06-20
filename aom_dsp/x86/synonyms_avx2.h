@@ -60,6 +60,22 @@ static INLINE __m256i yy_set_m128i(__m128i hi, __m128i lo) {
   return _mm256_insertf128_si256(_mm256_castsi128_si256(lo), hi, 1);
 }
 
+// This behaves similarly to _mm256_set_epi64x(), but avoids undefined
+// sanitizer warnings when loading values from unaligned buffers using
+// `*(int64_t *)val`.
+static INLINE __m256i yy_loadu_4x64(const void *e3, const void *e2,
+                                    const void *e1, const void *e0) {
+  __m128d v0 = _mm_castsi128_pd(_mm_loadl_epi64((const __m128i *)e0));
+  __m128d v01 = _mm_loadh_pd(v0, (const double *)e1);
+  __m128d v2 = _mm_castsi128_pd(_mm_loadl_epi64((const __m128i *)e2));
+  __m128d v23 = _mm_loadh_pd(v2, (const double *)e3);
+  // Note this can be replaced with
+  // `_mm256_castpd_si256(_mm256_set_m128d(v23, v01))` if immintrin.h contains
+  // _mm256_set_m128d() with all supported compilers. This version is used to
+  // match the behavior with yy_set_m128i().
+  return yy_set_m128i(_mm_castpd_si128(v23), _mm_castpd_si128(v01));
+}
+
 static INLINE __m256i yy_loadu2_128(const void *hi, const void *lo) {
   __m128i mhi = _mm_loadu_si128((const __m128i *)(hi));
   __m128i mlo = _mm_loadu_si128((const __m128i *)(lo));
