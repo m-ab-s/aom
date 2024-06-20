@@ -17,6 +17,7 @@
 #include "aom_dsp/blend.h"
 #include "aom/aom_integer.h"
 #include "aom_dsp/x86/synonyms.h"
+#include "aom_dsp/x86/synonyms_avx2.h"
 #include "aom_dsp/x86/masked_sad_intrin_ssse3.h"
 
 static INLINE unsigned int masked_sad32xh_avx2(
@@ -67,13 +68,6 @@ static INLINE unsigned int masked_sad32xh_avx2(
   return sad;
 }
 
-static INLINE __m256i xx_loadu2_m128i(const void *hi, const void *lo) {
-  __m128i a0 = _mm_lddqu_si128((const __m128i *)(lo));
-  __m128i a1 = _mm_lddqu_si128((const __m128i *)(hi));
-  __m256i a = _mm256_castsi128_si256(a0);
-  return _mm256_inserti128_si256(a, a1, 1);
-}
-
 static INLINE unsigned int masked_sad16xh_avx2(
     const uint8_t *src_ptr, int src_stride, const uint8_t *a_ptr, int a_stride,
     const uint8_t *b_ptr, int b_stride, const uint8_t *m_ptr, int m_stride,
@@ -84,10 +78,10 @@ static INLINE unsigned int masked_sad16xh_avx2(
   const __m256i round_scale =
       _mm256_set1_epi16(1 << (15 - AOM_BLEND_A64_ROUND_BITS));
   for (y = 0; y < height; y += 2) {
-    const __m256i src = xx_loadu2_m128i(src_ptr + src_stride, src_ptr);
-    const __m256i a = xx_loadu2_m128i(a_ptr + a_stride, a_ptr);
-    const __m256i b = xx_loadu2_m128i(b_ptr + b_stride, b_ptr);
-    const __m256i m = xx_loadu2_m128i(m_ptr + m_stride, m_ptr);
+    const __m256i src = yy_loadu2_128(src_ptr + src_stride, src_ptr);
+    const __m256i a = yy_loadu2_128(a_ptr + a_stride, a_ptr);
+    const __m256i b = yy_loadu2_128(b_ptr + b_stride, b_ptr);
+    const __m256i m = yy_loadu2_128(m_ptr + m_stride, m_ptr);
     const __m256i m_inv = _mm256_sub_epi8(mask_max, m);
 
     // Calculate 16 predicted pixels.
@@ -217,9 +211,9 @@ static INLINE unsigned int highbd_masked_sad8xh_avx2(
   const __m256i one = _mm256_set1_epi16(1);
 
   for (y = 0; y < height; y += 2) {
-    const __m256i src = xx_loadu2_m128i(src_ptr + src_stride, src_ptr);
-    const __m256i a = xx_loadu2_m128i(a_ptr + a_stride, a_ptr);
-    const __m256i b = xx_loadu2_m128i(b_ptr + b_stride, b_ptr);
+    const __m256i src = yy_loadu2_128(src_ptr + src_stride, src_ptr);
+    const __m256i a = yy_loadu2_128(a_ptr + a_stride, a_ptr);
+    const __m256i b = yy_loadu2_128(b_ptr + b_stride, b_ptr);
     // Zero-extend mask to 16 bits
     const __m256i m = _mm256_cvtepu8_epi16(_mm_unpacklo_epi64(
         _mm_loadl_epi64((const __m128i *)(m_ptr)),
