@@ -1487,6 +1487,8 @@ void av1_dr_prediction_z1_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
 
 /* ---------------------P R E D I C T I O N   Z 2--------------------------- */
 
+// TODO(aomedia:349428506): enable this for armv7 after SIGBUS is fixed.
+#if AOM_ARCH_AARCH64
 #if !AOM_ARCH_AARCH64
 static DECLARE_ALIGNED(16, uint8_t, LoadMaskz2[4][16]) = {
   { 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -2037,6 +2039,7 @@ void av1_dr_prediction_z2_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
       break;
   }
 }
+#endif  // AOM_ARCH_AARCH64
 
 /* ---------------------P R E D I C T I O N   Z 3--------------------------- */
 

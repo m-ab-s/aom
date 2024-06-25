@@ -58,13 +58,15 @@ open CONFIG_FILE, $opts{config} or
 
 my %config = ();
 while (<CONFIG_FILE>) {
-  next if !/^#define\s+(?:CONFIG_|HAVE_)/;
+  # TODO(aomedia:349428506,349436249,349450845,349455146): remove AOM_ARCH_
+  # after armv7 SIGBUS issues are fixed.
+  next if !/^#define\s+(?:AOM_ARCH_|CONFIG_|HAVE_)/;
   chomp;
   my @line_components = split /\s/;
   scalar @line_components > 2 or
     die "Invalid input passed to rtcd.pl via $opts{config}.";
   # $line_components[0] = #define
-  # $line_components[1] = flag name (CONFIG_SOMETHING or HAVE_SOMETHING)
+  # $line_components[1] = flag name ({AOM_ARCH,CONFIG,HAVE}_SOMETHING)
   # $line_components[2] = flag value (0 or 1)
   $config{$line_components[1]} = "$line_components[2]" eq "1" ? "yes" : "";
 }

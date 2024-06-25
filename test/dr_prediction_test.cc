@@ -480,6 +480,7 @@ INSTANTIATE_TEST_SUITE_P(
 #endif  // HAVE_AVX2
 
 #if HAVE_NEON
+#if AOM_ARCH_AARCH64
 INSTANTIATE_TEST_SUITE_P(
     NEON, LowbdDrPredTest,
     ::testing::Values(DrPredFunc<DrPred>(&z1_wrapper<av1_dr_prediction_z1_c>,
@@ -491,8 +492,21 @@ INSTANTIATE_TEST_SUITE_P(
                       DrPredFunc<DrPred>(&z3_wrapper<av1_dr_prediction_z3_c>,
                                          &z3_wrapper<av1_dr_prediction_z3_neon>,
                                          AOM_BITS_8, kZ3Start)));
+#else
+// TODO(aomedia:349428506): enable av1_highbd_dr_prediction_z2_neon for armv7
+// after SIGBUS is fixed.
+INSTANTIATE_TEST_SUITE_P(
+    NEON, LowbdDrPredTest,
+    ::testing::Values(DrPredFunc<DrPred>(&z1_wrapper<av1_dr_prediction_z1_c>,
+                                         &z1_wrapper<av1_dr_prediction_z1_neon>,
+                                         AOM_BITS_8, kZ1Start),
+                      DrPredFunc<DrPred>(&z3_wrapper<av1_dr_prediction_z3_c>,
+                                         &z3_wrapper<av1_dr_prediction_z3_neon>,
+                                         AOM_BITS_8, kZ3Start)));
+#endif
 
 #if CONFIG_AV1_HIGHBITDEPTH
+#if AOM_ARCH_AARCH64
 INSTANTIATE_TEST_SUITE_P(
     NEON, HighbdDrPredTest,
     ::testing::Values(DrPredFunc<DrPred_Hbd>(
@@ -531,6 +545,36 @@ INSTANTIATE_TEST_SUITE_P(
                           &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
                           &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_neon>,
                           AOM_BITS_12, kZ3Start)));
+#else   // !AOM_ARCH_AARCH64
+// TODO(aomedia:349428506): enable av1_highbd_dr_prediction_z2_neon for armv7
+// after SIGBUS is fixed.
+INSTANTIATE_TEST_SUITE_P(
+    NEON, HighbdDrPredTest,
+    ::testing::Values(DrPredFunc<DrPred_Hbd>(
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_neon>,
+                          AOM_BITS_8, kZ1Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_neon>,
+                          AOM_BITS_10, kZ1Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_c>,
+                          &z1_wrapper_hbd<av1_highbd_dr_prediction_z1_neon>,
+                          AOM_BITS_12, kZ1Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
+                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_neon>,
+                          AOM_BITS_8, kZ3Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
+                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_neon>,
+                          AOM_BITS_10, kZ3Start),
+                      DrPredFunc<DrPred_Hbd>(
+                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_c>,
+                          &z3_wrapper_hbd<av1_highbd_dr_prediction_z3_neon>,
+                          AOM_BITS_12, kZ3Start)));
+#endif  // AOM_ARCH_AARCH64
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #endif  // HAVE_NEON
