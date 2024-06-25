@@ -283,6 +283,8 @@ void av1_apply_temporal_filter_neon(
   }
 }
 
+// TODO(aomedia:349450845): enable for armv7 after SIGBUS is fixed.
+#if AOM_ARCH_AARCH64
 double av1_estimate_noise_from_single_plane_neon(const uint8_t *src, int height,
                                                  int width, int stride,
                                                  int edge_thresh) {
@@ -546,3 +548,4 @@ double av1_estimate_noise_from_single_plane_neon(const uint8_t *src, int height,
              ? -1.0
              : (double)final_acc / (6 * final_count) * SQRT_PI_BY_2;
 }
+#endif  // AOM_ARCH_AARCH64
