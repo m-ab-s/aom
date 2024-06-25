@@ -1604,6 +1604,8 @@ static AOM_FORCE_INLINE uint16x8_t highbd_dr_prediction_z2_tbl_left_x8_from_x16(
 }
 #endif  // AOM_ARCH_AARCH64
 
+// TODO(aomedia:349428506): enable this for armv7 after SIGBUS is fixed.
+#if AOM_ARCH_AARCH64
 static AOM_FORCE_INLINE uint16x4x2_t highbd_dr_prediction_z2_gather_left_x4(
     const uint16_t *left, const int16x4_t indices, int n) {
   assert(n > 0);
@@ -2473,6 +2475,7 @@ void av1_highbd_dr_prediction_z2_neon(uint16_t *dst, ptrdiff_t stride, int bw,
   assert(f != NULL);
   f(dst, stride, above, left, upsample_above, upsample_left, dx, dy, bd);
 }
+#endif  // AOM_ARCH_AARCH64
 
 // -----------------------------------------------------------------------------
 // Z3
