@@ -477,8 +477,12 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/av1/common/arm/highbd_convolve_scale_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_reconinter_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_reconintra_neon.c"
-              "${AOM_ROOT}/av1/common/arm/highbd_warp_plane_neon.c"
               "${AOM_ROOT}/av1/common/arm/highbd_wiener_convolve_neon.c")
+  # TODO(aomedia:349455146): enable this for armv7 after SIGBUS is fixed.
+  if(AOM_ARCH_AARCH64)
+    list(APPEND AOM_AV1_COMMON_INTRIN_NEON
+                "${AOM_ROOT}/av1/common/arm/highbd_warp_plane_neon.c")
+  endif()
 
   list(APPEND AOM_AV1_COMMON_INTRIN_SVE2
               "${AOM_ROOT}/av1/common/arm/highbd_compound_convolve_sve2.c"
