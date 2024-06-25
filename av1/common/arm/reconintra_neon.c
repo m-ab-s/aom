@@ -20,6 +20,9 @@
 
 #define MAX_UPSAMPLE_SZ 16
 
+// TODO(aomedia:349436249): enable for armv7 after SIGBUS is fixed.
+#if AOM_ARCH_AARCH64
+
 // These kernels are a transposed version of those defined in reconintra.c,
 // with the absolute value of the negatives taken in the top row.
 DECLARE_ALIGNED(16, const uint8_t,
@@ -208,6 +211,7 @@ void av1_filter_intra_predictor_neon(uint8_t *dst, ptrdiff_t stride,
     } while (r < height + 1);
   }
 }
+#endif  // AOM_ARCH_AARCH64
 
 void av1_filter_intra_edge_neon(uint8_t *p, int sz, int strength) {
   if (!strength) return;
