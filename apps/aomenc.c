@@ -942,9 +942,9 @@ static int parse_stream_params(struct AvxEncoderConfig *global,
                                struct stream_state *stream, char **argv) {
   char **argi, **argj;
   struct arg arg;
-  static const arg_def_t *const *ctrl_args = no_args;
-  static const arg_def_t *const *key_val_args = no_args;
-  static const int *ctrl_args_map = NULL;
+  const arg_def_t *const *ctrl_args = no_args;
+  const arg_def_t *const *key_val_args = no_args;
+  const int *ctrl_args_map = NULL;
   struct stream_config *config = &stream->config;
   int eos_mark_found = 0;
   int webm_forced = 0;
