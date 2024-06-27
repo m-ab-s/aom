@@ -1616,6 +1616,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.use_fast_fixed_part = 1;
       sf->rt_sf.increase_source_sad_thresh = 1;
       sf->rt_sf.selective_cdf_update = 1;
+      sf->mv_sf.search_method = FAST_DIAMOND;
     } else if (cpi->rc.max_block_source_sad > 20000 &&
                cpi->rc.frame_source_sad > 100 && speed >= 6 &&
                (cpi->rc.percent_blocks_with_motion > 1 ||
