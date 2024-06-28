@@ -16,6 +16,7 @@
 #include "config/av1_rtcd.h"
 
 #include "aom/aom_integer.h"
+#include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/sum_neon.h"
 #include "aom_dsp/arm/transpose_neon.h"
 #include "aom_dsp/intrapred_common.h"
@@ -1604,8 +1605,6 @@ static AOM_FORCE_INLINE uint16x8_t highbd_dr_prediction_z2_tbl_left_x8_from_x16(
 }
 #endif  // AOM_ARCH_AARCH64
 
-// TODO(aomedia:349428506): enable this for armv7 after SIGBUS is fixed.
-#if AOM_ARCH_AARCH64
 static AOM_FORCE_INLINE uint16x4x2_t highbd_dr_prediction_z2_gather_left_x4(
     const uint16_t *left, const int16x4_t indices, int n) {
   assert(n > 0);
@@ -1625,13 +1624,13 @@ static AOM_FORCE_INLINE uint16x4x2_t highbd_dr_prediction_z2_gather_left_x4(
 
   // At time of writing both Clang and GCC produced better code with these
   // nested if-statements compared to a switch statement with fallthrough.
-  ret0_u32 = vld1_lane_u32((const uint32_t *)(left + idx0), ret0_u32, 0);
+  load_unaligned_u32_2x1_lane(ret0_u32, left + idx0, 0);
   if (n > 1) {
-    ret0_u32 = vld1_lane_u32((const uint32_t *)(left + idx1), ret0_u32, 1);
+    load_unaligned_u32_2x1_lane(ret0_u32, left + idx1, 1);
     if (n > 2) {
-      ret1_u32 = vld1_lane_u32((const uint32_t *)(left + idx2), ret1_u32, 0);
+      load_unaligned_u32_2x1_lane(ret1_u32, left + idx2, 0);
       if (n > 3) {
-        ret1_u32 = vld1_lane_u32((const uint32_t *)(left + idx3), ret1_u32, 1);
+        load_unaligned_u32_2x1_lane(ret1_u32, left + idx3, 1);
       }
     }
   }
@@ -1665,25 +1664,21 @@ static AOM_FORCE_INLINE uint16x8x2_t highbd_dr_prediction_z2_gather_left_x8(
 
   // At time of writing both Clang and GCC produced better code with these
   // nested if-statements compared to a switch statement with fallthrough.
-  ret0_u32 = vld1q_lane_u32((const uint32_t *)(left + idx0), ret0_u32, 0);
+  load_unaligned_u32_4x1_lane(ret0_u32, left + idx0, 0);
   if (n > 1) {
-    ret0_u32 = vld1q_lane_u32((const uint32_t *)(left + idx1), ret0_u32, 1);
+    load_unaligned_u32_4x1_lane(ret0_u32, left + idx1, 1);
     if (n > 2) {
-      ret0_u32 = vld1q_lane_u32((const uint32_t *)(left + idx2), ret0_u32, 2);
+      load_unaligned_u32_4x1_lane(ret0_u32, left + idx2, 2);
       if (n > 3) {
-        ret0_u32 = vld1q_lane_u32((const uint32_t *)(left + idx3), ret0_u32, 3);
+        load_unaligned_u32_4x1_lane(ret0_u32, left + idx3, 3);
         if (n > 4) {
-          ret1_u32 =
-              vld1q_lane_u32((const uint32_t *)(left + idx4), ret1_u32, 0);
+          load_unaligned_u32_4x1_lane(ret1_u32, left + idx4, 0);
           if (n > 5) {
-            ret1_u32 =
-                vld1q_lane_u32((const uint32_t *)(left + idx5), ret1_u32, 1);
+            load_unaligned_u32_4x1_lane(ret1_u32, left + idx5, 1);
             if (n > 6) {
-              ret1_u32 =
-                  vld1q_lane_u32((const uint32_t *)(left + idx6), ret1_u32, 2);
+              load_unaligned_u32_4x1_lane(ret1_u32, left + idx6, 2);
               if (n > 7) {
-                ret1_u32 = vld1q_lane_u32((const uint32_t *)(left + idx7),
-                                          ret1_u32, 3);
+                load_unaligned_u32_4x1_lane(ret1_u32, left + idx7, 3);
               }
             }
           }
@@ -2475,7 +2470,6 @@ void av1_highbd_dr_prediction_z2_neon(uint16_t *dst, ptrdiff_t stride, int bw,
   assert(f != NULL);
   f(dst, stride, above, left, upsample_above, upsample_left, dx, dy, bd);
 }
-#endif  // AOM_ARCH_AARCH64
 
 // -----------------------------------------------------------------------------
 // Z3

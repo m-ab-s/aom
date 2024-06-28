@@ -1488,8 +1488,6 @@ void av1_dr_prediction_z1_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
 
 /* ---------------------P R E D I C T I O N   Z 2--------------------------- */
 
-// TODO(aomedia:349428506): enable this for armv7 after SIGBUS is fixed.
-#if AOM_ARCH_AARCH64
 #if !AOM_ARCH_AARCH64
 static DECLARE_ALIGNED(16, uint8_t, LoadMaskz2[4][16]) = {
   { 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
@@ -1514,8 +1512,8 @@ static AOM_FORCE_INLINE void dr_prediction_z2_Nx4_above_neon(
     *a1_x = vuzp_u8(v_tmp, vdup_n_u8(0)).val[1];
     *shift0 = vand_u16(vsub_u16(r6, ydx), vdup_n_u16(0x1f));
   } else {
-    *a0_x = load_u8_4x1(above + base_x);
-    *a1_x = load_u8_4x1(above + base_x + 1);
+    *a0_x = load_unaligned_u8_4x1(above + base_x);
+    *a1_x = load_unaligned_u8_4x1(above + base_x + 1);
     *shift0 = vand_u16(vhsub_u16(r6, ydx), vdup_n_u16(0x1f));
   }
 }
@@ -2040,7 +2038,6 @@ void av1_dr_prediction_z2_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
       break;
   }
 }
-#endif  // AOM_ARCH_AARCH64
 
 /* ---------------------P R E D I C T I O N   Z 3--------------------------- */
 
