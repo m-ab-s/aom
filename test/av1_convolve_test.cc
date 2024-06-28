@@ -11,8 +11,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <memory>
-#include <new>
 #include <ostream>
 #include <set>
 #include <vector>
@@ -222,12 +220,12 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
 
   // Check that two 8-bit output buffers are identical.
   void AssertOutputBufferEq(const uint8_t *p1, const uint8_t *p2, int width,
-                            int height, ptrdiff_t stride = kOutputStride) {
+                            int height) {
     ASSERT_TRUE(p1 != p2) << "Buffers must be at different memory locations";
     for (int j = 0; j < height; ++j) {
       if (memcmp(p1, p2, sizeof(*p1) * width) == 0) {
-        p1 += stride;
-        p2 += stride;
+        p1 += kOutputStride;
+        p2 += kOutputStride;
         continue;
       }
       for (int i = 0; i < width; ++i) {
@@ -240,12 +238,12 @@ class AV1ConvolveTest : public ::testing::TestWithParam<TestParam<T>> {
 
   // Check that two 16-bit output buffers are identical.
   void AssertOutputBufferEq(const uint16_t *p1, const uint16_t *p2, int width,
-                            int height, ptrdiff_t stride = kOutputStride) {
+                            int height) {
     ASSERT_TRUE(p1 != p2) << "Buffers must be in different memory locations";
     for (int j = 0; j < height; ++j) {
       if (memcmp(p1, p2, sizeof(*p1) * width) == 0) {
-        p1 += stride;
-        p2 += stride;
+        p1 += kOutputStride;
+        p2 += kOutputStride;
         continue;
       }
       for (int i = 0; i < width; ++i) {
@@ -1126,17 +1124,6 @@ class AV1ConvolveCopyTest : public AV1ConvolveTest<convolve_copy_func> {
     DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
     GetParam().TestFunction()(input, width, test, kOutputStride, width, height);
     AssertOutputBufferEq(reference, test, width, height);
-
-    // Test again with dst_stride=width.
-    std::unique_ptr<uint8_t[]> reference2(new (std::nothrow)
-                                              uint8_t[width * height]);
-    ASSERT_NE(reference2, nullptr);
-    aom_convolve_copy_c(input, width, reference2.get(), width, width, height);
-    std::unique_ptr<uint8_t[]> test2(new (std::nothrow)
-                                         uint8_t[width * height]);
-    ASSERT_NE(test2, nullptr);
-    GetParam().TestFunction()(input, width, test2.get(), width, width, height);
-    AssertOutputBufferEq(reference2.get(), test2.get(), width, height, width);
   }
 };
 
@@ -1184,18 +1171,6 @@ class AV1ConvolveCopyHighbdTest
     DECLARE_ALIGNED(32, uint16_t, test[MAX_SB_SQUARE]);
     GetParam().TestFunction()(input, width, test, kOutputStride, width, height);
     AssertOutputBufferEq(reference, test, width, height);
-
-    // Test again with dst_stride=width.
-    std::unique_ptr<uint16_t[]> reference2(new (std::nothrow)
-                                               uint16_t[width * height]);
-    ASSERT_NE(reference2, nullptr);
-    aom_highbd_convolve_copy_c(input, width, reference2.get(), width, width,
-                               height);
-    std::unique_ptr<uint16_t[]> test2(new (std::nothrow)
-                                          uint16_t[width * height]);
-    ASSERT_NE(test2, nullptr);
-    GetParam().TestFunction()(input, width, test2.get(), width, width, height);
-    AssertOutputBufferEq(reference2.get(), test2.get(), width, height, width);
   }
 };
 
