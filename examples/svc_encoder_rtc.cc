@@ -1915,6 +1915,13 @@ int main(int argc, const char **argv) {
       cx_time_layer[layer] += aom_usec_timer_elapsed(&timer);
       frame_cnt_layer[layer] += 1;
 
+      // Get the high motion content flag.
+      int content_flag = 0;
+      if (aom_codec_control(&codec, AV1E_GET_HIGH_MOTION_CONTENT_SCREEN_RTC,
+                            &content_flag)) {
+        die_codec(&codec, "Failed to GET_HIGH_MOTION_CONTENT_SCREEN_RTC");
+      }
+
       got_data = 0;
       // For simulcast (mode 11): write out each spatial layer to the file.
       int ss_layers_write = (app_input.layering_mode == 11)

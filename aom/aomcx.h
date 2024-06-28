@@ -1547,6 +1547,13 @@ enum aome_enc_control_id {
    */
   AV1E_SET_AUTO_TILES = 166,
 
+  /*!\brief Codec control to get the high motion screen content flag.
+   * int * parameter.
+   * Returns an integer.
+   * 1 means high motion screen content, 0 means not.
+   */
+  AV1E_GET_HIGH_MOTION_CONTENT_SCREEN_RTC = 167,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -2206,6 +2213,9 @@ AOM_CTRL_USE_TYPE(AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_AUTO_TILES, unsigned int)
 #define AOM_CTRL_AV1E_SET_AUTO_TILES
+
+AOM_CTRL_USE_TYPE(AV1E_GET_HIGH_MOTION_CONTENT_SCREEN_RTC, int *)
+#define AOM_CTRL_AV1E_GET_HIGH_MOTION_CONTENT_SCREEN_RTC
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */
