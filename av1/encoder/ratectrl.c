@@ -2598,12 +2598,12 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
 #endif
   int64_t frame_target = *this_frame_target;
 
-  const int stats_count =
+  const double stats_count =
       cpi->ppi->twopass.stats_buf_ctx->total_stats != NULL
-          ? (int)cpi->ppi->twopass.stats_buf_ctx->total_stats->count
-          : 0;
-  const int frame_window = AOMMIN(
-      16, (int)(stats_count - (int)cpi->common.current_frame.frame_number));
+          ? cpi->ppi->twopass.stats_buf_ctx->total_stats->count
+          : 0.0;
+  const int frame_window =
+      (int)AOMMIN(16, stats_count - cpi->common.current_frame.frame_number);
   assert(VBR_PCT_ADJUSTMENT_LIMIT <= 100);
   if (frame_window > 0) {
     const int64_t max_delta =
