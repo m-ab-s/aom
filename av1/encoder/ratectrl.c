@@ -551,7 +551,7 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
       p_rc->buffer_level < (p_rc->optimal_buffer_level >> 1) &&
       rc->frames_since_key > 4;
   int max_delta_down;
-  int max_delta_up = overshoot_buffer_low ? 60 : 20;
+  int max_delta_up = overshoot_buffer_low ? 120 : 20;
   const int change_avg_frame_bandwidth =
       abs(rc->avg_frame_bandwidth - rc->prev_avg_frame_bandwidth) >
       0.1 * (rc->avg_frame_bandwidth);
@@ -571,7 +571,7 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
       // Link max_delta_up to max_delta_down and buffer status.
       if (p_rc->buffer_level > p_rc->optimal_buffer_level) {
         max_delta_up = AOMMAX(4, max_delta_down);
-      } else {
+      } else if (!overshoot_buffer_low) {
         max_delta_up = AOMMAX(8, max_delta_down);
       }
     }
