@@ -283,8 +283,6 @@ void av1_apply_temporal_filter_neon(
   }
 }
 
-// TODO(aomedia:349450845): enable for armv7 after SIGBUS is fixed.
-#if AOM_ARCH_AARCH64
 double av1_estimate_noise_from_single_plane_neon(const uint8_t *src, int height,
                                                  int width, int stride,
                                                  int edge_thresh) {
@@ -458,15 +456,15 @@ double av1_estimate_noise_from_single_plane_neon(const uint8_t *src, int height,
     if (w <= (width - 1) - 4) {
       uint16x8_t mask = vcombine_u16(vdup_n_u16(65535), vdup_n_u16(0));
       uint8x8_t mat[3][3];
-      mat[0][0] = load_u8_4x1(src_ptr - stride - 1);
-      mat[0][1] = load_u8_4x1(src_ptr - stride);
-      mat[0][2] = load_u8_4x1(src_ptr - stride + 1);
-      mat[1][0] = load_u8_4x1(src_ptr - 1);
-      mat[1][1] = load_u8_4x1(src_ptr);
-      mat[1][2] = load_u8_4x1(src_ptr + 1);
-      mat[2][0] = load_u8_4x1(src_ptr + stride - 1);
-      mat[2][1] = load_u8_4x1(src_ptr + stride);
-      mat[2][2] = load_u8_4x1(src_ptr + stride + 1);
+      mat[0][0] = load_unaligned_u8_4x1(src_ptr - stride - 1);
+      mat[0][1] = load_unaligned_u8_4x1(src_ptr - stride);
+      mat[0][2] = load_unaligned_u8_4x1(src_ptr - stride + 1);
+      mat[1][0] = load_unaligned_u8_4x1(src_ptr - 1);
+      mat[1][1] = load_unaligned_u8_4x1(src_ptr);
+      mat[1][2] = load_unaligned_u8_4x1(src_ptr + 1);
+      mat[2][0] = load_unaligned_u8_4x1(src_ptr + stride - 1);
+      mat[2][1] = load_unaligned_u8_4x1(src_ptr + stride);
+      mat[2][2] = load_unaligned_u8_4x1(src_ptr + stride + 1);
 
       // Compute Sobel gradients.
       uint16x8_t gxa = vaddl_u8(mat[0][0], mat[2][0]);
@@ -548,4 +546,3 @@ double av1_estimate_noise_from_single_plane_neon(const uint8_t *src, int height,
              ? -1.0
              : (double)final_acc / (6 * final_count) * SQRT_PI_BY_2;
 }
-#endif  // AOM_ARCH_AARCH64
