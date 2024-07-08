@@ -561,6 +561,11 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
   *q = av1_rc_pick_q_and_bounds(cpi, cm->width, cm->height, cpi->gf_frame_index,
                                 bottom_index, top_index);
 
+  if (cpi->oxcf.rc_cfg.mode == AOM_CBR && cpi->rc.force_max_q) {
+    *q = cpi->rc.worst_quality;
+    cpi->rc.force_max_q = 0;
+  }
+
 #if !CONFIG_REALTIME_ONLY
   if (cpi->oxcf.rc_cfg.mode == AOM_Q &&
       cpi->ppi->tpl_data.tpl_frame[cpi->gf_frame_index].is_valid &&

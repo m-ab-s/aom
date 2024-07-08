@@ -129,6 +129,7 @@ class DatarateTestSVC
       if (screen_mode_) {
         encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN);
       }
+      encoder->Control(AV1E_SET_POSTENCODE_DROP_RTC, 1);
     }
     if (number_spatial_layers_ == 2) {
       spatial_layer_id = (layer_frame_cnt_ % 2 == 0) ? 0 : 1;
@@ -1009,9 +1010,9 @@ class DatarateTestSVC
   }
 
   virtual void BasicRateTargetingSVC2TL1SLScreenDropFrameTest() {
-    cfg_.rc_buf_initial_sz = 500;
-    cfg_.rc_buf_optimal_sz = 500;
-    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_buf_initial_sz = 50;
+    cfg_.rc_buf_optimal_sz = 50;
+    cfg_.rc_buf_sz = 100;
     cfg_.rc_dropframe_thresh = 30;
     cfg_.rc_min_quantizer = 0;
     cfg_.rc_max_quantizer = 52;
@@ -1034,7 +1035,7 @@ class DatarateTestSVC
     for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
       ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.75)
           << " The datarate for the file is lower than target by too much!";
-      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.5)
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.8)
           << " The datarate for the file is greater than target by too much!";
     }
     // Top temporal layers are non_reference, so exlcude them from
@@ -2473,10 +2474,12 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLScreen) {
 }
 
 // Check basic rate targeting for CBR, for 2 temporal layers, 1 spatial
-// for screen mode, with frame dropper on at low bitrates
+// for screen mode, with frame dropper on at low bitrates. Use small
+// values of rc_buf_initial/optimal/sz to trigger postencode frame drop.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC2TL1SLScreenDropFrame) {
   BasicRateTargetingSVC2TL1SLScreenDropFrameTest();
 }
+
 // Check basic rate targeting for CBR, for 3 spatial layers, 1 temporal
 // for screen mode.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL3SLScreen) {

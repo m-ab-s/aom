@@ -442,6 +442,8 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
   rc->frame_level_fast_extra_bits = 0;
   rc->use_external_qp_one_pass = 0;
   rc->percent_blocks_inactive = 0;
+  rc->force_max_q = 0;
+  rc->postencode_drop = 0;
 }
 
 static bool check_buffer_below_thresh(AV1_COMP *cpi, int64_t buffer_level,
@@ -3779,4 +3781,55 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     }
   }
   return 1;
+}
+
+int av1_postencode_drop_cbr(AV1_COMP *cpi, size_t *size) {
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  size_t frame_size = *size << 3;
+  const int64_t new_buffer_level =
+      p_rc->buffer_level + cpi->rc.avg_frame_bandwidth - (int64_t)frame_size;
+  // For now we drop if new buffer level (given the encoded frame size) goes
+  // below 0 and encoded frame size is much larger than per-frame-bandwidth.
+  // If the frame is already labelled as scene change (high_source_sad = 1)
+  // or the QP is close to max, then no need to drop.
+  const int qp_thresh = 3 * (cpi->rc.worst_quality >> 2);
+  if (!cpi->rc.high_source_sad && new_buffer_level < 0 &&
+      frame_size > 8 * (unsigned int)cpi->rc.avg_frame_bandwidth &&
+      cpi->common.quant_params.base_qindex < qp_thresh) {
+    *size = 0;
+    cpi->is_dropped_frame = true;
+    restore_all_coding_context(cpi);
+    av1_rc_postencode_update_drop_frame(cpi);
+    // Force max_q on next fame. Reset some RC parameters.
+    cpi->rc.force_max_q = 1;
+    p_rc->avg_frame_qindex[INTER_FRAME] = cpi->rc.worst_quality;
+    p_rc->buffer_level = p_rc->optimal_buffer_level;
+    p_rc->bits_off_target = p_rc->optimal_buffer_level;
+    cpi->rc.rc_1_frame = 0;
+    cpi->rc.rc_2_frame = 0;
+    if (cpi->svc.number_spatial_layers > 1 ||
+        cpi->svc.number_temporal_layers > 1) {
+      SVC *svc = &cpi->svc;
+      // Postencode drop is only checked on base spatial layer,
+      // for now if max-q is set on base we force it on all layers.
+      for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
+        for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
+          const int layer =
+              LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
+          LAYER_CONTEXT *lc = &svc->layer_context[layer];
+          RATE_CONTROL *lrc = &lc->rc;
+          PRIMARY_RATE_CONTROL *lp_rc = &lc->p_rc;
+          // Force max_q on next fame. Reset some RC parameters.
+          lrc->force_max_q = 1;
+          lp_rc->avg_frame_qindex[INTER_FRAME] = cpi->rc.worst_quality;
+          lp_rc->buffer_level = lp_rc->optimal_buffer_level;
+          lp_rc->bits_off_target = lp_rc->optimal_buffer_level;
+          lrc->rc_1_frame = 0;
+          lrc->rc_2_frame = 0;
+        }
+      }
+    }
+    return 1;
+  }
+  return 0;
 }

@@ -4107,6 +4107,15 @@ static INLINE int use_rtc_reference_structure_one_layer(const AV1_COMP *cpi) {
          !cpi->ppi->rtc_ref.set_ref_frame_config;
 }
 
+// Check if postencode drop is allowed.
+static INLINE int allow_postencode_drop_rtc(const AV1_COMP *cpi) {
+  const AV1_COMMON *const cm = &cpi->common;
+  return is_one_pass_rt_params(cpi) && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
+         cpi->oxcf.rc_cfg.drop_frames_water_mark > 0 &&
+         !cpi->rc.rtc_external_ratectrl && !frame_is_intra_only(cm) &&
+         cpi->svc.spatial_layer_id == 0;
+}
+
 // Function return size of frame stats buffer
 static INLINE int get_stats_buf_size(int num_lap_buffer, int num_lag_buffer) {
   /* if lookahead is enabled return num_lap_buffers else num_lag_buffers */

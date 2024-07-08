@@ -83,6 +83,7 @@ class DatarateTest : public ::libaom_test::EncoderTest {
         encoder->Control(AV1E_SET_MODE_COST_UPD_FREQ, 2);
         encoder->Control(AV1E_SET_MV_COST_UPD_FREQ, 2);
         encoder->Control(AV1E_SET_DV_COST_UPD_FREQ, 2);
+        encoder->Control(AV1E_SET_POSTENCODE_DROP_RTC, 1);
       }
       if (screen_mode_) {
         encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN);

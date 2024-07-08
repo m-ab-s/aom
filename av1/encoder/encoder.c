@@ -2502,6 +2502,9 @@ static int encode_without_recode(AV1_COMP *cpi) {
                          ? svc->downsample_filter_phase[svc->spatial_layer_id]
                          : 0;
 
+  if (cpi->rc.postencode_drop && allow_postencode_drop_rtc(cpi))
+    av1_save_all_coding_context(cpi);
+
   set_size_independent_vars(cpi);
   av1_setup_frame_size(cpi);
   cm->prev_frame = get_primary_ref_frame_buf(cm);
@@ -3284,6 +3287,11 @@ static int encode_with_recode_loop_and_filter(AV1_COMP *cpi, size_t *size,
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_pack_bitstream_final_time);
 #endif
+
+  if (cpi->rc.postencode_drop && allow_postencode_drop_rtc(cpi) &&
+      av1_postencode_drop_cbr(cpi, size)) {
+    return AOM_CODEC_OK;
+  }
 
   // Compute sse and rate.
   if (sse != NULL) {

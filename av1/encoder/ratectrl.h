@@ -208,6 +208,8 @@ typedef struct {
   int prev_frame_is_dropped;
   int drop_count_consec;
   int max_consec_drop;
+  int force_max_q;
+  int postencode_drop;
 
   /*!
    * Frame number for encoded frames (non-dropped).
@@ -822,6 +824,19 @@ void av1_get_one_pass_rt_params(struct AV1_COMP *cpi,
  * \return q is returned, and updates are done to \c cpi->rc.
  */
 int av1_encodedframe_overshoot_cbr(struct AV1_COMP *cpi, int *q);
+
+/*!\brief Check if frame should be dropped, for RTC mode.
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in,out]       size         Size of encoded frame
+ *
+ * \return 1 if frame is to be dropped, 0 otherwise (no drop).
+ * Set cpi->rc.force_max_q if frame is to be dropped, and updates are
+ * made to rate control parameters. *size is set to 0 when this
+ * function returns 1 (frame is dropped).
+ */
+int av1_postencode_drop_cbr(struct AV1_COMP *cpi, size_t *size);
 
 /*!\brief Compute the q_indices for a single frame.
  *
