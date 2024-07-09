@@ -653,9 +653,13 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
       LAYER_CONTEXT *lc = &svc->layer_context[layer];
       // lc->rc.avg_frame_bandwidth and lc->p_rc.last_q correspond to the
       // last TL0 frame.
+      const int last_qindex_tl0 =
+          rc->frames_since_key < svc->number_temporal_layers
+              ? lc->p_rc.last_q[KEY_FRAME]
+              : lc->p_rc.last_q[INTER_FRAME];
       if (rc->avg_frame_bandwidth < lc->rc.avg_frame_bandwidth &&
-          q < lc->p_rc.last_q[INTER_FRAME] - 4)
-        q = lc->p_rc.last_q[INTER_FRAME] - 4;
+          q < last_qindex_tl0 - 4)
+        q = last_qindex_tl0 - 4;
     } else if (cpi->svc.temporal_layer_id == 0 &&
                p_rc->buffer_level > (p_rc->optimal_buffer_level >> 2) &&
                rc->frame_source_sad < 100000) {
@@ -1123,7 +1127,7 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
   int adjustment = 0;
   int active_worst_quality;
   int ambient_qp;
-  if (cm->current_frame.frame_type == KEY_FRAME) return rc->worst_quality;
+  if (frame_is_intra_only(cm)) return rc->worst_quality;
   // For ambient_qp we use minimum of avg_frame_qindex[KEY_FRAME/INTER_FRAME]
   // for the first few frames following key frame. These are both initialized
   // to worst_quality and updated with (3/4, 1/4) average in postencode_update.
@@ -1138,9 +1142,15 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
     avg_qindex_key =
         AOMMIN(lp_rc->avg_frame_qindex[KEY_FRAME], lp_rc->last_q[KEY_FRAME]);
   }
-  ambient_qp = (cm->current_frame.frame_number < num_frames_weight_key)
-                   ? AOMMIN(p_rc->avg_frame_qindex[INTER_FRAME], avg_qindex_key)
-                   : p_rc->avg_frame_qindex[INTER_FRAME];
+  if (svc->temporal_layer_id > 0 &&
+      rc->frames_since_key < 2 * svc->number_temporal_layers) {
+    ambient_qp = avg_qindex_key;
+  } else {
+    ambient_qp =
+        (cm->current_frame.frame_number < num_frames_weight_key)
+            ? AOMMIN(p_rc->avg_frame_qindex[INTER_FRAME], avg_qindex_key)
+            : p_rc->avg_frame_qindex[INTER_FRAME];
+  }
   ambient_qp = AOMMIN(rc->worst_quality, ambient_qp);
 
   if (p_rc->buffer_level > p_rc->optimal_buffer_level) {
