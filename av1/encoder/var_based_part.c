@@ -649,7 +649,7 @@ static AOM_INLINE int64_t tune_base_thresh_content(AV1_COMP *cpi,
       updated_thresh_base, cpi->oxcf.speed, cm->width, cm->height,
       cpi->ppi->rtc_ref.non_reference_frame);
   if (cpi->oxcf.speed >= 11 && source_sad_nonrd > kLowSad &&
-      cpi->rc.high_motion_screen_content)
+      cpi->rc.high_motion_content_screen_rtc)
     updated_thresh_base = updated_thresh_base << 5;
   return updated_thresh_base;
 }

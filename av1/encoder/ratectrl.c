@@ -3269,11 +3269,11 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   if (num_samples > 0)
     rc->percent_blocks_with_motion =
         ((num_samples - num_zero_temp_sad) * 100) / num_samples;
-  // Update the high_motion_screen_content flag on TL0. Avoid the update
+  // Update the high_motion_content_screen_rtc flag on TL0. Avoid the update
   // if too many consecutive frame drops occurred.
   const uint64_t thresh_high_motion = 9 * 64 * 64;
   if (cpi->svc.temporal_layer_id == 0 && rc->drop_count_consec < 3) {
-    cpi->rc.high_motion_screen_content = 0;
+    cpi->rc.high_motion_content_screen_rtc = 0;
     if (cpi->oxcf.speed >= 11 &&
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
         rc->percent_blocks_with_motion > 40 &&
@@ -3281,7 +3281,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
         rc->avg_source_sad > thresh_high_motion &&
         rc->avg_frame_low_motion < 60 && unscaled_src->y_width >= 1280 &&
         unscaled_src->y_height >= 720) {
-      cpi->rc.high_motion_screen_content = 1;
+      cpi->rc.high_motion_content_screen_rtc = 1;
       // Compute fast coarse/global motion for 128x128 superblock centered
       // at middle of frames, to determine if motion is scroll.
       int pos_col = (unscaled_src->y_width >> 1) - 64;
@@ -3295,7 +3295,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
           cpi, src_y, last_src_y, src_ystride, last_src_ystride, BLOCK_128X128,
           pos_col, pos_row, &best_intmv_col, &best_intmv_row);
       if (y_sad < 100 && (abs(best_intmv_col) > 16 || abs(best_intmv_row) > 16))
-        cpi->rc.high_motion_screen_content = 0;
+        cpi->rc.high_motion_content_screen_rtc = 0;
     }
     // Pass the flag value to all layer frames.
     if (cpi->svc.number_spatial_layers > 1 ||
@@ -3307,7 +3307,8 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
               LAYER_IDS_TO_IDX(sl, tl, svc->number_temporal_layers);
           LAYER_CONTEXT *lc = &svc->layer_context[layer];
           RATE_CONTROL *lrc = &lc->rc;
-          lrc->high_motion_screen_content = rc->high_motion_screen_content;
+          lrc->high_motion_content_screen_rtc =
+              rc->high_motion_content_screen_rtc;
         }
       }
     }

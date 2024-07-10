@@ -1547,10 +1547,10 @@ enum aome_enc_control_id {
    */
   AV1E_SET_AUTO_TILES = 166,
 
-  /*!\brief Codec control to get the high motion screen content flag.
-   * int * parameter.
+  /*!\brief Codec control to get the high motion content flag, used for
+   * screen content realtime (RTC) encoding, int * parameter.
    * Returns an integer.
-   * 1 means high motion screen content, 0 means not.
+   * 1 means high motion content flag is set to 1, 0 means set to 0.
    */
   AV1E_GET_HIGH_MOTION_CONTENT_SCREEN_RTC = 167,
 

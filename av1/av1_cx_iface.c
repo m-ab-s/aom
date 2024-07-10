@@ -4440,7 +4440,7 @@ static aom_codec_err_t ctrl_get_high_motion_content_screen_rtc(
   int *arg = va_arg(args, int *);
   AV1_COMP *const cpi = ctx->ppi->cpi;
   if (arg == NULL) return AOM_CODEC_INVALID_PARAM;
-  *arg = cpi->rc.high_motion_screen_content;
+  *arg = cpi->rc.high_motion_content_screen_rtc;
   return AOM_CODEC_OK;
 }
 
