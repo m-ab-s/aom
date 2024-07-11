@@ -17,7 +17,7 @@
 #include "aom_dsp/x86/synonyms.h"
 
 #define pair_set_epi16(a, b) \
-  _mm_set1_epi32((int32_t)(((uint16_t)(a)) | (((uint32_t)(b)) << 16)))
+  _mm_set1_epi32((int32_t)(((uint16_t)(a)) | (((uint32_t)(uint16_t)(b)) << 16)))
 
 // Reverse the 8 16 bit words in __m128i
 static INLINE __m128i mm_reverse_epi16(const __m128i x) {

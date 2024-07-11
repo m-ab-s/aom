@@ -22,7 +22,7 @@ extern "C" {
 
 static INLINE __m256i pair_set_w16_epi16(int16_t a, int16_t b) {
   return _mm256_set1_epi32(
-      (int32_t)(((uint16_t)(a)) | (((uint32_t)(b)) << 16)));
+      (int32_t)(((uint16_t)(a)) | (((uint32_t)(uint16_t)(b)) << 16)));
 }
 
 static INLINE void btf_16_w16_avx2(const __m256i w0, const __m256i w1,

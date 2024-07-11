@@ -731,7 +731,8 @@ void av1_compute_stats_sse4_1(int wiener_win, const uint8_t *dgd,
 }
 
 static INLINE __m128i pair_set_epi16(int a, int b) {
-  return _mm_set1_epi32((int32_t)(((uint16_t)(a)) | (((uint32_t)(b)) << 16)));
+  return _mm_set1_epi32(
+      (int32_t)(((uint16_t)(a)) | (((uint32_t)(uint16_t)(b)) << 16)));
 }
 
 int64_t av1_lowbd_pixel_proj_error_sse4_1(
