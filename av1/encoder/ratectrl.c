@@ -660,7 +660,7 @@ static int adjust_q_cbr(const AV1_COMP *cpi, int q, int active_worst_quality,
       if (rc->avg_frame_bandwidth < lc->rc.avg_frame_bandwidth &&
           q < last_qindex_tl0 - 4)
         q = last_qindex_tl0 - 4;
-    } else if (cpi->svc.temporal_layer_id == 0 &&
+    } else if (cpi->svc.temporal_layer_id == 0 && !frame_is_intra_only(cm) &&
                p_rc->buffer_level > (p_rc->optimal_buffer_level >> 2) &&
                rc->frame_source_sad < 100000) {
       // Push base TL0 Q down if buffer is stable and frame_source_sad
