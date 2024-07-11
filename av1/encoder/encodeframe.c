@@ -2112,7 +2112,8 @@ static AOM_INLINE void encode_frame_internal(AV1_COMP *cpi) {
       for (j = TX_TYPES - 1; j >= 0; j--) {
         int update_txtype_frameprobs = 1;
         const int new_prob =
-            sum ? MAX_TX_TYPE_PROB * cpi->td.rd_counts.tx_type_used[i][j] / sum
+            sum ? (int)((int64_t)MAX_TX_TYPE_PROB *
+                        cpi->td.rd_counts.tx_type_used[i][j] / sum)
                 : (j ? 0 : MAX_TX_TYPE_PROB);
 #if CONFIG_FPMT_TEST
         if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
