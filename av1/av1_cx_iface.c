@@ -2863,7 +2863,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 #if !CONFIG_REALTIME_ONLY
       res = create_stats_buffer(&priv->frame_stats_buffer,
                                 &priv->stats_buf_context, *num_lap_buffers);
-      if (res != AOM_CODEC_OK) return AOM_CODEC_MEM_ERROR;
+      if (res != AOM_CODEC_OK) return res;
 
       assert(MAX_LAP_BUFFERS >= MAX_LAG_BUFFERS);
       int size = get_stats_buf_size(*num_lap_buffers, MAX_LAG_BUFFERS);
@@ -2878,6 +2878,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
           priv->ppi, &priv->ppi->parallel_cpi[0], &priv->buffer_pool,
           &priv->oxcf, ENCODE_STAGE, -1);
       if (res != AOM_CODEC_OK) {
+        priv->base.err_detail = "av1_create_context_and_bufferpool() failed";
         return res;
       }
 #if !CONFIG_REALTIME_ONLY
