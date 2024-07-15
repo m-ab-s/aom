@@ -2273,6 +2273,7 @@ static AOM_INLINE void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->source_metrics_sb_nonrd = 0;
   rt_sf->overshoot_detection_cbr = NO_DETECTION;
   rt_sf->check_scene_detection = 0;
+  rt_sf->rc_adjust_keyframe = 0;
   rt_sf->prefer_large_partition_blocks = 0;
   rt_sf->use_temporal_noise_estimate = 0;
   rt_sf->fullpel_search_step_param = 0;

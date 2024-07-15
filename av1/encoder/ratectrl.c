@@ -179,6 +179,37 @@ int av1_get_bpmb_enumerator(FRAME_TYPE frame_type,
 
 static int get_init_ratio(double sse) { return (int)(300000 / sse); }
 
+// Adjustment based on spatial content and last encoded keyframe.
+// Allow for increase in enumerator to reduce overshoot.
+static int adjust_rtc_keyframe(const RATE_CONTROL *rc, int enumerator) {
+  // Don't adjust if most of the image is flat.
+  if (rc->perc_flat_blocks_keyframe > 70) return enumerator;
+  if (rc->last_encoded_size_keyframe == 0 ||
+      rc->frames_since_scene_change < rc->frames_since_key) {
+    // Very first frame, or if scene change happened after last keyframe.
+    if (rc->spatial_variance_keyframe > 1000)
+      return enumerator << 3;
+    else if (rc->spatial_variance_keyframe > 500 &&
+             rc->perc_flat_blocks_keyframe < 10)
+      return enumerator << 2;
+    else if (rc->spatial_variance_keyframe > 400)
+      return enumerator << 1;
+  } else if (rc->frames_since_scene_change >= rc->frames_since_key) {
+    // There was no scene change before previous encoded keyframe, so
+    // use the last_encoded/target_size_keyframe.
+    if (rc->last_encoded_size_keyframe > 4 * rc->last_target_size_keyframe &&
+        rc->spatial_variance_keyframe > 500)
+      return enumerator << 3;
+    else if (rc->last_encoded_size_keyframe >
+                 2 * rc->last_target_size_keyframe &&
+             rc->spatial_variance_keyframe > 200)
+      return enumerator << 2;
+    else if (rc->last_encoded_size_keyframe > rc->last_target_size_keyframe)
+      return enumerator << 1;
+  }
+  return enumerator;
+}
+
 int av1_rc_bits_per_mb(const AV1_COMP *cpi, FRAME_TYPE frame_type, int qindex,
                        double correction_factor, int accurate_estimate) {
   const AV1_COMMON *const cm = &cpi->common;
@@ -200,8 +231,12 @@ int av1_rc_bits_per_mb(const AV1_COMP *cpi, FRAME_TYPE frame_type, int qindex,
                                                    : cpi->rc.bit_est_ratio;
     // Clamp the enumerator to lower the q fluctuations.
     enumerator = AOMMIN(AOMMAX((int)(ratio * sse_sqrt), 20000), 170000);
+  } else if (cpi->oxcf.rc_cfg.mode == AOM_CBR && frame_type == KEY_FRAME &&
+             cpi->sf.rt_sf.rc_adjust_keyframe && bit_depth == 8 &&
+             cpi->oxcf.rc_cfg.max_intra_bitrate_pct > 0 &&
+             cpi->svc.spatial_layer_id == 0) {
+    enumerator = adjust_rtc_keyframe(&cpi->rc, enumerator);
   }
-
   // q based adjustment to baseline enumerator
   return (int)(enumerator * correction_factor / q);
 }
@@ -444,6 +479,7 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
   rc->percent_blocks_inactive = 0;
   rc->force_max_q = 0;
   rc->postencode_drop = 0;
+  rc->frames_since_scene_change = 0;
 }
 
 static bool check_buffer_below_thresh(AV1_COMP *cpi, int64_t buffer_level,
@@ -2324,6 +2360,10 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
     p_rc->last_q[KEY_FRAME] = qindex;
     p_rc->avg_frame_qindex[KEY_FRAME] =
         ROUND_POWER_OF_TWO(3 * p_rc->avg_frame_qindex[KEY_FRAME] + qindex, 2);
+    if (cpi->svc.spatial_layer_id == 0) {
+      rc->last_encoded_size_keyframe = rc->projected_frame_size;
+      rc->last_target_size_keyframe = rc->this_frame_target;
+    }
   } else {
     if ((cpi->ppi->use_svc && cpi->oxcf.rc_cfg.mode == AOM_CBR) ||
         cpi->rc.rtc_external_ratectrl ||
@@ -2412,7 +2452,10 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
       p_rc->temp_rate_correction_factors[i] = p_rc->rate_correction_factors[i];
   }
 #endif
-  if (current_frame->frame_type == KEY_FRAME) rc->frames_since_key = 0;
+  if (current_frame->frame_type == KEY_FRAME) {
+    rc->frames_since_key = 0;
+    rc->frames_since_scene_change = 0;
+  }
   if (cpi->refresh_frame.golden_frame)
     rc->frame_num_last_gf_refresh = current_frame->frame_number;
   rc->prev_coded_width = cm->width;
@@ -3268,6 +3311,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   if (num_samples > 0)
     rc->percent_blocks_with_motion =
         ((num_samples - num_zero_temp_sad) * 100) / num_samples;
+  if (rc->high_source_sad) cpi->rc.frames_since_scene_change = 0;
   // Update the high_motion_content_screen_rtc flag on TL0. Avoid the update
   // if too many consecutive frame drops occurred.
   const uint64_t thresh_high_motion = 9 * 64 * 64;
@@ -3328,6 +3372,67 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
       lrc->max_block_source_sad = rc->max_block_source_sad;
     }
   }
+}
+
+// This is used as a reference when computing the source variance.
+static const uint8_t AV1_VAR_OFFS[MAX_SB_SIZE] = {
+  128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+  128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+  128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+  128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+  128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+  128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+  128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+  128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+  128, 128, 128, 128, 128, 128, 128, 128
+};
+
+/*!\brief Compute spatial activity for keyframe,  1 pass real-time mode.
+ *
+ * Compute average spatial activity/variance for source frame over a
+ * subset of superblocks.
+ *
+ * \ingroup rate_control
+ * \param[in]       cpi          Top level encoder structure
+ * \param[in]       src_y        Input source buffer for y channel.
+ * \param[in]       src_ystride  Input source stride for y channel.
+ *
+ * \remark Nothing is returned. Instead the average spatial variance
+ * computed is stored in flag \c cpi->rc.spatial_variance_keyframe.
+ */
+static void rc_spatial_act_keyframe_onepass_rt(AV1_COMP *cpi, uint8_t *src_y,
+                                               int src_ystride) {
+  AV1_COMMON *const cm = &cpi->common;
+  int num_mi_cols = cm->mi_params.mi_cols;
+  int num_mi_rows = cm->mi_params.mi_rows;
+  const BLOCK_SIZE bsize = BLOCK_64X64;
+  // Loop over sub-sample of frame, compute average over 64x64 blocks.
+  uint64_t avg_variance = 0;
+  int num_samples = 0;
+  int num_zero_var_blocks = 0;
+  cpi->rc.perc_flat_blocks_keyframe = 0;
+  const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
+                                ? (cm->seq_params->mib_size >> 1)
+                                : cm->seq_params->mib_size;
+  const int sb_cols = (num_mi_cols + sb_size_by_mb - 1) / sb_size_by_mb;
+  const int sb_rows = (num_mi_rows + sb_size_by_mb - 1) / sb_size_by_mb;
+  for (int sbi_row = 0; sbi_row < sb_rows; ++sbi_row) {
+    for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
+      unsigned int sse;
+      const unsigned int var =
+          cpi->ppi->fn_ptr[bsize].vf(src_y, src_ystride, AV1_VAR_OFFS, 0, &sse);
+      avg_variance += var;
+      num_samples++;
+      if (var == 0) num_zero_var_blocks++;
+      src_y += 64;
+    }
+    src_y += (src_ystride << 6) - (sb_cols << 6);
+  }
+  if (num_samples > 0) {
+    cpi->rc.perc_flat_blocks_keyframe = 100 * num_zero_var_blocks / num_samples;
+    avg_variance = avg_variance / num_samples;
+  }
+  cpi->rc.spatial_variance_keyframe = avg_variance >> 12;
 }
 
 /*!\brief Set the GF baseline interval for 1 pass real-time mode.
@@ -3640,6 +3745,11 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
       cpi->src_sad_blk_64x64 = NULL;
     }
   }
+  if (*frame_type == KEY_FRAME && cpi->sf.rt_sf.rc_adjust_keyframe &&
+      svc->spatial_layer_id == 0 && cm->seq_params->bit_depth == 8 &&
+      cpi->oxcf.rc_cfg.max_intra_bitrate_pct > 0)
+    rc_spatial_act_keyframe_onepass_rt(cpi, frame_input->source->y_buffer,
+                                       frame_input->source->y_stride);
   // Check for dynamic resize, for single spatial layer for now.
   // For temporal layers only check on base temporal layer.
   if (cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC) {
