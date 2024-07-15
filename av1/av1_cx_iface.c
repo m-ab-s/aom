@@ -3051,10 +3051,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (img != NULL) {
     res = validate_img(ctx, img);
     if (res == AOM_CODEC_OK) {
-      const size_t uncompressed_frame_sz =
-          (size_t)((uint64_t)ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_w, 5) *
-                   ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_h, 5) *
-                   get_image_bps(img) / 8);
+      const uint64_t uncompressed_frame_sz64 =
+          (uint64_t)ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_w, 5) *
+          ALIGN_POWER_OF_TWO_UNSIGNED(ctx->cfg.g_h, 5) * get_image_bps(img) / 8;
+#if UINT64_MAX > SIZE_MAX
+      if (uncompressed_frame_sz64 > SIZE_MAX) return AOM_CODEC_MEM_ERROR;
+#endif
+      const size_t uncompressed_frame_sz = (size_t)uncompressed_frame_sz64;
 
       // Due to the presence of no-show frames, the ctx->cx_data buffer holds
       // compressed data corresponding to multiple frames. As no-show frames are
