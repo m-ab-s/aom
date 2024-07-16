@@ -694,7 +694,7 @@ int av1_rc_bits_per_mb(const struct AV1_COMP *cpi, FRAME_TYPE frame_type,
 int av1_rc_clamp_iframe_target_size(const struct AV1_COMP *const cpi,
                                     int64_t target);
 int av1_rc_clamp_pframe_target_size(const struct AV1_COMP *const cpi,
-                                    int target, uint8_t frame_update_type);
+                                    int64_t target, uint8_t frame_update_type);
 
 // Find q_index corresponding to desired_q, within [best_qindex, worst_qindex].
 // To be precise, 'q_index' is the smallest integer, for which the corresponding

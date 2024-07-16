@@ -218,10 +218,10 @@ int av1_estimate_bits_at_q(const AV1_COMP *cpi, int q,
                 (int)((uint64_t)bpm * mbs) >> BPER_MB_NORMBITS);
 }
 
-int av1_rc_clamp_pframe_target_size(const AV1_COMP *const cpi, int target,
+int av1_rc_clamp_pframe_target_size(const AV1_COMP *const cpi, int64_t target,
                                     FRAME_UPDATE_TYPE frame_update_type) {
   const RATE_CONTROL *rc = &cpi->rc;
-  const AV1EncoderConfig *oxcf = &cpi->oxcf;
+  const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
   const int min_frame_target =
       AOMMAX(rc->min_frame_bandwidth, rc->avg_frame_bandwidth >> 5);
   // Clip the frame target to the minimum setup value.
@@ -238,13 +238,13 @@ int av1_rc_clamp_pframe_target_size(const AV1_COMP *const cpi, int target,
 
   // Clip the frame target to the maximum allowed value.
   if (target > rc->max_frame_bandwidth) target = rc->max_frame_bandwidth;
-  if (oxcf->rc_cfg.max_inter_bitrate_pct) {
-    const int max_rate =
-        rc->avg_frame_bandwidth * oxcf->rc_cfg.max_inter_bitrate_pct / 100;
+  if (rc_cfg->max_inter_bitrate_pct) {
+    const int64_t max_rate =
+        (int64_t)rc->avg_frame_bandwidth * rc_cfg->max_inter_bitrate_pct / 100;
     target = AOMMIN(target, max_rate);
   }
 
-  return target;
+  return (int)target;
 }
 
 int av1_rc_clamp_iframe_target_size(const AV1_COMP *const cpi, int64_t target) {
@@ -2698,11 +2698,10 @@ int av1_calc_pframe_target_size_one_pass_vbr(
     target = ((int64_t)rc->avg_frame_bandwidth * p_rc->baseline_gf_interval) /
              (p_rc->baseline_gf_interval + af_ratio - 1);
   }
-  if (target > INT_MAX) target = INT_MAX;
 #else
   target = rc->avg_frame_bandwidth;
 #endif
-  return av1_rc_clamp_pframe_target_size(cpi, (int)target, frame_update_type);
+  return av1_rc_clamp_pframe_target_size(cpi, target, frame_update_type);
 }
 
 int av1_calc_iframe_target_size_one_pass_vbr(const AV1_COMP *const cpi) {
@@ -2722,16 +2721,17 @@ int av1_calc_pframe_target_size_one_pass_cbr(
   const int64_t one_pct_bits = 1 + p_rc->optimal_buffer_level / 100;
   int min_frame_target =
       AOMMAX(rc->avg_frame_bandwidth >> 4, FRAME_OVERHEAD_BITS);
-  int target;
+  int64_t target;
 
   if (rc_cfg->gf_cbr_boost_pct) {
     const int af_ratio_pct = rc_cfg->gf_cbr_boost_pct + 100;
     if (frame_update_type == GF_UPDATE || frame_update_type == OVERLAY_UPDATE) {
-      target = (rc->avg_frame_bandwidth * p_rc->baseline_gf_interval *
+      target = ((int64_t)rc->avg_frame_bandwidth * p_rc->baseline_gf_interval *
                 af_ratio_pct) /
                (p_rc->baseline_gf_interval * 100 + af_ratio_pct - 100);
     } else {
-      target = (rc->avg_frame_bandwidth * p_rc->baseline_gf_interval * 100) /
+      target = ((int64_t)rc->avg_frame_bandwidth * p_rc->baseline_gf_interval *
+                100) /
                (p_rc->baseline_gf_interval * 100 + af_ratio_pct - 100);
     }
   } else {
@@ -2760,11 +2760,12 @@ int av1_calc_pframe_target_size_one_pass_cbr(
     target += (target * pct_high) / 200;
   }
   if (rc_cfg->max_inter_bitrate_pct) {
-    const int max_rate =
-        rc->avg_frame_bandwidth * rc_cfg->max_inter_bitrate_pct / 100;
+    const int64_t max_rate =
+        (int64_t)rc->avg_frame_bandwidth * rc_cfg->max_inter_bitrate_pct / 100;
     target = AOMMIN(target, max_rate);
   }
-  return AOMMAX(min_frame_target, target);
+  if (target > INT_MAX) target = INT_MAX;
+  return AOMMAX(min_frame_target, (int)target);
 }
 
 int av1_calc_iframe_target_size_one_pass_cbr(const AV1_COMP *cpi) {
