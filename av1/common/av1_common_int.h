@@ -1802,7 +1802,7 @@ static INLINE PARTITION_TYPE get_partition(const AV1_COMMON *const cm,
       // PARTITION_VERT_B. To distinguish the latter two, check if the right
       // half was split.
       if (sswide * 4 == bwide) return PARTITION_VERT_4;
-      assert(sswide * 2 == bhigh);
+      assert(sswide * 2 == bwide);
 
       if (mbmi_right->bsize == subsize)
         return PARTITION_VERT;
