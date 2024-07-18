@@ -3785,12 +3785,13 @@ int av1_postencode_drop_cbr(AV1_COMP *cpi, size_t *size) {
   size_t frame_size = *size << 3;
   const int64_t new_buffer_level =
       p_rc->buffer_level + cpi->rc.avg_frame_bandwidth - (int64_t)frame_size;
-  // For now we drop if new buffer level (given the encoded frame size) goes
-  // below 0 and encoded frame size is much larger than per-frame-bandwidth.
+  // Drop if new buffer level (given the encoded frame size) goes below a
+  // threshold and encoded frame size is much larger than per-frame-bandwidth.
   // If the frame is already labelled as scene change (high_source_sad = 1)
   // or the QP is close to max, then no need to drop.
   const int qp_thresh = 3 * (cpi->rc.worst_quality >> 2);
-  if (!cpi->rc.high_source_sad && new_buffer_level < 0 &&
+  const int64_t buffer_thresh = p_rc->optimal_buffer_level >> 2;
+  if (!cpi->rc.high_source_sad && new_buffer_level < buffer_thresh &&
       frame_size > 8 * (unsigned int)cpi->rc.avg_frame_bandwidth &&
       cpi->common.quant_params.base_qindex < qp_thresh) {
     *size = 0;
