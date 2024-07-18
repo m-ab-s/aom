@@ -700,4 +700,4 @@ please email aomediacodec@jointdevelopment.kavi.com for help.
 ## Bug reports {#bug-reports}
 
 Bug reports can be filed in the Alliance for Open Media
-[issue tracker](https://bugs.chromium.org/p/aomedia/issues/list).
+[issue tracker](https://aomedia.issues.chromium.org/).
