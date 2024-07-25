@@ -187,7 +187,9 @@ static int adjust_rtc_keyframe(const RATE_CONTROL *rc, int enumerator) {
   if (rc->last_encoded_size_keyframe == 0 ||
       rc->frames_since_scene_change < rc->frames_since_key) {
     // Very first frame, or if scene change happened after last keyframe.
-    if (rc->spatial_variance_keyframe > 1000)
+    if (rc->spatial_variance_keyframe > 1000 ||
+        (rc->spatial_variance_keyframe > 500 &&
+         rc->perc_flat_blocks_keyframe == 0))
       return enumerator << 3;
     else if (rc->spatial_variance_keyframe > 500 &&
              rc->perc_flat_blocks_keyframe < 10)
