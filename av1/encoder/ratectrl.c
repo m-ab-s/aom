@@ -2821,9 +2821,9 @@ int av1_calc_iframe_target_size_one_pass_cbr(const AV1_COMP *cpi) {
     }
   } else {
     int kf_boost = 32;
-    int framerate = (int)round(cpi->framerate);
+    double framerate = cpi->framerate;
 
-    kf_boost = AOMMAX(kf_boost, (int)(2 * framerate - 16));
+    kf_boost = AOMMAX(kf_boost, (int)round(2 * framerate - 16));
     if (rc->frames_since_key < framerate / 2) {
       kf_boost = (int)(kf_boost * rc->frames_since_key / (framerate / 2));
     }
