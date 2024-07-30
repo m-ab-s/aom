@@ -1174,23 +1174,27 @@ static void final_filter_internal(uint16_t *A, int32_t *B, const int buf_stride,
   } while (h > 0);
 }
 
-static INLINE void restoration_fast_internal(uint16_t *dgd16, int width,
-                                             int height, int dgd_stride,
-                                             int32_t *dst, int dst_stride,
-                                             int bit_depth, int sgr_params_idx,
-                                             int radius_idx) {
+static INLINE int restoration_fast_internal(uint16_t *dgd16, int width,
+                                            int height, int dgd_stride,
+                                            int32_t *dst, int dst_stride,
+                                            int bit_depth, int sgr_params_idx,
+                                            int radius_idx) {
   const sgr_params_type *const params = &av1_sgr_params[sgr_params_idx];
   const int r = params->r[radius_idx];
   const int width_ext = width + 2 * SGRPROJ_BORDER_HORZ;
   const int height_ext = height + 2 * SGRPROJ_BORDER_VERT;
-
   const int buf_stride = ((width_ext + 3) & ~3) + 16;
-  int32_t A_[RESTORATION_PROC_UNIT_PELS];
-  uint16_t A16_[RESTORATION_PROC_UNIT_PELS];
-  int32_t B_[RESTORATION_PROC_UNIT_PELS];
-  int32_t *square_sum_buf = A_;
-  int32_t *sum_buf = B_;
-  uint16_t *tmp16_buf = A16_;
+
+  const size_t buf_size = 3 * sizeof(int32_t) * RESTORATION_PROC_UNIT_PELS;
+  int32_t *buf = aom_memalign(8, buf_size);
+  if (!buf) return -1;
+
+  int32_t *square_sum_buf = buf;
+  int32_t *sum_buf = square_sum_buf + RESTORATION_PROC_UNIT_PELS;
+  uint16_t *tmp16_buf = (uint16_t *)(sum_buf + RESTORATION_PROC_UNIT_PELS);
+  assert((char *)(sum_buf + RESTORATION_PROC_UNIT_PELS) <=
+             (char *)buf + buf_size &&
+         "Allocated buffer is too small. Resize the buffer.");
 
   assert(r <= MAX_RADIUS && "Need MAX_RADIUS >= r");
   assert(r <= SGRPROJ_BORDER_VERT - 1 && r <= SGRPROJ_BORDER_HORZ - 1 &&
@@ -1236,26 +1240,32 @@ static INLINE void restoration_fast_internal(uint16_t *dgd16, int width,
 #endif
   final_filter_fast_internal(tmp16_buf, sum_buf, buf_stride, (int16_t *)dgd16,
                              dgd_stride, dst, dst_stride, width, height);
+  aom_free(buf);
+  return 0;
 }
 
-static INLINE void restoration_internal(uint16_t *dgd16, int width, int height,
-                                        int dgd_stride, int32_t *dst,
-                                        int dst_stride, int bit_depth,
-                                        int sgr_params_idx, int radius_idx) {
+static INLINE int restoration_internal(uint16_t *dgd16, int width, int height,
+                                       int dgd_stride, int32_t *dst,
+                                       int dst_stride, int bit_depth,
+                                       int sgr_params_idx, int radius_idx) {
   const sgr_params_type *const params = &av1_sgr_params[sgr_params_idx];
   const int r = params->r[radius_idx];
   const int width_ext = width + 2 * SGRPROJ_BORDER_HORZ;
   const int height_ext = height + 2 * SGRPROJ_BORDER_VERT;
+  const int buf_stride = ((width_ext + 3) & ~3) + 16;
 
-  int buf_stride = ((width_ext + 3) & ~3) + 16;
-  int32_t A_[RESTORATION_PROC_UNIT_PELS];
-  uint16_t A16_[RESTORATION_PROC_UNIT_PELS];
-  uint16_t B16_[RESTORATION_PROC_UNIT_PELS];
-  int32_t B_[RESTORATION_PROC_UNIT_PELS];
-  int32_t *square_sum_buf = A_;
-  uint16_t *sum_buf = B16_;
-  uint16_t *A16 = A16_;
-  int32_t *B = B_;
+  const size_t buf_size = 3 * sizeof(int32_t) * RESTORATION_PROC_UNIT_PELS;
+  int32_t *buf = aom_memalign(8, buf_size);
+  if (!buf) return -1;
+
+  int32_t *square_sum_buf = buf;
+  int32_t *B = square_sum_buf + RESTORATION_PROC_UNIT_PELS;
+  uint16_t *A16 = (uint16_t *)(B + RESTORATION_PROC_UNIT_PELS);
+  uint16_t *sum_buf = A16 + RESTORATION_PROC_UNIT_PELS;
+
+  assert((char *)(sum_buf + RESTORATION_PROC_UNIT_PELS) <=
+             (char *)buf + buf_size &&
+         "Allocated buffer is too small. Resize the buffer.");
 
   assert(r <= MAX_RADIUS && "Need MAX_RADIUS >= r");
   assert(r <= SGRPROJ_BORDER_VERT - 1 && r <= SGRPROJ_BORDER_HORZ - 1 &&
@@ -1300,6 +1310,8 @@ static INLINE void restoration_internal(uint16_t *dgd16, int width, int height,
 #endif
   final_filter_internal(A16, B, buf_stride, (int16_t *)dgd16, dgd_stride, dst,
                         dst_stride, width, height);
+  aom_free(buf);
+  return 0;
 }
 
 static INLINE void src_convert_u8_to_u16(const uint8_t *src,
@@ -1440,12 +1452,17 @@ int av1_selfguided_restoration_neon(const uint8_t *dat8, int width, int height,
       dgd16_stride, width_ext, height_ext);
 #endif
 
-  if (params->r[0] > 0)
-    restoration_fast_internal(dgd16, width, height, dgd16_stride, flt0,
-                              flt_stride, bit_depth, sgr_params_idx, 0);
-  if (params->r[1] > 0)
-    restoration_internal(dgd16, width, height, dgd16_stride, flt1, flt_stride,
-                         bit_depth, sgr_params_idx, 1);
+  if (params->r[0] > 0) {
+    int ret =
+        restoration_fast_internal(dgd16, width, height, dgd16_stride, flt0,
+                                  flt_stride, bit_depth, sgr_params_idx, 0);
+    if (ret != 0) return ret;
+  }
+  if (params->r[1] > 0) {
+    int ret = restoration_internal(dgd16, width, height, dgd16_stride, flt1,
+                                   flt_stride, bit_depth, sgr_params_idx, 1);
+    if (ret != 0) return ret;
+  }
   return 0;
 }
 
@@ -1491,12 +1508,16 @@ int av1_apply_selfguided_restoration_neon(const uint8_t *dat8, int width,
       dgd16 - SGRPROJ_BORDER_VERT * dgd16_stride - SGRPROJ_BORDER_HORZ,
       dgd16_stride, width_ext, height_ext);
 #endif
-  if (params->r[0] > 0)
-    restoration_fast_internal(dgd16, width, height, dgd16_stride, flt0, width,
-                              bit_depth, eps, 0);
-  if (params->r[1] > 0)
-    restoration_internal(dgd16, width, height, dgd16_stride, flt1, width,
-                         bit_depth, eps, 1);
+  if (params->r[0] > 0) {
+    int ret = restoration_fast_internal(dgd16, width, height, dgd16_stride,
+                                        flt0, width, bit_depth, eps, 0);
+    if (ret != 0) return ret;
+  }
+  if (params->r[1] > 0) {
+    int ret = restoration_internal(dgd16, width, height, dgd16_stride, flt1,
+                                   width, bit_depth, eps, 1);
+    if (ret != 0) return ret;
+  }
 
   av1_decode_xq(xqd, xq, params);
 
