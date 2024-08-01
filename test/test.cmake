@@ -419,16 +419,6 @@ if(ENABLE_TESTS)
       target_compile_definitions(aom_gtest PUBLIC GTEST_HAS_PTHREAD=0)
     endif()
   endif()
-
-  add_library(
-    aom_gmock STATIC
-    "${AOM_ROOT}/third_party/googletest/src/googlemock/src/gmock-all.cc")
-  set_property(TARGET aom_gmock PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
-  target_include_directories(
-    aom_gmock
-    PUBLIC "${AOM_ROOT}/third_party/googletest/src/googlemock/include"
-    PRIVATE "${AOM_ROOT}/third_party/googletest/src/googlemock")
-  target_link_libraries(aom_gmock ${AOM_LIB_LINK_TYPE} aom_gtest)
 endif()
 
 # Setup testdata download targets, test build targets, and test run targets. The
