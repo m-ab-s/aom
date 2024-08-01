@@ -352,6 +352,7 @@ else()
   add_compiler_flag_if_supported("-Wsign-compare")
   add_compiler_flag_if_supported("-Wstring-conversion")
   add_compiler_flag_if_supported("-Wtype-limits")
+  add_compiler_flag_if_supported("-Wundef")
   add_compiler_flag_if_supported("-Wuninitialized")
   add_compiler_flag_if_supported("-Wunreachable-code-aggressive")
   add_compiler_flag_if_supported("-Wunused")
@@ -378,9 +379,6 @@ else()
     # Disable no optimization warning when compiling with sanitizers
     add_compiler_flag_if_supported("-Wno-disabled-optimization")
   endif()
-
-  # Add -Wundef only for C files to avoid massive gtest warning spam.
-  add_c_flag_if_supported("-Wundef")
 
   # Quiet gcc 6 vs 7 abi warnings:
   # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=77728
