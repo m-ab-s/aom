@@ -190,7 +190,7 @@ class KeyFrameIntervalTestLarge
 // Because valgrind builds take a very long time to run, use a lower
 // resolution video for valgrind runs.
 const char *TestFileName() {
-#if AOM_VALGRIND_BUILD
+#ifdef AOM_VALGRIND_BUILD
   return "hantro_collage_w176h144.yuv";
 #else
   return "hantro_collage_w352h288.yuv";
@@ -198,7 +198,7 @@ const char *TestFileName() {
 }
 
 int TestFileWidth() {
-#if AOM_VALGRIND_BUILD
+#ifdef AOM_VALGRIND_BUILD
   return 176;
 #else
   return 352;
@@ -206,7 +206,7 @@ int TestFileWidth() {
 }
 
 int TestFileHeight() {
-#if AOM_VALGRIND_BUILD
+#ifdef AOM_VALGRIND_BUILD
   return 144;
 #else
   return 288;
