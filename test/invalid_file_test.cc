@@ -132,7 +132,7 @@ const DecodeParam kAV1InvalidFileTests[] = {
   { 4, "invalid-oss-fuzz-9463.ivf", "invalid-oss-fuzz-9463.ivf.res.2" },
   { 1, "invalid-oss-fuzz-9720.ivf", nullptr },
   { 1, "invalid-oss-fuzz-10389.ivf", "invalid-oss-fuzz-10389.ivf.res.4" },
-#if !CHROMIUM && !CONFIG_SIZE_LIMIT ||                  \
+#if !defined(CHROMIUM) && !CONFIG_SIZE_LIMIT ||         \
     (CONFIG_SIZE_LIMIT && DECODE_WIDTH_LIMIT >= 5120 && \
      DECODE_HEIGHT_LIMIT >= 180)
   { 1, "invalid-oss-fuzz-11523.ivf", "invalid-oss-fuzz-11523.ivf.res.2" },
