@@ -405,8 +405,11 @@ if(ENABLE_TESTS)
     aom_gtest STATIC
     "${AOM_ROOT}/third_party/googletest/src/googletest/src/gtest-all.cc")
   set_property(TARGET aom_gtest PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
+  # There are -Wundef warnings in the gtest headers. Tell the compiler to treat
+  # the gtest include directories as system include directories and suppress
+  # compiler warnings in the gtest headers.
   target_include_directories(
-    aom_gtest
+    aom_gtest SYSTEM
     PUBLIC "${AOM_ROOT}/third_party/googletest/src/googletest/include"
     PRIVATE "${AOM_ROOT}/third_party/googletest/src/googletest")
 
