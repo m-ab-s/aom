@@ -12,10 +12,10 @@
 #include <tuple>
 
 #define SIMD_CHECK 1
-#include "third_party/googletest/src/googletest/include/gtest/gtest.h"
-#include "test/register_state_check.h"
 #include "aom_dsp/aom_simd_inline.h"
 #include "aom_dsp/simd/v256_intrinsics_c.h"
+#include "gtest/gtest.h"
+#include "test/register_state_check.h"
 
 namespace SIMD_NAMESPACE {
 

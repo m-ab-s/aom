@@ -11,7 +11,7 @@
 
 #include "aom/aom_codec.h"
 #include "aom_dsp/aom_dsp_common.h"
-#include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+#include "gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/y4m_video_source.h"

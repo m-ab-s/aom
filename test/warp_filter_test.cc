@@ -10,7 +10,7 @@
  */
 #include <tuple>
 
-#include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+#include "gtest/gtest.h"
 #include "test/warp_filter_test_util.h"
 using libaom_test::ACMRandom;
 #if CONFIG_AV1_HIGHBITDEPTH

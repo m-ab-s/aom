@@ -13,7 +13,7 @@
 #include <ostream>
 #include <string>
 
-#include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+#include "gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/ivf_video_source.h"
 #include "test/util.h"

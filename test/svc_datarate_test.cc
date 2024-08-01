@@ -12,7 +12,7 @@
 #include <climits>
 #include <vector>
 #include "config/aom_config.h"
-#include "third_party/googletest/src/googletest/include/gtest/gtest.h"
+#include "gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/datarate_test.h"
 #include "test/encode_test_driver.h"
