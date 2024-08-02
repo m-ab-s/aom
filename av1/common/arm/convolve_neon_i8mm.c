@@ -31,13 +31,6 @@ DECLARE_ALIGNED(16, static const uint8_t, kDotProdMergeBlockTbl[48]) = {
   3, 16, 17, 18, 7, 20, 21, 22, 11, 24, 25, 26, 15, 28, 29, 30
 };
 
-DECLARE_ALIGNED(16, static const uint8_t, kMatMulPermuteTbl[32]) = {
-  // clang-format off
-  0,  1,  2,  3,  4,  5,  6,  7,  2,  3,  4,  5,  6,  7,  8,  9,
-  4,  5,  6,  7,  8,  9, 10, 11,  6,  7,  8,  9, 10, 11, 12, 13
-  // clang-format on
-};
-
 static INLINE int16x4_t convolve12_4_x(uint8x16_t samples[2],
                                        const int8x16_t filter[2],
                                        const uint8x16_t permute_tbl,
@@ -1289,14 +1282,11 @@ void av1_convolve_2d_sr_neon_i8mm(const uint8_t *src, int src_stride,
     DECLARE_ALIGNED(16, int16_t,
                     im_block[(MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE]);
 
-    const int16x8_t x_filter_0_7 = vld1q_s16(x_filter_ptr);
-    const int16x4_t x_filter_8_11 = vld1_s16(x_filter_ptr + 8);
     const int16x8_t y_filter_0_7 = vld1q_s16(y_filter_ptr);
     const int16x4_t y_filter_8_11 = vld1_s16(y_filter_ptr + 8);
 
     convolve_2d_sr_horiz_12tap_neon_i8mm(src_ptr, src_stride, im_block,
-                                         im_stride, w, im_h, x_filter_0_7,
-                                         x_filter_8_11);
+                                         im_stride, w, im_h, x_filter_ptr);
 
     convolve_2d_sr_vert_12tap_neon(im_block, im_stride, dst, dst_stride, w, h,
                                    y_filter_0_7, y_filter_8_11);

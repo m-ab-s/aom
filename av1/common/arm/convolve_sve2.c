@@ -184,14 +184,11 @@ void av1_convolve_2d_sr_sve2(const uint8_t *src, int src_stride, uint8_t *dst,
     DECLARE_ALIGNED(16, int16_t,
                     im_block[(MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE]);
 
-    const int16x8_t x_filter_0_7 = vld1q_s16(x_filter_ptr);
-    const int16x4_t x_filter_8_11 = vld1_s16(x_filter_ptr + 8);
     const int16x8_t y_filter_0_7 = vld1q_s16(y_filter_ptr);
     const int16x8_t y_filter_4_11 = vld1q_s16(y_filter_ptr + 4);
 
     convolve_2d_sr_horiz_12tap_neon_i8mm(src_ptr, src_stride, im_block,
-                                         im_stride, w, im_h, x_filter_0_7,
-                                         x_filter_8_11);
+                                         im_stride, w, im_h, x_filter_ptr);
 
     convolve_2d_sr_vert_12tap_sve2(im_block, im_stride, dst, dst_stride, w, h,
                                    y_filter_0_7, y_filter_4_11);
