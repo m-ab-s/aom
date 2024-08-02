@@ -286,4 +286,11 @@ INSTANTIATE_TEST_SUITE_P(NEON, ResizeAndExtendTest,
                          ::testing::Values(av1_resize_and_extend_frame_neon));
 #endif  // HAVE_NEON
 
+#if HAVE_NEON_DOTPROD
+INSTANTIATE_TEST_SUITE_P(
+    NEON_DOTPROD, ResizeAndExtendTest,
+    ::testing::Values(av1_resize_and_extend_frame_neon_dotprod));
+
+#endif  // HAVE_NEON_DOTPROD
+
 }  // namespace
