@@ -176,10 +176,10 @@ int64_t av1_lowbd_pixel_proj_error_neon(
   return sse;
 }
 
-// We can accumulate up to 65536 8-bit multiplication results in 32-bit. We are
-// processing 2 pixels at a time, so the accumulator max can be as high as 32768
-// for the compute stats.
-#define STAT_ACCUMULATOR_MAX 32768
+// We can accumulate up to 32768 8-bit multiplication results in a signed
+// 32-bit integer. We are processing 2 pixels at a time, so the accumulator max
+// can be as high as 16384 for the compute stats.
+#define STAT_ACCUMULATOR_MAX 16384
 
 static INLINE uint8x8_t tbl2(uint8x16_t a, uint8x16_t b, uint8x8_t idx) {
 #if AOM_ARCH_AARCH64

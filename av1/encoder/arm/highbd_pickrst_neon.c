@@ -454,10 +454,10 @@ static INLINE void highbd_compute_stats_win7_neon(
   const uint8x16_t lut10 = vld1q_u8(shuffle_stats7_highbd + 160);
   const uint8x16_t lut11 = vld1q_u8(shuffle_stats7_highbd + 176);
 
-  // We can accumulate up to 65536/4096/256 8/10/12-bit multiplication results
-  // in 32-bit. We are processing 2 pixels at a time, so the accumulator max can
-  // be as high as 32768/2048/128 for the compute stats.
-  const int acc_cnt_max = (1 << (32 - 2 * bit_depth)) >> 1;
+  // We can accumulate up to 32768/2048/128 8/10/12-bit multiplication results
+  // in a signed 32-bit integer. We are processing 2 pixels at a time, so the
+  // accumulator max can be as high as 16384/1024/64 for the compute stats.
+  const int acc_cnt_max = (1 << (31 - 2 * bit_depth)) >> 1;
   int acc_cnt = acc_cnt_max;
   const int src_next = src_stride - width;
   const int dgd_next = dgd_stride - width;
@@ -736,10 +736,10 @@ static void highbd_compute_stats_win5_neon(const uint16_t *dgd,
   const uint8x16_t lut4 = vld1q_u8(shuffle_stats5_highbd + 64);
   const uint8x16_t lut5 = vld1q_u8(shuffle_stats5_highbd + 80);
 
-  // We can accumulate up to 65536/4096/256 8/10/12-bit multiplication results
-  // in 32-bit. We are processing 2 pixels at a time, so the accumulator max can
-  // be as high as 32768/2048/128 for the compute stats.
-  const int acc_cnt_max = (1 << (32 - 2 * bit_depth)) >> 1;
+  // We can accumulate up to 32768/2048/128 8/10/12-bit multiplication results
+  // in a signed 32-bit integer. We are processing 2 pixels at a time, so the
+  // accumulator max can be as high as 16384/1024/64 for the compute stats.
+  const int acc_cnt_max = (1 << (31 - 2 * bit_depth)) >> 1;
   int acc_cnt = acc_cnt_max;
   const int src_next = src_stride - width;
   const int dgd_next = dgd_stride - width;
