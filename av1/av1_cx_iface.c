@@ -4676,13 +4676,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       25,           // rc_undershoot_pct
       25,           // rc_overshoot_pct
 
-      6000,  // rc_max_buffer_size
-      4000,  // rc_buffer_initial_size
-      5000,  // rc_buffer_optimal_size
+      6000,  // rc_buf_sz
+      4000,  // rc_buf_initial_sz
+      5000,  // rc_buf_optimal_sz
 
-      50,    // rc_two_pass_vbrbias
-      0,     // rc_two_pass_vbrmin_section
-      2000,  // rc_two_pass_vbrmax_section
+      50,    // rc_2pass_vbr_bias_pct
+      0,     // rc_2pass_vbr_minsection_pct
+      2000,  // rc_2pass_vbr_maxsection_pct
 
       // keyframing settings (kf)
       0,                       // fwd_kf_enabled
@@ -4702,7 +4702,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                       // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
       { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
+        0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // encoder_cfg
   },
 #endif  // !CONFIG_REALTIME_ONLY
   {
@@ -4747,13 +4747,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       25,           // rc_undershoot_pct
       25,           // rc_overshoot_pct
 
-      6000,  // rc_max_buffer_size
-      4000,  // rc_buffer_initial_size
-      5000,  // rc_buffer_optimal_size
+      6000,  // rc_buf_sz
+      4000,  // rc_buf_initial_sz
+      5000,  // rc_buf_optimal_sz
 
-      50,    // rc_two_pass_vbrbias
-      0,     // rc_two_pass_vbrmin_section
-      2000,  // rc_two_pass_vbrmax_section
+      50,    // rc_2pass_vbr_bias_pct
+      0,     // rc_2pass_vbr_minsection_pct
+      2000,  // rc_2pass_vbr_maxsection_pct
 
       // keyframing settings (kf)
       0,                       // fwd_kf_enabled
@@ -4773,7 +4773,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                       // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
       { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
+        0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // encoder_cfg
   },
 #if !CONFIG_REALTIME_ONLY
   {
@@ -4818,13 +4818,13 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       25,           // rc_undershoot_pct
       25,           // rc_overshoot_pct
 
-      6000,  // rc_max_buffer_size
-      4000,  // rc_buffer_initial_size
-      5000,  // rc_buffer_optimal_size
+      6000,  // rc_buf_sz
+      4000,  // rc_buf_initial_sz
+      5000,  // rc_buf_optimal_sz
 
-      50,    // rc_two_pass_vbrbias
-      0,     // rc_two_pass_vbrmin_section
-      2000,  // rc_two_pass_vbrmax_section
+      50,    // rc_2pass_vbr_bias_pct
+      0,     // rc_2pass_vbr_minsection_pct
+      2000,  // rc_2pass_vbr_maxsection_pct
 
       // keyframing settings (kf)
       0,                       // fwd_kf_enabled
@@ -4844,7 +4844,7 @@ static const aom_codec_enc_cfg_t encoder_usage_cfg[] = {
       0,                       // use_fixed_qp_offsets
       { -1, -1, -1, -1, -1 },  // fixed_qp_offsets
       { 0, 128, 128, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // cfg
+        0, 0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },  // encoder_cfg
   },
 #endif  // !CONFIG_REALTIME_ONLY
 };
