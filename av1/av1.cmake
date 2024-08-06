@@ -545,7 +545,10 @@ if(CONFIG_REALTIME_ONLY)
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_NEON
                    "${AOM_ROOT}/av1/encoder/arm/cnn_neon.c"
+                   "${AOM_ROOT}/av1/encoder/arm/highbd_pickrst_neon.c"
                    "${AOM_ROOT}/av1/encoder/arm/highbd_temporal_filter_neon.c"
+                   "${AOM_ROOT}/av1/encoder/arm/pickrst_neon.c"
+                   "${AOM_ROOT}/av1/encoder/arm/pickrst_neon.h"
                    "${AOM_ROOT}/av1/encoder/arm/temporal_filter_neon.c")
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD
