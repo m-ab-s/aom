@@ -228,6 +228,7 @@ unsigned int aom_masked_sad4xh_ssse3(const uint8_t *src_ptr, int src_stride,
   return (unsigned int)_mm_cvtsi128_si32(res);
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 // For width a multiple of 8
 static INLINE unsigned int highbd_masked_sad_ssse3(
     const uint8_t *src8, int src_stride, const uint8_t *a8, int a_stride,
@@ -404,3 +405,4 @@ unsigned int aom_highbd_masked_sad4xh_ssse3(const uint8_t *src8, int src_stride,
   int sad = _mm_cvtsi128_si32(res);
   return sad;
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH

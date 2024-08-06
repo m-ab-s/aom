@@ -66,6 +66,7 @@ static INLINE void row_store_64xh(const __m256i *r, int height, uint8_t *dst,
   }
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 static DECLARE_ALIGNED(16, uint8_t, HighbdLoadMaskx[8][16]) = {
   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
   { 0, 1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 },
@@ -314,6 +315,7 @@ static INLINE void highbd_transpose16x16_avx2(__m256i *x, __m256i *d) {
                                        _mm256_extracti128_si256(dd[i], 1), 0);
   }
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 void aom_dc_predictor_32x32_avx2(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
@@ -1040,6 +1042,7 @@ void aom_paeth_predictor_64x16_avx2(uint8_t *dst, ptrdiff_t stride,
   }
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 #define PERM4x64(c0, c1, c2, c3) c0 + (c1 << 2) + (c2 << 4) + (c3 << 6)
 #define PERM2x128(c0, c1) c0 + (c1 << 4)
 
@@ -3424,6 +3427,7 @@ void av1_highbd_dr_prediction_z3_avx2(uint16_t *dst, ptrdiff_t stride, int bw,
   }
   return;
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // Low bit depth functions
 static DECLARE_ALIGNED(32, uint8_t, BaseMask[33][32]) = {

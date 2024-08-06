@@ -240,11 +240,13 @@ static INLINE __m256i mm256_loadu2(const uint8_t *p0, const uint8_t *p1) {
   return _mm256_insertf128_si256(d, _mm_loadu_si128((const __m128i *)p0), 1);
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE __m256i mm256_loadu2_16(const uint16_t *p0, const uint16_t *p1) {
   const __m256i d =
       _mm256_castsi128_si256(_mm_loadu_si128((const __m128i *)p1));
   return _mm256_insertf128_si256(d, _mm_loadu_si128((const __m128i *)p0), 1);
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static INLINE void comp_mask_pred_line_avx2(const __m256i s0, const __m256i s1,
                                             const __m256i a,
@@ -408,6 +410,7 @@ void aom_comp_mask_pred_avx2(uint8_t *comp_pred, const uint8_t *pred, int width,
   }
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE __m256i highbd_comp_mask_pred_line_avx2(const __m256i s0,
                                                       const __m256i s1,
                                                       const __m256i a) {
@@ -517,6 +520,7 @@ void aom_highbd_comp_mask_pred_avx2(uint8_t *comp_pred8, const uint8_t *pred8,
     } while (i < height);
   }
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static uint64_t mse_4xh_16bit_avx2(uint8_t *dst, int dstride, uint16_t *src,
                                    int sstride, int h) {

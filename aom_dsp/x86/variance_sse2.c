@@ -403,6 +403,7 @@ unsigned int aom_mse16x16_sse2(const uint8_t *src, int src_stride,
   return *sse;
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 static INLINE __m128i highbd_comp_mask_pred_line_sse2(const __m128i s0,
                                                       const __m128i s1,
                                                       const __m128i a) {
@@ -515,6 +516,7 @@ void aom_highbd_comp_mask_pred_sse2(uint8_t *comp_pred8, const uint8_t *pred8,
     } while (i < height);
   }
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static uint64_t mse_4xh_16bit_sse2(uint8_t *dst, int dstride, uint16_t *src,
                                    int sstride, int h) {

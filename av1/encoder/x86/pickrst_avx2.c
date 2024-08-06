@@ -1908,6 +1908,7 @@ void av1_calc_proj_params_avx2(const uint8_t *src8, int width, int height,
   }
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 static AOM_INLINE void calc_proj_params_r0_r1_high_bd_avx2(
     const uint8_t *src8, int width, int height, int src_stride,
     const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride,
@@ -2131,7 +2132,6 @@ void av1_calc_proj_params_high_bd_avx2(const uint8_t *src8, int width,
   }
 }
 
-#if CONFIG_AV1_HIGHBITDEPTH
 int64_t av1_highbd_pixel_proj_error_avx2(
     const uint8_t *src8, int width, int height, int src_stride,
     const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride,
