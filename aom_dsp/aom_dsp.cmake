@@ -57,7 +57,6 @@ list(APPEND AOM_DSP_COMMON_INTRIN_SSE2
             "${AOM_ROOT}/aom_dsp/x86/aom_convolve_copy_sse2.c"
             "${AOM_ROOT}/aom_dsp/x86/convolve.h"
             "${AOM_ROOT}/aom_dsp/x86/convolve_sse2.h"
-            "${AOM_ROOT}/aom_dsp/x86/highbd_intrapred_sse2.c"
             "${AOM_ROOT}/aom_dsp/x86/intrapred_sse2.c"
             "${AOM_ROOT}/aom_dsp/x86/intrapred_x86.h"
             "${AOM_ROOT}/aom_dsp/x86/loopfilter_sse2.c"
@@ -122,6 +121,7 @@ list(APPEND AOM_DSP_COMMON_INTRIN_NEON_I8MM
 if(CONFIG_AV1_HIGHBITDEPTH)
   list(APPEND AOM_DSP_COMMON_INTRIN_SSE2
               "${AOM_ROOT}/aom_dsp/x86/highbd_convolve_sse2.c"
+              "${AOM_ROOT}/aom_dsp/x86/highbd_intrapred_sse2.c"
               "${AOM_ROOT}/aom_dsp/x86/highbd_loopfilter_sse2.c")
 
   list(APPEND AOM_DSP_COMMON_INTRIN_SSSE3
@@ -242,13 +242,10 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/fft_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/masked_sad_intrin_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/subtract_avx2.c"
-              "${AOM_ROOT}/aom_dsp/x86/highbd_quantize_intrin_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/adaptive_quantize_avx2.c"
-              "${AOM_ROOT}/aom_dsp/x86/highbd_adaptive_quantize_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/quantize_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad4d_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad_avx2.c"
-              "${AOM_ROOT}/aom_dsp/x86/highbd_sad_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad_impl_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/variance_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sse_avx2.c"
@@ -319,6 +316,9 @@ if(CONFIG_AV1_ENCODER)
                 "${AOM_ROOT}/aom_dsp/x86/highbd_variance_sse2.c")
 
     list(APPEND AOM_DSP_ENCODER_INTRIN_AVX2
+                "${AOM_ROOT}/aom_dsp/x86/highbd_adaptive_quantize_avx2.c"
+                "${AOM_ROOT}/aom_dsp/x86/highbd_quantize_intrin_avx2.c"
+                "${AOM_ROOT}/aom_dsp/x86/highbd_sad_avx2.c"
                 "${AOM_ROOT}/aom_dsp/x86/highbd_variance_avx2.c")
 
     list(APPEND AOM_DSP_ENCODER_INTRIN_SSE4_1
