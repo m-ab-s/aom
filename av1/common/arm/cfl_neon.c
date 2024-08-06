@@ -134,7 +134,7 @@ static void cfl_luma_subsampling_444_lbd_neon(const uint8_t *input,
 
 #if CONFIG_AV1_HIGHBITDEPTH
 #if !AOM_ARCH_AARCH64
-uint16x8_t vpaddq_u16(uint16x8_t a, uint16x8_t b) {
+static uint16x8_t vpaddq_u16(uint16x8_t a, uint16x8_t b) {
   return vcombine_u16(vpadd_u16(vget_low_u16(a), vget_high_u16(a)),
                       vpadd_u16(vget_low_u16(b), vget_high_u16(b)));
 }
