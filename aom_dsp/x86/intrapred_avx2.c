@@ -1043,8 +1043,6 @@ void aom_paeth_predictor_64x16_avx2(uint8_t *dst, ptrdiff_t stride,
 }
 
 #if CONFIG_AV1_HIGHBITDEPTH
-#define PERM4x64(c0, c1, c2, c3) c0 + (c1 << 2) + (c2 << 4) + (c3 << 6)
-#define PERM2x128(c0, c1) c0 + (c1 << 4)
 
 static AOM_FORCE_INLINE void highbd_dr_prediction_z1_4xN_internal_avx2(
     int N, __m128i *dst, const uint16_t *above, int upsample_above, int dx) {
