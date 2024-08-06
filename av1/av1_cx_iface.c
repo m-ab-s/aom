@@ -2680,6 +2680,20 @@ static aom_codec_err_t ctrl_set_max_consec_frame_drop_cbr(
   return AOM_CODEC_OK;
 }
 
+static aom_codec_err_t ctrl_set_max_consec_frame_drop_ms_cbr(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  AV1_PRIMARY *const ppi = ctx->ppi;
+  AV1_COMP *const cpi = ppi->cpi;
+  const int max_consec_drop_ms =
+      CAST(AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR, args);
+  if (max_consec_drop_ms < 0) return AOM_CODEC_INVALID_PARAM;
+  // max_consec_drop_ms will be converted to frame units inside encoder
+  // based on framerate (which can change dynamically).
+  ctx->oxcf.rc_cfg.max_consec_drop_ms = max_consec_drop_ms;
+  cpi->rc.drop_count_consec = 0;
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t ctrl_set_svc_frame_drop_mode(aom_codec_alg_priv_t *ctx,
                                                     va_list args) {
   AV1_PRIMARY *const ppi = ctx->ppi;
@@ -4610,6 +4624,8 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_SVC_FRAME_DROP_MODE, ctrl_set_svc_frame_drop_mode },
   { AV1E_SET_AUTO_TILES, ctrl_set_auto_tiles },
   { AV1E_SET_POSTENCODE_DROP_RTC, ctrl_set_postencode_drop_rtc },
+  { AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR,
+    ctrl_set_max_consec_frame_drop_ms_cbr },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },
