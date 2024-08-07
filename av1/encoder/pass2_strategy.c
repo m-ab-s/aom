@@ -3039,8 +3039,8 @@ static int64_t get_kf_group_bits(AV1_COMP *cpi, double kf_group_err,
       double vbr_corpus_complexity_lap =
           cpi->oxcf.rc_cfg.vbr_corpus_complexity_lap / 10.0;
       /* Get the average corpus complexity of the frame */
-      kf_group_bits = (int64_t)(
-          kf_group_bits * (kf_group_avg_error / vbr_corpus_complexity_lap));
+      kf_group_bits = (int64_t)(kf_group_bits * (kf_group_avg_error /
+                                                 vbr_corpus_complexity_lap));
     }
   } else {
     kf_group_bits = (int64_t)(twopass->bits_left *
