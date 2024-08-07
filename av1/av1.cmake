@@ -357,7 +357,6 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/av1_error_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/av1_fwd_txfm2d_neon.c"
-            "${AOM_ROOT}/av1/encoder/arm/av1_highbd_quantize_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/av1_k_means_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/cnn_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/encodetxb_neon.c"
@@ -507,6 +506,7 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/av1/encoder/x86/highbd_temporal_filter_avx2.c")
 
   list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
+              "${AOM_ROOT}/av1/encoder/arm/av1_highbd_quantize_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/highbd_pickrst_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/highbd_rdopt_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/highbd_temporal_filter_neon.c")
