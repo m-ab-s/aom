@@ -1065,7 +1065,7 @@ void av1_setup_motion_field(AV1_COMMON *cm) {
   if (ref_stamp >= 0) motion_field_projection(cm, LAST2_FRAME, 2);
 }
 
-static INLINE void record_samples(const MB_MODE_INFO *mbmi, int *pts,
+static inline void record_samples(const MB_MODE_INFO *mbmi, int *pts,
                                   int *pts_inref, int row_offset, int sign_r,
                                   int col_offset, int sign_c) {
   const int bw = block_size_wide[mbmi->bsize];

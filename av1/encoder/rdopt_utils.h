@@ -346,7 +346,7 @@ static AOM_INLINE int bsize_to_num_blk(BLOCK_SIZE bsize) {
   return num_blk;
 }
 
-static INLINE int check_txfm_eval(MACROBLOCK *const x, BLOCK_SIZE bsize,
+static inline int check_txfm_eval(MACROBLOCK *const x, BLOCK_SIZE bsize,
                                   int64_t best_skip_rd, int64_t skip_rd,
                                   int level, int is_luma_only) {
   int eval_txfm = 1;
@@ -402,7 +402,7 @@ static TX_MODE select_tx_mode(
 }
 
 // Checks the conditions to disable winner mode processing
-static INLINE int bypass_winner_mode_processing(const MACROBLOCK *const x,
+static inline int bypass_winner_mode_processing(const MACROBLOCK *const x,
                                                 const SPEED_FEATURES *sf,
                                                 int use_txfm_skip,
                                                 int actual_txfm_skip,
@@ -443,7 +443,7 @@ static INLINE int bypass_winner_mode_processing(const MACROBLOCK *const x,
 }
 
 // Checks the conditions to enable winner mode processing
-static INLINE int is_winner_mode_processing_enabled(const struct AV1_COMP *cpi,
+static inline int is_winner_mode_processing_enabled(const struct AV1_COMP *cpi,
                                                     const MACROBLOCK *const x,
                                                     MB_MODE_INFO *const mbmi,
                                                     int actual_txfm_skip) {
@@ -477,7 +477,7 @@ static INLINE int is_winner_mode_processing_enabled(const struct AV1_COMP *cpi,
   return 0;
 }
 
-static INLINE void set_tx_size_search_method(
+static inline void set_tx_size_search_method(
     const AV1_COMMON *cm, const WinnerModeParams *winner_mode_params,
     TxfmSearchParams *txfm_params, int enable_winner_mode_for_tx_size_srch,
     int is_winner_mode) {
@@ -496,7 +496,7 @@ static INLINE void set_tx_size_search_method(
       select_tx_mode(cm, txfm_params->tx_size_search_method);
 }
 
-static INLINE void set_tx_type_prune(const SPEED_FEATURES *sf,
+static inline void set_tx_type_prune(const SPEED_FEATURES *sf,
                                      TxfmSearchParams *txfm_params,
                                      int winner_mode_tx_type_pruning,
                                      int is_winner_mode) {
@@ -512,7 +512,7 @@ static INLINE void set_tx_type_prune(const SPEED_FEATURES *sf,
       prune_mode[winner_mode_tx_type_pruning - 1][is_winner_mode];
 }
 
-static INLINE void set_tx_domain_dist_params(
+static inline void set_tx_domain_dist_params(
     const WinnerModeParams *winner_mode_params, TxfmSearchParams *txfm_params,
     int enable_winner_mode_for_tx_domain_dist, int is_winner_mode) {
   if (txfm_params->use_qm_dist_metric) {
@@ -545,7 +545,7 @@ static INLINE void set_tx_domain_dist_params(
 }
 
 // This function sets mode parameters for different mode evaluation stages
-static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
+static inline void set_mode_eval_params(const struct AV1_COMP *cpi,
                                         MACROBLOCK *x,
                                         MODE_EVAL_TYPE mode_eval_type) {
   const AV1_COMMON *cm = &cpi->common;
@@ -648,7 +648,7 @@ static INLINE void set_mode_eval_params(const struct AV1_COMP *cpi,
 
 // Similar to store_cfl_required(), but for use during the RDO process,
 // where we haven't yet determined whether this block uses CfL.
-static INLINE CFL_ALLOWED_TYPE store_cfl_required_rdo(const AV1_COMMON *cm,
+static inline CFL_ALLOWED_TYPE store_cfl_required_rdo(const AV1_COMMON *cm,
                                                       const MACROBLOCK *x) {
   const MACROBLOCKD *xd = &x->e_mbd;
 
@@ -674,7 +674,7 @@ static AOM_INLINE void init_sbuv_mode(MB_MODE_INFO *const mbmi) {
 }
 
 // Store best mode stats for winner mode processing
-static INLINE void store_winner_mode_stats(
+static inline void store_winner_mode_stats(
     const AV1_COMMON *const cm, MACROBLOCK *x, const MB_MODE_INFO *mbmi,
     RD_STATS *rd_cost, RD_STATS *rd_cost_y, RD_STATS *rd_cost_uv,
     THR_MODES mode_index, uint8_t *color_map, BLOCK_SIZE bsize, int64_t this_rd,
@@ -756,14 +756,14 @@ unsigned int av1_get_perpixel_variance_facade(const struct AV1_COMP *cpi,
                                               const struct buf_2d *ref,
                                               BLOCK_SIZE bsize, int plane);
 
-static INLINE int is_mode_intra(PREDICTION_MODE mode) {
+static inline int is_mode_intra(PREDICTION_MODE mode) {
   return mode < INTRA_MODE_END;
 }
 
 // This function will copy usable ref_mv_stack[ref_frame][4] and
 // weight[ref_frame][4] information from ref_mv_stack[ref_frame][8] and
 // weight[ref_frame][8].
-static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
+static inline void av1_copy_usable_ref_mv_stack_and_weight(
     const MACROBLOCKD *xd, MB_MODE_INFO_EXT *const mbmi_ext,
     MV_REFERENCE_FRAME ref_frame) {
   memcpy(mbmi_ext->weight[ref_frame], xd->weight[ref_frame],
@@ -773,7 +773,7 @@ static INLINE void av1_copy_usable_ref_mv_stack_and_weight(
 }
 
 // Get transform rd gate level for the given transform search case.
-static INLINE int get_txfm_rd_gate_level(
+static inline int get_txfm_rd_gate_level(
     const int is_masked_compound_enabled,
     const int txfm_rd_gate_level[TX_SEARCH_CASES], BLOCK_SIZE bsize,
     TX_SEARCH_CASE tx_search_case, int eval_motion_mode) {

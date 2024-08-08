@@ -78,7 +78,7 @@ static bool ext_ml_model_decision_after_part_ab(
     int *const partition_vert4_allowed, unsigned int pb_source_variance,
     int mi_row, int mi_col);
 
-static INLINE int convert_bsize_to_idx(BLOCK_SIZE bsize) {
+static inline int convert_bsize_to_idx(BLOCK_SIZE bsize) {
   switch (bsize) {
     case BLOCK_128X128: return 0;
     case BLOCK_64X64: return 1;
@@ -341,7 +341,7 @@ void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
   }
 }
 
-static INLINE int get_simple_motion_search_prune_agg(int qindex,
+static inline int get_simple_motion_search_prune_agg(int qindex,
                                                      int prune_level,
                                                      int is_rect_part) {
   assert(prune_level < TOTAL_AGG_LVLS);
@@ -994,7 +994,7 @@ static AOM_INLINE void get_min_bsize(const SIMPLE_MOTION_DATA_TREE *sms_tree,
   }
 }
 
-static INLINE void add_rd_feature(int64_t rd, int64_t best_rd, float *features,
+static inline void add_rd_feature(int64_t rd, int64_t best_rd, float *features,
                                   int *feature_idx) {
   const int rd_valid = rd > 0 && rd < INT64_MAX;
   const float rd_ratio = rd_valid ? (float)rd / best_rd : 1.0f;
@@ -2522,7 +2522,7 @@ void av1_prepare_motion_search_features_block(
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-static INLINE void init_simple_motion_search_mvs(
+static inline void init_simple_motion_search_mvs(
     SIMPLE_MOTION_DATA_TREE *sms_tree, const FULLPEL_MV *start_mvs) {
   memcpy(sms_tree->start_mvs, start_mvs, sizeof(sms_tree->start_mvs));
   av1_zero(sms_tree->sms_none_feat);

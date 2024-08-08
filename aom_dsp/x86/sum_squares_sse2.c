@@ -17,12 +17,12 @@
 #include "aom_dsp/x86/sum_squares_sse2.h"
 #include "config/aom_dsp_rtcd.h"
 
-static INLINE __m128i xx_loadh_64(__m128i a, const void *b) {
+static inline __m128i xx_loadh_64(__m128i a, const void *b) {
   const __m128d ad = _mm_castsi128_pd(a);
   return _mm_castpd_si128(_mm_loadh_pd(ad, (double *)b));
 }
 
-static INLINE uint64_t xx_cvtsi128_si64(__m128i a) {
+static inline uint64_t xx_cvtsi128_si64(__m128i a) {
 #if AOM_ARCH_X86_64
   return (uint64_t)_mm_cvtsi128_si64(a);
 #else
@@ -34,7 +34,7 @@ static INLINE uint64_t xx_cvtsi128_si64(__m128i a) {
 #endif
 }
 
-static INLINE __m128i sum_squares_i16_4x4_sse2(const int16_t *src, int stride) {
+static inline __m128i sum_squares_i16_4x4_sse2(const int16_t *src, int stride) {
   const __m128i v_val_0_w = xx_loadl_64(src + 0 * stride);
   const __m128i v_val_2_w = xx_loadl_64(src + 2 * stride);
   const __m128i v_val_01_w = xx_loadh_64(v_val_0_w, src + 1 * stride);

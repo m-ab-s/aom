@@ -233,7 +233,7 @@ static AOM_INLINE void update_filter_type_count(FRAME_COUNTS *counts,
 
 // This function will copy the best reference mode information from
 // MB_MODE_INFO_EXT_FRAME to MB_MODE_INFO_EXT.
-static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
+static inline void copy_mbmi_ext_frame_to_mbmi_ext(
     MB_MODE_INFO_EXT *mbmi_ext,
     const MB_MODE_INFO_EXT_FRAME *const mbmi_ext_best, uint8_t ref_frame_type) {
   memcpy(mbmi_ext->ref_mv_stack[ref_frame_type], mbmi_ext_best->ref_mv_stack,

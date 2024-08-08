@@ -730,7 +730,7 @@ static int cost_mv_ref(const ModeCosts *const mode_costs, PREDICTION_MODE mode,
   }
 }
 
-static INLINE PREDICTION_MODE get_single_mode(PREDICTION_MODE this_mode,
+static inline PREDICTION_MODE get_single_mode(PREDICTION_MODE this_mode,
                                               int ref_idx) {
   return ref_idx ? compound_ref1_mode(this_mode)
                  : compound_ref0_mode(this_mode);
@@ -968,7 +968,7 @@ static AOM_INLINE void setup_buffer_ref_mvs_inter(
 #define RIGHT_BOTTOM_MARGIN ((AOM_BORDER_IN_PIXELS - AOM_INTERP_EXTEND) << 3)
 
 // TODO(jingning): this mv clamping function should be block size dependent.
-static INLINE void clamp_mv2(MV *mv, const MACROBLOCKD *xd) {
+static inline void clamp_mv2(MV *mv, const MACROBLOCKD *xd) {
   const SubpelMvLimits mv_limits = { xd->mb_to_left_edge - LEFT_TOP_MARGIN,
                                      xd->mb_to_right_edge + RIGHT_BOTTOM_MARGIN,
                                      xd->mb_to_top_edge - LEFT_TOP_MARGIN,
@@ -1035,7 +1035,7 @@ static int skip_repeated_mv(const AV1_COMMON *const cm,
   return 0;
 }
 
-static INLINE int clamp_and_check_mv(int_mv *out_mv, int_mv in_mv,
+static inline int clamp_and_check_mv(int_mv *out_mv, int_mv in_mv,
                                      const AV1_COMMON *cm,
                                      const MACROBLOCK *x) {
   const MACROBLOCKD *const xd = &x->e_mbd;
@@ -1050,7 +1050,7 @@ static INLINE int clamp_and_check_mv(int_mv *out_mv, int_mv in_mv,
 // To use single newmv directly for compound modes, need to clamp the mv to the
 // valid mv range. Without this, encoder would generate out of range mv, and
 // this is seen in 8k encoding.
-static INLINE void clamp_mv_in_range(MACROBLOCK *const x, int_mv *mv,
+static inline void clamp_mv_in_range(MACROBLOCK *const x, int_mv *mv,
                                      int ref_idx) {
   const int_mv ref_mv = av1_get_ref_mv(x, ref_idx);
   SubpelMvLimits mv_limits;
@@ -1164,7 +1164,7 @@ static int64_t handle_newmv(const AV1_COMP *const cpi, MACROBLOCK *const x,
   return 0;
 }
 
-static INLINE void update_mode_start_end_index(
+static inline void update_mode_start_end_index(
     const AV1_COMP *const cpi, const MB_MODE_INFO *const mbmi,
     int *mode_index_start, int *mode_index_end, int last_motion_mode_allowed,
     int interintra_allowed, int eval_motion_mode) {
@@ -1687,7 +1687,7 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
 // with global motion. The issue is that, when global motion is used, GLOBALMV
 // produces a different prediction to NEARESTMV/NEARMV even if the motion
 // vectors are the same. Thus GLOBALMV should not be pruned in this case.
-static INLINE int check_repeat_ref_mv(const MB_MODE_INFO_EXT *mbmi_ext,
+static inline int check_repeat_ref_mv(const MB_MODE_INFO_EXT *mbmi_ext,
                                       int ref_idx,
                                       const MV_REFERENCE_FRAME *ref_frame,
                                       PREDICTION_MODE single_mode) {
@@ -1724,7 +1724,7 @@ static INLINE int check_repeat_ref_mv(const MB_MODE_INFO_EXT *mbmi_ext,
   return 0;
 }
 
-static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
+static inline int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
                               int ref_idx, int ref_mv_idx,
                               int skip_repeated_ref_mv,
                               const MV_REFERENCE_FRAME *ref_frame,
@@ -1763,7 +1763,7 @@ static INLINE int get_this_mv(int_mv *this_mv, PREDICTION_MODE this_mode,
 
 // Skip NEARESTMV and NEARMV modes based on refmv weight computed in ref mv list
 // population
-static INLINE int skip_nearest_near_mv_using_refmv_weight(
+static inline int skip_nearest_near_mv_using_refmv_weight(
     const MACROBLOCK *const x, const PREDICTION_MODE this_mode,
     const int8_t ref_frame_type, PREDICTION_MODE best_mode) {
   if (this_mode != NEARESTMV && this_mode != NEARMV) return 0;
@@ -1804,7 +1804,7 @@ static INLINE int skip_nearest_near_mv_using_refmv_weight(
 }
 
 // This function update the non-new mv for the current prediction mode
-static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
+static inline int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
                                const AV1_COMMON *cm, const MACROBLOCK *x,
                                int skip_repeated_ref_mv) {
   const MACROBLOCKD *xd = &x->e_mbd;
@@ -1833,7 +1833,7 @@ static INLINE int build_cur_mv(int_mv *cur_mv, PREDICTION_MODE this_mode,
   return ret;
 }
 
-static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
+static inline int get_drl_cost(const MB_MODE_INFO *mbmi,
                                const MB_MODE_INFO_EXT *mbmi_ext,
                                const int (*const drl_mode_cost0)[2],
                                int8_t ref_frame_type) {
@@ -1862,7 +1862,7 @@ static INLINE int get_drl_cost(const MB_MODE_INFO *mbmi,
   return cost;
 }
 
-static INLINE int is_single_newmv_valid(const HandleInterModeArgs *const args,
+static inline int is_single_newmv_valid(const HandleInterModeArgs *const args,
                                         const MB_MODE_INFO *const mbmi,
                                         PREDICTION_MODE this_mode) {
   for (int ref_idx = 0; ref_idx < 2; ++ref_idx) {
@@ -2041,9 +2041,9 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
 // Represents a set of integers, from 0 to sizeof(int) * 8, as bits in
 // an integer. 0 for the i-th bit means that integer is excluded, 1 means
 // it is included.
-static INLINE void mask_set_bit(int *mask, int index) { *mask |= (1 << index); }
+static inline void mask_set_bit(int *mask, int index) { *mask |= (1 << index); }
 
-static INLINE bool mask_check_bit(int mask, int index) {
+static inline bool mask_check_bit(int mask, int index) {
   return (mask >> index) & 0x1;
 }
 
@@ -4316,7 +4316,7 @@ static int fetch_picked_ref_frames_mask(const MACROBLOCK *const x,
 
 // Check if reference frame pair of the current block matches with the given
 // block.
-static INLINE int match_ref_frame_pair(const MB_MODE_INFO *mbmi,
+static inline int match_ref_frame_pair(const MB_MODE_INFO *mbmi,
                                        const MV_REFERENCE_FRAME *ref_frames) {
   return ((ref_frames[0] == mbmi->ref_frame[0]) &&
           (ref_frames[1] == mbmi->ref_frame[1]));
@@ -4477,7 +4477,7 @@ static int inter_mode_search_order_independent_skip(
   return 0;
 }
 
-static INLINE void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
+static inline void init_mbmi(MB_MODE_INFO *mbmi, PREDICTION_MODE curr_mode,
                              const MV_REFERENCE_FRAME *ref_frames,
                              const AV1_COMMON *cm) {
   PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
@@ -4730,7 +4730,7 @@ static int compound_skip_by_single_states(
 }
 
 // Check if ref frames of current block matches with given block.
-static INLINE void match_ref_frame(const MB_MODE_INFO *const mbmi,
+static inline void match_ref_frame(const MB_MODE_INFO *const mbmi,
                                    const MV_REFERENCE_FRAME *ref_frames,
                                    int *const is_ref_match) {
   if (is_inter_block(mbmi)) {
@@ -4744,7 +4744,7 @@ static INLINE void match_ref_frame(const MB_MODE_INFO *const mbmi,
 }
 
 // Prune compound mode using ref frames of neighbor blocks.
-static INLINE int compound_skip_using_neighbor_refs(
+static inline int compound_skip_using_neighbor_refs(
     MACROBLOCKD *const xd, const PREDICTION_MODE this_mode,
     const MV_REFERENCE_FRAME *ref_frames, int prune_ext_comp_using_neighbors) {
   // Exclude non-extended compound modes from pruning
@@ -4773,7 +4773,7 @@ static INLINE int compound_skip_using_neighbor_refs(
 }
 
 // Update best single mode for the given reference frame based on simple rd.
-static INLINE void update_best_single_mode(InterModeSearchState *search_state,
+static inline void update_best_single_mode(InterModeSearchState *search_state,
                                            const PREDICTION_MODE this_mode,
                                            const MV_REFERENCE_FRAME ref_frame,
                                            int64_t this_rd) {
@@ -4784,7 +4784,7 @@ static INLINE void update_best_single_mode(InterModeSearchState *search_state,
 }
 
 // Prune compound mode using best single mode for the same reference.
-static INLINE int skip_compound_using_best_single_mode_ref(
+static inline int skip_compound_using_best_single_mode_ref(
     const PREDICTION_MODE this_mode, const MV_REFERENCE_FRAME *ref_frames,
     const PREDICTION_MODE *best_single_mode,
     int prune_comp_using_best_single_mode_ref) {
@@ -4828,7 +4828,7 @@ static int compare_int64(const void *a, const void *b) {
   }
 }
 
-static INLINE void update_search_state(
+static inline void update_search_state(
     InterModeSearchState *search_state, RD_STATS *best_rd_stats_dst,
     PICK_MODE_CONTEXT *ctx, const RD_STATS *new_best_rd_stats,
     const RD_STATS *new_best_rd_stats_y, const RD_STATS *new_best_rd_stats_uv,
@@ -4882,7 +4882,7 @@ static AOM_INLINE void find_top_ref(int64_t ref_frame_rd[REF_FRAMES]) {
 }
 
 // Check if either frame is within the cutoff.
-static INLINE bool in_single_ref_cutoff(int64_t ref_frame_rd[REF_FRAMES],
+static inline bool in_single_ref_cutoff(int64_t ref_frame_rd[REF_FRAMES],
                                         MV_REFERENCE_FRAME frame1,
                                         MV_REFERENCE_FRAME frame2) {
   assert(frame2 > 0);
@@ -6390,7 +6390,7 @@ struct calc_target_weighted_pred_ctxt {
 };
 /*!\endcond */
 
-static INLINE void calc_target_weighted_pred_above(
+static inline void calc_target_weighted_pred_above(
     MACROBLOCKD *xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
     int dir, MB_MODE_INFO *nb_mi, void *fun_ctxt, const int num_planes) {
   (void)nb_mi;
@@ -6438,7 +6438,7 @@ static INLINE void calc_target_weighted_pred_above(
   }
 }
 
-static INLINE void calc_target_weighted_pred_left(
+static inline void calc_target_weighted_pred_left(
     MACROBLOCKD *xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
     int dir, MB_MODE_INFO *nb_mi, void *fun_ctxt, const int num_planes) {
   (void)nb_mi;

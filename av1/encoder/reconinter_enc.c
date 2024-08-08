@@ -165,7 +165,7 @@ static void setup_address_for_obmc(MACROBLOCKD *xd, int mi_row_offset,
                        num_planes);
 }
 
-static INLINE void build_obmc_prediction(MACROBLOCKD *xd, int rel_mi_row,
+static inline void build_obmc_prediction(MACROBLOCKD *xd, int rel_mi_row,
                                          int rel_mi_col, uint8_t op_mi_size,
                                          int dir, MB_MODE_INFO *above_mbmi,
                                          void *fun_ctxt, const int num_planes) {

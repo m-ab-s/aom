@@ -3206,7 +3206,7 @@ static void init_partition_block_timing_stats(
   av1_zero(*part_timing_stats);
 }
 
-static INLINE void start_partition_block_timer(
+static inline void start_partition_block_timer(
     PartitionTimingStats *part_timing_stats, PARTITION_TYPE partition_type) {
   assert(!part_timing_stats->timer_is_on);
   part_timing_stats->partition_attempts[partition_type] += 1;
@@ -3214,7 +3214,7 @@ static INLINE void start_partition_block_timer(
   part_timing_stats->timer_is_on = 1;
 }
 
-static INLINE void end_partition_block_timer(
+static inline void end_partition_block_timer(
     PartitionTimingStats *part_timing_stats, PARTITION_TYPE partition_type,
     int64_t rdcost) {
   if (part_timing_stats->timer_is_on) {
@@ -3225,7 +3225,7 @@ static INLINE void end_partition_block_timer(
     part_timing_stats->timer_is_on = 0;
   }
 }
-static INLINE void print_partition_timing_stats_with_rdcost(
+static inline void print_partition_timing_stats_with_rdcost(
     const PartitionTimingStats *part_timing_stats, int mi_row, int mi_col,
     BLOCK_SIZE bsize, FRAME_UPDATE_TYPE frame_update_type, int frame_number,
     const RD_STATS *best_rdc, const char *filename) {
@@ -3253,7 +3253,7 @@ static INLINE void print_partition_timing_stats_with_rdcost(
   fclose(f);
 }
 
-static INLINE void print_partition_timing_stats(
+static inline void print_partition_timing_stats(
     const PartitionTimingStats *part_timing_stats, int intra_only,
     int show_frame, const BLOCK_SIZE bsize, const char *filename) {
   FILE *f = fopen(filename, "a");
@@ -3271,7 +3271,7 @@ static INLINE void print_partition_timing_stats(
   fclose(f);
 }
 
-static INLINE void accumulate_partition_timing_stats(
+static inline void accumulate_partition_timing_stats(
     FramePartitionTimingStats *fr_part_timing_stats,
     const PartitionTimingStats *part_timing_stats, BLOCK_SIZE bsize) {
   const int bsize_idx = av1_get_bsize_idx_for_part_stats(bsize);
@@ -3956,7 +3956,7 @@ static void rd_pick_4partition(
 }
 
 // Do not evaluate extended partitions if NONE partition is skippable.
-static INLINE int prune_ext_part_none_skippable(
+static inline int prune_ext_part_none_skippable(
     PICK_MODE_CONTEXT *part_none, int must_find_valid_partition,
     int skip_non_sq_part_based_on_none, BLOCK_SIZE bsize) {
   if ((skip_non_sq_part_based_on_none >= 1) && (part_none != NULL)) {
@@ -6069,7 +6069,7 @@ static void duplicate_mode_info_in_sb(AV1_COMMON *cm, MACROBLOCKD *xd,
     for (i = 0; i < block_width; ++i) xd->mi[j * mi_stride + i] = src_mi;
 }
 
-static INLINE void copy_mbmi_ext_frame_to_mbmi_ext(
+static inline void copy_mbmi_ext_frame_to_mbmi_ext(
     MB_MODE_INFO_EXT *const mbmi_ext,
     const MB_MODE_INFO_EXT_FRAME *mbmi_ext_best, uint8_t ref_frame_type) {
   memcpy(mbmi_ext->ref_mv_stack[ref_frame_type], mbmi_ext_best->ref_mv_stack,

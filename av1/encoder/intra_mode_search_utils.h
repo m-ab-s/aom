@@ -403,7 +403,7 @@ static AOM_INLINE void generate_hog_using_gradient_cache(const MACROBLOCK *x,
   normalize_hog(total, hist);
 }
 
-static INLINE void collect_hog_data(const MACROBLOCK *x, BLOCK_SIZE bsize,
+static inline void collect_hog_data(const MACROBLOCK *x, BLOCK_SIZE bsize,
                                     BLOCK_SIZE sb_size, int plane, float *hog) {
   const MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblockd_plane *const pd = &xd->plane[plane];

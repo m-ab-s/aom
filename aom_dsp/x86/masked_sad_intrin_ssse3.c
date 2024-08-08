@@ -22,7 +22,7 @@
 #include "aom_dsp/x86/masked_sad_intrin_ssse3.h"
 
 // For width a multiple of 16
-static INLINE unsigned int masked_sad_ssse3(const uint8_t *src_ptr,
+static inline unsigned int masked_sad_ssse3(const uint8_t *src_ptr,
                                             int src_stride,
                                             const uint8_t *a_ptr, int a_stride,
                                             const uint8_t *b_ptr, int b_stride,
@@ -94,7 +94,7 @@ MASKSADMXN_SSSE3(16, 64)
 MASKSADMXN_SSSE3(64, 16)
 #endif  // !CONFIG_REALTIME_ONLY
 
-static INLINE unsigned int masked_sad_ssse3(const uint8_t *src_ptr,
+static inline unsigned int masked_sad_ssse3(const uint8_t *src_ptr,
                                             int src_stride,
                                             const uint8_t *a_ptr, int a_stride,
                                             const uint8_t *b_ptr, int b_stride,
@@ -230,7 +230,7 @@ unsigned int aom_masked_sad4xh_ssse3(const uint8_t *src_ptr, int src_stride,
 
 #if CONFIG_AV1_HIGHBITDEPTH
 // For width a multiple of 8
-static INLINE unsigned int highbd_masked_sad_ssse3(
+static inline unsigned int highbd_masked_sad_ssse3(
     const uint8_t *src8, int src_stride, const uint8_t *a8, int a_stride,
     const uint8_t *b8, int b_stride, const uint8_t *m_ptr, int m_stride,
     int width, int height);
@@ -289,7 +289,7 @@ HIGHBD_MASKSADMXN_SSSE3(16, 64)
 HIGHBD_MASKSADMXN_SSSE3(64, 16)
 #endif  // !CONFIG_REALTIME_ONLY
 
-static INLINE unsigned int highbd_masked_sad_ssse3(
+static inline unsigned int highbd_masked_sad_ssse3(
     const uint8_t *src8, int src_stride, const uint8_t *a8, int a_stride,
     const uint8_t *b8, int b_stride, const uint8_t *m_ptr, int m_stride,
     int width, int height) {

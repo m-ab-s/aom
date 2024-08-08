@@ -44,7 +44,7 @@
 
 #define TEMPORAL_FILTER_KEY_FRAME (CONFIG_REALTIME_ONLY ? 0 : 1)
 
-static INLINE void set_refresh_frame_flags(
+static inline void set_refresh_frame_flags(
     RefreshFrameInfo *const refresh_frame, bool refresh_gf, bool refresh_bwdref,
     bool refresh_arf) {
   refresh_frame->golden_frame = refresh_gf;

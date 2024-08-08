@@ -51,7 +51,7 @@ void AV1_K_MEANS_RENAME(av1_k_means, 2)(const int16_t *data, int16_t *centroids,
  *
  * \remark Returns nothing, but saves each data's cluster index in \a indices.
  */
-static INLINE void av1_calc_indices(const int16_t *data,
+static inline void av1_calc_indices(const int16_t *data,
                                     const int16_t *centroids, uint8_t *indices,
                                     int n, int k, int dim) {
   assert(n > 0);
@@ -85,7 +85,7 @@ static INLINE void av1_calc_indices(const int16_t *data,
  *
  * \attention The output centroids are rounded off to nearest integers.
  */
-static INLINE void av1_k_means(const int16_t *data, int16_t *centroids,
+static inline void av1_k_means(const int16_t *data, int16_t *centroids,
                                uint8_t *indices, int n, int k, int dim,
                                int max_itr) {
   assert(n > 0);

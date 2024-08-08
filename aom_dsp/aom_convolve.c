@@ -20,13 +20,13 @@
 #include "aom_dsp/aom_filter.h"
 #include "aom_ports/mem.h"
 
-static INLINE int horz_scalar_product(const uint8_t *a, const int16_t *b) {
+static inline int horz_scalar_product(const uint8_t *a, const int16_t *b) {
   int sum = 0;
   for (int k = 0; k < SUBPEL_TAPS; ++k) sum += a[k] * b[k];
   return sum;
 }
 
-static INLINE int vert_scalar_product(const uint8_t *a, ptrdiff_t a_stride,
+static inline int vert_scalar_product(const uint8_t *a, ptrdiff_t a_stride,
                                       const int16_t *b) {
   int sum = 0;
   for (int k = 0; k < SUBPEL_TAPS; ++k) sum += a[k * a_stride] * b[k];
@@ -163,7 +163,7 @@ void aom_convolve_copy_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
 }
 
 #if CONFIG_AV1_HIGHBITDEPTH
-static INLINE int highbd_vert_scalar_product(const uint16_t *a,
+static inline int highbd_vert_scalar_product(const uint16_t *a,
                                              ptrdiff_t a_stride,
                                              const int16_t *b) {
   int sum = 0;
@@ -171,7 +171,7 @@ static INLINE int highbd_vert_scalar_product(const uint16_t *a,
   return sum;
 }
 
-static INLINE int highbd_horz_scalar_product(const uint16_t *a,
+static inline int highbd_horz_scalar_product(const uint16_t *a,
                                              const int16_t *b) {
   int sum = 0;
   for (int k = 0; k < SUBPEL_TAPS; ++k) sum += a[k] * b[k];

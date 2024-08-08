@@ -37,7 +37,7 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/tpl_model.h"
 
-static INLINE double exp_bounded(double v) {
+static inline double exp_bounded(double v) {
   // When v > 700 or <-700, the exp function will be close to overflow
   // For details, see the "Notes" in the following link.
   // https://en.cppreference.com/w/c/numeric/math/exp

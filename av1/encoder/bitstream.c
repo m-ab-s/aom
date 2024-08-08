@@ -53,7 +53,7 @@
 #define SETUP_TIME_OH_CONST 5     // Setup time overhead constant per worker
 #define JOB_DISP_TIME_OH_CONST 1  // Job dispatch time overhead per tile
 
-static INLINE void write_uniform(aom_writer *w, int n, int v) {
+static inline void write_uniform(aom_writer *w, int n, int v) {
   const int l = get_unsigned_bits(n);
   const int m = (1 << l) - n;
   if (l == 0) return;
@@ -416,7 +416,7 @@ static AOM_INLINE void pack_txb_tokens(
   }
 }
 
-static INLINE void set_spatial_segment_id(
+static inline void set_spatial_segment_id(
     const CommonModeInfoParams *const mi_params, uint8_t *segment_ids,
     BLOCK_SIZE bsize, int mi_row, int mi_col, uint8_t segment_id) {
   const int mi_offset = mi_row * mi_params->mi_cols + mi_col;
@@ -1046,7 +1046,7 @@ static AOM_INLINE void write_intra_prediction_modes(const AV1_COMMON *cm,
   write_filter_intra_mode_info(cm, xd, mbmi, w);
 }
 
-static INLINE int16_t mode_context_analyzer(
+static inline int16_t mode_context_analyzer(
     const int16_t mode_context, const MV_REFERENCE_FRAME *const rf) {
   if (rf[1] <= INTRA_FRAME) return mode_context;
 
@@ -1058,7 +1058,7 @@ static INLINE int16_t mode_context_analyzer(
   return comp_ctx;
 }
 
-static INLINE int_mv get_ref_mv_from_stack(
+static inline int_mv get_ref_mv_from_stack(
     int ref_idx, const MV_REFERENCE_FRAME *ref_frame, int ref_mv_idx,
     const MB_MODE_INFO_EXT_FRAME *mbmi_ext_frame) {
   const int8_t ref_frame_type = av1_ref_frame_type(ref_frame);
@@ -1076,7 +1076,7 @@ static INLINE int_mv get_ref_mv_from_stack(
              : mbmi_ext_frame->global_mvs[ref_frame_type];
 }
 
-static INLINE int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
+static inline int_mv get_ref_mv(const MACROBLOCK *x, int ref_idx) {
   const MACROBLOCKD *xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
   int ref_mv_idx = mbmi->ref_mv_idx;
@@ -2275,7 +2275,7 @@ static AOM_INLINE void write_ext_tile_info(
   }
 }
 
-static INLINE int find_identical_tile(
+static inline int find_identical_tile(
     const int tile_row, const int tile_col,
     TileBufferEnc (*const tile_buffers)[MAX_TILE_COLS]) {
   const MV32 candidate_offset[1] = { { 1, 0 } };
@@ -3723,7 +3723,7 @@ static void write_large_scale_tile_obu(
 }
 
 // Packs information in the obu header for large scale tiles.
-static INLINE uint32_t pack_large_scale_tiles_in_tg_obus(
+static inline uint32_t pack_large_scale_tiles_in_tg_obus(
     AV1_COMP *const cpi, uint8_t *const dst,
     struct aom_write_bit_buffer *saved_wb, uint8_t obu_extension_header,
     int *const largest_tile_id) {
@@ -4075,7 +4075,7 @@ static int calc_pack_bs_mt_workers(const TileDataEnc *tile_data, int num_tiles,
   return ideal_num_workers;
 }
 
-static INLINE uint32_t pack_tiles_in_tg_obus(
+static inline uint32_t pack_tiles_in_tg_obus(
     AV1_COMP *const cpi, uint8_t *const dst,
     struct aom_write_bit_buffer *saved_wb, uint8_t obu_extension_header,
     const FrameHeaderInfo *fh_info, int *const largest_tile_id) {

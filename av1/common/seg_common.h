@@ -58,13 +58,13 @@ struct segmentation_probs {
                                    [CDF_SIZE(MAX_SEGMENTS)];
 };
 
-static INLINE int segfeature_active(const struct segmentation *seg,
+static inline int segfeature_active(const struct segmentation *seg,
                                     uint8_t segment_id,
                                     SEG_LVL_FEATURES feature_id) {
   return seg->enabled && (seg->feature_mask[segment_id] & (1 << feature_id));
 }
 
-static INLINE void segfeatures_copy(struct segmentation *dst,
+static inline void segfeatures_copy(struct segmentation *dst,
                                     const struct segmentation *src) {
   int i, j;
   for (i = 0; i < MAX_SEGMENTS; i++) {
@@ -91,7 +91,7 @@ int av1_is_segfeature_signed(SEG_LVL_FEATURES feature_id);
 void av1_set_segdata(struct segmentation *seg, int segment_id,
                      SEG_LVL_FEATURES feature_id, int seg_data);
 
-static INLINE int get_segdata(const struct segmentation *seg, int segment_id,
+static inline int get_segdata(const struct segmentation *seg, int segment_id,
                               SEG_LVL_FEATURES feature_id) {
   return seg->feature_data[segment_id][feature_id];
 }

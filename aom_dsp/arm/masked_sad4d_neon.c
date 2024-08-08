@@ -18,7 +18,7 @@
 #include "mem_neon.h"
 #include "sum_neon.h"
 
-static INLINE uint16x8_t masked_sad_16x1_neon(uint16x8_t sad,
+static inline uint16x8_t masked_sad_16x1_neon(uint16x8_t sad,
                                               const uint8x16_t s0,
                                               const uint8x16_t a0,
                                               const uint8x16_t b0,
@@ -35,7 +35,7 @@ static INLINE uint16x8_t masked_sad_16x1_neon(uint16x8_t sad,
   return vpadalq_u8(sad, vabdq_u8(blend_u8, s0));
 }
 
-static INLINE void masked_inv_sadwxhx4d_large_neon(
+static inline void masked_inv_sadwxhx4d_large_neon(
     const uint8_t *src, int src_stride, const uint8_t *const ref[4],
     int ref_stride, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, uint32_t res[4], int width, int height, int h_overflow) {
@@ -102,7 +102,7 @@ static INLINE void masked_inv_sadwxhx4d_large_neon(
   vst1q_u32(res, horizontal_add_4d_u32x4(sum));
 }
 
-static INLINE void masked_inv_sad128xhx4d_neon(
+static inline void masked_inv_sad128xhx4d_neon(
     const uint8_t *src, int src_stride, const uint8_t *const ref[4],
     int ref_stride, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, uint32_t res[4], int h) {
@@ -110,7 +110,7 @@ static INLINE void masked_inv_sad128xhx4d_neon(
                                   mask, mask_stride, res, 128, h, 32);
 }
 
-static INLINE void masked_inv_sad64xhx4d_neon(
+static inline void masked_inv_sad64xhx4d_neon(
     const uint8_t *src, int src_stride, const uint8_t *const ref[4],
     int ref_stride, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, uint32_t res[4], int h) {
@@ -118,7 +118,7 @@ static INLINE void masked_inv_sad64xhx4d_neon(
                                   mask, mask_stride, res, 64, h, 64);
 }
 
-static INLINE void masked_sadwxhx4d_large_neon(
+static inline void masked_sadwxhx4d_large_neon(
     const uint8_t *src, int src_stride, const uint8_t *const ref[4],
     int ref_stride, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, uint32_t res[4], int width, int height, int h_overflow) {
@@ -185,7 +185,7 @@ static INLINE void masked_sadwxhx4d_large_neon(
   vst1q_u32(res, horizontal_add_4d_u32x4(sum));
 }
 
-static INLINE void masked_sad128xhx4d_neon(const uint8_t *src, int src_stride,
+static inline void masked_sad128xhx4d_neon(const uint8_t *src, int src_stride,
                                            const uint8_t *const ref[4],
                                            int ref_stride,
                                            const uint8_t *second_pred,
@@ -195,7 +195,7 @@ static INLINE void masked_sad128xhx4d_neon(const uint8_t *src, int src_stride,
                               mask, mask_stride, res, 128, h, 32);
 }
 
-static INLINE void masked_sad64xhx4d_neon(const uint8_t *src, int src_stride,
+static inline void masked_sad64xhx4d_neon(const uint8_t *src, int src_stride,
                                           const uint8_t *const ref[4],
                                           int ref_stride,
                                           const uint8_t *second_pred,
@@ -205,7 +205,7 @@ static INLINE void masked_sad64xhx4d_neon(const uint8_t *src, int src_stride,
                               mask, mask_stride, res, 64, h, 64);
 }
 
-static INLINE void masked_inv_sad32xhx4d_neon(
+static inline void masked_inv_sad32xhx4d_neon(
     const uint8_t *src, int src_stride, const uint8_t *const ref[4],
     int ref_stride, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, uint32_t res[4], int h) {
@@ -250,7 +250,7 @@ static INLINE void masked_inv_sad32xhx4d_neon(
   vst1q_u32(res, horizontal_long_add_4d_u16x8(sum_lo, sum_hi));
 }
 
-static INLINE void masked_sad32xhx4d_neon(const uint8_t *src, int src_stride,
+static inline void masked_sad32xhx4d_neon(const uint8_t *src, int src_stride,
                                           const uint8_t *const ref[4],
                                           int ref_stride,
                                           const uint8_t *second_pred,
@@ -297,7 +297,7 @@ static INLINE void masked_sad32xhx4d_neon(const uint8_t *src, int src_stride,
   vst1q_u32(res, horizontal_long_add_4d_u16x8(sum_lo, sum_hi));
 }
 
-static INLINE void masked_inv_sad16xhx4d_neon(
+static inline void masked_inv_sad16xhx4d_neon(
     const uint8_t *src, int src_stride, const uint8_t *const ref[4],
     int ref_stride, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, uint32_t res[4], int h) {
@@ -334,7 +334,7 @@ static INLINE void masked_inv_sad16xhx4d_neon(
   vst1q_u32(res, horizontal_add_4d_u32x4(sum_u32));
 }
 
-static INLINE void masked_sad16xhx4d_neon(const uint8_t *src, int src_stride,
+static inline void masked_sad16xhx4d_neon(const uint8_t *src, int src_stride,
                                           const uint8_t *const ref[4],
                                           int ref_stride,
                                           const uint8_t *second_pred,
@@ -373,7 +373,7 @@ static INLINE void masked_sad16xhx4d_neon(const uint8_t *src, int src_stride,
   vst1q_u32(res, horizontal_add_4d_u32x4(sum_u32));
 }
 
-static INLINE uint16x8_t masked_sad_8x1_neon(uint16x8_t sad, const uint8x8_t s0,
+static inline uint16x8_t masked_sad_8x1_neon(uint16x8_t sad, const uint8x8_t s0,
                                              const uint8x8_t a0,
                                              const uint8x8_t b0,
                                              const uint8x8_t m0) {
@@ -385,7 +385,7 @@ static INLINE uint16x8_t masked_sad_8x1_neon(uint16x8_t sad, const uint8x8_t s0,
   return vabal_u8(sad, blend_u8, s0);
 }
 
-static INLINE void masked_inv_sad8xhx4d_neon(
+static inline void masked_inv_sad8xhx4d_neon(
     const uint8_t *src, int src_stride, const uint8_t *const ref[4],
     int ref_stride, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, uint32_t res[4], int h) {
@@ -416,7 +416,7 @@ static INLINE void masked_inv_sad8xhx4d_neon(
   vst1q_u32(res, horizontal_add_4d_u16x8(sum));
 }
 
-static INLINE void masked_sad8xhx4d_neon(const uint8_t *src, int src_stride,
+static inline void masked_sad8xhx4d_neon(const uint8_t *src, int src_stride,
                                          const uint8_t *const ref[4],
                                          int ref_stride,
                                          const uint8_t *second_pred,
@@ -450,7 +450,7 @@ static INLINE void masked_sad8xhx4d_neon(const uint8_t *src, int src_stride,
   vst1q_u32(res, horizontal_add_4d_u16x8(sum));
 }
 
-static INLINE void masked_inv_sad4xhx4d_neon(
+static inline void masked_inv_sad4xhx4d_neon(
     const uint8_t *src, int src_stride, const uint8_t *const ref[4],
     int ref_stride, const uint8_t *second_pred, const uint8_t *mask,
     int mask_stride, uint32_t res[4], int h) {
@@ -482,7 +482,7 @@ static INLINE void masked_inv_sad4xhx4d_neon(
   vst1q_u32(res, horizontal_add_4d_u16x8(sum));
 }
 
-static INLINE void masked_sad4xhx4d_neon(const uint8_t *src, int src_stride,
+static inline void masked_sad4xhx4d_neon(const uint8_t *src, int src_stride,
                                          const uint8_t *const ref[4],
                                          int ref_stride,
                                          const uint8_t *second_pred,

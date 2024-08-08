@@ -514,7 +514,7 @@ void av1_highbd_quantize_b_facade(const tran_low_t *coeff_ptr,
   }
 }
 
-static INLINE void highbd_quantize_dc(
+static inline void highbd_quantize_dc(
     const tran_low_t *coeff_ptr, int n_coeffs, int skip_block,
     const int16_t *round_ptr, const int16_t quant, tran_low_t *qcoeff_ptr,
     tran_low_t *dqcoeff_ptr, const int16_t dequant_ptr, uint16_t *eob_ptr,
@@ -674,7 +674,7 @@ void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
   }
 }
 
-static INLINE bool deltaq_params_have_changed(
+static inline bool deltaq_params_have_changed(
     const DeltaQuantParams *prev_deltaq_params,
     const CommonQuantParams *quant_params) {
   return (prev_deltaq_params->y_dc_delta_q != quant_params->y_dc_delta_q ||

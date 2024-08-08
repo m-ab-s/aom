@@ -53,7 +53,7 @@ static void tf_determine_block_partition(const MV block_mv, const int block_mse,
 
 // This function returns the minimum and maximum log variances for 4x4 sub
 // blocks in the current block.
-static INLINE void get_log_var_4x4sub_blk(
+static inline void get_log_var_4x4sub_blk(
     AV1_COMP *cpi, const YV12_BUFFER_CONFIG *const frame_to_filter, int mb_row,
     int mb_col, BLOCK_SIZE block_size, double *blk_4x4_var_min,
     double *blk_4x4_var_max, int is_hbd) {
@@ -352,7 +352,7 @@ static void tf_determine_block_partition(const MV block_mv, const int block_mse,
 }
 
 // Helper function to determine whether a frame is encoded with high bit-depth.
-static INLINE int is_frame_high_bitdepth(const YV12_BUFFER_CONFIG *frame) {
+static inline int is_frame_high_bitdepth(const YV12_BUFFER_CONFIG *frame) {
   return (frame->flags & YV12_FLAG_HIGHBITDEPTH) ? 1 : 0;
 }
 
@@ -520,7 +520,7 @@ static void tf_apply_temporal_filter_self(const YV12_BUFFER_CONFIG *ref_frame,
 // Returns:
 //   Nothing will be returned. But the content to which `square_diff` points
 //   will be modified.
-static INLINE void compute_square_diff(const uint8_t *ref, const int ref_offset,
+static inline void compute_square_diff(const uint8_t *ref, const int ref_offset,
                                        const int ref_stride, const uint8_t *tgt,
                                        const int tgt_offset,
                                        const int tgt_stride, const int height,

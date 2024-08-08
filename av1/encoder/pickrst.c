@@ -1109,14 +1109,14 @@ void av1_compute_stats_highbd_c(int wiener_win, const uint8_t *dgd8,
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-static INLINE int wrap_index(int i, int wiener_win) {
+static inline int wrap_index(int i, int wiener_win) {
   const int wiener_halfwin1 = (wiener_win >> 1) + 1;
   return (i >= wiener_halfwin1 ? wiener_win - 1 - i : i);
 }
 
 // Splits each w[i] into smaller components w1[i] and w2[i] such that
 // w[i] = w1[i] * WIENER_TAP_SCALE_FACTOR + w2[i].
-static INLINE void split_wiener_filter_coefficients(int wiener_win,
+static inline void split_wiener_filter_coefficients(int wiener_win,
                                                     const int32_t *w,
                                                     int32_t *w1, int32_t *w2) {
   for (int i = 0; i < wiener_win; i++) {
@@ -1131,7 +1131,7 @@ static INLINE void split_wiener_filter_coefficients(int wiener_win,
 //
 // The multiplication x * w may overflow, so we multiply x by the components of
 // w (w1 and w2) and combine the multiplication with the division.
-static INLINE int64_t multiply_and_scale(int64_t x, int32_t w1, int32_t w2) {
+static inline int64_t multiply_and_scale(int64_t x, int32_t w1, int32_t w2) {
   // Let y = x * w / WIENER_TAP_SCALE_FACTOR
   //       = x * (w1 * WIENER_TAP_SCALE_FACTOR + w2) / WIENER_TAP_SCALE_FACTOR
   const int64_t y = x * w1 + x * w2 / WIENER_TAP_SCALE_FACTOR;
@@ -1949,7 +1949,7 @@ static void restoration_search(AV1_COMMON *cm, int plane, RestSearchCtxt *rsc,
   }
 }
 
-static INLINE void av1_derive_flags_for_lr_processing(
+static inline void av1_derive_flags_for_lr_processing(
     const LOOP_FILTER_SPEED_FEATURES *lpf_sf, bool *disable_lr_filter) {
   const bool is_wiener_disabled = lpf_sf->disable_wiener_filter;
   const bool is_sgr_disabled = lpf_sf->disable_sgr_filter;

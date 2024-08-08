@@ -428,7 +428,7 @@ static AOM_INLINE void tf_dealloc_data(TemporalFilterData *tf_data,
 // Returns:
 //   Nothing will be returned. Contents of input_mbmi and input_buffer will be
 //   modified.
-static INLINE void tf_save_state(MACROBLOCKD *mbd, MB_MODE_INFO ***input_mbmi,
+static inline void tf_save_state(MACROBLOCKD *mbd, MB_MODE_INFO ***input_mbmi,
                                  uint8_t **input_buffer, int num_planes) {
   for (int i = 0; i < num_planes; i++) {
     input_buffer[i] = mbd->plane[i].pre[0].buf;
@@ -444,7 +444,7 @@ static INLINE void tf_save_state(MACROBLOCKD *mbd, MB_MODE_INFO ***input_mbmi,
 //   num_planes: Number of planes.
 // Returns:
 //   Nothing will be returned. Contents of mbd will be modified.
-static INLINE void tf_restore_state(MACROBLOCKD *mbd, MB_MODE_INFO **input_mbmi,
+static inline void tf_restore_state(MACROBLOCKD *mbd, MB_MODE_INFO **input_mbmi,
                                     uint8_t **input_buffer, int num_planes) {
   for (int i = 0; i < num_planes; i++) {
     mbd->plane[i].pre[0].buf = input_buffer[i];

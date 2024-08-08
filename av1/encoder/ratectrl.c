@@ -3622,7 +3622,7 @@ static void dynamic_resize_one_pass_cbr(AV1_COMP *cpi) {
   return;
 }
 
-static INLINE int set_key_frame(AV1_COMP *cpi, unsigned int frame_flags) {
+static inline int set_key_frame(AV1_COMP *cpi, unsigned int frame_flags) {
   RATE_CONTROL *const rc = &cpi->rc;
   AV1_COMMON *const cm = &cpi->common;
   SVC *const svc = &cpi->svc;

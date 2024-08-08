@@ -967,7 +967,7 @@ static void allocate_gf_group_bits(GF_GROUP *gf_group,
 }
 
 // Returns true if KF group and GF group both are almost completely static.
-static INLINE int is_almost_static(double gf_zero_motion, int kf_zero_motion,
+static inline int is_almost_static(double gf_zero_motion, int kf_zero_motion,
                                    int is_lap_enabled) {
   if (is_lap_enabled) {
     /*
@@ -982,7 +982,7 @@ static INLINE int is_almost_static(double gf_zero_motion, int kf_zero_motion,
 }
 
 #define ARF_ABS_ZOOM_THRESH 4.4
-static INLINE int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
+static inline int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
                                 int flash_detected, int active_max_gf_interval,
                                 int active_min_gf_interval,
                                 GF_GROUP_STATS *gf_stats) {
@@ -2219,7 +2219,7 @@ static void define_gf_group_pass0(AV1_COMP *cpi) {
   }
 }
 
-static INLINE void set_baseline_gf_interval(PRIMARY_RATE_CONTROL *p_rc,
+static inline void set_baseline_gf_interval(PRIMARY_RATE_CONTROL *p_rc,
                                             int arf_position) {
   p_rc->baseline_gf_interval = arf_position;
 }
@@ -3418,7 +3418,7 @@ static int get_section_target_bandwidth(AV1_COMP *cpi) {
   return (int)section_target_bandwidth;
 }
 
-static INLINE void set_twopass_params_based_on_fp_stats(
+static inline void set_twopass_params_based_on_fp_stats(
     AV1_COMP *cpi, const FIRSTPASS_STATS *this_frame_ptr) {
   if (this_frame_ptr == NULL) return;
 

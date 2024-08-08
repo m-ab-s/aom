@@ -95,14 +95,14 @@ void av1_tokenize_color_map(const MACROBLOCK *const x, int plane,
                             COLOR_MAP_TYPE type, int allow_update_cdf,
                             struct FRAME_COUNTS *counts);
 
-static INLINE int av1_get_tx_eob(const struct segmentation *seg, int segment_id,
+static inline int av1_get_tx_eob(const struct segmentation *seg, int segment_id,
                                  TX_SIZE tx_size) {
   const int eob_max = av1_get_max_eob(tx_size);
   return segfeature_active(seg, segment_id, SEG_LVL_SKIP) ? 0 : eob_max;
 }
 
 // Token buffer is only used for palette tokens.
-static INLINE unsigned int get_token_alloc(int mb_rows, int mb_cols,
+static inline unsigned int get_token_alloc(int mb_rows, int mb_cols,
                                            int sb_size_log2,
                                            const int num_planes) {
   // Calculate the maximum number of max superblocks in the image.

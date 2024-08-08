@@ -688,7 +688,7 @@ void av1_fill_dv_costs(const nmv_context *ndvc, IntraBCMVCosts *dv_costs) {
 // WARNING: Population of unified cost update frequency needs to be taken care
 // accordingly, in case of any modifications/additions to the enum
 // COST_UPDATE_TYPE/INTERNAL_COST_UPDATE_TYPE.
-static INLINE void populate_unified_cost_update_freq(
+static inline void populate_unified_cost_update_freq(
     const CostUpdateFreq cost_upd_freq, SPEED_FEATURES *const sf) {
   INTER_MODE_SPEED_FEATURES *const inter_sf = &sf->inter_sf;
   // Mapping of entropy cost update frequency from the encoder's codec control
@@ -715,7 +715,7 @@ static INLINE void populate_unified_cost_update_freq(
 }
 
 // Checks if entropy costs should be initialized/updated at frame level or not.
-static INLINE int is_frame_level_cost_upd_freq_set(
+static inline int is_frame_level_cost_upd_freq_set(
     const AV1_COMMON *const cm, const INTERNAL_COST_UPDATE_TYPE cost_upd_level,
     const int use_nonrd_pick_mode, const int frames_since_key) {
   const int fill_costs =
@@ -1202,7 +1202,7 @@ void av1_get_entropy_contexts(BLOCK_SIZE plane_bsize,
 // In the worst case, this requires a border of
 //   max_block_width + 2*AOM_INTERP_EXTEND = 128 + 2*4 = 136 pixels
 // around the frame edges.
-static INLINE void enc_clamp_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
+static inline void enc_clamp_mv(const AV1_COMMON *cm, const MACROBLOCKD *xd,
                                 MV *mv) {
   int bw = xd->width << MI_SIZE_LOG2;
   int bh = xd->height << MI_SIZE_LOG2;
@@ -1523,7 +1523,7 @@ void av1_set_rd_speed_thresholds(AV1_COMP *cpi) {
   rd->thresh_mult[THR_D45_PRED] = 2500;
 }
 
-static INLINE void update_thr_fact(int (*factor_buf)[MAX_MODES],
+static inline void update_thr_fact(int (*factor_buf)[MAX_MODES],
                                    THR_MODES best_mode_index,
                                    THR_MODES mode_start, THR_MODES mode_end,
                                    BLOCK_SIZE min_size, BLOCK_SIZE max_size,

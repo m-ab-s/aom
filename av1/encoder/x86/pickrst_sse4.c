@@ -18,7 +18,7 @@
 #include "av1/common/restoration.h"
 #include "av1/encoder/pickrst.h"
 
-static INLINE void acc_stat_sse41(int32_t *dst, const uint8_t *src,
+static inline void acc_stat_sse41(int32_t *dst, const uint8_t *src,
                                   const __m128i *shuffle, const __m128i *kl) {
   const __m128i s = _mm_shuffle_epi8(xx_loadu_128(src), *shuffle);
   const __m128i d0 = _mm_madd_epi16(*kl, _mm_cvtepu8_epi16(s));
@@ -32,7 +32,7 @@ static INLINE void acc_stat_sse41(int32_t *dst, const uint8_t *src,
   xx_storeu_128(dst + 4, r1);
 }
 
-static INLINE void acc_stat_win7_one_line_sse4_1(
+static inline void acc_stat_win7_one_line_sse4_1(
     const uint8_t *dgd, const uint8_t *src, int h_start, int h_end,
     int dgd_stride, const __m128i *shuffle, int32_t *sumX,
     int32_t sumY[WIENER_WIN][WIENER_WIN], int32_t M_int[WIENER_WIN][WIENER_WIN],
@@ -105,7 +105,7 @@ static INLINE void acc_stat_win7_one_line_sse4_1(
   }
 }
 
-static INLINE void compute_stats_win7_opt_sse4_1(
+static inline void compute_stats_win7_opt_sse4_1(
     const uint8_t *dgd, const uint8_t *src, int h_start, int h_end, int v_start,
     int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H,
     int use_downsampled_wiener_stats) {
@@ -194,7 +194,7 @@ static INLINE void compute_stats_win7_opt_sse4_1(
 }
 
 #if CONFIG_AV1_HIGHBITDEPTH
-static INLINE void acc_stat_highbd_sse41(int64_t *dst, const uint16_t *dgd,
+static inline void acc_stat_highbd_sse41(int64_t *dst, const uint16_t *dgd,
                                          const __m128i *shuffle,
                                          const __m128i *dgd_ijkl) {
   // Load 256 bits from dgd in two chunks
@@ -234,7 +234,7 @@ static INLINE void acc_stat_highbd_sse41(int64_t *dst, const uint16_t *dgd,
   xx_storeu_128(dst + 6, rhh);
 }
 
-static INLINE void acc_stat_highbd_win7_one_line_sse4_1(
+static inline void acc_stat_highbd_win7_one_line_sse4_1(
     const uint16_t *dgd, const uint16_t *src, int h_start, int h_end,
     int dgd_stride, const __m128i *shuffle, int32_t *sumX,
     int32_t sumY[WIENER_WIN][WIENER_WIN], int64_t M_int[WIENER_WIN][WIENER_WIN],
@@ -324,7 +324,7 @@ static INLINE void acc_stat_highbd_win7_one_line_sse4_1(
   }
 }
 
-static INLINE void compute_stats_highbd_win7_opt_sse4_1(
+static inline void compute_stats_highbd_win7_opt_sse4_1(
     const uint8_t *dgd8, const uint8_t *src8, int h_start, int h_end,
     int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M,
     int64_t *H, aom_bit_depth_t bit_depth) {
@@ -382,7 +382,7 @@ static INLINE void compute_stats_highbd_win7_opt_sse4_1(
   }
 }
 
-static INLINE void acc_stat_highbd_win5_one_line_sse4_1(
+static inline void acc_stat_highbd_win5_one_line_sse4_1(
     const uint16_t *dgd, const uint16_t *src, int h_start, int h_end,
     int dgd_stride, const __m128i *shuffle, int32_t *sumX,
     int32_t sumY[WIENER_WIN_CHROMA][WIENER_WIN_CHROMA],
@@ -465,7 +465,7 @@ static INLINE void acc_stat_highbd_win5_one_line_sse4_1(
   }
 }
 
-static INLINE void compute_stats_highbd_win5_opt_sse4_1(
+static inline void compute_stats_highbd_win5_opt_sse4_1(
     const uint8_t *dgd8, const uint8_t *src8, int h_start, int h_end,
     int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M,
     int64_t *H, aom_bit_depth_t bit_depth) {
@@ -549,7 +549,7 @@ void av1_compute_stats_highbd_sse4_1(int wiener_win, const uint8_t *dgd8,
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-static INLINE void acc_stat_win5_one_line_sse4_1(
+static inline void acc_stat_win5_one_line_sse4_1(
     const uint8_t *dgd, const uint8_t *src, int h_start, int h_end,
     int dgd_stride, const __m128i *shuffle, int32_t *sumX,
     int32_t sumY[WIENER_WIN_CHROMA][WIENER_WIN_CHROMA],
@@ -619,7 +619,7 @@ static INLINE void acc_stat_win5_one_line_sse4_1(
   }
 }
 
-static INLINE void compute_stats_win5_opt_sse4_1(
+static inline void compute_stats_win5_opt_sse4_1(
     const uint8_t *dgd, const uint8_t *src, int h_start, int h_end, int v_start,
     int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H,
     int use_downsampled_wiener_stats) {
@@ -730,7 +730,7 @@ void av1_compute_stats_sse4_1(int wiener_win, const uint8_t *dgd,
   }
 }
 
-static INLINE __m128i pair_set_epi16(int a, int b) {
+static inline __m128i pair_set_epi16(int a, int b) {
   return _mm_set1_epi32(
       (int32_t)(((uint16_t)(a)) | (((uint32_t)(uint16_t)(b)) << 16)));
 }

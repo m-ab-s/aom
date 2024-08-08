@@ -62,7 +62,7 @@ const nonUniformTileConfigParam nonUniformTileConfigParams[] = {
 };
 
 // Find smallest k>=0 such that (blk_size << k) >= target
-static INLINE int tile_log2(int blk_size, int target) {
+static inline int tile_log2(int blk_size, int target) {
   int k;
   for (k = 0; (blk_size << k) < target; k++) {
   }

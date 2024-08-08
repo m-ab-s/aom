@@ -32,7 +32,7 @@
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/reconinter_enc.h"
 
-static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
+static inline void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
                                        const MvCosts *mv_costs,
                                        const MV *ref_mv, int errorperbit,
                                        int sadperbit) {
@@ -51,7 +51,7 @@ static INLINE void init_mv_cost_params(MV_COST_PARAMS *mv_cost_params,
   }
 }
 
-static INLINE void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
+static inline void init_ms_buffers(MSBuffers *ms_buffers, const MACROBLOCK *x) {
   ms_buffers->ref = &x->e_mbd.plane[0].pre[0];
   ms_buffers->src = &x->plane[0].src;
 
@@ -250,7 +250,7 @@ int av1_init_search_range(int size) {
 // joint_cost and comp_cost. joint_costs covers the cost of transmitting
 // JOINT_MV, and comp_cost covers the cost of transmitting the actual motion
 // vector.
-static INLINE int mv_cost(const MV *mv, const int *joint_cost,
+static inline int mv_cost(const MV *mv, const int *joint_cost,
                           const int *const comp_cost[2]) {
   return joint_cost[av1_get_mv_joint(mv)] + comp_cost[0][mv->row] +
          comp_cost[1][mv->col];
@@ -271,7 +271,7 @@ int av1_mv_bit_cost(const MV *mv, const MV *ref_mv, const int *mvjcost,
 // Returns the cost of using the current mv during the motion search. This is
 // used when var is used as the error metric.
 #define PIXEL_TRANSFORM_ERROR_SCALE 4
-static INLINE int mv_err_cost(const MV *mv, const MV *ref_mv,
+static inline int mv_err_cost(const MV *mv, const MV *ref_mv,
                               const int *mvjcost, const int *const mvcost[2],
                               int error_per_bit, MV_COST_TYPE mv_cost_type) {
   const MV diff = { mv->row - ref_mv->row, mv->col - ref_mv->col };
@@ -297,7 +297,7 @@ static INLINE int mv_err_cost(const MV *mv, const MV *ref_mv,
   }
 }
 
-static INLINE int mv_err_cost_(const MV *mv,
+static inline int mv_err_cost_(const MV *mv,
                                const MV_COST_PARAMS *mv_cost_params) {
   if (mv_cost_params->mv_cost_type == MV_COST_NONE) {
     return 0;
@@ -310,7 +310,7 @@ static INLINE int mv_err_cost_(const MV *mv,
 // Returns the cost of using the current mv during the motion search. This is
 // only used during full pixel motion search when sad is used as the error
 // metric
-static INLINE int mvsad_err_cost(const FULLPEL_MV *mv, const FULLPEL_MV *ref_mv,
+static inline int mvsad_err_cost(const FULLPEL_MV *mv, const FULLPEL_MV *ref_mv,
                                  const int *mvjcost, const int *const mvcost[2],
                                  int sad_per_bit, MV_COST_TYPE mv_cost_type) {
   const MV diff = { GET_MV_SUBPEL(mv->row - ref_mv->row),
@@ -333,7 +333,7 @@ static INLINE int mvsad_err_cost(const FULLPEL_MV *mv, const FULLPEL_MV *ref_mv,
   }
 }
 
-static INLINE int mvsad_err_cost_(const FULLPEL_MV *mv,
+static inline int mvsad_err_cost_(const FULLPEL_MV *mv,
                                   const MV_COST_PARAMS *mv_cost_params) {
   return mvsad_err_cost(mv, &mv_cost_params->full_ref_mv,
                         mv_cost_params->mvjcost, mv_cost_params->mvcost,
@@ -645,7 +645,7 @@ const av1_init_search_site_config
     };
 
 // Checks whether the mv is within range of the mv_limits
-static INLINE int check_bounds(const FullMvLimits *mv_limits, int row, int col,
+static inline int check_bounds(const FullMvLimits *mv_limits, int row, int col,
                                int range) {
   return ((row - range) >= mv_limits->row_min) &
          ((row + range) <= mv_limits->row_max) &
@@ -653,7 +653,7 @@ static INLINE int check_bounds(const FullMvLimits *mv_limits, int row, int col,
          ((col + range) <= mv_limits->col_max);
 }
 
-static INLINE int get_mvpred_var_cost(
+static inline int get_mvpred_var_cost(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const FULLPEL_MV *this_mv,
     FULLPEL_MV_STATS *mv_stats) {
   const aom_variance_fn_ptr_t *vfp = ms_params->vfp;
@@ -676,7 +676,7 @@ static INLINE int get_mvpred_var_cost(
   return bestsme;
 }
 
-static INLINE int get_mvpred_sad(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
+static inline int get_mvpred_sad(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                                  const struct buf_2d *const src,
                                  const uint8_t *const ref_address,
                                  const int ref_stride) {
@@ -686,7 +686,7 @@ static INLINE int get_mvpred_sad(const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
   return ms_params->sdf(src_buf, src_stride, ref_address, ref_stride);
 }
 
-static INLINE int get_mvpred_compound_var_cost(
+static inline int get_mvpred_compound_var_cost(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const FULLPEL_MV *this_mv,
     FULLPEL_MV_STATS *mv_stats) {
   const aom_variance_fn_ptr_t *vfp = ms_params->vfp;
@@ -722,7 +722,7 @@ static INLINE int get_mvpred_compound_var_cost(
   return bestsme;
 }
 
-static INLINE int get_mvpred_compound_sad(
+static inline int get_mvpred_compound_sad(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     const struct buf_2d *const src, const uint8_t *const ref_address,
     const int ref_stride) {
@@ -1476,7 +1476,7 @@ static int diamond_search_sad(FULLPEL_MV start_mv, unsigned int start_mv_sad,
 #undef UPDATE_SEARCH_STEP
 }
 
-static INLINE unsigned int get_start_mvpred_sad_cost(
+static inline unsigned int get_start_mvpred_sad_cost(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, FULLPEL_MV start_mv) {
   const struct buf_2d *const src = ms_params->ms_buffers.src;
   const struct buf_2d *const ref = ms_params->ms_buffers.ref;
@@ -2269,7 +2269,7 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
 // =============================================================================
 //  Fullpixel Motion Search: OBMC
 // =============================================================================
-static INLINE int get_obmc_mvpred_var(
+static inline int get_obmc_mvpred_var(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params, const FULLPEL_MV *this_mv) {
   const aom_variance_fn_ptr_t *vfp = ms_params->vfp;
   const MV_COST_PARAMS *mv_cost_params = &ms_params->mv_cost_params;
@@ -2455,11 +2455,11 @@ int av1_obmc_full_pixel_search(const FULLPEL_MV start_mv,
  */
 
 // Returns the subpel offset used by various subpel variance functions [m]sv[a]f
-static INLINE int get_subpel_part(int x) { return x & 7; }
+static inline int get_subpel_part(int x) { return x & 7; }
 
 // Gets the address of the ref buffer at subpel location (r, c), rounded to the
 // nearest fullpel precision toward - \infty
-static INLINE const uint8_t *get_buf_from_mv(const struct buf_2d *buf,
+static inline const uint8_t *get_buf_from_mv(const struct buf_2d *buf,
                                              const MV mv) {
   const int offset = (mv.row >> 3) * buf->stride + (mv.col >> 3);
   return &buf->buf[offset];
@@ -2467,7 +2467,7 @@ static INLINE const uint8_t *get_buf_from_mv(const struct buf_2d *buf,
 
 // Estimates the variance of prediction residue using bilinear filter for fast
 // search.
-static INLINE int estimated_pref_error(
+static inline int estimated_pref_error(
     const MV *this_mv, const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     unsigned int *sse) {
   const aom_variance_fn_ptr_t *vfp = var_params->vfp;
@@ -2592,7 +2592,7 @@ static int upsampled_pref_error(MACROBLOCKD *xd, const AV1_COMMON *cm,
 // Estimates whether this_mv is better than best_mv. This function incorporates
 // both prediction error and residue into account. It is suffixed "fast" because
 // it uses bilinear filter to estimate the prediction.
-static INLINE unsigned int check_better_fast(
+static inline unsigned int check_better_fast(
     MACROBLOCKD *xd, const AV1_COMMON *cm, const MV *this_mv, MV *best_mv,
     const SubpelMvLimits *mv_limits, const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     const MV_COST_PARAMS *mv_cost_params, unsigned int *besterr,
@@ -2649,7 +2649,7 @@ static AOM_FORCE_INLINE unsigned int check_better(
   return cost;
 }
 
-static INLINE MV get_best_diag_step(int step_size, unsigned int left_cost,
+static inline MV get_best_diag_step(int step_size, unsigned int left_cost,
                                     unsigned int right_cost,
                                     unsigned int up_cost,
                                     unsigned int down_cost) {
@@ -2949,11 +2949,11 @@ static unsigned int upsampled_setup_center_error(
   return besterr;
 }
 
-static INLINE int divide_and_round(int n, int d) {
+static inline int divide_and_round(int n, int d) {
   return ((n < 0) ^ (d < 0)) ? ((n - d / 2) / d) : ((n + d / 2) / d);
 }
 
-static INLINE int is_cost_list_wellbehaved(const int *cost_list) {
+static inline int is_cost_list_wellbehaved(const int *cost_list) {
   return cost_list[0] < cost_list[1] && cost_list[0] < cost_list[2] &&
          cost_list[0] < cost_list[3] && cost_list[0] < cost_list[4];
 }
@@ -2977,7 +2977,7 @@ static AOM_INLINE void get_cost_surf_min(const int *cost_list, int *ir, int *ic,
 // Checks the list of mvs searched in the last iteration and see if we are
 // repeating it. If so, return 1. Otherwise we update the last_mv_search_list
 // with current_mv and return 0.
-static INLINE int check_repeated_mv_and_update(int_mv *last_mv_search_list,
+static inline int check_repeated_mv_and_update(int_mv *last_mv_search_list,
                                                const MV current_mv, int iter) {
   if (last_mv_search_list) {
     if (CHECK_MV_EQUAL(last_mv_search_list[iter].as_mv, current_mv)) {
@@ -3388,7 +3388,7 @@ int av1_return_min_sub_pixel_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 // during motion_mode_rd. We are going through the whole
 // av1_enc_build_inter_predictor because we might have changed the interpolation
 // filter, etc before motion_mode_rd is called.
-static INLINE unsigned int compute_motion_cost(
+static inline unsigned int compute_motion_cost(
     MACROBLOCKD *xd, const AV1_COMMON *const cm,
     const SUBPEL_MOTION_SEARCH_PARAMS *ms_params, BLOCK_SIZE bsize,
     const MV *this_mv) {
@@ -3595,7 +3595,7 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
 //  Subpixel Motion Search: OBMC
 // =============================================================================
 // Estimates the variance of prediction residue
-static INLINE int estimate_obmc_pref_error(
+static inline int estimate_obmc_pref_error(
     const MV *this_mv, const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     unsigned int *sse) {
   const aom_variance_fn_ptr_t *vfp = var_params->vfp;
@@ -3689,7 +3689,7 @@ static unsigned int upsampled_setup_obmc_center_error(
 // Estimates the variance of prediction residue
 // TODO(chiyotsai@google.com): the cost does does not match the cost in
 // mv_cost_. Investigate this later.
-static INLINE int estimate_obmc_mvcost(const MV *this_mv,
+static inline int estimate_obmc_mvcost(const MV *this_mv,
                                        const MV_COST_PARAMS *mv_cost_params) {
   const MV *ref_mv = mv_cost_params->ref_mv;
   const int *mvjcost = mv_cost_params->mvjcost;
@@ -3715,7 +3715,7 @@ static INLINE int estimate_obmc_mvcost(const MV *this_mv,
 
 // Estimates whether this_mv is better than best_mv. This function incorporates
 // both prediction error and residue into account.
-static INLINE unsigned int obmc_check_better_fast(
+static inline unsigned int obmc_check_better_fast(
     const MV *this_mv, MV *best_mv, const SubpelMvLimits *mv_limits,
     const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     const MV_COST_PARAMS *mv_cost_params, unsigned int *besterr,
@@ -3743,7 +3743,7 @@ static INLINE unsigned int obmc_check_better_fast(
 
 // Estimates whether this_mv is better than best_mv. This function incorporates
 // both prediction error and residue into account.
-static INLINE unsigned int obmc_check_better(
+static inline unsigned int obmc_check_better(
     MACROBLOCKD *xd, const AV1_COMMON *cm, const MV *this_mv, MV *best_mv,
     const SubpelMvLimits *mv_limits, const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     const MV_COST_PARAMS *mv_cost_params, unsigned int *besterr,
@@ -3952,7 +3952,7 @@ int av1_get_mvpred_sse(const MV_COST_PARAMS *mv_cost_params,
   return sse + mv_err_cost_(&mv, mv_cost_params);
 }
 
-static INLINE int get_mvpred_av_var(const MV_COST_PARAMS *mv_cost_params,
+static inline int get_mvpred_av_var(const MV_COST_PARAMS *mv_cost_params,
                                     const FULLPEL_MV best_mv,
                                     const uint8_t *second_pred,
                                     const aom_variance_fn_ptr_t *vfp,
@@ -3966,7 +3966,7 @@ static INLINE int get_mvpred_av_var(const MV_COST_PARAMS *mv_cost_params,
          mv_err_cost_(&mv, mv_cost_params);
 }
 
-static INLINE int get_mvpred_mask_var(
+static inline int get_mvpred_mask_var(
     const MV_COST_PARAMS *mv_cost_params, const FULLPEL_MV best_mv,
     const uint8_t *second_pred, const uint8_t *mask, int mask_stride,
     int invert_mask, const aom_variance_fn_ptr_t *vfp, const struct buf_2d *src,

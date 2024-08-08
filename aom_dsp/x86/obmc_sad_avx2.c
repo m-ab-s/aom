@@ -26,7 +26,7 @@
 // 8 bit
 ////////////////////////////////////////////////////////////////////////////////
 
-static INLINE unsigned int obmc_sad_w4_avx2(const uint8_t *pre,
+static inline unsigned int obmc_sad_w4_avx2(const uint8_t *pre,
                                             const int pre_stride,
                                             const int32_t *wsrc,
                                             const int32_t *mask,
@@ -68,7 +68,7 @@ static INLINE unsigned int obmc_sad_w4_avx2(const uint8_t *pre,
   return xx_hsum_epi32_si32(v_sad_d_0);
 }
 
-static INLINE unsigned int obmc_sad_w8n_avx2(
+static inline unsigned int obmc_sad_w8n_avx2(
     const uint8_t *pre, const int pre_stride, const int32_t *wsrc,
     const int32_t *mask, const int width, const int height) {
   const int pre_step = pre_stride - width;
@@ -149,7 +149,7 @@ OBMCSADWXH(64, 16)
 ////////////////////////////////////////////////////////////////////////////////
 
 #if CONFIG_AV1_HIGHBITDEPTH
-static INLINE unsigned int hbd_obmc_sad_w4_avx2(const uint8_t *pre8,
+static inline unsigned int hbd_obmc_sad_w4_avx2(const uint8_t *pre8,
                                                 const int pre_stride,
                                                 const int32_t *wsrc,
                                                 const int32_t *mask,
@@ -193,7 +193,7 @@ static INLINE unsigned int hbd_obmc_sad_w4_avx2(const uint8_t *pre8,
   return xx_hsum_epi32_si32(v_sad_d_0);
 }
 
-static INLINE unsigned int hbd_obmc_sad_w8n_avx2(
+static inline unsigned int hbd_obmc_sad_w8n_avx2(
     const uint8_t *pre8, const int pre_stride, const int32_t *wsrc,
     const int32_t *mask, const int width, const int height) {
   const uint16_t *pre = CONVERT_TO_SHORTPTR(pre8);

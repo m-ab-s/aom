@@ -29,7 +29,7 @@
 #include "av1/common/restoration.h"
 
 // Set up nsync by width.
-static INLINE int get_sync_range(int width) {
+static inline int get_sync_range(int width) {
   // nsync numbers are picked by testing. For example, for 4k
   // video, using 4 gives best performance.
   if (width < 640)
@@ -42,7 +42,7 @@ static INLINE int get_sync_range(int width) {
     return 8;
 }
 
-static INLINE int get_lr_sync_range(int width) {
+static inline int get_lr_sync_range(int width) {
 #if 0
   // nsync numbers are picked by testing. For example, for 4k
   // video, using 4 gives best performance.
@@ -170,7 +170,7 @@ void av1_free_cdef_sync(AV1CdefSync *cdef_sync) {
 #endif  // CONFIG_MULTITHREAD
 }
 
-static INLINE void cdef_row_mt_sync_read(AV1CdefSync *const cdef_sync,
+static inline void cdef_row_mt_sync_read(AV1CdefSync *const cdef_sync,
                                          int row) {
   if (!row) return;
 #if CONFIG_MULTITHREAD
@@ -186,7 +186,7 @@ static INLINE void cdef_row_mt_sync_read(AV1CdefSync *const cdef_sync,
 #endif  // CONFIG_MULTITHREAD
 }
 
-static INLINE void cdef_row_mt_sync_write(AV1CdefSync *const cdef_sync,
+static inline void cdef_row_mt_sync_write(AV1CdefSync *const cdef_sync,
                                           int row) {
 #if CONFIG_MULTITHREAD
   AV1CdefRowSync *const cdef_row_mt = cdef_sync->cdef_row_mt;
@@ -200,7 +200,7 @@ static INLINE void cdef_row_mt_sync_write(AV1CdefSync *const cdef_sync,
 #endif  // CONFIG_MULTITHREAD
 }
 
-static INLINE void sync_read(AV1LfSync *const lf_sync, int r, int c,
+static inline void sync_read(AV1LfSync *const lf_sync, int r, int c,
                              int plane) {
 #if CONFIG_MULTITHREAD
   const int nsync = lf_sync->sync_range;
@@ -222,7 +222,7 @@ static INLINE void sync_read(AV1LfSync *const lf_sync, int r, int c,
 #endif  // CONFIG_MULTITHREAD
 }
 
-static INLINE void sync_write(AV1LfSync *const lf_sync, int r, int c,
+static inline void sync_write(AV1LfSync *const lf_sync, int r, int c,
                               const int sb_cols, int plane) {
 #if CONFIG_MULTITHREAD
   const int nsync = lf_sync->sync_range;
@@ -519,7 +519,7 @@ void av1_loop_filter_frame_mt(YV12_BUFFER_CONFIG *frame, AV1_COMMON *cm,
   }
 }
 
-static INLINE void lr_sync_read(void *const lr_sync, int r, int c, int plane) {
+static inline void lr_sync_read(void *const lr_sync, int r, int c, int plane) {
 #if CONFIG_MULTITHREAD
   AV1LrSync *const loop_res_sync = (AV1LrSync *)lr_sync;
   const int nsync = loop_res_sync->sync_range;
@@ -541,7 +541,7 @@ static INLINE void lr_sync_read(void *const lr_sync, int r, int c, int plane) {
 #endif  // CONFIG_MULTITHREAD
 }
 
-static INLINE void lr_sync_write(void *const lr_sync, int r, int c,
+static inline void lr_sync_write(void *const lr_sync, int r, int c,
                                  const int sb_cols, int plane) {
 #if CONFIG_MULTITHREAD
   AV1LrSync *const loop_res_sync = (AV1LrSync *)lr_sync;

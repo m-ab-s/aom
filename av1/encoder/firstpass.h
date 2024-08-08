@@ -548,13 +548,13 @@ struct EncodeFrameParams;
 struct AV1EncoderConfig;
 struct TileDataEnc;
 
-static INLINE int is_fp_wavelet_energy_invalid(
+static inline int is_fp_wavelet_energy_invalid(
     const FIRSTPASS_STATS *fp_stats) {
   assert(fp_stats != NULL);
   return (fp_stats->frame_avg_wavelet_energy < 0);
 }
 
-static INLINE BLOCK_SIZE get_fp_block_size(int is_screen_content_type) {
+static inline BLOCK_SIZE get_fp_block_size(int is_screen_content_type) {
   return (is_screen_content_type ? BLOCK_8X8 : BLOCK_16X16);
 }
 

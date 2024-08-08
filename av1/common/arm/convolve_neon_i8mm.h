@@ -36,7 +36,7 @@ DECLARE_ALIGNED(16, static const uint8_t, kMatMulPermuteTbl[32]) = {
   // clang-format on
 };
 
-static INLINE int16x4_t convolve12_4_2d_h(uint8x16_t samples[2],
+static inline int16x4_t convolve12_4_2d_h(uint8x16_t samples[2],
                                           const int8x16_t filter[2],
                                           const uint8x16_t permute_tbl,
                                           int32x4_t horiz_const) {
@@ -55,7 +55,7 @@ static INLINE int16x4_t convolve12_4_2d_h(uint8x16_t samples[2],
   return vshrn_n_s32(sum, ROUND0_BITS);
 }
 
-static INLINE int16x8_t convolve12_8_2d_h(uint8x16_t samples[2],
+static inline int16x8_t convolve12_8_2d_h(uint8x16_t samples[2],
                                           const int8x16_t filter[2],
                                           const uint8x16x2_t permute_tbl,
                                           const int32x4_t horiz_const) {
@@ -81,7 +81,7 @@ static INLINE int16x8_t convolve12_8_2d_h(uint8x16_t samples[2],
                       vshrn_n_s32(sum4567, ROUND0_BITS));
 }
 
-static INLINE void convolve_2d_sr_horiz_12tap_neon_i8mm(
+static inline void convolve_2d_sr_horiz_12tap_neon_i8mm(
     const uint8_t *src_ptr, int src_stride, int16_t *dst_ptr,
     const int dst_stride, int w, int h, const int16_t *x_filter_ptr) {
   // The no-op filter should never be used here.

@@ -778,7 +778,7 @@ const uint8_t *av1_get_obmc_mask(int length) {
   }
 }
 
-static INLINE void increment_int_ptr(MACROBLOCKD *xd, int rel_mi_row,
+static inline void increment_int_ptr(MACROBLOCKD *xd, int rel_mi_row,
                                      int rel_mi_col, uint8_t op_mi_size,
                                      int dir, MB_MODE_INFO *mi, void *fun_ctxt,
                                      const int num_planes) {
@@ -841,7 +841,7 @@ struct obmc_inter_pred_ctxt {
   int *adjacent_stride;
 };
 
-static INLINE void build_obmc_inter_pred_above(
+static inline void build_obmc_inter_pred_above(
     MACROBLOCKD *xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
     int dir, MB_MODE_INFO *above_mi, void *fun_ctxt, const int num_planes) {
   (void)above_mi;
@@ -880,7 +880,7 @@ static INLINE void build_obmc_inter_pred_above(
   }
 }
 
-static INLINE void build_obmc_inter_pred_left(
+static inline void build_obmc_inter_pred_left(
     MACROBLOCKD *xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
     int dir, MB_MODE_INFO *left_mi, void *fun_ctxt, const int num_planes) {
   (void)left_mi;

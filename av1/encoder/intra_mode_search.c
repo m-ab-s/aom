@@ -1213,7 +1213,7 @@ static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
  *
  * \remark Returns nothing, but updates the mbmi and rd_stats.
  */
-static INLINE void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
+static inline void handle_filter_intra_mode(const AV1_COMP *cpi, MACROBLOCK *x,
                                             BLOCK_SIZE bsize,
                                             const PICK_MODE_CONTEXT *ctx,
                                             RD_STATS *rd_stats_y, int mode_cost,

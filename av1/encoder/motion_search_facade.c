@@ -45,7 +45,7 @@ static int use_fine_search_interval(const AV1_COMP *const cpi) {
 }
 
 // Iterate through the tpl and collect the mvs to be used as candidates
-static INLINE void get_mv_candidate_from_tpl(const AV1_COMP *const cpi,
+static inline void get_mv_candidate_from_tpl(const AV1_COMP *const cpi,
                                              const MACROBLOCK *x,
                                              BLOCK_SIZE bsize, int ref,
                                              cand_mv_t *cand, int *cand_count,

@@ -26,7 +26,7 @@
 #include "av1/common/arm/highbd_convolve_sve2.h"
 #include "av1/common/arm/convolve_neon_i8mm.h"
 
-static INLINE int32x4_t highbd_convolve12_4_2d_v(int16x8_t s0[2],
+static inline int32x4_t highbd_convolve12_4_2d_v(int16x8_t s0[2],
                                                  int16x8_t s1[2],
                                                  int16x8_t s2[2],
                                                  int16x8_t filter_0_7,
@@ -42,7 +42,7 @@ static INLINE int32x4_t highbd_convolve12_4_2d_v(int16x8_t s0[2],
   return vcombine_s32(vmovn_s64(sum01), vmovn_s64(sum23));
 }
 
-static INLINE void convolve_2d_sr_vert_12tap_sve2(
+static inline void convolve_2d_sr_vert_12tap_sve2(
     const int16_t *src_ptr, int src_stride, uint8_t *dst_ptr,
     const int dst_stride, int w, int h, const int16x8_t y_filter_0_7,
     const int16x8_t y_filter_4_11) {

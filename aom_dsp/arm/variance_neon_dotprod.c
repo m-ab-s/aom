@@ -18,7 +18,7 @@
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
-static INLINE void variance_4xh_neon_dotprod(const uint8_t *src, int src_stride,
+static inline void variance_4xh_neon_dotprod(const uint8_t *src, int src_stride,
                                              const uint8_t *ref, int ref_stride,
                                              int h, uint32_t *sse, int *sum) {
   uint32x4_t src_sum = vdupq_n_u32(0);
@@ -47,7 +47,7 @@ static INLINE void variance_4xh_neon_dotprod(const uint8_t *src, int src_stride,
   *sse = horizontal_add_u32x4(sse_u32);
 }
 
-static INLINE void variance_8xh_neon_dotprod(const uint8_t *src, int src_stride,
+static inline void variance_8xh_neon_dotprod(const uint8_t *src, int src_stride,
                                              const uint8_t *ref, int ref_stride,
                                              int h, uint32_t *sse, int *sum) {
   uint32x4_t src_sum = vdupq_n_u32(0);
@@ -76,7 +76,7 @@ static INLINE void variance_8xh_neon_dotprod(const uint8_t *src, int src_stride,
   *sse = horizontal_add_u32x4(sse_u32);
 }
 
-static INLINE void variance_16xh_neon_dotprod(const uint8_t *src,
+static inline void variance_16xh_neon_dotprod(const uint8_t *src,
                                               int src_stride,
                                               const uint8_t *ref,
                                               int ref_stride, int h,
@@ -106,7 +106,7 @@ static INLINE void variance_16xh_neon_dotprod(const uint8_t *src,
   *sse = horizontal_add_u32x4(sse_u32);
 }
 
-static INLINE void variance_large_neon_dotprod(const uint8_t *src,
+static inline void variance_large_neon_dotprod(const uint8_t *src,
                                                int src_stride,
                                                const uint8_t *ref,
                                                int ref_stride, int w, int h,
@@ -141,7 +141,7 @@ static INLINE void variance_large_neon_dotprod(const uint8_t *src,
   *sse = horizontal_add_u32x4(sse_u32);
 }
 
-static INLINE void variance_32xh_neon_dotprod(const uint8_t *src,
+static inline void variance_32xh_neon_dotprod(const uint8_t *src,
                                               int src_stride,
                                               const uint8_t *ref,
                                               int ref_stride, int h,
@@ -150,7 +150,7 @@ static INLINE void variance_32xh_neon_dotprod(const uint8_t *src,
                               sum);
 }
 
-static INLINE void variance_64xh_neon_dotprod(const uint8_t *src,
+static inline void variance_64xh_neon_dotprod(const uint8_t *src,
                                               int src_stride,
                                               const uint8_t *ref,
                                               int ref_stride, int h,
@@ -159,7 +159,7 @@ static INLINE void variance_64xh_neon_dotprod(const uint8_t *src,
                               sum);
 }
 
-static INLINE void variance_128xh_neon_dotprod(const uint8_t *src,
+static inline void variance_128xh_neon_dotprod(const uint8_t *src,
                                                int src_stride,
                                                const uint8_t *ref,
                                                int ref_stride, int h,
@@ -247,7 +247,7 @@ void aom_get_var_sse_sum_16x16_dual_neon_dotprod(
   }
 }
 
-static INLINE unsigned int mse8xh_neon_dotprod(const uint8_t *src,
+static inline unsigned int mse8xh_neon_dotprod(const uint8_t *src,
                                                int src_stride,
                                                const uint8_t *ref,
                                                int ref_stride,
@@ -272,7 +272,7 @@ static INLINE unsigned int mse8xh_neon_dotprod(const uint8_t *src,
   return horizontal_add_u32x4(sse_u32);
 }
 
-static INLINE unsigned int mse16xh_neon_dotprod(const uint8_t *src,
+static inline unsigned int mse16xh_neon_dotprod(const uint8_t *src,
                                                 int src_stride,
                                                 const uint8_t *ref,
                                                 int ref_stride,

@@ -57,7 +57,7 @@ static AOM_FORCE_INLINE void update_yrd_loop_vars(
   this_rdc->dist += av1_block_error_lp(low_coeff, low_dqcoeff, step << 4) >> 2;
 }
 
-static INLINE void aom_process_hadamard_lp_8x16(MACROBLOCK *x,
+static inline void aom_process_hadamard_lp_8x16(MACROBLOCK *x,
                                                 int max_blocks_high,
                                                 int max_blocks_wide,
                                                 int num_4x4_w, int step,
@@ -562,7 +562,7 @@ static void compute_intra_yprediction(const AV1_COMMON *cm,
 // Checks whether Intra mode needs to be pruned based on
 // 'intra_y_mode_bsize_mask_nrd' and 'prune_hv_pred_modes_using_blksad'
 // speed features.
-static INLINE bool is_prune_intra_mode(
+static inline bool is_prune_intra_mode(
     AV1_COMP *cpi, int mode_index, int force_intra_check, BLOCK_SIZE bsize,
     uint8_t segment_id, SOURCE_SAD source_sad_nonrd,
     uint8_t color_sensitivity[MAX_MB_PLANE - 1]) {

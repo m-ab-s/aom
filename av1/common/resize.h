@@ -107,7 +107,7 @@ void down2_symeven(const uint8_t *const input, int length, uint8_t *output,
 bool should_resize_by_half(int height, int width, int height2, int width2);
 
 // Returns 1 if a superres upscaled frame is scaled and 0 otherwise.
-static INLINE int av1_superres_scaled(const AV1_COMMON *cm) {
+static inline int av1_superres_scaled(const AV1_COMMON *cm) {
   // Note: for some corner cases (e.g. cm->width of 1), there may be no scaling
   // required even though cm->superres_scale_denominator != SCALE_NUMERATOR.
   // So, the following check is more accurate.
@@ -124,7 +124,7 @@ static INLINE int av1_superres_scaled(const AV1_COMMON *cm) {
 //
 // Use the non-normative scaler av1_resize_and_extend_frame_nonnormative()
 // for other scaling ratios.
-static INLINE bool av1_has_optimized_scaler(const int src_width,
+static inline bool av1_has_optimized_scaler(const int src_width,
                                             const int src_height,
                                             const int dst_width,
                                             const int dst_height) {

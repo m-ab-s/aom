@@ -294,12 +294,12 @@ typedef struct {
 
 /*!\cond */
 
-static INLINE void set_default_sgrproj(SgrprojInfo *sgrproj_info) {
+static inline void set_default_sgrproj(SgrprojInfo *sgrproj_info) {
   sgrproj_info->xqd[0] = (SGRPROJ_PRJ_MIN0 + SGRPROJ_PRJ_MAX0) / 2;
   sgrproj_info->xqd[1] = (SGRPROJ_PRJ_MIN1 + SGRPROJ_PRJ_MAX1) / 2;
 }
 
-static INLINE void set_default_wiener(WienerInfo *wiener_info) {
+static inline void set_default_wiener(WienerInfo *wiener_info) {
   wiener_info->vfilter[0] = wiener_info->hfilter[0] = WIENER_FILT_TAP0_MIDV;
   wiener_info->vfilter[1] = wiener_info->hfilter[1] = WIENER_FILT_TAP1_MIDV;
   wiener_info->vfilter[2] = wiener_info->hfilter[2] = WIENER_FILT_TAP2_MIDV;

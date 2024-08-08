@@ -27,7 +27,7 @@
 #include "av1/encoder/reconinter_enc.h"
 #include "av1/encoder/var_based_part.h"
 
-static INLINE int early_term_inter_search_with_sse(int early_term_idx,
+static inline int early_term_inter_search_with_sse(int early_term_idx,
                                                    BLOCK_SIZE bsize,
                                                    int64_t this_sse,
                                                    int64_t best_sse,
@@ -57,7 +57,7 @@ static INLINE int early_term_inter_search_with_sse(int early_term_idx,
   return 0;
 }
 
-static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
+static inline void init_best_pickmode(BEST_PICKMODE *bp) {
   bp->best_sse = INT64_MAX;
   bp->best_mode = NEARESTMV;
   bp->best_ref_frame = LAST_FRAME;
@@ -75,7 +75,7 @@ static INLINE void init_best_pickmode(BEST_PICKMODE *bp) {
 }
 
 // Copy best inter mode parameters to best_pickmode
-static INLINE void update_search_state_nonrd(
+static inline void update_search_state_nonrd(
     InterModeSearchStateNonrd *search_state, MB_MODE_INFO *const mi,
     TxfmSearchInfo *txfm_info, RD_STATS *nonskip_rdc, PICK_MODE_CONTEXT *ctx,
     PREDICTION_MODE this_best_mode, const int64_t sse_y) {
@@ -99,7 +99,7 @@ static INLINE void update_search_state_nonrd(
   }
 }
 
-static INLINE int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
+static inline int subpel_select(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                                 int_mv *mv, MV ref_mv, FULLPEL_MV start_mv,
                                 bool fullpel_performed_well) {
   const int frame_lowmotion = cpi->rc.avg_frame_low_motion;
@@ -402,7 +402,7 @@ static void estimate_single_ref_frame_costs(const AV1_COMMON *cm,
   }
 }
 
-static INLINE void set_force_skip_flag(const AV1_COMP *const cpi,
+static inline void set_force_skip_flag(const AV1_COMP *const cpi,
                                        MACROBLOCK *const x, unsigned int sse,
                                        int *force_skip) {
   if (x->txfm_search_params.tx_mode_search_type == TX_MODE_SELECT &&
@@ -570,7 +570,7 @@ static int ac_thr_factor(int speed, int width, int height, int norm_sum) {
 }
 
 // Sets early_term flag based on chroma planes prediction
-static INLINE void set_early_term_based_on_uv_plane(
+static inline void set_early_term_based_on_uv_plane(
     AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, MACROBLOCKD *xd, int mi_row,
     int mi_col, int *early_term, int num_blk, const unsigned int *sse_tx,
     const unsigned int *var_tx, int sum, unsigned int var, unsigned int sse) {
@@ -656,7 +656,7 @@ static INLINE void set_early_term_based_on_uv_plane(
   }
 }
 
-static INLINE void calc_rate_dist_block_param(AV1_COMP *cpi, MACROBLOCK *x,
+static inline void calc_rate_dist_block_param(AV1_COMP *cpi, MACROBLOCK *x,
                                               RD_STATS *rd_stats,
                                               int calculate_rd, int *early_term,
                                               BLOCK_SIZE bsize,
@@ -899,7 +899,7 @@ static void model_rd_for_sb_y(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
   rd_stats->dist = dist;
 }
 
-static INLINE int get_drl_cost(PREDICTION_MODE this_mode, int ref_mv_idx,
+static inline int get_drl_cost(PREDICTION_MODE this_mode, int ref_mv_idx,
                                const MB_MODE_INFO_EXT *mbmi_ext,
                                const int (*const drl_mode_cost0)[2],
                                int8_t ref_frame_type) {
@@ -1017,7 +1017,7 @@ static void newmv_diff_bias(MACROBLOCKD *xd, PREDICTION_MODE this_mode,
   }
 }
 
-static INLINE void update_thresh_freq_fact(AV1_COMP *cpi, MACROBLOCK *x,
+static inline void update_thresh_freq_fact(AV1_COMP *cpi, MACROBLOCK *x,
                                            BLOCK_SIZE bsize,
                                            MV_REFERENCE_FRAME ref_frame,
                                            THR_MODES best_mode_idx,

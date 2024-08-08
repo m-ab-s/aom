@@ -481,7 +481,7 @@ static AOM_INLINE void build_mc_border(const uint8_t *src, int src_stride,
   } while (--b_h);
 }
 
-static INLINE int update_extend_mc_border_params(
+static inline int update_extend_mc_border_params(
     const struct scale_factors *const sf, struct buf_2d *const pre_buf,
     MV32 scaled_mv, PadBlock *block, int subpel_x_mv, int subpel_y_mv,
     int do_warp, int is_intrabc, int *x_pad, int *y_pad) {
@@ -516,7 +516,7 @@ static INLINE int update_extend_mc_border_params(
   return 0;
 }
 
-static INLINE void extend_mc_border(const struct scale_factors *const sf,
+static inline void extend_mc_border(const struct scale_factors *const sf,
                                     struct buf_2d *const pre_buf,
                                     MV32 scaled_mv, PadBlock block,
                                     int subpel_x_mv, int subpel_y_mv,
@@ -696,7 +696,7 @@ static AOM_INLINE void dec_build_inter_predictor(const AV1_COMMON *cm,
   }
 }
 
-static INLINE void dec_build_prediction_by_above_pred(
+static inline void dec_build_prediction_by_above_pred(
     MACROBLOCKD *const xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
     int dir, MB_MODE_INFO *above_mbmi, void *fun_ctxt, const int num_planes) {
   struct build_prediction_ctxt *ctxt = (struct build_prediction_ctxt *)fun_ctxt;
@@ -752,7 +752,7 @@ static AOM_INLINE void dec_build_prediction_by_above_preds(
   xd->mb_to_bottom_edge -= GET_MV_SUBPEL(this_height - pred_height);
 }
 
-static INLINE void dec_build_prediction_by_left_pred(
+static inline void dec_build_prediction_by_left_pred(
     MACROBLOCKD *const xd, int rel_mi_row, int rel_mi_col, uint8_t op_mi_size,
     int dir, MB_MODE_INFO *left_mbmi, void *fun_ctxt, const int num_planes) {
   struct build_prediction_ctxt *ctxt = (struct build_prediction_ctxt *)fun_ctxt;
@@ -1774,7 +1774,7 @@ static AOM_INLINE void setup_cdef(AV1_COMMON *cm,
   }
 }
 
-static INLINE int read_delta_q(struct aom_read_bit_buffer *rb) {
+static inline int read_delta_q(struct aom_read_bit_buffer *rb) {
   return aom_rb_read_bit(rb) ? aom_rb_read_inv_signed_literal(rb, 6) : 0;
 }
 
@@ -1998,7 +1998,7 @@ static AOM_INLINE void setup_sb_size(SequenceHeader *seq_params,
   set_sb_size(seq_params, aom_rb_read_bit(rb) ? BLOCK_128X128 : BLOCK_64X64);
 }
 
-static INLINE int valid_ref_frame_img_fmt(aom_bit_depth_t ref_bit_depth,
+static inline int valid_ref_frame_img_fmt(aom_bit_depth_t ref_bit_depth,
                                           int ref_xss, int ref_yss,
                                           aom_bit_depth_t this_bit_depth,
                                           int this_xss, int this_yss) {
@@ -2481,7 +2481,7 @@ static AOM_INLINE void decoder_alloc_tile_data(AV1Decoder *pbi,
 }
 
 // Set up nsync by width.
-static INLINE int get_sync_range(int width) {
+static inline int get_sync_range(int width) {
 // nsync numbers are picked by testing.
 #if 0
   if (width < 640)
@@ -2557,7 +2557,7 @@ void av1_dec_row_mt_dealloc(AV1DecRowMTSync *dec_row_mt_sync) {
   }
 }
 
-static INLINE void sync_read(AV1DecRowMTSync *const dec_row_mt_sync, int r,
+static inline void sync_read(AV1DecRowMTSync *const dec_row_mt_sync, int r,
                              int c) {
 #if CONFIG_MULTITHREAD
   const int nsync = dec_row_mt_sync->sync_range;
@@ -2579,7 +2579,7 @@ static INLINE void sync_read(AV1DecRowMTSync *const dec_row_mt_sync, int r,
 #endif  // CONFIG_MULTITHREAD
 }
 
-static INLINE void sync_write(AV1DecRowMTSync *const dec_row_mt_sync, int r,
+static inline void sync_write(AV1DecRowMTSync *const dec_row_mt_sync, int r,
                               int c, const int sb_cols) {
 #if CONFIG_MULTITHREAD
   const int nsync = dec_row_mt_sync->sync_range;
@@ -2609,7 +2609,7 @@ static INLINE void sync_write(AV1DecRowMTSync *const dec_row_mt_sync, int r,
 #endif  // CONFIG_MULTITHREAD
 }
 
-static INLINE void signal_decoding_done_for_erroneous_row(
+static inline void signal_decoding_done_for_erroneous_row(
     AV1Decoder *const pbi, const MACROBLOCKD *const xd) {
   AV1_COMMON *const cm = &pbi->common;
   const TileInfo *const tile = &xd->tile;
@@ -3001,7 +3001,7 @@ static int tile_worker_hook(void *arg1, void *arg2) {
   return !td->dcb.corrupted;
 }
 
-static INLINE int get_max_row_mt_workers_per_tile(AV1_COMMON *cm,
+static inline int get_max_row_mt_workers_per_tile(AV1_COMMON *cm,
                                                   const TileInfo *tile) {
   // NOTE: Currently value of max workers is calculated based
   // on the parse and decode time. As per the theoretical estimate
@@ -3129,7 +3129,7 @@ static int get_next_job_info(AV1Decoder *const pbi,
   return 1;
 }
 
-static INLINE void signal_parse_sb_row_done(AV1Decoder *const pbi,
+static inline void signal_parse_sb_row_done(AV1Decoder *const pbi,
                                             TileDataDec *const tile_data,
                                             const int sb_mi_size) {
   AV1DecRowMTInfo *frame_row_mt_info = &pbi->frame_row_mt_info;
@@ -4458,7 +4458,7 @@ static AOM_INLINE void show_existing_frame_reset(AV1Decoder *const pbi,
   cm->features.refresh_frame_context = REFRESH_FRAME_CONTEXT_DISABLED;
 }
 
-static INLINE void reset_frame_buffers(AV1_COMMON *cm) {
+static inline void reset_frame_buffers(AV1_COMMON *cm) {
   RefCntBuffer *const frame_bufs = cm->buffer_pool->frame_bufs;
   int i;
 

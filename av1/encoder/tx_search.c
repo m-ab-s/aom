@@ -77,7 +77,7 @@ static const int sqrt_tx_pixels_2d[TX_SIZES_ALL] = { 4,  8,  16, 32, 32, 6,  6,
                                                      12, 12, 23, 23, 32, 32, 8,
                                                      8,  16, 16, 23, 23 };
 
-static INLINE uint32_t get_block_residue_hash(MACROBLOCK *x, BLOCK_SIZE bsize) {
+static inline uint32_t get_block_residue_hash(MACROBLOCK *x, BLOCK_SIZE bsize) {
   const int rows = block_size_high[bsize];
   const int cols = block_size_wide[bsize];
   const int16_t *diff = x->plane[0].src_diff;
@@ -87,7 +87,7 @@ static INLINE uint32_t get_block_residue_hash(MACROBLOCK *x, BLOCK_SIZE bsize) {
   return (hash << 5) + bsize;
 }
 
-static INLINE int32_t find_mb_rd_info(const MB_RD_RECORD *const mb_rd_record,
+static inline int32_t find_mb_rd_info(const MB_RD_RECORD *const mb_rd_record,
                                       const int64_t ref_best_rd,
                                       const uint32_t hash) {
   int32_t match_index = -1;
@@ -145,7 +145,7 @@ int64_t av1_pixel_diff_dist(const MACROBLOCK *x, int plane, int blk_row,
 
 // Computes the residual block's SSE and mean on all visible 4x4s in the
 // transform block
-static INLINE int64_t pixel_diff_stats(
+static inline int64_t pixel_diff_stats(
     MACROBLOCK *x, int plane, int blk_row, int blk_col,
     const BLOCK_SIZE plane_bsize, const BLOCK_SIZE tx_bsize,
     unsigned int *block_mse_q8, int64_t *per_px_mean, uint64_t *block_var) {
@@ -863,7 +863,7 @@ static AOM_INLINE void inverse_transform_block_facade(MACROBLOCK *const x,
                               dst_stride, eob, reduced_tx_set);
 }
 
-static INLINE void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
+static inline void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                                int block, int blk_row, int blk_col,
                                BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
                                const TXB_CTX *const txb_ctx, int skip_trellis,
@@ -963,7 +963,7 @@ static unsigned pixel_dist(const AV1_COMP *const cpi, const MACROBLOCK *x,
   return sse;
 }
 
-static INLINE int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
+static inline int64_t dist_block_px_domain(const AV1_COMP *cpi, MACROBLOCK *x,
                                            int plane, BLOCK_SIZE plane_bsize,
                                            int block, int blk_row, int blk_col,
                                            TX_SIZE tx_size) {
@@ -1018,7 +1018,7 @@ static const int prune_factors[5] = { 200, 200, 120, 80, 40 };  // scale 1000
 static const int mul_factors[5] = { 80, 80, 70, 50, 30 };       // scale 100
 
 // R-D costs are sorted in ascending order.
-static INLINE void sort_rd(int64_t rds[], int txk[], int len) {
+static inline void sort_rd(int64_t rds[], int txk[], int len) {
   int i, j, k;
 
   for (i = 1; i <= len - 1; ++i) {
@@ -1043,7 +1043,7 @@ static INLINE void sort_rd(int64_t rds[], int txk[], int len) {
   }
 }
 
-static INLINE int64_t av1_block_error_qm(const tran_low_t *coeff,
+static inline int64_t av1_block_error_qm(const tran_low_t *coeff,
                                          const tran_low_t *dqcoeff,
                                          intptr_t block_size,
                                          const qm_val_t *qmatrix,
@@ -1071,7 +1071,7 @@ static INLINE int64_t av1_block_error_qm(const tran_low_t *coeff,
   return error;
 }
 
-static INLINE void dist_block_tx_domain(MACROBLOCK *x, int plane, int block,
+static inline void dist_block_tx_domain(MACROBLOCK *x, int plane, int block,
                                         TX_SIZE tx_size,
                                         const qm_val_t *qmatrix,
                                         const int16_t *scan, int64_t *out_dist,
@@ -1384,7 +1384,7 @@ static const float *prune_2D_adaptive_thresholds[] = {
   NULL,
 };
 
-static INLINE float get_adaptive_thresholds(
+static inline float get_adaptive_thresholds(
     TX_SIZE tx_size, TxSetType tx_set_type,
     TX_TYPE_PRUNE_MODE prune_2d_txfm_mode) {
   const int prune_aggr_table[5][2] = {
@@ -1712,11 +1712,11 @@ static int ml_predict_tx_split(MACROBLOCK *x, BLOCK_SIZE bsize, int blk_row,
   return clamp(int_score, -80000, 80000);
 }
 
-static INLINE uint16_t
-get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
-            int blk_row, int blk_col, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
-            const TXB_CTX *const txb_ctx, FAST_TX_SEARCH_MODE ftxs_mode,
-            int64_t ref_best_rd, TX_TYPE *allowed_txk_types, int *txk_map) {
+static inline uint16_t get_tx_mask(
+    const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block, int blk_row,
+    int blk_col, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
+    const TXB_CTX *const txb_ctx, FAST_TX_SEARCH_MODE ftxs_mode,
+    int64_t ref_best_rd, TX_TYPE *allowed_txk_types, int *txk_map) {
   const AV1_COMMON *cm = &cpi->common;
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mbmi = xd->mi[0];
@@ -1887,13 +1887,13 @@ get_tx_mask(const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block,
 }
 
 #if CONFIG_RD_DEBUG
-static INLINE void update_txb_coeff_cost(RD_STATS *rd_stats, int plane,
+static inline void update_txb_coeff_cost(RD_STATS *rd_stats, int plane,
                                          int txb_coeff_cost) {
   rd_stats->txb_coeff_cost[plane] += txb_coeff_cost;
 }
 #endif
 
-static INLINE int cost_coeffs(MACROBLOCK *x, int plane, int block,
+static inline int cost_coeffs(MACROBLOCK *x, int plane, int block,
                               TX_SIZE tx_size, const TX_TYPE tx_type,
                               const TXB_CTX *const txb_ctx,
                               int reduced_tx_set_used) {
@@ -1947,7 +1947,7 @@ static int skip_trellis_opt_based_on_satd(MACROBLOCK *x,
 
 // Predict DC only blocks if the residual variance is below a qstep based
 // threshold.For such blocks, transform type search is bypassed.
-static INLINE void predict_dc_only_block(
+static inline void predict_dc_only_block(
     MACROBLOCK *x, int plane, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
     int block, int blk_row, int blk_col, RD_STATS *best_rd_stats,
     int64_t *block_sse, unsigned int *block_mse_q8, int64_t *per_px_mean,

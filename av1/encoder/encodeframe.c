@@ -583,7 +583,7 @@ static AOM_INLINE void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
 }
 
 // This function initializes the stats for encode_rd_sb.
-static INLINE void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
+static inline void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
                                      const TileDataEnc *tile_data,
                                      SIMPLE_MOTION_DATA_TREE *sms_root,
                                      RD_STATS *rd_cost, int mi_row, int mi_col,
@@ -1551,7 +1551,7 @@ static AOM_INLINE void set_rel_frame_dist(
   }
 }
 
-static INLINE int refs_are_one_sided(const AV1_COMMON *cm) {
+static inline int refs_are_one_sided(const AV1_COMMON *cm) {
   assert(!frame_is_intra_only(cm));
 
   int one_sided_refs = 1;
@@ -1568,7 +1568,7 @@ static INLINE int refs_are_one_sided(const AV1_COMMON *cm) {
   return one_sided_refs;
 }
 
-static INLINE void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
+static inline void get_skip_mode_ref_offsets(const AV1_COMMON *cm,
                                              int ref_order_hint[2]) {
   const SkipModeInfo *const skip_mode_info = &cm->current_frame.skip_mode_info;
   ref_order_hint[0] = ref_order_hint[1] = 0;

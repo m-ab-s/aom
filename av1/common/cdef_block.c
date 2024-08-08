@@ -286,7 +286,7 @@ void cdef_filter_16_3_c(void *dst16, int dstride, const uint16_t *in,
    edge), so we can apply more deringing. A low variance means that we
    either have a low contrast edge, or a non-directional texture, so
    we want to be careful not to blur. */
-static INLINE int adjust_strength(int strength, int32_t var) {
+static inline int adjust_strength(int strength, int32_t var) {
   const int i = var >> 6 ? AOMMIN(get_msb(var >> 6), 12) : 0;
   /* We use the variance of 8x8 blocks to adjust the strength. */
   return var ? (strength * (4 + i) + 8) >> 4 : 0;

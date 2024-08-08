@@ -36,7 +36,7 @@
   pred = _mm_packus_epi16(pred_l, pred_r);                    \
   res##idx = _mm_add_epi32(res##idx, _mm_sad_epu8(pred, src));
 
-static INLINE void masked_sadx4d_ssse3(const uint8_t *src_ptr, int src_stride,
+static inline void masked_sadx4d_ssse3(const uint8_t *src_ptr, int src_stride,
                                        const uint8_t *a_ptr[4], int a_stride,
                                        const uint8_t *b_ptr, int b_stride,
                                        const uint8_t *m_ptr, int m_stride,

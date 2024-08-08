@@ -399,7 +399,7 @@ typedef struct intra_pred_block_pass1_args {
   MACROBLOCK *x;
 } intra_pred_block_pass1_args;
 
-static INLINE void copy_rect(uint8_t *dst, int dstride, const uint8_t *src,
+static inline void copy_rect(uint8_t *dst, int dstride, const uint8_t *src,
                              int sstride, int width, int height, int use_hbd) {
 #if CONFIG_AV1_HIGHBITDEPTH
   if (use_hbd) {

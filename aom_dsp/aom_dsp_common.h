@@ -61,23 +61,23 @@ typedef uint8_t qm_val_t;
 typedef int64_t tran_high_t;
 typedef int32_t tran_low_t;
 
-static INLINE uint8_t clip_pixel(int val) {
+static inline uint8_t clip_pixel(int val) {
   return (val > 255) ? 255 : (val < 0) ? 0 : val;
 }
 
-static INLINE int clamp(int value, int low, int high) {
+static inline int clamp(int value, int low, int high) {
   return value < low ? low : (value > high ? high : value);
 }
 
-static INLINE int64_t clamp64(int64_t value, int64_t low, int64_t high) {
+static inline int64_t clamp64(int64_t value, int64_t low, int64_t high) {
   return value < low ? low : (value > high ? high : value);
 }
 
-static INLINE double fclamp(double value, double low, double high) {
+static inline double fclamp(double value, double low, double high) {
   return value < low ? low : (value > high ? high : value);
 }
 
-static INLINE uint16_t clip_pixel_highbd(int val, int bd) {
+static inline uint16_t clip_pixel_highbd(int val, int bd) {
   switch (bd) {
     case 8:
     default: return (uint16_t)clamp(val, 0, 255);
@@ -90,12 +90,12 @@ static INLINE uint16_t clip_pixel_highbd(int val, int bd) {
 // or max(0, value) and might be faster in some cases.
 // Care should be taken since the behavior of right shifting signed type
 // negative value is undefined by C standards and implementation defined,
-static INLINE unsigned int negative_to_zero(int value) {
+static inline unsigned int negative_to_zero(int value) {
   return value & ~(value >> (sizeof(value) * 8 - 1));
 }
 
 // Returns the saturating cast of a double value to int.
-static INLINE int saturate_cast_double_to_int(double d) {
+static inline int saturate_cast_double_to_int(double d) {
   if (d > INT_MAX) return INT_MAX;
   return (int)d;
 }

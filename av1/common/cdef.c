@@ -121,7 +121,7 @@ void av1_cdef_copy_sb8_16(const AV1_COMMON *const cm, uint16_t *const dst,
   }
 }
 
-static INLINE void copy_rect(uint16_t *dst, int dstride, const uint16_t *src,
+static inline void copy_rect(uint16_t *dst, int dstride, const uint16_t *src,
                              int sstride, int v, int h) {
   for (int i = 0; i < v; i++) {
     for (int j = 0; j < h; j++) {
@@ -249,7 +249,7 @@ static void cdef_prepare_fb(const AV1_COMMON *const cm, CdefBlockInfo *fb_info,
   }
 }
 
-static INLINE void cdef_filter_fb(CdefBlockInfo *const fb_info, int plane,
+static inline void cdef_filter_fb(CdefBlockInfo *const fb_info, int plane,
                                   uint8_t use_highbitdepth) {
   ptrdiff_t offset =
       (ptrdiff_t)fb_info->dst_stride * fb_info->roffset + fb_info->coffset;
@@ -271,7 +271,7 @@ static INLINE void cdef_filter_fb(CdefBlockInfo *const fb_info, int plane,
 }
 
 // Initializes block-level parameters for CDEF.
-static INLINE void cdef_init_fb_col(const MACROBLOCKD *const xd,
+static inline void cdef_init_fb_col(const MACROBLOCKD *const xd,
                                     CdefBlockInfo *const fb_info, int *level,
                                     int *sec_strength, int fbc, int fbr,
                                     int plane) {

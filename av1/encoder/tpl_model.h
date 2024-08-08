@@ -38,7 +38,7 @@ struct TPL_INFO;
 #include "av1/encoder/lookahead.h"
 #include "av1/encoder/ratectrl.h"
 
-static INLINE BLOCK_SIZE convert_length_to_bsize(int length) {
+static inline BLOCK_SIZE convert_length_to_bsize(int length) {
   switch (length) {
     case 64: return BLOCK_64X64;
     case 32: return BLOCK_32X32;
@@ -294,7 +294,7 @@ typedef struct {
 #endif  // CONFIG_THREE_PASS
 } VBR_RATECTRL_INFO;
 
-static INLINE void vbr_rc_reset_gop_data(VBR_RATECTRL_INFO *vbr_rc_info) {
+static inline void vbr_rc_reset_gop_data(VBR_RATECTRL_INFO *vbr_rc_info) {
   vbr_rc_info->q_index_list_ready = 0;
   av1_zero(vbr_rc_info->q_index_list);
 }
@@ -731,14 +731,14 @@ typedef struct {
   double act_coeff_rate_list[VBR_RC_INFO_MAX_FRAMES];
 } RATECTRL_LOG;
 
-static INLINE void rc_log_init(RATECTRL_LOG *rc_log) { av1_zero(*rc_log); }
+static inline void rc_log_init(RATECTRL_LOG *rc_log) { av1_zero(*rc_log); }
 
-static INLINE void rc_log_frame_stats(RATECTRL_LOG *rc_log, int coding_index,
+static inline void rc_log_frame_stats(RATECTRL_LOG *rc_log, int coding_index,
                                       const TplTxfmStats *txfm_stats) {
   rc_log->txfm_stats_list[coding_index] = *txfm_stats;
 }
 
-static INLINE void rc_log_frame_encode_param(RATECTRL_LOG *rc_log,
+static inline void rc_log_frame_encode_param(RATECTRL_LOG *rc_log,
                                              int coding_index,
                                              double qstep_ratio, int q_index,
                                              FRAME_UPDATE_TYPE update_type) {
@@ -754,21 +754,21 @@ static INLINE void rc_log_frame_encode_param(RATECTRL_LOG *rc_log,
   }
 }
 
-static INLINE void rc_log_frame_entropy(RATECTRL_LOG *rc_log, int coding_index,
+static inline void rc_log_frame_entropy(RATECTRL_LOG *rc_log, int coding_index,
                                         double act_rate,
                                         double act_coeff_rate) {
   rc_log->act_rate_list[coding_index] = act_rate;
   rc_log->act_coeff_rate_list[coding_index] = act_coeff_rate;
 }
 
-static INLINE void rc_log_record_chunk_info(RATECTRL_LOG *rc_log,
+static inline void rc_log_record_chunk_info(RATECTRL_LOG *rc_log,
                                             int base_q_index,
                                             int coding_frame_count) {
   rc_log->base_q_index = base_q_index;
   rc_log->coding_frame_count = coding_frame_count;
 }
 
-static INLINE void rc_log_show(const RATECTRL_LOG *rc_log) {
+static inline void rc_log_show(const RATECTRL_LOG *rc_log) {
   printf("= chunk 1\n");
   printf("coding_frame_count %d base_q_index %d\n", rc_log->coding_frame_count,
          rc_log->base_q_index);

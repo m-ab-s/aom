@@ -538,7 +538,7 @@ static AOM_INLINE unsigned int get_num_refs_to_disable(
   return num_refs_to_disable;
 }
 
-static INLINE int get_max_allowed_ref_frames(
+static inline int get_max_allowed_ref_frames(
     const AV1_COMP *cpi, const int *ref_frame_flags,
     const unsigned int *ref_display_order_hint,
     unsigned int cur_frame_display_index) {

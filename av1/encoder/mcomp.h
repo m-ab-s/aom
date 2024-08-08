@@ -83,7 +83,7 @@ typedef struct {
   const int32_t *obmc_mask;
 } MSBuffers;
 
-static INLINE void av1_set_ms_compound_refs(MSBuffers *ms_buffers,
+static inline void av1_set_ms_compound_refs(MSBuffers *ms_buffers,
                                             const uint8_t *second_pred,
                                             const uint8_t *mask,
                                             int mask_stride, int invert_mask) {
@@ -214,7 +214,7 @@ static AOM_INLINE void av1_refresh_search_site_config(
 }
 
 // Mv beyond the range do not produce new/different prediction block.
-static INLINE void av1_set_mv_search_method(
+static inline void av1_set_mv_search_method(
     FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     const search_site_config search_sites[NUM_DISTINCT_SEARCH_METHODS],
     SEARCH_METHODS search_method) {
@@ -225,7 +225,7 @@ static INLINE void av1_set_mv_search_method(
 
 // Set up limit values for MV components.
 // Mv beyond the range do not produce new/different prediction block.
-static INLINE void av1_set_mv_row_limits(
+static inline void av1_set_mv_row_limits(
     const CommonModeInfoParams *const mi_params, FullMvLimits *mv_limits,
     int mi_row, int mi_height, int border) {
   const int min1 = -(mi_row * MI_SIZE + border - 2 * AOM_INTERP_EXTEND);
@@ -238,7 +238,7 @@ static INLINE void av1_set_mv_row_limits(
   mv_limits->row_max = AOMMIN(max1, max2);
 }
 
-static INLINE void av1_set_mv_col_limits(
+static inline void av1_set_mv_col_limits(
     const CommonModeInfoParams *const mi_params, FullMvLimits *mv_limits,
     int mi_col, int mi_width, int border) {
   const int min1 = -(mi_col * MI_SIZE + border - 2 * AOM_INTERP_EXTEND);
@@ -251,7 +251,7 @@ static INLINE void av1_set_mv_col_limits(
   mv_limits->col_max = AOMMIN(max1, max2);
 }
 
-static INLINE void av1_set_mv_limits(
+static inline void av1_set_mv_limits(
     const CommonModeInfoParams *const mi_params, FullMvLimits *mv_limits,
     int mi_row, int mi_col, int mi_height, int mi_width, int border) {
   av1_set_mv_row_limits(mi_params, mv_limits, mi_row, mi_height, border);
@@ -288,7 +288,7 @@ int av1_obmc_full_pixel_search(const FULLPEL_MV start_mv,
                                const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                                const int step_param, FULLPEL_MV *best_mv);
 
-static INLINE int av1_is_fullmv_in_range(const FullMvLimits *mv_limits,
+static inline int av1_is_fullmv_in_range(const FullMvLimits *mv_limits,
                                          FULLPEL_MV mv) {
   return (mv.col >= mv_limits->col_min) && (mv.col <= mv_limits->col_max) &&
          (mv.row >= mv_limits->row_min) && (mv.row <= mv_limits->row_max);
@@ -355,13 +355,13 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                                   WARP_SEARCH_METHOD search_method,
                                   int num_iterations);
 
-static INLINE void av1_set_fractional_mv(int_mv *fractional_best_mv) {
+static inline void av1_set_fractional_mv(int_mv *fractional_best_mv) {
   for (int z = 0; z < 3; z++) {
     fractional_best_mv[z].as_int = INVALID_MV;
   }
 }
 
-static INLINE void av1_set_subpel_mv_search_range(SubpelMvLimits *subpel_limits,
+static inline void av1_set_subpel_mv_search_range(SubpelMvLimits *subpel_limits,
                                                   const FullMvLimits *mv_limits,
                                                   const MV *ref_mv) {
   const int max_mv = GET_MV_SUBPEL(MAX_FULL_PEL_VAL);
@@ -379,17 +379,17 @@ static INLINE void av1_set_subpel_mv_search_range(SubpelMvLimits *subpel_limits,
   subpel_limits->row_max = AOMMIN(MV_UPP - 1, maxr);
 }
 
-static INLINE int av1_is_subpelmv_in_range(const SubpelMvLimits *mv_limits,
+static inline int av1_is_subpelmv_in_range(const SubpelMvLimits *mv_limits,
                                            MV mv) {
   return (mv.col >= mv_limits->col_min) && (mv.col <= mv_limits->col_max) &&
          (mv.row >= mv_limits->row_min) && (mv.row <= mv_limits->row_max);
 }
 
-static INLINE int get_offset_from_fullmv(const FULLPEL_MV *mv, int stride) {
+static inline int get_offset_from_fullmv(const FULLPEL_MV *mv, int stride) {
   return mv->row * stride + mv->col;
 }
 
-static INLINE const uint8_t *get_buf_from_fullmv(const struct buf_2d *buf,
+static inline const uint8_t *get_buf_from_fullmv(const struct buf_2d *buf,
                                                  const FULLPEL_MV *mv) {
   return &buf->buf[get_offset_from_fullmv(mv, buf->stride)];
 }

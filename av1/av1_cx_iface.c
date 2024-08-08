@@ -561,7 +561,7 @@ struct aom_codec_alg_priv {
   bool monochrome_on_init;
 };
 
-static INLINE int gcd(int64_t a, int b) {
+static inline int gcd(int64_t a, int b) {
   int remainder;
   while (b > 0) {
     remainder = (int)(a % b);
@@ -3017,7 +3017,7 @@ static aom_codec_frame_flags_t get_frame_pkt_flags(const AV1_COMP *cpi,
   return flags;
 }
 
-static INLINE int get_src_border_in_pixels(AV1_COMP *cpi, BLOCK_SIZE sb_size) {
+static inline int get_src_border_in_pixels(AV1_COMP *cpi, BLOCK_SIZE sb_size) {
   if (cpi->oxcf.mode != REALTIME || av1_is_resize_needed(&cpi->oxcf))
     return cpi->oxcf.border_in_pixels;
 
