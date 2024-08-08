@@ -169,27 +169,26 @@ static inline void scale_plane_4_to_1_bilinear(
   } while (--h != 0);
 }
 
-static inline uint8x8_t scale_filter8_8(const int16x8_t s0, const int16x8_t s1,
+static inline uint8x8_t scale_filter6_8(const int16x8_t s0, const int16x8_t s1,
                                         const int16x8_t s2, const int16x8_t s3,
                                         const int16x8_t s4, const int16x8_t s5,
-                                        const int16x8_t s6, const int16x8_t s7,
                                         const int16x8_t filter) {
   const int16x4_t filter_lo = vget_low_s16(filter);
   const int16x4_t filter_hi = vget_high_s16(filter);
 
-  int16x8_t sum = vmulq_lane_s16(s0, filter_lo, 0);
-  sum = vmlaq_lane_s16(sum, s1, filter_lo, 1);
-  sum = vmlaq_lane_s16(sum, s2, filter_lo, 2);
-  sum = vmlaq_lane_s16(sum, s5, filter_hi, 1);
-  sum = vmlaq_lane_s16(sum, s6, filter_hi, 2);
-  sum = vmlaq_lane_s16(sum, s7, filter_hi, 3);
-  sum = vqaddq_s16(sum, vmulq_lane_s16(s3, filter_lo, 3));
-  sum = vqaddq_s16(sum, vmulq_lane_s16(s4, filter_hi, 0));
+  // Filter values at indices 0 and 7 are 0.
+  int16x8_t sum = vmulq_lane_s16(s0, filter_lo, 1);
+  sum = vmlaq_lane_s16(sum, s1, filter_lo, 2);
+  sum = vmlaq_lane_s16(sum, s2, filter_lo, 3);
+  sum = vmlaq_lane_s16(sum, s3, filter_hi, 0);
+  sum = vmlaq_lane_s16(sum, s4, filter_hi, 1);
+  sum = vmlaq_lane_s16(sum, s5, filter_hi, 2);
 
-  return vqrshrun_n_s16(sum, FILTER_BITS);
+  // We halved the convolution filter values so -1 from the right shift.
+  return vqrshrun_n_s16(sum, FILTER_BITS - 1);
 }
 
-static inline void scale_2_to_1_horiz_8tap(const uint8_t *src,
+static inline void scale_2_to_1_horiz_6tap(const uint8_t *src,
                                            const int src_stride, int w, int h,
                                            uint8_t *dst, const int dst_stride,
                                            const int16x8_t filters) {
@@ -226,11 +225,10 @@ static inline void scale_2_to_1_horiz_8tap(const uint8_t *src,
       int16x8_t s12 = vreinterpretq_s16_u16(vmovl_u8(t12));
       int16x8_t s13 = vreinterpretq_s16_u16(vmovl_u8(t13));
 
-      uint8x8_t d0 = scale_filter8_8(s0, s1, s2, s3, s4, s5, s6, s7, filters);
-      uint8x8_t d1 = scale_filter8_8(s2, s3, s4, s5, s6, s7, s8, s9, filters);
-      uint8x8_t d2 = scale_filter8_8(s4, s5, s6, s7, s8, s9, s10, s11, filters);
-      uint8x8_t d3 =
-          scale_filter8_8(s6, s7, s8, s9, s10, s11, s12, s13, filters);
+      uint8x8_t d0 = scale_filter6_8(s0, s1, s2, s3, s4, s5, filters);
+      uint8x8_t d1 = scale_filter6_8(s2, s3, s4, s5, s6, s7, filters);
+      uint8x8_t d2 = scale_filter6_8(s4, s5, s6, s7, s8, s9, filters);
+      uint8x8_t d3 = scale_filter6_8(s6, s7, s8, s9, s10, s11, filters);
 
       transpose_elems_inplace_u8_8x4(&d0, &d1, &d2, &d3);
 
@@ -257,43 +255,40 @@ static inline void scale_2_to_1_horiz_8tap(const uint8_t *src,
   } while (h > 0);
 }
 
-static inline void scale_2_to_1_vert_8tap(const uint8_t *src,
+static inline void scale_2_to_1_vert_6tap(const uint8_t *src,
                                           const int src_stride, int w, int h,
                                           uint8_t *dst, const int dst_stride,
                                           const int16x8_t filters) {
   do {
-    uint8x8_t t0, t1, t2, t3, t4, t5;
-    load_u8_8x6(src, src_stride, &t0, &t1, &t2, &t3, &t4, &t5);
+    uint8x8_t t0, t1, t2, t3;
+    load_u8_8x4(src, src_stride, &t0, &t1, &t2, &t3);
 
     int16x8_t s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
     int16x8_t s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
     int16x8_t s2 = vreinterpretq_s16_u16(vmovl_u8(t2));
     int16x8_t s3 = vreinterpretq_s16_u16(vmovl_u8(t3));
-    int16x8_t s4 = vreinterpretq_s16_u16(vmovl_u8(t4));
-    int16x8_t s5 = vreinterpretq_s16_u16(vmovl_u8(t5));
 
-    const uint8_t *s = src + 6 * src_stride;
+    const uint8_t *s = src + 4 * src_stride;
     uint8_t *d = dst;
     int height = h;
 
     do {
-      uint8x8_t t6, t7, t8, t9, t10, t11, t12, t13;
-      load_u8_8x8(s, src_stride, &t6, &t7, &t8, &t9, &t10, &t11, &t12, &t13);
+      uint8x8_t t4, t5, t6, t7, t8, t9, t10, t11;
+      load_u8_8x8(s, src_stride, &t4, &t5, &t6, &t7, &t8, &t9, &t10, &t11);
 
+      int16x8_t s4 = vreinterpretq_s16_u16(vmovl_u8(t4));
+      int16x8_t s5 = vreinterpretq_s16_u16(vmovl_u8(t5));
       int16x8_t s6 = vreinterpretq_s16_u16(vmovl_u8(t6));
       int16x8_t s7 = vreinterpretq_s16_u16(vmovl_u8(t7));
       int16x8_t s8 = vreinterpretq_s16_u16(vmovl_u8(t8));
       int16x8_t s9 = vreinterpretq_s16_u16(vmovl_u8(t9));
       int16x8_t s10 = vreinterpretq_s16_u16(vmovl_u8(t10));
       int16x8_t s11 = vreinterpretq_s16_u16(vmovl_u8(t11));
-      int16x8_t s12 = vreinterpretq_s16_u16(vmovl_u8(t12));
-      int16x8_t s13 = vreinterpretq_s16_u16(vmovl_u8(t13));
 
-      uint8x8_t d0 = scale_filter8_8(s0, s1, s2, s3, s4, s5, s6, s7, filters);
-      uint8x8_t d1 = scale_filter8_8(s2, s3, s4, s5, s6, s7, s8, s9, filters);
-      uint8x8_t d2 = scale_filter8_8(s4, s5, s6, s7, s8, s9, s10, s11, filters);
-      uint8x8_t d3 =
-          scale_filter8_8(s6, s7, s8, s9, s10, s11, s12, s13, filters);
+      uint8x8_t d0 = scale_filter6_8(s0, s1, s2, s3, s4, s5, filters);
+      uint8x8_t d1 = scale_filter6_8(s2, s3, s4, s5, s6, s7, filters);
+      uint8x8_t d2 = scale_filter6_8(s4, s5, s6, s7, s8, s9, filters);
+      uint8x8_t d3 = scale_filter6_8(s6, s7, s8, s9, s10, s11, filters);
 
       store_u8_8x4(d, dst_stride, d0, d1, d2, d3);
 
@@ -301,8 +296,6 @@ static inline void scale_2_to_1_vert_8tap(const uint8_t *src,
       s1 = s9;
       s2 = s10;
       s3 = s11;
-      s4 = s12;
-      s5 = s13;
 
       d += 4 * dst_stride;
       s += 8 * src_stride;
@@ -315,27 +308,30 @@ static inline void scale_2_to_1_vert_8tap(const uint8_t *src,
   } while (w > 0);
 }
 
-static inline void scale_plane_2_to_1_8tap(const uint8_t *src,
+static inline void scale_plane_2_to_1_6tap(const uint8_t *src,
                                            const int src_stride, uint8_t *dst,
                                            const int dst_stride, const int w,
                                            const int h,
                                            const int16_t *const filter_ptr,
                                            uint8_t *const im_block) {
   assert(w > 0 && h > 0);
-  const int im_h = 2 * h + SUBPEL_TAPS - 2;
+  const int im_h = 2 * h + SUBPEL_TAPS - 3;
   const int im_stride = (w + 3) & ~3;
-  const int16x8_t filters = vld1q_s16(filter_ptr);
 
-  const ptrdiff_t horiz_offset = SUBPEL_TAPS / 2 - 1;
-  const ptrdiff_t vert_offset = (SUBPEL_TAPS / 2 - 1) * src_stride;
+  // All filter values are even, halve them to stay in 16-bit elements when
+  // applying filter.
+  const int16x8_t filters = vshrq_n_s16(vld1q_s16(filter_ptr), 1);
 
-  scale_2_to_1_horiz_8tap(src - horiz_offset - vert_offset, src_stride, w, im_h,
+  const ptrdiff_t horiz_offset = SUBPEL_TAPS / 2 - 2;
+  const ptrdiff_t vert_offset = (SUBPEL_TAPS / 2 - 2) * src_stride;
+
+  scale_2_to_1_horiz_6tap(src - horiz_offset - vert_offset, src_stride, w, im_h,
                           im_block, im_stride, filters);
 
-  scale_2_to_1_vert_8tap(im_block, im_stride, w, h, dst, dst_stride, filters);
+  scale_2_to_1_vert_6tap(im_block, im_stride, w, h, dst, dst_stride, filters);
 }
 
-static inline void scale_4_to_1_horiz_8tap(const uint8_t *src,
+static inline void scale_4_to_1_horiz_6tap(const uint8_t *src,
                                            const int src_stride, int w, int h,
                                            uint8_t *dst, const int dst_stride,
                                            const int16x8_t filters) {
@@ -369,8 +365,8 @@ static inline void scale_4_to_1_horiz_8tap(const uint8_t *src,
       int16x8_t s10 = vreinterpretq_s16_u16(vmovl_u8(t10));
       int16x8_t s11 = vreinterpretq_s16_u16(vmovl_u8(t11));
 
-      uint8x8_t d0 = scale_filter8_8(s0, s1, s2, s3, s4, s5, s6, s7, filters);
-      uint8x8_t d1 = scale_filter8_8(s4, s5, s6, s7, s8, s9, s10, s11, filters);
+      uint8x8_t d0 = scale_filter6_8(s0, s1, s2, s3, s4, s5, filters);
+      uint8x8_t d1 = scale_filter6_8(s4, s5, s6, s7, s8, s9, filters);
 
       uint8x8x2_t d01 = vtrn_u8(d0, d1);
 
@@ -393,45 +389,41 @@ static inline void scale_4_to_1_horiz_8tap(const uint8_t *src,
   } while (h > 0);
 }
 
-static inline void scale_4_to_1_vert_8tap(const uint8_t *src,
+static inline void scale_4_to_1_vert_6tap(const uint8_t *src,
                                           const int src_stride, int w, int h,
                                           uint8_t *dst, const int dst_stride,
                                           const int16x8_t filters) {
   do {
-    uint8x8_t t0, t1, t2, t3;
-    load_u8_8x4(src, src_stride, &t0, &t1, &t2, &t3);
+    uint8x8_t t0 = vld1_u8(src + 0 * src_stride);
+    uint8x8_t t1 = vld1_u8(src + 1 * src_stride);
 
     int16x8_t s0 = vreinterpretq_s16_u16(vmovl_u8(t0));
     int16x8_t s1 = vreinterpretq_s16_u16(vmovl_u8(t1));
-    int16x8_t s2 = vreinterpretq_s16_u16(vmovl_u8(t2));
-    int16x8_t s3 = vreinterpretq_s16_u16(vmovl_u8(t3));
 
-    const uint8_t *s = src + 4 * src_stride;
+    const uint8_t *s = src + 2 * src_stride;
     uint8_t *d = dst;
     int height = h;
 
     do {
-      uint8x8_t t4, t5, t6, t7, t8, t9, t10, t11;
-      load_u8_8x8(s, src_stride, &t4, &t5, &t6, &t7, &t8, &t9, &t10, &t11);
+      uint8x8_t t2, t3, t4, t5, t6, t7, t8, t9;
+      load_u8_8x8(s, src_stride, &t2, &t3, &t4, &t5, &t6, &t7, &t8, &t9);
 
+      int16x8_t s2 = vreinterpretq_s16_u16(vmovl_u8(t2));
+      int16x8_t s3 = vreinterpretq_s16_u16(vmovl_u8(t3));
       int16x8_t s4 = vreinterpretq_s16_u16(vmovl_u8(t4));
       int16x8_t s5 = vreinterpretq_s16_u16(vmovl_u8(t5));
       int16x8_t s6 = vreinterpretq_s16_u16(vmovl_u8(t6));
       int16x8_t s7 = vreinterpretq_s16_u16(vmovl_u8(t7));
       int16x8_t s8 = vreinterpretq_s16_u16(vmovl_u8(t8));
       int16x8_t s9 = vreinterpretq_s16_u16(vmovl_u8(t9));
-      int16x8_t s10 = vreinterpretq_s16_u16(vmovl_u8(t10));
-      int16x8_t s11 = vreinterpretq_s16_u16(vmovl_u8(t11));
 
-      uint8x8_t d0 = scale_filter8_8(s0, s1, s2, s3, s4, s5, s6, s7, filters);
-      uint8x8_t d1 = scale_filter8_8(s4, s5, s6, s7, s8, s9, s10, s11, filters);
+      uint8x8_t d0 = scale_filter6_8(s0, s1, s2, s3, s4, s5, filters);
+      uint8x8_t d1 = scale_filter6_8(s4, s5, s6, s7, s8, s9, filters);
 
       store_u8_8x2(d, dst_stride, d0, d1);
 
       s0 = s8;
       s1 = s9;
-      s2 = s10;
-      s3 = s11;
 
       s += 8 * src_stride;
       d += 2 * dst_stride;
@@ -444,24 +436,26 @@ static inline void scale_4_to_1_vert_8tap(const uint8_t *src,
   } while (w > 0);
 }
 
-static inline void scale_plane_4_to_1_8tap(const uint8_t *src,
+static inline void scale_plane_4_to_1_6tap(const uint8_t *src,
                                            const int src_stride, uint8_t *dst,
                                            const int dst_stride, const int w,
                                            const int h,
                                            const int16_t *const filter_ptr,
                                            uint8_t *const im_block) {
   assert(w > 0 && h > 0);
-  const int im_h = 4 * h + SUBPEL_TAPS - 2;
+  const int im_h = 4 * h + SUBPEL_TAPS - 3;
   const int im_stride = (w + 1) & ~1;
-  const int16x8_t filters = vld1q_s16(filter_ptr);
+  // All filter values are even, halve them to stay in 16-bit elements when
+  // applying filter.
+  const int16x8_t filters = vshrq_n_s16(vld1q_s16(filter_ptr), 1);
 
-  const ptrdiff_t horiz_offset = SUBPEL_TAPS / 2 - 1;
-  const ptrdiff_t vert_offset = (SUBPEL_TAPS / 2 - 1) * src_stride;
+  const ptrdiff_t horiz_offset = SUBPEL_TAPS / 2 - 2;
+  const ptrdiff_t vert_offset = (SUBPEL_TAPS / 2 - 2) * src_stride;
 
-  scale_4_to_1_horiz_8tap(src - horiz_offset - vert_offset, src_stride, w, im_h,
+  scale_4_to_1_horiz_6tap(src - horiz_offset - vert_offset, src_stride, w, im_h,
                           im_block, im_stride, filters);
 
-  scale_4_to_1_vert_8tap(im_block, im_stride, w, h, dst, dst_stride, filters);
+  scale_4_to_1_vert_6tap(im_block, im_stride, w, h, dst, dst_stride, filters);
 }
 
 static inline uint8x8_t scale_filter_bilinear(const uint8x8_t *const s,
@@ -818,6 +812,9 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
                                       YV12_BUFFER_CONFIG *dst,
                                       const InterpFilter filter,
                                       const int phase, const int num_planes) {
+  assert(filter == BILINEAR || filter == EIGHTTAP_SMOOTH ||
+         filter == EIGHTTAP_REGULAR);
+
   bool has_normative_scaler =
       has_normative_scaler_neon(src->y_crop_width, src->y_crop_height,
                                 dst->y_crop_width, dst->y_crop_height);
@@ -869,7 +866,7 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
         const InterpKernel *interp_kernel =
             (const InterpKernel *)av1_interp_filter_params_list[filter]
                 .filter_ptr;
-        scale_plane_2_to_1_8tap(src->buffers[i], src->strides[is_uv],
+        scale_plane_2_to_1_6tap(src->buffers[i], src->strides[is_uv],
                                 dst->buffers[i], dst->strides[is_uv], dst_w,
                                 dst_h, interp_kernel[phase], temp_buffer);
         free(temp_buffer);
@@ -897,7 +894,7 @@ void av1_resize_and_extend_frame_neon(const YV12_BUFFER_CONFIG *src,
         const InterpKernel *interp_kernel =
             (const InterpKernel *)av1_interp_filter_params_list[filter]
                 .filter_ptr;
-        scale_plane_4_to_1_8tap(src->buffers[i], src->strides[is_uv],
+        scale_plane_4_to_1_6tap(src->buffers[i], src->strides[is_uv],
                                 dst->buffers[i], dst->strides[is_uv], dst_w,
                                 dst_h, interp_kernel[phase], temp_buffer);
         free(temp_buffer);
