@@ -2607,9 +2607,8 @@ void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
   RATE_CONTROL *const rc = &cpi->rc;
   const int MBs = av1_get_MBs(width, height);
 
-  const double avg_frame_bandwidth =
-      round(oxcf->rc_cfg.target_bandwidth / cpi->framerate);
-  rc->avg_frame_bandwidth = (int)AOMMIN(avg_frame_bandwidth, INT_MAX);
+  rc->avg_frame_bandwidth = saturate_cast_double_to_int(
+      round(oxcf->rc_cfg.target_bandwidth / cpi->framerate));
 
   int64_t vbr_min_bits =
       (int64_t)rc->avg_frame_bandwidth * oxcf->rc_cfg.vbrmin_section / 100;

@@ -12,6 +12,8 @@
 #ifndef AOM_AOM_DSP_AOM_DSP_COMMON_H_
 #define AOM_AOM_DSP_AOM_DSP_COMMON_H_
 
+#include <limits.h>
+
 #include "config/aom_config.h"
 
 #include "aom/aom_integer.h"
@@ -90,6 +92,12 @@ static INLINE uint16_t clip_pixel_highbd(int val, int bd) {
 // negative value is undefined by C standards and implementation defined,
 static INLINE unsigned int negative_to_zero(int value) {
   return value & ~(value >> (sizeof(value) * 8 - 1));
+}
+
+// Returns the saturating cast of a double value to int.
+static INLINE int saturate_cast_double_to_int(double d) {
+  if (d > INT_MAX) return INT_MAX;
+  return (int)d;
 }
 
 #ifdef __cplusplus
