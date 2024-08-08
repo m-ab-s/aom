@@ -20,7 +20,7 @@ include("${AOM_ROOT}/build/cmake/util.cmake")
 # in this file.
 #
 
-set_aom_detect_var(INLINE "" "Sets INLINE value for current target.")
+set_aom_detect_var(INLINE "inline" "Sets INLINE value for current target.")
 
 # CPUs.
 set_aom_detect_var(AOM_ARCH_AARCH64 0 "Enables AArch64 architecture.")

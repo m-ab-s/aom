@@ -250,9 +250,6 @@ endif()
 # ensure RTCD_CONFIG_* are properly set.
 fix_experiment_configs()
 
-# Test compiler support.
-aom_get_inline("INLINE")
-
 # Don't just check for pthread.h, but use the result of the full pthreads
 # including a linking check in FindThreads above.
 set(HAVE_PTHREAD_H ${CMAKE_USE_PTHREADS_INIT})
