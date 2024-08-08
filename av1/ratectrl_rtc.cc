@@ -11,7 +11,6 @@
 
 #include "av1/ratectrl_rtc.h"
 
-#include <climits>
 #include <memory>
 #include <new>
 
@@ -130,8 +129,8 @@ bool AV1RateControlRTC::InitRateControl(const AV1RateControlRtcConfig &rc_cfg) {
   oxcf->tune_cfg.content = AOM_CONTENT_DEFAULT;
   oxcf->rc_cfg.drop_frames_water_mark = rc_cfg.frame_drop_thresh;
   if (rc_cfg.max_consec_drop_ms > 0) {
-    rc->max_consec_drop = (int)AOMMIN(
-        ceil(cpi_->framerate * rc_cfg.max_consec_drop_ms / 1000), INT_MAX);
+    rc->max_consec_drop = saturate_cast_double_to_int(
+        ceil(cpi_->framerate * rc_cfg.max_consec_drop_ms / 1000));
   }
   cpi_->svc.framedrop_mode = AOM_FULL_SUPERFRAME_DROP;
   oxcf->tool_cfg.bit_depth = AOM_BITS_8;
@@ -196,8 +195,8 @@ bool AV1RateControlRTC::UpdateRateControl(
   oxcf->rc_cfg.over_shoot_pct = rc_cfg.overshoot_pct;
   oxcf->rc_cfg.drop_frames_water_mark = rc_cfg.frame_drop_thresh;
   if (rc_cfg.max_consec_drop_ms > 0) {
-    rc->max_consec_drop = (int)AOMMIN(
-        ceil(cpi_->framerate * rc_cfg.max_consec_drop_ms / 1000), INT_MAX);
+    rc->max_consec_drop = saturate_cast_double_to_int(
+        ceil(cpi_->framerate * rc_cfg.max_consec_drop_ms / 1000));
   }
   oxcf->rc_cfg.max_intra_bitrate_pct = rc_cfg.max_intra_bitrate_pct;
   oxcf->rc_cfg.max_inter_bitrate_pct = rc_cfg.max_inter_bitrate_pct;
