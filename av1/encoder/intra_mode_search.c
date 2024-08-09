@@ -399,7 +399,7 @@ void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi,
   }
 }
 
-static AOM_INLINE int get_model_rd_index_for_pruning(
+static inline int get_model_rd_index_for_pruning(
     const MACROBLOCK *const x,
     const INTRA_MODE_SPEED_FEATURES *const intra_sf) {
   const int top_intra_model_count_allowed =
@@ -641,8 +641,8 @@ static int cfl_pick_plane_parameter(const AV1_COMP *const cpi, MACROBLOCK *x,
   return est_best_cfl_idx;
 }
 
-static AOM_INLINE void set_invalid_cfl_parameters(
-    uint8_t *best_cfl_alpha_idx, int8_t *best_cfl_alpha_signs) {
+static inline void set_invalid_cfl_parameters(uint8_t *best_cfl_alpha_idx,
+                                              int8_t *best_cfl_alpha_signs) {
   *best_cfl_alpha_idx = 0;
   *best_cfl_alpha_signs = 0;
 }
@@ -1160,13 +1160,12 @@ void av1_search_palette_mode_luma(const AV1_COMP *cpi, MACROBLOCK *x,
  *
  * \return Returns whether the current mode is an improvement over best_rd.
  */
-static AOM_INLINE int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
-                                      BLOCK_SIZE bsize, const int *bmode_costs,
-                                      int64_t *best_rd, int *rate,
-                                      int *rate_tokenonly, int64_t *distortion,
-                                      uint8_t *skippable,
-                                      MB_MODE_INFO *best_mbmi,
-                                      PICK_MODE_CONTEXT *ctx) {
+static inline int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
+                                  BLOCK_SIZE bsize, const int *bmode_costs,
+                                  int64_t *best_rd, int *rate,
+                                  int *rate_tokenonly, int64_t *distortion,
+                                  uint8_t *skippable, MB_MODE_INFO *best_mbmi,
+                                  PICK_MODE_CONTEXT *ctx) {
   MACROBLOCKD *const xd = &x->e_mbd;
   MB_MODE_INFO *const mbmi = xd->mi[0];
   RD_STATS rd_stats;
@@ -1436,7 +1435,7 @@ int av1_search_intra_uv_modes_in_interframe(
 
 // Checks if odd delta angles can be pruned based on rdcosts of even delta
 // angles of the corresponding directional mode.
-static AOM_INLINE int prune_luma_odd_delta_angles_using_rd_cost(
+static inline int prune_luma_odd_delta_angles_using_rd_cost(
     const MB_MODE_INFO *const mbmi, const int64_t *const intra_modes_rd_cost,
     int64_t best_rd, int prune_luma_odd_delta_angles_in_intra) {
   const int luma_delta_angle = mbmi->angle_delta[PLANE_TYPE_Y];

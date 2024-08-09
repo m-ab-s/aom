@@ -33,8 +33,8 @@ enum {
   FTXS_USE_TRANSFORM_DOMAIN = 1 << 2
 } UENUM1BYTE(FAST_TX_SEARCH_MODE);
 
-static AOM_INLINE int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
-                                   TX_SIZE tx_size) {
+static inline int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
+                               TX_SIZE tx_size) {
   assert(bsize == x->e_mbd.mi[0]->bsize);
   if (x->txfm_search_params.tx_mode_search_type != TX_MODE_SELECT ||
       !block_signals_txsize(bsize))

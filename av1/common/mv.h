@@ -76,19 +76,19 @@ typedef struct {
   int row_max;
 } SubpelMvLimits;
 
-static AOM_INLINE FULLPEL_MV get_fullmv_from_mv(const MV *subpel_mv) {
+static inline FULLPEL_MV get_fullmv_from_mv(const MV *subpel_mv) {
   const FULLPEL_MV full_mv = { (int16_t)GET_MV_RAWPEL(subpel_mv->row),
                                (int16_t)GET_MV_RAWPEL(subpel_mv->col) };
   return full_mv;
 }
 
-static AOM_INLINE MV get_mv_from_fullmv(const FULLPEL_MV *full_mv) {
+static inline MV get_mv_from_fullmv(const FULLPEL_MV *full_mv) {
   const MV subpel_mv = { (int16_t)GET_MV_SUBPEL(full_mv->row),
                          (int16_t)GET_MV_SUBPEL(full_mv->col) };
   return subpel_mv;
 }
 
-static AOM_INLINE void convert_fullmv_to_mv(int_mv *mv) {
+static inline void convert_fullmv_to_mv(int_mv *mv) {
   mv->as_mv = get_mv_from_fullmv(&mv->as_fullmv);
 }
 

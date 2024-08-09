@@ -735,11 +735,9 @@ void av1_set_offsets(const AV1_COMP *const cpi, const TileInfo *const tile,
  * corresponding to the best mode found.
  */
 
-static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
-                                                MACROBLOCK *const x,
-                                                RD_STATS *rd_cost,
-                                                BLOCK_SIZE bsize,
-                                                PICK_MODE_CONTEXT *ctx) {
+static inline void hybrid_intra_mode_search(AV1_COMP *cpi, MACROBLOCK *const x,
+                                            RD_STATS *rd_cost, BLOCK_SIZE bsize,
+                                            PICK_MODE_CONTEXT *ctx) {
   int use_rdopt = 0;
   const int hybrid_intra_pickmode = cpi->sf.rt_sf.hybrid_intra_pickmode;
   // Use rd pick for intra mode search based on block size and variance.
@@ -764,10 +762,12 @@ static AOM_INLINE void hybrid_intra_mode_search(AV1_COMP *cpi,
 // (ref mv list population) require the encoding of the top-right superblock to
 // be complete. So, here, we delay the waiting of threads until the need for the
 // data from the top-right superblock region.
-static AOM_INLINE void wait_for_top_right_sb(
-    AV1EncRowMultiThreadInfo *enc_row_mt, AV1EncRowMultiThreadSync *row_mt_sync,
-    TileInfo *tile_info, BLOCK_SIZE sb_size, int sb_mi_size_log2,
-    BLOCK_SIZE bsize, int mi_row, int mi_col) {
+static inline void wait_for_top_right_sb(AV1EncRowMultiThreadInfo *enc_row_mt,
+                                         AV1EncRowMultiThreadSync *row_mt_sync,
+                                         TileInfo *tile_info,
+                                         BLOCK_SIZE sb_size,
+                                         int sb_mi_size_log2, BLOCK_SIZE bsize,
+                                         int mi_row, int mi_col) {
   const int sb_size_in_mi = mi_size_wide[sb_size];
   const int bw_in_mi = mi_size_wide[bsize];
   const int blk_row_in_sb = mi_row & (sb_size_in_mi - 1);
@@ -1694,7 +1694,7 @@ static void encode_sb(const AV1_COMP *const cpi, ThreadData *td,
   update_ext_partition_context(xd, mi_row, mi_col, subsize, bsize, partition);
 }
 
-static AOM_INLINE int is_adjust_var_based_part_enabled(
+static inline int is_adjust_var_based_part_enabled(
     AV1_COMMON *const cm, const PARTITION_SPEED_FEATURES *const part_sf,
     BLOCK_SIZE bsize) {
   if (part_sf->partition_search_type != VAR_BASED_PARTITION) return 0;
@@ -3421,7 +3421,7 @@ static void set_partition_cost_for_edge_blk(
 
 // Reset the partition search state flags when
 // must_find_valid_partition is equal to 1.
-static AOM_INLINE void reset_part_limitations(
+static inline void reset_part_limitations(
     AV1_COMP *const cpi, PartitionSearchState *part_search_state) {
   PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const int is_rect_part_allowed =
@@ -3483,7 +3483,7 @@ static void rd_pick_rect_partition(AV1_COMP *const cpi, TileDataEnc *tile_data,
 typedef int (*active_edge_info)(const AV1_COMP *cpi, int mi_col, int mi_step);
 
 // Checks if HORZ / VERT partition search is allowed.
-static AOM_INLINE int is_rect_part_allowed(
+static inline int is_rect_part_allowed(
     const AV1_COMP *cpi, const PartitionSearchState *part_search_state,
     const active_edge_info *active_edge, RECT_PART_TYPE rect_part,
     const int mi_pos) {
@@ -3672,7 +3672,7 @@ static void rd_pick_ab_part(
 }
 
 // Set mode search context.
-static AOM_INLINE void set_mode_search_ctx(
+static inline void set_mode_search_ctx(
     PC_TREE *pc_tree, const int is_ctx_ready[NUM_AB_PARTS][2],
     PICK_MODE_CONTEXT **mode_srch_ctx[NUM_AB_PARTS][2]) {
   mode_srch_ctx[HORZ_B][0] = &pc_tree->horizontal[0];
@@ -3688,7 +3688,7 @@ static AOM_INLINE void set_mode_search_ctx(
     mode_srch_ctx[HORZ_A][1] = &pc_tree->split[1]->none;
 }
 
-static AOM_INLINE void copy_partition_mode_from_mode_context(
+static inline void copy_partition_mode_from_mode_context(
     const MB_MODE_INFO **dst_mode, const PICK_MODE_CONTEXT *ctx) {
   if (ctx && ctx->rd_stats.rate < INT_MAX) {
     *dst_mode = &ctx->mic;
@@ -3697,7 +3697,7 @@ static AOM_INLINE void copy_partition_mode_from_mode_context(
   }
 }
 
-static AOM_INLINE void copy_partition_mode_from_pc_tree(
+static inline void copy_partition_mode_from_pc_tree(
     const MB_MODE_INFO **dst_mode, const PC_TREE *pc_tree) {
   if (pc_tree) {
     copy_partition_mode_from_mode_context(dst_mode, pc_tree->none);
@@ -3706,7 +3706,7 @@ static AOM_INLINE void copy_partition_mode_from_pc_tree(
   }
 }
 
-static AOM_INLINE void set_mode_cache_for_partition_ab(
+static inline void set_mode_cache_for_partition_ab(
     const MB_MODE_INFO **mode_cache, const PC_TREE *pc_tree,
     AB_PART_TYPE ab_part_type) {
   switch (ab_part_type) {
@@ -4249,8 +4249,8 @@ static void prune_partitions_after_split(
 
 // Returns true if either of the left and top neighbor blocks is larger than
 // the current block; false otherwise.
-static AOM_INLINE bool is_neighbor_blk_larger_than_cur_blk(
-    const MACROBLOCKD *xd, BLOCK_SIZE bsize) {
+static inline bool is_neighbor_blk_larger_than_cur_blk(const MACROBLOCKD *xd,
+                                                       BLOCK_SIZE bsize) {
   const int cur_blk_area = (block_size_high[bsize] * block_size_wide[bsize]);
   if (xd->left_available) {
     const BLOCK_SIZE left_bsize = xd->left_mbmi->bsize;
@@ -4268,7 +4268,7 @@ static AOM_INLINE bool is_neighbor_blk_larger_than_cur_blk(
   return false;
 }
 
-static AOM_INLINE void prune_rect_part_using_none_pred_mode(
+static inline void prune_rect_part_using_none_pred_mode(
     const MACROBLOCKD *xd, PartitionSearchState *part_state,
     PREDICTION_MODE mode, BLOCK_SIZE bsize) {
   if (mode == DC_PRED || mode == SMOOTH_PRED) {
@@ -5373,7 +5373,7 @@ bool av1_rd_partition_search(AV1_COMP *const cpi, ThreadData *td,
 }
 #endif  // CONFIG_PARTITION_SEARCH_ORDER
 
-static AOM_INLINE bool should_do_dry_run_encode_for_current_block(
+static inline bool should_do_dry_run_encode_for_current_block(
     BLOCK_SIZE sb_size, BLOCK_SIZE max_partition_size, int curr_block_index,
     BLOCK_SIZE bsize) {
   if (bsize > max_partition_size) return false;
@@ -5425,8 +5425,8 @@ static void log_sub_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
   *var_max = log1p(max_var_4x4 / 16.0);
 }
 
-static AOM_INLINE void set_sms_tree_partitioning(
-    SIMPLE_MOTION_DATA_TREE *sms_tree, PARTITION_TYPE partition) {
+static inline void set_sms_tree_partitioning(SIMPLE_MOTION_DATA_TREE *sms_tree,
+                                             PARTITION_TYPE partition) {
   if (sms_tree == NULL) return;
   sms_tree->partitioning = partition;
 }

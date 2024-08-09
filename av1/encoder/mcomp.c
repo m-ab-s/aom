@@ -854,13 +854,13 @@ static AOM_FORCE_INLINE void calc_int_sad_list(
 //   If the current sad is lower than the current best sad.
 // Returns:
 //   Whether the input sad (mv) is better than the current best.
-static AOM_INLINE int update_mvs_and_sad(const unsigned int this_sad,
-                                         const FULLPEL_MV *mv,
-                                         const MV_COST_PARAMS *mv_cost_params,
-                                         unsigned int *best_sad,
-                                         unsigned int *raw_best_sad,
-                                         FULLPEL_MV *best_mv,
-                                         FULLPEL_MV *second_best_mv) {
+static inline int update_mvs_and_sad(const unsigned int this_sad,
+                                     const FULLPEL_MV *mv,
+                                     const MV_COST_PARAMS *mv_cost_params,
+                                     unsigned int *best_sad,
+                                     unsigned int *raw_best_sad,
+                                     FULLPEL_MV *best_mv,
+                                     FULLPEL_MV *second_best_mv) {
   if (this_sad >= *best_sad) return 0;
 
   // Add the motion vector cost.
@@ -877,7 +877,7 @@ static AOM_INLINE int update_mvs_and_sad(const unsigned int this_sad,
 
 // Calculate sad4 and update the bestmv information
 // in FAST_DIAMOND search method.
-static AOM_INLINE void calc_sad4_update_bestmv(
+static inline void calc_sad4_update_bestmv(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     const MV_COST_PARAMS *mv_cost_params, FULLPEL_MV *best_mv,
     const FULLPEL_MV center_mv, const uint8_t *center_address,
@@ -914,7 +914,7 @@ static AOM_INLINE void calc_sad4_update_bestmv(
   }
 }
 
-static AOM_INLINE void calc_sad3_update_bestmv(
+static inline void calc_sad3_update_bestmv(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     const MV_COST_PARAMS *mv_cost_params, FULLPEL_MV *best_mv,
     FULLPEL_MV center_mv, const uint8_t *center_address, unsigned int *bestsad,
@@ -950,7 +950,7 @@ static AOM_INLINE void calc_sad3_update_bestmv(
 
 // Calculate sad and update the bestmv information
 // in FAST_DIAMOND search method.
-static AOM_INLINE void calc_sad_update_bestmv(
+static inline void calc_sad_update_bestmv(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     const MV_COST_PARAMS *mv_cost_params, FULLPEL_MV *best_mv,
     const FULLPEL_MV center_mv, const uint8_t *center_address,
@@ -976,7 +976,7 @@ static AOM_INLINE void calc_sad_update_bestmv(
   }
 }
 
-static AOM_INLINE void calc_sad_update_bestmv_with_indices(
+static inline void calc_sad_update_bestmv_with_indices(
     const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
     const MV_COST_PARAMS *mv_cost_params, FULLPEL_MV *best_mv,
     const FULLPEL_MV center_mv, const uint8_t *center_address,
@@ -2966,8 +2966,8 @@ static inline int is_cost_list_wellbehaved(const int *cost_list) {
 // x0 = 1/2 (S1 - S3)/(S1 + S3 - 2*S0),
 // y0 = 1/2 (S4 - S2)/(S4 + S2 - 2*S0).
 // The code below is an integerized version of that.
-static AOM_INLINE void get_cost_surf_min(const int *cost_list, int *ir, int *ic,
-                                         int bits) {
+static inline void get_cost_surf_min(const int *cost_list, int *ir, int *ic,
+                                     int bits) {
   *ic = divide_and_round((cost_list[1] - cost_list[3]) * (1 << (bits - 1)),
                          (cost_list[1] - 2 * cost_list[0] + cost_list[3]));
   *ir = divide_and_round((cost_list[4] - cost_list[2]) * (1 << (bits - 1)),
@@ -2989,7 +2989,7 @@ static inline int check_repeated_mv_and_update(int_mv *last_mv_search_list,
   return 0;
 }
 
-static AOM_INLINE int setup_center_error_facade(
+static inline int setup_center_error_facade(
     MACROBLOCKD *xd, const AV1_COMMON *cm, const MV *bestmv,
     const SUBPEL_SEARCH_VAR_PARAMS *var_params,
     const MV_COST_PARAMS *mv_cost_params, unsigned int *sse1, int *distortion,

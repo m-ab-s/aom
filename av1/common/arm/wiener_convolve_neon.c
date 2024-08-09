@@ -275,7 +275,7 @@ static inline void convolve_add_src_vert_7tap_neon(
   } while (w != 0);
 }
 
-static AOM_INLINE int get_wiener_filter_taps(const int16_t *filter) {
+static inline int get_wiener_filter_taps(const int16_t *filter) {
   assert(filter[7] == 0);
   if (filter[0] == 0 && filter[6] == 0) {
     return WIENER_WIN_REDUCED;

@@ -3946,7 +3946,7 @@ static inline void init_ref_map_pair(
 }
 
 #if CONFIG_FPMT_TEST
-static AOM_INLINE void calc_frame_data_update_flag(
+static inline void calc_frame_data_update_flag(
     GF_GROUP *const gf_group, int gf_frame_index,
     bool *const do_frame_data_update) {
   *do_frame_data_update = true;
@@ -4050,7 +4050,7 @@ static inline int is_altref_enabled(int lag_in_frames, bool enable_auto_arf) {
   return lag_in_frames >= ALT_MIN_LAG && enable_auto_arf;
 }
 
-static AOM_INLINE int can_disable_altref(const GFConfig *gf_cfg) {
+static inline int can_disable_altref(const GFConfig *gf_cfg) {
   return is_altref_enabled(gf_cfg->lag_in_frames, gf_cfg->enable_auto_arf) &&
          (gf_cfg->gf_min_pyr_height == 0);
 }
@@ -4080,7 +4080,7 @@ static inline int is_stat_consumption_stage(const AV1_COMP *const cpi) {
 }
 
 // Decide whether 'dv_costs' need to be allocated/stored during the encoding.
-static AOM_INLINE bool av1_need_dv_costs(const AV1_COMP *const cpi) {
+static inline bool av1_need_dv_costs(const AV1_COMP *const cpi) {
   return !cpi->sf.rt_sf.use_nonrd_pick_mode &&
          av1_allow_intrabc(&cpi->common) && !is_stat_generation_stage(cpi);
 }
@@ -4324,7 +4324,7 @@ static inline int av1_pixels_to_mi(int pixels) {
   return ALIGN_POWER_OF_TWO(pixels, 3) >> MI_SIZE_LOG2;
 }
 
-static AOM_INLINE int is_psnr_calc_enabled(const AV1_COMP *cpi) {
+static inline int is_psnr_calc_enabled(const AV1_COMP *cpi) {
   const AV1_COMMON *const cm = &cpi->common;
 
   return cpi->ppi->b_calculate_psnr && !is_stat_generation_stage(cpi) &&

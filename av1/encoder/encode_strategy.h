@@ -94,7 +94,7 @@ int is_forced_keyframe_pending(struct lookahead_ctx *lookahead,
                                const int up_to_index,
                                const COMPRESSOR_STAGE compressor_stage);
 
-static AOM_INLINE int is_frame_droppable(
+static inline int is_frame_droppable(
     const RTC_REF *const rtc_ref,
     const ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags) {
   // Droppable frame is only used by external refresh flags. VoD setting won't
@@ -111,7 +111,7 @@ static AOM_INLINE int is_frame_droppable(
     return 0;
 }
 
-static AOM_INLINE int get_current_frame_ref_type(const AV1_COMP *const cpi) {
+static inline int get_current_frame_ref_type(const AV1_COMP *const cpi) {
   // We choose the reference "type" of this frame from the flags which indicate
   // which reference frames will be refreshed by it. More than one of these
   // flags may be set, so the order here implies an order of precedence. This is

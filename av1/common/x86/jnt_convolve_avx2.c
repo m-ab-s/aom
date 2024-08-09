@@ -820,7 +820,7 @@ void av1_dist_wtd_convolve_2d_avx2(const uint8_t *src, int src_stride,
   } while (0)
 
 #define LEFT_SHIFT (2 * FILTER_BITS - 3 - 7)
-static AOM_INLINE void av1_dist_wtd_convolve_2d_no_avg_copy_avx2(
+static inline void av1_dist_wtd_convolve_2d_no_avg_copy_avx2(
     const uint8_t *src, int src_stride, CONV_BUF_TYPE *dst, int dst_stride,
     int w, int h, const __m256i offset_const) {
   int i = h;

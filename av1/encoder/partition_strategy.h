@@ -233,11 +233,11 @@ static BLOCK_SIZE dim_to_size(int dim) {
   }
 }
 
-static AOM_INLINE void set_max_min_partition_size(SuperBlockEnc *sb_enc,
-                                                  AV1_COMP *cpi, MACROBLOCK *x,
-                                                  const SPEED_FEATURES *sf,
-                                                  BLOCK_SIZE sb_size,
-                                                  int mi_row, int mi_col) {
+static inline void set_max_min_partition_size(SuperBlockEnc *sb_enc,
+                                              AV1_COMP *cpi, MACROBLOCK *x,
+                                              const SPEED_FEATURES *sf,
+                                              BLOCK_SIZE sb_size, int mi_row,
+                                              int mi_col) {
   const AV1_COMMON *cm = &cpi->common;
 
   sb_enc->max_partition_size =

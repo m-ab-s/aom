@@ -59,8 +59,8 @@
 
 #define INVALID_FP_STATS_TO_PREDICT_FLAT_GOP -1
 
-static AOM_INLINE void output_stats(FIRSTPASS_STATS *stats,
-                                    struct aom_codec_pkt_list *pktlist) {
+static inline void output_stats(FIRSTPASS_STATS *stats,
+                                struct aom_codec_pkt_list *pktlist) {
   struct aom_codec_cx_pkt pkt;
   pkt.kind = AOM_CODEC_STATS_PKT;
   pkt.data.twopass_stats.buf = stats;
@@ -261,9 +261,8 @@ static int get_search_range(int width, int height) {
   return sr;
 }
 
-static AOM_INLINE const search_site_config *
-av1_get_first_pass_search_site_config(const AV1_COMP *cpi, MACROBLOCK *x,
-                                      SEARCH_METHODS search_method) {
+static inline const search_site_config *av1_get_first_pass_search_site_config(
+    const AV1_COMP *cpi, MACROBLOCK *x, SEARCH_METHODS search_method) {
   const int ref_stride = x->e_mbd.plane[0].pre[0].stride;
 
   // For AVIF applications, even the source frames can have changing resolution,
@@ -290,10 +289,10 @@ av1_get_first_pass_search_site_config(const AV1_COMP *cpi, MACROBLOCK *x,
   return x->search_site_cfg_buf;
 }
 
-static AOM_INLINE void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
-                                                const MV *ref_mv,
-                                                FULLPEL_MV *best_mv,
-                                                int *best_motion_err) {
+static inline void first_pass_motion_search(AV1_COMP *cpi, MACROBLOCK *x,
+                                            const MV *ref_mv,
+                                            FULLPEL_MV *best_mv,
+                                            int *best_motion_err) {
   AV1_COMMON *const cm = &cpi->common;
   MACROBLOCKD *const xd = &x->e_mbd;
   FULLPEL_MV start_mv = get_fullmv_from_mv(ref_mv);
@@ -391,7 +390,7 @@ static double raw_motion_error_stdev(int *raw_motion_err_list,
   return raw_err_stdev;
 }
 
-static AOM_INLINE int calc_wavelet_energy(const AV1EncoderConfig *oxcf) {
+static inline int calc_wavelet_energy(const AV1EncoderConfig *oxcf) {
   return oxcf->q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL;
 }
 typedef struct intra_pred_block_pass1_args {

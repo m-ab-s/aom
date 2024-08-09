@@ -680,11 +680,11 @@ void av1_cdef_dealloc_data(CdefSearchCtx *cdef_search_ctx) {
 //   pick_method: Search method used to select CDEF parameters
 // Returns:
 //   Nothing will be returned. Contents of cdef_search_ctx will be modified.
-static AOM_INLINE void cdef_params_init(const YV12_BUFFER_CONFIG *frame,
-                                        const YV12_BUFFER_CONFIG *ref,
-                                        AV1_COMMON *cm, MACROBLOCKD *xd,
-                                        CdefSearchCtx *cdef_search_ctx,
-                                        CDEF_PICK_METHOD pick_method) {
+static inline void cdef_params_init(const YV12_BUFFER_CONFIG *frame,
+                                    const YV12_BUFFER_CONFIG *ref,
+                                    AV1_COMMON *cm, MACROBLOCKD *xd,
+                                    CdefSearchCtx *cdef_search_ctx,
+                                    CDEF_PICK_METHOD pick_method) {
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
   const int num_planes = av1_num_planes(cm);
   cdef_search_ctx->mi_params = &cm->mi_params;

@@ -331,9 +331,8 @@ void av1_block_yrd(MACROBLOCK *x, RD_STATS *this_rdc, int *skippable,
 // av1_nonrd_pick_inter_mode_sb takes up about 3% of total encoding time, the
 // potential room of improvement for writing AVX2 optimization is only 3% * 8% =
 // 0.24% of total encoding time.
-static AOM_INLINE void scale_square_buf_vals(int16_t *dst, int tx_width,
-                                             const int16_t *src,
-                                             int src_stride) {
+static inline void scale_square_buf_vals(int16_t *dst, int tx_width,
+                                         const int16_t *src, int src_stride) {
 #define DO_SCALING                                                   \
   do {                                                               \
     for (int idy = 0; idy < tx_width; ++idy) {                       \

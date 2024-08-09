@@ -119,8 +119,8 @@ static inline unsigned int get_token_alloc(int mb_rows, int mb_cols,
 }
 
 // Allocate memory for token related info.
-static AOM_INLINE void alloc_token_info(AV1_COMMON *cm, TokenInfo *token_info,
-                                        unsigned int tokens_required) {
+static inline void alloc_token_info(AV1_COMMON *cm, TokenInfo *token_info,
+                                    unsigned int tokens_required) {
   int sb_rows =
       CEIL_POWER_OF_TWO(cm->mi_params.mi_rows, cm->seq_params->mib_size_log2);
   token_info->tokens_allocated = tokens_required;
@@ -136,13 +136,13 @@ static AOM_INLINE void alloc_token_info(AV1_COMMON *cm, TokenInfo *token_info,
 }
 
 // Check if memory allocation has been done for token related info.
-static AOM_INLINE bool is_token_info_allocated(const TokenInfo *token_info) {
+static inline bool is_token_info_allocated(const TokenInfo *token_info) {
   return ((token_info->tile_tok[0][0] != NULL) &&
           (token_info->tplist[0][0] != NULL));
 }
 
 // Free memory from token related variables.
-static AOM_INLINE void free_token_info(TokenInfo *token_info) {
+static inline void free_token_info(TokenInfo *token_info) {
   aom_free(token_info->tile_tok[0][0]);
   token_info->tile_tok[0][0] = NULL;
 

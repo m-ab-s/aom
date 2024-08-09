@@ -126,7 +126,7 @@ static inline void multiply_mat(const double *m1, const double *m2, double *res,
   }
 }
 
-static AOM_INLINE float approx_exp(float y) {
+static inline float approx_exp(float y) {
 #define A ((1 << 23) / 0.69314718056f)  // (1 << 23) / ln(2)
 #define B \
   127  // Offset for the exponent according to IEEE floating point standard.

@@ -364,8 +364,8 @@ void av1_set_vert_loop_filter_done(AV1_COMMON *cm, AV1LfSync *lf_sync,
       sync_write(lf_sync, sb_row, sb_cols - 1, sb_cols, plane);
 }
 
-static AOM_INLINE void sync_lf_workers(AVxWorker *const workers,
-                                       AV1_COMMON *const cm, int num_workers) {
+static inline void sync_lf_workers(AVxWorker *const workers,
+                                   AV1_COMMON *const cm, int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   int had_error = workers[0].had_error;
   struct aom_internal_error_info error_info;
@@ -891,8 +891,8 @@ static int loop_restoration_row_worker(void *arg1, void *arg2) {
   return 1;
 }
 
-static AOM_INLINE void sync_lr_workers(AVxWorker *const workers,
-                                       AV1_COMMON *const cm, int num_workers) {
+static inline void sync_lr_workers(AVxWorker *const workers,
+                                   AV1_COMMON *const cm, int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   int had_error = workers[0].had_error;
   struct aom_internal_error_info error_info;
@@ -993,15 +993,15 @@ void av1_loop_restoration_filter_frame_mt(YV12_BUFFER_CONFIG *frame,
 }
 
 // Initializes cdef_sync parameters.
-static AOM_INLINE void reset_cdef_job_info(AV1CdefSync *const cdef_sync) {
+static inline void reset_cdef_job_info(AV1CdefSync *const cdef_sync) {
   cdef_sync->end_of_frame = 0;
   cdef_sync->fbr = 0;
   cdef_sync->fbc = 0;
   cdef_sync->cdef_mt_exit = false;
 }
 
-static AOM_INLINE void launch_cdef_workers(AVxWorker *const workers,
-                                           int num_workers) {
+static inline void launch_cdef_workers(AVxWorker *const workers,
+                                       int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   for (int i = num_workers - 1; i >= 0; i--) {
     AVxWorker *const worker = &workers[i];
@@ -1013,9 +1013,8 @@ static AOM_INLINE void launch_cdef_workers(AVxWorker *const workers,
   }
 }
 
-static AOM_INLINE void sync_cdef_workers(AVxWorker *const workers,
-                                         AV1_COMMON *const cm,
-                                         int num_workers) {
+static inline void sync_cdef_workers(AVxWorker *const workers,
+                                     AV1_COMMON *const cm, int num_workers) {
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
   int had_error = workers[0].had_error;
   struct aom_internal_error_info error_info;
@@ -1049,9 +1048,8 @@ static void update_cdef_row_next_job_info(AV1CdefSync *const cdef_sync,
 
 // Checks if a job is available. If job is available,
 // populates next job information and returns 1, else returns 0.
-static AOM_INLINE int get_cdef_row_next_job(AV1CdefSync *const cdef_sync,
-                                            volatile int *cur_fbr,
-                                            const int nvfb) {
+static inline int get_cdef_row_next_job(AV1CdefSync *const cdef_sync,
+                                        volatile int *cur_fbr, const int nvfb) {
 #if CONFIG_MULTITHREAD
   pthread_mutex_lock(cdef_sync->mutex_);
 #endif  // CONFIG_MULTITHREAD

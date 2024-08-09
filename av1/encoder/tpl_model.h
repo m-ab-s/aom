@@ -416,7 +416,7 @@ void av1_setup_tpl_buffers(struct AV1_PRIMARY *const ppi,
                            CommonModeInfoParams *const mi_params, int width,
                            int height, int byte_alignment, int lag_in_frames);
 
-static AOM_INLINE void tpl_dealloc_temp_buffers(TplBuffers *tpl_tmp_buffers) {
+static inline void tpl_dealloc_temp_buffers(TplBuffers *tpl_tmp_buffers) {
   aom_free(tpl_tmp_buffers->predictor8);
   tpl_tmp_buffers->predictor8 = NULL;
   aom_free(tpl_tmp_buffers->src_diff);
@@ -429,8 +429,8 @@ static AOM_INLINE void tpl_dealloc_temp_buffers(TplBuffers *tpl_tmp_buffers) {
   tpl_tmp_buffers->dqcoeff = NULL;
 }
 
-static AOM_INLINE bool tpl_alloc_temp_buffers(TplBuffers *tpl_tmp_buffers,
-                                              uint8_t tpl_bsize_1d) {
+static inline bool tpl_alloc_temp_buffers(TplBuffers *tpl_tmp_buffers,
+                                          uint8_t tpl_bsize_1d) {
   // Number of pixels in a tpl block
   const int tpl_block_pels = tpl_bsize_1d * tpl_bsize_1d;
 

@@ -19,7 +19,6 @@
 #else
 #define AOM_FORCE_INLINE __inline__ __attribute__((always_inline))
 #endif
-#define AOM_INLINE inline
 
 /* Assume platforms have the C99 standard integer types. */
 

@@ -315,7 +315,7 @@ uint64_t aom_sum_squares_i16_sse2(const int16_t *src, uint32_t n) {
 }
 
 // Accumulate sum of 16-bit elements in the vector
-static AOM_INLINE int32_t mm_accumulate_epi16(__m128i vec_a) {
+static inline int32_t mm_accumulate_epi16(__m128i vec_a) {
   __m128i vtmp = _mm_srli_si128(vec_a, 8);
   vec_a = _mm_add_epi16(vec_a, vtmp);
   vtmp = _mm_srli_si128(vec_a, 4);
@@ -326,7 +326,7 @@ static AOM_INLINE int32_t mm_accumulate_epi16(__m128i vec_a) {
 }
 
 // Accumulate sum of 32-bit elements in the vector
-static AOM_INLINE int32_t mm_accumulate_epi32(__m128i vec_a) {
+static inline int32_t mm_accumulate_epi32(__m128i vec_a) {
   __m128i vtmp = _mm_srli_si128(vec_a, 8);
   vec_a = _mm_add_epi32(vec_a, vtmp);
   vtmp = _mm_srli_si128(vec_a, 4);

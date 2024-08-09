@@ -728,7 +728,7 @@ static inline int is_frame_level_cost_upd_freq_set(
 
 // Decide whether we want to update the mode entropy cost for the current frame.
 // The logit is currently inherited from selective_disable_cdf_rtc.
-static AOM_INLINE int should_force_mode_cost_update(const AV1_COMP *cpi) {
+static inline int should_force_mode_cost_update(const AV1_COMP *cpi) {
   const REAL_TIME_SPEED_FEATURES *const rt_sf = &cpi->sf.rt_sf;
   if (!rt_sf->frame_level_mode_cost_update) {
     return false;

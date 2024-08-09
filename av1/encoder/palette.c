@@ -164,9 +164,9 @@ int av1_palette_color_cost_uv(const PALETTE_MODE_INFO *const pmi,
 // Extends 'color_map' array from 'orig_width x orig_height' to 'new_width x
 // new_height'. Extra rows and columns are filled in by copying last valid
 // row/column.
-static AOM_INLINE void extend_palette_color_map(uint8_t *const color_map,
-                                                int orig_width, int orig_height,
-                                                int new_width, int new_height) {
+static inline void extend_palette_color_map(uint8_t *const color_map,
+                                            int orig_width, int orig_height,
+                                            int new_width, int new_height) {
   int j;
   assert(new_width >= orig_width);
   assert(new_height >= orig_height);
@@ -187,10 +187,9 @@ static AOM_INLINE void extend_palette_color_map(uint8_t *const color_map,
 
 // Bias toward using colors in the cache.
 // TODO(huisu): Try other schemes to improve compression.
-static AOM_INLINE void optimize_palette_colors(uint16_t *color_cache,
-                                               int n_cache, int n_colors,
-                                               int stride, int16_t *centroids,
-                                               int bit_depth) {
+static inline void optimize_palette_colors(uint16_t *color_cache, int n_cache,
+                                           int n_colors, int stride,
+                                           int16_t *centroids, int bit_depth) {
   if (n_cache <= 0) return;
   for (int i = 0; i < n_colors * stride; i += stride) {
     int min_diff = abs((int)centroids[i] - (int)color_cache[0]);
@@ -214,7 +213,7 @@ static AOM_INLINE void optimize_palette_colors(uint16_t *color_cache,
  * Given the base colors as specified in centroids[], calculate the RD cost
  * of palette mode.
  */
-static AOM_INLINE void palette_rd_y(
+static inline void palette_rd_y(
     const AV1_COMP *const cpi, MACROBLOCK *x, MB_MODE_INFO *mbmi,
     BLOCK_SIZE bsize, int dc_mode_cost, const int16_t *data, int16_t *centroids,
     int n, uint16_t *color_cache, int n_cache, bool do_header_rd_based_gating,
@@ -313,7 +312,7 @@ static AOM_INLINE void palette_rd_y(
   }
 }
 
-static AOM_INLINE int is_iter_over(int curr_idx, int end_idx, int step_size) {
+static inline int is_iter_over(int curr_idx, int end_idx, int step_size) {
   assert(step_size != 0);
   return (step_size > 0) ? curr_idx >= end_idx : curr_idx <= end_idx;
 }
@@ -322,7 +321,7 @@ static AOM_INLINE int is_iter_over(int curr_idx, int end_idx, int step_size) {
 // [start_n, end_n) with step size step_size. If step_size < 0, then end_n can
 // be less than start_n. Saves the last numbers searched in last_n_searched and
 // returns the best number of colors found.
-static AOM_INLINE int perform_top_color_palette_search(
+static inline int perform_top_color_palette_search(
     const AV1_COMP *const cpi, MACROBLOCK *x, MB_MODE_INFO *mbmi,
     BLOCK_SIZE bsize, int dc_mode_cost, const int16_t *data,
     int16_t *top_colors, int start_n, int end_n, int step_size,
@@ -369,7 +368,7 @@ static AOM_INLINE int perform_top_color_palette_search(
 // [start_n, end_n) with step size step_size. If step_size < 0, then end_n can
 // be less than start_n. Saves the last numbers searched in last_n_searched and
 // returns the best number of colors found.
-static AOM_INLINE int perform_k_means_palette_search(
+static inline int perform_k_means_palette_search(
     const AV1_COMP *const cpi, MACROBLOCK *x, MB_MODE_INFO *mbmi,
     BLOCK_SIZE bsize, int dc_mode_cost, const int16_t *data, int lower_bound,
     int upper_bound, int start_n, int end_n, int step_size,
@@ -419,8 +418,8 @@ static AOM_INLINE int perform_k_means_palette_search(
 }
 
 // Sets the parameters to search the current number of colors +- 1
-static AOM_INLINE void set_stage2_params(int *min_n, int *max_n, int *step_size,
-                                         int winner, int end_n) {
+static inline void set_stage2_params(int *min_n, int *max_n, int *step_size,
+                                     int winner, int end_n) {
   // Set min to winner - 1 unless we are already at the border, then we set it
   // to winner + 1
   *min_n = (winner == PALETTE_MIN_SIZE) ? (PALETTE_MIN_SIZE + 1)
@@ -435,12 +434,12 @@ static AOM_INLINE void set_stage2_params(int *min_n, int *max_n, int *step_size,
   *step_size = AOMMAX(1, *max_n - *min_n);
 }
 
-static AOM_INLINE void fill_data_and_get_bounds(const uint8_t *src,
-                                                const int src_stride,
-                                                const int rows, const int cols,
-                                                const int is_high_bitdepth,
-                                                int16_t *data, int *lower_bound,
-                                                int *upper_bound) {
+static inline void fill_data_and_get_bounds(const uint8_t *src,
+                                            const int src_stride,
+                                            const int rows, const int cols,
+                                            const int is_high_bitdepth,
+                                            int16_t *data, int *lower_bound,
+                                            int *upper_bound) {
   if (is_high_bitdepth) {
     const uint16_t *src_ptr = CONVERT_TO_SHORTPTR(src);
     *lower_bound = *upper_bound = src_ptr[0];

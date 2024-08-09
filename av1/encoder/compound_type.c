@@ -428,7 +428,7 @@ static int64_t pick_interintra_wedge(const AV1_COMP *const cpi,
   return rd;
 }
 
-static AOM_INLINE void get_inter_predictors_masked_compound(
+static inline void get_inter_predictors_masked_compound(
     MACROBLOCK *x, const BLOCK_SIZE bsize, uint8_t **preds0, uint8_t **preds1,
     int16_t *residual1, int16_t *diff10, int *strides) {
   MACROBLOCKD *xd = &x->e_mbd;
@@ -506,9 +506,9 @@ static int64_t estimate_yrd_for_sb(const AV1_COMP *const cpi, BLOCK_SIZE bs,
 }
 
 // Computes the rd_threshold for smooth interintra rd search.
-static AOM_INLINE int64_t compute_rd_thresh(MACROBLOCK *const x,
-                                            int total_mode_rate,
-                                            int64_t ref_best_rd) {
+static inline int64_t compute_rd_thresh(MACROBLOCK *const x,
+                                        int total_mode_rate,
+                                        int64_t ref_best_rd) {
   const int64_t rd_thresh = get_rd_thresh_from_best_rd(
       ref_best_rd, (1 << INTER_INTRA_RD_THRESH_SHIFT),
       INTER_INTRA_RD_THRESH_SCALE);
@@ -517,7 +517,7 @@ static AOM_INLINE int64_t compute_rd_thresh(MACROBLOCK *const x,
 }
 
 // Computes the best wedge interintra mode
-static AOM_INLINE int64_t compute_best_wedge_interintra(
+static inline int64_t compute_best_wedge_interintra(
     const AV1_COMP *const cpi, MB_MODE_INFO *mbmi, MACROBLOCKD *xd,
     MACROBLOCK *const x, const int *const interintra_mode_cost,
     const BUFFER_SET *orig_dst, uint8_t *intrapred_, uint8_t *tmp_buf_,

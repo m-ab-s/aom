@@ -203,7 +203,7 @@ static const SEARCH_METHODS search_method_lookup[NUM_SEARCH_METHODS] = {
 };
 
 // Reinitialize the search site config.
-static AOM_INLINE void av1_refresh_search_site_config(
+static inline void av1_refresh_search_site_config(
     search_site_config *ss_cfg_buf, SEARCH_METHODS search_method,
     const int ref_stride) {
   const int level =

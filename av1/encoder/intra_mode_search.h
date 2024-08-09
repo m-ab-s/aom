@@ -286,7 +286,7 @@ void av1_count_colors_highbd(const uint8_t *src8, int stride, int rows,
 
 /*! \brief Initializes the \ref IntraModeSearchState struct.
  */
-static AOM_INLINE void init_intra_mode_search_state(
+static inline void init_intra_mode_search_state(
     IntraModeSearchState *intra_search_state) {
   memset(intra_search_state, 0, sizeof(*intra_search_state));
   intra_search_state->rate_uv_intra = INT_MAX;

@@ -1679,7 +1679,7 @@ int64_t av1_lowbd_pixel_proj_error_avx2(
 
 // When params->r[0] > 0 and params->r[1] > 0. In this case all elements of
 // C and H need to be computed.
-static AOM_INLINE void calc_proj_params_r0_r1_avx2(
+static inline void calc_proj_params_r0_r1_avx2(
     const uint8_t *src8, int width, int height, int src_stride,
     const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride,
     int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2]) {
@@ -1772,12 +1772,11 @@ static AOM_INLINE void calc_proj_params_r0_r1_avx2(
 
 // When only params->r[0] > 0. In this case only H[0][0] and C[0] are
 // non-zero and need to be computed.
-static AOM_INLINE void calc_proj_params_r0_avx2(const uint8_t *src8, int width,
-                                                int height, int src_stride,
-                                                const uint8_t *dat8,
-                                                int dat_stride, int32_t *flt0,
-                                                int flt0_stride,
-                                                int64_t H[2][2], int64_t C[2]) {
+static inline void calc_proj_params_r0_avx2(const uint8_t *src8, int width,
+                                            int height, int src_stride,
+                                            const uint8_t *dat8, int dat_stride,
+                                            int32_t *flt0, int flt0_stride,
+                                            int64_t H[2][2], int64_t C[2]) {
   const int size = width * height;
   const uint8_t *src = src8;
   const uint8_t *dat = dat8;
@@ -1831,12 +1830,11 @@ static AOM_INLINE void calc_proj_params_r0_avx2(const uint8_t *src8, int width,
 
 // When only params->r[1] > 0. In this case only H[1][1] and C[1] are
 // non-zero and need to be computed.
-static AOM_INLINE void calc_proj_params_r1_avx2(const uint8_t *src8, int width,
-                                                int height, int src_stride,
-                                                const uint8_t *dat8,
-                                                int dat_stride, int32_t *flt1,
-                                                int flt1_stride,
-                                                int64_t H[2][2], int64_t C[2]) {
+static inline void calc_proj_params_r1_avx2(const uint8_t *src8, int width,
+                                            int height, int src_stride,
+                                            const uint8_t *dat8, int dat_stride,
+                                            int32_t *flt1, int flt1_stride,
+                                            int64_t H[2][2], int64_t C[2]) {
   const int size = width * height;
   const uint8_t *src = src8;
   const uint8_t *dat = dat8;
@@ -1909,7 +1907,7 @@ void av1_calc_proj_params_avx2(const uint8_t *src8, int width, int height,
 }
 
 #if CONFIG_AV1_HIGHBITDEPTH
-static AOM_INLINE void calc_proj_params_r0_r1_high_bd_avx2(
+static inline void calc_proj_params_r0_r1_high_bd_avx2(
     const uint8_t *src8, int width, int height, int src_stride,
     const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride,
     int32_t *flt1, int flt1_stride, int64_t H[2][2], int64_t C[2]) {
@@ -2000,7 +1998,7 @@ static AOM_INLINE void calc_proj_params_r0_r1_high_bd_avx2(
   C[1] /= size;
 }
 
-static AOM_INLINE void calc_proj_params_r0_high_bd_avx2(
+static inline void calc_proj_params_r0_high_bd_avx2(
     const uint8_t *src8, int width, int height, int src_stride,
     const uint8_t *dat8, int dat_stride, int32_t *flt0, int flt0_stride,
     int64_t H[2][2], int64_t C[2]) {
@@ -2055,7 +2053,7 @@ static AOM_INLINE void calc_proj_params_r0_high_bd_avx2(
   C[0] /= size;
 }
 
-static AOM_INLINE void calc_proj_params_r1_high_bd_avx2(
+static inline void calc_proj_params_r1_high_bd_avx2(
     const uint8_t *src8, int width, int height, int src_stride,
     const uint8_t *dat8, int dat_stride, int32_t *flt1, int flt1_stride,
     int64_t H[2][2], int64_t C[2]) {

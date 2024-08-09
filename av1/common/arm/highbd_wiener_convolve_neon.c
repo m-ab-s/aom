@@ -309,7 +309,7 @@ HBD_WIENER_7TAP_VERT(highbd_12, 2 * FILTER_BITS - WIENER_ROUND0_BITS - 2)
 
 #undef HBD_WIENER_7TAP_VERT
 
-static AOM_INLINE int get_wiener_filter_taps(const int16_t *filter) {
+static inline int get_wiener_filter_taps(const int16_t *filter) {
   assert(filter[7] == 0);
   if (filter[0] == 0 && filter[6] == 0) {
     return WIENER_WIN_REDUCED;

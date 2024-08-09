@@ -3483,7 +3483,7 @@ static int encode_with_and_without_superres(AV1_COMP *cpi, size_t *size,
 
 // Conditions to disable cdf_update mode in selective mode for real-time.
 // Handle case for layers, scene change, and resizing.
-static AOM_INLINE int selective_disable_cdf_rtc(const AV1_COMP *cpi) {
+static inline int selective_disable_cdf_rtc(const AV1_COMP *cpi) {
   const AV1_COMMON *const cm = &cpi->common;
   const RATE_CONTROL *const rc = &cpi->rc;
   // For single layer.
@@ -4448,7 +4448,7 @@ void print_internal_stats(AV1_PRIMARY *ppi) {
 }
 #endif  // CONFIG_INTERNAL_STATS
 
-static AOM_INLINE void update_keyframe_counters(AV1_COMP *cpi) {
+static inline void update_keyframe_counters(AV1_COMP *cpi) {
   if (cpi->common.show_frame && cpi->rc.frames_to_key) {
 #if !CONFIG_REALTIME_ONLY
     FIRSTPASS_INFO *firstpass_info = &cpi->ppi->twopass.firstpass_info;
@@ -4469,7 +4469,7 @@ static AOM_INLINE void update_keyframe_counters(AV1_COMP *cpi) {
   }
 }
 
-static AOM_INLINE void update_frames_till_gf_update(AV1_COMP *cpi) {
+static inline void update_frames_till_gf_update(AV1_COMP *cpi) {
   // TODO(weitinglin): Updating this counter for is_frame_droppable
   // is a work-around to handle the condition when a frame is drop.
   // We should fix the cpi->common.show_frame flag
@@ -4482,7 +4482,7 @@ static AOM_INLINE void update_frames_till_gf_update(AV1_COMP *cpi) {
   }
 }
 
-static AOM_INLINE void update_gf_group_index(AV1_COMP *cpi) {
+static inline void update_gf_group_index(AV1_COMP *cpi) {
   // Increment the gf group index ready for the next frame.
   if (is_one_pass_rt_params(cpi) &&
       cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1) {
@@ -4553,7 +4553,7 @@ static void update_end_of_frame_stats(AV1_COMP *cpi) {
 }
 
 // Updates frame level stats related to global motion
-static AOM_INLINE void update_gm_stats(AV1_COMP *cpi) {
+static inline void update_gm_stats(AV1_COMP *cpi) {
   FRAME_UPDATE_TYPE update_type =
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index];
   int i, is_gm_present = 0;

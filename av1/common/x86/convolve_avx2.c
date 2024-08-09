@@ -20,7 +20,7 @@
 #include "aom_dsp/x86/convolve_common_intrin.h"
 #include "aom_dsp/x86/synonyms.h"
 
-static AOM_INLINE void av1_convolve_y_sr_general_avx2(
+static inline void av1_convolve_y_sr_general_avx2(
     const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride, int w,
     int h, const InterpFilterParams *filter_params_y, const int subpel_y_qn) {
   // right shift is F-1 because we are already dividing
@@ -524,7 +524,7 @@ void av1_convolve_y_sr_avx2(const uint8_t *src, int32_t src_stride,
   }
 }
 
-static AOM_INLINE void av1_convolve_x_sr_general_avx2(
+static inline void av1_convolve_x_sr_general_avx2(
     const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride, int w,
     int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
     ConvolveParams *conv_params) {

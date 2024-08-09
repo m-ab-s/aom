@@ -31,7 +31,7 @@
 #include "av1/encoder/rdopt.h"
 
 #if !CONFIG_REALTIME_ONLY
-static AOM_INLINE void simple_motion_search_prune_part_features(
+static inline void simple_motion_search_prune_part_features(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, float *features,
     int features_to_get);
@@ -521,7 +521,7 @@ static int simple_motion_search_get_best_ref(
 //  - whether a left marcoblock exists
 //  - width of left macroblock
 //  - height of left macroblock
-static AOM_INLINE void simple_motion_search_prune_part_features(
+static inline void simple_motion_search_prune_part_features(
     AV1_COMP *const cpi, MACROBLOCK *x, SIMPLE_MOTION_DATA_TREE *sms_tree,
     int mi_row, int mi_col, BLOCK_SIZE bsize, float *features,
     int features_to_get) {
@@ -964,8 +964,8 @@ BLOCK_SIZE av1_predict_max_partition(const AV1_COMP *const cpi,
 
 // Get the minimum partition block width and height(in log scale) under a
 // SIMPLE_MOTION_DATA_TREE.
-static AOM_INLINE void get_min_bsize(const SIMPLE_MOTION_DATA_TREE *sms_tree,
-                                     int *min_bw, int *min_bh) {
+static inline void get_min_bsize(const SIMPLE_MOTION_DATA_TREE *sms_tree,
+                                 int *min_bw, int *min_bh) {
   if (!sms_tree) return;
 
   const BLOCK_SIZE bsize = sms_tree->block_size;
@@ -1723,7 +1723,7 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
 }
 
 #ifndef NDEBUG
-static AOM_INLINE int is_bsize_square(BLOCK_SIZE bsize) {
+static inline int is_bsize_square(BLOCK_SIZE bsize) {
   return block_size_wide[bsize] == block_size_high[bsize];
 }
 #endif  // NDEBUG

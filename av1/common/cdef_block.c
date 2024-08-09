@@ -292,10 +292,10 @@ static inline int adjust_strength(int strength, int32_t var) {
   return var ? (strength * (4 + i) + 8) >> 4 : 0;
 }
 
-static AOM_INLINE void aom_cdef_find_dir(const uint16_t *in, cdef_list *dlist,
-                                         int var[CDEF_NBLOCKS][CDEF_NBLOCKS],
-                                         int cdef_count, int coeff_shift,
-                                         int dir[CDEF_NBLOCKS][CDEF_NBLOCKS]) {
+static inline void aom_cdef_find_dir(const uint16_t *in, cdef_list *dlist,
+                                     int var[CDEF_NBLOCKS][CDEF_NBLOCKS],
+                                     int cdef_count, int coeff_shift,
+                                     int dir[CDEF_NBLOCKS][CDEF_NBLOCKS]) {
   int bi;
 
   // Find direction of two 8x8 blocks together.

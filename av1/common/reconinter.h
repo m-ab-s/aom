@@ -128,9 +128,10 @@ typedef struct InterPredParams {
 } InterPredParams;
 
 // Initialize sub-pel params required for inter prediction.
-static AOM_INLINE void init_subpel_params(
-    const MV *const src_mv, InterPredParams *const inter_pred_params,
-    SubpelParams *subpel_params, int width, int height) {
+static inline void init_subpel_params(const MV *const src_mv,
+                                      InterPredParams *const inter_pred_params,
+                                      SubpelParams *subpel_params, int width,
+                                      int height) {
   const struct scale_factors *sf = inter_pred_params->scale_factors;
   int ssx = inter_pred_params->subsampling_x;
   int ssy = inter_pred_params->subsampling_y;
@@ -165,7 +166,7 @@ static AOM_INLINE void init_subpel_params(
 }
 
 // Initialize interp filter required for inter prediction.
-static AOM_INLINE void init_interp_filter_params(
+static inline void init_interp_filter_params(
     const InterpFilterParams *interp_filter_params[2],
     const InterpFilters *filter, int block_width, int block_height,
     int is_intrabc) {
@@ -181,7 +182,7 @@ static AOM_INLINE void init_interp_filter_params(
 }
 
 // Initialize parameters required for inter prediction at mode level.
-static AOM_INLINE void init_inter_mode_params(
+static inline void init_inter_mode_params(
     const MV *const src_mv, InterPredParams *const inter_pred_params,
     SubpelParams *subpel_params, const struct scale_factors *sf, int width,
     int height) {
@@ -190,10 +191,12 @@ static AOM_INLINE void init_inter_mode_params(
 }
 
 // Initialize parameters required for inter prediction at block level.
-static AOM_INLINE void init_inter_block_params(
-    InterPredParams *inter_pred_params, int block_width, int block_height,
-    int pix_row, int pix_col, int subsampling_x, int subsampling_y,
-    int bit_depth, int use_hbd_buf, int is_intrabc) {
+static inline void init_inter_block_params(InterPredParams *inter_pred_params,
+                                           int block_width, int block_height,
+                                           int pix_row, int pix_col,
+                                           int subsampling_x, int subsampling_y,
+                                           int bit_depth, int use_hbd_buf,
+                                           int is_intrabc) {
   inter_pred_params->block_width = block_width;
   inter_pred_params->block_height = block_height;
   inter_pred_params->pix_row = pix_row;
@@ -210,7 +213,7 @@ static AOM_INLINE void init_inter_block_params(
 }
 
 // Initialize params required for inter prediction.
-static AOM_INLINE void av1_init_inter_params(
+static inline void av1_init_inter_params(
     InterPredParams *inter_pred_params, int block_width, int block_height,
     int pix_row, int pix_col, int subsampling_x, int subsampling_y,
     int bit_depth, int use_hbd_buf, int is_intrabc,
@@ -226,7 +229,7 @@ static AOM_INLINE void av1_init_inter_params(
   inter_pred_params->ref_frame_buf = *ref_buf;
 }
 
-static AOM_INLINE void av1_init_comp_mode(InterPredParams *inter_pred_params) {
+static inline void av1_init_comp_mode(InterPredParams *inter_pred_params) {
   inter_pred_params->comp_mode = UNIFORM_COMP;
 }
 
