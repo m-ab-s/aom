@@ -14,12 +14,6 @@
 /* get ptrdiff_t, size_t, wchar_t, NULL */
 #include <stddef.h>  // IWYU pragma: export
 
-#if defined(_MSC_VER)
-#define AOM_FORCE_INLINE __forceinline
-#else
-#define AOM_FORCE_INLINE __inline__ __attribute__((always_inline))
-#endif
-
 /* Assume platforms have the C99 standard integer types. */
 
 #if defined(__cplusplus)

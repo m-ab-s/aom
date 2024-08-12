@@ -14,7 +14,7 @@
 
 #include <arm_neon.h>
 
-#include "aom/aom_integer.h"  // For AOM_FORCE_INLINE.
+#include "aom_dsp/aom_dsp_common.h"  // For AOM_FORCE_INLINE.
 #include "config/aom_config.h"
 
 static inline void transpose_elems_u8_8x8(

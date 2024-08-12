@@ -23,6 +23,12 @@
 extern "C" {
 #endif
 
+#if defined(_MSC_VER)
+#define AOM_FORCE_INLINE __forceinline
+#else
+#define AOM_FORCE_INLINE __inline__ __attribute__((always_inline))
+#endif
+
 #define PI 3.141592653589793238462643383279502884
 
 #define AOMMIN(x, y) (((x) < (y)) ? (x) : (y))
