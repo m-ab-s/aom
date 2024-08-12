@@ -472,6 +472,12 @@ if(CONFIG_LIBYUV OR CONFIG_TUNE_BUTTERAUGLI)
   add_library(yuv OBJECT ${AOM_LIBYUV_SOURCES})
   if(NOT MSVC)
     target_compile_options(yuv PRIVATE -Wno-shadow)
+    # Many functions in libyuv trigger this warning when enabled with gcc and
+    # clang.
+    is_flag_present(AOM_CXX_FLAGS "-Wmissing-declarations" flag_present)
+    if(flag_present)
+      target_compile_options(yuv PRIVATE -Wno-missing-declarations)
+    endif()
     # Many functions in libyuv trigger this warning when enabled with clang.
     is_flag_present(AOM_CXX_FLAGS "-Wmissing-prototypes" flag_present)
     if(flag_present)
