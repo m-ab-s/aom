@@ -293,4 +293,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 #endif  // HAVE_NEON_DOTPROD
 
+#if HAVE_NEON_I8MM
+INSTANTIATE_TEST_SUITE_P(
+    NEON_I8MM, ResizeAndExtendTest,
+    ::testing::Values(av1_resize_and_extend_frame_neon_i8mm));
+
+#endif  // HAVE_NEON_I8MM
+
 }  // namespace
