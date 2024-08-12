@@ -2816,6 +2816,19 @@ static aom_codec_err_t ctrl_set_auto_intra_tools_off(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+// Returns the index of the default_extra_cfg array element for the specified
+// usage. Returns index 0 if not found. This means default_extra_cfg[0] is used
+// for any usage that doesn't have a dedicated element in the default_extra_cfg
+// array.
+static int find_default_extra_cfg_for_usage(unsigned int usage) {
+  for (int i = 0; i < NELEMENTS(default_extra_cfg); ++i) {
+    if (default_extra_cfg[i].usage == usage) {
+      return i;
+    }
+  }
+  return 0;
+}
+
 static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
@@ -2831,7 +2844,14 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
     priv->cfg = *ctx->config.enc;
     ctx->config.enc = &priv->cfg;
 
-    priv->extra_cfg = default_extra_cfg[0];
+    int extra_cfg_idx = 0;
+    if (ctx->init_flags & AOM_CODEC_USE_PRESET) {
+      if (!(ctx->init_flags & AOM_CODEC_USE_EXPERIMENTAL)) {
+        return AOM_CODEC_INCAPABLE;
+      }
+      extra_cfg_idx = find_default_extra_cfg_for_usage(priv->cfg.g_usage);
+    }
+    priv->extra_cfg = default_extra_cfg[extra_cfg_idx];
     // Special handling:
     // By default, if omitted, --enable-cdef = 1.
     // Here we set its default value to 0 when --allintra is turned on.
