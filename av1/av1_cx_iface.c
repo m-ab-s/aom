@@ -2844,7 +2844,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
     // Here we set its default value to 0 when --allintra is turned on.
     // However, if users set --enable-cdef = 1 from command line,
     // The encoder still respects it.
-    if (priv->cfg.g_usage == ALLINTRA) {
+    if (priv->cfg.g_usage == AOM_USAGE_ALL_INTRA) {
       priv->extra_cfg.enable_cdef = 0;
     }
     av1_initialize_enc(priv->cfg.g_usage, priv->cfg.rc_end_usage);
