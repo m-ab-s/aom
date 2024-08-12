@@ -101,7 +101,6 @@ struct av1_extracfg {
   int deltaq_strength;
   int deltalf_mode;
   unsigned int frame_periodic_boost;
-  aom_bit_depth_t bit_depth;
   aom_tune_content content;
   aom_color_primaries_t color_primaries;
   aom_transfer_characteristics_t transfer_characteristics;
@@ -281,7 +280,6 @@ static const struct av1_extracfg default_extra_cfg = {
   100,                          // deltaq_strength
   0,                            // delta lf mode
   0,                            // frame_periodic_boost
-  AOM_BITS_8,                   // Bit depth
   AOM_CONTENT_DEFAULT,          // content
   AOM_CICP_CP_UNSPECIFIED,      // CICP color primaries
   AOM_CICP_TC_UNSPECIFIED,      // CICP transfer characteristics
@@ -433,7 +431,6 @@ static const struct av1_extracfg default_extra_cfg = {
   100,                          // deltaq_strength
   0,                            // delta lf mode
   0,                            // frame_periodic_boost
-  AOM_BITS_8,                   // Bit depth
   AOM_CONTENT_DEFAULT,          // content
   AOM_CICP_CP_UNSPECIFIED,      // CICP color primaries
   AOM_CICP_TC_UNSPECIFIED,      // CICP transfer characteristics
