@@ -1,3 +1,7 @@
+yyyy-mm-dd v3.10.0
+  The definitions of the internal macros AOM_INLINE and AOM_FORCE_INLINE
+  have been removed from the public header aom/aom_integer.h.
+
 2024-06-07 v3.8.3
   This release includes several bug fixes. This release is ABI
   compatible with the last release. See
