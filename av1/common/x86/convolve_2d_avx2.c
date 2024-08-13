@@ -13,7 +13,9 @@
 
 #include "config/av1_rtcd.h"
 
+#if CONFIG_SVT_AV1
 #include "third_party/SVT-AV1/convolve_2d_avx2.h"
+#endif
 
 #include "aom_dsp/x86/convolve_avx2.h"
 #include "aom_dsp/aom_filter.h"
@@ -143,6 +145,7 @@ void av1_convolve_2d_sr_avx2(
     int32_t w, int32_t h, const InterpFilterParams *filter_params_x,
     const InterpFilterParams *filter_params_y, const int32_t subpel_x_qn,
     const int32_t subpel_y_qn, ConvolveParams *conv_params) {
+#if CONFIG_SVT_AV1
   const int32_t tap_x = get_filter_tap(filter_params_x, subpel_x_qn);
   const int32_t tap_y = get_filter_tap(filter_params_y, subpel_y_qn);
 
@@ -156,4 +159,9 @@ void av1_convolve_2d_sr_avx2(
                                         filter_params_x, filter_params_y,
                                         subpel_x_qn, subpel_y_qn, conv_params);
   }
+#else
+  convolve_2d_sr_general_avx2(src, src_stride, dst, dst_stride, w, h,
+                              filter_params_x, filter_params_y, subpel_x_qn,
+                              subpel_y_qn, conv_params);
+#endif
 }
