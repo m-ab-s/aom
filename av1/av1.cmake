@@ -322,8 +322,13 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
             "${AOM_ROOT}/av1/encoder/x86/temporal_filter_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/wedge_utils_sse2.c")
 
-list(APPEND AOM_AV1_ENCODER_INTRIN_SSE3 "${AOM_ROOT}/av1/encoder/x86/ml_sse3.c"
-            "${AOM_ROOT}/av1/encoder/x86/ml_sse3.h")
+# The functions defined in these files are removed from rtcd when
+# CONFIG_EXCLUDE_SIMD_MISMATCH=1.
+if(NOT CONFIG_EXCLUDE_SIMD_MISMATCH)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_SSE3
+              "${AOM_ROOT}/av1/encoder/x86/ml_sse3.c"
+              "${AOM_ROOT}/av1/encoder/x86/ml_sse3.h")
+endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSSE3
             "${AOM_ROOT}/av1/encoder/x86/reconinter_enc_ssse3.c")
@@ -350,9 +355,15 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
             "${AOM_ROOT}/av1/encoder/x86/rdopt_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_k_means_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/temporal_filter_avx2.c"
-            "${AOM_ROOT}/av1/encoder/x86/pickrst_avx2.c"
-            "${AOM_ROOT}/av1/encoder/x86/cnn_avx2.c"
-            "${AOM_ROOT}/av1/encoder/x86/ml_avx2.c")
+            "${AOM_ROOT}/av1/encoder/x86/pickrst_avx2.c")
+
+# The functions defined in these files are removed from rtcd when
+# CONFIG_EXCLUDE_SIMD_MISMATCH=1.
+if(NOT CONFIG_EXCLUDE_SIMD_MISMATCH)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
+              "${AOM_ROOT}/av1/encoder/x86/cnn_avx2.c"
+              "${AOM_ROOT}/av1/encoder/x86/ml_avx2.c")
+endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/av1_error_neon.c"
@@ -362,7 +373,6 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/encodetxb_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/highbd_fwd_txfm_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/hybrid_fwd_txfm_neon.c"
-            "${AOM_ROOT}/av1/encoder/arm/ml_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/pickrst_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/pickrst_neon.h"
             "${AOM_ROOT}/av1/encoder/arm/quantize_neon.c"
@@ -370,6 +380,13 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/reconinter_enc_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/temporal_filter_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/wedge_utils_neon.c")
+
+# The functions defined in this file are removed from rtcd when
+# CONFIG_EXCLUDE_SIMD_MISMATCH=1.
+if(NOT CONFIG_EXCLUDE_SIMD_MISMATCH)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
+              "${AOM_ROOT}/av1/encoder/arm/ml_neon.c")
+endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD
             "${AOM_ROOT}/av1/encoder/arm/temporal_filter_neon_dotprod.c")
