@@ -881,7 +881,7 @@ static inline void build_second_inter_pred(const AV1_COMP *cpi, MACROBLOCK *x,
 
 // Wrapper for av1_compound_single_motion_search, for the common case
 // where the second prediction is also an inter mode.
-int av1_compound_single_motion_search_interinter(
+static int compound_single_motion_search_interinter(
     const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int_mv *cur_mv,
     const uint8_t *mask, int mask_stride, int *rate_mv, int ref_idx) {
   MACROBLOCKD *xd = &x->e_mbd;
@@ -919,8 +919,8 @@ static inline void do_masked_motion_search_indexed(
   tmp_mv[0].as_int = cur_mv[0].as_int;
   tmp_mv[1].as_int = cur_mv[1].as_int;
   if (which == 0 || which == 1) {
-    av1_compound_single_motion_search_interinter(cpi, x, bsize, tmp_mv, mask,
-                                                 mask_stride, rate_mv, which);
+    compound_single_motion_search_interinter(cpi, x, bsize, tmp_mv, mask,
+                                             mask_stride, rate_mv, which);
   } else if (which == 2) {
     const int joint_me_num_refine_iter =
         cpi->sf.inter_sf.enable_fast_compound_mode_search == 2

@@ -48,10 +48,6 @@ int av1_interinter_compound_motion_search(const AV1_COMP *const cpi,
                                           const BLOCK_SIZE bsize,
                                           const PREDICTION_MODE this_mode);
 
-int av1_compound_single_motion_search_interinter(
-    const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int_mv *cur_mv,
-    const uint8_t *mask, int mask_stride, int *rate_mv, int ref_idx);
-
 int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
                                       BLOCK_SIZE bsize, MV *this_mv,
                                       const uint8_t *second_pred,
