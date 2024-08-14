@@ -141,19 +141,19 @@ static void convolve_2d_sr_general_avx2(
 void av1_convolve_2d_sr_avx2(
     const uint8_t *src, int32_t src_stride, uint8_t *dst, int32_t dst_stride,
     int32_t w, int32_t h, const InterpFilterParams *filter_params_x,
-    const InterpFilterParams *filter_params_y, const int32_t subpel_x_q4,
-    const int32_t subpel_y_q4, ConvolveParams *conv_params) {
-  const int32_t tap_x = get_filter_tap(filter_params_x, subpel_x_q4);
-  const int32_t tap_y = get_filter_tap(filter_params_y, subpel_y_q4);
+    const InterpFilterParams *filter_params_y, const int32_t subpel_x_qn,
+    const int32_t subpel_y_qn, ConvolveParams *conv_params) {
+  const int32_t tap_x = get_filter_tap(filter_params_x, subpel_x_qn);
+  const int32_t tap_y = get_filter_tap(filter_params_y, subpel_y_qn);
 
   const bool use_general = (tap_x == 12 || tap_y == 12);
   if (use_general) {
     convolve_2d_sr_general_avx2(src, src_stride, dst, dst_stride, w, h,
-                                filter_params_x, filter_params_y, subpel_x_q4,
-                                subpel_y_q4, conv_params);
+                                filter_params_x, filter_params_y, subpel_x_qn,
+                                subpel_y_qn, conv_params);
   } else {
     av1_convolve_2d_sr_specialized_avx2(src, src_stride, dst, dst_stride, w, h,
                                         filter_params_x, filter_params_y,
-                                        subpel_x_q4, subpel_y_q4, conv_params);
+                                        subpel_x_qn, subpel_y_qn, conv_params);
   }
 }

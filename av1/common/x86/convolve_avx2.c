@@ -512,15 +512,15 @@ void av1_convolve_y_sr_avx2(const uint8_t *src, int32_t src_stride,
                             uint8_t *dst, int32_t dst_stride, int32_t w,
                             int32_t h,
                             const InterpFilterParams *filter_params_y,
-                            const int32_t subpel_y_q4) {
-  const int vert_tap = get_filter_tap(filter_params_y, subpel_y_q4);
+                            const int32_t subpel_y_qn) {
+  const int vert_tap = get_filter_tap(filter_params_y, subpel_y_qn);
 
   if (vert_tap == 12) {
     av1_convolve_y_sr_general_avx2(src, src_stride, dst, dst_stride, w, h,
-                                   filter_params_y, subpel_y_q4);
+                                   filter_params_y, subpel_y_qn);
   } else {
     av1_convolve_y_sr_specialized_avx2(src, src_stride, dst, dst_stride, w, h,
-                                       filter_params_y, subpel_y_q4);
+                                       filter_params_y, subpel_y_qn);
   }
 }
 
@@ -901,16 +901,16 @@ void av1_convolve_x_sr_avx2(const uint8_t *src, int32_t src_stride,
                             uint8_t *dst, int32_t dst_stride, int32_t w,
                             int32_t h,
                             const InterpFilterParams *filter_params_x,
-                            const int32_t subpel_x_q4,
+                            const int32_t subpel_x_qn,
                             ConvolveParams *conv_params) {
-  const int horz_tap = get_filter_tap(filter_params_x, subpel_x_q4);
+  const int horz_tap = get_filter_tap(filter_params_x, subpel_x_qn);
 
   if (horz_tap == 12) {
     av1_convolve_x_sr_general_avx2(src, src_stride, dst, dst_stride, w, h,
-                                   filter_params_x, subpel_x_q4, conv_params);
+                                   filter_params_x, subpel_x_qn, conv_params);
   } else {
     av1_convolve_x_sr_specialized_avx2(src, src_stride, dst, dst_stride, w, h,
-                                       filter_params_x, subpel_x_q4,
+                                       filter_params_x, subpel_x_qn,
                                        conv_params);
   }
 }
