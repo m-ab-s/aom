@@ -189,16 +189,6 @@ aom_codec_err_t av1_get_target_seq_level_idx(const SequenceHeader *seq_params,
                                              const AV1LevelParams *level_params,
                                              int *target_seq_level_idx);
 
-// Print the status of the decoder model(for debugging).
-void av1_decoder_model_print_status(const DECODER_MODEL *const decoder_model);
-
-void av1_decoder_model_init(const struct AV1_COMP *const cpi, AV1_LEVEL level,
-                            int op_index, DECODER_MODEL *const decoder_model);
-
-void av1_decoder_model_process_frame(const struct AV1_COMP *const cpi,
-                                     size_t coded_bits,
-                                     DECODER_MODEL *const decoder_model);
-
 // This function uses the decoder model to check whether there could be
 // SMOOTHING_BUFFER_UNDERFLOW or SMOOTHING_BUFFER_OVERFLOW. It does not
 // update the content of decoder_model, and can be used to target certain
