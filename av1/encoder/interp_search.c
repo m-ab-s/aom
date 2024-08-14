@@ -90,7 +90,7 @@ static inline int find_interp_filter_in_stats(
   return -1;  // no match result found
 }
 
-int av1_find_interp_filter_match(
+static int find_interp_filter_match(
     MB_MODE_INFO *const mbmi, const AV1_COMP *const cpi,
     const InterpFilter assign_filter, const int need_search,
     INTERPOLATION_FILTER_STATS *interp_filter_stats,
@@ -673,7 +673,7 @@ int64_t av1_interpolation_filter_search(
   int match_found_idx = -1;
   const InterpFilter assign_filter = cm->features.interp_filter;
 
-  match_found_idx = av1_find_interp_filter_match(
+  match_found_idx = find_interp_filter_match(
       mbmi, cpi, assign_filter, need_search, args->interp_filter_stats,
       args->interp_filter_stats_idx);
 
