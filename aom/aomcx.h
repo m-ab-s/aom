@@ -1530,7 +1530,7 @@ enum aome_enc_control_id {
   /*!\brief Codec control to set the maximum number of consecutive frame drops,
    * in units of frames, allowed for the frame dropper in 1 pass
    * CBR mode, int parameter. Value of zero has no effect.
-   * Deprecated: use the new control AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR.
+   * \deprecated Use the new control AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR.
    */
   AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR = 164,
 
