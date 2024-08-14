@@ -1590,11 +1590,3 @@ int av1_firstpass_info_future_count(const FIRSTPASS_INFO *firstpass_info,
   }
   return 0;
 }
-
-int av1_firstpass_info_past_count(const FIRSTPASS_INFO *firstpass_info,
-                                  int offset_from_cur) {
-  if (offset_from_cur >= -firstpass_info->past_stats_count) {
-    return offset_from_cur + firstpass_info->past_stats_count;
-  }
-  return 0;
-}
