@@ -84,6 +84,16 @@ static inline void get_log_var_4x4sub_blk(
   *blk_4x4_var_max = log1p(var_max / 16.0);
 }
 
+// Helper function to get `q` used for encoding.
+static int get_q(const AV1_COMP *cpi) {
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  const FRAME_TYPE frame_type = gf_group->frame_type[cpi->gf_frame_index];
+  const int q =
+      (int)av1_convert_qindex_to_q(cpi->ppi->p_rc.avg_frame_qindex[frame_type],
+                                   cpi->common.seq_params->bit_depth);
+  return q;
+}
+
 /*!\endcond */
 /*!\brief Does motion search for blocks in temporal filtering. This is
  *  the first step for temporal filtering. More specifically, given a frame to
@@ -188,7 +198,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   FULLPEL_MV_STATS best_mv_stats;
   int block_mse = INT_MAX;
   MV block_mv = kZeroMv;
-  const int q = av1_get_q(cpi);
+  const int q = get_q(cpi);
 
   av1_make_default_fullpel_ms_params(&full_ms_params, cpi, mb, block_size,
                                      &baseline_mv, start_mv, search_site_cfg,
@@ -848,15 +858,6 @@ static void tf_normalize_filtered_frame(
   }
 }
 
-int av1_get_q(const AV1_COMP *cpi) {
-  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
-  const FRAME_TYPE frame_type = gf_group->frame_type[cpi->gf_frame_index];
-  const int q =
-      (int)av1_convert_qindex_to_q(cpi->ppi->p_rc.avg_frame_qindex[frame_type],
-                                   cpi->common.seq_params->bit_depth);
-  return q;
-}
-
 void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
   TemporalFilterCtx *tf_ctx = &cpi->tf_ctx;
   YV12_BUFFER_CONFIG **frames = tf_ctx->frames;
@@ -1090,7 +1091,7 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
                            num_planes - 1, cpi->common.seq_params->bit_depth,
                            NOISE_ESTIMATION_EDGE_THRESHOLD);
   // Get quantization factor.
-  const int q = av1_get_q(cpi);
+  const int q = get_q(cpi);
   // Get correlation estimates from first-pass;
   const FIRSTPASS_STATS *stats =
       cpi->twopass_frame.stats_in - (cpi->rc.frames_since_key == 0);
@@ -1377,7 +1378,7 @@ static void init_tf_ctx(AV1_COMP *cpi, int filter_frame_lookahead_idx,
   tf_ctx->mb_rows = mb_rows;
   tf_ctx->mb_cols = mb_cols;
   tf_ctx->is_highbitdepth = is_highbitdepth;
-  tf_ctx->q_factor = av1_get_q(cpi);
+  tf_ctx->q_factor = get_q(cpi);
 }
 
 int av1_check_show_filtered_frame(const YV12_BUFFER_CONFIG *frame,

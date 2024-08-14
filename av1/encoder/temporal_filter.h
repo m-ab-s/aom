@@ -351,9 +351,6 @@ int av1_check_show_filtered_frame(const YV12_BUFFER_CONFIG *frame,
                                   aom_bit_depth_t bit_depth);
 
 /*!\cond */
-// Helper function to get `q` used for encoding.
-int av1_get_q(const struct AV1_COMP *cpi);
-
 // Allocates memory for members of TemporalFilterData.
 // Inputs:
 //   tf_data: Pointer to the structure containing temporal filter related data.
