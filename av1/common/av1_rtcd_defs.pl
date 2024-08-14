@@ -254,6 +254,7 @@ specialize qw/av1_resize_and_extend_frame ssse3 neon/;
 # Encoder functions below this point.
 #
 if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
+  add_proto qw/void av1_fdwt8x8_uint8_input/, "const uint8_t *input, tran_low_t *output, int stride, int hbd";
 
   # ENCODEMB INVOKE
   add_proto qw/void aom_upsampled_pred/, "MACROBLOCKD *xd, const struct AV1Common *const cm, int mi_row, int mi_col,
