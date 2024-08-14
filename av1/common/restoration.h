@@ -419,12 +419,6 @@ typedef void (*sync_read_fn_t)(void *const lr_sync, int r, int c, int plane);
 typedef void (*sync_write_fn_t)(void *const lr_sync, int r, int c,
                                 const int sb_cols, int plane);
 
-// Call on_rest_unit for each loop restoration unit in the plane.
-void av1_foreach_rest_unit_in_plane(const struct AV1Common *cm, int plane,
-                                    rest_unit_visitor_t on_rest_unit,
-                                    void *priv, int32_t *tmpbuf,
-                                    RestorationLineBuffers *rlbs);
-
 // Return 1 iff the block at mi_row, mi_col with size bsize is a
 // top-level superblock containing the top-left corner of at least one
 // loop restoration unit.
