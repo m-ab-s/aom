@@ -686,10 +686,6 @@ int av1_rc_regulate_q(const struct AV1_COMP *cpi, int target_bits_per_frame,
                       int width, int height);
 
 /*!\cond */
-// Gets the appropriate bpmb ennumerator based on the frame and content type
-int av1_get_bpmb_enumerator(FRAME_TYPE frame_type,
-                            const int is_screen_content_type);
-
 // Estimates bits per mb for a given qindex and correction factor.
 int av1_rc_bits_per_mb(const struct AV1_COMP *cpi, FRAME_TYPE frame_type,
                        int qindex, double correction_factor,
@@ -718,8 +714,6 @@ int av1_compute_qdelta(const RATE_CONTROL *rc, double qstart, double qtarget,
 int av1_compute_qdelta_by_rate(const struct AV1_COMP *cpi,
                                FRAME_TYPE frame_type, int qindex,
                                double rate_target_ratio);
-
-int av1_frame_type_qdelta(const struct AV1_COMP *cpi, int q);
 
 void av1_rc_update_framerate(struct AV1_COMP *cpi, int width, int height);
 
@@ -857,30 +851,6 @@ int av1_postencode_drop_cbr(struct AV1_COMP *cpi, size_t *size);
 int av1_q_mode_get_q_index(int base_q_index, int gf_update_type,
                            int gf_pyramid_level, int arf_q);
 
-/*!\brief Compute the q_indices for the ARF of a GOP.
- *
- * \param[in]       base_q_index      Base q index
- * \param[in]       gfu_boost         GFU boost
- * \param[in]       bit_depth         Bit depth
- * \param[in]       arf_boost_factor  ARF boost factor
- *
- * \return Returns the q_index for the ARF frame.
- */
-int av1_get_arf_q_index(int base_q_index, int gfu_boost, int bit_depth,
-                        double arf_boost_factor);
-
-#if !CONFIG_REALTIME_ONLY
-struct TplDepFrame;
-/*!\brief Compute the q_indices for the ARF of a GOP in Q mode.
- *
- * \param[in]       cpi               Top level encoder structure
- * \param[in]       tpl_frame         Tpl Frame stats
- *
- * \return Returns the q_index for the ARF frame.
- */
-int av1_get_arf_q_index_q_mode(struct AV1_COMP *cpi,
-                               struct TplDepFrame *tpl_frame);
-#endif
 #ifdef __cplusplus
 }  // extern "C"
 #endif

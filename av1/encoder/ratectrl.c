@@ -164,8 +164,9 @@ double av1_convert_qindex_to_q(int qindex, aom_bit_depth_t bit_depth) {
   }
 }
 
-int av1_get_bpmb_enumerator(FRAME_TYPE frame_type,
-                            const int is_screen_content_type) {
+// Gets the appropriate bpmb enumerator based on the frame and content type
+static int get_bpmb_enumerator(FRAME_TYPE frame_type,
+                               const int is_screen_content_type) {
   int enumerator;
 
   if (is_screen_content_type) {
@@ -218,7 +219,7 @@ int av1_rc_bits_per_mb(const AV1_COMP *cpi, FRAME_TYPE frame_type, int qindex,
   const int is_screen_content_type = cpi->is_screen_content_type;
   const aom_bit_depth_t bit_depth = cm->seq_params->bit_depth;
   const double q = av1_convert_qindex_to_q(qindex, bit_depth);
-  int enumerator = av1_get_bpmb_enumerator(frame_type, is_screen_content_type);
+  int enumerator = get_bpmb_enumerator(frame_type, is_screen_content_type);
 
   assert(correction_factor <= MAX_BPB_FACTOR &&
          correction_factor >= MIN_BPB_FACTOR);
@@ -1627,7 +1628,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
 static const double arf_layer_deltas[MAX_ARF_LAYERS + 1] = { 2.50, 2.00, 1.75,
                                                              1.50, 1.25, 1.15,
                                                              1.0 };
-int av1_frame_type_qdelta(const AV1_COMP *cpi, int q) {
+static int frame_type_qdelta(const AV1_COMP *cpi, int q) {
   const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const RATE_FACTOR_LEVEL rf_lvl =
       get_rate_factor_level(gf_group, cpi->gf_frame_index);
@@ -1812,7 +1813,7 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
   // Static forced key frames Q restrictions dealt with elsewhere.
   if (!(frame_is_intra_only(cm)) || !p_rc->this_key_frame_forced ||
       (cpi->ppi->twopass.last_kfgroup_zeromotion_pct < STATIC_MOTION_THRESH)) {
-    const int qdelta = av1_frame_type_qdelta(cpi, active_worst_quality);
+    const int qdelta = frame_type_qdelta(cpi, active_worst_quality);
     active_worst_quality =
         AOMMAX(active_worst_quality + qdelta, active_best_quality);
   }
@@ -1990,16 +1991,6 @@ int av1_q_mode_get_q_index(int base_q_index, int gf_update_type,
     --gf_pyramid_level;
   }
   return active_best_quality;
-}
-
-// Returns the q_index for the ARF in the GOP.
-int av1_get_arf_q_index(int base_q_index, int gfu_boost, int bit_depth,
-                        double arf_boost_factor) {
-  int active_best_quality =
-      get_gf_active_quality_no_rc(gfu_boost, base_q_index, bit_depth);
-  const int min_boost = get_gf_high_motion_quality(base_q_index, bit_depth);
-  const int boost = min_boost - active_best_quality;
-  return min_boost - (int)(boost * arf_boost_factor);
 }
 
 static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
@@ -3866,7 +3857,7 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
   // and qp (==max_QP). This comes from the inverse computation of
   // av1_rc_bits_per_mb().
   q2 = av1_convert_qindex_to_q(*q, cm->seq_params->bit_depth);
-  enumerator = av1_get_bpmb_enumerator(INTER_NORMAL, is_screen_content);
+  enumerator = get_bpmb_enumerator(INTER_NORMAL, is_screen_content);
   new_correction_factor = (double)target_bits_per_mb * q2 / enumerator;
   if (new_correction_factor > rate_correction_factor) {
     rate_correction_factor =
