@@ -600,22 +600,6 @@ void av1_tpl_txfm_stats_update_abs_coeff_mean(TplTxfmStats *txfm_stats);
 double av1_estimate_coeff_entropy(double q_step, double b,
                                   double zero_bin_ratio, int qcoeff);
 
-/*!\brief  Estimate entropy of a transform block using Laplace dsitribution
- *
- *\ingroup tpl_modelling
- *
- * \param[in]    q_index         quantizer index
- * \param[in]    abs_coeff_mean  array of mean absolute deviations
- * \param[in]    qcoeff_arr      array of quantized coefficients
- * \param[in]    coeff_num       number of coefficients per transform block
- *
- * \return estimated transform block entropy
- *
- */
-double av1_estimate_txfm_block_entropy(int q_index,
-                                       const double *abs_coeff_mean,
-                                       int *qcoeff_arr, int coeff_num);
-
 // TODO(angiebird): Add doxygen description here.
 int64_t av1_delta_rate_cost(int64_t delta_rate, int64_t recrf_dist,
                             int64_t srcrf_dist, int pix_num);

@@ -2136,24 +2136,6 @@ double av1_estimate_coeff_entropy(double q_step, double b,
   }
 }
 
-double av1_estimate_txfm_block_entropy(int q_index,
-                                       const double *abs_coeff_mean,
-                                       int *qcoeff_arr, int coeff_num) {
-  double zero_bin_ratio = 2;
-  double dc_q_step = av1_dc_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
-  double ac_q_step = av1_ac_quant_QTX(q_index, 0, AOM_BITS_8) / 4.;
-  double est_rate = 0;
-  // dc coeff
-  est_rate += av1_estimate_coeff_entropy(dc_q_step, abs_coeff_mean[0],
-                                         zero_bin_ratio, qcoeff_arr[0]);
-  // ac coeff
-  for (int i = 1; i < coeff_num; ++i) {
-    est_rate += av1_estimate_coeff_entropy(ac_q_step, abs_coeff_mean[i],
-                                           zero_bin_ratio, qcoeff_arr[i]);
-  }
-  return est_rate;
-}
-
 #if CONFIG_RD_COMMAND
 void av1_read_rd_command(const char *filepath, RD_COMMAND *rd_command) {
   FILE *fptr = fopen(filepath, "r");
