@@ -717,23 +717,9 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   }
 }
 
-static void encode_block_intra_and_set_context(int plane, int block,
-                                               int blk_row, int blk_col,
-                                               BLOCK_SIZE plane_bsize,
-                                               TX_SIZE tx_size, void *arg) {
-  av1_encode_block_intra(plane, block, blk_row, blk_col, plane_bsize, tx_size,
-                         arg);
-
-  struct encode_b_args *const args = arg;
-  MACROBLOCK *x = args->x;
-  ENTROPY_CONTEXT *a = &args->ta[blk_col];
-  ENTROPY_CONTEXT *l = &args->tl[blk_row];
-  av1_set_txb_context(x, plane, block, tx_size, a, l);
-}
-
-void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
-                            BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
-                            void *arg) {
+static void encode_block_intra(int plane, int block, int blk_row, int blk_col,
+                               BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
+                               void *arg) {
   struct encode_b_args *const args = arg;
   const AV1_COMP *const cpi = args->cpi;
   const AV1_COMMON *const cm = &cpi->common;
@@ -840,6 +826,19 @@ void av1_encode_block_intra(int plane, int block, int blk_row, int blk_col,
   if (plane == AOM_PLANE_Y && xd->cfl.store_y) {
     cfl_store_tx(xd, blk_row, blk_col, tx_size, plane_bsize);
   }
+}
+
+static void encode_block_intra_and_set_context(int plane, int block,
+                                               int blk_row, int blk_col,
+                                               BLOCK_SIZE plane_bsize,
+                                               TX_SIZE tx_size, void *arg) {
+  encode_block_intra(plane, block, blk_row, blk_col, plane_bsize, tx_size, arg);
+
+  struct encode_b_args *const args = arg;
+  MACROBLOCK *x = args->x;
+  ENTROPY_CONTEXT *a = &args->ta[blk_col];
+  ENTROPY_CONTEXT *l = &args->tl[blk_row];
+  av1_set_txb_context(x, plane, block, tx_size, a, l);
 }
 
 void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
