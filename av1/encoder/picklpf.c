@@ -50,7 +50,7 @@ static void yv12_copy_plane(const YV12_BUFFER_CONFIG *src_bc,
   }
 }
 
-int av1_get_max_filter_level(const AV1_COMP *cpi) {
+static int get_max_filter_level(const AV1_COMP *cpi) {
   if (is_stat_consumption_stage_twopass(cpi)) {
     return cpi->ppi->twopass.section_intra_rating > 8 ? MAX_LOOP_FILTER * 3 / 4
                                                       : MAX_LOOP_FILTER;
@@ -105,7 +105,7 @@ static int search_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
                                int dir) {
   const AV1_COMMON *const cm = &cpi->common;
   const int min_filter_level = 0;
-  const int max_filter_level = av1_get_max_filter_level(cpi);
+  const int max_filter_level = get_max_filter_level(cpi);
   int filt_direction = 0;
   int64_t best_err;
   int filt_best;
@@ -236,7 +236,7 @@ void av1_pick_filter_level(const YV12_BUFFER_CONFIG *sd, AV1_COMP *cpi,
     lf->filter_level[1] = 0;
   } else if (method >= LPF_PICK_FROM_Q) {
     const int min_filter_level = 0;
-    const int max_filter_level = av1_get_max_filter_level(cpi);
+    const int max_filter_level = get_max_filter_level(cpi);
     const int q = av1_ac_quant_QTX(cm->quant_params.base_qindex, 0,
                                    seq_params->bit_depth);
     // based on tests result for rtc test set
