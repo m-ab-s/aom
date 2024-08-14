@@ -36,7 +36,6 @@
 #endif
 #include "aom_ports/aom_timer.h"
 #include "aom_ports/mem.h"
-#include "aom_scale/aom_scale.h"
 #include "aom_util/aom_pthread.h"
 #if CONFIG_BITSTREAM_DEBUG
 #include "aom_util/debug_util.h"
