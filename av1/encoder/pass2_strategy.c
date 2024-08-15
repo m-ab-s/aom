@@ -894,13 +894,14 @@ static int adjust_boost_bits_for_target_level(const AV1_COMP *const cpi,
 }
 
 // Allocate bits to each frame in a GF / ARF group
-double layer_fraction[MAX_ARF_LAYERS + 1] = { 1.0,  0.70, 0.55, 0.60,
-                                              0.60, 1.0,  1.0 };
 static void allocate_gf_group_bits(GF_GROUP *gf_group,
                                    PRIMARY_RATE_CONTROL *const p_rc,
                                    RATE_CONTROL *const rc,
                                    int64_t gf_group_bits, int gf_arf_bits,
                                    int key_frame, int use_arf) {
+  static const double layer_fraction[MAX_ARF_LAYERS + 1] = { 1.0,  0.70, 0.55,
+                                                             0.60, 0.60, 1.0,
+                                                             1.0 };
   int64_t total_group_bits = gf_group_bits;
   int base_frame_bits;
   const int gf_group_size = gf_group->size;
@@ -1085,15 +1086,16 @@ static int is_shorter_gf_interval_better(
 #define HALF_FILT_LEN (SMOOTH_FILT_LEN / 2)
 #define WINDOW_SIZE 7
 #define HALF_WIN (WINDOW_SIZE / 2)
-// A 7-tap gaussian smooth filter
-const double smooth_filt[SMOOTH_FILT_LEN] = { 0.006, 0.061, 0.242, 0.383,
-                                              0.242, 0.061, 0.006 };
 
 // Smooth filter intra_error and coded_error in firstpass stats.
 // If stats[i].is_flash==1, the ith element should not be used in the filtering.
 static void smooth_filter_stats(const FIRSTPASS_STATS *stats, int start_idx,
                                 int last_idx, double *filt_intra_err,
                                 double *filt_coded_err) {
+  // A 7-tap gaussian smooth filter
+  static const double smooth_filt[SMOOTH_FILT_LEN] = { 0.006, 0.061, 0.242,
+                                                       0.383, 0.242, 0.061,
+                                                       0.006 };
   int i, j;
   for (i = start_idx; i <= last_idx; i++) {
     double total_wt = 0;
