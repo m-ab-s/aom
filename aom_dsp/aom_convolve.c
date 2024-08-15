@@ -111,7 +111,7 @@ void aom_convolve8_vert_c(const uint8_t *src, ptrdiff_t src_stride,
                 w, h);
 }
 
-void aom_convolve8_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
+void aom_scaled_2d_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
                      ptrdiff_t dst_stride, const InterpKernel *filter,
                      int x0_q4, int x_step_q4, int y0_q4, int y_step_q4, int w,
                      int h) {
@@ -143,14 +143,6 @@ void aom_convolve8_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
                  filter, x0_q4, x_step_q4, w, intermediate_height);
   convolve_vert(temp + 64 * (SUBPEL_TAPS / 2 - 1), 64, dst, dst_stride, filter,
                 y0_q4, y_step_q4, w, h);
-}
-
-void aom_scaled_2d_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
-                     ptrdiff_t dst_stride, const InterpKernel *filter,
-                     int x0_q4, int x_step_q4, int y0_q4, int y_step_q4, int w,
-                     int h) {
-  aom_convolve8_c(src, src_stride, dst, dst_stride, filter, x0_q4, x_step_q4,
-                  y0_q4, y_step_q4, w, h);
 }
 
 void aom_convolve_copy_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,

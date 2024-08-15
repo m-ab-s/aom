@@ -115,7 +115,7 @@ static inline int av1_superres_scaled(const AV1_COMMON *cm) {
 }
 
 // The optimized scaler av1_resize_and_extend_frame() can only handle scaling
-// ratios >= 1/4 and <= 16. See comment in aom_convolve8_c() for detail.
+// ratios >= 1/4 and <= 16. See comment in aom_scaled_2d_c() for detail.
 // Visual assessment shows that if the scaling ratio or its reciprocal is not a
 // multiple of 1/16, there are some artifacts in the output of the optimized
 // scaler, especially on lines, due to non-exact ratio representation. SSSE3
