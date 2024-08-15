@@ -13,11 +13,6 @@
 #define SIMD_FUNC(name) name##_avx2
 #include "av1/common/cdef_block_simd.h"
 
-// Mask used to shuffle the elements present in 256bit register.
-const int shuffle_reg_256bit[8] = { 0x0b0a0d0c, 0x07060908, 0x03020504,
-                                    0x0f0e0100, 0x0b0a0d0c, 0x07060908,
-                                    0x03020504, 0x0f0e0100 };
-
 /* partial A is a 16-bit vector of the form:
 [x8 - - x1 | x16 - - x9] and partial B has the form:
 [0  y1 - y7 | 0 y9 - y15].
@@ -28,6 +23,10 @@ static inline __m256i fold_mul_and_sum_avx2(__m256i *partiala,
                                             __m256i *partialb,
                                             const __m256i *const1,
                                             const __m256i *const2) {
+  // Mask used to shuffle the elements present in 256bit register.
+  static const int shuffle_reg_256bit[8] = { 0x0b0a0d0c, 0x07060908, 0x03020504,
+                                             0x0f0e0100, 0x0b0a0d0c, 0x07060908,
+                                             0x03020504, 0x0f0e0100 };
   __m256i tmp;
   /* Reverse partial B. */
   *partialb = _mm256_shuffle_epi8(
