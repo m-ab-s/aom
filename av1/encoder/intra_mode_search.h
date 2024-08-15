@@ -306,22 +306,6 @@ static inline void init_intra_mode_search_state(
  */
 void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi,
                                 int reorder_delta_angle_eval);
-
-/*! \brief prune luma intra mode based on the model rd.
- * \param[in]    this_model_rd              model rd for current mode.
- * \param[in]    best_model_rd              Best model RD seen for this block so
- *                                          far.
- * \param[in]    top_intra_model_rd         Top intra model RD seen for this
- *                                          block so far.
- * \param[in]    max_model_cnt_allowed      The maximum number of top intra
- *                                          model RD allowed.
- * \param[in]    model_rd_index_for_pruning Index of the candidate used for
- *                                          pruning based on model rd.
- */
-int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                       int64_t top_intra_model_rd[], int max_model_cnt_allowed,
-                       int model_rd_index_for_pruning);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
