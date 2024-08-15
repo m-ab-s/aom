@@ -534,30 +534,6 @@ void aom_comp_mask_upsampled_pred(MACROBLOCKD *xd, const AV1_COMMON *const cm,
                      mask_stride, invert_mask);
 }
 
-void aom_dist_wtd_comp_avg_upsampled_pred_c(
-    MACROBLOCKD *xd, const AV1_COMMON *const cm, int mi_row, int mi_col,
-    const MV *const mv, uint8_t *comp_pred, const uint8_t *pred, int width,
-    int height, int subpel_x_q3, int subpel_y_q3, const uint8_t *ref,
-    int ref_stride, const DIST_WTD_COMP_PARAMS *jcp_param, int subpel_search) {
-  int i, j;
-  const int fwd_offset = jcp_param->fwd_offset;
-  const int bck_offset = jcp_param->bck_offset;
-
-  aom_upsampled_pred_c(xd, cm, mi_row, mi_col, mv, comp_pred, width, height,
-                       subpel_x_q3, subpel_y_q3, ref, ref_stride,
-                       subpel_search);
-
-  for (i = 0; i < height; i++) {
-    for (j = 0; j < width; j++) {
-      int tmp = pred[j] * bck_offset + comp_pred[j] * fwd_offset;
-      tmp = ROUND_POWER_OF_TWO(tmp, DIST_PRECISION_BITS);
-      comp_pred[j] = (uint8_t)tmp;
-    }
-    comp_pred += width;
-    pred += width;
-  }
-}
-
 #if CONFIG_AV1_HIGHBITDEPTH
 void aom_highbd_upsampled_pred_c(MACROBLOCKD *xd,
                                  const struct AV1Common *const cm, int mi_row,
