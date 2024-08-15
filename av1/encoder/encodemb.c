@@ -106,15 +106,16 @@ int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 // TODO(yjshen): These settings are tuned by experiments. They may still be
 // optimized for better performance.
 // (1) Coefficients which are large enough will ALWAYS be kept.
-const tran_low_t DROPOUT_COEFF_MAX = 2;  // Max dropout-able coefficient.
+static const tran_low_t DROPOUT_COEFF_MAX = 2;  // Max dropout-able coefficient.
 // (2) Continuous coefficients will ALWAYS be kept. Here rigorous continuity is
 //     NOT required. For example, `5 0 0 0 7` is treated as two continuous
 //     coefficients if three zeros do not fulfill the dropout condition.
-const int DROPOUT_CONTINUITY_MAX = 2;  // Max dropout-able continuous coeff.
+static const int DROPOUT_CONTINUITY_MAX =
+    2;  // Max dropout-able continuous coeff.
 // (3) Dropout operation is NOT applicable to blocks with large or small
 //     quantization index.
-const int DROPOUT_Q_MAX = 128;
-const int DROPOUT_Q_MIN = 16;
+static const int DROPOUT_Q_MAX = 128;
+static const int DROPOUT_Q_MIN = 16;
 // (4) Recall that dropout optimization will forcibly set some quantized
 //     coefficients to zero. The key logic on determining whether a coefficient
 //     should be dropped is to check the number of continuous zeros before AND
@@ -124,13 +125,20 @@ const int DROPOUT_Q_MIN = 16;
 //     the multiplier. Intuitively, larger block requires more zeros and larger
 //     quantization index also requires more zeros (more information is lost
 //     when using larger quantization index).
-const int DROPOUT_BEFORE_BASE_MAX = 32;  // Max base number for leading zeros.
-const int DROPOUT_BEFORE_BASE_MIN = 16;  // Min base number for leading zeros.
-const int DROPOUT_AFTER_BASE_MAX = 32;   // Max base number for trailing zeros.
-const int DROPOUT_AFTER_BASE_MIN = 16;   // Min base number for trailing zeros.
-const int DROPOUT_MULTIPLIER_MAX = 8;    // Max multiplier on number of zeros.
-const int DROPOUT_MULTIPLIER_MIN = 2;    // Min multiplier on number of zeros.
-const int DROPOUT_MULTIPLIER_Q_BASE = 32;  // Base Q to compute multiplier.
+static const int DROPOUT_BEFORE_BASE_MAX =
+    32;  // Max base number for leading zeros.
+static const int DROPOUT_BEFORE_BASE_MIN =
+    16;  // Min base number for leading zeros.
+static const int DROPOUT_AFTER_BASE_MAX =
+    32;  // Max base number for trailing zeros.
+static const int DROPOUT_AFTER_BASE_MIN =
+    16;  // Min base number for trailing zeros.
+static const int DROPOUT_MULTIPLIER_MAX =
+    8;  // Max multiplier on number of zeros.
+static const int DROPOUT_MULTIPLIER_MIN =
+    2;  // Min multiplier on number of zeros.
+static const int DROPOUT_MULTIPLIER_Q_BASE =
+    32;  // Base Q to compute multiplier.
 
 void av1_dropout_qcoeff(MACROBLOCK *mb, int plane, int block, TX_SIZE tx_size,
                         TX_TYPE tx_type, int qindex) {
@@ -245,12 +253,12 @@ void av1_dropout_qcoeff_num(MACROBLOCK *mb, int plane, int block,
 // TODO(yjshen): These settings are hard-coded and look okay for now. They
 // should be made configurable later.
 // Blocks of key frames ONLY.
-const OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+static const OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 // Blocks of intra frames (key frames EXCLUSIVE).
-const OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+static const OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 // Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
 // if trellis optimization is on for inter frames.)
-const OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
+static const OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
 
 enum {
   QUANT_FUNC_LOWBD = 0,
