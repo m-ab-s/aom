@@ -160,8 +160,6 @@ endif()
 if(CONFIG_AV1_ENCODER)
   list(APPEND AOM_DSP_ENCODER_SOURCES
               "${AOM_ROOT}/aom_dsp/avg.c"
-              "${AOM_ROOT}/aom_dsp/binary_codes_writer.c"
-              "${AOM_ROOT}/aom_dsp/binary_codes_writer.h"
               "${AOM_ROOT}/aom_dsp/bitwriter.c"
               "${AOM_ROOT}/aom_dsp/bitwriter.h"
               "${AOM_ROOT}/aom_dsp/blk_sse_sum.c"
@@ -193,6 +191,8 @@ if(CONFIG_AV1_ENCODER)
   # Flow estimation library
   if(NOT CONFIG_REALTIME_ONLY)
     list(APPEND AOM_DSP_ENCODER_SOURCES "${AOM_ROOT}/aom_dsp/pyramid.c"
+                "${AOM_ROOT}/aom_dsp/binary_codes_writer.c"
+                "${AOM_ROOT}/aom_dsp/binary_codes_writer.h"
                 "${AOM_ROOT}/aom_dsp/flow_estimation/corner_detect.c"
                 "${AOM_ROOT}/aom_dsp/flow_estimation/corner_match.c"
                 "${AOM_ROOT}/aom_dsp/flow_estimation/disflow.c"

@@ -282,6 +282,7 @@ if(NOT BUILD_SHARED_LIBS)
                      "${AOM_ROOT}/test/altref_test.cc"
                      "${AOM_ROOT}/test/av1_encoder_parms_get_to_decoder.cc"
                      "${AOM_ROOT}/test/av1_ext_tile_test.cc"
+                     "${AOM_ROOT}/test/binary_codes_test.cc"
                      "${AOM_ROOT}/test/cnn_test.cc"
                      "${AOM_ROOT}/test/decode_multithreaded_test.cc"
                      "${AOM_ROOT}/test/error_resilience_test.cc"
