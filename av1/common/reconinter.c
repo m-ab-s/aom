@@ -832,7 +832,7 @@ int av1_skip_u4x4_pred_in_obmc(BLOCK_SIZE bsize,
   }
 }
 
-void av1_modify_neighbor_predictor_for_obmc(MB_MODE_INFO *mbmi) {
+static void modify_neighbor_predictor_for_obmc(MB_MODE_INFO *mbmi) {
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 }
@@ -976,7 +976,7 @@ void av1_setup_build_prediction_by_above_pred(
   const BLOCK_SIZE a_bsize = AOMMAX(BLOCK_8X8, above_mbmi->bsize);
   const int above_mi_col = xd->mi_col + rel_mi_col;
 
-  av1_modify_neighbor_predictor_for_obmc(above_mbmi);
+  modify_neighbor_predictor_for_obmc(above_mbmi);
 
   for (int j = 0; j < num_planes; ++j) {
     struct macroblockd_plane *const pd = &xd->plane[j];
@@ -1015,7 +1015,7 @@ void av1_setup_build_prediction_by_left_pred(MACROBLOCKD *xd, int rel_mi_row,
   const BLOCK_SIZE l_bsize = AOMMAX(BLOCK_8X8, left_mbmi->bsize);
   const int left_mi_row = xd->mi_row + rel_mi_row;
 
-  av1_modify_neighbor_predictor_for_obmc(left_mbmi);
+  modify_neighbor_predictor_for_obmc(left_mbmi);
 
   for (int j = 0; j < num_planes; ++j) {
     struct macroblockd_plane *const pd = &xd->plane[j];
