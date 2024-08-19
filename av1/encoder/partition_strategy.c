@@ -135,10 +135,10 @@ static void write_features_to_file(const char *const path,
 //   -- add support for pruning rectangular partitions
 //   -- use reconstructed pixels instead of source pixels for padding
 //   -- use chroma pixels in addition to luma pixels
-void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
-                                  int quad_tree_idx,
-                                  int intra_cnn_based_part_prune_level,
-                                  PartitionSearchState *part_state) {
+static void intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
+                                     int quad_tree_idx,
+                                     int intra_cnn_based_part_prune_level,
+                                     PartitionSearchState *part_state) {
   assert(cm->seq_params->sb_size >= BLOCK_64X64 &&
          "Invalid sb_size for intra_cnn!");
   const PartitionBlkParams *blk_params = &part_state->part_blk_params;
@@ -364,9 +364,12 @@ static inline int get_simple_motion_search_prune_agg(int qindex,
   return sms_prune_agg_qindex_based[qband];
 }
 
-void av1_simple_motion_search_based_split(AV1_COMP *const cpi, MACROBLOCK *x,
-                                          SIMPLE_MOTION_DATA_TREE *sms_tree,
-                                          PartitionSearchState *part_state) {
+// Performs a simple_motion_search with a single reference frame and extract
+// the variance of residues. Then use the features to determine whether we want
+// to go straight to splitting without trying PARTITION_NONE
+static void simple_motion_search_based_split(AV1_COMP *const cpi, MACROBLOCK *x,
+                                             SIMPLE_MOTION_DATA_TREE *sms_tree,
+                                             PartitionSearchState *part_state) {
   const AV1_COMMON *const cm = &cpi->common;
   const PartitionBlkParams *blk_params = &part_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
@@ -636,9 +639,12 @@ static inline void simple_motion_search_prune_part_features(
   features[f_idx++] = (float)mi_size_high_log2[left_bsize];
 }
 
-void av1_simple_motion_search_prune_rect(AV1_COMP *const cpi, MACROBLOCK *x,
-                                         SIMPLE_MOTION_DATA_TREE *sms_tree,
-                                         PartitionSearchState *part_state) {
+// Performs a simple_motion_search with two reference frames and extract
+// the variance of residues. Then use the features to determine whether we want
+// to prune some partitions.
+static void simple_motion_search_prune_rect(AV1_COMP *const cpi, MACROBLOCK *x,
+                                            SIMPLE_MOTION_DATA_TREE *sms_tree,
+                                            PartitionSearchState *part_state) {
   const AV1_COMMON *const cm = &cpi->common;
   const PartitionBlkParams *blk_params = &part_state->part_blk_params;
   const int mi_row = blk_params->mi_row, mi_col = blk_params->mi_col;
@@ -1206,10 +1212,10 @@ void av1_ml_prune_rect_partition(AV1_COMP *const cpi, const MACROBLOCK *const x,
 
 // Use a ML model to predict if horz_a, horz_b, vert_a, and vert_b should be
 // considered.
-void av1_ml_prune_ab_partition(AV1_COMP *const cpi, int part_ctx, int var_ctx,
-                               int64_t best_rd,
-                               PartitionSearchState *part_state,
-                               int *ab_partitions_allowed) {
+static void ml_prune_ab_partition(AV1_COMP *const cpi, int part_ctx,
+                                  int var_ctx, int64_t best_rd,
+                                  PartitionSearchState *part_state,
+                                  int *ab_partitions_allowed) {
   const PartitionBlkParams blk_params = part_state->part_blk_params;
   const int mi_row = blk_params.mi_row;
   const int mi_col = blk_params.mi_col;
@@ -1679,9 +1685,9 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
       av1_is_whole_blk_in_frame(blk_params, mi_params);
 
   if (try_intra_cnn_based_part_prune) {
-    av1_intra_mode_cnn_partition(
-        &cpi->common, x, x->part_search_info.quad_tree_idx,
-        cpi->sf.part_sf.intra_cnn_based_part_prune_level, part_state);
+    intra_mode_cnn_partition(&cpi->common, x, x->part_search_info.quad_tree_idx,
+                             cpi->sf.part_sf.intra_cnn_based_part_prune_level,
+                             part_state);
   }
 
   // Use simple motion search to prune out split or non-split partitions. This
@@ -1694,7 +1700,7 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
       !frame_is_intra_only(cm) && !av1_superres_scaled(cm);
 
   if (try_split_only) {
-    av1_simple_motion_search_based_split(cpi, x, sms_tree, part_state);
+    simple_motion_search_based_split(cpi, x, sms_tree, part_state);
   }
 
   // Use simple motion search to prune out rectangular partition in some
@@ -1718,7 +1724,7 @@ void av1_prune_partitions_before_search(AV1_COMP *const cpi,
                              !av1_superres_scaled(cm);
 
   if (try_prune_rect) {
-    av1_simple_motion_search_prune_rect(cpi, x, sms_tree, part_state);
+    simple_motion_search_prune_rect(cpi, x, sms_tree, part_state);
   }
 }
 
@@ -1892,9 +1898,9 @@ void av1_prune_ab_partitions(AV1_COMP *cpi, const MACROBLOCK *x,
     // TODO(huisu@google.com): x->source_variance may not be the current
     // block's variance. The correct one to use is pb_source_variance. Need to
     // re-train the model to fix it.
-    av1_ml_prune_ab_partition(cpi, pc_tree->partitioning,
-                              get_unsigned_bits(x->source_variance),
-                              best_rdcost, part_state, ab_partitions_allowed);
+    ml_prune_ab_partition(cpi, pc_tree->partitioning,
+                          get_unsigned_bits(x->source_variance), best_rdcost,
+                          part_state, ab_partitions_allowed);
   }
 
   // Pruning: pruning AB partitions based on the number of horz/vert wins

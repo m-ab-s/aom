@@ -17,25 +17,6 @@
 #include "av1/encoder/encodemb.h"
 #include "av1/encoder/encoder.h"
 
-void av1_intra_mode_cnn_partition(const AV1_COMMON *const cm, MACROBLOCK *x,
-                                  int label_idx,
-                                  int intra_cnn_based_part_prune_level,
-                                  PartitionSearchState *part_state);
-
-// Performs a simple_motion_search with a single reference frame and extract
-// the variance of residues. Then use the features to determine whether we want
-// to go straight to splitting without trying PARTITION_NONE
-void av1_simple_motion_search_based_split(AV1_COMP *const cpi, MACROBLOCK *x,
-                                          SIMPLE_MOTION_DATA_TREE *sms_tree,
-                                          PartitionSearchState *part_state);
-
-// Performs a simple_motion_search with two reference frames and extract
-// the variance of residues. Then use the features to determine whether we want
-// to prune some partitions.
-void av1_simple_motion_search_prune_rect(AV1_COMP *const cpi, MACROBLOCK *x,
-                                         SIMPLE_MOTION_DATA_TREE *sms_tree,
-                                         PartitionSearchState *part_state);
-
 #if !CONFIG_REALTIME_ONLY
 // Early terminates PARTITION_NONE using simple_motion_search features and the
 // rate, distortion, and rdcost of PARTITION_NONE. This is only called when:
@@ -79,13 +60,6 @@ void av1_ml_prune_rect_partition(AV1_COMP *const cpi, const MACROBLOCK *const x,
                                  int64_t best_rd, int64_t none_rd,
                                  const int64_t *split_rd,
                                  PartitionSearchState *part_state);
-
-// Use a ML model to predict if horz_a, horz_b, vert_a, and vert_b should be
-// considered.
-void av1_ml_prune_ab_partition(AV1_COMP *const cpi, int part_ctx, int var_ctx,
-                               int64_t best_rd,
-                               PartitionSearchState *part_state,
-                               int *ab_partitions_allowed);
 
 // Use a ML model to predict if horz4 and vert4 should be considered.
 void av1_ml_prune_4_partition(AV1_COMP *const cpi, MACROBLOCK *const x,
