@@ -3044,11 +3044,13 @@ void av1_set_rtc_reference_structure_one_layer(AV1_COMP *cpi, int gf_update) {
     cpi->rt_reduce_num_ref_buffers &= (rtc_ref->ref_idx[2] < 7);
 }
 
+// Returns whether the 64x64 block is active or inactive: used
+// by the scene detection, which is over 64x64 blocks.
 static int set_block_is_active(unsigned char *const active_map_4x4, int mi_cols,
-                               int mi_rows, int sbi_col, int sbi_row, int sh,
-                               int num_4x4) {
-  int r = sbi_row << sh;
-  int c = sbi_col << sh;
+                               int mi_rows, int sbi_col, int sbi_row) {
+  int num_4x4 = 16;
+  int r = sbi_row << 4;
+  int c = sbi_col << 4;
   const int row_max = AOMMIN(num_4x4, mi_rows - r);
   const int col_max = AOMMIN(num_4x4, mi_cols - c);
   // Active map is set for 16x16 blocks, so only need to
@@ -3241,8 +3243,6 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
   const int mi_cols = mi_params->mi_cols;
   const int mi_rows = mi_params->mi_rows;
-  int sh = (cm->seq_params->sb_size == BLOCK_128X128) ? 5 : 4;
-  int num_4x4 = (cm->seq_params->sb_size == BLOCK_128X128) ? 32 : 16;
   unsigned char *const active_map_4x4 = cpi->active_map.map;
   // Avoid bottom and right border.
   for (int sbi_row = 0; sbi_row < sb_rows - border; ++sbi_row) {
@@ -3250,7 +3250,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
       int block_is_active = 1;
       if (cpi->active_map.enabled && rc->percent_blocks_inactive > 0) {
         block_is_active = set_block_is_active(active_map_4x4, mi_cols, mi_rows,
-                                              sbi_col, sbi_row, sh, num_4x4);
+                                              sbi_col, sbi_row);
       }
       if (block_is_active) {
         tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(src_y, src_ystride, last_src_y,
