@@ -100,6 +100,7 @@ void av1_cdef_copy_sb8_16_lowbd(uint16_t *const dst, int dstride,
   cdef_copy_rect8_8bit_to_16bit(dst, dstride, base, sstride, hsize, vsize);
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 void av1_cdef_copy_sb8_16_highbd(uint16_t *const dst, int dstride,
                                  const uint8_t *src, int src_voffset,
                                  int src_hoffset, int sstride, int vsize,
@@ -108,17 +109,22 @@ void av1_cdef_copy_sb8_16_highbd(uint16_t *const dst, int dstride,
       &CONVERT_TO_SHORTPTR(src)[src_voffset * (ptrdiff_t)sstride + src_hoffset];
   cdef_copy_rect8_16bit_to_16bit(dst, dstride, base, sstride, hsize, vsize);
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 void av1_cdef_copy_sb8_16(const AV1_COMMON *const cm, uint16_t *const dst,
                           int dstride, const uint8_t *src, int src_voffset,
                           int src_hoffset, int sstride, int vsize, int hsize) {
+#if CONFIG_AV1_HIGHBITDEPTH
   if (cm->seq_params->use_highbitdepth) {
     av1_cdef_copy_sb8_16_highbd(dst, dstride, src, src_voffset, src_hoffset,
                                 sstride, vsize, hsize);
-  } else {
-    av1_cdef_copy_sb8_16_lowbd(dst, dstride, src, src_voffset, src_hoffset,
-                               sstride, vsize, hsize);
+    return;
   }
+#else
+  (void)cm;
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+  av1_cdef_copy_sb8_16_lowbd(dst, dstride, src, src_voffset, src_hoffset,
+                             sstride, vsize, hsize);
 }
 
 static inline void copy_rect(uint16_t *dst, int dstride, const uint16_t *src,
