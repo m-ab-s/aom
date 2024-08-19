@@ -20,6 +20,7 @@
 #include "aom_dsp/x86/synonyms.h"
 #include "aom_ports/mem.h"
 
+#if !CONFIG_REALTIME_ONLY
 unsigned int aom_get_mb_ss_sse2(const int16_t *src) {
   __m128i vsum = _mm_setzero_si128();
   int i;
@@ -34,6 +35,7 @@ unsigned int aom_get_mb_ss_sse2(const int16_t *src) {
   vsum = _mm_add_epi32(vsum, _mm_srli_si128(vsum, 4));
   return (unsigned int)_mm_cvtsi128_si32(vsum);
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 static inline __m128i load4x2_sse2(const uint8_t *const p, const int stride) {
   const __m128i p0 = _mm_cvtsi32_si128(loadu_int32(p + 0 * stride));

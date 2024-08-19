@@ -1756,8 +1756,10 @@ INSTANTIATE_TEST_SUITE_P(
                       Mse16xHParams(2, 3, &aom_mse_16xh_16bit_c, 8),
                       Mse16xHParams(2, 2, &aom_mse_16xh_16bit_c, 8)));
 
+#if !CONFIG_REALTIME_ONLY
 INSTANTIATE_TEST_SUITE_P(C, SumOfSquaresTest,
                          ::testing::Values(aom_get_mb_ss_c));
+#endif  // !CONFIG_REALTIME_ONLY
 
 typedef TestParams<VarianceMxNFunc> MseParams;
 INSTANTIATE_TEST_SUITE_P(C, AvxMseTest,
@@ -2729,8 +2731,10 @@ INSTANTIATE_TEST_SUITE_P(
                       Mse16xHParams(2, 3, &aom_mse_16xh_16bit_sse2, 8),
                       Mse16xHParams(2, 2, &aom_mse_16xh_16bit_sse2, 8)));
 
+#if !CONFIG_REALTIME_ONLY
 INSTANTIATE_TEST_SUITE_P(SSE2, SumOfSquaresTest,
                          ::testing::Values(aom_get_mb_ss_sse2));
+#endif  // !CONFIG_REALTIME_ONLY
 
 INSTANTIATE_TEST_SUITE_P(SSE2, AvxMseTest,
                          ::testing::Values(MseParams(4, 4, &aom_mse16x16_sse2),
@@ -3411,8 +3415,10 @@ INSTANTIATE_TEST_SUITE_P(
                       Mse16xHParams(2, 3, &aom_mse_16xh_16bit_neon, 8),
                       Mse16xHParams(2, 2, &aom_mse_16xh_16bit_neon, 8)));
 
+#if !CONFIG_REALTIME_ONLY
 INSTANTIATE_TEST_SUITE_P(NEON, SumOfSquaresTest,
                          ::testing::Values(aom_get_mb_ss_neon));
+#endif  // !CONFIG_REALTIME_ONLY
 
 INSTANTIATE_TEST_SUITE_P(NEON, AvxMseTest,
                          ::testing::Values(MseParams(3, 3, &aom_mse8x8_neon),

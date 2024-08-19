@@ -445,6 +445,7 @@ uint64_t aom_mse_wxh_16bit_neon(uint8_t *dst, int dstride, uint16_t *src,
   return horizontal_add_u64x2(mse_wxh_16bit(dst, dstride, src, sstride, w, h));
 }
 
+#if !CONFIG_REALTIME_ONLY
 uint32_t aom_get_mb_ss_neon(const int16_t *a) {
   int32x4_t sse[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
 
@@ -457,6 +458,7 @@ uint32_t aom_get_mb_ss_neon(const int16_t *a) {
 
   return horizontal_add_s32x4(vaddq_s32(sse[0], sse[1]));
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 uint64_t aom_mse_16xh_16bit_neon(uint8_t *dst, int dstride, uint16_t *src,
                                  int w, int h) {

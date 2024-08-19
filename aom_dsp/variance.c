@@ -24,6 +24,7 @@
 #include "av1/common/filter.h"
 #include "av1/common/reconinter.h"
 
+#if !CONFIG_REALTIME_ONLY
 uint32_t aom_get_mb_ss_c(const int16_t *a) {
   unsigned int i, sum = 0;
 
@@ -33,6 +34,7 @@ uint32_t aom_get_mb_ss_c(const int16_t *a) {
 
   return sum;
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 static void variance(const uint8_t *a, int a_stride, const uint8_t *b,
                      int b_stride, int w, int h, uint32_t *sse, int *sum) {
