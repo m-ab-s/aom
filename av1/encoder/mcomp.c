@@ -350,8 +350,8 @@ static inline int mvsad_err_cost_(const FULLPEL_MV *mv,
 
 // Search site initialization for DIAMOND / CLAMPED_DIAMOND search methods.
 // level = 0: DIAMOND, level = 1: CLAMPED_DIAMOND.
-void av1_init_dsmotion_compensation(search_site_config *cfg, int stride,
-                                    int level) {
+static void init_dsmotion_compensation(search_site_config *cfg, int stride,
+                                       int level) {
   int num_search_steps = 0;
   int stage_index = MAX_MVSEARCH_STEPS - 1;
 
@@ -433,8 +433,8 @@ void av1_init_motion_fpf(search_site_config *cfg, int stride) {
 
 // Search site initialization for NSTEP / NSTEP_8PT search methods.
 // level = 0: NSTEP, level = 1: NSTEP_8PT.
-void av1_init_motion_compensation_nstep(search_site_config *cfg, int stride,
-                                        int level) {
+static void init_motion_compensation_nstep(search_site_config *cfg, int stride,
+                                           int level) {
   int num_search_steps = 0;
   int stage_index = 0;
   cfg->stride = stride;
@@ -479,8 +479,8 @@ void av1_init_motion_compensation_nstep(search_site_config *cfg, int stride,
 
 // Search site initialization for BIGDIA / FAST_BIGDIA / FAST_DIAMOND
 // search methods.
-void av1_init_motion_compensation_bigdia(search_site_config *cfg, int stride,
-                                         int level) {
+static void init_motion_compensation_bigdia(search_site_config *cfg, int stride,
+                                            int level) {
   (void)level;
   cfg->stride = stride;
   // First scale has 4-closest points, the rest have 8 points in diamond
@@ -534,8 +534,8 @@ void av1_init_motion_compensation_bigdia(search_site_config *cfg, int stride,
 }
 
 // Search site initialization for SQUARE search method.
-void av1_init_motion_compensation_square(search_site_config *cfg, int stride,
-                                         int level) {
+static void init_motion_compensation_square(search_site_config *cfg, int stride,
+                                            int level) {
   (void)level;
   cfg->stride = stride;
   // All scales have 8 closest points in square shape.
@@ -588,8 +588,8 @@ void av1_init_motion_compensation_square(search_site_config *cfg, int stride,
 }
 
 // Search site initialization for HEX / FAST_HEX search methods.
-void av1_init_motion_compensation_hex(search_site_config *cfg, int stride,
-                                      int level) {
+static void init_motion_compensation_hex(search_site_config *cfg, int stride,
+                                         int level) {
   (void)level;
   cfg->stride = stride;
   // First scale has 8-closest points, the rest have 6 points in hex shape
@@ -638,10 +638,10 @@ void av1_init_motion_compensation_hex(search_site_config *cfg, int stride,
 
 const av1_init_search_site_config
     av1_init_motion_compensation[NUM_DISTINCT_SEARCH_METHODS] = {
-      av1_init_dsmotion_compensation,     av1_init_motion_compensation_nstep,
-      av1_init_motion_compensation_nstep, av1_init_dsmotion_compensation,
-      av1_init_motion_compensation_hex,   av1_init_motion_compensation_bigdia,
-      av1_init_motion_compensation_square
+      init_dsmotion_compensation,     init_motion_compensation_nstep,
+      init_motion_compensation_nstep, init_dsmotion_compensation,
+      init_motion_compensation_hex,   init_motion_compensation_bigdia,
+      init_motion_compensation_square
     };
 
 // Checks whether the mv is within range of the mv_limits

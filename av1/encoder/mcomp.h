@@ -151,24 +151,8 @@ void av1_make_default_fullpel_ms_params(
 void av1_set_ms_to_intra_mode(FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                               const IntraBCMVCosts *dv_costs);
 
-// Sets up configs for fullpixel DIAMOND / CLAMPED_DIAMOND search method.
-void av1_init_dsmotion_compensation(search_site_config *cfg, int stride,
-                                    int level);
 // Sets up configs for firstpass motion search.
 void av1_init_motion_fpf(search_site_config *cfg, int stride);
-// Sets up configs for NSTEP / NSTEP_8PT motion search method.
-void av1_init_motion_compensation_nstep(search_site_config *cfg, int stride,
-                                        int level);
-// Sets up configs for BIGDIA / FAST_DIAMOND / FAST_BIGDIA
-// motion search method.
-void av1_init_motion_compensation_bigdia(search_site_config *cfg, int stride,
-                                         int level);
-// Sets up configs for HEX or FAST_HEX motion search method.
-void av1_init_motion_compensation_hex(search_site_config *cfg, int stride,
-                                      int level);
-// Sets up configs for SQUARE motion search method.
-void av1_init_motion_compensation_square(search_site_config *cfg, int stride,
-                                         int level);
 
 /*! Function pointer to search site config initialization of different search
  * method functions. */
