@@ -50,6 +50,7 @@ void cdef_copy_rect8_8bit_to_16bit_neon(uint16_t *dst, int dstride,
   } while (--height != 0);
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 void cdef_copy_rect8_16bit_to_16bit_neon(uint16_t *dst, int dstride,
                                          const uint16_t *src, int sstride,
                                          int width, int height) {
@@ -73,6 +74,7 @@ void cdef_copy_rect8_16bit_to_16bit_neon(uint16_t *dst, int dstride,
     dst += dstride;
   } while (--height != 0);
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // partial A is a 16-bit vector of the form:
 // [x8 x7 x6 x5 x4 x3 x2 x1] and partial B has the form:

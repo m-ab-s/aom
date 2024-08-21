@@ -12,6 +12,7 @@
 #ifndef AOM_AV1_COMMON_CDEF_BLOCK_SIMD_H_
 #define AOM_AV1_COMMON_CDEF_BLOCK_SIMD_H_
 
+#include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
 #include "av1/common/cdef_block.h"
@@ -824,6 +825,7 @@ void SIMD_FUNC(cdef_filter_16_3)(void *dest, int dstride, const uint16_t *in,
   }
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 void SIMD_FUNC(cdef_copy_rect8_16bit_to_16bit)(uint16_t *dst, int dstride,
                                                const uint16_t *src, int sstride,
                                                int width, int height) {
@@ -838,6 +840,7 @@ void SIMD_FUNC(cdef_copy_rect8_16bit_to_16bit)(uint16_t *dst, int dstride,
     }
   }
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #undef CDEF_INLINE
 

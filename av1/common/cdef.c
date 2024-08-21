@@ -82,6 +82,7 @@ void cdef_copy_rect8_8bit_to_16bit_c(uint16_t *dst, int dstride,
   }
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 void cdef_copy_rect8_16bit_to_16bit_c(uint16_t *dst, int dstride,
                                       const uint16_t *src, int sstride,
                                       int width, int height) {
@@ -91,6 +92,7 @@ void cdef_copy_rect8_16bit_to_16bit_c(uint16_t *dst, int dstride,
     }
   }
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 void av1_cdef_copy_sb8_16_lowbd(uint16_t *const dst, int dstride,
                                 const uint8_t *src, int src_voffset,
