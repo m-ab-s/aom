@@ -1,6 +1,27 @@
-yyyy-mm-dd v3.10.0
+2024-08-21 v3.10.0
+  This release includes new codec interfaces, compression efficiency and
+  perceptual improvements, speedup and memory optimizations and many bug
+  fixes. This release is ABI compatible with the last release.
+
   The definitions of the internal macros AOM_INLINE and AOM_FORCE_INLINE
   have been removed from the public header aom/aom_integer.h.
+
+  - New Features
+    * New codec controls:
+      * AV1E_SET_AUTO_TILES
+      * AV1E_GET_HIGH_MOTION_CONTENT_SCREEN_RTC
+      * AV1E_SET_POSTENCODE_DROP_RTC
+      * AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR
+    * New key-value pair for aom_codec_set_option():
+      * "auto-tiles": equivalent to the new codec control
+        AV1E_SET_AUTO_TILES.
+
+  - Deprecated Features
+    * Deprecated codec control:
+      * AV1E_SET_MAX_CONSEC_FRAME_DROP_CBR: Use the new codec control
+        AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR instead.
+    * The sframe_mode field in the aom_codec_enc_cfg_t struct is not
+      implemented.
 
 2024-06-07 v3.8.3
   This release includes several bug fixes. This release is ABI
