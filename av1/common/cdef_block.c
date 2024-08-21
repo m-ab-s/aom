@@ -22,7 +22,7 @@ beginning and end of the table. The cdef direction range is [0, 7] and the
 first index is offset +/-2. This removes the need to constrain the first
 index to the same range using e.g., & 7.
 */
-DECLARE_ALIGNED(16, const int, cdef_directions_padded[12][2]) = {
+DECLARE_ALIGNED(16, static const int, cdef_directions_padded[12][2]) = {
   /* Padding: cdef_directions[6] */
   { 1 * CDEF_BSTRIDE + 0, 2 * CDEF_BSTRIDE + 0 },
   /* Padding: cdef_directions[7] */
