@@ -2818,6 +2818,87 @@ static void ml_predict_intra_tx_depth_prune(MACROBLOCK *x, int blk_row,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+/*!\brief Transform type search for luma macroblock with fixed transform size.
+ *
+ * \ingroup transform_search
+ * Search for the best transform type and return the transform coefficients RD
+ * cost of current luma macroblock with the given uniform transform size.
+ *
+ * \param[in]    x              Pointer to structure holding the data for the
+                                current encoding macroblock
+ * \param[in]    cpi            Top-level encoder structure
+ * \param[in]    rd_stats       Pointer to struct to keep track of the RD stats
+ * \param[in]    ref_best_rd    Best RD cost seen for this block so far
+ * \param[in]    bs             Size of the current macroblock
+ * \param[in]    tx_size        The given transform size
+ * \param[in]    ftxs_mode      Transform search mode specifying desired speed
+                                and quality tradeoff
+ * \param[in]    skip_trellis   Binary flag indicating if trellis optimization
+                                should be skipped
+ * \return       An int64_t value that is the best RD cost found.
+ */
+static int64_t uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
+                                RD_STATS *rd_stats, int64_t ref_best_rd,
+                                BLOCK_SIZE bs, TX_SIZE tx_size,
+                                FAST_TX_SEARCH_MODE ftxs_mode,
+                                int skip_trellis) {
+  assert(IMPLIES(is_rect_tx(tx_size), is_rect_tx_allowed_bsize(bs)));
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mbmi = xd->mi[0];
+  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  const ModeCosts *mode_costs = &x->mode_costs;
+  const int is_inter = is_inter_block(mbmi);
+  const int tx_select = txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
+                        block_signals_txsize(mbmi->bsize);
+  int tx_size_rate = 0;
+  if (tx_select) {
+    const int ctx = txfm_partition_context(
+        xd->above_txfm_context, xd->left_txfm_context, mbmi->bsize, tx_size);
+    tx_size_rate = is_inter ? mode_costs->txfm_partition_cost[ctx][0]
+                            : tx_size_cost(x, bs, tx_size);
+  }
+  const int skip_ctx = av1_get_skip_txfm_context(xd);
+  const int no_skip_txfm_rate = mode_costs->skip_txfm_cost[skip_ctx][0];
+  const int skip_txfm_rate = mode_costs->skip_txfm_cost[skip_ctx][1];
+  const int64_t skip_txfm_rd =
+      is_inter ? RDCOST(x->rdmult, skip_txfm_rate, 0) : INT64_MAX;
+  const int64_t no_this_rd =
+      RDCOST(x->rdmult, no_skip_txfm_rate + tx_size_rate, 0);
+
+  mbmi->tx_size = tx_size;
+  av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
+                       AOMMIN(no_this_rd, skip_txfm_rd), AOM_PLANE_Y, bs,
+                       tx_size, ftxs_mode, skip_trellis);
+  if (rd_stats->rate == INT_MAX) return INT64_MAX;
+
+  int64_t rd;
+  // rdstats->rate should include all the rate except skip/non-skip cost as the
+  // same is accounted in the caller functions after rd evaluation of all
+  // planes. However the decisions should be done after considering the
+  // skip/non-skip header cost
+  if (rd_stats->skip_txfm && is_inter) {
+    rd = RDCOST(x->rdmult, skip_txfm_rate, rd_stats->sse);
+  } else {
+    // Intra blocks are always signalled as non-skip
+    rd = RDCOST(x->rdmult, rd_stats->rate + no_skip_txfm_rate + tx_size_rate,
+                rd_stats->dist);
+    rd_stats->rate += tx_size_rate;
+  }
+  // Check if forcing the block to skip transform leads to smaller RD cost.
+  if (is_inter && !rd_stats->skip_txfm && !xd->lossless[mbmi->segment_id]) {
+    int64_t temp_skip_txfm_rd =
+        RDCOST(x->rdmult, skip_txfm_rate, rd_stats->sse);
+    if (temp_skip_txfm_rd <= rd) {
+      rd = temp_skip_txfm_rd;
+      rd_stats->rate = 0;
+      rd_stats->dist = rd_stats->sse;
+      rd_stats->skip_txfm = 1;
+    }
+  }
+
+  return rd;
+}
+
 // Search for the best uniform transform size and type for current coding block.
 static inline void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
                                                MACROBLOCK *x,
@@ -2888,8 +2969,8 @@ static inline void choose_tx_size_type_from_rd(const AV1_COMP *const cpi,
         cpi->sf.tx_sf.use_rd_based_breakout_for_intra_tx_search
             ? AOMMIN(ref_best_rd, best_rd)
             : ref_best_rd;
-    rd[depth] = av1_uniform_txfm_yrd(cpi, x, &this_rd_stats, rd_thresh, bs,
-                                     tx_size, FTXS_NONE, skip_trellis);
+    rd[depth] = uniform_txfm_yrd(cpi, x, &this_rd_stats, rd_thresh, bs, tx_size,
+                                 FTXS_NONE, skip_trellis);
     if (rd[depth] < best_rd) {
       av1_copy_array(best_blk_skip, txfm_info->blk_skip, num_blks);
       av1_copy_array(best_txk_type_map, xd->tx_type_map, num_blks);
@@ -3097,67 +3178,6 @@ int64_t av1_estimate_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
   if (args.incomplete_exit) av1_invalid_rd_stats(&args.rd_stats);
 
   *rd_stats = args.rd_stats;
-  if (rd_stats->rate == INT_MAX) return INT64_MAX;
-
-  int64_t rd;
-  // rdstats->rate should include all the rate except skip/non-skip cost as the
-  // same is accounted in the caller functions after rd evaluation of all
-  // planes. However the decisions should be done after considering the
-  // skip/non-skip header cost
-  if (rd_stats->skip_txfm && is_inter) {
-    rd = RDCOST(x->rdmult, skip_txfm_rate, rd_stats->sse);
-  } else {
-    // Intra blocks are always signalled as non-skip
-    rd = RDCOST(x->rdmult, rd_stats->rate + no_skip_txfm_rate + tx_size_rate,
-                rd_stats->dist);
-    rd_stats->rate += tx_size_rate;
-  }
-  // Check if forcing the block to skip transform leads to smaller RD cost.
-  if (is_inter && !rd_stats->skip_txfm && !xd->lossless[mbmi->segment_id]) {
-    int64_t temp_skip_txfm_rd =
-        RDCOST(x->rdmult, skip_txfm_rate, rd_stats->sse);
-    if (temp_skip_txfm_rd <= rd) {
-      rd = temp_skip_txfm_rd;
-      rd_stats->rate = 0;
-      rd_stats->dist = rd_stats->sse;
-      rd_stats->skip_txfm = 1;
-    }
-  }
-
-  return rd;
-}
-
-int64_t av1_uniform_txfm_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
-                             RD_STATS *rd_stats, int64_t ref_best_rd,
-                             BLOCK_SIZE bs, TX_SIZE tx_size,
-                             FAST_TX_SEARCH_MODE ftxs_mode, int skip_trellis) {
-  assert(IMPLIES(is_rect_tx(tx_size), is_rect_tx_allowed_bsize(bs)));
-  MACROBLOCKD *const xd = &x->e_mbd;
-  MB_MODE_INFO *const mbmi = xd->mi[0];
-  const TxfmSearchParams *txfm_params = &x->txfm_search_params;
-  const ModeCosts *mode_costs = &x->mode_costs;
-  const int is_inter = is_inter_block(mbmi);
-  const int tx_select = txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
-                        block_signals_txsize(mbmi->bsize);
-  int tx_size_rate = 0;
-  if (tx_select) {
-    const int ctx = txfm_partition_context(
-        xd->above_txfm_context, xd->left_txfm_context, mbmi->bsize, tx_size);
-    tx_size_rate = is_inter ? mode_costs->txfm_partition_cost[ctx][0]
-                            : tx_size_cost(x, bs, tx_size);
-  }
-  const int skip_ctx = av1_get_skip_txfm_context(xd);
-  const int no_skip_txfm_rate = mode_costs->skip_txfm_cost[skip_ctx][0];
-  const int skip_txfm_rate = mode_costs->skip_txfm_cost[skip_ctx][1];
-  const int64_t skip_txfm_rd =
-      is_inter ? RDCOST(x->rdmult, skip_txfm_rate, 0) : INT64_MAX;
-  const int64_t no_this_rd =
-      RDCOST(x->rdmult, no_skip_txfm_rate + tx_size_rate, 0);
-
-  mbmi->tx_size = tx_size;
-  av1_txfm_rd_in_plane(x, cpi, rd_stats, ref_best_rd,
-                       AOMMIN(no_this_rd, skip_txfm_rd), AOM_PLANE_Y, bs,
-                       tx_size, ftxs_mode, skip_trellis);
   if (rd_stats->rate == INT_MAX) return INT64_MAX;
 
   int64_t rd;
