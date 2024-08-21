@@ -3773,13 +3773,8 @@ void av1_change_config(AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
 aom_codec_err_t av1_check_initial_width(AV1_COMP *cpi, int use_highbitdepth,
                                         int subsampling_x, int subsampling_y);
 
-void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
-                               const AV1EncoderConfig *oxcf, int use_svc);
-
 void av1_post_encode_updates(AV1_COMP *const cpi,
                              const AV1_COMP_DATA *const cpi_data);
-
-void av1_scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map);
 
 void av1_release_scaled_references_fpmt(AV1_COMP *cpi);
 

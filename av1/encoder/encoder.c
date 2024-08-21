@@ -485,9 +485,9 @@ static void set_bitstream_level_tier(AV1_PRIMARY *const ppi, int width,
   }
 }
 
-void av1_init_seq_coding_tools(AV1_PRIMARY *const ppi,
-                               const AV1EncoderConfig *oxcf,
-                               int disable_frame_id_numbers) {
+static void init_seq_coding_tools(AV1_PRIMARY *const ppi,
+                                  const AV1EncoderConfig *oxcf,
+                                  int disable_frame_id_numbers) {
   SequenceHeader *const seq = &ppi->seq_params;
   const FrameDimensionCfg *const frm_dim_cfg = &oxcf->frm_dim_cfg;
   const ToolCfg *const tool_cfg = &oxcf->tool_cfg;
@@ -770,8 +770,8 @@ void av1_change_config_seq(struct AV1_PRIMARY *ppi,
         (ppi->number_spatial_layers > 1 || ppi->number_temporal_layers > 1)
             ? ppi->number_spatial_layers * ppi->number_temporal_layers - 1
             : 0;
-    av1_init_seq_coding_tools(
-        ppi, oxcf, ppi->use_svc || ppi->rtc_ref.set_ref_frame_config);
+    init_seq_coding_tools(ppi, oxcf,
+                          ppi->use_svc || ppi->rtc_ref.set_ref_frame_config);
   }
   seq_params->timing_info_present &= !seq_params->reduced_still_picture_hdr;
 
@@ -4851,7 +4851,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
 
 // Populates cpi->scaled_ref_buf corresponding to frames in a parallel encode
 // set. Also sets the bitmask 'ref_buffers_used_map'.
-void av1_scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map) {
+static void scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map) {
   AV1_COMMON *cm = &cpi->common;
   MV_REFERENCE_FRAME ref_frame;
 
@@ -5033,7 +5033,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
   av1_get_ref_frames(first_ref_frame_map_pairs, cur_frame_disp, first_cpi,
                      gf_index_start, 1, first_cpi->common.remapped_ref_idx);
 
-  av1_scale_references_fpmt(first_cpi, ref_buffers_used_map);
+  scale_references_fpmt(first_cpi, ref_buffers_used_map);
   parallel_frame_count++;
 
   // Iterate through the GF_GROUP to find the remaining frame_parallel_level 2
@@ -5122,7 +5122,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
 
       av1_get_ref_frames(first_ref_frame_map_pairs, cur_frame_disp, cur_cpi, i,
                          1, cur_cpi->common.remapped_ref_idx);
-      av1_scale_references_fpmt(cur_cpi, ref_buffers_used_map);
+      scale_references_fpmt(cur_cpi, ref_buffers_used_map);
       parallel_frame_count++;
     }
 
