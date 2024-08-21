@@ -35,7 +35,19 @@ static int int16_comparer(const void *a, const void *b) {
   return (*(int16_t *)a - *(int16_t *)b);
 }
 
-int av1_remove_duplicates(int16_t *centroids, int num_centroids) {
+/*!\brief Removes duplicated centroid indices.
+ *
+ * \ingroup palette_mode_search
+ * \param[in]    centroids          A list of centroids index.
+ * \param[in]    num_centroids      Number of centroids.
+ *
+ * \return Returns the number of unique centroids and saves the unique centroids
+ * in beginning of the centroids array.
+ *
+ * \attention The centroids should be rounded to integers before calling this
+ * method.
+ */
+static int remove_duplicates(int16_t *centroids, int num_centroids) {
   int num_unique;  // number of unique centroids
   int i;
   qsort(centroids, num_centroids, sizeof(*centroids), int16_comparer);
@@ -225,7 +237,7 @@ static inline void palette_rd_y(
   if (do_header_rd_based_breakout != NULL) *do_header_rd_based_breakout = false;
   optimize_palette_colors(color_cache, n_cache, n, 1, centroids,
                           cpi->common.seq_params->bit_depth);
-  const int num_unique_colors = av1_remove_duplicates(centroids, n);
+  const int num_unique_colors = remove_duplicates(centroids, n);
   if (num_unique_colors < PALETTE_MIN_SIZE) {
     // Too few unique colors to create a palette. And DC_PRED will work
     // well for that case anyway. So skip.

@@ -99,20 +99,6 @@ static inline void av1_k_means(const int16_t *data, int16_t *centroids,
   }
 }
 
-/*!\brief Removes duplicated centroid indices.
- *
- * \ingroup palette_mode_search
- * \param[in]    centroids          A list of centroids index.
- * \param[in]    num_centroids      Number of centroids.
- *
- * \return Returns the number of unique centroids and saves the unique centroids
- * in beginning of the centroids array.
- *
- * \attention The centroids should be rounded to integers before calling this
- * method.
- */
-int av1_remove_duplicates(int16_t *centroids, int num_centroids);
-
 /*!\brief Checks what colors are in the color cache.
  *
  * \ingroup palette_mode_search
