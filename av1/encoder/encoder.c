@@ -4878,8 +4878,8 @@ void av1_scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map) {
 
 // Increments the ref_count of frame buffers referenced by cpi->scaled_ref_buf
 // corresponding to frames in a parallel encode set.
-void av1_increment_scaled_ref_counts_fpmt(BufferPool *buffer_pool,
-                                          int ref_buffers_used_map) {
+static void increment_scaled_ref_counts_fpmt(BufferPool *buffer_pool,
+                                             int ref_buffers_used_map) {
   for (int i = 0; i < buffer_pool->num_frame_bufs; ++i) {
     if (ref_buffers_used_map & (1 << i)) {
       ++buffer_pool->frame_bufs[i].ref_count;
@@ -5131,8 +5131,8 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
     }
   }
 
-  av1_increment_scaled_ref_counts_fpmt(first_cpi->common.buffer_pool,
-                                       *ref_buffers_used_map);
+  increment_scaled_ref_counts_fpmt(first_cpi->common.buffer_pool,
+                                   *ref_buffers_used_map);
 
   // Return the number of frames in the parallel encode set.
   return parallel_frame_count;

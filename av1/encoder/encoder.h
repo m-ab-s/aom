@@ -3781,9 +3781,6 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
 
 void av1_scale_references_fpmt(AV1_COMP *cpi, int *ref_buffers_used_map);
 
-void av1_increment_scaled_ref_counts_fpmt(BufferPool *buffer_pool,
-                                          int ref_buffers_used_map);
-
 void av1_release_scaled_references_fpmt(AV1_COMP *cpi);
 
 void av1_decrement_ref_counts_fpmt(BufferPool *buffer_pool,
