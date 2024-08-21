@@ -369,7 +369,9 @@ void av1_fill_mv_costs(const nmv_context *nmvc, int integer_mv, int usehp,
 
 void av1_fill_dv_costs(const nmv_context *ndvc, IntraBCMVCosts *dv_costs);
 
+#if !CONFIG_REALTIME_ONLY
 int av1_get_adaptive_rdmult(const struct AV1_COMP *cpi, double beta);
+#endif
 
 int av1_get_deltaq_offset(aom_bit_depth_t bit_depth, int qindex, double beta);
 

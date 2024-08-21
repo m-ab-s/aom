@@ -470,6 +470,7 @@ int av1_adjust_q_from_delta_q_res(int delta_q_res, int prev_qindex,
   return adjust_qindex;
 }
 
+#if !CONFIG_REALTIME_ONLY
 int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
   assert(beta > 0.0);
   const AV1_COMMON *cm = &cpi->common;
@@ -488,6 +489,7 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
                    is_stat_consumption_stage(cpi)) /
                beta);
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 static int compute_rd_thresh_factor(int qindex, aom_bit_depth_t bit_depth) {
   double q;
