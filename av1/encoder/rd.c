@@ -35,6 +35,7 @@
 #include "av1/encoder/nonrd_opt.h"
 #include "av1/encoder/ratectrl.h"
 #include "av1/encoder/rd.h"
+#include "config/aom_config.h"
 
 #define RD_THRESH_POW 1.25
 
@@ -319,6 +320,7 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
   }
 }
 
+#if !CONFIG_REALTIME_ONLY
 void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
   av1_cost_tokens_from_cdf(mode_costs->switchable_restore_cost,
                            fc->switchable_restore_cdf, NULL);
@@ -327,6 +329,7 @@ void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc) {
   av1_cost_tokens_from_cdf(mode_costs->sgrproj_restore_cost,
                            fc->sgrproj_restore_cdf, NULL);
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 // Values are now correlated to quantizer.
 static int sad_per_bit_lut_8[QINDEX_RANGE];

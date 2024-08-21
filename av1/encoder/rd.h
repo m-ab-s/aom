@@ -20,6 +20,7 @@
 #include "av1/encoder/context_tree.h"
 #include "av1/encoder/cost.h"
 #include "av1/encoder/ratectrl.h"
+#include "config/aom_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -356,7 +357,9 @@ int av1_get_intra_cost_penalty(int qindex, int qdelta,
 void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                          FRAME_CONTEXT *fc);
 
+#if !CONFIG_REALTIME_ONLY
 void av1_fill_lr_rates(ModeCosts *mode_costs, FRAME_CONTEXT *fc);
+#endif
 
 void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                           const int num_planes);
