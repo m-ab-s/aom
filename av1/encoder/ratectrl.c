@@ -256,7 +256,7 @@ int av1_estimate_bits_at_q(const AV1_COMP *cpi, int q,
                 (int)((uint64_t)bpm * mbs) >> BPER_MB_NORMBITS);
 }
 
-int av1_rc_clamp_pframe_target_size(const AV1_COMP *const cpi, int64_t target,
+static int clamp_pframe_target_size(const AV1_COMP *const cpi, int64_t target,
                                     FRAME_UPDATE_TYPE frame_update_type) {
   const RATE_CONTROL *rc = &cpi->rc;
   const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
@@ -285,7 +285,7 @@ int av1_rc_clamp_pframe_target_size(const AV1_COMP *const cpi, int64_t target,
   return (int)target;
 }
 
-int av1_rc_clamp_iframe_target_size(const AV1_COMP *const cpi, int64_t target) {
+static int clamp_iframe_target_size(const AV1_COMP *const cpi, int64_t target) {
   const RATE_CONTROL *rc = &cpi->rc;
   const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
   if (rc_cfg->max_intra_bitrate_pct) {
@@ -390,7 +390,10 @@ int av1_rc_get_default_min_gf_interval(int width, int height,
   // 4K60: 12
 }
 
-int av1_rc_get_default_max_gf_interval(double framerate, int min_gf_interval) {
+// Note get_default_max_gf_interval() requires the min_gf_interval to
+// be passed in to ensure that the max_gf_interval returned is at least as bis
+// as that.
+static int get_default_max_gf_interval(double framerate, int min_gf_interval) {
   int interval = AOMMIN(MAX_GF_INTERVAL, (int)(framerate * 0.75));
   interval += (interval & 0x01);  // Round to even value
   interval = AOMMAX(MAX_GF_INTERVAL, interval);
@@ -410,7 +413,7 @@ void av1_primary_rc_init(const AV1EncoderConfig *oxcf,
         oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
         oxcf->input_cfg.init_framerate);
   if (max_gf_interval == 0)
-    max_gf_interval = av1_rc_get_default_max_gf_interval(
+    max_gf_interval = get_default_max_gf_interval(
         oxcf->input_cfg.init_framerate, min_gf_interval);
   p_rc->baseline_gf_interval = (min_gf_interval + max_gf_interval) / 2;
   p_rc->this_key_frame_forced = 0;
@@ -468,7 +471,7 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
         oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
         oxcf->input_cfg.init_framerate);
   if (rc->max_gf_interval == 0)
-    rc->max_gf_interval = av1_rc_get_default_max_gf_interval(
+    rc->max_gf_interval = get_default_max_gf_interval(
         oxcf->input_cfg.init_framerate, rc->min_gf_interval);
   rc->avg_frame_low_motion = 0;
 
@@ -2556,7 +2559,7 @@ int av1_compute_qdelta_by_rate(const AV1_COMP *cpi, FRAME_TYPE frame_type,
   return target_index - qindex;
 }
 
-void av1_rc_set_gf_interval_range(const AV1_COMP *const cpi,
+static void set_gf_interval_range(const AV1_COMP *const cpi,
                                   RATE_CONTROL *const rc) {
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
 
@@ -2573,8 +2576,8 @@ void av1_rc_set_gf_interval_range(const AV1_COMP *const cpi,
       rc->min_gf_interval = av1_rc_get_default_min_gf_interval(
           oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height, cpi->framerate);
     if (rc->max_gf_interval == 0)
-      rc->max_gf_interval = av1_rc_get_default_max_gf_interval(
-          cpi->framerate, rc->min_gf_interval);
+      rc->max_gf_interval =
+          get_default_max_gf_interval(cpi->framerate, rc->min_gf_interval);
     /*
      * Extended max interval for genuinely static scenes like slide shows.
      * The no.of.stats available in the case of LAP is limited,
@@ -2621,7 +2624,7 @@ void av1_rc_update_framerate(AV1_COMP *cpi, int width, int height) {
   rc->max_frame_bandwidth =
       AOMMAX(AOMMAX((MBs * MAX_MB_RATE), MAXRATE_1080P), (int)vbr_max_bits);
 
-  av1_rc_set_gf_interval_range(cpi, rc);
+  set_gf_interval_range(cpi, rc);
 }
 
 #define VBR_PCT_ADJUSTMENT_LIMIT 50
@@ -2732,14 +2735,14 @@ int av1_calc_pframe_target_size_one_pass_vbr(
 #else
   target = rc->avg_frame_bandwidth;
 #endif
-  return av1_rc_clamp_pframe_target_size(cpi, target, frame_update_type);
+  return clamp_pframe_target_size(cpi, target, frame_update_type);
 }
 
 int av1_calc_iframe_target_size_one_pass_vbr(const AV1_COMP *const cpi) {
   static const int kf_ratio = 25;
   const RATE_CONTROL *rc = &cpi->rc;
   const int64_t target = (int64_t)rc->avg_frame_bandwidth * kf_ratio;
-  return av1_rc_clamp_iframe_target_size(cpi, target);
+  return clamp_iframe_target_size(cpi, target);
 }
 
 int av1_calc_pframe_target_size_one_pass_cbr(
@@ -2820,7 +2823,7 @@ int av1_calc_iframe_target_size_one_pass_cbr(const AV1_COMP *cpi) {
     }
     target = ((int64_t)(16 + kf_boost) * rc->avg_frame_bandwidth) >> 4;
   }
-  return av1_rc_clamp_iframe_target_size(cpi, target);
+  return clamp_iframe_target_size(cpi, target);
 }
 
 static void set_golden_update(AV1_COMP *const cpi) {

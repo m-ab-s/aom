@@ -590,10 +590,6 @@ double av1_convert_qindex_to_q(int qindex, aom_bit_depth_t bit_depth);
 void av1_rc_init_minq_luts(void);
 
 int av1_rc_get_default_min_gf_interval(int width, int height, double framerate);
-// Note av1_rc_get_default_max_gf_interval() requires the min_gf_interval to
-// be passed in to ensure that the max_gf_interval returned is at least as bis
-// as that.
-int av1_rc_get_default_max_gf_interval(double framerate, int min_gf_interval);
 
 // Generally at the high level, the following flow is expected
 // to be enforced for rate control:
@@ -691,12 +687,6 @@ int av1_rc_bits_per_mb(const struct AV1_COMP *cpi, FRAME_TYPE frame_type,
                        int qindex, double correction_factor,
                        int accurate_estimate);
 
-// Clamping utilities for bitrate targets for iframes and pframes.
-int av1_rc_clamp_iframe_target_size(const struct AV1_COMP *const cpi,
-                                    int64_t target);
-int av1_rc_clamp_pframe_target_size(const struct AV1_COMP *const cpi,
-                                    int64_t target, uint8_t frame_update_type);
-
 // Find q_index corresponding to desired_q, within [best_qindex, worst_qindex].
 // To be precise, 'q_index' is the smallest integer, for which the corresponding
 // q >= desired_q.
@@ -716,9 +706,6 @@ int av1_compute_qdelta_by_rate(const struct AV1_COMP *cpi,
                                double rate_target_ratio);
 
 void av1_rc_update_framerate(struct AV1_COMP *cpi, int width, int height);
-
-void av1_rc_set_gf_interval_range(const struct AV1_COMP *const cpi,
-                                  RATE_CONTROL *const rc);
 
 void av1_set_target_rate(struct AV1_COMP *cpi, int width, int height);
 
