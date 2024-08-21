@@ -89,14 +89,6 @@ static void RoundHighBitDepth(int bit_depth, int64_t *se, uint64_t *sse) {
   }
 }
 
-static unsigned int mb_ss_ref(const int16_t *src) {
-  unsigned int res = 0;
-  for (int i = 0; i < 256; ++i) {
-    res += src[i] * src[i];
-  }
-  return res;
-}
-
 /* Note:
  *  Our codebase calculates the "diff" value in the variance algorithm by
  *  (src - ref).
@@ -344,6 +336,7 @@ static uint32_t obmc_subpel_variance_ref(const uint8_t *pre, int l2w, int l2h,
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#if !CONFIG_REALTIME_ONLY
 class SumOfSquaresTest : public ::testing::TestWithParam<SumOfSquaresFunction> {
  public:
   SumOfSquaresTest() : func_(GetParam()) {}
@@ -370,6 +363,14 @@ void SumOfSquaresTest::ConstTest() {
   }
 }
 
+unsigned int mb_ss_ref(const int16_t *src) {
+  unsigned int res = 0;
+  for (int i = 0; i < 256; ++i) {
+    res += src[i] * src[i];
+  }
+  return res;
+}
+
 void SumOfSquaresTest::RefTest() {
   int16_t mem[256];
   for (int i = 0; i < 100; ++i) {
@@ -383,6 +384,7 @@ void SumOfSquaresTest::RefTest() {
     EXPECT_EQ(expected, res);
   }
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 ////////////////////////////////////////////////////////////////////////////////
 // Encapsulating struct to store the function to test along with
@@ -1729,8 +1731,10 @@ TEST_P(GetSseSum16x16DualTest, RefMseSum) { RefTestSseSumDual(); }
 TEST_P(GetSseSum16x16DualTest, MinSseSum) { MinTestSseSumDual(); }
 TEST_P(GetSseSum16x16DualTest, MaxMseSum) { MaxTestSseSumDual(); }
 TEST_P(GetSseSum16x16DualTest, DISABLED_Speed) { SseSum_SpeedTestDual(); }
+#if !CONFIG_REALTIME_ONLY
 TEST_P(SumOfSquaresTest, Const) { ConstTest(); }
 TEST_P(SumOfSquaresTest, Ref) { RefTest(); }
+#endif  // !CONFIG_REALTIME_ONLY
 TEST_P(AvxSubpelVarianceTest, Ref) { RefTest(); }
 TEST_P(AvxSubpelVarianceTest, ExtremeRef) { ExtremeRefTest(); }
 TEST_P(AvxSubpelVarianceTest, DISABLED_Speed) { SpeedTest(); }
