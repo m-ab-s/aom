@@ -3846,7 +3846,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data);
  * \callgraph
  * \callergraph
  */
-int av1_encode(AV1_COMP *const cpi, uint8_t *const dest,
+int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
                const EncodeFrameInput *const frame_input,
                const EncodeFrameParams *const frame_params,
                EncodeFrameResults *const frame_results);

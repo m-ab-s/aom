@@ -118,7 +118,8 @@ void av1_write_last_tile_info(
  * \ingroup high_level_algo
  * \callgraph
  */
-int av1_pack_bitstream(struct AV1_COMP *const cpi, uint8_t *dst, size_t *size,
+int av1_pack_bitstream(struct AV1_COMP *const cpi, uint8_t *dst,
+                       size_t dst_size, size_t *size,
                        int *const largest_tile_id);
 
 void av1_write_tx_type(const AV1_COMMON *const cm, const MACROBLOCKD *xd,

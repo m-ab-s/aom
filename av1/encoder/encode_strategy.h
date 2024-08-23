@@ -38,8 +38,9 @@ extern "C" {
  * returns AOM_CODEC_OK.
  *
  * \param[in]    cpi         Top-level encoder structure
- * \param[in]    size        Bitstream size
- * \param[in]    dest        Bitstream output
+ * \param[out]   size        Bitstream size
+ * \param[out]   dest        Bitstream output buffer
+ * \param[in]    dest_size   Bitstream output buffer size
  * \param[in]    frame_flags Flags to decide how to encoding the frame
  * \param[out]   time_stamp  Time stamp of the frame
  * \param[out]   time_end    Time end
@@ -53,8 +54,9 @@ extern "C" {
  * \retval #AOM_CODEC_ERROR
  */
 int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
-                        uint8_t *const dest, unsigned int *frame_flags,
-                        int64_t *const time_stamp, int64_t *const time_end,
+                        uint8_t *const dest, size_t dest_size,
+                        unsigned int *frame_flags, int64_t *const time_stamp,
+                        int64_t *const time_end,
                         const aom_rational64_t *const timestamp_ratio,
                         int *const pop_lookahead, int flush);
 

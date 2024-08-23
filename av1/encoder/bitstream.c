@@ -4187,10 +4187,10 @@ static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst) {
   return total_bytes_written;
 }
 
-int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
-                       int *const largest_tile_id) {
+int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t dst_size,
+                       size_t *size, int *const largest_tile_id) {
   uint8_t *data = dst;
-  uint32_t data_size;
+  (void)dst_size;
   AV1_COMMON *const cm = &cpi->common;
   AV1LevelParams *const level_params = &cpi->ppi->level_params;
   uint32_t obu_header_size = 0;
@@ -4259,6 +4259,7 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t *size,
     data += fh_info.total_length;
   }
 
+  uint32_t data_size;
   if (encode_show_existing_frame(cm)) {
     data_size = 0;
   } else {
