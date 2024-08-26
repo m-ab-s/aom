@@ -475,7 +475,7 @@ static const struct av1_extracfg default_extra_cfg[] = {
       1,    // enable D45 to D203 intra mode usage for sequence
       0,    // superres
       0,    // enable overlay
-      0,    // enable palette
+      1,    // enable palette
       0,    // enable intrabc
       0,    // enable angle delta
 #if CONFIG_DENOISE
