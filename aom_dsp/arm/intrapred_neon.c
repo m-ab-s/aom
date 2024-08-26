@@ -1050,7 +1050,7 @@ void aom_h_predictor_64x64_neon(uint8_t *dst, ptrdiff_t stride,
 /* ---------------------P R E D I C T I O N   Z 1--------------------------- */
 
 // Low bit depth functions
-static DECLARE_ALIGNED(32, uint8_t, BaseMask[33][32]) = {
+static DECLARE_ALIGNED(32, const uint8_t, BaseMask[33][32]) = {
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1489,7 +1489,7 @@ void av1_dr_prediction_z1_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
 /* ---------------------P R E D I C T I O N   Z 2--------------------------- */
 
 #if !AOM_ARCH_AARCH64
-static DECLARE_ALIGNED(16, uint8_t, LoadMaskz2[4][16]) = {
+static DECLARE_ALIGNED(16, const uint8_t, LoadMaskz2[4][16]) = {
   { 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0,
@@ -2352,7 +2352,7 @@ typedef void (*dr_prediction_z3_fn)(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *left, int upsample_left,
                                     int dy);
 
-static dr_prediction_z3_fn dr_prediction_z3_arr[7][7] = {
+static const dr_prediction_z3_fn dr_prediction_z3_arr[7][7] = {
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
   { NULL, NULL, dr_prediction_z3_4x4_neon, dr_prediction_z3_4x8_neon,
