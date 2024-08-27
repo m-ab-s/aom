@@ -299,7 +299,7 @@ av1_enc_build() {
   mkdir -p $tmp_build_dir
   cd $tmp_build_dir
 
-  local cmake_common_args="-DCONFIG_EXCLUDE_SIMD_MISMATCH=1 \
+  local cmake_common_args="--fresh -DCONFIG_EXCLUDE_SIMD_MISMATCH=1 \
            -DCMAKE_BUILD_TYPE=Release \
            -DENABLE_CCACHE=1 \
            '-DCMAKE_C_FLAGS_RELEASE=-O3 -g' \
