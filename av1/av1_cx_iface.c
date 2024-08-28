@@ -3446,7 +3446,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
         // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
         if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
-                                    ctx->cx_data) != AOM_CODEC_OK) {
+                                    ctx->cx_data,
+                                    ctx->cx_data_sz) != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
 
@@ -3468,7 +3469,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         memmove(cpi_data.cx_data + length_field_size, cpi_data.cx_data,
                 cpi_data.frame_size);
         if (av1_write_uleb_obu_size(0, (uint32_t)cpi_data.frame_size,
-                                    cpi_data.cx_data) != AOM_CODEC_OK) {
+                                    cpi_data.cx_data,
+                                    cpi_data.cx_data_sz) != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
         cpi_data.frame_size += length_field_size;
@@ -3496,8 +3498,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         size_t tu_size = ctx->pending_cx_data_sz;
         const size_t length_field_size = aom_uleb_size_in_bytes(tu_size);
         memmove(ctx->cx_data + length_field_size, ctx->cx_data, tu_size);
-        if (av1_write_uleb_obu_size(0, (uint32_t)tu_size, ctx->cx_data) !=
-            AOM_CODEC_OK) {
+        if (av1_write_uleb_obu_size(0, (uint32_t)tu_size, ctx->cx_data,
+                                    ctx->cx_data_sz) != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
         ctx->pending_cx_data_sz += length_field_size;

@@ -5400,8 +5400,8 @@ aom_fixed_buf_t *av1_get_global_headers(AV1_PRIMARY *ppi) {
   if (!ppi) return NULL;
 
   uint8_t header_buf[512] = { 0 };
-  const uint32_t sequence_header_size =
-      av1_write_sequence_header_obu(&ppi->seq_params, &header_buf[0]);
+  const uint32_t sequence_header_size = av1_write_sequence_header_obu(
+      &ppi->seq_params, &header_buf[0], sizeof(header_buf));
   assert(sequence_header_size <= sizeof(header_buf));
   if (sequence_header_size == 0) return NULL;
 
