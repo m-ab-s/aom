@@ -3715,23 +3715,24 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
           svc->spatial_layer_id == 0
               ? 0
               : svc->layer_context[svc->temporal_layer_id].is_key_frame;
-      // If the user is setting the reference structure with
-      // set_ref_frame_config and did not set any references, set the
-      // frame type to Intra-only.
-      if (cpi->ppi->rtc_ref.set_ref_frame_config) {
-        int no_references_set = 1;
-        for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-          if (cpi->ppi->rtc_ref.reference[i]) {
-            no_references_set = 0;
-            break;
-          }
+    }
+    // If the user is setting the reference structure with
+    // set_ref_frame_config and did not set any references, set the
+    // frame type to Intra-only.
+    if (cpi->ppi->rtc_ref.set_ref_frame_config) {
+      int no_references_set = 1;
+      for (int i = 0; i < INTER_REFS_PER_FRAME; i++) {
+        if (cpi->ppi->rtc_ref.reference[i]) {
+          no_references_set = 0;
+          break;
         }
-        // Set to intra_only_frame if no references are set.
-        // The stream can start decoding on INTRA_ONLY_FRAME so long as the
-        // layer with the intra_only_frame doesn't signal a reference to a slot
-        // that hasn't been set yet.
-        if (no_references_set) *frame_type = INTRA_ONLY_FRAME;
       }
+
+      // Set to intra_only_frame if no references are set.
+      // The stream can start decoding on INTRA_ONLY_FRAME so long as the
+      // layer with the intra_only_frame doesn't signal a reference to a slot
+      // that hasn't been set yet.
+      if (no_references_set) *frame_type = INTRA_ONLY_FRAME;
     }
   }
   if (cpi->active_map.enabled && cpi->rc.percent_blocks_inactive == 100) {
