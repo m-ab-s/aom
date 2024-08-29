@@ -3405,10 +3405,8 @@ int av1_write_uleb_obu_size(size_t obu_header_size, size_t obu_payload_size,
                             uint8_t *dest) {
   const size_t offset = obu_header_size;
   size_t coded_obu_size = 0;
-  const uint32_t obu_size = (uint32_t)obu_payload_size;
-  assert(obu_size == obu_payload_size);
 
-  if (aom_uleb_encode(obu_size, sizeof(obu_size), dest + offset,
+  if (aom_uleb_encode(obu_payload_size, sizeof(uint32_t), dest + offset,
                       &coded_obu_size) != 0) {
     return AOM_CODEC_ERROR;
   }
@@ -4144,7 +4142,7 @@ static size_t av1_write_metadata_obu(const aom_metadata_t *metadata,
   memcpy(dst + coded_metadata_size, metadata->payload, metadata->sz);
   // Add trailing bits.
   dst[coded_metadata_size + metadata->sz] = 0x80;
-  return (uint32_t)(coded_metadata_size + metadata->sz + 1);
+  return coded_metadata_size + metadata->sz + 1;
 }
 
 static size_t av1_write_metadata_array(AV1_COMP *const cpi, uint8_t *dst) {
