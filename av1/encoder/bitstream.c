@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include "aom/aom_encoder.h"
@@ -3827,15 +3828,15 @@ void av1_write_last_tile_info(
     uint8_t **tile_data_start, int *const largest_tile_id,
     int *const is_first_tg, uint32_t obu_header_size, uint8_t obu_extn_header) {
   // write current tile group size
-  const uint32_t obu_payload_size =
-      (uint32_t)(*curr_tg_data_size) - obu_header_size;
+  const size_t obu_payload_size = *curr_tg_data_size - obu_header_size;
   const size_t length_field_size =
       obu_memmove(obu_header_size, obu_payload_size, curr_tg_start);
   if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
                               curr_tg_start) != AOM_CODEC_OK) {
-    assert(0);
+    aom_internal_error(cpi->common.error, AOM_CODEC_ERROR,
+                       "av1_write_last_tile_info: output buffer full");
   }
-  *curr_tg_data_size += (int)length_field_size;
+  *curr_tg_data_size += length_field_size;
   *total_size += (uint32_t)length_field_size;
   *tile_data_start += length_field_size;
   if (cpi->num_tg == 1) {
@@ -3865,8 +3866,8 @@ void av1_write_last_tile_info(
         cpi->common.seq_params->has_nonzero_operating_point_idc,
         obu_extn_header, &curr_tg_start[fh_info->obu_header_byte_offset]);
 
-    *curr_tg_data_size += (int)(fh_info->total_length);
-    *total_size += (uint32_t)(fh_info->total_length);
+    *curr_tg_data_size += fh_info->total_length;
+    *total_size += (uint32_t)fh_info->total_length;
   }
   *is_first_tg = 0;
 }
@@ -4252,6 +4253,10 @@ int av1_pack_bitstream(AV1_COMP *const cpi, uint8_t *dst, size_t dst_size,
 
     fh_info.obu_header_byte_offset = 0;
     fh_info.total_length = obu_header_size + obu_payload_size + length_field;
+    // Make sure it is safe to cast fh_info.total_length to uint32_t.
+    if (fh_info.total_length > UINT32_MAX) {
+      return AOM_CODEC_ERROR;
+    }
     data += fh_info.total_length;
   }
 
