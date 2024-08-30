@@ -1580,6 +1580,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.dct_only_palette_nonrd = 1;
       sf->rt_sf.prune_palette_search_nonrd = 1;
       sf->rt_sf.prune_intra_mode_using_best_sad_so_far = true;
+      sf->rt_sf.rc_faster_convergence_static = 1;
     }
     if (speed >= 11) {
       sf->rt_sf.skip_lf_screen = 2;
@@ -2327,6 +2328,7 @@ static inline void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->higher_thresh_scene_detection = 1;
   rt_sf->skip_newmv_flat_blocks_screen = 0;
   rt_sf->skip_encoding_non_reference_slide_change = 0;
+  rt_sf->rc_faster_convergence_static = 0;
 }
 
 static fractional_mv_step_fp

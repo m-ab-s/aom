@@ -1922,6 +1922,10 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Flag to force skip encoding for non_reference_frame on slide/scene changes.
   int skip_encoding_non_reference_slide_change;
+
+  // Flag to indicate more aggressive QP downward adjustment for screen static
+  // content, to make convergence to min_qp faster.
+  int rc_faster_convergence_static;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

@@ -230,6 +230,8 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   const int last_target_size_keyframe = cpi->rc.last_target_size_keyframe;
   const int max_consec_drop = cpi->rc.max_consec_drop;
   const int postencode_drop = cpi->rc.postencode_drop;
+  const int static_since_last_scene_change =
+      cpi->rc.static_since_last_scene_change;
   // Restore layer rate control.
   cpi->rc = lc->rc;
   cpi->ppi->p_rc = lc->p_rc;
@@ -247,6 +249,7 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   cpi->rc.last_target_size_keyframe = last_target_size_keyframe;
   cpi->rc.max_consec_drop = max_consec_drop;
   cpi->rc.postencode_drop = postencode_drop;
+  cpi->rc.static_since_last_scene_change = static_since_last_scene_change;
   // For spatial-svc, allow cyclic-refresh to be applied on the spatial layers,
   // for the base temporal layer.
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
