@@ -3679,8 +3679,10 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
       LAYER_IDS_TO_IDX(svc->spatial_layer_id, svc->temporal_layer_id,
                        svc->number_temporal_layers);
   if (cpi->oxcf.rc_cfg.max_consec_drop_ms > 0) {
+    double framerate =
+        cpi->framerate > 1 ? round(cpi->framerate) : cpi->framerate;
     rc->max_consec_drop = saturate_cast_double_to_int(
-        ceil(cpi->oxcf.rc_cfg.max_consec_drop_ms * cpi->framerate / 1000));
+        ceil(cpi->oxcf.rc_cfg.max_consec_drop_ms * framerate / 1000));
   }
   if (cpi->ppi->use_svc) {
     av1_update_temporal_layer_framerate(cpi);
