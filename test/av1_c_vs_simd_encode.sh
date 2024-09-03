@@ -384,7 +384,7 @@ av1_enc_test() {
 
   for cpu in $(seq $min_cpu_used $max_cpu_used); do
     if [ "${preset}" = "good" ]; then
-      if [ "${arch}" = "x86_64" ]; then
+      if [ "${arch}" = "x86_64" -o "${arch}" = "arm64" ]; then
         if [ "${cpu}" -lt 2 ]; then
           local test_clips="${LOWBD_CIF_CLIP} ${HIGHBD_CLIP}"
         elif [ "${cpu}" -lt 5 ]; then
@@ -394,8 +394,9 @@ av1_enc_test() {
         fi
       elif [ "${arch}" = "x86" ]; then
         local test_clips="${LOWBD_CIF_CLIP} ${HIGHBD_CLIP}"
-      elif [ "${arch}" = "arm64" ]; then
-        local test_clips="${LOWBD_CIF_CLIP} ${HIGHBD_CLIP}"
+      else
+        elog "Unknown architecture: ${arch}"
+        return 1
       fi
     elif [ "${preset}" = "rt" ]; then
       if [ "${cpu}" -lt 8 ]; then
