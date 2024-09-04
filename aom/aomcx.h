@@ -1280,8 +1280,7 @@ enum aome_enc_control_id {
    */
   AV1E_SET_SVC_PARAMS = 132,
 
-  /*!\brief Codec control function to set reference frame config:
-   * the ref_idx and the refresh flags for each buffer slot.
+  /*!\brief Codec control function to set the reference frame config,
    * aom_svc_ref_frame_config_t* parameter
    */
   AV1E_SET_SVC_REF_FRAME_CONFIG = 133,
@@ -1721,12 +1720,20 @@ typedef struct aom_svc_params {
 
 /*!brief Parameters for setting ref frame config */
 typedef struct aom_svc_ref_frame_config {
-  // 7 references: The index 0 - 6 refers to the references:
+  // Three arrays need to be set: reference[], ref_id[], refresh[].
+  // reference[i]: is a boolean flag to indicate which of the 7 possible
+  // references are used for prediction. Values are 0 (not used as reference)
+  // or 1 (use as reference). The index 0 - 6 refers to the references:
   // last(0), last2(1), last3(2), golden(3), bwdref(4), altref2(5), altref(6).
+  // ref_idx[i]: maps a reference to one of the 8 buffers slots, values are
+  // 0 - 7.
+  // refresh[i] is a boolean flag to indicate if a buffer is updated/refreshed
+  // with the current encoded frame. Values are 0 (no refresh) or 1 (refresh).
+  // Examples for usage (for RTC encoding) are in: examples/svc_encoder_rtc.c.
   int reference[7]; /**< Reference flag for each of the 7 references. */
-  /*! Buffer slot index for each of 7 references indexed above. */
+  /*! Buffer slot index (0..7) for each of 7 references indexed above. */
   int ref_idx[7];
-  int refresh[8]; /**< Refresh flag for each of the 8 slots. */
+  int refresh[8]; /**< Refresh flag for each of the 8 buffer slots. */
 } aom_svc_ref_frame_config_t;
 
 /*!brief Parameters for setting ref frame compound prediction */
