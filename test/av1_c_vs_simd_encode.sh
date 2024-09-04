@@ -350,7 +350,7 @@ av1_enc_test() {
   local target="$3"
   local preset="$4"
   if [ -z "$(av1_enc_tool_path "${target}"  "${preset}")" ]; then
-    elog "aomenc_{preset} not found. It must exist in ${AOM_TEST_OUTPUT_DIR}/build_target_${target} path"
+    elog "aomenc_${preset} not found. It must exist in ${AOM_TEST_OUTPUT_DIR}/build_target_${target} path"
     return 1
   fi
 
