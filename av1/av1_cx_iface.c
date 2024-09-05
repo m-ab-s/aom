@@ -3541,9 +3541,13 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         // the delayed random access point flag.
         pkt.data.frame.flags |= AOM_FRAME_IS_DELAYED_RANDOM_ACCESS_POINT;
       }
-      pkt.data.frame.duration = (uint32_t)ticks_to_timebase_units(
+      const int64_t duration64 = ticks_to_timebase_units(
           cpi_data.timestamp_ratio,
           cpi_data.ts_frame_end - cpi_data.ts_frame_start);
+      if (duration64 > UINT32_MAX) {
+        aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
+      }
+      pkt.data.frame.duration = (uint32_t)duration64;
 
       aom_codec_pkt_list_add(&ctx->pkt_list.head, &pkt);
 
