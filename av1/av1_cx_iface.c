@@ -3884,11 +3884,18 @@ static aom_codec_err_t ctrl_set_svc_ref_frame_config(aom_codec_alg_priv_t *ctx,
       va_arg(args, aom_svc_ref_frame_config_t *);
   cpi->ppi->rtc_ref.set_ref_frame_config = 1;
   for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
+    if (data->reference[i] != 0 && data->reference[i] != 1)
+      return AOM_CODEC_INVALID_PARAM;
+    if (data->ref_idx[i] > 7 || data->ref_idx[i] < 0)
+      return AOM_CODEC_INVALID_PARAM;
     cpi->ppi->rtc_ref.reference[i] = data->reference[i];
     cpi->ppi->rtc_ref.ref_idx[i] = data->ref_idx[i];
   }
-  for (unsigned int i = 0; i < REF_FRAMES; ++i)
+  for (unsigned int i = 0; i < REF_FRAMES; ++i) {
+    if (data->refresh[i] != 0 && data->refresh[i] != 1)
+      return AOM_CODEC_INVALID_PARAM;
     cpi->ppi->rtc_ref.refresh[i] = data->refresh[i];
+  }
   cpi->svc.use_flexible_mode = 1;
   cpi->svc.ksvc_fixed_mode = 0;
   return AOM_CODEC_OK;
