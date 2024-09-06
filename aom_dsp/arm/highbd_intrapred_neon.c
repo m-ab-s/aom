@@ -200,7 +200,6 @@ static inline int highbd_dc_predictor_rect(int bw, int bh, int sum, int shift1,
     highbd_dc_store_##w##xh(dst, stride, (h), vdup##q##_n_u16(dc0));    \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_DC_PREDICTOR_RECT(4, 8, , 2, HIGHBD_DC_MULTIPLIER_1X2)
 HIGHBD_DC_PREDICTOR_RECT(4, 16, , 2, HIGHBD_DC_MULTIPLIER_1X4)
 HIGHBD_DC_PREDICTOR_RECT(8, 4, q, 2, HIGHBD_DC_MULTIPLIER_1X2)
@@ -215,16 +214,6 @@ HIGHBD_DC_PREDICTOR_RECT(32, 16, q, 4, HIGHBD_DC_MULTIPLIER_1X2)
 HIGHBD_DC_PREDICTOR_RECT(32, 64, q, 5, HIGHBD_DC_MULTIPLIER_1X2)
 HIGHBD_DC_PREDICTOR_RECT(64, 16, q, 4, HIGHBD_DC_MULTIPLIER_1X4)
 HIGHBD_DC_PREDICTOR_RECT(64, 32, q, 5, HIGHBD_DC_MULTIPLIER_1X2)
-#else
-HIGHBD_DC_PREDICTOR_RECT(4, 8, , 2, HIGHBD_DC_MULTIPLIER_1X2)
-HIGHBD_DC_PREDICTOR_RECT(8, 4, q, 2, HIGHBD_DC_MULTIPLIER_1X2)
-HIGHBD_DC_PREDICTOR_RECT(8, 16, q, 3, HIGHBD_DC_MULTIPLIER_1X2)
-HIGHBD_DC_PREDICTOR_RECT(16, 8, q, 3, HIGHBD_DC_MULTIPLIER_1X2)
-HIGHBD_DC_PREDICTOR_RECT(16, 32, q, 4, HIGHBD_DC_MULTIPLIER_1X2)
-HIGHBD_DC_PREDICTOR_RECT(32, 16, q, 4, HIGHBD_DC_MULTIPLIER_1X2)
-HIGHBD_DC_PREDICTOR_RECT(32, 64, q, 5, HIGHBD_DC_MULTIPLIER_1X2)
-HIGHBD_DC_PREDICTOR_RECT(64, 32, q, 5, HIGHBD_DC_MULTIPLIER_1X2)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_DC_PREDICTOR_RECT
 #undef HIGHBD_DC_MULTIPLIER_1X2
@@ -244,7 +233,6 @@ HIGHBD_DC_PREDICTOR_RECT(64, 32, q, 5, HIGHBD_DC_MULTIPLIER_1X2)
                             vdup##q##_n_u16(0x80 << (bd - 8))); \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_DC_PREDICTOR_128(4, 4, )
 HIGHBD_DC_PREDICTOR_128(4, 8, )
 HIGHBD_DC_PREDICTOR_128(4, 16, )
@@ -264,21 +252,6 @@ HIGHBD_DC_PREDICTOR_128(32, 64, q)
 HIGHBD_DC_PREDICTOR_128(64, 16, q)
 HIGHBD_DC_PREDICTOR_128(64, 32, q)
 HIGHBD_DC_PREDICTOR_128(64, 64, q)
-#else
-HIGHBD_DC_PREDICTOR_128(4, 4, )
-HIGHBD_DC_PREDICTOR_128(4, 8, )
-HIGHBD_DC_PREDICTOR_128(8, 4, q)
-HIGHBD_DC_PREDICTOR_128(8, 8, q)
-HIGHBD_DC_PREDICTOR_128(8, 16, q)
-HIGHBD_DC_PREDICTOR_128(16, 8, q)
-HIGHBD_DC_PREDICTOR_128(16, 16, q)
-HIGHBD_DC_PREDICTOR_128(16, 32, q)
-HIGHBD_DC_PREDICTOR_128(32, 16, q)
-HIGHBD_DC_PREDICTOR_128(32, 32, q)
-HIGHBD_DC_PREDICTOR_128(32, 64, q)
-HIGHBD_DC_PREDICTOR_128(64, 32, q)
-HIGHBD_DC_PREDICTOR_128(64, 64, q)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_DC_PREDICTOR_128
 
@@ -321,7 +294,6 @@ static inline uint32x4_t highbd_dc_load_sum_64(const uint16_t *left) {
     highbd_dc_store_##w##xh(dst, stride, (h), vdup##q##_lane_u16(dc0, 0)); \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 DC_PREDICTOR_LEFT(4, 4, 2, )
 DC_PREDICTOR_LEFT(4, 8, 3, )
 DC_PREDICTOR_LEFT(4, 16, 4, )
@@ -341,21 +313,6 @@ DC_PREDICTOR_LEFT(32, 64, 6, q)
 DC_PREDICTOR_LEFT(64, 16, 4, q)
 DC_PREDICTOR_LEFT(64, 32, 5, q)
 DC_PREDICTOR_LEFT(64, 64, 6, q)
-#else
-DC_PREDICTOR_LEFT(4, 4, 2, )
-DC_PREDICTOR_LEFT(4, 8, 3, )
-DC_PREDICTOR_LEFT(8, 4, 2, q)
-DC_PREDICTOR_LEFT(8, 8, 3, q)
-DC_PREDICTOR_LEFT(8, 16, 4, q)
-DC_PREDICTOR_LEFT(16, 8, 3, q)
-DC_PREDICTOR_LEFT(16, 16, 4, q)
-DC_PREDICTOR_LEFT(16, 32, 5, q)
-DC_PREDICTOR_LEFT(32, 16, 4, q)
-DC_PREDICTOR_LEFT(32, 32, 5, q)
-DC_PREDICTOR_LEFT(32, 64, 6, q)
-DC_PREDICTOR_LEFT(64, 32, 5, q)
-DC_PREDICTOR_LEFT(64, 64, 6, q)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef DC_PREDICTOR_LEFT
 
@@ -373,7 +330,6 @@ DC_PREDICTOR_LEFT(64, 64, 6, q)
     highbd_dc_store_##w##xh(dst, stride, (h), vdup##q##_lane_u16(dc0, 0)); \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 DC_PREDICTOR_TOP(4, 4, 2, )
 DC_PREDICTOR_TOP(4, 8, 2, )
 DC_PREDICTOR_TOP(4, 16, 2, )
@@ -393,21 +349,6 @@ DC_PREDICTOR_TOP(32, 64, 5, q)
 DC_PREDICTOR_TOP(64, 16, 6, q)
 DC_PREDICTOR_TOP(64, 32, 6, q)
 DC_PREDICTOR_TOP(64, 64, 6, q)
-#else
-DC_PREDICTOR_TOP(4, 4, 2, )
-DC_PREDICTOR_TOP(4, 8, 2, )
-DC_PREDICTOR_TOP(8, 4, 3, q)
-DC_PREDICTOR_TOP(8, 8, 3, q)
-DC_PREDICTOR_TOP(8, 16, 3, q)
-DC_PREDICTOR_TOP(16, 8, 4, q)
-DC_PREDICTOR_TOP(16, 16, 4, q)
-DC_PREDICTOR_TOP(16, 32, 4, q)
-DC_PREDICTOR_TOP(32, 16, 5, q)
-DC_PREDICTOR_TOP(32, 32, 5, q)
-DC_PREDICTOR_TOP(32, 64, 5, q)
-DC_PREDICTOR_TOP(64, 32, 6, q)
-DC_PREDICTOR_TOP(64, 64, 6, q)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef DC_PREDICTOR_TOP
 
@@ -518,7 +459,6 @@ static inline void vertical64xh_neon(uint16_t *dst, ptrdiff_t stride,
   } while (y != 0);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_V_NXM(4, 4)
 HIGHBD_V_NXM(4, 8)
 HIGHBD_V_NXM(4, 16)
@@ -542,25 +482,6 @@ HIGHBD_V_NXM(32, 64)
 HIGHBD_V_NXM(64, 16)
 HIGHBD_V_NXM(64, 32)
 HIGHBD_V_NXM(64, 64)
-#else
-HIGHBD_V_NXM(4, 4)
-HIGHBD_V_NXM(4, 8)
-
-HIGHBD_V_NXM(8, 4)
-HIGHBD_V_NXM(8, 8)
-HIGHBD_V_NXM(8, 16)
-
-HIGHBD_V_NXM(16, 8)
-HIGHBD_V_NXM(16, 16)
-HIGHBD_V_NXM(16, 32)
-
-HIGHBD_V_NXM(32, 16)
-HIGHBD_V_NXM(32, 32)
-HIGHBD_V_NXM(32, 64)
-
-HIGHBD_V_NXM(64, 32)
-HIGHBD_V_NXM(64, 64)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // -----------------------------------------------------------------------------
 // H_PRED
@@ -664,7 +585,6 @@ void aom_highbd_h_predictor_8x8_neon(uint16_t *dst, ptrdiff_t stride,
   highbd_h_store_8x4(dst + 4 * stride, stride, vget_high_u16(l));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_highbd_h_predictor_16x4_neon(uint16_t *dst, ptrdiff_t stride,
                                       const uint16_t *above,
                                       const uint16_t *left, int bd) {
@@ -672,7 +592,6 @@ void aom_highbd_h_predictor_16x4_neon(uint16_t *dst, ptrdiff_t stride,
   (void)bd;
   highbd_h_store_16x4(dst, stride, vld1_u16(left));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_highbd_h_predictor_16x8_neon(uint16_t *dst, ptrdiff_t stride,
                                       const uint16_t *above,
@@ -684,7 +603,6 @@ void aom_highbd_h_predictor_16x8_neon(uint16_t *dst, ptrdiff_t stride,
   highbd_h_store_16x4(dst + 4 * stride, stride, vget_high_u16(l));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_highbd_h_predictor_32x8_neon(uint16_t *dst, ptrdiff_t stride,
                                       const uint16_t *above,
                                       const uint16_t *left, int bd) {
@@ -694,7 +612,6 @@ void aom_highbd_h_predictor_32x8_neon(uint16_t *dst, ptrdiff_t stride,
   highbd_h_store_32x4(dst + 0 * stride, stride, vget_low_u16(l));
   highbd_h_store_32x4(dst + 4 * stride, stride, vget_high_u16(l));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // For cases where height >= 16 we use pairs of loads to get LDP instructions.
 #define HIGHBD_H_WXH_LARGE(w, h)                                            \
@@ -715,7 +632,6 @@ void aom_highbd_h_predictor_32x8_neon(uint16_t *dst, ptrdiff_t stride,
     }                                                                       \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_H_WXH_LARGE(4, 16)
 HIGHBD_H_WXH_LARGE(8, 16)
 HIGHBD_H_WXH_LARGE(8, 32)
@@ -728,16 +644,6 @@ HIGHBD_H_WXH_LARGE(32, 64)
 HIGHBD_H_WXH_LARGE(64, 16)
 HIGHBD_H_WXH_LARGE(64, 32)
 HIGHBD_H_WXH_LARGE(64, 64)
-#else
-HIGHBD_H_WXH_LARGE(8, 16)
-HIGHBD_H_WXH_LARGE(16, 16)
-HIGHBD_H_WXH_LARGE(16, 32)
-HIGHBD_H_WXH_LARGE(32, 16)
-HIGHBD_H_WXH_LARGE(32, 32)
-HIGHBD_H_WXH_LARGE(32, 64)
-HIGHBD_H_WXH_LARGE(64, 32)
-HIGHBD_H_WXH_LARGE(64, 64)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_H_WXH_LARGE
 
@@ -800,7 +706,6 @@ static inline void highbd_paeth_4or8_x_h_neon(uint16_t *dest, ptrdiff_t stride,
     highbd_paeth_4or8_x_h_neon(dst, stride, above, left, W, H); \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_PAETH_NXM(4, 4)
 HIGHBD_PAETH_NXM(4, 8)
 HIGHBD_PAETH_NXM(4, 16)
@@ -808,13 +713,6 @@ HIGHBD_PAETH_NXM(8, 4)
 HIGHBD_PAETH_NXM(8, 8)
 HIGHBD_PAETH_NXM(8, 16)
 HIGHBD_PAETH_NXM(8, 32)
-#else
-HIGHBD_PAETH_NXM(4, 4)
-HIGHBD_PAETH_NXM(4, 8)
-HIGHBD_PAETH_NXM(8, 4)
-HIGHBD_PAETH_NXM(8, 8)
-HIGHBD_PAETH_NXM(8, 16)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // Select the closest values and collect them.
 static inline uint16x8_t select_paeth(const uint16x8_t top,
@@ -900,7 +798,6 @@ static inline void highbd_paeth16_plus_x_h_neon(
     highbd_paeth16_plus_x_h_neon(dst, stride, above, left, W, H); \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_PAETH_NXM_WIDE(16, 4)
 HIGHBD_PAETH_NXM_WIDE(16, 8)
 HIGHBD_PAETH_NXM_WIDE(16, 16)
@@ -913,16 +810,6 @@ HIGHBD_PAETH_NXM_WIDE(32, 64)
 HIGHBD_PAETH_NXM_WIDE(64, 16)
 HIGHBD_PAETH_NXM_WIDE(64, 32)
 HIGHBD_PAETH_NXM_WIDE(64, 64)
-#else
-HIGHBD_PAETH_NXM_WIDE(16, 8)
-HIGHBD_PAETH_NXM_WIDE(16, 16)
-HIGHBD_PAETH_NXM_WIDE(16, 32)
-HIGHBD_PAETH_NXM_WIDE(32, 16)
-HIGHBD_PAETH_NXM_WIDE(32, 32)
-HIGHBD_PAETH_NXM_WIDE(32, 64)
-HIGHBD_PAETH_NXM_WIDE(64, 32)
-HIGHBD_PAETH_NXM_WIDE(64, 64)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // -----------------------------------------------------------------------------
 // SMOOTH
@@ -1029,7 +916,6 @@ static void highbd_smooth_8xh_neon(uint16_t *dst, ptrdiff_t stride,
     highbd_smooth_##W##xh_neon(dst, y_stride, above, left, H);  \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_SMOOTH_NXM(4, 4)
 HIGHBD_SMOOTH_NXM(4, 8)
 HIGHBD_SMOOTH_NXM(8, 4)
@@ -1037,13 +923,6 @@ HIGHBD_SMOOTH_NXM(8, 8)
 HIGHBD_SMOOTH_NXM(4, 16)
 HIGHBD_SMOOTH_NXM(8, 16)
 HIGHBD_SMOOTH_NXM(8, 32)
-#else
-HIGHBD_SMOOTH_NXM(4, 4)
-HIGHBD_SMOOTH_NXM(4, 8)
-HIGHBD_SMOOTH_NXM(8, 4)
-HIGHBD_SMOOTH_NXM(8, 8)
-HIGHBD_SMOOTH_NXM(8, 16)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_SMOOTH_NXM
 
@@ -1110,7 +989,6 @@ HIGHBD_SMOOTH_PREDICTOR(64)
     highbd_smooth_##W##xh_neon(dst, y_stride, above, left, H);  \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_SMOOTH_NXM_WIDE(16, 4)
 HIGHBD_SMOOTH_NXM_WIDE(16, 8)
 HIGHBD_SMOOTH_NXM_WIDE(16, 16)
@@ -1123,16 +1001,6 @@ HIGHBD_SMOOTH_NXM_WIDE(32, 64)
 HIGHBD_SMOOTH_NXM_WIDE(64, 16)
 HIGHBD_SMOOTH_NXM_WIDE(64, 32)
 HIGHBD_SMOOTH_NXM_WIDE(64, 64)
-#else
-HIGHBD_SMOOTH_NXM_WIDE(16, 8)
-HIGHBD_SMOOTH_NXM_WIDE(16, 16)
-HIGHBD_SMOOTH_NXM_WIDE(16, 32)
-HIGHBD_SMOOTH_NXM_WIDE(32, 16)
-HIGHBD_SMOOTH_NXM_WIDE(32, 32)
-HIGHBD_SMOOTH_NXM_WIDE(32, 64)
-HIGHBD_SMOOTH_NXM_WIDE(64, 32)
-HIGHBD_SMOOTH_NXM_WIDE(64, 64)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_SMOOTH_NXM_WIDE
 
@@ -1192,7 +1060,6 @@ static void highbd_smooth_v_8xh_neon(uint16_t *dst, const ptrdiff_t stride,
     highbd_smooth_v_##W##xh_neon(dst, y_stride, above, left, H); \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_SMOOTH_V_NXM(4, 4)
 HIGHBD_SMOOTH_V_NXM(4, 8)
 HIGHBD_SMOOTH_V_NXM(4, 16)
@@ -1200,13 +1067,6 @@ HIGHBD_SMOOTH_V_NXM(8, 4)
 HIGHBD_SMOOTH_V_NXM(8, 8)
 HIGHBD_SMOOTH_V_NXM(8, 16)
 HIGHBD_SMOOTH_V_NXM(8, 32)
-#else
-HIGHBD_SMOOTH_V_NXM(4, 4)
-HIGHBD_SMOOTH_V_NXM(4, 8)
-HIGHBD_SMOOTH_V_NXM(8, 4)
-HIGHBD_SMOOTH_V_NXM(8, 8)
-HIGHBD_SMOOTH_V_NXM(8, 16)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_SMOOTH_V_NXM
 
@@ -1261,7 +1121,6 @@ HIGHBD_SMOOTH_V_PREDICTOR(64)
     highbd_smooth_v_##W##xh_neon(dst, y_stride, above, left, H); \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_SMOOTH_V_NXM_WIDE(16, 4)
 HIGHBD_SMOOTH_V_NXM_WIDE(16, 8)
 HIGHBD_SMOOTH_V_NXM_WIDE(16, 16)
@@ -1274,16 +1133,6 @@ HIGHBD_SMOOTH_V_NXM_WIDE(32, 64)
 HIGHBD_SMOOTH_V_NXM_WIDE(64, 16)
 HIGHBD_SMOOTH_V_NXM_WIDE(64, 32)
 HIGHBD_SMOOTH_V_NXM_WIDE(64, 64)
-#else
-HIGHBD_SMOOTH_V_NXM_WIDE(16, 8)
-HIGHBD_SMOOTH_V_NXM_WIDE(16, 16)
-HIGHBD_SMOOTH_V_NXM_WIDE(16, 32)
-HIGHBD_SMOOTH_V_NXM_WIDE(32, 16)
-HIGHBD_SMOOTH_V_NXM_WIDE(32, 32)
-HIGHBD_SMOOTH_V_NXM_WIDE(32, 64)
-HIGHBD_SMOOTH_V_NXM_WIDE(64, 32)
-HIGHBD_SMOOTH_V_NXM_WIDE(64, 64)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_SMOOTH_V_NXM_WIDE
 
@@ -1341,7 +1190,6 @@ static inline void highbd_smooth_h_8xh_neon(uint16_t *dst, ptrdiff_t stride,
     highbd_smooth_h_##W##xh_neon(dst, y_stride, above, left, H); \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_SMOOTH_H_NXM(4, 4)
 HIGHBD_SMOOTH_H_NXM(4, 8)
 HIGHBD_SMOOTH_H_NXM(4, 16)
@@ -1349,13 +1197,6 @@ HIGHBD_SMOOTH_H_NXM(8, 4)
 HIGHBD_SMOOTH_H_NXM(8, 8)
 HIGHBD_SMOOTH_H_NXM(8, 16)
 HIGHBD_SMOOTH_H_NXM(8, 32)
-#else
-HIGHBD_SMOOTH_H_NXM(4, 4)
-HIGHBD_SMOOTH_H_NXM(4, 8)
-HIGHBD_SMOOTH_H_NXM(8, 4)
-HIGHBD_SMOOTH_H_NXM(8, 8)
-HIGHBD_SMOOTH_H_NXM(8, 16)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_SMOOTH_H_NXM
 
@@ -1413,7 +1254,6 @@ HIGHBD_SMOOTH_H_PREDICTOR(64)
     highbd_smooth_h_##W##xh_neon(dst, y_stride, above, left, H); \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_SMOOTH_H_NXM_WIDE(16, 4)
 HIGHBD_SMOOTH_H_NXM_WIDE(16, 8)
 HIGHBD_SMOOTH_H_NXM_WIDE(16, 16)
@@ -1426,16 +1266,6 @@ HIGHBD_SMOOTH_H_NXM_WIDE(32, 64)
 HIGHBD_SMOOTH_H_NXM_WIDE(64, 16)
 HIGHBD_SMOOTH_H_NXM_WIDE(64, 32)
 HIGHBD_SMOOTH_H_NXM_WIDE(64, 64)
-#else
-HIGHBD_SMOOTH_H_NXM_WIDE(16, 8)
-HIGHBD_SMOOTH_H_NXM_WIDE(16, 16)
-HIGHBD_SMOOTH_H_NXM_WIDE(16, 32)
-HIGHBD_SMOOTH_H_NXM_WIDE(32, 16)
-HIGHBD_SMOOTH_H_NXM_WIDE(32, 32)
-HIGHBD_SMOOTH_H_NXM_WIDE(32, 64)
-HIGHBD_SMOOTH_H_NXM_WIDE(64, 32)
-HIGHBD_SMOOTH_H_NXM_WIDE(64, 64)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_SMOOTH_H_NXM_WIDE
 
@@ -2068,7 +1898,6 @@ static AOM_FORCE_INLINE uint16x8_t highbd_dr_prediction_z2_step_x8(
     } while (++r < bh);                                                    \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 HIGHBD_DR_PREDICTOR_Z2_WXH(4, 16)
 HIGHBD_DR_PREDICTOR_Z2_WXH(8, 16)
 HIGHBD_DR_PREDICTOR_Z2_WXH(8, 32)
@@ -2084,16 +1913,6 @@ HIGHBD_DR_PREDICTOR_Z2_WXH(32, 64)
 HIGHBD_DR_PREDICTOR_Z2_WXH(64, 16)
 HIGHBD_DR_PREDICTOR_Z2_WXH(64, 32)
 HIGHBD_DR_PREDICTOR_Z2_WXH(64, 64)
-#else
-HIGHBD_DR_PREDICTOR_Z2_WXH(8, 16)
-HIGHBD_DR_PREDICTOR_Z2_WXH(16, 8)
-HIGHBD_DR_PREDICTOR_Z2_WXH(16, 16)
-HIGHBD_DR_PREDICTOR_Z2_WXH(16, 32)
-HIGHBD_DR_PREDICTOR_Z2_WXH(32, 32)
-HIGHBD_DR_PREDICTOR_Z2_WXH(32, 64)
-HIGHBD_DR_PREDICTOR_Z2_WXH(64, 32)
-HIGHBD_DR_PREDICTOR_Z2_WXH(64, 64)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef HIGHBD_DR_PREDICTOR_Z2_WXH
 
@@ -2621,7 +2440,6 @@ static void highbd_dr_prediction_z2_8x8_neon(uint16_t *dst, ptrdiff_t stride,
   }
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 static highbd_dr_prediction_z2_ptr dr_predictor_z2_arr_neon[7][7] = {
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
@@ -2640,24 +2458,6 @@ static highbd_dr_prediction_z2_ptr dr_predictor_z2_arr_neon[7][7] = {
   { NULL, NULL, NULL, NULL, &highbd_dr_prediction_z2_64x16_neon,
     &highbd_dr_prediction_z2_64x32_neon, &highbd_dr_prediction_z2_64x64_neon },
 };
-#else
-static highbd_dr_prediction_z2_ptr dr_predictor_z2_arr_neon[7][7] = {
-  { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
-  { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
-  { NULL, NULL, &highbd_dr_prediction_z2_4x4_neon,
-    &highbd_dr_prediction_z2_4x8_neon, NULL, NULL, NULL },
-  { NULL, NULL, &highbd_dr_prediction_z2_8x4_neon,
-    &highbd_dr_prediction_z2_8x8_neon, &highbd_dr_prediction_z2_8x16_neon, NULL,
-    NULL },
-  { NULL, NULL, NULL, &highbd_dr_prediction_z2_16x8_neon,
-    &highbd_dr_prediction_z2_16x16_neon, &highbd_dr_prediction_z2_16x32_neon,
-    NULL },
-  { NULL, NULL, NULL, NULL, NULL, &highbd_dr_prediction_z2_32x32_neon,
-    &highbd_dr_prediction_z2_32x64_neon },
-  { NULL, NULL, NULL, NULL, NULL, &highbd_dr_prediction_z2_64x32_neon,
-    &highbd_dr_prediction_z2_64x64_neon },
-};
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // Directional prediction, zone 2: 90 < angle < 180
 void av1_highbd_dr_prediction_z2_neon(uint16_t *dst, ptrdiff_t stride, int bw,

@@ -374,7 +374,6 @@ void aom_dc_predictor_8x4_neon(uint8_t *dst, ptrdiff_t stride,
   dc_store_8xh(dst, stride, 4, vdup_n_u8(dc));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_predictor_4x16_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   uint8x8_t a = load_u8_4x1(above);
@@ -394,7 +393,6 @@ void aom_dc_predictor_16x4_neon(uint8_t *dst, ptrdiff_t stride,
   uint32_t dc = calculate_dc_from_sum(16, 4, sum, 2, DC_MULTIPLIER_1X4);
   dc_store_16xh(dst, stride, 4, vdupq_n_u8(dc));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_predictor_8x16_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
@@ -416,7 +414,6 @@ void aom_dc_predictor_16x8_neon(uint8_t *dst, ptrdiff_t stride,
   dc_store_16xh(dst, stride, 8, vdupq_n_u8(dc));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_predictor_8x32_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   uint8x8_t a = vld1_u8(above);
@@ -436,7 +433,6 @@ void aom_dc_predictor_32x8_neon(uint8_t *dst, ptrdiff_t stride,
   uint32_t dc = calculate_dc_from_sum(32, 8, sum, 3, DC_MULTIPLIER_1X4);
   dc_store_32xh(dst, stride, 8, vdupq_n_u8(dc));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_predictor_16x32_neon(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
@@ -458,7 +454,6 @@ void aom_dc_predictor_32x16_neon(uint8_t *dst, ptrdiff_t stride,
   dc_store_32xh(dst, stride, 16, vdupq_n_u8(dc));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_predictor_16x64_neon(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
   uint16x8_t sum_above = dc_load_partial_sum_16(above);
@@ -478,7 +473,6 @@ void aom_dc_predictor_64x16_neon(uint8_t *dst, ptrdiff_t stride,
   uint32_t dc = calculate_dc_from_sum(64, 16, sum, 4, DC_MULTIPLIER_1X4);
   dc_store_64xh(dst, stride, 16, vdupq_n_u8(dc));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_predictor_32x64_neon(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
@@ -512,22 +506,20 @@ void aom_dc_predictor_64x32_neon(uint8_t *dst, ptrdiff_t stride,
     dc_store_##w##xh(dst, stride, (h), vdup##q##_n_u8(0x80));                \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
-DC_PREDICTOR_128(4, 16, )
-DC_PREDICTOR_128(8, 32, )
-DC_PREDICTOR_128(16, 4, q)
-DC_PREDICTOR_128(16, 64, q)
-DC_PREDICTOR_128(32, 8, q)
-DC_PREDICTOR_128(64, 16, q)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 DC_PREDICTOR_128(4, 8, )
+DC_PREDICTOR_128(4, 16, )
 DC_PREDICTOR_128(8, 4, )
 DC_PREDICTOR_128(8, 16, )
+DC_PREDICTOR_128(8, 32, )
+DC_PREDICTOR_128(16, 4, q)
 DC_PREDICTOR_128(16, 8, q)
 DC_PREDICTOR_128(16, 32, q)
+DC_PREDICTOR_128(16, 64, q)
+DC_PREDICTOR_128(32, 8, q)
 DC_PREDICTOR_128(32, 16, q)
 DC_PREDICTOR_128(32, 64, q)
 DC_PREDICTOR_128(64, 32, q)
+DC_PREDICTOR_128(64, 16, q)
 
 #undef DC_PREDICTOR_128
 
@@ -549,14 +541,12 @@ DC_PREDICTOR_LEFT(16, 32, 5, q)
 DC_PREDICTOR_LEFT(32, 16, 4, q)
 DC_PREDICTOR_LEFT(32, 64, 6, q)
 DC_PREDICTOR_LEFT(64, 32, 5, q)
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 DC_PREDICTOR_LEFT(4, 16, 4, )
 DC_PREDICTOR_LEFT(16, 4, 2, q)
 DC_PREDICTOR_LEFT(8, 32, 5, )
 DC_PREDICTOR_LEFT(32, 8, 3, q)
 DC_PREDICTOR_LEFT(16, 64, 6, q)
 DC_PREDICTOR_LEFT(64, 16, 4, q)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef DC_PREDICTOR_LEFT
 
@@ -570,21 +560,19 @@ DC_PREDICTOR_LEFT(64, 16, 4, q)
     dc_store_##w##xh(dst, stride, (h), vdup##q##_lane_u8(dc0, 0));           \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
-DC_PREDICTOR_TOP(8, 32, 3, )
-DC_PREDICTOR_TOP(4, 16, 2, )
-DC_PREDICTOR_TOP(16, 4, 4, q)
-DC_PREDICTOR_TOP(16, 64, 4, q)
-DC_PREDICTOR_TOP(32, 8, 5, q)
-DC_PREDICTOR_TOP(64, 16, 6, q)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 DC_PREDICTOR_TOP(4, 8, 2, )
+DC_PREDICTOR_TOP(4, 16, 2, )
 DC_PREDICTOR_TOP(8, 4, 3, )
 DC_PREDICTOR_TOP(8, 16, 3, )
+DC_PREDICTOR_TOP(8, 32, 3, )
+DC_PREDICTOR_TOP(16, 4, 4, q)
 DC_PREDICTOR_TOP(16, 8, 4, q)
 DC_PREDICTOR_TOP(16, 32, 4, q)
+DC_PREDICTOR_TOP(16, 64, 4, q)
+DC_PREDICTOR_TOP(32, 8, 5, q)
 DC_PREDICTOR_TOP(32, 16, 5, q)
 DC_PREDICTOR_TOP(32, 64, 5, q)
+DC_PREDICTOR_TOP(64, 16, 6, q)
 DC_PREDICTOR_TOP(64, 32, 6, q)
 
 #undef DC_PREDICTOR_TOP
@@ -665,13 +653,11 @@ void aom_v_predictor_4x8_neon(uint8_t *dst, ptrdiff_t stride,
   v_store_4xh(dst, stride, 8, load_u8_4x1(above));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_v_predictor_4x16_neon(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   (void)left;
   v_store_4xh(dst, stride, 16, load_u8_4x1(above));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_v_predictor_8x4_neon(uint8_t *dst, ptrdiff_t stride,
                               const uint8_t *above, const uint8_t *left) {
@@ -685,7 +671,6 @@ void aom_v_predictor_8x16_neon(uint8_t *dst, ptrdiff_t stride,
   v_store_8xh(dst, stride, 16, vld1_u8(above));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_v_predictor_8x32_neon(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   (void)left;
@@ -697,7 +682,6 @@ void aom_v_predictor_16x4_neon(uint8_t *dst, ptrdiff_t stride,
   (void)left;
   v_store_16xh(dst, stride, 4, vld1q_u8(above));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_v_predictor_16x8_neon(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
@@ -711,7 +695,6 @@ void aom_v_predictor_16x32_neon(uint8_t *dst, ptrdiff_t stride,
   v_store_16xh(dst, stride, 32, vld1q_u8(above));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_v_predictor_16x64_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   (void)left;
@@ -725,7 +708,6 @@ void aom_v_predictor_32x8_neon(uint8_t *dst, ptrdiff_t stride,
   (void)left;
   v_store_32xh(dst, stride, 8, d0, d1);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_v_predictor_32x16_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
@@ -743,7 +725,6 @@ void aom_v_predictor_32x64_neon(uint8_t *dst, ptrdiff_t stride,
   v_store_32xh(dst, stride, 64, d0, d1);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_v_predictor_64x16_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   const uint8x16_t d0 = vld1q_u8(above);
@@ -753,7 +734,6 @@ void aom_v_predictor_64x16_neon(uint8_t *dst, ptrdiff_t stride,
   (void)left;
   v_store_64xh(dst, stride, 16, d0, d1, d2, d3);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_v_predictor_64x32_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
@@ -921,7 +901,6 @@ void aom_h_predictor_4x8_neon(uint8_t *dst, ptrdiff_t stride,
   h_store_4x8(dst, stride, d0);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_4x16_neon(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   const uint8x16_t d0 = vld1q_u8(left);
@@ -929,7 +908,6 @@ void aom_h_predictor_4x16_neon(uint8_t *dst, ptrdiff_t stride,
   h_store_4x8(dst + 0 * stride, stride, vget_low_u8(d0));
   h_store_4x8(dst + 8 * stride, stride, vget_high_u8(d0));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_h_predictor_8x4_neon(uint8_t *dst, ptrdiff_t stride,
                               const uint8_t *above, const uint8_t *left) {
@@ -949,7 +927,6 @@ void aom_h_predictor_8x16_neon(uint8_t *dst, ptrdiff_t stride,
   h_store_8x8(dst + 8 * stride, stride, vget_high_u8(d0));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_8x32_neon(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   const uint8x16_t d0 = vld1q_u8(left);
@@ -970,7 +947,6 @@ void aom_h_predictor_16x4_neon(uint8_t *dst, ptrdiff_t stride,
   vst1q_u8(dst + 2 * stride, vdupq_lane_u8(d0, 2));
   vst1q_u8(dst + 3 * stride, vdupq_lane_u8(d0, 3));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_h_predictor_16x8_neon(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
@@ -990,7 +966,6 @@ void aom_h_predictor_16x32_neon(uint8_t *dst, ptrdiff_t stride,
   h_store_16x8(dst + 24 * stride, stride, vget_high_u8(d1));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_16x64_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   const uint8x16_t d0 = vld1q_u8(left);
@@ -1014,7 +989,6 @@ void aom_h_predictor_32x8_neon(uint8_t *dst, ptrdiff_t stride,
   (void)above;
   h_store_32x8(dst, stride, d0);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_h_predictor_32x16_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
@@ -1041,7 +1015,6 @@ void aom_h_predictor_32x64_neon(uint8_t *dst, ptrdiff_t stride,
   h_store_32x8(dst + 56 * stride, stride, vget_high_u8(d3));
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_64x16_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   const uint8x16_t d0 = vld1q_u8(left);
@@ -1049,7 +1022,6 @@ void aom_h_predictor_64x16_neon(uint8_t *dst, ptrdiff_t stride,
   h_store_64x8(dst + 0 * stride, stride, vget_low_u8(d0));
   h_store_64x8(dst + 8 * stride, stride, vget_high_u8(d0));
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_h_predictor_64x32_neon(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
@@ -2201,7 +2173,6 @@ static void dr_prediction_z3_16x8_neon(uint8_t *dst, ptrdiff_t stride,
   }
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 static void dr_prediction_z3_4x16_neon(uint8_t *dst, ptrdiff_t stride,
                                        const uint8_t *left, int upsample_left,
                                        int dy) {
@@ -2262,7 +2233,6 @@ static void dr_prediction_z3_32x8_neon(uint8_t *dst, ptrdiff_t stride,
     vst1q_u8(dst + i * stride + 16, d[i + 8]);
   }
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 static void dr_prediction_z3_16x16_neon(uint8_t *dst, ptrdiff_t stride,
                                         const uint8_t *left, int upsample_left,
@@ -2353,7 +2323,6 @@ static void dr_prediction_z3_64x32_neon(uint8_t *dst, ptrdiff_t stride,
   z3_transpose_arrays_u8_16nx16n(dstT, 32, dst, stride, 64, 32);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 static void dr_prediction_z3_16x64_neon(uint8_t *dst, ptrdiff_t stride,
                                         const uint8_t *left, int upsample_left,
                                         int dy) {
@@ -2378,28 +2347,11 @@ static void dr_prediction_z3_64x16_neon(uint8_t *dst, ptrdiff_t stride,
     }
   }
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 typedef void (*dr_prediction_z3_fn)(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *left, int upsample_left,
                                     int dy);
 
-#if CONFIG_REALTIME_ONLY && !CONFIG_AV1_DECODER
-static const dr_prediction_z3_fn dr_prediction_z3_arr[7][7] = {
-  { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
-  { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
-  { NULL, NULL, dr_prediction_z3_4x4_neon, dr_prediction_z3_4x8_neon, NULL,
-    NULL, NULL },
-  { NULL, NULL, dr_prediction_z3_8x4_neon, dr_prediction_z3_8x8_neon,
-    dr_prediction_z3_8x16_neon, NULL, NULL },
-  { NULL, NULL, NULL, dr_prediction_z3_16x8_neon, dr_prediction_z3_16x16_neon,
-    dr_prediction_z3_16x32_neon, NULL },
-  { NULL, NULL, NULL, NULL, dr_prediction_z3_32x16_neon,
-    dr_prediction_z3_32x32_neon, dr_prediction_z3_32x64_neon },
-  { NULL, NULL, NULL, NULL, NULL, dr_prediction_z3_64x32_neon,
-    dr_prediction_z3_64x64_neon },
-};
-#else
 static const dr_prediction_z3_fn dr_prediction_z3_arr[7][7] = {
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL },
@@ -2415,7 +2367,6 @@ static const dr_prediction_z3_fn dr_prediction_z3_arr[7][7] = {
   { NULL, NULL, NULL, NULL, dr_prediction_z3_64x16_neon,
     dr_prediction_z3_64x32_neon, dr_prediction_z3_64x64_neon },
 };
-#endif  // CONFIG_REALTIME_ONLY && !CONFIG_AV1_DECODER
 
 void av1_dr_prediction_z3_neon(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
                                const uint8_t *above, const uint8_t *left,
@@ -2532,11 +2483,9 @@ SMOOTH_NXM(4, 4)
 SMOOTH_NXM(4, 8)
 SMOOTH_NXM(8, 4)
 SMOOTH_NXM(8, 8)
-SMOOTH_NXM(8, 16)
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 SMOOTH_NXM(4, 16)
+SMOOTH_NXM(8, 16)
 SMOOTH_NXM(8, 32)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #undef SMOOTH_NXM
 
@@ -2655,18 +2604,16 @@ SMOOTH_PREDICTOR(64)
     smooth_##W##xh_neon(dst, y_stride, above, left, H);                        \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 SMOOTH_NXM_WIDE(16, 4)
-SMOOTH_NXM_WIDE(16, 64)
-SMOOTH_NXM_WIDE(32, 8)
-SMOOTH_NXM_WIDE(64, 16)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 SMOOTH_NXM_WIDE(16, 8)
 SMOOTH_NXM_WIDE(16, 16)
 SMOOTH_NXM_WIDE(16, 32)
+SMOOTH_NXM_WIDE(16, 64)
+SMOOTH_NXM_WIDE(32, 8)
 SMOOTH_NXM_WIDE(32, 16)
 SMOOTH_NXM_WIDE(32, 32)
 SMOOTH_NXM_WIDE(32, 64)
+SMOOTH_NXM_WIDE(64, 16)
 SMOOTH_NXM_WIDE(64, 32)
 SMOOTH_NXM_WIDE(64, 64)
 
@@ -2725,15 +2672,13 @@ SMOOTH_V_PREDICTOR(8)
     smooth_v_##W##xh_neon(dst, y_stride, above, left, H);     \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
-SMOOTH_V_NXM(4, 16)
-SMOOTH_V_NXM(8, 32)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 SMOOTH_V_NXM(4, 4)
 SMOOTH_V_NXM(4, 8)
+SMOOTH_V_NXM(4, 16)
 SMOOTH_V_NXM(8, 4)
 SMOOTH_V_NXM(8, 8)
 SMOOTH_V_NXM(8, 16)
+SMOOTH_V_NXM(8, 32)
 
 #undef SMOOTH_V_NXM
 
@@ -2816,18 +2761,16 @@ SMOOTH_V_PREDICTOR(64)
     smooth_v_##W##xh_neon(dst, y_stride, above, left, H);     \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 SMOOTH_V_NXM_WIDE(16, 4)
-SMOOTH_V_NXM_WIDE(32, 8)
-SMOOTH_V_NXM_WIDE(64, 16)
-SMOOTH_V_NXM_WIDE(16, 64)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 SMOOTH_V_NXM_WIDE(16, 8)
 SMOOTH_V_NXM_WIDE(16, 16)
 SMOOTH_V_NXM_WIDE(16, 32)
+SMOOTH_V_NXM_WIDE(16, 64)
+SMOOTH_V_NXM_WIDE(32, 8)
 SMOOTH_V_NXM_WIDE(32, 16)
 SMOOTH_V_NXM_WIDE(32, 32)
 SMOOTH_V_NXM_WIDE(32, 64)
+SMOOTH_V_NXM_WIDE(64, 16)
 SMOOTH_V_NXM_WIDE(64, 32)
 SMOOTH_V_NXM_WIDE(64, 64)
 
@@ -2879,15 +2822,13 @@ SMOOTH_H_PREDICTOR(8)
     smooth_h_##W##xh_neon(dst, y_stride, above, left, H);     \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
-SMOOTH_H_NXM(4, 16)
-SMOOTH_H_NXM(8, 32)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 SMOOTH_H_NXM(4, 4)
 SMOOTH_H_NXM(4, 8)
+SMOOTH_H_NXM(4, 16)
 SMOOTH_H_NXM(8, 4)
 SMOOTH_H_NXM(8, 8)
 SMOOTH_H_NXM(8, 16)
+SMOOTH_H_NXM(8, 32)
 
 #undef SMOOTH_H_NXM
 
@@ -2979,18 +2920,16 @@ SMOOTH_H_PREDICTOR(64)
     smooth_h_##W##xh_neon(dst, y_stride, above, left, H);     \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 SMOOTH_H_NXM_WIDE(16, 4)
-SMOOTH_H_NXM_WIDE(16, 64)
-SMOOTH_H_NXM_WIDE(32, 8)
-SMOOTH_H_NXM_WIDE(64, 16)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 SMOOTH_H_NXM_WIDE(16, 8)
 SMOOTH_H_NXM_WIDE(16, 16)
 SMOOTH_H_NXM_WIDE(16, 32)
+SMOOTH_H_NXM_WIDE(16, 64)
+SMOOTH_H_NXM_WIDE(32, 8)
 SMOOTH_H_NXM_WIDE(32, 16)
 SMOOTH_H_NXM_WIDE(32, 32)
 SMOOTH_H_NXM_WIDE(32, 64)
+SMOOTH_H_NXM_WIDE(64, 16)
 SMOOTH_H_NXM_WIDE(64, 32)
 SMOOTH_H_NXM_WIDE(64, 64)
 
@@ -3058,15 +2997,14 @@ static inline void paeth_4or8_x_h_neon(uint8_t *dest, ptrdiff_t stride,
     paeth_4or8_x_h_neon(dst, stride, above, left, W, H);                    \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
-PAETH_NXM(4, 16)
-PAETH_NXM(8, 32)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 PAETH_NXM(4, 4)
 PAETH_NXM(4, 8)
 PAETH_NXM(8, 4)
 PAETH_NXM(8, 8)
 PAETH_NXM(8, 16)
+
+PAETH_NXM(4, 16)
+PAETH_NXM(8, 32)
 
 // Calculate X distance <= TopLeft distance and pack the resulting mask into
 // uint8x8_t.
@@ -3200,12 +3138,6 @@ static inline void paeth16_plus_x_h_neon(uint8_t *dest, ptrdiff_t stride,
     paeth16_plus_x_h_neon(dst, stride, above, left, W, H);                  \
   }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
-PAETH_NXM_WIDE(16, 4)
-PAETH_NXM_WIDE(16, 64)
-PAETH_NXM_WIDE(32, 8)
-PAETH_NXM_WIDE(64, 16)
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 PAETH_NXM_WIDE(16, 8)
 PAETH_NXM_WIDE(16, 16)
 PAETH_NXM_WIDE(16, 32)
@@ -3214,3 +3146,8 @@ PAETH_NXM_WIDE(32, 32)
 PAETH_NXM_WIDE(32, 64)
 PAETH_NXM_WIDE(64, 32)
 PAETH_NXM_WIDE(64, 64)
+
+PAETH_NXM_WIDE(16, 4)
+PAETH_NXM_WIDE(16, 64)
+PAETH_NXM_WIDE(32, 8)
+PAETH_NXM_WIDE(64, 16)

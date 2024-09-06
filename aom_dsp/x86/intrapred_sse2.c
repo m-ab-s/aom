@@ -121,7 +121,6 @@ void aom_dc_predictor_4x8_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_4xh(pred, 8, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   const __m128i sum_left = dc_sum_16_sse2(left);
@@ -136,7 +135,6 @@ void aom_dc_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
   const uint32_t pred = (uint32_t)_mm_cvtsi128_si32(row);
   dc_store_4xh(pred, 16, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_predictor_8x4_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
@@ -165,7 +163,6 @@ void aom_dc_predictor_8x16_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_8xh(&row, 16, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_predictor_8x32_sse2(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   const __m128i sum_left = dc_sum_32_sse2(left);
@@ -191,7 +188,6 @@ void aom_dc_predictor_16x4_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_set1_epi8((int8_t)sum);
   dc_store_16xh(&row, 4, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_predictor_16x8_sse2(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
@@ -219,7 +215,6 @@ void aom_dc_predictor_16x32_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_16xh(&row, 32, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_predictor_16x64_sse2(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
   const __m128i sum_left = dc_sum_64(left);
@@ -245,7 +240,6 @@ void aom_dc_predictor_32x8_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_set1_epi8((int8_t)sum);
   dc_store_32xh(&row, 8, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_predictor_32x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
@@ -299,7 +293,6 @@ void aom_dc_predictor_64x32_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_64xh(&row, 32, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                  const uint8_t *above, const uint8_t *left) {
   __m128i sum_above = dc_sum_64(above);
@@ -312,7 +305,6 @@ void aom_dc_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_set1_epi8((int8_t)sum);
   dc_store_64xh(&row, 16, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // -----------------------------------------------------------------------------
 // DC_TOP
@@ -331,7 +323,6 @@ void aom_dc_top_predictor_4x8_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_4xh(pred, 8, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_top_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
   (void)left;
@@ -345,7 +336,6 @@ void aom_dc_top_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
   const uint32_t pred = (uint32_t)_mm_cvtsi128_si32(sum_above);
   dc_store_4xh(pred, 16, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_top_predictor_8x4_sse2(uint8_t *dst, ptrdiff_t stride,
                                    const uint8_t *above, const uint8_t *left) {
@@ -371,7 +361,6 @@ void aom_dc_top_predictor_8x16_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_8xh(&row, 16, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_top_predictor_8x32_sse2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
   (void)left;
@@ -396,7 +385,6 @@ void aom_dc_top_predictor_16x4_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_unpacklo_epi64(sum_above, sum_above);
   dc_store_16xh(&row, 4, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_top_predictor_16x8_sse2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
@@ -425,7 +413,6 @@ void aom_dc_top_predictor_16x32_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_16xh(&row, 32, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_top_predictor_16x64_sse2(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
@@ -452,7 +439,6 @@ void aom_dc_top_predictor_32x8_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_unpacklo_epi64(sum_above, sum_above);
   dc_store_32xh(&row, 8, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_top_predictor_32x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
@@ -510,7 +496,6 @@ void aom_dc_top_predictor_64x32_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_64xh(&row, 32, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_top_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
@@ -524,7 +509,6 @@ void aom_dc_top_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_unpacklo_epi64(sum_above, sum_above);
   dc_store_64xh(&row, 16, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // -----------------------------------------------------------------------------
 // DC_LEFT
@@ -543,7 +527,6 @@ void aom_dc_left_predictor_4x8_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_4xh(pred, 8, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_left_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
@@ -558,7 +541,6 @@ void aom_dc_left_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
   const uint32_t pred = (uint32_t)_mm_cvtsi128_si32(sum_left);
   dc_store_4xh(pred, 16, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_left_predictor_8x4_sse2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
@@ -585,7 +567,6 @@ void aom_dc_left_predictor_8x16_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_8xh(&row, 16, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_left_predictor_8x32_sse2(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
@@ -612,7 +593,6 @@ void aom_dc_left_predictor_16x4_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_unpacklo_epi64(sum_left, sum_left);
   dc_store_16xh(&row, 4, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_left_predictor_16x8_sse2(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
@@ -642,7 +622,6 @@ void aom_dc_left_predictor_16x32_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_16xh(&row, 32, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_left_predictor_16x64_sse2(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above,
                                       const uint8_t *left) {
@@ -670,7 +649,6 @@ void aom_dc_left_predictor_32x8_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_unpacklo_epi64(sum_left, sum_left);
   dc_store_32xh(&row, 8, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_left_predictor_32x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above,
@@ -728,7 +706,6 @@ void aom_dc_left_predictor_64x32_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_64xh(&row, 32, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_left_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above,
                                       const uint8_t *left) {
@@ -742,7 +719,6 @@ void aom_dc_left_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_unpacklo_epi64(sum_left, sum_left);
   dc_store_64xh(&row, 16, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // -----------------------------------------------------------------------------
 // DC_128
@@ -755,7 +731,6 @@ void aom_dc_128_predictor_4x8_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_4xh(pred, 8, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_128_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
   (void)above;
@@ -763,7 +738,6 @@ void aom_dc_128_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
   const uint32_t pred = 0x80808080;
   dc_store_4xh(pred, 16, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_128_predictor_8x4_sse2(uint8_t *dst, ptrdiff_t stride,
                                    const uint8_t *above, const uint8_t *left) {
@@ -781,7 +755,6 @@ void aom_dc_128_predictor_8x16_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_8xh(&row, 16, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_128_predictor_8x32_sse2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
   (void)above;
@@ -797,7 +770,6 @@ void aom_dc_128_predictor_16x4_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_set1_epi8((int8_t)128);
   dc_store_16xh(&row, 4, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_128_predictor_16x8_sse2(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, const uint8_t *left) {
@@ -816,7 +788,6 @@ void aom_dc_128_predictor_16x32_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_16xh(&row, 32, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_128_predictor_16x64_sse2(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
@@ -833,7 +804,6 @@ void aom_dc_128_predictor_32x8_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_set1_epi8((int8_t)128);
   dc_store_32xh(&row, 8, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_dc_128_predictor_32x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
@@ -871,7 +841,6 @@ void aom_dc_128_predictor_64x32_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_64xh(&row, 32, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_dc_128_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                      const uint8_t *above,
                                      const uint8_t *left) {
@@ -880,7 +849,6 @@ void aom_dc_128_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i row = _mm_set1_epi8((int8_t)128);
   dc_store_64xh(&row, 16, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // -----------------------------------------------------------------------------
 // V_PRED
@@ -892,14 +860,12 @@ void aom_v_predictor_4x8_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_4xh(pred, 8, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_v_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   const uint32_t pred = *(uint32_t *)above;
   (void)left;
   dc_store_4xh(pred, 16, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_v_predictor_8x4_sse2(uint8_t *dst, ptrdiff_t stride,
                               const uint8_t *above, const uint8_t *left) {
@@ -915,7 +881,6 @@ void aom_v_predictor_8x16_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_8xh(&row, 16, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_v_predictor_8x32_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   const __m128i row = _mm_loadl_epi64((__m128i const *)above);
@@ -929,7 +894,6 @@ void aom_v_predictor_16x4_sse2(uint8_t *dst, ptrdiff_t stride,
   (void)left;
   dc_store_16xh(&row, 4, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_v_predictor_16x8_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
@@ -945,14 +909,12 @@ void aom_v_predictor_16x32_sse2(uint8_t *dst, ptrdiff_t stride,
   dc_store_16xh(&row, 32, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_v_predictor_16x64_sse2(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   const __m128i row = _mm_load_si128((__m128i const *)above);
   (void)left;
   dc_store_16xh(&row, 64, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 static inline void v_predictor_32xh(uint8_t *dst, ptrdiff_t stride,
                                     const uint8_t *above, int height) {
@@ -965,13 +927,11 @@ static inline void v_predictor_32xh(uint8_t *dst, ptrdiff_t stride,
   }
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_v_predictor_32x8_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   (void)left;
   v_predictor_32xh(dst, stride, above, 8);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_v_predictor_32x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
@@ -1012,13 +972,11 @@ void aom_v_predictor_64x32_sse2(uint8_t *dst, ptrdiff_t stride,
   v_predictor_64xh(dst, stride, above, 32);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_v_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   (void)left;
   v_predictor_64xh(dst, stride, above, 16);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 // -----------------------------------------------------------------------------
 // H_PRED
@@ -1054,7 +1012,6 @@ void aom_h_predictor_4x8_sse2(uint8_t *dst, ptrdiff_t stride,
   *(int *)dst = _mm_cvtsi128_si32(row3);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   (void)above;
@@ -1115,7 +1072,6 @@ void aom_h_predictor_4x16_sse2(uint8_t *dst, ptrdiff_t stride,
   dst += stride;
   *(int *)dst = _mm_cvtsi128_si32(row3);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_h_predictor_8x4_sse2(uint8_t *dst, ptrdiff_t stride,
                               const uint8_t *above, const uint8_t *left) {
@@ -1206,12 +1162,10 @@ void aom_h_predictor_8x16_sse2(uint8_t *dst, ptrdiff_t stride,
   h_predictor_8x16xc(dst, stride, above, left, 1);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_8x32_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   h_predictor_8x16xc(dst, stride, above, left, 2);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 static inline void h_pred_store_16xh(const __m128i *row, int h, uint8_t *dst,
                                      ptrdiff_t stride) {
@@ -1264,7 +1218,6 @@ static inline void h_prediction_16x8_2(const __m128i *left, uint8_t *dst,
   h_pred_store_16xh(row, 4, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_16x4_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   (void)above;
@@ -1272,7 +1225,6 @@ void aom_h_predictor_16x4_sse2(uint8_t *dst, ptrdiff_t stride,
   const __m128i left_col_8p = _mm_unpacklo_epi8(left_col, left_col);
   h_prediction_16x8_1(&left_col_8p, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_h_predictor_16x8_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
@@ -1312,13 +1264,11 @@ void aom_h_predictor_16x32_sse2(uint8_t *dst, ptrdiff_t stride,
   h_predictor_16xh(dst, stride, left, 2);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_16x64_sse2(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   (void)above;
   h_predictor_16xh(dst, stride, left, 4);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 static inline void h_pred_store_32xh(const __m128i *row, int h, uint8_t *dst,
                                      ptrdiff_t stride) {
@@ -1348,7 +1298,6 @@ static inline void h_prediction_32x8_2(const __m128i *left, uint8_t *dst,
   h_pred_store_32xh(row, 4, dst, stride);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_32x8_sse2(uint8_t *dst, ptrdiff_t stride,
                                const uint8_t *above, const uint8_t *left) {
   __m128i left_col, left_col_8p;
@@ -1361,7 +1310,6 @@ void aom_h_predictor_32x8_sse2(uint8_t *dst, ptrdiff_t stride,
   dst += stride << 2;
   h_prediction_32x8_2(&left_col_8p, dst, stride);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 void aom_h_predictor_32x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
@@ -1456,10 +1404,8 @@ void aom_h_predictor_64x32_sse2(uint8_t *dst, ptrdiff_t stride,
   h_predictor_64xh(dst, stride, left, 32);
 }
 
-#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 void aom_h_predictor_64x16_sse2(uint8_t *dst, ptrdiff_t stride,
                                 const uint8_t *above, const uint8_t *left) {
   (void)above;
   h_predictor_64xh(dst, stride, left, 16);
 }
-#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
