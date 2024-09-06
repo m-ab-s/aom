@@ -3458,21 +3458,32 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
             aom_uleb_size_in_bytes(obu_payload_size);
 
         const size_t move_offset = obu_header_size + length_field_size;
+        if (cpi_data.frame_size > ctx->cx_data_sz) {
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
+                             "ctx->cx_data buffer overflow");
+        }
+        if (move_offset > ctx->cx_data_sz - cpi_data.frame_size) {
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
+                             "ctx->cx_data buffer full");
+        }
         memmove(ctx->cx_data + move_offset, ctx->cx_data, cpi_data.frame_size);
         obu_header_size = av1_write_obu_header(
             &ppi->level_params, &cpi->frame_header_count,
             OBU_TEMPORAL_DELIMITER,
             ppi->seq_params.has_nonzero_operating_point_idc, 0, ctx->cx_data);
+        if (obu_header_size != 1) {
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
+        }
 
         // OBUs are preceded/succeeded by an unsigned leb128 coded integer.
-        if (av1_write_uleb_obu_size(obu_header_size, obu_payload_size,
-                                    ctx->cx_data,
-                                    ctx->cx_data_sz) != AOM_CODEC_OK) {
+        if (av1_write_uleb_obu_size(obu_payload_size,
+                                    ctx->cx_data + obu_header_size,
+                                    length_field_size) != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
 
         cpi_data.frame_size +=
-            obu_header_size + obu_payload_size + length_field_size;
+            obu_header_size + length_field_size + obu_payload_size;
       }
 
       if (ctx->oxcf.save_as_annexb) {
@@ -3486,11 +3497,18 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         // B_PRIME (add frame size)
         const size_t length_field_size =
             aom_uleb_size_in_bytes(cpi_data.frame_size);
+        if (cpi_data.frame_size > cpi_data.cx_data_sz) {
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
+                             "cpi_data.cx_data buffer overflow");
+        }
+        if (length_field_size > cpi_data.cx_data_sz - cpi_data.frame_size) {
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
+                             "cpi_data.cx_data buffer full");
+        }
         memmove(cpi_data.cx_data + length_field_size, cpi_data.cx_data,
                 cpi_data.frame_size);
-        if (av1_write_uleb_obu_size(0, (uint32_t)cpi_data.frame_size,
-                                    cpi_data.cx_data,
-                                    cpi_data.cx_data_sz) != AOM_CODEC_OK) {
+        if (av1_write_uleb_obu_size(cpi_data.frame_size, cpi_data.cx_data,
+                                    length_field_size) != AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
         cpi_data.frame_size += length_field_size;
@@ -3517,9 +3535,17 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         //  B_PRIME (add TU size)
         size_t tu_size = ctx->pending_cx_data_sz;
         const size_t length_field_size = aom_uleb_size_in_bytes(tu_size);
+        if (tu_size > ctx->cx_data_sz) {
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
+                             "ctx->cx_data buffer overflow");
+        }
+        if (length_field_size > ctx->cx_data_sz - tu_size) {
+          aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
+                             "ctx->cx_data buffer full");
+        }
         memmove(ctx->cx_data + length_field_size, ctx->cx_data, tu_size);
-        if (av1_write_uleb_obu_size(0, (uint32_t)tu_size, ctx->cx_data,
-                                    ctx->cx_data_sz) != AOM_CODEC_OK) {
+        if (av1_write_uleb_obu_size(tu_size, ctx->cx_data, length_field_size) !=
+            AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
         ctx->pending_cx_data_sz += length_field_size;
