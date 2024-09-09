@@ -250,6 +250,7 @@ TEST_P(ResizeTest, TestExternalResizeWorks) {
       AOMMAX(kInitialWidth, kInitialHeight);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
+#if CONFIG_AV1_DECODER
   // Check we decoded the same number of frames as we attempted to encode
   ASSERT_EQ(frame_info_list_.size(), video.limit());
 
@@ -265,6 +266,7 @@ TEST_P(ResizeTest, TestExternalResizeWorks) {
     EXPECT_EQ(expected_h, info->h)
         << "Frame " << frame << " had unexpected height";
   }
+#endif
 }
 
 #if !CONFIG_REALTIME_ONLY
@@ -997,9 +999,11 @@ TEST_P(ResizeCspTest, TestResizeCspWorks) {
     cfg_.g_profile = (img_format == AOM_IMG_FMT_I420) ? 0 : 1;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 
+#if CONFIG_AV1_DECODER
     // Check we decoded the same number of frames as we attempted to encode
     ASSERT_EQ(frame_info_list_.size(), video.limit());
     frame_info_list_.clear();
+#endif
   }
 }
 
