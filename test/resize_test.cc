@@ -527,6 +527,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode1) {
   change_bitrate_ = false;
   mismatch_nframes_ = 0;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+#if CONFIG_AV1_DECODER
   // Check we decoded the same number of frames as we attempted to encode
   ASSERT_EQ(frame_info_list_.size(), video.limit());
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
@@ -547,6 +548,9 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode1) {
         << "Frame " << frame << " had unexpected height";
     EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
   }
+#else
+  printf("Warning: AV1 decoder unavailable, unable to check resize count!\n");
+#endif
 }
 
 // Check the AOME_SET_SCALEMODE control by downsizing to
@@ -563,6 +567,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode1QVGA) {
   change_bitrate_ = false;
   mismatch_nframes_ = 0;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+#if CONFIG_AV1_DECODER
   // Check we decoded the same number of frames as we attempted to encode
   ASSERT_EQ(frame_info_list_.size(), video.limit());
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
@@ -583,6 +588,9 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode1QVGA) {
         << "Frame " << frame << " had unexpected height";
     EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
   }
+#else
+  printf("Warning: AV1 decoder unavailable, unable to check resize count!\n");
+#endif
 }
 
 // Check the AOME_SET_SCALEMODE control by downsizing to
@@ -598,6 +606,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode2) {
   change_bitrate_ = false;
   mismatch_nframes_ = 0;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+#if CONFIG_AV1_DECODER
   // Check we decoded the same number of frames as we attempted to encode
   ASSERT_EQ(frame_info_list_.size(), video.limit());
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
@@ -618,6 +627,9 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode2) {
         << "Frame " << frame << " had unexpected height";
     EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
   }
+#else
+  printf("Warning: AV1 decoder unavailable, unable to check resize count!\n");
+#endif
 }
 
 // Check the AOME_SET_SCALEMODE control by downsizing to
@@ -633,6 +645,7 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode3) {
   change_bitrate_ = false;
   mismatch_nframes_ = 0;
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+#if CONFIG_AV1_DECODER
   // Check we decoded the same number of frames as we attempted to encode
   ASSERT_EQ(frame_info_list_.size(), video.limit());
   for (std::vector<FrameInfo>::const_iterator info = frame_info_list_.begin();
@@ -650,6 +663,9 @@ TEST_P(ResizeRealtimeTest, TestInternalResizeSetScaleMode3) {
         << "Frame " << frame << " had unexpected height";
     EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
   }
+#else
+  printf("Warning: AV1 decoder unavailable, unable to check resize count!\n");
+#endif
 }
 
 TEST_P(ResizeRealtimeTest, TestExternalResizeWorks) {
@@ -669,7 +685,7 @@ TEST_P(ResizeRealtimeTest, TestExternalResizeWorks) {
     video.change_start_resln_ = static_cast<bool>(i);
 
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-
+#if CONFIG_AV1_DECODER
     // Check we decoded the same number of frames as we attempted to encode
     ASSERT_EQ(frame_info_list_.size(), video.limit());
     for (const auto &info : frame_info_list_) {
@@ -685,6 +701,9 @@ TEST_P(ResizeRealtimeTest, TestExternalResizeWorks) {
           << "Frame " << frame << " had unexpected height";
       EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
     }
+#else
+    printf("Warning: AV1 decoder unavailable, unable to check resize count!\n");
+#endif
     frame_info_list_.clear();
   }
 }
@@ -708,7 +727,7 @@ TEST_P(ResizeRealtimeTest, TestExternalResizeWorksUsePSNR) {
     video.change_start_resln_ = static_cast<bool>(i);
 
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-
+#if CONFIG_AV1_DECODER
     // Check we decoded the same number of frames as we attempted to encode
     ASSERT_EQ(frame_info_list_.size(), video.limit());
     for (const auto &info : frame_info_list_) {
@@ -724,6 +743,9 @@ TEST_P(ResizeRealtimeTest, TestExternalResizeWorksUsePSNR) {
           << "Frame " << frame << " had unexpected height";
       EXPECT_EQ(static_cast<unsigned int>(0), GetMismatchFrames());
     }
+#else
+    printf("Warning: AV1 decoder unavailable, unable to check resize count!\n");
+#endif
     frame_info_list_.clear();
   }
 }
