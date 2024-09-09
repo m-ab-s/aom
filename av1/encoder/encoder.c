@@ -4687,7 +4687,7 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
   }
 #endif
 
-  if (ppi->rtc_ref.set_ref_frame_config) {
+  if (ppi->rtc_ref.set_ref_frame_config && !cpi->is_dropped_frame) {
     av1_svc_update_buffer_slot_refreshed(cpi);
     av1_svc_set_reference_was_previous(cpi);
   }

@@ -328,12 +328,14 @@ void av1_save_layer_context(AV1_COMP *const cpi) {
     lc->actual_num_seg2_blocks = cr->actual_num_seg2_blocks;
     lc->counter_encode_maxq_scene_change = cr->counter_encode_maxq_scene_change;
   }
-  av1_svc_update_buffer_slot_refreshed(cpi);
-  for (unsigned int i = 0; i < REF_FRAMES; i++) {
-    if (frame_is_intra_only(cm) ||
-        cm->current_frame.refresh_frame_flags & (1 << i)) {
-      svc->spatial_layer_fb[i] = svc->spatial_layer_id;
-      svc->temporal_layer_fb[i] = svc->temporal_layer_id;
+  if (!cpi->is_dropped_frame) {
+    av1_svc_update_buffer_slot_refreshed(cpi);
+    for (unsigned int i = 0; i < REF_FRAMES; i++) {
+      if (frame_is_intra_only(cm) ||
+          cm->current_frame.refresh_frame_flags & (1 << i)) {
+        svc->spatial_layer_fb[i] = svc->spatial_layer_id;
+        svc->temporal_layer_fb[i] = svc->temporal_layer_id;
+      }
     }
   }
   if (svc->spatial_layer_id == svc->number_spatial_layers - 1) {
@@ -357,7 +359,8 @@ int av1_svc_primary_ref_frame(const AV1_COMP *const cpi) {
     // when set of enhancement layers are dropped (continued decoding starting
     // at next base TL0), so error_resilience can be off/0 for all layers.
     fb_idx = get_ref_frame_map_idx(cm, LAST_FRAME);
-    if (svc->spatial_layer_fb[fb_idx] == svc->spatial_layer_id &&
+    if (cpi->ppi->rtc_ref.reference[0] == 1 &&
+        svc->spatial_layer_fb[fb_idx] == svc->spatial_layer_id &&
         (svc->temporal_layer_fb[fb_idx] < svc->temporal_layer_id ||
          svc->temporal_layer_fb[fb_idx] == 0)) {
       primary_ref_frame = 0;  // LAST_FRAME: ref_frame - LAST_FRAME
