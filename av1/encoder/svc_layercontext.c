@@ -479,8 +479,10 @@ void av1_set_svc_fixed_mode(AV1_COMP *const cpi) {
   // Set the reference map buffer idx for the 7 references:
   // LAST_FRAME (0), LAST2_FRAME(1), LAST3_FRAME(2), GOLDEN_FRAME(3),
   // BWDREF_FRAME(4), ALTREF2_FRAME(5), ALTREF_FRAME(6).
-  for (i = 0; i < INTER_REFS_PER_FRAME; i++) rtc_ref->ref_idx[i] = i;
-  for (i = 0; i < INTER_REFS_PER_FRAME; i++) rtc_ref->reference[i] = 0;
+  for (i = 0; i < INTER_REFS_PER_FRAME; i++) {
+    rtc_ref->reference[i] = 0;
+    rtc_ref->ref_idx[i] = i;
+  }
   for (i = 0; i < REF_FRAMES; i++) rtc_ref->refresh[i] = 0;
   // Always reference LAST, and reference GOLDEN on SL > 0.
   // For KSVC: GOLDEN reference will be removed on INTER_FRAMES later
