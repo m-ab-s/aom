@@ -296,7 +296,7 @@ void av1_svc_update_buffer_slot_refreshed(AV1_COMP *const cpi) {
   } else if (rtc_ref->set_ref_frame_config) {
     for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
       const int ref_frame_map_idx = rtc_ref->ref_idx[i];
-      if (cpi->ppi->rtc_ref.refresh[ref_frame_map_idx]) {
+      if (rtc_ref->refresh[ref_frame_map_idx]) {
         rtc_ref->buffer_time_index[ref_frame_map_idx] = current_frame;
         rtc_ref->buffer_spatial_layer[ref_frame_map_idx] =
             svc->spatial_layer_id;
@@ -684,7 +684,7 @@ int av1_svc_get_min_ref_dist(const AV1_COMP *cpi) {
       cpi->ppi->use_svc ? cpi->svc.current_superframe
                         : cpi->common.current_frame.frame_number;
   for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-    if (cpi->ppi->rtc_ref.reference[i]) {
+    if (rtc_ref->reference[i]) {
       const int ref_frame_map_idx = rtc_ref->ref_idx[i];
       const int dist =
           current_frame_num - rtc_ref->buffer_time_index[ref_frame_map_idx];
