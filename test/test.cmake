@@ -156,6 +156,13 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/simd_cmp_impl.inc"
               "${AOM_ROOT}/test/simd_impl.h")
 
+  if(CONFIG_REALTIME_ONLY AND NOT CONFIG_AV1_DECODER)
+    list(REMOVE_ITEM AOM_UNIT_TEST_COMMON_SOURCES
+                     "${AOM_ROOT}/test/hiprec_convolve_test.cc"
+                     "${AOM_ROOT}/test/hiprec_convolve_test_util.cc"
+                     "${AOM_ROOT}/test/hiprec_convolve_test_util.h")
+  endif()
+
   if(HAVE_SSE2)
     list(APPEND AOM_UNIT_TEST_COMMON_INTRIN_SSE2
                 "${AOM_ROOT}/test/simd_cmp_sse2.cc")

@@ -1314,6 +1314,7 @@ void av1_highbd_convolve_2d_facade(const uint8_t *src8, int src_stride,
 // --((128 - 1) * 32 + 15) >> 4 + 8 = 263.
 #define WIENER_MAX_EXT_SIZE 263
 
+#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 static inline int horz_scalar_product(const uint8_t *a, const int16_t *b) {
   int sum = 0;
   for (int k = 0; k < SUBPEL_TAPS; ++k) sum += a[k] * b[k];
@@ -1427,8 +1428,10 @@ void av1_wiener_convolve_add_src_c(const uint8_t *src, ptrdiff_t src_stride,
                             MAX_SB_SIZE, dst, dst_stride, filters_y, y0_q4,
                             y_step_q4, w, h, conv_params->round_1);
 }
+#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #if CONFIG_AV1_HIGHBITDEPTH
+#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 static void highbd_convolve_add_src_horiz_hip(
     const uint8_t *src8, ptrdiff_t src_stride, uint16_t *dst,
     ptrdiff_t dst_stride, const InterpKernel *x_filters, int x0_q4,
@@ -1507,4 +1510,5 @@ void av1_highbd_wiener_convolve_add_src_c(
       temp + MAX_SB_SIZE * (SUBPEL_TAPS / 2 - 1), MAX_SB_SIZE, dst, dst_stride,
       filters_y, y0_q4, y_step_q4, w, h, conv_params->round_1, bd);
 }
+#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 #endif  // CONFIG_AV1_HIGHBITDEPTH
