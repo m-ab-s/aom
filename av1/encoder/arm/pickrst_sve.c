@@ -397,6 +397,13 @@ void av1_compute_stats_sve(int wiener_win, const uint8_t *dgd,
                            int use_downsampled_wiener_stats) {
   assert(wiener_win == WIENER_WIN || wiener_win == WIENER_WIN_CHROMA);
 
+  if (!use_downsampled_wiener_stats) {
+    av1_compute_stats_neon(wiener_win, dgd, src, dgd_avg, src_avg, h_start,
+                           h_end, v_start, v_end, dgd_stride, src_stride, M, H,
+                           use_downsampled_wiener_stats);
+    return;
+  }
+
   const int wiener_win2 = wiener_win * wiener_win;
   const int wiener_halfwin = wiener_win >> 1;
   const int32_t width = h_end - h_start;

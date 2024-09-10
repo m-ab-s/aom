@@ -2083,11 +2083,11 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   // The buffers allocated below are used during Wiener filter processing.
   // Hence, allocate the same when Wiener filter is enabled. Make sure to
   // allocate these buffers only for the SIMD extensions that make use of them
-  // (i.e. AVX2 and SVE for low bitdepth and NEON for high bitdepth).
+  // (i.e. AVX2 and SVE for low bitdepth and NEON for low and high bitdepth).
 #if HAVE_AVX2 || HAVE_SVE
   bool allocate_buffers = !cpi->sf.lpf_sf.disable_wiener_filter && !highbd;
 #elif HAVE_NEON
-  bool allocate_buffers = !cpi->sf.lpf_sf.disable_wiener_filter && highbd;
+  bool allocate_buffers = !cpi->sf.lpf_sf.disable_wiener_filter;
 #endif
   if (allocate_buffers) {
     const int buf_size = sizeof(*cpi->pick_lr_ctxt.dgd_avg) * 6 *
@@ -2229,7 +2229,7 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
 #if HAVE_AVX2 || HAVE_SVE
   bool free_buffers = !cpi->sf.lpf_sf.disable_wiener_filter && !highbd;
 #elif HAVE_NEON
-  bool free_buffers = !cpi->sf.lpf_sf.disable_wiener_filter && highbd;
+  bool free_buffers = !cpi->sf.lpf_sf.disable_wiener_filter;
 #endif
   if (free_buffers) {
     aom_free(cpi->pick_lr_ctxt.dgd_avg);
