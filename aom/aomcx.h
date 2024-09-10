@@ -1726,9 +1726,14 @@ typedef struct aom_svc_ref_frame_config {
   // or 1 (use as reference). The index 0 - 6 refers to the references:
   // last(0), last2(1), last3(2), golden(3), bwdref(4), altref2(5), altref(6).
   // ref_idx[i]: maps a reference to one of the 8 buffers slots, values are
-  // 0 - 7.
+  // 0 - 7. The ref_idx for a unused reference (reference[i] = 1, and not used
+  // for refresh, see below) can be set to the ref_idx of the first reference
+  // used (usually LAST).
   // refresh[i] is a boolean flag to indicate if a buffer is updated/refreshed
   // with the current encoded frame. Values are 0 (no refresh) or 1 (refresh).
+  // The refresh is done internally by looking at the ref_idx[j], for j = 0 - 6,
+  // so to refresh a buffer slot (i) a reference must be mapped to that slot
+  // (i = ref_idx[j]).
   // Examples for usage (for RTC encoding) are in: examples/svc_encoder_rtc.c.
   int reference[7]; /**< Reference flag for each of the 7 references. */
   /*! Buffer slot index (0..7) for each of 7 references indexed above. */
