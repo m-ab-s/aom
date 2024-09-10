@@ -1850,6 +1850,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
   const int angle_delta = mbmi->angle_delta[plane != AOM_PLANE_Y] * ANGLE_STEP;
   const SequenceHeader *seq_params = cm->seq_params;
 
+#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
   if (plane != AOM_PLANE_Y && mbmi->uv_mode == UV_CFL_PRED) {
 #if CONFIG_DEBUG
     assert(is_cfl_allowed(xd));
@@ -1882,6 +1883,7 @@ void av1_predict_intra_block_facade(const AV1_COMMON *cm, MACROBLOCKD *xd,
     av1_cfl_predict_block(xd, dst, dst_stride, tx_size, plane);
     return;
   }
+#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
   av1_predict_intra_block(
       xd, seq_params->sb_size, seq_params->enable_intra_edge_filter, pd->width,
       pd->height, tx_size, mode, angle_delta, use_palette, filter_intra_mode,

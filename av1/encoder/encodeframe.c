@@ -1461,8 +1461,10 @@ void av1_encode_tile(AV1_COMP *cpi, ThreadData *td, int tile_row,
   av1_init_above_context(&cm->above_contexts, av1_num_planes(cm), tile_row,
                          &td->mb.e_mbd);
 
+#if !CONFIG_REALTIME_ONLY
   if (cpi->oxcf.intra_mode_cfg.enable_cfl_intra)
     cfl_init(&td->mb.e_mbd.cfl, cm->seq_params);
+#endif
 
   if (td->mb.txfm_search_info.mb_rd_record != NULL) {
     av1_crc32c_calculator_init(
