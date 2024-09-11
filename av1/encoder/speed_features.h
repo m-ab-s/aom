@@ -1651,6 +1651,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // For keyframes in rtc: adjust the rc_bits_per_mb, to reduce overshoot.
   int rc_adjust_keyframe;
 
+  // On scene change: compute spatial variance.
+  int rc_compute_spatial_var_sc;
+
   // For nonrd mode: Prefer larger partition blks in variance based partitioning
   // 0: disabled, 1-3: increasing aggressiveness
   int prefer_large_partition_blocks;

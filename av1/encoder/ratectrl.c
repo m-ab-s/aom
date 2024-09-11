@@ -188,24 +188,24 @@ static int adjust_rtc_keyframe(const RATE_CONTROL *rc, int enumerator) {
   if (rc->last_encoded_size_keyframe == 0 ||
       rc->frames_since_scene_change < rc->frames_since_key) {
     // Very first frame, or if scene change happened after last keyframe.
-    if (rc->spatial_variance_keyframe > 1000 ||
-        (rc->spatial_variance_keyframe > 500 &&
+    if (rc->frame_spatial_variance > 1000 ||
+        (rc->frame_spatial_variance > 500 &&
          rc->perc_flat_blocks_keyframe == 0))
       return enumerator << 3;
-    else if (rc->spatial_variance_keyframe > 500 &&
+    else if (rc->frame_spatial_variance > 500 &&
              rc->perc_flat_blocks_keyframe < 10)
       return enumerator << 2;
-    else if (rc->spatial_variance_keyframe > 400)
+    else if (rc->frame_spatial_variance > 400)
       return enumerator << 1;
   } else if (rc->frames_since_scene_change >= rc->frames_since_key) {
     // There was no scene change before previous encoded keyframe, so
     // use the last_encoded/target_size_keyframe.
     if (rc->last_encoded_size_keyframe > 4 * rc->last_target_size_keyframe &&
-        rc->spatial_variance_keyframe > 500)
+        rc->frame_spatial_variance > 500)
       return enumerator << 3;
     else if (rc->last_encoded_size_keyframe >
                  2 * rc->last_target_size_keyframe &&
-             rc->spatial_variance_keyframe > 200)
+             rc->frame_spatial_variance > 200)
       return enumerator << 2;
     else if (rc->last_encoded_size_keyframe > rc->last_target_size_keyframe)
       return enumerator << 1;
@@ -3416,7 +3416,7 @@ static const uint8_t AV1_VAR_OFFS[MAX_SB_SIZE] = {
  * \param[in]       src_ystride  Input source stride for y channel.
  *
  * \remark Nothing is returned. Instead the average spatial variance
- * computed is stored in flag \c cpi->rc.spatial_variance_keyframe.
+ * computed is stored in flag \c cpi->rc.frame_spatial_variance.
  */
 static void rc_spatial_act_keyframe_onepass_rt(AV1_COMP *cpi, uint8_t *src_y,
                                                int src_ystride) {
@@ -3450,7 +3450,7 @@ static void rc_spatial_act_keyframe_onepass_rt(AV1_COMP *cpi, uint8_t *src_y,
     cpi->rc.perc_flat_blocks_keyframe = 100 * num_zero_var_blocks / num_samples;
     avg_variance = avg_variance / num_samples;
   }
-  cpi->rc.spatial_variance_keyframe = avg_variance >> 12;
+  cpi->rc.frame_spatial_variance = avg_variance >> 12;
 }
 
 /*!\brief Set the GF baseline interval for 1 pass real-time mode.
@@ -3771,7 +3771,8 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
       cpi->src_sad_blk_64x64 = NULL;
     }
   }
-  if (*frame_type == KEY_FRAME && cpi->sf.rt_sf.rc_adjust_keyframe &&
+  if (((*frame_type == KEY_FRAME && cpi->sf.rt_sf.rc_adjust_keyframe) ||
+       (cpi->sf.rt_sf.rc_compute_spatial_var_sc && rc->high_source_sad)) &&
       svc->spatial_layer_id == 0 && cm->seq_params->bit_depth == 8 &&
       cpi->oxcf.rc_cfg.max_intra_bitrate_pct > 0)
     rc_spatial_act_keyframe_onepass_rt(cpi, frame_input->source->y_buffer,
@@ -3861,10 +3862,25 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
   if (cpi->svc.spatial_layer_id > 0 && inter_layer_pred_on) {
     *q = (cpi->rc.worst_quality + *q) >> 1;
   } else {
-    *q = (3 * cpi->rc.worst_quality + *q) >> 2;
-    // For screen content use the max-q set by the user to allow for less
-    // overshoot on slide changes.
-    if (is_screen_content) *q = cpi->rc.worst_quality;
+    // For easy scene changes used lower QP, otherwise set max-q.
+    // If rt_sf->compute_spatial_var_sc is enabled relax the max-q
+    // condition based on frame spatial variance.
+    if (cpi->sf.rt_sf.rc_compute_spatial_var_sc) {
+      if (cpi->rc.frame_spatial_variance < 100) {
+        *q = (cpi->rc.worst_quality + *q) >> 1;
+      } else if (cpi->rc.frame_spatial_variance < 400 ||
+                 (cpi->rc.frame_source_sad < 80000 &&
+                  cpi->rc.frame_spatial_variance < 1000)) {
+        *q = (3 * cpi->rc.worst_quality + *q) >> 2;
+      } else {
+        *q = cpi->rc.worst_quality;
+      }
+    } else {
+      *q = (3 * cpi->rc.worst_quality + *q) >> 2;
+      // For screen content use the max-q set by the user to allow for less
+      // overshoot on slide changes.
+      if (is_screen_content) *q = cpi->rc.worst_quality;
+    }
   }
   // Adjust avg_frame_qindex, buffer_level, and rate correction factors, as
   // these parameters will affect QP selection for subsequent frames. If they
