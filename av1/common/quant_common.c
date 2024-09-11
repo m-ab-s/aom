@@ -236,12 +236,6 @@ bool av1_use_qmatrix(const CommonQuantParams *quant_params,
   return quant_params->using_qmatrix && !xd->lossless[segment_id];
 }
 
-const qm_val_t *av1_iqmatrix(const CommonQuantParams *quant_params, int qmlevel,
-                             int plane, TX_SIZE tx_size) {
-  assert(quant_params->giqmatrix[qmlevel][plane][tx_size] != NULL ||
-         qmlevel == NUM_QM_LEVELS - 1);
-  return quant_params->giqmatrix[qmlevel][plane][tx_size];
-}
 const qm_val_t *av1_qmatrix(const CommonQuantParams *quant_params, int qmlevel,
                             int plane, TX_SIZE tx_size) {
   assert(quant_params->gqmatrix[qmlevel][plane][tx_size] != NULL ||

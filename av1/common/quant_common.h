@@ -61,9 +61,6 @@ static inline int aom_get_qmlevel(int qindex, int first, int last) {
 // Initialize all global quant/dequant matrices.
 void av1_qm_init(struct CommonQuantParams *quant_params, int num_planes);
 
-// Get global dequant matrix.
-const qm_val_t *av1_iqmatrix(const struct CommonQuantParams *quant_params,
-                             int qmlevel, int plane, TX_SIZE tx_size);
 // Get global quant matrix.
 const qm_val_t *av1_qmatrix(const struct CommonQuantParams *quant_params,
                             int qmlevel, int plane, TX_SIZE tx_size);

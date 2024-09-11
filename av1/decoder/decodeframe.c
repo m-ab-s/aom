@@ -1811,6 +1811,14 @@ static inline void setup_quantization(CommonQuantParams *quant_params,
   }
 }
 
+// Get global dequant matrix.
+static const qm_val_t *get_iqmatrix(const CommonQuantParams *quant_params,
+                                    int qmlevel, int plane, TX_SIZE tx_size) {
+  assert(quant_params->giqmatrix[qmlevel][plane][tx_size] != NULL ||
+         qmlevel == NUM_QM_LEVELS - 1);
+  return quant_params->giqmatrix[qmlevel][plane][tx_size];
+}
+
 // Build y/uv dequant values based on segmentation.
 static inline void setup_segmentation_dequant(AV1_COMMON *const cm,
                                               MACROBLOCKD *const xd) {
@@ -1839,19 +1847,19 @@ static inline void setup_segmentation_dequant(AV1_COMMON *const cm,
         use_qmatrix ? quant_params->qmatrix_level_y : NUM_QM_LEVELS - 1;
     for (int j = 0; j < TX_SIZES_ALL; ++j) {
       quant_params->y_iqmatrix[i][j] =
-          av1_iqmatrix(quant_params, qmlevel_y, AOM_PLANE_Y, j);
+          get_iqmatrix(quant_params, qmlevel_y, AOM_PLANE_Y, j);
     }
     const int qmlevel_u =
         use_qmatrix ? quant_params->qmatrix_level_u : NUM_QM_LEVELS - 1;
     for (int j = 0; j < TX_SIZES_ALL; ++j) {
       quant_params->u_iqmatrix[i][j] =
-          av1_iqmatrix(quant_params, qmlevel_u, AOM_PLANE_U, j);
+          get_iqmatrix(quant_params, qmlevel_u, AOM_PLANE_U, j);
     }
     const int qmlevel_v =
         use_qmatrix ? quant_params->qmatrix_level_v : NUM_QM_LEVELS - 1;
     for (int j = 0; j < TX_SIZES_ALL; ++j) {
       quant_params->v_iqmatrix[i][j] =
-          av1_iqmatrix(quant_params, qmlevel_v, AOM_PLANE_V, j);
+          get_iqmatrix(quant_params, qmlevel_v, AOM_PLANE_V, j);
     }
   }
 }
