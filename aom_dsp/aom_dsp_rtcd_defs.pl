@@ -827,8 +827,10 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/uint64_t aom_var_2d_u8/, "uint8_t *src, int src_stride, int width, int height";
   specialize qw/aom_var_2d_u8 sse2 avx2 neon neon_dotprod/;
 
-  add_proto qw/uint64_t aom_var_2d_u16/, "uint8_t *src, int src_stride, int width, int height";
-  specialize qw/aom_var_2d_u16 sse2 avx2 neon sve/;
+  if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
+    add_proto qw/uint64_t aom_var_2d_u16/, "uint8_t *src, int src_stride, int width, int height";
+    specialize qw/aom_var_2d_u16 sse2 avx2 neon sve/;
+  }
 
   #
   # Single block SAD / Single block Avg SAD
