@@ -554,8 +554,7 @@ if(CONFIG_REALTIME_ONLY)
                      "${AOM_ROOT}/av1/common/restoration.c"
                      "${AOM_ROOT}/av1/common/restoration.h"
                      "${AOM_ROOT}/av1/common/warped_motion.c"
-                     "${AOM_ROOT}/av1/common/warped_motion.h"
-                     "${AOM_ROOT}/av1/common/warp_plane_sve.c")
+                     "${AOM_ROOT}/av1/common/warped_motion.h")
 
     list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSE2
                      "${AOM_ROOT}/av1/common/x86/cfl_sse2.c"
@@ -591,6 +590,10 @@ if(CONFIG_REALTIME_ONLY)
 
     list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_NEON_I8MM
                      "${AOM_ROOT}/av1/common/arm/warp_plane_neon_i8mm.c")
+
+    list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SVE
+                     "${AOM_ROOT}/av1/common/arm/highbd_warp_plane_sve.c"
+                     "${AOM_ROOT}/av1/common/arm/warp_plane_sve.c")
   endif()
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SSE2
@@ -615,6 +618,9 @@ if(CONFIG_REALTIME_ONLY)
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_NEON_DOTPROD
                    "${AOM_ROOT}/av1/encoder/arm/temporal_filter_neon_dotprod.c")
+
+  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SVE
+                   "${AOM_ROOT}/av1/encoder/arm/pickrst_sve.c")
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_SOURCES
                    "${AOM_ROOT}/av1/encoder/cnn.c"
