@@ -2406,6 +2406,9 @@ static aom_codec_err_t ctrl_set_film_grain_table(aom_codec_alg_priv_t *ctx,
     // this parameter allows NULL as its value
     extra_cfg.film_grain_table_filename = str;
   } else {
+#if CONFIG_REALTIME_ONLY
+    ERROR("film_grain removed from realtime only build.");
+#endif
     const aom_codec_err_t ret = allocate_and_set_string(
         str, default_extra_cfg[0].film_grain_table_filename,
         &extra_cfg.film_grain_table_filename, ctx->ppi->error.detail);

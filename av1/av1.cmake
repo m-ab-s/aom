@@ -258,6 +258,11 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/dwt.c"
             "${AOM_ROOT}/av1/encoder/dwt.h")
 
+if(CONFIG_REALTIME_ONLY)
+  list(REMOVE_ITEM AOM_AV1_ENCODER_SOURCES
+                   "${AOM_ROOT}/av1/encoder/grain_test_vectors.h")
+endif()
+
 list(APPEND AOM_AV1_COMMON_INTRIN_SSE2
             "${AOM_ROOT}/av1/common/x86/av1_txfm_sse2.h"
             "${AOM_ROOT}/av1/common/x86/cfl_sse2.c"

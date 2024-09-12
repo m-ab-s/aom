@@ -505,13 +505,15 @@ if(CONFIG_AV1_ENCODER)
     add_executable(twopass_encoder "${AOM_ROOT}/examples/twopass_encoder.c"
                                    $<TARGET_OBJECTS:aom_common_app_util>
                                    $<TARGET_OBJECTS:aom_encoder_app_util>)
-    add_executable(noise_model "${AOM_ROOT}/examples/noise_model.c"
-                               $<TARGET_OBJECTS:aom_common_app_util>
-                               $<TARGET_OBJECTS:aom_encoder_app_util>)
-    add_executable(photon_noise_table
-                   "${AOM_ROOT}/examples/photon_noise_table.c"
-                   $<TARGET_OBJECTS:aom_common_app_util>
-                   $<TARGET_OBJECTS:aom_encoder_app_util>)
+    if(NOT CONFIG_REALTIME_ONLY)
+      add_executable(noise_model "${AOM_ROOT}/examples/noise_model.c"
+                                 $<TARGET_OBJECTS:aom_common_app_util>
+                                 $<TARGET_OBJECTS:aom_encoder_app_util>)
+      add_executable(photon_noise_table
+                     "${AOM_ROOT}/examples/photon_noise_table.c"
+                     $<TARGET_OBJECTS:aom_common_app_util>
+                     $<TARGET_OBJECTS:aom_encoder_app_util>)
+    endif()
     add_executable(scalable_encoder "${AOM_ROOT}/examples/scalable_encoder.c"
                                     $<TARGET_OBJECTS:aom_common_app_util>
                                     $<TARGET_OBJECTS:aom_encoder_app_util>)
@@ -521,9 +523,12 @@ if(CONFIG_AV1_ENCODER)
     target_link_libraries(svc_encoder_rtc ${AOM_LIB_LINK_TYPE} aom_av1_rc)
 
     # Maintain a list of encoder example targets.
-    list(APPEND AOM_ENCODER_EXAMPLE_TARGETS aomenc lossless_encoder noise_model
-                photon_noise_table set_maps simple_encoder scalable_encoder
-                svc_encoder_rtc twopass_encoder)
+    list(APPEND AOM_ENCODER_EXAMPLE_TARGETS aomenc lossless_encoder set_maps
+                simple_encoder scalable_encoder svc_encoder_rtc twopass_encoder)
+    if(NOT CONFIG_REALTIME_ONLY)
+      list(APPEND AOM_ENCODER_EXAMPLE_TARGETS noise_model photon_noise_table)
+    endif()
+
   endif()
 
   if(ENABLE_TOOLS)

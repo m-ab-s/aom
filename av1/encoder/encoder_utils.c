@@ -616,6 +616,7 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
     configure_static_seg_features(cpi);
 }
 
+#if !CONFIG_REALTIME_ONLY
 static void reset_film_grain_chroma_params(aom_film_grain_t *pars) {
   pars->num_cr_points = 0;
   pars->cr_mult = 0;
@@ -686,6 +687,7 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
     memset(&cm->film_grain_params, 0, sizeof(cm->film_grain_params));
   }
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
                           const int phase, const int use_optimized_scaler) {

@@ -751,7 +751,9 @@ void av1_change_config_seq(struct AV1_PRIMARY *ppi,
         10;  // Default value (not signaled)
   }
 
+#if !CONFIG_REALTIME_ONLY
   av1_update_film_grain_parameters_seq(ppi, oxcf);
+#endif
 
   int sb_size = seq_params->sb_size;
   // Superblock size should not be updated after the first key frame.
@@ -807,7 +809,9 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
 
   cpi->oxcf = *oxcf;
 
+#if !CONFIG_REALTIME_ONLY
   av1_update_film_grain_parameters(cpi, oxcf);
+#endif
 
   // When user provides superres_mode = AOM_SUPERRES_AUTO, we still initialize
   // superres mode for current encoding = AOM_SUPERRES_NONE. This is to ensure
@@ -4070,7 +4074,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
   return AOM_CODEC_OK;
 }
 
-#if CONFIG_DENOISE
+#if CONFIG_DENOISE && !CONFIG_REALTIME_ONLY
 static int apply_denoise_2d(AV1_COMP *cpi, const YV12_BUFFER_CONFIG *sd,
                             int block_size, float noise_level,
                             int64_t time_stamp, int64_t end_time) {
@@ -4159,11 +4163,11 @@ int av1_receive_raw_frame(AV1_COMP *cpi, aom_enc_frame_flags_t frame_flags,
       }
       cpi->oxcf.noise_level = (float)AOMMIN(5.0, cpi->oxcf.noise_level);
     }
-#endif
 
     if (apply_denoise_2d(cpi, sd, cpi->oxcf.noise_block_size,
                          cpi->oxcf.noise_level, time_stamp, end_time) < 0)
       res = -1;
+#endif  // !CONFIG_REALTIME_ONLY
   }
 #endif  //  CONFIG_DENOISE
 

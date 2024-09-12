@@ -1462,6 +1462,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
     adjust_frame_rate(cpi, source->ts_start, source->ts_end);
 
   if (!frame_params.show_existing_frame) {
+#if !CONFIG_REALTIME_ONLY
     if (cpi->film_grain_table) {
       cm->cur_frame->film_grain_params_present = aom_film_grain_table_lookup(
           cpi->film_grain_table, *time_stamp, *time_end, 0 /* =erase */,
@@ -1470,6 +1471,7 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       cm->cur_frame->film_grain_params_present =
           cm->seq_params->film_grain_params_present;
     }
+#endif
     // only one operating point supported now
     const int64_t pts64 = ticks_to_timebase_units(timestamp_ratio, *time_stamp);
     if (pts64 < 0 || pts64 > UINT32_MAX) return AOM_CODEC_ERROR;

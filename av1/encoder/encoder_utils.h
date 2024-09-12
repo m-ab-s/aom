@@ -1074,10 +1074,12 @@ static inline void refresh_reference_frames(AV1_COMP *cpi) {
   }
 }
 
+#if !CONFIG_REALTIME_ONLY
 void av1_update_film_grain_parameters_seq(struct AV1_PRIMARY *ppi,
                                           const AV1EncoderConfig *oxcf);
 void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
                                       const AV1EncoderConfig *oxcf);
+#endif
 
 void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
                           const int phase, const int use_optimized_scaler);
