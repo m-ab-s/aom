@@ -3495,12 +3495,11 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       }
 
       if (ctx->oxcf.save_as_annexb) {
-        size_t curr_frame_size = cpi_data.frame_size;
-        if (av1_convert_sect5obus_to_annexb(cpi_data.cx_data,
-                                            &curr_frame_size) != AOM_CODEC_OK) {
+        if (av1_convert_sect5obus_to_annexb(
+                cpi_data.cx_data, cpi_data.cx_data_sz, &cpi_data.frame_size) !=
+            AOM_CODEC_OK) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
-        cpi_data.frame_size = curr_frame_size;
 
         // B_PRIME (add frame size)
         const size_t length_field_size =
