@@ -1585,7 +1585,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 11) {
       sf->rt_sf.skip_lf_screen = 2;
       sf->rt_sf.skip_cdef_sb = 2;
-      sf->rt_sf.part_early_exit_zeromv = 2;
       sf->rt_sf.prune_palette_search_nonrd = 2;
       sf->rt_sf.increase_color_thresh_palette = 0;
       sf->rt_sf.prune_h_pred_using_best_mode_so_far = true;
