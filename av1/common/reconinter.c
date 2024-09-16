@@ -839,10 +839,12 @@ int av1_skip_u4x4_pred_in_obmc(BLOCK_SIZE bsize,
   }
 }
 
+#if CONFIG_AV1_DECODER
 static void modify_neighbor_predictor_for_obmc(MB_MODE_INFO *mbmi) {
   mbmi->ref_frame[1] = NONE_FRAME;
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
 }
+#endif  // CONFIG_AV1_DECODER
 
 struct obmc_inter_pred_ctxt {
   uint8_t **adjacent;
@@ -976,6 +978,7 @@ void av1_setup_obmc_dst_bufs(MACROBLOCKD *xd, uint8_t **dst_buf1,
   }
 }
 
+#if CONFIG_AV1_DECODER
 void av1_setup_build_prediction_by_above_pred(
     MACROBLOCKD *xd, int rel_mi_col, uint8_t above_mi_width,
     MB_MODE_INFO *above_mbmi, struct build_prediction_ctxt *ctxt,
@@ -1053,6 +1056,7 @@ void av1_setup_build_prediction_by_left_pred(MACROBLOCKD *xd, int rel_mi_row,
       ctxt->mb_to_far_edge +
       GET_MV_SUBPEL((xd->height - rel_mi_row - left_mi_height) * MI_SIZE);
 }
+#endif  // CONFIG_AV1_DECODER
 
 static inline void combine_interintra(
     INTERINTRA_MODE mode, int8_t use_wedge_interintra, int8_t wedge_index,
