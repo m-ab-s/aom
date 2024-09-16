@@ -1201,9 +1201,9 @@ void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint8_t *src,
   }
 }
 
-void av1_upscale_normative_and_extend_frame(const AV1_COMMON *cm,
-                                            const YV12_BUFFER_CONFIG *src,
-                                            YV12_BUFFER_CONFIG *dst) {
+static void upscale_normative_and_extend_frame(const AV1_COMMON *cm,
+                                               const YV12_BUFFER_CONFIG *src,
+                                               YV12_BUFFER_CONFIG *dst) {
   const int num_planes = av1_num_planes(cm);
   for (int i = 0; i < num_planes; ++i) {
     const int is_uv = (i > 0);
@@ -1416,7 +1416,7 @@ void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
 
   // Scale up and back into frame_to_show.
   assert(frame_to_show->y_crop_width != cm->width);
-  av1_upscale_normative_and_extend_frame(cm, &copy_buffer, frame_to_show);
+  upscale_normative_and_extend_frame(cm, &copy_buffer, frame_to_show);
 
   // Free the copy buffer
   aom_free_frame_buffer(&copy_buffer);
