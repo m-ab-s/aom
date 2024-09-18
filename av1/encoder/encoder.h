@@ -3739,12 +3739,6 @@ typedef struct EncodeFrameParams {
 
 /*!\cond */
 
-// EncodeFrameResults contains information about the result of encoding a
-// single frame
-typedef struct {
-  size_t size;  // Size of resulting bitstream
-} EncodeFrameResults;
-
 void av1_initialize_enc(unsigned int usage, enum aom_rc_mode end_usage);
 
 struct AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi,
@@ -3848,7 +3842,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data);
 int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
                const EncodeFrameInput *const frame_input,
                const EncodeFrameParams *const frame_params,
-               EncodeFrameResults *const frame_results);
+               size_t *const frame_size);
 
 /*!\cond */
 int av1_get_preview_raw_frame(AV1_COMP *cpi, YV12_BUFFER_CONFIG *dest);
