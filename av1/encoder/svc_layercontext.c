@@ -628,7 +628,7 @@ void av1_svc_check_reset_layer_rc_flag(AV1_COMP *const cpi) {
       avg_frame_bandwidth = lrc->avg_frame_bandwidth;
       prev_avg_frame_bandwidth = lrc->prev_avg_frame_bandwidth;
     }
-    if (avg_frame_bandwidth > (3 * prev_avg_frame_bandwidth >> 1) ||
+    if (avg_frame_bandwidth / 3 > (prev_avg_frame_bandwidth >> 1) ||
         avg_frame_bandwidth < (prev_avg_frame_bandwidth >> 1)) {
       // Reset for all temporal layers with spatial layer sl.
       for (int tl = 0; tl < svc->number_temporal_layers; ++tl) {
