@@ -3456,6 +3456,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       if (!cpi_data.frame_size) continue;
       assert(cpi_data.cx_data != NULL && cpi_data.cx_data_sz != 0);
+      if (cpi_data.frame_size > cpi_data.cx_data_sz) {
+        aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
+                           "cpi_data.cx_data buffer overflow");
+      }
       const int write_temporal_delimiter =
           !cpi->common.spatial_layer_id && !ctx->pending_cx_data_sz;
 
@@ -3466,10 +3470,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
             aom_uleb_size_in_bytes(obu_payload_size);
 
         const size_t move_offset = obu_header_size + length_field_size;
-        if (cpi_data.frame_size > ctx->cx_data_sz) {
-          aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
-                             "ctx->cx_data buffer overflow");
-        }
+        assert(ctx->cx_data_sz == cpi_data.cx_data_sz);
         if (move_offset > ctx->cx_data_sz - cpi_data.frame_size) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
                              "ctx->cx_data buffer full");
@@ -3490,8 +3491,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
 
-        cpi_data.frame_size +=
-            obu_header_size + length_field_size + obu_payload_size;
+        cpi_data.frame_size += move_offset;
       }
 
       if (ctx->oxcf.save_as_annexb) {
@@ -3505,10 +3505,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         // B_PRIME (add frame size)
         const size_t length_field_size =
             aom_uleb_size_in_bytes(cpi_data.frame_size);
-        if (cpi_data.frame_size > cpi_data.cx_data_sz) {
-          aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
-                             "cpi_data.cx_data buffer overflow");
-        }
         if (length_field_size > cpi_data.cx_data_sz - cpi_data.frame_size) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR,
                              "cpi_data.cx_data buffer full");
