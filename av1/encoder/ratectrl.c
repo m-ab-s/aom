@@ -2306,9 +2306,9 @@ void av1_rc_set_frame_target(AV1_COMP *cpi, int target, int width, int height) {
 
   // Modify frame size target when down-scaled.
   if (av1_frame_scaled(cm) && cpi->oxcf.rc_cfg.mode != AOM_CBR) {
-    rc->this_frame_target =
-        (int)(rc->this_frame_target *
-              resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height));
+    rc->this_frame_target = saturate_cast_double_to_int(
+        rc->this_frame_target *
+        resize_rate_factor(&cpi->oxcf.frm_dim_cfg, width, height));
   }
 
   // Target rate per SB64 (including partial SB64s.
@@ -2419,9 +2419,9 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   // Rolling monitors of whether we are over or underspending used to help
   // regulate min and Max Q in two pass.
   if (av1_frame_scaled(cm))
-    rc->this_frame_target = (int)(rc->this_frame_target /
-                                  resize_rate_factor(&cpi->oxcf.frm_dim_cfg,
-                                                     cm->width, cm->height));
+    rc->this_frame_target = saturate_cast_double_to_int(
+        rc->this_frame_target /
+        resize_rate_factor(&cpi->oxcf.frm_dim_cfg, cm->width, cm->height));
   if (current_frame->frame_type != KEY_FRAME) {
     p_rc->rolling_target_bits = (int)ROUND_POWER_OF_TWO_64(
         (int64_t)p_rc->rolling_target_bits * 3 + rc->this_frame_target, 2);
@@ -2480,12 +2480,6 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   rc->frame_number_encoded++;
   rc->prev_frame_is_dropped = 0;
   rc->drop_count_consec = 0;
-  // if (current_frame->frame_number == 1 && cm->show_frame)
-  /*
-  rc->this_frame_target =
-      (int)(rc->this_frame_target / resize_rate_factor(&cpi->oxcf.frm_dim_cfg,
-  cm->width, cm->height));
-      */
 }
 
 void av1_rc_postencode_update_drop_frame(AV1_COMP *cpi) {
