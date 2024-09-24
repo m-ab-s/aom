@@ -3120,7 +3120,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       for (int i = 0; i < ppi->num_fp_contexts - 1; i++) {
         if (ppi->parallel_frames_data[i].cx_data == NULL) {
           ppi->parallel_frames_data[i].cx_data_sz = uncompressed_frame_sz;
-          ppi->parallel_frames_data[i].frame_display_order_hint = -1;
           ppi->parallel_frames_data[i].frame_size = 0;
           ppi->parallel_frames_data[i].cx_data =
               (unsigned char *)malloc(ppi->parallel_frames_data[i].cx_data_sz);

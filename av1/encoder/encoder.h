@@ -2566,11 +2566,6 @@ typedef struct AV1_COMP_DATA {
    * Decide to pop the source for this frame from input buffer queue.
    */
   int pop_lookahead;
-
-  /*!
-   * Display order hint of frame whose packed data is in cx_data buffer.
-   */
-  int frame_display_order_hint;
 } AV1_COMP_DATA;
 
 /*!
