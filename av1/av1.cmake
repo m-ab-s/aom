@@ -532,6 +532,9 @@ if(CONFIG_AV1_HIGHBITDEPTH)
               "${AOM_ROOT}/av1/encoder/arm/highbd_pickrst_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/highbd_rdopt_neon.c"
               "${AOM_ROOT}/av1/encoder/arm/highbd_temporal_filter_neon.c")
+
+  list(APPEND AOM_AV1_ENCODER_INTRIN_SVE
+              "${AOM_ROOT}/av1/encoder/arm/highbd_pickrst_sve.c")
 endif()
 
 if(CONFIG_ACCOUNTING)
