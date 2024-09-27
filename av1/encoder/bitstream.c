@@ -3102,6 +3102,7 @@ static inline void write_uncompressed_header_obu(
         aom_wb_write_literal(wb, gld_ref, REF_FRAMES_LOG2);
       }
       int first_ref_map_idx = INVALID_IDX;
+      int num_references = 0;
       if (cpi->ppi->rtc_ref.set_ref_frame_config) {
         for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
           if (cpi->ppi->rtc_ref.reference[ref_frame - 1] == 1) {
@@ -3109,12 +3110,15 @@ static inline void write_uncompressed_header_obu(
             break;
           }
         }
+        for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
+          if (cpi->ppi->rtc_ref.reference[ref_frame - 1] == 1) num_references++;
+        }
       }
       for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
         assert(get_ref_frame_map_idx(cm, ref_frame) != INVALID_IDX);
         if (!current_frame->frame_refs_short_signaling) {
           if (cpi->ppi->rtc_ref.set_ref_frame_config &&
-              first_ref_map_idx != INVALID_IDX &&
+              first_ref_map_idx != INVALID_IDX && num_references == 1 &&
               !seq_params->order_hint_info.enable_order_hint) {
             // For the usage of set_ref_frame_config:
             // for any reference not used set their ref_map_idx
