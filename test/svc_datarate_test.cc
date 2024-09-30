@@ -97,6 +97,8 @@ class DatarateTestSVC
     user_define_frame_qp_ = 0;
     set_speed_per_layer_ = false;
     simulcast_mode_ = false;
+    use_last_as_scaled_ = false;
+    use_last_as_scaled_single_ref_ = false;
   }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -145,7 +147,8 @@ class DatarateTestSVC
         video->frame(), &layer_id_, &ref_frame_config_, &ref_frame_comp_pred_,
         spatial_layer_id, multi_ref_, comp_pred_,
         (video->frame() % cfg_.kf_max_dist) == 0, dynamic_enable_disable_mode_,
-        rps_mode_, rps_recovery_frame_, simulcast_mode_);
+        rps_mode_, rps_recovery_frame_, simulcast_mode_, use_last_as_scaled_,
+        use_last_as_scaled_single_ref_);
     if (intra_only_ == 1 && frame_sync_ > 0) {
       // Set an Intra-only frame on SL0 at frame_sync_.
       // In order to allow decoding to start on SL0 in mid-sequence we need to
@@ -654,7 +657,8 @@ class DatarateTestSVC
       aom_svc_ref_frame_comp_pred_t *ref_frame_comp_pred, int spatial_layer,
       int multi_ref, int comp_pred, int is_key_frame,
       int dynamic_enable_disable_mode, int rps_mode, int rps_recovery_frame,
-      int simulcast_mode) {
+      int simulcast_mode, bool use_last_as_scaled,
+      bool use_last_as_scaled_single_ref) {
     int lag_index = 0;
     int base_count = frame_cnt >> 2;
     layer_id->spatial_layer_id = spatial_layer;
@@ -803,6 +807,11 @@ class DatarateTestSVC
         // Update slot 1 (LAST).
         for (int i = 0; i < 7; i++) ref_frame_config->ref_idx[i] = 0;
         ref_frame_config->ref_idx[0] = 1;
+        if (use_last_as_scaled) {
+          for (int i = 0; i < 7; i++) ref_frame_config->ref_idx[i] = 1;
+          ref_frame_config->ref_idx[0] = 0;
+          ref_frame_config->ref_idx[3] = 1;
+        }
         ref_frame_config->refresh[1] = 1;
       } else if (layer_id->spatial_layer_id == 2) {
         // Reference LAST and GOLDEN. Set buffer_idx for LAST to slot 2
@@ -818,7 +827,12 @@ class DatarateTestSVC
         }
       }
       // Reference GOLDEN.
-      if (layer_id->spatial_layer_id > 0) ref_frame_config->reference[3] = 1;
+      if (layer_id->spatial_layer_id > 0) {
+        if (use_last_as_scaled_single_ref)
+          ref_frame_config->reference[3] = 0;
+        else
+          ref_frame_config->reference[3] = 1;
+      }
     } else if (number_temporal_layers_ == 3 && number_spatial_layers_ == 3) {
       if (simulcast_mode) {
         ref_config_simulcast3SL3TL(ref_frame_config, layer_id, is_key_frame,
@@ -1445,6 +1459,69 @@ class DatarateTestSVC
     ResetModel();
     number_temporal_layers_ = 1;
     number_spatial_layers_ = 3;
+    target_layer_bitrate_[0] = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[1] = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[2] = 4 * cfg_.rc_target_bitrate / 8;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.38)
+          << " The datarate for the file is greater than target by too much!";
+    }
+  }
+
+  virtual void BasicRateTargetingSVC1TL3SLLastIsScaledTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    const int bitrate_array[2] = { 500, 1000 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    number_temporal_layers_ = 1;
+    number_spatial_layers_ = 3;
+    use_last_as_scaled_ = true;
+    target_layer_bitrate_[0] = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[1] = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[2] = 4 * cfg_.rc_target_bitrate / 8;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    for (int i = 0; i < number_temporal_layers_ * number_spatial_layers_; i++) {
+      ASSERT_GE(effective_datarate_tl[i], target_layer_bitrate_[i] * 0.80)
+          << " The datarate for the file is lower than target by too much!";
+      ASSERT_LE(effective_datarate_tl[i], target_layer_bitrate_[i] * 1.38)
+          << " The datarate for the file is greater than target by too much!";
+    }
+  }
+
+  virtual void BasicRateTargetingSVC1TL3SLLastIsScaledSingleRefTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 300);
+    const int bitrate_array[2] = { 500, 1000 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    ResetModel();
+    number_temporal_layers_ = 1;
+    number_spatial_layers_ = 3;
+    use_last_as_scaled_ = true;
+    use_last_as_scaled_single_ref_ = true;
     target_layer_bitrate_[0] = 1 * cfg_.rc_target_bitrate / 8;
     target_layer_bitrate_[1] = 3 * cfg_.rc_target_bitrate / 8;
     target_layer_bitrate_[2] = 4 * cfg_.rc_target_bitrate / 8;
@@ -2543,6 +2620,8 @@ class DatarateTestSVC
   int rps_mode_;
   int rps_recovery_frame_;
   int simulcast_mode_;
+  bool use_last_as_scaled_;
+  bool use_last_as_scaled_single_ref_;
 
   int user_define_frame_qp_;
   int frame_qp_;
@@ -2634,6 +2713,19 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL1SLIntraOnly) {
 // Check basic rate targeting for CBR, for 3 spatial layers, 1 temporal.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL3SL) {
   BasicRateTargetingSVC1TL3SLTest();
+}
+
+// Check basic rate targeting for CBR, for 3 spatial layers, 1 temporal.
+// Force the spatial reference to be LAST, with a second temporal
+// reference (GOLDEN).
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL3SLLastIsScaled) {
+  BasicRateTargetingSVC1TL3SLLastIsScaledTest();
+}
+
+// Check basic rate targeting for CBR, for 3 spatial layers, 1 temporal.
+// Force the spatial reference to be LAST, and force only 1 reference.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL3SLastIsScaledSingleRef) {
+  BasicRateTargetingSVC1TL3SLLastIsScaledSingleRefTest();
 }
 
 // Check basic rate targeting for CBR, for 3 spatial layers, 1 temporal,
