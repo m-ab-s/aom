@@ -39,4 +39,3 @@ text aom_uleb_size_in_bytes
 text aom_wb_bytes_written
 text aom_wb_write_bit
 text aom_wb_write_literal
-text aom_wb_write_unsigned_literal
