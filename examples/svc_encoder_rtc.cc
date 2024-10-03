@@ -36,11 +36,12 @@
 #include "av1/ratectrl_rtc.h"
 
 #define OPTION_BUFFER_SIZE 1024
+#define MAX_NUM_SPATIAL_LAYERS 4
 
 typedef struct {
   const char *output_filename;
   char options[OPTION_BUFFER_SIZE];
-  struct AvxInputContext input_ctx;
+  struct AvxInputContext input_ctx[MAX_NUM_SPATIAL_LAYERS];
   int speed;
   int aq_mode;
   int layering_mode;
@@ -49,6 +50,7 @@ typedef struct {
   int tune_content;
   int show_psnr;
   bool use_external_rc;
+  bool scale_factors_explicitly_set;
 } AppInput;
 
 typedef enum {
@@ -143,10 +145,20 @@ static const arg_def_t *svc_args[] = {
 static const char *exec_name;
 
 void usage_exit(void) {
-  fprintf(stderr, "Usage: %s <options> input_filename -o output_filename\n",
+  fprintf(stderr,
+          "Usage: %s <options> input_filename [input_filename ...] -o "
+          "output_filename\n",
           exec_name);
   fprintf(stderr, "Options:\n");
   arg_show_usage(stderr, svc_args);
+  fprintf(
+      stderr,
+      "Input files must be y4m or yuv.\n"
+      "If multiple input files are specified, they correspond to spatial "
+      "layers, and there should be as many as there are spatial layers.\n"
+      "All input files must have the same width, height, frame rate and number "
+      "of frames.\n"
+      "If only one file is specified, it is used for all spatial layers.\n");
   exit(EXIT_FAILURE);
 }
 
@@ -332,6 +344,7 @@ static void parse_command_line(int argc, const char **argv_,
       aom_codec_err_t res = parse_layer_options_from_string(
           svc_params, SCALE_FACTOR, arg.val, svc_params->scaling_factor_num,
           svc_params->scaling_factor_den);
+      app_input->scale_factors_explicitly_set = true;
       if (res != AOM_CODEC_OK) {
         die("Failed to parse scale factors: %s\n",
             aom_codec_err_to_string(res));
@@ -413,13 +426,43 @@ static void parse_command_line(int argc, const char **argv_,
     usage_exit();
   }
 
-  app_input->input_ctx.filename = argv[0];
+  int input_count = 0;
+  while (argv[input_count] != NULL && input_count < MAX_NUM_SPATIAL_LAYERS) {
+    app_input->input_ctx[input_count].filename = argv[input_count];
+    ++input_count;
+  }
+  if (input_count > 1 && input_count != svc_params->number_spatial_layers) {
+    die("Error: Number of input files does not match number of spatial layers");
+  }
+  if (argv[input_count] != NULL) {
+    die("Error: Too many input files specified, there should be at most %d",
+        MAX_NUM_SPATIAL_LAYERS);
+  }
+
   free(argv);
 
-  open_input_file(&app_input->input_ctx, AOM_CSP_UNKNOWN);
-  if (app_input->input_ctx.file_type == FILE_TYPE_Y4M) {
-    enc_cfg->g_w = app_input->input_ctx.width;
-    enc_cfg->g_h = app_input->input_ctx.height;
+  for (int i = 0; i < input_count; ++i) {
+    open_input_file(&app_input->input_ctx[i], AOM_CSP_UNKNOWN);
+    if (app_input->input_ctx[i].file_type == FILE_TYPE_Y4M) {
+      if (enc_cfg->g_w == 0 || enc_cfg->g_h == 0) {
+        // Override these settings with the info from Y4M file.
+        enc_cfg->g_w = app_input->input_ctx[i].width;
+        enc_cfg->g_h = app_input->input_ctx[i].height;
+        // g_timebase is the reciprocal of frame rate.
+        enc_cfg->g_timebase.num = app_input->input_ctx[i].framerate.denominator;
+        enc_cfg->g_timebase.den = app_input->input_ctx[i].framerate.numerator;
+      } else if (enc_cfg->g_w != app_input->input_ctx[i].width ||
+                 enc_cfg->g_h != app_input->input_ctx[i].height ||
+                 enc_cfg->g_timebase.num !=
+                     app_input->input_ctx[i].framerate.denominator ||
+                 enc_cfg->g_timebase.den !=
+                     app_input->input_ctx[i].framerate.numerator) {
+        die("Error: Input file dimensions and/or frame rate mismatch");
+      }
+    }
+  }
+  if (enc_cfg->g_w == 0 || enc_cfg->g_h == 0) {
+    die("Error: Input file dimensions not set, use -w and -h");
   }
 
   if (enc_cfg->g_w < 16 || enc_cfg->g_w % 2 || enc_cfg->g_h < 16 ||
@@ -1528,10 +1571,12 @@ int main(int argc, const char **argv) {
   const int test_active_maps = 0;
 
   /* Setup default input stream settings */
-  app_input.input_ctx.framerate.numerator = 30;
-  app_input.input_ctx.framerate.denominator = 1;
-  app_input.input_ctx.only_i420 = 0;
-  app_input.input_ctx.bit_depth = AOM_BITS_8;
+  for (i = 0; i < MAX_NUM_SPATIAL_LAYERS; ++i) {
+    app_input.input_ctx[i].framerate.numerator = 30;
+    app_input.input_ctx[i].framerate.denominator = 1;
+    app_input.input_ctx[i].only_i420 = 0;
+    app_input.input_ctx[i].bit_depth = AOM_BITS_8;
+  }
   app_input.speed = 7;
   exec_name = argv[0];
 
@@ -1556,6 +1601,8 @@ int main(int argc, const char **argv) {
   cfg.rc_resize_mode = 0;  // Set to RESIZE_DYNAMIC for dynamic resize.
   cfg.g_lag_in_frames = 0;
   cfg.kf_mode = AOM_KF_AUTO;
+  cfg.g_w = 0;  // Force user to specify width and height for raw input.
+  cfg.g_h = 0;
 
   parse_command_line(argc, argv, &app_input, &svc_params, &cfg);
 
@@ -1574,8 +1621,15 @@ int main(int argc, const char **argv) {
     }
   }
 
+  bool has_non_y4m_input = false;
+  for (i = 0; i < AOM_MAX_LAYERS; ++i) {
+    if (app_input.input_ctx[i].file_type != FILE_TYPE_Y4M) {
+      has_non_y4m_input = true;
+      break;
+    }
+  }
   // Y4M reader has its own allocation.
-  if (app_input.input_ctx.file_type != FILE_TYPE_Y4M) {
+  if (has_non_y4m_input) {
     if (!aom_img_alloc(&raw, AOM_IMG_FMT_I420, width, height, 32)) {
       die("Failed to allocate image (%dx%d)", width, height);
     }
@@ -1593,7 +1647,7 @@ int main(int argc, const char **argv) {
             .layer_target_bitrate[i * ts_number_layers + ts_number_layers - 1];
   }
   if (total_rate != cfg.rc_target_bitrate) {
-    die("Incorrect total target bitrate");
+    die("Incorrect total target bitrate, expected: %d", total_rate);
   }
 
   svc_params.framerate_factor[0] = 1;
@@ -1606,14 +1660,6 @@ int main(int argc, const char **argv) {
     svc_params.framerate_factor[2] = 1;
   }
 
-  if (app_input.input_ctx.file_type == FILE_TYPE_Y4M) {
-    // Override these settings with the info from Y4M file.
-    cfg.g_w = app_input.input_ctx.width;
-    cfg.g_h = app_input.input_ctx.height;
-    // g_timebase is the reciprocal of frame rate.
-    cfg.g_timebase.num = app_input.input_ctx.framerate.denominator;
-    cfg.g_timebase.den = app_input.input_ctx.framerate.numerator;
-  }
   framerate = cfg.g_timebase.den / cfg.g_timebase.num;
   set_rate_control_metrics(&rc, framerate, ss_number_layers, ts_number_layers);
 
@@ -1715,18 +1761,20 @@ int main(int argc, const char **argv) {
     svc_params.max_quantizers[i] = cfg.rc_max_quantizer;
     svc_params.min_quantizers[i] = cfg.rc_min_quantizer;
   }
-  for (i = 0; i < ss_number_layers; ++i) {
-    svc_params.scaling_factor_num[i] = 1;
-    svc_params.scaling_factor_den[i] = 1;
-  }
-  if (ss_number_layers == 2) {
-    svc_params.scaling_factor_num[0] = 1;
-    svc_params.scaling_factor_den[0] = 2;
-  } else if (ss_number_layers == 3) {
-    svc_params.scaling_factor_num[0] = 1;
-    svc_params.scaling_factor_den[0] = 4;
-    svc_params.scaling_factor_num[1] = 1;
-    svc_params.scaling_factor_den[1] = 2;
+  if (!app_input.scale_factors_explicitly_set) {
+    for (i = 0; i < ss_number_layers; ++i) {
+      svc_params.scaling_factor_num[i] = 1;
+      svc_params.scaling_factor_den[i] = 1;
+    }
+    if (ss_number_layers == 2) {
+      svc_params.scaling_factor_num[0] = 1;
+      svc_params.scaling_factor_den[0] = 2;
+    } else if (ss_number_layers == 3) {
+      svc_params.scaling_factor_num[0] = 1;
+      svc_params.scaling_factor_den[0] = 4;
+      svc_params.scaling_factor_num[1] = 1;
+      svc_params.scaling_factor_den[1] = 2;
+    }
   }
   aom_codec_control(&codec, AV1E_SET_SVC_PARAMS, &svc_params);
   // TODO(aomedia:3032): Configure KSVC in fixed mode.
@@ -1757,9 +1805,17 @@ int main(int argc, const char **argv) {
   memset(&psnr_stream, 0, sizeof(psnr_stream));
   while (frame_avail || got_data) {
     struct aom_usec_timer timer;
-    frame_avail = read_frame(&(app_input.input_ctx), &raw);
+    frame_avail = read_frame(&(app_input.input_ctx[0]), &raw);
     // Loop over spatial layers.
     for (int slx = 0; slx < ss_number_layers; slx++) {
+      if (slx > 0 && app_input.input_ctx[slx].filename != NULL) {
+        const bool previous_layer_frame_avail = frame_avail;
+        frame_avail = read_frame(&(app_input.input_ctx[slx]), &raw);
+        if (previous_layer_frame_avail != frame_avail) {
+          die("Mismatch in number of frames between spatial layer input files");
+        }
+      }
+
       aom_codec_iter_t iter = NULL;
       const aom_codec_cx_pkt_t *pkt;
       int layer = 0;
@@ -2053,7 +2109,12 @@ int main(int argc, const char **argv) {
     pts += frame_duration;
   }
 
-  close_input_file(&(app_input.input_ctx));
+  for (i = 0; i < MAX_NUM_SPATIAL_LAYERS; ++i) {
+    if (app_input.input_ctx[i].filename == NULL) {
+      break;
+    }
+    close_input_file(&(app_input.input_ctx[i]));
+  }
   printout_rate_control_summary(&rc, frame_cnt, ss_number_layers,
                                 ts_number_layers);
 
@@ -2095,7 +2156,7 @@ int main(int argc, const char **argv) {
     aom_video_writer_close(outfile[i]);
   aom_video_writer_close(total_layer_file);
 
-  if (app_input.input_ctx.file_type != FILE_TYPE_Y4M) {
+  if (has_non_y4m_input) {
     aom_img_free(&raw);
   }
   return EXIT_SUCCESS;
