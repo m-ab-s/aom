@@ -1869,12 +1869,18 @@ static InterpFilter read_frame_interp_filter(struct aom_read_bit_buffer *rb) {
                              : aom_rb_read_literal(rb, LOG_SWITCHABLE_FILTERS);
 }
 
+static void read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,
+                            int num_bits_height, int *width, int *height) {
+  *width = aom_rb_read_literal(rb, num_bits_width) + 1;
+  *height = aom_rb_read_literal(rb, num_bits_height) + 1;
+}
+
 static inline void setup_render_size(AV1_COMMON *cm,
                                      struct aom_read_bit_buffer *rb) {
   cm->render_width = cm->superres_upscaled_width;
   cm->render_height = cm->superres_upscaled_height;
   if (aom_rb_read_bit(rb))
-    av1_read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
+    read_frame_size(rb, 16, 16, &cm->render_width, &cm->render_height);
 }
 
 // TODO(afergs): make "struct aom_read_bit_buffer *const rb"?
@@ -1978,7 +1984,7 @@ static inline void setup_frame_size(AV1_COMMON *cm,
   if (frame_size_override_flag) {
     int num_bits_width = seq_params->num_bits_width;
     int num_bits_height = seq_params->num_bits_height;
-    av1_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
+    read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
     if (width > seq_params->max_frame_width ||
         height > seq_params->max_frame_height) {
       aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
@@ -2043,7 +2049,7 @@ static inline void setup_frame_size_with_refs(AV1_COMMON *cm,
     int num_bits_width = seq_params->num_bits_width;
     int num_bits_height = seq_params->num_bits_height;
 
-    av1_read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
+    read_frame_size(rb, num_bits_width, num_bits_height, &width, &height);
     setup_superres(cm, rb, &width, &height);
     resize_context_buffers(cm, width, height);
     setup_render_size(cm, rb);
@@ -5137,12 +5143,6 @@ struct aom_read_bit_buffer *av1_init_read_bit_buffer(
   rb->bit_buffer = data;
   rb->bit_buffer_end = data_end;
   return rb;
-}
-
-void av1_read_frame_size(struct aom_read_bit_buffer *rb, int num_bits_width,
-                         int num_bits_height, int *width, int *height) {
-  *width = aom_rb_read_literal(rb, num_bits_width) + 1;
-  *height = aom_rb_read_literal(rb, num_bits_height) + 1;
 }
 
 BITSTREAM_PROFILE av1_read_profile(struct aom_read_bit_buffer *rb) {
