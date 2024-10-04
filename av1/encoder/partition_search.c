@@ -11,6 +11,8 @@
 
 #include <float.h>
 
+#include "config/aom_config.h"
+
 #include "aom_dsp/txfm_common.h"
 
 #include "av1/common/av1_common_int.h"
@@ -41,6 +43,7 @@
 
 #define COLLECT_MOTION_SEARCH_FEATURE_SB 0
 
+#if CONFIG_PARTITION_SEARCH_ORDER
 void av1_reset_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->partition_search_type = SEARCH_PARTITION;
   part_sf->less_rectangular_check_level = 0;
@@ -90,6 +93,7 @@ void av1_reset_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
 void av1_reset_sf_for_ext_part(AV1_COMP *const cpi) {
   cpi->sf.inter_sf.prune_ref_frame_for_rect_partitions = 0;
 }
+#endif  // CONFIG_PARTITION_SEARCH_ORDER
 
 #if !CONFIG_REALTIME_ONLY
 // If input |features| is NULL, write tpl stats to file for each super block.
