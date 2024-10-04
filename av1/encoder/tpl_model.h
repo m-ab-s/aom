@@ -634,16 +634,6 @@ int av1_get_overlap_area(int row_a, int col_a, int row_b, int col_b, int width,
 int av1_tpl_get_q_index(const TplParams *tpl_data, int gf_frame_index,
                         int leaf_qindex, aom_bit_depth_t bit_depth);
 
-/*!\brief Compute the frame importance from TPL stats
- *
- * \param[in]       tpl_data          TPL struct
- * \param[in]       gf_frame_index    current frame index in the GOP
- *
- * \return frame_importance
- */
-double av1_tpl_get_frame_importance(const TplParams *tpl_data,
-                                    int gf_frame_index);
-
 /*!\brief Compute the ratio between arf q step and the leaf q step based on
  * TPL stats
  *
