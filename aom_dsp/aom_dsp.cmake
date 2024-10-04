@@ -47,8 +47,7 @@ list(APPEND AOM_DSP_COMMON_SOURCES
             "${AOM_ROOT}/aom_dsp/x86/convolve_common_intrin.h")
 
 list(APPEND AOM_DSP_COMMON_ASM_SSE2
-            "${AOM_ROOT}/aom_dsp/x86/intrapred_asm_sse2.asm"
-            "${AOM_ROOT}/aom_dsp/x86/inv_wht_sse2.asm")
+            "${AOM_ROOT}/aom_dsp/x86/intrapred_asm_sse2.asm")
 if(CONFIG_AV1_HIGHBITDEPTH)
   list(APPEND AOM_DSP_COMMON_ASM_SSE2
               "${AOM_ROOT}/aom_dsp/x86/aom_high_subpixel_8t_sse2.asm"
