@@ -173,7 +173,7 @@ static inline void read_coeffs_tx_intra_block(
     struct aom_usec_timer timer;
     aom_usec_timer_start(&timer);
 #endif
-    av1_read_coeffs_txb_facade(cm, dcb, r, plane, row, col, tx_size);
+    av1_read_coeffs_txb(cm, dcb, r, plane, row, col, tx_size);
 #if TXCOEFF_TIMER
     aom_usec_timer_mark(&timer);
     const int64_t elapsed_time = aom_usec_timer_elapsed(&timer);
@@ -2705,7 +2705,7 @@ static inline void set_decode_func_pointers(ThreadData *td,
 
   if (parse_decode_flag & 0x1) {
     td->read_coeffs_tx_intra_block_visit = read_coeffs_tx_intra_block;
-    td->read_coeffs_tx_inter_block_visit = av1_read_coeffs_txb_facade;
+    td->read_coeffs_tx_inter_block_visit = av1_read_coeffs_txb;
   }
   if (parse_decode_flag & 0x2) {
     td->predict_and_recon_intra_block_visit =
