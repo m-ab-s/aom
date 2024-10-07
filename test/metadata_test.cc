@@ -29,6 +29,7 @@ const uint8_t kMetadataPayloadT35[kMetadataPayloadSizeT35] = {
   0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17
 };
 
+#if !CONFIG_REALTIME_ONLY
 const size_t kMetadataPayloadSizeCll = 4;
 const uint8_t kMetadataPayloadCll[kMetadataPayloadSizeCll] = { 0xB5, 0x01, 0x02,
                                                                0x03 };
@@ -190,7 +191,7 @@ TEST_P(MetadataEncodeTest, TestMetadataEncoding) {
 
 AV1_INSTANTIATE_TEST_SUITE(MetadataEncodeTest,
                            ::testing::Values(::libaom_test::kOnePassGood));
-
+#endif  // !CONFIG_REALTIME_ONLY
 }  // namespace
 
 TEST(MetadataTest, MetadataAllocation) {
