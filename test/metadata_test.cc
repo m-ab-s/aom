@@ -15,7 +15,6 @@
 #include "aom/aom_image.h"
 #include "aom/internal/aom_image_internal.h"
 #include "aom_scale/yv12config.h"
-#include "av1/encoder/bitstream.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
