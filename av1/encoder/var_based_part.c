@@ -646,7 +646,7 @@ static inline int64_t tune_base_thresh_content(AV1_COMP *cpi,
       cpi->ppi->rtc_ref.non_reference_frame, cpi->rc.frame_source_sad == 0);
   if (cpi->oxcf.speed >= 11 && source_sad_nonrd > kLowSad &&
       cpi->rc.high_motion_content_screen_rtc)
-    updated_thresh_base = updated_thresh_base << 5;
+    updated_thresh_base = updated_thresh_base << 4;
   return updated_thresh_base;
 }
 
