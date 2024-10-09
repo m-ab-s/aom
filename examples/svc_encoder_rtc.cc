@@ -1809,7 +1809,7 @@ int main(int argc, const char **argv) {
     // Loop over spatial layers.
     for (int slx = 0; slx < ss_number_layers; slx++) {
       if (slx > 0 && app_input.input_ctx[slx].filename != NULL) {
-        const bool previous_layer_frame_avail = frame_avail;
+        const int previous_layer_frame_avail = frame_avail;
         frame_avail = read_frame(&(app_input.input_ctx[slx]), &raw);
         if (previous_layer_frame_avail != frame_avail) {
           die("Mismatch in number of frames between spatial layer input files");
