@@ -1591,7 +1591,8 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.prune_h_pred_using_best_mode_so_far = true;
       sf->rt_sf.enable_intra_mode_pruning_using_neighbors = true;
     }
-    sf->rt_sf.skip_encoding_non_reference_slide_change = 1;
+    sf->rt_sf.skip_encoding_non_reference_slide_change =
+        cpi->oxcf.rc_cfg.drop_frames_water_mark > 0 ? 1 : 0;
     sf->rt_sf.skip_newmv_flat_blocks_screen = 1;
     sf->rt_sf.use_idtx_nonrd = 1;
     sf->rt_sf.higher_thresh_scene_detection = 0;
