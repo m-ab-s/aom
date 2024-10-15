@@ -899,7 +899,12 @@ void av1_rc_update_rate_correction_factors(AV1_COMP *cpi, int is_encode_stage,
   // is only valid when cyclic refresh mode is enabled and that
   // this break out only applies to scene changes that are not
   // recorded as INTRA only key frames.
+  // Note that av1_encodedframe_overshoot_cbr() is only entered
+  // if cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ
+  // and cpi->rc.high_source_sad = 1.
   if ((cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ) &&
+      (cpi->sf.rt_sf.overshoot_detection_cbr == FAST_DETECTION_MAXQ) &&
+      cpi->rc.high_source_sad &&
       (cpi->cyclic_refresh->counter_encode_maxq_scene_change == 0) &&
       !frame_is_intra_only(cm) && !cpi->ppi->use_svc) {
     cpi->rc.q_2_frame = cm->quant_params.base_qindex;
