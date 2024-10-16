@@ -28,10 +28,6 @@ bool av1_resize_plane(const uint8_t *input, int height, int width,
                       int in_stride, uint8_t *output, int height2, int width2,
                       int out_stride);
 
-void av1_highbd_resize_plane(const uint8_t *input, int height, int width,
-                             int in_stride, uint8_t *output, int height2,
-                             int width2, int out_stride, int bd);
-
 void av1_upscale_normative_rows(const AV1_COMMON *cm, const uint8_t *src,
                                 int src_stride, uint8_t *dst, int dst_stride,
                                 int plane, int rows);

@@ -932,9 +932,9 @@ static void highbd_fill_arr_to_col(uint16_t *img, int stride, int len,
   }
 }
 
-void av1_highbd_resize_plane(const uint8_t *input, int height, int width,
-                             int in_stride, uint8_t *output, int height2,
-                             int width2, int out_stride, int bd) {
+static void highbd_resize_plane(const uint8_t *input, int height, int width,
+                                int in_stride, uint8_t *output, int height2,
+                                int width2, int out_stride, int bd) {
   int i;
   uint16_t *intbuf = (uint16_t *)aom_malloc(sizeof(uint16_t) * width2 * height);
   uint16_t *tmpbuf =
@@ -1092,10 +1092,10 @@ bool av1_resize_and_extend_frame_nonnormative(const YV12_BUFFER_CONFIG *src,
     const int is_uv = i > 0;
 #if CONFIG_AV1_HIGHBITDEPTH
     if (src->flags & YV12_FLAG_HIGHBITDEPTH) {
-      av1_highbd_resize_plane(src->buffers[i], src->crop_heights[is_uv],
-                              src->crop_widths[is_uv], src->strides[is_uv],
-                              dst->buffers[i], dst->crop_heights[is_uv],
-                              dst->crop_widths[is_uv], dst->strides[is_uv], bd);
+      highbd_resize_plane(src->buffers[i], src->crop_heights[is_uv],
+                          src->crop_widths[is_uv], src->strides[is_uv],
+                          dst->buffers[i], dst->crop_heights[is_uv],
+                          dst->crop_widths[is_uv], dst->strides[is_uv], bd);
     } else if (!av1_resize_plane(src->buffers[i], src->crop_heights[is_uv],
                                  src->crop_widths[is_uv], src->strides[is_uv],
                                  dst->buffers[i], dst->crop_heights[is_uv],
