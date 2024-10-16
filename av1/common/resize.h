@@ -54,11 +54,6 @@ void av1_calculate_scaled_size(int *width, int *height, int resize_denom);
 void av1_calculate_scaled_superres_size(int *width, int *height,
                                         int superres_denom);
 
-// Inverse of av1_calculate_scaled_superres_size() above: calculates the
-// original dimensions from the given scaled dimensions and the scale
-// denominator.
-void av1_calculate_unscaled_superres_size(int *width, int *height, int denom);
-
 void av1_superres_upscale(AV1_COMMON *cm, BufferPool *const pool,
                           bool alloc_pyramid);
 

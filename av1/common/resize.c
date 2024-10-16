@@ -1294,15 +1294,6 @@ void av1_calculate_scaled_superres_size(int *width, int *height,
   calculate_scaled_size_helper(width, superres_denom);
 }
 
-void av1_calculate_unscaled_superres_size(int *width, int *height, int denom) {
-  if (denom != SCALE_NUMERATOR) {
-    // Note: av1_calculate_scaled_superres_size() rounds *up* after division
-    // when the resulting dimensions are odd. So here, we round *down*.
-    *width = *width * denom / SCALE_NUMERATOR;
-    (void)height;
-  }
-}
-
 // Copy only the config data from 'src' to 'dst'.
 static void copy_buffer_config(const YV12_BUFFER_CONFIG *const src,
                                YV12_BUFFER_CONFIG *const dst) {
