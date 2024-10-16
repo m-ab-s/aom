@@ -133,15 +133,6 @@ int av1_calc_arf_boost(const TWO_PASS *twopass,
                        int offset, int f_frames, int b_frames,
                        int *num_fpstats_used, int *num_fpstats_required,
                        int project_gfu_boost);
-
-void av1_mark_flashes(FIRSTPASS_STATS *first_stats,
-                      FIRSTPASS_STATS *last_stats);
-void av1_estimate_noise(FIRSTPASS_STATS *first_stats,
-                        FIRSTPASS_STATS *last_stats,
-                        struct aom_internal_error_info *error_info);
-void av1_estimate_coeff(FIRSTPASS_STATS *first_stats,
-                        FIRSTPASS_STATS *last_stats);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
