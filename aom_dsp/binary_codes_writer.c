@@ -15,7 +15,7 @@
 #include "aom_ports/bitops.h"
 
 // Encodes a value v in [0, n-1] quasi-uniformly
-void aom_write_primitive_quniform(aom_writer *w, uint16_t n, uint16_t v) {
+static void write_primitive_quniform(aom_writer *w, uint16_t n, uint16_t v) {
   if (n <= 1) return;
   const int l = get_msb(n) + 1;
   const int m = (1 << l) - n;
@@ -35,15 +35,15 @@ static int count_primitive_quniform(uint16_t n, uint16_t v) {
 }
 
 // Finite subexponential code that codes a symbol v in [0, n-1] with parameter k
-void aom_write_primitive_subexpfin(aom_writer *w, uint16_t n, uint16_t k,
-                                   uint16_t v) {
+static void write_primitive_subexpfin(aom_writer *w, uint16_t n, uint16_t k,
+                                      uint16_t v) {
   int i = 0;
   int mk = 0;
   while (1) {
     int b = (i ? k + i - 1 : k);
     int a = (1 << b);
     if (n <= mk + 3 * a) {
-      aom_write_primitive_quniform(w, n - mk, v - mk);
+      write_primitive_quniform(w, n - mk, v - mk);
       break;
     } else {
       int t = (v >= mk + a);
@@ -89,7 +89,7 @@ static int count_primitive_subexpfin(uint16_t n, uint16_t k, uint16_t v) {
 // Recenters symbol around r first and then uses a finite subexponential code.
 void aom_write_primitive_refsubexpfin(aom_writer *w, uint16_t n, uint16_t k,
                                       uint16_t ref, uint16_t v) {
-  aom_write_primitive_subexpfin(w, n, k, recenter_finite_nonneg(n, ref, v));
+  write_primitive_subexpfin(w, n, k, recenter_finite_nonneg(n, ref, v));
 }
 
 int aom_count_primitive_refsubexpfin(uint16_t n, uint16_t k, uint16_t ref,

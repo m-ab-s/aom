@@ -23,13 +23,6 @@ extern "C" {
 #include "aom_dsp/bitwriter.h"
 #include "aom_dsp/bitwriter_buffer.h"
 
-// Encodes a value v in [0, n-1] quasi-uniformly
-void aom_write_primitive_quniform(aom_writer *w, uint16_t n, uint16_t v);
-
-// Finite subexponential code that codes a symbol v in [0, n-1] with parameter k
-void aom_write_primitive_subexpfin(aom_writer *w, uint16_t n, uint16_t k,
-                                   uint16_t v);
-
 // Finite subexponential code that codes a symbol v in [0, n-1] with parameter k
 // based on a reference ref also in [0, n-1].
 void aom_write_primitive_refsubexpfin(aom_writer *w, uint16_t n, uint16_t k,
