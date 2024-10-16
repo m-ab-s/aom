@@ -14,24 +14,6 @@
 #include "aom_dsp/recenter.h"
 #include "aom_ports/bitops.h"
 
-// Codes a symbol v in [-2^mag_bits, 2^mag_bits].
-// mag_bits is number of bits for magnitude. The alphabet is of size
-// 2 * 2^mag_bits + 1, symmetric around 0, where one bit is used to
-// indicate 0 or non-zero, mag_bits bits are used to indicate magnitide
-// and 1 more bit for the sign if non-zero.
-void aom_write_primitive_symmetric(aom_writer *w, int16_t v,
-                                   unsigned int abs_bits) {
-  if (v == 0) {
-    aom_write_bit(w, 0);
-  } else {
-    const int x = abs(v);
-    const int s = v < 0;
-    aom_write_bit(w, 1);
-    aom_write_bit(w, s);
-    aom_write_literal(w, x - 1, abs_bits);
-  }
-}
-
 // Encodes a value v in [0, n-1] quasi-uniformly
 void aom_write_primitive_quniform(aom_writer *w, uint16_t n, uint16_t v) {
   if (n <= 1) return;
@@ -108,15 +90,6 @@ static int count_primitive_subexpfin(uint16_t n, uint16_t k, uint16_t v) {
 void aom_write_primitive_refsubexpfin(aom_writer *w, uint16_t n, uint16_t k,
                                       uint16_t ref, uint16_t v) {
   aom_write_primitive_subexpfin(w, n, k, recenter_finite_nonneg(n, ref, v));
-}
-
-void aom_write_signed_primitive_refsubexpfin(aom_writer *w, uint16_t n,
-                                             uint16_t k, int16_t ref,
-                                             int16_t v) {
-  ref += n - 1;
-  v += n - 1;
-  const uint16_t scaled_n = (n << 1) - 1;
-  aom_write_primitive_refsubexpfin(w, scaled_n, k, ref, v);
 }
 
 int aom_count_primitive_refsubexpfin(uint16_t n, uint16_t k, uint16_t ref,
