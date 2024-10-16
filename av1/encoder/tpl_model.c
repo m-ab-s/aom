@@ -2148,6 +2148,7 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio) {
   return r;
 }
 
+#if CONFIG_BITRATE_ACCURACY
 double av1_laplace_estimate_frame_rate(int q_index, int block_count,
                                        const double *abs_coeff_mean,
                                        int coeff_num) {
@@ -2165,6 +2166,7 @@ double av1_laplace_estimate_frame_rate(int q_index, int block_count,
   est_rate *= block_count;
   return est_rate;
 }
+#endif  // CONFIG_BITRATE_ACCURACY
 
 double av1_estimate_coeff_entropy(double q_step, double b,
                                   double zero_bin_ratio, int qcoeff) {

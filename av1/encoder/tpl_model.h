@@ -519,6 +519,7 @@ double av1_exponential_entropy(double q_step, double b);
  */
 double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio);
 
+#if CONFIG_BITRATE_ACCURACY
 /*!\brief  Compute the frame rate using transform block stats
  *
  * Assume each position i in the transform block is of Laplace distribution
@@ -539,6 +540,7 @@ double av1_laplace_entropy(double q_step, double b, double zero_bin_ratio);
 double av1_laplace_estimate_frame_rate(int q_index, int block_count,
                                        const double *abs_coeff_mean,
                                        int coeff_num);
+#endif  // CONFIG_BITRATE_ACCURACY
 
 /*
  *!\brief Init TplTxfmStats
@@ -712,6 +714,7 @@ static inline void rc_log_frame_stats(RATECTRL_LOG *rc_log, int coding_index,
   rc_log->txfm_stats_list[coding_index] = *txfm_stats;
 }
 
+#if CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
 static inline void rc_log_frame_encode_param(RATECTRL_LOG *rc_log,
                                              int coding_index,
                                              double qstep_ratio, int q_index,
@@ -727,6 +730,7 @@ static inline void rc_log_frame_encode_param(RATECTRL_LOG *rc_log,
         txfm_stats->coeff_num);
   }
 }
+#endif  // CONFIG_RATECTRL_LOG && CONFIG_THREE_PASS && CONFIG_BITRATE_ACCURACY
 
 static inline void rc_log_frame_entropy(RATECTRL_LOG *rc_log, int coding_index,
                                         double act_rate,
