@@ -2331,6 +2331,51 @@ static void update_gop_length(RATE_CONTROL *rc, PRIMARY_RATE_CONTROL *p_rc,
   rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
 }
 
+// #define FIXED_ARF_BITS
+#ifdef FIXED_ARF_BITS
+#define ARF_BITS_FRACTION 0.75
+#endif
+/*!\brief Distributes bits to frames in a group
+ *
+ *\ingroup rate_control
+ *
+ * This function decides on the allocation of bits between the different
+ * frames and types of frame in a GF/ARF group.
+ *
+ * \param[in]   cpi           Top - level encoder instance structure
+ * \param[in]   rc            Rate control data
+ * \param[in]   gf_group      GF/ARF group data structure
+ * \param[in]   is_key_frame  Indicates if the first frame in the group is
+ *                            also a key frame.
+ * \param[in]   use_arf       Are ARF frames enabled or is this a GF only
+ *                            uni-directional group.
+ * \param[in]   gf_group_bits Bits available to be allocated.
+ *
+ * \remark No return but updates the rate control and group data structures
+ *         to reflect the allocation of bits.
+ */
+static void av1_gop_bit_allocation(const AV1_COMP *cpi, RATE_CONTROL *const rc,
+                                   GF_GROUP *gf_group, int is_key_frame,
+                                   int use_arf, int64_t gf_group_bits) {
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  // Calculate the extra bits to be used for boosted frame(s)
+#ifdef FIXED_ARF_BITS
+  int gf_arf_bits = (int)(ARF_BITS_FRACTION * gf_group_bits);
+#else
+  int gf_arf_bits = calculate_boost_bits(
+      p_rc->baseline_gf_interval - (rc->frames_since_key == 0), p_rc->gfu_boost,
+      gf_group_bits);
+#endif
+
+  gf_arf_bits = adjust_boost_bits_for_target_level(cpi, rc, gf_arf_bits,
+                                                   gf_group_bits, 1);
+
+  // Allocate bits to each of the frames in the GF group.
+  allocate_gf_group_bits(gf_group, p_rc, rc, gf_group_bits, gf_arf_bits,
+                         is_key_frame, use_arf);
+}
+#undef ARF_BITS_FRACTION
+
 #define MAX_GF_BOOST 5400
 #define REDUCE_GF_LENGTH_THRESH 4
 #define REDUCE_GF_LENGTH_TO_KEY_THRESH 9
@@ -2677,31 +2722,6 @@ static int define_gf_group_pass3(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   return 0;
 }
 #endif  // CONFIG_THREE_PASS
-
-// #define FIXED_ARF_BITS
-#ifdef FIXED_ARF_BITS
-#define ARF_BITS_FRACTION 0.75
-#endif
-void av1_gop_bit_allocation(const AV1_COMP *cpi, RATE_CONTROL *const rc,
-                            GF_GROUP *gf_group, int is_key_frame, int use_arf,
-                            int64_t gf_group_bits) {
-  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
-  // Calculate the extra bits to be used for boosted frame(s)
-#ifdef FIXED_ARF_BITS
-  int gf_arf_bits = (int)(ARF_BITS_FRACTION * gf_group_bits);
-#else
-  int gf_arf_bits = calculate_boost_bits(
-      p_rc->baseline_gf_interval - (rc->frames_since_key == 0), p_rc->gfu_boost,
-      gf_group_bits);
-#endif
-
-  gf_arf_bits = adjust_boost_bits_for_target_level(cpi, rc, gf_arf_bits,
-                                                   gf_group_bits, 1);
-
-  // Allocate bits to each of the frames in the GF group.
-  allocate_gf_group_bits(gf_group, p_rc, rc, gf_group_bits, gf_arf_bits,
-                         is_key_frame, use_arf);
-}
 
 // Minimum % intra coding observed in first pass (1.0 = 100%)
 #define MIN_INTRA_LEVEL 0.25
