@@ -106,9 +106,6 @@ uint32_t av1_write_obu_header(AV1LevelParams *const level_params,
 int av1_write_uleb_obu_size(size_t obu_payload_size, uint8_t *dest,
                             size_t dest_size);
 
-// Deprecated. Use av1_write_uleb_obu_size() instead.
-int av1_write_uleb_obu_size_unsafe(size_t obu_payload_size, uint8_t *dest);
-
 // Pack tile data in the bitstream with tile_group, frame
 // and OBU header.
 void av1_pack_tile_info(struct AV1_COMP *const cpi, struct ThreadData *const td,

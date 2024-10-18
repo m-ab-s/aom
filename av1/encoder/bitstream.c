@@ -3440,7 +3440,9 @@ int av1_write_uleb_obu_size(size_t obu_payload_size, uint8_t *dest,
   return AOM_CODEC_OK;
 }
 
-int av1_write_uleb_obu_size_unsafe(size_t obu_payload_size, uint8_t *dest) {
+// Deprecated. Use av1_write_uleb_obu_size() instead.
+static int av1_write_uleb_obu_size_unsafe(size_t obu_payload_size,
+                                          uint8_t *dest) {
   size_t coded_obu_size = 0;
 
   if (aom_uleb_encode(obu_payload_size, sizeof(uint32_t), dest,
