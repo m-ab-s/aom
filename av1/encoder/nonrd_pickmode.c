@@ -1990,16 +1990,28 @@ static void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x,
     }
     return;
   }
+  // Divide factor for comparing uv_sad to y_sad.
   int shift = 3;
+  // Threshold for the block spatial source variance.
   unsigned int source_var_thr = 50;
-  int uv_sad_thr = 100;
+  // Thresholds for normalized uv_sad, the first one is used for
+  // low source_varaince.
+  int norm_uv_sad_thresh = 100;
+  int norm_uv_sad_thresh2 = 40;
   if (source_sad_nonrd >= kMedSad && x->source_variance > 0 && high_res)
     shift = 4;
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     if (cpi->rc.high_source_sad) shift = 6;
     if (source_sad_nonrd > kMedSad) {
       source_var_thr = 1200;
-      uv_sad_thr = 10;
+      norm_uv_sad_thresh = 10;
+    }
+    if (cpi->rc.percent_blocks_with_motion > 90 &&
+        cpi->rc.frame_source_sad > 10000 && source_sad_nonrd > kLowSad) {
+      // Aggressive setting for color_sensitiivty for this content.
+      shift = 10;
+      norm_uv_sad_thresh = 0;
+      norm_uv_sad_thresh2 = 0;
     }
   }
   NOISE_LEVEL noise_level = kLow;
@@ -2037,8 +2049,8 @@ static void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x,
       const int norm_uv_sad =
           uv_sad >> (b_width_log2_lookup[bs] + b_height_log2_lookup[bs]);
       x->color_sensitivity[COLOR_SENS_IDX(plane)] =
-          uv_sad > (y_sad >> shift) && norm_uv_sad > 40;
-      if (source_variance < source_var_thr && norm_uv_sad > uv_sad_thr)
+          uv_sad > (y_sad >> shift) && norm_uv_sad > norm_uv_sad_thresh2;
+      if (source_variance < source_var_thr && norm_uv_sad > norm_uv_sad_thresh)
         x->color_sensitivity[COLOR_SENS_IDX(plane)] = 1;
     }
   }

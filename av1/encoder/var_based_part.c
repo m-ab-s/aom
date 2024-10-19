@@ -1008,6 +1008,11 @@ static inline void chroma_check(AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       cpi->rc.high_source_sad) {
     shift_lower_limit = 7;
+  } else if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+             cpi->rc.percent_blocks_with_motion > 90 &&
+             cpi->rc.frame_source_sad > 10000 && source_sad_nonrd > kLowSad) {
+    shift_lower_limit = 8;
+    shift_upper_limit = 3;
   } else if (source_sad_nonrd >= kMedSad && x->source_variance > 500 &&
              cpi->common.width * cpi->common.height >= 640 * 360) {
     shift_upper_limit = 2;
