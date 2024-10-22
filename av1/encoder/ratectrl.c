@@ -1998,29 +1998,6 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   return active_best_quality;
 }
 
-// Returns the q_index for a single frame in the GOP.
-// This function assumes that rc_mode == AOM_Q mode.
-int av1_q_mode_get_q_index(int base_q_index, int gf_update_type,
-                           int gf_pyramid_level, int arf_q) {
-  const int is_intrl_arf_boost = gf_update_type == INTNL_ARF_UPDATE;
-  int is_leaf_or_overlay_frame = gf_update_type == LF_UPDATE ||
-                                 gf_update_type == OVERLAY_UPDATE ||
-                                 gf_update_type == INTNL_OVERLAY_UPDATE;
-
-  if (is_leaf_or_overlay_frame) return base_q_index;
-
-  if (!is_intrl_arf_boost) return arf_q;
-
-  int active_best_quality = arf_q;
-  int active_worst_quality = base_q_index;
-
-  while (gf_pyramid_level > 1) {
-    active_best_quality = (active_best_quality + active_worst_quality + 1) / 2;
-    --gf_pyramid_level;
-  }
-  return active_best_quality;
-}
-
 static int rc_pick_q_and_bounds_q_mode(const AV1_COMP *cpi, int width,
                                        int height, int gf_index,
                                        int *bottom_index, int *top_index) {

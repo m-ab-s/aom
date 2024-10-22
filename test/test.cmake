@@ -268,7 +268,6 @@ if(NOT BUILD_SHARED_LIBS)
                 "${AOM_ROOT}/test/lossless_test.cc"
                 "${AOM_ROOT}/test/noise_model_test.cc"
                 "${AOM_ROOT}/test/quant_test.cc"
-                "${AOM_ROOT}/test/ratectrl_test.cc"
                 "${AOM_ROOT}/test/rd_test.cc"
                 "${AOM_ROOT}/test/sb_multipass_test.cc"
                 "${AOM_ROOT}/test/sb_qp_sweep_test.cc"

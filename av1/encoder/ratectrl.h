@@ -825,20 +825,6 @@ int av1_encodedframe_overshoot_cbr(struct AV1_COMP *cpi, int *q);
  */
 int av1_postencode_drop_cbr(struct AV1_COMP *cpi, size_t *size);
 
-/*!\brief Compute the q_indices for a single frame.
- *
- * Intended to be used with AOM_Q mode.
- *
- * \param[in]       base_q_index      Base q index
- * \param[in]       gf_update_type    GOP update type
- * \param[in]       gf_pyramid_level  GOP level of the current frame
- * \param[in]       arf_q             ARF q_index
- *
- * \return Returns the q_index for the current frame.
- */
-int av1_q_mode_get_q_index(int base_q_index, int gf_update_type,
-                           int gf_pyramid_level, int arf_q);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
