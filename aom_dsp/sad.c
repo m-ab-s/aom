@@ -227,7 +227,7 @@ static inline unsigned int highbd_sadb(const uint8_t *a8, int a_stride,
   return sad;
 }
 
-#define HIGHBD_SADMXN(m, n)                                                    \
+#define HIGHBD_SADMXN_NO_SKIP(m, n)                                            \
   unsigned int aom_highbd_sad##m##x##n##_c(const uint8_t *src, int src_stride, \
                                            const uint8_t *ref,                 \
                                            int ref_stride) {                   \
@@ -249,7 +249,10 @@ static inline unsigned int highbd_sadb(const uint8_t *a8, int a_stride,
     aom_highbd_dist_wtd_comp_avg_pred(comp_pred8, second_pred, m, n, ref,      \
                                       ref_stride, jcp_param);                  \
     return highbd_sadb(src, src_stride, comp_pred8, m, m, n);                  \
-  }                                                                            \
+  }
+
+#define HIGHBD_SADMXN(m, n)                                                    \
+  HIGHBD_SADMXN_NO_SKIP(m, n)                                                  \
   unsigned int aom_highbd_sad_skip_##m##x##n##_c(                              \
       const uint8_t *src, int src_stride, const uint8_t *ref,                  \
       int ref_stride) {                                                        \
@@ -257,7 +260,7 @@ static inline unsigned int highbd_sadb(const uint8_t *a8, int a_stride,
            highbd_sad(src, 2 * src_stride, ref, 2 * ref_stride, (m), (n / 2)); \
   }
 
-#define HIGHBD_SAD_MXNX4D(m, n)                                                \
+#define HIGHBD_SAD_MXNX4D_NO_SKIP(m, n)                                        \
   void aom_highbd_sad##m##x##n##x4d_c(const uint8_t *src, int src_stride,      \
                                       const uint8_t *const ref_array[4],       \
                                       int ref_stride, uint32_t sad_array[4]) { \
@@ -266,15 +269,18 @@ static inline unsigned int highbd_sadb(const uint8_t *a8, int a_stride,
       sad_array[i] = aom_highbd_sad##m##x##n##_c(src, src_stride,              \
                                                  ref_array[i], ref_stride);    \
     }                                                                          \
-  }                                                                            \
-  void aom_highbd_sad_skip_##m##x##n##x4d_c(                                   \
-      const uint8_t *src, int src_stride, const uint8_t *const ref_array[4],   \
-      int ref_stride, uint32_t sad_array[4]) {                                 \
-    int i;                                                                     \
-    for (i = 0; i < 4; ++i) {                                                  \
-      sad_array[i] = 2 * highbd_sad(src, 2 * src_stride, ref_array[i],         \
-                                    2 * ref_stride, (m), (n / 2));             \
-    }                                                                          \
+  }
+
+#define HIGHBD_SAD_MXNX4D(m, n)                                              \
+  HIGHBD_SAD_MXNX4D_NO_SKIP(m, n)                                            \
+  void aom_highbd_sad_skip_##m##x##n##x4d_c(                                 \
+      const uint8_t *src, int src_stride, const uint8_t *const ref_array[4], \
+      int ref_stride, uint32_t sad_array[4]) {                               \
+    int i;                                                                   \
+    for (i = 0; i < 4; ++i) {                                                \
+      sad_array[i] = 2 * highbd_sad(src, 2 * src_stride, ref_array[i],       \
+                                    2 * ref_stride, (m), (n / 2));           \
+    }                                                                        \
   }
 // Call SIMD version of aom_highbd_sad_mxnx4d if the 3d version is unavailable.
 #define HIGHBD_SAD_MXNX3D(m, n)                                                \
@@ -336,8 +342,8 @@ HIGHBD_SAD_MXNX4D(16, 16)
 HIGHBD_SAD_MXNX3D(16, 16)
 
 // 16x8
-HIGHBD_SADMXN(16, 8)
-HIGHBD_SAD_MXNX4D(16, 8)
+HIGHBD_SADMXN_NO_SKIP(16, 8)
+HIGHBD_SAD_MXNX4D_NO_SKIP(16, 8)
 HIGHBD_SAD_MXNX3D(16, 8)
 
 // 8x16
@@ -346,34 +352,34 @@ HIGHBD_SAD_MXNX4D(8, 16)
 HIGHBD_SAD_MXNX3D(8, 16)
 
 // 8x8
-HIGHBD_SADMXN(8, 8)
-HIGHBD_SAD_MXNX4D(8, 8)
+HIGHBD_SADMXN_NO_SKIP(8, 8)
+HIGHBD_SAD_MXNX4D_NO_SKIP(8, 8)
 HIGHBD_SAD_MXNX3D(8, 8)
 
 // 8x4
-HIGHBD_SADMXN(8, 4)
-HIGHBD_SAD_MXNX4D(8, 4)
+HIGHBD_SADMXN_NO_SKIP(8, 4)
+HIGHBD_SAD_MXNX4D_NO_SKIP(8, 4)
 HIGHBD_SAD_MXNX3D(8, 4)
 
 // 4x8
-HIGHBD_SADMXN(4, 8)
-HIGHBD_SAD_MXNX4D(4, 8)
+HIGHBD_SADMXN_NO_SKIP(4, 8)
+HIGHBD_SAD_MXNX4D_NO_SKIP(4, 8)
 HIGHBD_SAD_MXNX3D(4, 8)
 
 // 4x4
-HIGHBD_SADMXN(4, 4)
-HIGHBD_SAD_MXNX4D(4, 4)
+HIGHBD_SADMXN_NO_SKIP(4, 4)
+HIGHBD_SAD_MXNX4D_NO_SKIP(4, 4)
 HIGHBD_SAD_MXNX3D(4, 4)
 
 #if !CONFIG_REALTIME_ONLY
 HIGHBD_SADMXN(4, 16)
 HIGHBD_SAD_MXNX4D(4, 16)
-HIGHBD_SADMXN(16, 4)
-HIGHBD_SAD_MXNX4D(16, 4)
+HIGHBD_SADMXN_NO_SKIP(16, 4)
+HIGHBD_SAD_MXNX4D_NO_SKIP(16, 4)
 HIGHBD_SADMXN(8, 32)
 HIGHBD_SAD_MXNX4D(8, 32)
-HIGHBD_SADMXN(32, 8)
-HIGHBD_SAD_MXNX4D(32, 8)
+HIGHBD_SADMXN_NO_SKIP(32, 8)
+HIGHBD_SAD_MXNX4D_NO_SKIP(32, 8)
 HIGHBD_SADMXN(16, 64)
 HIGHBD_SAD_MXNX4D(16, 64)
 HIGHBD_SADMXN(64, 16)

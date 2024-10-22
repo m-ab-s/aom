@@ -270,7 +270,6 @@ HIGH_SAD32XN 16, 2 ; highbd_sad_skip_32x16_sse2
 %if CONFIG_REALTIME_ONLY==0
 HIGH_SAD32XN  8 ; highbd_sad_32x8_sse2
 HIGH_SAD32XN  8, 1 ; highbd_sad_32x8_avg_sse2
-HIGH_SAD32XN  8, 2 ; highbd_sad_skip_32x8_sse2
 %endif
 
 ; unsigned int aom_highbd_sad16x{8,16,32}_sse2(uint8_t *src, int src_stride,
@@ -349,15 +348,12 @@ HIGH_SAD16XN 16, 1 ; highbd_sad16x16_avg_sse2
 HIGH_SAD16XN  8, 1 ; highbd_sad16x8_avg_sse2
 HIGH_SAD16XN 32, 2 ; highbd_sad_skip_16x32_sse2
 HIGH_SAD16XN 16, 2 ; highbd_sad_skip_16x16_sse2
-HIGH_SAD16XN  8, 2 ; highbd_sad_skip_16x8_sse2
 %if CONFIG_REALTIME_ONLY==0
 HIGH_SAD16XN 64 ; highbd_sad_16x64_sse2
 HIGH_SAD16XN  4 ; highbd_sad_16x4_sse2
 HIGH_SAD16XN 64, 1 ; highbd_sad_16x64_avg_sse2
 HIGH_SAD16XN  4, 1 ; highbd_sad_16x4_avg_sse2
 HIGH_SAD16XN 64, 2 ; highbd_sad_skip_16x64_sse2
-; Current code fails there are only 2 rows
-; HIGH_SAD16XN  4, 2 ; highbd_sad_skip_16x4_sse2
 %endif
 
 ; unsigned int aom_highbd_sad8x{4,8,16}_sse2(uint8_t *src, int src_stride,
@@ -443,7 +439,6 @@ HIGH_SAD8XN 16, 1 ; highbd_sad8x16_avg_sse2
 HIGH_SAD8XN  8, 1 ; highbd_sad8x8_avg_sse2
 HIGH_SAD8XN  4, 1 ; highbd_sad8x4_avg_sse2
 HIGH_SAD8XN 16, 2 ; highbd_sad_skip_8x16_sse2
-HIGH_SAD8XN  8, 2 ; highbd_sad_skip_8x8_sse2
 ; Current code fails there are only 2 rows
 ; HIGH_SAD8XN  4, 2 ; highbd_sad8x4_avg_sse2
 %if CONFIG_REALTIME_ONLY==0
@@ -524,9 +519,6 @@ HIGH_SAD4XN  8 ; highbd_sad4x8_sse2
 HIGH_SAD4XN  4 ; highbd_sad4x4_sse2
 HIGH_SAD4XN  8, 1 ; highbd_sad4x8_avg_sse2
 HIGH_SAD4XN  4, 1 ; highbd_sad4x4_avg_sse2
-HIGH_SAD4XN  8, 2 ; highbd_sad_skip_4x8_sse2
-; Current code fails there are only 2 rows
-; HIGH_SAD4XN  4, 2 ; highbd_sad_skip_4x4_sse2
 %if CONFIG_REALTIME_ONLY==0
 HIGH_SAD4XN 16 ; highbd_sad4x16_sse2
 HIGH_SAD4XN 16, 1 ; highbd_sad4x16_avg_sse2
