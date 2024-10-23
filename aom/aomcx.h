@@ -233,10 +233,16 @@ enum aome_enc_control_id {
    * unsigned int parameter.
    *
    * This parameter controls the level at which rate-distortion optimization of
-   * transform coefficients favours sharpness in the block.
+   * transform coefficients favors sharpness in the block.
    *
-   * Valid range: 0..7. The default is 0. Values 1-7 will avoid eob and skip
-   * block optimization and will change rdmult in favour of block sharpness.
+   * Valid range: 0..7. The default is 0.
+   *
+   * Values 1-7 will avoid eob and skip block optimization and will change
+   * rdmult in favor of block sharpness.
+   *
+   * In all-intra mode: it also sets the `loop_filter_sharpness` syntax element
+   * in the bitstream. Larger values increasingly reduce how much the filtering
+   * can change the sample values on block edges to favor perceived sharpness.
    */
   AOME_SET_SHARPNESS = AOME_SET_ENABLEAUTOALTREF + 2,  // 16
 

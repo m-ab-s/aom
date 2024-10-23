@@ -819,9 +819,15 @@ typedef struct {
 typedef struct {
   /*!
    * Controls the level at which rate-distortion optimization of transform
-   * coefficients favours sharpness in the block. Has no impact on RD when set
-   * to zero (default). For values 1-7, eob and skip block optimization are
-   * avoided and rdmult is adjusted in favour of block sharpness.
+   * coefficients favors sharpness in the block. Has no impact on RD when set
+   * to zero (default).
+   *
+   * For values 1-7, eob and skip block optimization are
+   * avoided and rdmult is adjusted in favor of block sharpness.
+   *
+   * In all-intra mode: it also sets the `loop_filter_sharpness` syntax element
+   * in the bitstream. Larger values increasingly reduce how much the filtering
+   * can change the sample values on block edges to favor perceived sharpness.
    */
   int sharpness;
 
