@@ -259,7 +259,6 @@ SAD32XN 16, 2 ; sad32x16_skip_sse2
 %if CONFIG_REALTIME_ONLY==0
 SAD32XN  8    ; sad_32x8_sse2
 SAD32XN  8, 1 ; sad_32x8_avg_sse2
-SAD32XN  8, 2 ; sad_32x8_skip_sse2
 %endif
 
 ; unsigned int aom_sad16x{8,16}_sse2(uint8_t *src, int src_stride,
@@ -316,7 +315,6 @@ SAD16XN 16, 1 ; sad16x16_avg_sse2
 SAD16XN  8, 1 ; sad16x8_avg_sse2
 SAD16XN 32, 2 ; sad16x32_skip_sse2
 SAD16XN 16, 2 ; sad16x16_skip_sse2
-SAD16XN  8, 2 ; sad16x8_skip_sse2
 %if CONFIG_REALTIME_ONLY==0
 SAD16XN 64    ; sad_16x64_sse2
 SAD16XN  4    ; sad_16x4_sse2
@@ -434,7 +432,6 @@ SAD4XN  8 ; sad4x8_sse2
 SAD4XN  4 ; sad4x4_sse2
 SAD4XN  8, 1 ; sad4x8_avg_sse2
 SAD4XN  4, 1 ; sad4x4_avg_sse2
-SAD4XN  8, 2 ; sad4x8_skip_sse2
 %if CONFIG_REALTIME_ONLY==0
 SAD4XN 16 ; sad_4x16_sse2
 SAD4XN 16, 1 ; sad_4x16_avg_sse2

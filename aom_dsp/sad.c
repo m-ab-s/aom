@@ -35,7 +35,7 @@ static inline unsigned int sad(const uint8_t *a, int a_stride, const uint8_t *b,
   return sad;
 }
 
-#define SADMXN(m, n)                                                          \
+#define SADMXN_NO_SKIP(m, n)                                                  \
   unsigned int aom_sad##m##x##n##_c(const uint8_t *src, int src_stride,       \
                                     const uint8_t *ref, int ref_stride) {     \
     return sad(src, src_stride, ref, ref_stride, m, n);                       \
@@ -54,7 +54,10 @@ static inline unsigned int sad(const uint8_t *a, int a_stride, const uint8_t *b,
     aom_dist_wtd_comp_avg_pred_c(comp_pred, second_pred, m, n, ref,           \
                                  ref_stride, jcp_param);                      \
     return sad(src, src_stride, comp_pred, m, m, n);                          \
-  }                                                                           \
+  }
+
+#define SADMXN(m, n)                                                          \
+  SADMXN_NO_SKIP(m, n)                                                        \
   unsigned int aom_sad_skip_##m##x##n##_c(const uint8_t *src, int src_stride, \
                                           const uint8_t *ref,                 \
                                           int ref_stride) {                   \
@@ -62,16 +65,19 @@ static inline unsigned int sad(const uint8_t *a, int a_stride, const uint8_t *b,
   }
 
 // Calculate sad against 4 reference locations and store each in sad_array
+#define SAD_MXNX4D_NO_SKIP(m, n)                                           \
+  void aom_sad##m##x##n##x4d_c(const uint8_t *src, int src_stride,         \
+                               const uint8_t *const ref_array[4],          \
+                               int ref_stride, uint32_t sad_array[4]) {    \
+    int i;                                                                 \
+    for (i = 0; i < 4; ++i) {                                              \
+      sad_array[i] =                                                       \
+          aom_sad##m##x##n##_c(src, src_stride, ref_array[i], ref_stride); \
+    }                                                                      \
+  }
+
 #define SAD_MXNX4D(m, n)                                                      \
-  void aom_sad##m##x##n##x4d_c(const uint8_t *src, int src_stride,            \
-                               const uint8_t *const ref_array[4],             \
-                               int ref_stride, uint32_t sad_array[4]) {       \
-    int i;                                                                    \
-    for (i = 0; i < 4; ++i) {                                                 \
-      sad_array[i] =                                                          \
-          aom_sad##m##x##n##_c(src, src_stride, ref_array[i], ref_stride);    \
-    }                                                                         \
-  }                                                                           \
+  SAD_MXNX4D_NO_SKIP(m, n)                                                    \
   void aom_sad_skip_##m##x##n##x4d_c(const uint8_t *src, int src_stride,      \
                                      const uint8_t *const ref_array[4],       \
                                      int ref_stride, uint32_t sad_array[4]) { \
@@ -140,8 +146,8 @@ SAD_MXNX4D(16, 16)
 SAD_MXNX3D(16, 16)
 
 // 16x8
-SADMXN(16, 8)
-SAD_MXNX4D(16, 8)
+SADMXN_NO_SKIP(16, 8)
+SAD_MXNX4D_NO_SKIP(16, 8)
 SAD_MXNX3D(16, 8)
 
 // 8x16
@@ -150,34 +156,34 @@ SAD_MXNX4D(8, 16)
 SAD_MXNX3D(8, 16)
 
 // 8x8
-SADMXN(8, 8)
-SAD_MXNX4D(8, 8)
+SADMXN_NO_SKIP(8, 8)
+SAD_MXNX4D_NO_SKIP(8, 8)
 SAD_MXNX3D(8, 8)
 
 // 8x4
-SADMXN(8, 4)
-SAD_MXNX4D(8, 4)
+SADMXN_NO_SKIP(8, 4)
+SAD_MXNX4D_NO_SKIP(8, 4)
 SAD_MXNX3D(8, 4)
 
 // 4x8
-SADMXN(4, 8)
-SAD_MXNX4D(4, 8)
+SADMXN_NO_SKIP(4, 8)
+SAD_MXNX4D_NO_SKIP(4, 8)
 SAD_MXNX3D(4, 8)
 
 // 4x4
-SADMXN(4, 4)
-SAD_MXNX4D(4, 4)
+SADMXN_NO_SKIP(4, 4)
+SAD_MXNX4D_NO_SKIP(4, 4)
 SAD_MXNX3D(4, 4)
 
 #if !CONFIG_REALTIME_ONLY
 SADMXN(4, 16)
 SAD_MXNX4D(4, 16)
-SADMXN(16, 4)
-SAD_MXNX4D(16, 4)
+SADMXN_NO_SKIP(16, 4)
+SAD_MXNX4D_NO_SKIP(16, 4)
 SADMXN(8, 32)
 SAD_MXNX4D(8, 32)
-SADMXN(32, 8)
-SAD_MXNX4D(32, 8)
+SADMXN_NO_SKIP(32, 8)
+SAD_MXNX4D_NO_SKIP(32, 8)
 SADMXN(16, 64)
 SAD_MXNX4D(16, 64)
 SADMXN(64, 16)
