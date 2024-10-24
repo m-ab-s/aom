@@ -36,6 +36,8 @@ extern "C" {
 #define DEFAULT_QM_V 12
 #define DEFAULT_QM_FIRST 5
 #define DEFAULT_QM_LAST 9
+#define DEFAULT_QM_FIRST_ALLINTRA 4
+#define DEFAULT_QM_LAST_ALLINTRA 10
 #define LOSSLESS_Q_STEP 4  // this should equal to dc/ac_qlookup_QTX[0]
 
 struct AV1Common;
@@ -56,6 +58,33 @@ bool av1_use_qmatrix(const struct CommonQuantParams *quant_params,
 // different matrices may be defined
 static inline int aom_get_qmlevel(int qindex, int first, int last) {
   return first + (qindex * (last + 1 - first)) / QINDEX_RANGE;
+}
+
+// QM levels tuned for allintra mode (including still images)
+// This formula was empirically derived by encoding the CID22 validation
+// testset for each QP/QM tuple, and building a convex hull that
+// maximizes SSIMU2 scores, and a final subjective visual quality pass
+// as a sanity check.
+static inline int aom_get_qmlevel_allintra(int qindex, int first, int last) {
+  int qm_level = 0;
+
+  if (qindex <= 40) {
+    qm_level = 10;
+  } else if (qindex <= 100) {
+    qm_level = 9;
+  } else if (qindex <= 160) {
+    qm_level = 8;
+  } else if (qindex <= 200) {
+    qm_level = 7;
+  } else if (qindex <= 220) {
+    qm_level = 6;
+  } else if (qindex <= 240) {
+    qm_level = 5;
+  } else {
+    qm_level = 4;
+  }
+
+  return clamp(qm_level, first, last);
 }
 
 // Initialize all global quant/dequant matrices.

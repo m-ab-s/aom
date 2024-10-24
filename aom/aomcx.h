@@ -731,8 +731,8 @@ enum aome_enc_control_id {
    * control sets the minimum level of flatness from which the matrices
    * are determined.
    *
-   * By default, the encoder sets this minimum at half the available
-   * range.
+   * By default, the encoder sets this minimum at level 5 (4 in allintra
+   * mode).
    */
   AV1E_SET_QM_MIN = 64,
 
@@ -743,8 +743,8 @@ enum aome_enc_control_id {
    * As quantisation levels increase, the matrices get flatter. This
    * control sets the maximum level of flatness possible.
    *
-   * By default, the encoder sets this maximum at the top of the
-   * available range.
+   * By default, the encoder sets this maximum at level 9 (10 in allintra
+   * mode)
    */
   AV1E_SET_QM_MAX = 65,
 

@@ -2861,12 +2861,15 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
     }
     priv->extra_cfg = default_extra_cfg[extra_cfg_idx];
     // Special handling:
-    // By default, if omitted, --enable-cdef = 1.
-    // Here we set its default value to 0 when --allintra is turned on.
-    // However, if users set --enable-cdef = 1 from command line,
-    // The encoder still respects it.
+    // By default, if omitted: --enable-cdef=1, --qm-min=5, and --qm-max=9
+    // Here we set its default values to 0, 4, and 10 respectively when
+    // --allintra is turned on.
+    // However, if users set --enable-cdef, --qm-min, or --qm-max, either from
+    // the command line or aom_codec_control(), the encoder still respects it.
     if (priv->cfg.g_usage == AOM_USAGE_ALL_INTRA) {
       priv->extra_cfg.enable_cdef = 0;
+      priv->extra_cfg.qm_min = DEFAULT_QM_FIRST_ALLINTRA;
+      priv->extra_cfg.qm_max = DEFAULT_QM_LAST_ALLINTRA;
     }
     av1_initialize_enc(priv->cfg.g_usage, priv->cfg.rc_end_usage);
 
