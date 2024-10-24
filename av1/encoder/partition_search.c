@@ -5413,13 +5413,13 @@ static void log_sub_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
   double min_var_4x4 = (double)INT_MAX;
   double max_var_4x4 = 0.0;
 
+  aom_variance_fn_t vf = cpi->ppi->fn_ptr[BLOCK_4X4].vf;
   for (int i = 0; i < bh; i += MI_SIZE) {
     for (int j = 0; j < bw; j += MI_SIZE) {
       int var;
       // Calculate the 4x4 sub-block variance.
       var = av1_calc_normalized_variance(
-          cpi->ppi->fn_ptr[BLOCK_4X4].vf,
-          x->plane[0].src.buf + (i * x->plane[0].src.stride) + j,
+          vf, x->plane[0].src.buf + (i * x->plane[0].src.stride) + j,
           x->plane[0].src.stride, is_hbd);
 
       // Record min and max for over-arching block
