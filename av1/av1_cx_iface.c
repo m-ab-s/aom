@@ -2867,7 +2867,13 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
     // However, if users set --enable-cdef, --qm-min, or --qm-max, either from
     // the command line or aom_codec_control(), the encoder still respects it.
     if (priv->cfg.g_usage == AOM_USAGE_ALL_INTRA) {
+      // CDEF has been found to blur images, so it's disabled in all-intra mode
       priv->extra_cfg.enable_cdef = 0;
+      // These QM min/max values have been found to be optimal for images,
+      // when used with an alternative QM formula (see
+      // aom_get_qmlevel_allintra()).
+      // These values could also be beneficial for other usage modes, but
+      // further testing is required.
       priv->extra_cfg.qm_min = DEFAULT_QM_FIRST_ALLINTRA;
       priv->extra_cfg.qm_max = DEFAULT_QM_LAST_ALLINTRA;
     }
