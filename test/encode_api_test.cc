@@ -115,13 +115,8 @@ TEST(EncodeAPI, InitializeWithPreset) {
   aom_codec_enc_cfg_t cfg;
   EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME));
-  // AOM_CODEC_USE_PRESET is an experimental feature, so
-  // AOM_CODEC_USE_EXPERIMENTAL must also be set.
-  EXPECT_NE(AOM_CODEC_OK,
+  EXPECT_EQ(AOM_CODEC_OK,
             aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_PRESET));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg,
-                                             AOM_CODEC_USE_EXPERIMENTAL |
-                                                 AOM_CODEC_USE_PRESET));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
