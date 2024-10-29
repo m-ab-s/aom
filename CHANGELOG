@@ -18,7 +18,8 @@
       * Quality improvements for screen content with active maps
 
   - Speedup
-    * Neon optimizations speed up
+    * Added and improved Neon SIMD paths for dynamic frame scaling with ~1.5%
+      overall encoding speedup.
 
   - Other Improvements
     * Binary size reduction: 10% compared with last release, with
