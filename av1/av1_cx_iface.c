@@ -2854,9 +2854,6 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 
     int extra_cfg_idx = 0;
     if (ctx->init_flags & AOM_CODEC_USE_PRESET) {
-      if (!(ctx->init_flags & AOM_CODEC_USE_EXPERIMENTAL)) {
-        return AOM_CODEC_INCAPABLE;
-      }
       extra_cfg_idx = find_default_extra_cfg_for_usage(priv->cfg.g_usage);
     }
     priv->extra_cfg = default_extra_cfg[extra_cfg_idx];
