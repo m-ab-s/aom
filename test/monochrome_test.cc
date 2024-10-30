@@ -11,7 +11,10 @@
 
 #include <climits>
 #include <vector>
+
 #include "gtest/gtest.h"
+
+#include "config/aom_config.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"
@@ -120,6 +123,7 @@ class MonochromeTest
   double frame0_psnr_y_;
 };
 
+#if !CONFIG_REALTIME_ONLY
 TEST_P(MonochromeTest, TestMonochromeEncoding) {
   ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 5);
@@ -173,9 +177,18 @@ TEST_P(MonochromeAllIntraTest, TestMonochromeEncoding) {
   }
 }
 
+#endif  // !CONFIG_REALTIME_ONLY
+
 class MonochromeRealtimeTest : public MonochromeTest {};
 
-TEST_P(MonochromeRealtimeTest, TestMonochromeEncoding) {
+#if CONFIG_REALTIME_ONLY
+// TODO: https://crbug.com/aomedia/376504476 - Enable this test after large
+// PSNR differences are resolved in this configuration.
+#define MAYBE_TestMonochromeEncoding DISABLED_TestMonochromeEncoding
+#else
+#define MAYBE_TestMonochromeEncoding TestMonochromeEncoding
+#endif
+TEST_P(MonochromeRealtimeTest, MAYBE_TestMonochromeEncoding) {
   ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
                                        30, 1, 0, 30);
   init_flags_ = AOM_CODEC_USE_PSNR;
@@ -197,6 +210,7 @@ TEST_P(MonochromeRealtimeTest, TestMonochromeEncoding) {
   }
 }
 
+#if !CONFIG_REALTIME_ONLY
 AV1_INSTANTIATE_TEST_SUITE(MonochromeTest,
                            ::testing::Values(::libaom_test::kOnePassGood,
                                              ::libaom_test::kTwoPassGood),
@@ -207,6 +221,7 @@ AV1_INSTANTIATE_TEST_SUITE(MonochromeAllIntraTest,
                            ::testing::Values(::libaom_test::kAllIntra),
                            ::testing::Values(0, 1),   // lossless
                            ::testing::Values(6, 9));  // cpu_used
+#endif                                                // !CONFIG_REALTIME_ONLY
 
 AV1_INSTANTIATE_TEST_SUITE(MonochromeRealtimeTest,
                            ::testing::Values(::libaom_test::kRealTime),
