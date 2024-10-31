@@ -1456,9 +1456,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     if (speed >= 10) sf->rt_sf.nonrd_aggressive_skip = 1;
   }
   // TODO(marpan): Tune settings for speed 11 video mode,
-  // for resolutions below 720p.
-  if (speed >= 11 && !is_720p_or_larger &&
-      cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) {
+  if (speed >= 11 && cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN) {
     sf->rt_sf.skip_cdef_sb = 1;
     sf->rt_sf.force_only_last_ref = 1;
     sf->rt_sf.selective_cdf_update = 1;
