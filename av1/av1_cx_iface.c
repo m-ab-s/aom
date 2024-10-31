@@ -892,7 +892,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, deltaq_strength, 0, 1000);
   RANGE_CHECK_HI(extra_cfg, loopfilter_control, 3);
   RANGE_CHECK_BOOL(extra_cfg, skip_postproc_filtering);
-  RANGE_CHECK_HI(extra_cfg, enable_cdef, 2);
+  RANGE_CHECK_HI(extra_cfg, enable_cdef, 3);
   RANGE_CHECK_BOOL(extra_cfg, auto_intra_tools_off);
   RANGE_CHECK_BOOL(extra_cfg, strict_level_conformance);
   RANGE_CHECK_BOOL(extra_cfg, sb_qp_sweep);
