@@ -1244,9 +1244,6 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avg_c, 8),
   make_tuple(8, 16, &aom_highbd_sad8x16_avg_c, 8),
   make_tuple(8, 8, &aom_highbd_sad8x8_avg_c, 8),
-  make_tuple(8, 4, &aom_highbd_sad8x4_avg_c, 8),
-  make_tuple(4, 8, &aom_highbd_sad4x8_avg_c, 8),
-  make_tuple(4, 4, &aom_highbd_sad4x4_avg_c, 8),
   make_tuple(128, 128, &aom_highbd_sad128x128_avg_c, 10),
   make_tuple(128, 64, &aom_highbd_sad128x64_avg_c, 10),
   make_tuple(64, 128, &aom_highbd_sad64x128_avg_c, 10),
@@ -1260,9 +1257,6 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avg_c, 10),
   make_tuple(8, 16, &aom_highbd_sad8x16_avg_c, 10),
   make_tuple(8, 8, &aom_highbd_sad8x8_avg_c, 10),
-  make_tuple(8, 4, &aom_highbd_sad8x4_avg_c, 10),
-  make_tuple(4, 8, &aom_highbd_sad4x8_avg_c, 10),
-  make_tuple(4, 4, &aom_highbd_sad4x4_avg_c, 10),
   make_tuple(128, 128, &aom_highbd_sad128x128_avg_c, 12),
   make_tuple(128, 64, &aom_highbd_sad128x64_avg_c, 12),
   make_tuple(64, 128, &aom_highbd_sad64x128_avg_c, 12),
@@ -1276,9 +1270,6 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avg_c, 12),
   make_tuple(8, 16, &aom_highbd_sad8x16_avg_c, 12),
   make_tuple(8, 8, &aom_highbd_sad8x8_avg_c, 12),
-  make_tuple(8, 4, &aom_highbd_sad8x4_avg_c, 12),
-  make_tuple(4, 8, &aom_highbd_sad4x8_avg_c, 12),
-  make_tuple(4, 4, &aom_highbd_sad4x4_avg_c, 12),
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 #if !CONFIG_REALTIME_ONLY
   make_tuple(64, 16, &aom_sad64x16_avg_c, -1),
@@ -1300,14 +1291,6 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_c, 10),
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_c, 12),
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_c, 12),
-#endif
-#if CONFIG_AV1_HIGHBITDEPTH
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_c, 8),
-  make_tuple(4, 16, &aom_highbd_sad4x16_avg_c, 8),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_c, 10),
-  make_tuple(4, 16, &aom_highbd_sad4x16_avg_c, 10),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_c, 12),
-  make_tuple(4, 16, &aom_highbd_sad4x16_avg_c, 12),
 #endif
 #endif  // !CONFIG_REALTIME_ONLY
 };
@@ -1993,9 +1976,6 @@ const SadMxNAvgParam avg_neon_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avg_neon, 8),
   make_tuple(8, 16, &aom_highbd_sad8x16_avg_neon, 8),
   make_tuple(8, 8, &aom_highbd_sad8x8_avg_neon, 8),
-  make_tuple(8, 4, &aom_highbd_sad8x4_avg_neon, 8),
-  make_tuple(4, 8, &aom_highbd_sad4x8_avg_neon, 8),
-  make_tuple(4, 4, &aom_highbd_sad4x4_avg_neon, 8),
   make_tuple(128, 128, &aom_highbd_sad128x128_avg_neon, 10),
   make_tuple(128, 64, &aom_highbd_sad128x64_avg_neon, 10),
   make_tuple(64, 128, &aom_highbd_sad64x128_avg_neon, 10),
@@ -2009,9 +1989,6 @@ const SadMxNAvgParam avg_neon_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avg_neon, 10),
   make_tuple(8, 16, &aom_highbd_sad8x16_avg_neon, 10),
   make_tuple(8, 8, &aom_highbd_sad8x8_avg_neon, 10),
-  make_tuple(8, 4, &aom_highbd_sad8x4_avg_neon, 10),
-  make_tuple(4, 8, &aom_highbd_sad4x8_avg_neon, 10),
-  make_tuple(4, 4, &aom_highbd_sad4x4_avg_neon, 10),
   make_tuple(128, 128, &aom_highbd_sad128x128_avg_neon, 12),
   make_tuple(128, 64, &aom_highbd_sad128x64_avg_neon, 12),
   make_tuple(64, 128, &aom_highbd_sad64x128_avg_neon, 12),
@@ -2025,9 +2002,6 @@ const SadMxNAvgParam avg_neon_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avg_neon, 12),
   make_tuple(8, 16, &aom_highbd_sad8x16_avg_neon, 12),
   make_tuple(8, 8, &aom_highbd_sad8x8_avg_neon, 12),
-  make_tuple(8, 4, &aom_highbd_sad8x4_avg_neon, 12),
-  make_tuple(4, 8, &aom_highbd_sad4x8_avg_neon, 12),
-  make_tuple(4, 4, &aom_highbd_sad4x4_avg_neon, 12),
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 #if !CONFIG_REALTIME_ONLY
   make_tuple(64, 16, &aom_sad64x16_avg_neon, -1),
@@ -2039,20 +2013,14 @@ const SadMxNAvgParam avg_neon_tests[] = {
   make_tuple(16, 64, &aom_highbd_sad16x64_avg_neon, 8),
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_neon, 8),
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_neon, 8),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_neon, 8),
-  make_tuple(4, 16, &aom_highbd_sad4x16_avg_neon, 8),
   make_tuple(64, 16, &aom_highbd_sad64x16_avg_neon, 10),
   make_tuple(16, 64, &aom_highbd_sad16x64_avg_neon, 10),
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_neon, 10),
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_neon, 10),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_neon, 10),
-  make_tuple(4, 16, &aom_highbd_sad4x16_avg_neon, 10),
   make_tuple(64, 16, &aom_highbd_sad64x16_avg_neon, 12),
   make_tuple(16, 64, &aom_highbd_sad16x64_avg_neon, 12),
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_neon, 12),
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_neon, 12),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_neon, 12),
-  make_tuple(4, 16, &aom_highbd_sad4x16_avg_neon, 12),
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 #endif  // !CONFIG_REALTIME_ONLY
 };
@@ -2528,9 +2496,6 @@ const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avg_sse2, 8),
   make_tuple(8, 16, &aom_highbd_sad8x16_avg_sse2, 8),
   make_tuple(8, 8, &aom_highbd_sad8x8_avg_sse2, 8),
-  make_tuple(8, 4, &aom_highbd_sad8x4_avg_sse2, 8),
-  make_tuple(4, 8, &aom_highbd_sad4x8_avg_sse2, 8),
-  make_tuple(4, 4, &aom_highbd_sad4x4_avg_sse2, 8),
   make_tuple(64, 64, &aom_highbd_sad64x64_avg_sse2, 10),
   make_tuple(64, 32, &aom_highbd_sad64x32_avg_sse2, 10),
   make_tuple(32, 64, &aom_highbd_sad32x64_avg_sse2, 10),
@@ -2541,9 +2506,6 @@ const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avg_sse2, 10),
   make_tuple(8, 16, &aom_highbd_sad8x16_avg_sse2, 10),
   make_tuple(8, 8, &aom_highbd_sad8x8_avg_sse2, 10),
-  make_tuple(8, 4, &aom_highbd_sad8x4_avg_sse2, 10),
-  make_tuple(4, 8, &aom_highbd_sad4x8_avg_sse2, 10),
-  make_tuple(4, 4, &aom_highbd_sad4x4_avg_sse2, 10),
   make_tuple(64, 64, &aom_highbd_sad64x64_avg_sse2, 12),
   make_tuple(64, 32, &aom_highbd_sad64x32_avg_sse2, 12),
   make_tuple(32, 64, &aom_highbd_sad32x64_avg_sse2, 12),
@@ -2554,9 +2516,6 @@ const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(16, 8, &aom_highbd_sad16x8_avg_sse2, 12),
   make_tuple(8, 16, &aom_highbd_sad8x16_avg_sse2, 12),
   make_tuple(8, 8, &aom_highbd_sad8x8_avg_sse2, 12),
-  make_tuple(8, 4, &aom_highbd_sad8x4_avg_sse2, 12),
-  make_tuple(4, 8, &aom_highbd_sad4x8_avg_sse2, 12),
-  make_tuple(4, 4, &aom_highbd_sad4x4_avg_sse2, 12),
 #endif
 #if !CONFIG_REALTIME_ONLY
   make_tuple(64, 16, &aom_sad64x16_avg_sse2, -1),
@@ -2578,14 +2537,6 @@ const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_sse2, 10),
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_sse2, 12),
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_sse2, 12),
-#endif
-#if CONFIG_AV1_HIGHBITDEPTH
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_sse2, 8),
-  make_tuple(4, 16, &aom_highbd_sad4x16_avg_sse2, 8),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_sse2, 10),
-  make_tuple(4, 16, &aom_highbd_sad4x16_avg_sse2, 10),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_sse2, 12),
-  make_tuple(4, 16, &aom_highbd_sad4x16_avg_sse2, 12),
 #endif
 #endif  // !CONFIG_REALTIME_ONLY
 };
@@ -2958,9 +2909,6 @@ const SadMxNAvgParam avg_avx2_tests[] = {
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_avx2, 8),
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_avx2, 10),
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_avx2, 12),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_avx2, 8),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_avx2, 10),
-  make_tuple(16, 4, &aom_highbd_sad16x4_avg_avx2, 12),
 #endif
 #endif
 };

@@ -254,38 +254,59 @@ static inline unsigned int highbd_sadb(const uint8_t *a8, int a_stride,
   return sad;
 }
 
-#define HIGHBD_SADMXN_NO_SKIP(m, n)                                            \
+#define HIGHBD_SADMXN_BASE(m, n)                                               \
   unsigned int aom_highbd_sad##m##x##n##_c(const uint8_t *src, int src_stride, \
                                            const uint8_t *ref,                 \
                                            int ref_stride) {                   \
     return highbd_sad(src, src_stride, ref, ref_stride, m, n);                 \
-  }                                                                            \
-  unsigned int aom_highbd_sad##m##x##n##_avg_c(                                \
-      const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride,  \
-      const uint8_t *second_pred) {                                            \
-    uint16_t comp_pred[m * n];                                                 \
-    uint8_t *const comp_pred8 = CONVERT_TO_BYTEPTR(comp_pred);                 \
-    aom_highbd_comp_avg_pred(comp_pred8, second_pred, m, n, ref, ref_stride);  \
-    return highbd_sadb(src, src_stride, comp_pred8, m, m, n);                  \
-  }                                                                            \
-  unsigned int aom_highbd_dist_wtd_sad##m##x##n##_avg_c(                       \
-      const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride,  \
-      const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {     \
-    uint16_t comp_pred[m * n];                                                 \
-    uint8_t *const comp_pred8 = CONVERT_TO_BYTEPTR(comp_pred);                 \
-    aom_highbd_dist_wtd_comp_avg_pred(comp_pred8, second_pred, m, n, ref,      \
-                                      ref_stride, jcp_param);                  \
-    return highbd_sadb(src, src_stride, comp_pred8, m, m, n);                  \
   }
 
-#define HIGHBD_SADMXN(m, n)                                                    \
-  HIGHBD_SADMXN_NO_SKIP(m, n)                                                  \
+#define HIGHBD_SADMXN_AVG(m, n)                                               \
+  unsigned int aom_highbd_sad##m##x##n##_avg_c(                               \
+      const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride, \
+      const uint8_t *second_pred) {                                           \
+    uint16_t comp_pred[m * n];                                                \
+    uint8_t *const comp_pred8 = CONVERT_TO_BYTEPTR(comp_pred);                \
+    aom_highbd_comp_avg_pred(comp_pred8, second_pred, m, n, ref, ref_stride); \
+    return highbd_sadb(src, src_stride, comp_pred8, m, m, n);                 \
+  }
+
+#define HIGHBD_SADMXN_DIST_WTD(m, n)                                          \
+  unsigned int aom_highbd_dist_wtd_sad##m##x##n##_avg_c(                      \
+      const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride, \
+      const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {    \
+    uint16_t comp_pred[m * n];                                                \
+    uint8_t *const comp_pred8 = CONVERT_TO_BYTEPTR(comp_pred);                \
+    aom_highbd_dist_wtd_comp_avg_pred(comp_pred8, second_pred, m, n, ref,     \
+                                      ref_stride, jcp_param);                 \
+    return highbd_sadb(src, src_stride, comp_pred8, m, m, n);                 \
+  }
+
+#define HIGHBD_SADMXN_SKIP(m, n)                                               \
   unsigned int aom_highbd_sad_skip_##m##x##n##_c(                              \
       const uint8_t *src, int src_stride, const uint8_t *ref,                  \
       int ref_stride) {                                                        \
     return 2 *                                                                 \
            highbd_sad(src, 2 * src_stride, ref, 2 * ref_stride, (m), (n / 2)); \
   }
+
+#define HIGHBD_SADMXN_NO_SKIP(m, n) \
+  HIGHBD_SADMXN_BASE(m, n)          \
+  HIGHBD_SADMXN_AVG(m, n)           \
+  HIGHBD_SADMXN_DIST_WTD(m, n)
+
+#define HIGHBD_SADMXN_NO_AVG(m, n) \
+  HIGHBD_SADMXN_BASE(m, n)         \
+  HIGHBD_SADMXN_SKIP(m, n)         \
+  HIGHBD_SADMXN_DIST_WTD(m, n)
+
+#define HIGHBD_SADMXN_NO_SKIP_OR_AVG(m, n) \
+  HIGHBD_SADMXN_BASE(m, n)                 \
+  HIGHBD_SADMXN_DIST_WTD(m, n)
+
+#define HIGHBD_SADMXN(m, n)   \
+  HIGHBD_SADMXN_NO_SKIP(m, n) \
+  HIGHBD_SADMXN_SKIP(m, n)
 
 #define HIGHBD_SAD_MXNX4D_NO_SKIP(m, n)                                        \
   void aom_highbd_sad##m##x##n##x4d_c(const uint8_t *src, int src_stride,      \
@@ -384,24 +405,24 @@ HIGHBD_SAD_MXNX4D_NO_SKIP(8, 8)
 HIGHBD_SAD_MXNX3D(8, 8)
 
 // 8x4
-HIGHBD_SADMXN_NO_SKIP(8, 4)
+HIGHBD_SADMXN_NO_SKIP_OR_AVG(8, 4)
 HIGHBD_SAD_MXNX4D_NO_SKIP(8, 4)
 HIGHBD_SAD_MXNX3D(8, 4)
 
 // 4x8
-HIGHBD_SADMXN_NO_SKIP(4, 8)
+HIGHBD_SADMXN_NO_SKIP_OR_AVG(4, 8)
 HIGHBD_SAD_MXNX4D_NO_SKIP(4, 8)
 HIGHBD_SAD_MXNX3D(4, 8)
 
 // 4x4
-HIGHBD_SADMXN_NO_SKIP(4, 4)
+HIGHBD_SADMXN_NO_SKIP_OR_AVG(4, 4)
 HIGHBD_SAD_MXNX4D_NO_SKIP(4, 4)
 HIGHBD_SAD_MXNX3D(4, 4)
 
 #if !CONFIG_REALTIME_ONLY
-HIGHBD_SADMXN(4, 16)
+HIGHBD_SADMXN_NO_AVG(4, 16)
 HIGHBD_SAD_MXNX4D(4, 16)
-HIGHBD_SADMXN_NO_SKIP(16, 4)
+HIGHBD_SADMXN_NO_SKIP_OR_AVG(16, 4)
 HIGHBD_SAD_MXNX4D_NO_SKIP(16, 4)
 HIGHBD_SADMXN(8, 32)
 HIGHBD_SAD_MXNX4D(8, 32)

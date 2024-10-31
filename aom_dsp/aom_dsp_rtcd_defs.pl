@@ -943,7 +943,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       if ($h >= 16) {
         add_proto qw/unsigned int/, "aom_highbd_sad_skip_${w}x${h}", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride";
       }
-      add_proto qw/unsigned int/, "aom_highbd_sad${w}x${h}_avg", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride, const uint8_t *second_pred";
+      if ($w != 4 && $h != 4) {
+        add_proto qw/unsigned int/, "aom_highbd_sad${w}x${h}_avg", "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride, const uint8_t *second_pred";
+      }
       if ($w != 128 && $h != 128 && $w != 4) {
         specialize "aom_highbd_sad${w}x${h}", qw/sse2/;
         specialize "aom_highbd_sad${w}x${h}_avg", qw/sse2/;
@@ -1004,13 +1006,8 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_highbd_sad16x8_avg    avx2 sse2 neon/;
     specialize qw/aom_highbd_sad8x16_avg              neon/;
     specialize qw/aom_highbd_sad8x8_avg               neon/;
-    specialize qw/aom_highbd_sad8x4_avg          sse2 neon/;
-    specialize qw/aom_highbd_sad4x8_avg          sse2 neon/;
-    specialize qw/aom_highbd_sad4x4_avg          sse2 neon/;
 
-    specialize qw/aom_highbd_sad4x16_avg         sse2 neon/;
     specialize qw/aom_highbd_sad8x32_avg         sse2 neon/;
-    specialize qw/aom_highbd_sad16x4_avg    avx2 sse2 neon/;
     specialize qw/aom_highbd_sad16x64_avg   avx2 sse2 neon/;
     specialize qw/aom_highbd_sad32x8_avg    avx2 sse2 neon/;
     specialize qw/aom_highbd_sad64x16_avg   avx2 sse2 neon/;

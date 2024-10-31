@@ -352,7 +352,6 @@ HIGH_SAD16XN 16, 2 ; highbd_sad_skip_16x16_sse2
 HIGH_SAD16XN 64 ; highbd_sad_16x64_sse2
 HIGH_SAD16XN  4 ; highbd_sad_16x4_sse2
 HIGH_SAD16XN 64, 1 ; highbd_sad_16x64_avg_sse2
-HIGH_SAD16XN  4, 1 ; highbd_sad_16x4_avg_sse2
 HIGH_SAD16XN 64, 2 ; highbd_sad_skip_16x64_sse2
 %endif
 
@@ -437,10 +436,7 @@ HIGH_SAD8XN  8 ; highbd_sad8x8_sse2
 HIGH_SAD8XN  4 ; highbd_sad8x4_sse2
 HIGH_SAD8XN 16, 1 ; highbd_sad8x16_avg_sse2
 HIGH_SAD8XN  8, 1 ; highbd_sad8x8_avg_sse2
-HIGH_SAD8XN  4, 1 ; highbd_sad8x4_avg_sse2
 HIGH_SAD8XN 16, 2 ; highbd_sad_skip_8x16_sse2
-; Current code fails there are only 2 rows
-; HIGH_SAD8XN  4, 2 ; highbd_sad8x4_avg_sse2
 %if CONFIG_REALTIME_ONLY==0
 HIGH_SAD8XN 32 ; highbd_sad_8x32_sse2
 HIGH_SAD8XN 32, 1 ; highbd_sad_8x32_avg_sse2
@@ -517,10 +513,7 @@ HIGH_SAD8XN 32, 2 ; highbd_sad_skip_8x32_sse2
 INIT_XMM sse2
 HIGH_SAD4XN  8 ; highbd_sad4x8_sse2
 HIGH_SAD4XN  4 ; highbd_sad4x4_sse2
-HIGH_SAD4XN  8, 1 ; highbd_sad4x8_avg_sse2
-HIGH_SAD4XN  4, 1 ; highbd_sad4x4_avg_sse2
 %if CONFIG_REALTIME_ONLY==0
 HIGH_SAD4XN 16 ; highbd_sad4x16_sse2
-HIGH_SAD4XN 16, 1 ; highbd_sad4x16_avg_sse2
 HIGH_SAD4XN 16, 2 ; highbd_sad_skip_4x16_sse2
 %endif
