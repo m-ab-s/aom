@@ -515,30 +515,6 @@ static inline unsigned int sad8xh_avg_neon(const uint8_t *src_ptr,
   return horizontal_add_u16x8(sum);
 }
 
-static inline unsigned int sad4xh_avg_neon(const uint8_t *src_ptr,
-                                           int src_stride,
-                                           const uint8_t *ref_ptr,
-                                           int ref_stride, int h,
-                                           const uint8_t *second_pred) {
-  uint16x8_t sum = vdupq_n_u16(0);
-
-  int i = h / 2;
-  do {
-    uint8x8_t s = load_unaligned_u8(src_ptr, src_stride);
-    uint8x8_t r = load_unaligned_u8(ref_ptr, ref_stride);
-    uint8x8_t p = vld1_u8(second_pred);
-
-    uint8x8_t avg = vrhadd_u8(r, p);
-    sum = vabal_u8(sum, s, avg);
-
-    src_ptr += 2 * src_stride;
-    ref_ptr += 2 * ref_stride;
-    second_pred += 8;
-  } while (--i != 0);
-
-  return horizontal_add_u16x8(sum);
-}
-
 #define SAD_WXH_AVG_NEON(w, h)                                                 \
   unsigned int aom_sad##w##x##h##_avg_neon(const uint8_t *src, int src_stride, \
                                            const uint8_t *ref, int ref_stride, \
@@ -547,10 +523,6 @@ static inline unsigned int sad4xh_avg_neon(const uint8_t *src_ptr,
                                second_pred);                                   \
   }
 
-SAD_WXH_AVG_NEON(4, 4)
-SAD_WXH_AVG_NEON(4, 8)
-
-SAD_WXH_AVG_NEON(8, 4)
 SAD_WXH_AVG_NEON(8, 8)
 SAD_WXH_AVG_NEON(8, 16)
 
@@ -570,9 +542,7 @@ SAD_WXH_AVG_NEON(128, 64)
 SAD_WXH_AVG_NEON(128, 128)
 
 #if !CONFIG_REALTIME_ONLY
-SAD_WXH_AVG_NEON(4, 16)
 SAD_WXH_AVG_NEON(8, 32)
-SAD_WXH_AVG_NEON(16, 4)
 SAD_WXH_AVG_NEON(16, 64)
 SAD_WXH_AVG_NEON(32, 8)
 SAD_WXH_AVG_NEON(64, 16)

@@ -744,6 +744,7 @@ static inline int get_mvpred_compound_sad(
     return vfp->msdf(src_buf, src_stride, ref_address, ref_stride, second_pred,
                      mask, mask_stride, invert_mask);
   } else if (second_pred) {
+    assert(vfp->sdaf != NULL);
     return vfp->sdaf(src_buf, src_stride, ref_address, ref_stride, second_pred);
   } else {
     return ms_params->sdf(src_buf, src_stride, ref_address, ref_stride);

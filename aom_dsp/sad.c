@@ -35,18 +35,22 @@ static inline unsigned int sad(const uint8_t *a, int a_stride, const uint8_t *b,
   return sad;
 }
 
-#define SADMXN_NO_SKIP(m, n)                                                  \
-  unsigned int aom_sad##m##x##n##_c(const uint8_t *src, int src_stride,       \
-                                    const uint8_t *ref, int ref_stride) {     \
-    return sad(src, src_stride, ref, ref_stride, m, n);                       \
-  }                                                                           \
-  unsigned int aom_sad##m##x##n##_avg_c(const uint8_t *src, int src_stride,   \
-                                        const uint8_t *ref, int ref_stride,   \
-                                        const uint8_t *second_pred) {         \
-    uint8_t comp_pred[m * n];                                                 \
-    aom_comp_avg_pred(comp_pred, second_pred, m, n, ref, ref_stride);         \
-    return sad(src, src_stride, comp_pred, m, m, n);                          \
-  }                                                                           \
+#define SADMXN_BASE(m, n)                                                 \
+  unsigned int aom_sad##m##x##n##_c(const uint8_t *src, int src_stride,   \
+                                    const uint8_t *ref, int ref_stride) { \
+    return sad(src, src_stride, ref, ref_stride, m, n);                   \
+  }
+
+#define SADMXN_AVG(m, n)                                                    \
+  unsigned int aom_sad##m##x##n##_avg_c(const uint8_t *src, int src_stride, \
+                                        const uint8_t *ref, int ref_stride, \
+                                        const uint8_t *second_pred) {       \
+    uint8_t comp_pred[m * n];                                               \
+    aom_comp_avg_pred(comp_pred, second_pred, m, n, ref, ref_stride);       \
+    return sad(src, src_stride, comp_pred, m, m, n);                        \
+  }
+
+#define SADMXN_DIST_WTD(m, n)                                                 \
   unsigned int aom_dist_wtd_sad##m##x##n##_avg_c(                             \
       const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride, \
       const uint8_t *second_pred, const DIST_WTD_COMP_PARAMS *jcp_param) {    \
@@ -56,13 +60,30 @@ static inline unsigned int sad(const uint8_t *a, int a_stride, const uint8_t *b,
     return sad(src, src_stride, comp_pred, m, m, n);                          \
   }
 
-#define SADMXN(m, n)                                                          \
-  SADMXN_NO_SKIP(m, n)                                                        \
+#define SADMXN_SKIP(m, n)                                                     \
   unsigned int aom_sad_skip_##m##x##n##_c(const uint8_t *src, int src_stride, \
                                           const uint8_t *ref,                 \
                                           int ref_stride) {                   \
     return 2 * sad(src, 2 * src_stride, ref, 2 * ref_stride, (m), (n / 2));   \
   }
+
+#define SADMXN_NO_SKIP(m, n) \
+  SADMXN_BASE(m, n)          \
+  SADMXN_AVG(m, n)           \
+  SADMXN_DIST_WTD(m, n)
+
+#define SADMXN_NO_AVG(m, n) \
+  SADMXN_BASE(m, n)         \
+  SADMXN_SKIP(m, n)         \
+  SADMXN_DIST_WTD(m, n)
+
+#define SADMXN_NO_SKIP_OR_AVG(m, n) \
+  SADMXN_BASE(m, n)                 \
+  SADMXN_DIST_WTD(m, n)
+
+#define SADMXN(m, n)   \
+  SADMXN_NO_SKIP(m, n) \
+  SADMXN_SKIP(m, n)
 
 // Calculate sad against 4 reference locations and store each in sad_array
 #define SAD_MXNX4D_NO_SKIP(m, n)                                           \
@@ -161,24 +182,24 @@ SAD_MXNX4D_NO_SKIP(8, 8)
 SAD_MXNX3D(8, 8)
 
 // 8x4
-SADMXN_NO_SKIP(8, 4)
+SADMXN_NO_SKIP_OR_AVG(8, 4)
 SAD_MXNX4D_NO_SKIP(8, 4)
 SAD_MXNX3D(8, 4)
 
 // 4x8
-SADMXN_NO_SKIP(4, 8)
+SADMXN_NO_SKIP_OR_AVG(4, 8)
 SAD_MXNX4D_NO_SKIP(4, 8)
 SAD_MXNX3D(4, 8)
 
 // 4x4
-SADMXN_NO_SKIP(4, 4)
+SADMXN_NO_SKIP_OR_AVG(4, 4)
 SAD_MXNX4D_NO_SKIP(4, 4)
 SAD_MXNX3D(4, 4)
 
 #if !CONFIG_REALTIME_ONLY
-SADMXN(4, 16)
+SADMXN_NO_AVG(4, 16)
 SAD_MXNX4D(4, 16)
-SADMXN_NO_SKIP(16, 4)
+SADMXN_NO_SKIP_OR_AVG(16, 4)
 SAD_MXNX4D_NO_SKIP(16, 4)
 SADMXN(8, 32)
 SAD_MXNX4D(8, 32)

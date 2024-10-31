@@ -319,7 +319,6 @@ SAD16XN 16, 2 ; sad_skip_16x16_sse2
 SAD16XN 64    ; sad_16x64_sse2
 SAD16XN  4    ; sad_16x4_sse2
 SAD16XN 64, 1 ; sad_16x64_avg_sse2
-SAD16XN  4, 1 ; sad_16x4_avg_sse2
 SAD16XN 64, 2 ; sad_16x64_skip_sse2
 %endif
 
@@ -372,7 +371,6 @@ SAD8XN  8    ; sad8x8_sse2
 SAD8XN  4    ; sad8x4_sse2
 SAD8XN 16, 1 ; sad8x16_avg_sse2
 SAD8XN  8, 1 ; sad8x8_avg_sse2
-SAD8XN  4, 1 ; sad8x4_avg_sse2
 SAD8XN 16, 2 ; sad_skip_8x16_sse2
 SAD8XN  8, 2 ; sad_skip_8x8_sse2
 %if CONFIG_REALTIME_ONLY==0
@@ -430,10 +428,7 @@ SAD8XN 32, 2 ; sad_skip_8x32_sse2
 INIT_XMM sse2
 SAD4XN  8 ; sad4x8_sse2
 SAD4XN  4 ; sad4x4_sse2
-SAD4XN  8, 1 ; sad4x8_avg_sse2
-SAD4XN  4, 1 ; sad4x4_avg_sse2
 %if CONFIG_REALTIME_ONLY==0
 SAD4XN 16 ; sad_4x16_sse2
-SAD4XN 16, 1 ; sad_4x16_avg_sse2
 SAD4XN 16, 2 ; sad_4x16_skip_sse2
 %endif

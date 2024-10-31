@@ -1062,12 +1062,16 @@ AV1_PRIMARY *av1_create_primary_compressor(
 
 // Realtime mode doesn't use 4x rectangular blocks.
 #if !CONFIG_REALTIME_ONLY
-  BFP(BLOCK_4X16, aom_sad4x16, aom_sad4x16_avg, aom_variance4x16,
+  // sdaf (used in compound prediction, get_mvpred_compound_sad()) is unused
+  // for 4xN and Nx4 blocks.
+  BFP(BLOCK_4X16, aom_sad4x16, /*SDAF=*/NULL, aom_variance4x16,
       aom_sub_pixel_variance4x16, aom_sub_pixel_avg_variance4x16,
       aom_sad4x16x4d, aom_sad4x16x3d, aom_dist_wtd_sad4x16_avg,
       aom_dist_wtd_sub_pixel_avg_variance4x16)
 
-  BFP(BLOCK_16X4, aom_sad16x4, aom_sad16x4_avg, aom_variance16x4,
+  // sdaf (used in compound prediction, get_mvpred_compound_sad()) is unused
+  // for 4xN and Nx4 blocks.
+  BFP(BLOCK_16X4, aom_sad16x4, /*SDAF=*/NULL, aom_variance16x4,
       aom_sub_pixel_variance16x4, aom_sub_pixel_avg_variance16x4,
       aom_sad16x4x4d, aom_sad16x4x3d, aom_dist_wtd_sad16x4_avg,
       aom_dist_wtd_sub_pixel_avg_variance16x4)
@@ -1158,17 +1162,23 @@ AV1_PRIMARY *av1_create_primary_compressor(
       aom_sad8x8x3d, aom_dist_wtd_sad8x8_avg,
       aom_dist_wtd_sub_pixel_avg_variance8x8)
 
-  BFP(BLOCK_8X4, aom_sad8x4, aom_sad8x4_avg, aom_variance8x4,
+  // sdaf (used in compound prediction, get_mvpred_compound_sad()) is unused
+  // for 4xN and Nx4 blocks.
+  BFP(BLOCK_8X4, aom_sad8x4, /*SDAF=*/NULL, aom_variance8x4,
       aom_sub_pixel_variance8x4, aom_sub_pixel_avg_variance8x4, aom_sad8x4x4d,
       aom_sad8x4x3d, aom_dist_wtd_sad8x4_avg,
       aom_dist_wtd_sub_pixel_avg_variance8x4)
 
-  BFP(BLOCK_4X8, aom_sad4x8, aom_sad4x8_avg, aom_variance4x8,
+  // sdaf (used in compound prediction, get_mvpred_compound_sad()) is unused
+  // for 4xN and Nx4 blocks.
+  BFP(BLOCK_4X8, aom_sad4x8, /*SDAF=*/NULL, aom_variance4x8,
       aom_sub_pixel_variance4x8, aom_sub_pixel_avg_variance4x8, aom_sad4x8x4d,
       aom_sad4x8x3d, aom_dist_wtd_sad4x8_avg,
       aom_dist_wtd_sub_pixel_avg_variance4x8)
 
-  BFP(BLOCK_4X4, aom_sad4x4, aom_sad4x4_avg, aom_variance4x4,
+  // sdaf (used in compound prediction, get_mvpred_compound_sad()) is unused
+  // for 4xN and Nx4 blocks.
+  BFP(BLOCK_4X4, aom_sad4x4, /*SDAF=*/NULL, aom_variance4x4,
       aom_sub_pixel_variance4x4, aom_sub_pixel_avg_variance4x4, aom_sad4x4x4d,
       aom_sad4x4x3d, aom_dist_wtd_sad4x4_avg,
       aom_dist_wtd_sub_pixel_avg_variance4x4)

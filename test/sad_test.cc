@@ -1230,9 +1230,6 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(16, 8, &aom_sad16x8_avg_c, -1),
   make_tuple(8, 16, &aom_sad8x16_avg_c, -1),
   make_tuple(8, 8, &aom_sad8x8_avg_c, -1),
-  make_tuple(8, 4, &aom_sad8x4_avg_c, -1),
-  make_tuple(4, 8, &aom_sad4x8_avg_c, -1),
-  make_tuple(4, 4, &aom_sad4x4_avg_c, -1),
 #if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(128, 128, &aom_highbd_sad128x128_avg_c, 8),
   make_tuple(128, 64, &aom_highbd_sad128x64_avg_c, 8),
@@ -1304,8 +1301,6 @@ const SadMxNAvgParam avg_c_tests[] = {
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_c, 12),
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_c, 12),
 #endif
-  make_tuple(16, 4, &aom_sad16x4_avg_c, -1),
-  make_tuple(4, 16, &aom_sad4x16_avg_c, -1),
 #if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(16, 4, &aom_highbd_sad16x4_avg_c, 8),
   make_tuple(4, 16, &aom_highbd_sad4x16_avg_c, 8),
@@ -1984,9 +1979,6 @@ const SadMxNAvgParam avg_neon_tests[] = {
   make_tuple(16, 8, &aom_sad16x8_avg_neon, -1),
   make_tuple(8, 16, &aom_sad8x16_avg_neon, -1),
   make_tuple(8, 8, &aom_sad8x8_avg_neon, -1),
-  make_tuple(8, 4, &aom_sad8x4_avg_neon, -1),
-  make_tuple(4, 8, &aom_sad4x8_avg_neon, -1),
-  make_tuple(4, 4, &aom_sad4x4_avg_neon, -1),
 #if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(128, 128, &aom_highbd_sad128x128_avg_neon, 8),
   make_tuple(128, 64, &aom_highbd_sad128x64_avg_neon, 8),
@@ -2041,9 +2033,7 @@ const SadMxNAvgParam avg_neon_tests[] = {
   make_tuple(64, 16, &aom_sad64x16_avg_neon, -1),
   make_tuple(32, 8, &aom_sad32x8_avg_neon, -1),
   make_tuple(16, 64, &aom_sad16x64_avg_neon, -1),
-  make_tuple(16, 4, &aom_sad16x4_avg_neon, -1),
   make_tuple(8, 32, &aom_sad8x32_avg_neon, -1),
-  make_tuple(4, 16, &aom_sad4x16_avg_neon, -1),
 #if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(64, 16, &aom_highbd_sad64x16_avg_neon, 8),
   make_tuple(16, 64, &aom_highbd_sad16x64_avg_neon, 8),
@@ -2257,7 +2247,6 @@ const SadMxNAvgParam avg_neon_dotprod_tests[] = {
   make_tuple(64, 16, &aom_sad64x16_avg_neon_dotprod, -1),
   make_tuple(32, 8, &aom_sad32x8_avg_neon_dotprod, -1),
   make_tuple(16, 64, &aom_sad16x64_avg_neon_dotprod, -1),
-  make_tuple(16, 4, &aom_sad16x4_avg_neon_dotprod, -1),
 #endif  // !CONFIG_REALTIME_ONLY
 };
 INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, SADavgTest,
@@ -2528,9 +2517,6 @@ const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(16, 8, &aom_sad16x8_avg_sse2, -1),
   make_tuple(8, 16, &aom_sad8x16_avg_sse2, -1),
   make_tuple(8, 8, &aom_sad8x8_avg_sse2, -1),
-  make_tuple(8, 4, &aom_sad8x4_avg_sse2, -1),
-  make_tuple(4, 8, &aom_sad4x8_avg_sse2, -1),
-  make_tuple(4, 4, &aom_sad4x4_avg_sse2, -1),
 #if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(64, 64, &aom_highbd_sad64x64_avg_sse2, 8),
   make_tuple(64, 32, &aom_highbd_sad64x32_avg_sse2, 8),
@@ -2593,8 +2579,6 @@ const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(32, 8, &aom_highbd_sad32x8_avg_sse2, 12),
   make_tuple(8, 32, &aom_highbd_sad8x32_avg_sse2, 12),
 #endif
-  make_tuple(16, 4, &aom_sad16x4_avg_sse2, -1),
-  make_tuple(4, 16, &aom_sad4x16_avg_sse2, -1),
 #if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(16, 4, &aom_highbd_sad16x4_avg_sse2, 8),
   make_tuple(4, 16, &aom_highbd_sad4x16_avg_sse2, 8),
