@@ -185,8 +185,8 @@ HIGH_SAD64XN 32, 1 ; highbd_sad64x32_avg_sse2
 HIGH_SAD64XN 64, 2 ; highbd_sad_skip_64x64_sse2
 HIGH_SAD64XN 32, 2 ; highbd_sad_skip_64x32_sse2
 %if CONFIG_REALTIME_ONLY==0
-HIGH_SAD64XN 16 ; highbd_sad_64x16_sse2
-HIGH_SAD64XN 16, 1 ; highbd_sad_64x16_avg_sse2
+HIGH_SAD64XN 16 ; highbd_sad64x16_sse2
+HIGH_SAD64XN 16, 1 ; highbd_sad64x16_avg_sse2
 HIGH_SAD64XN 16, 2 ; highbd_sad_skip_64x16_sse2
 %endif
 
@@ -268,8 +268,8 @@ HIGH_SAD32XN 64, 2 ; highbd_sad_skip_32x64_sse2
 HIGH_SAD32XN 32, 2 ; highbd_sad_skip_32x32_sse2
 HIGH_SAD32XN 16, 2 ; highbd_sad_skip_32x16_sse2
 %if CONFIG_REALTIME_ONLY==0
-HIGH_SAD32XN  8 ; highbd_sad_32x8_sse2
-HIGH_SAD32XN  8, 1 ; highbd_sad_32x8_avg_sse2
+HIGH_SAD32XN  8 ; highbd_sad32x8_sse2
+HIGH_SAD32XN  8, 1 ; highbd_sad32x8_avg_sse2
 %endif
 
 ; unsigned int aom_highbd_sad16x{8,16,32}_sse2(uint8_t *src, int src_stride,
@@ -349,9 +349,9 @@ HIGH_SAD16XN  8, 1 ; highbd_sad16x8_avg_sse2
 HIGH_SAD16XN 32, 2 ; highbd_sad_skip_16x32_sse2
 HIGH_SAD16XN 16, 2 ; highbd_sad_skip_16x16_sse2
 %if CONFIG_REALTIME_ONLY==0
-HIGH_SAD16XN 64 ; highbd_sad_16x64_sse2
-HIGH_SAD16XN  4 ; highbd_sad_16x4_sse2
-HIGH_SAD16XN 64, 1 ; highbd_sad_16x64_avg_sse2
+HIGH_SAD16XN 64 ; highbd_sad16x64_sse2
+HIGH_SAD16XN  4 ; highbd_sad16x4_sse2
+HIGH_SAD16XN 64, 1 ; highbd_sad16x64_avg_sse2
 HIGH_SAD16XN 64, 2 ; highbd_sad_skip_16x64_sse2
 %endif
 
@@ -438,8 +438,8 @@ HIGH_SAD8XN 16, 1 ; highbd_sad8x16_avg_sse2
 HIGH_SAD8XN  8, 1 ; highbd_sad8x8_avg_sse2
 HIGH_SAD8XN 16, 2 ; highbd_sad_skip_8x16_sse2
 %if CONFIG_REALTIME_ONLY==0
-HIGH_SAD8XN 32 ; highbd_sad_8x32_sse2
-HIGH_SAD8XN 32, 1 ; highbd_sad_8x32_avg_sse2
+HIGH_SAD8XN 32 ; highbd_sad8x32_sse2
+HIGH_SAD8XN 32, 1 ; highbd_sad8x32_avg_sse2
 HIGH_SAD8XN 32, 2 ; highbd_sad_skip_8x32_sse2
 %endif
 
