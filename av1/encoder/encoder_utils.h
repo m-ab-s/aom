@@ -127,39 +127,33 @@ static inline void init_buffer_indices(
   force_intpel_info->rate_size = 0;
 }
 
-#define HIGHBD_BFP(BT, SDF, SDAF, VF, SVF, SVAF, SDX4DF, SDX3DF, JSDAF, JSVAF) \
-  ppi->fn_ptr[BT].sdf = SDF;                                                   \
-  ppi->fn_ptr[BT].sdaf = SDAF;                                                 \
-  ppi->fn_ptr[BT].vf = VF;                                                     \
-  ppi->fn_ptr[BT].svf = SVF;                                                   \
-  ppi->fn_ptr[BT].svaf = SVAF;                                                 \
-  ppi->fn_ptr[BT].sdx4df = SDX4DF;                                             \
-  ppi->fn_ptr[BT].sdx3df = SDX3DF;                                             \
-  ppi->fn_ptr[BT].jsdaf = JSDAF;                                               \
-  ppi->fn_ptr[BT].jsvaf = JSVAF;
+#define HIGHBD_BFP(BT, SDF, SDAF, VF, SVF, SVAF, SDX4DF, SDX3DF) \
+  ppi->fn_ptr[BT].sdf = SDF;                                     \
+  ppi->fn_ptr[BT].sdaf = SDAF;                                   \
+  ppi->fn_ptr[BT].vf = VF;                                       \
+  ppi->fn_ptr[BT].svf = SVF;                                     \
+  ppi->fn_ptr[BT].svaf = SVAF;                                   \
+  ppi->fn_ptr[BT].sdx4df = SDX4DF;                               \
+  ppi->fn_ptr[BT].sdx3df = SDX3DF;
 
-#define HIGHBD_BFP_WRAPPER(WIDTH, HEIGHT, BD)                                \
-  HIGHBD_BFP(                                                                \
-      BLOCK_##WIDTH##X##HEIGHT, aom_highbd_sad##WIDTH##x##HEIGHT##_bits##BD, \
-      aom_highbd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,                       \
-      aom_highbd_##BD##_variance##WIDTH##x##HEIGHT,                          \
-      aom_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,                \
-      aom_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT,            \
-      aom_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,                        \
-      aom_highbd_sad##WIDTH##x##HEIGHT##x3d_bits##BD,                        \
-      aom_highbd_dist_wtd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,              \
-      aom_highbd_##BD##_dist_wtd_sub_pixel_avg_variance##WIDTH##x##HEIGHT)
+#define HIGHBD_BFP_WRAPPER(WIDTH, HEIGHT, BD)                            \
+  HIGHBD_BFP(BLOCK_##WIDTH##X##HEIGHT,                                   \
+             aom_highbd_sad##WIDTH##x##HEIGHT##_bits##BD,                \
+             aom_highbd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,            \
+             aom_highbd_##BD##_variance##WIDTH##x##HEIGHT,               \
+             aom_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,     \
+             aom_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT, \
+             aom_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,             \
+             aom_highbd_sad##WIDTH##x##HEIGHT##x3d_bits##BD)
 
-#define HIGHBD_BFP_WRAPPER_NO_SAD_AVG(WIDTH, HEIGHT, BD)                     \
-  HIGHBD_BFP(                                                                \
-      BLOCK_##WIDTH##X##HEIGHT, aom_highbd_sad##WIDTH##x##HEIGHT##_bits##BD, \
-      /*SDAF=*/NULL, aom_highbd_##BD##_variance##WIDTH##x##HEIGHT,           \
-      aom_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,                \
-      aom_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT,            \
-      aom_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,                        \
-      aom_highbd_sad##WIDTH##x##HEIGHT##x3d_bits##BD,                        \
-      aom_highbd_dist_wtd_sad##WIDTH##x##HEIGHT##_avg_bits##BD,              \
-      aom_highbd_##BD##_dist_wtd_sub_pixel_avg_variance##WIDTH##x##HEIGHT)
+#define HIGHBD_BFP_WRAPPER_NO_SAD_AVG(WIDTH, HEIGHT, BD)                 \
+  HIGHBD_BFP(BLOCK_##WIDTH##X##HEIGHT,                                   \
+             aom_highbd_sad##WIDTH##x##HEIGHT##_bits##BD, /*SDAF=*/NULL, \
+             aom_highbd_##BD##_variance##WIDTH##x##HEIGHT,               \
+             aom_highbd_##BD##_sub_pixel_variance##WIDTH##x##HEIGHT,     \
+             aom_highbd_##BD##_sub_pixel_avg_variance##WIDTH##x##HEIGHT, \
+             aom_highbd_sad##WIDTH##x##HEIGHT##x4d_bits##BD,             \
+             aom_highbd_sad##WIDTH##x##HEIGHT##x3d_bits##BD)
 
 #define MAKE_BFP_SAD_WRAPPER(fnname)                                           \
   static unsigned int fnname##_bits8(const uint8_t *src_ptr,                   \
@@ -216,31 +210,6 @@ static inline void init_buffer_indices(
     int i;                                                                    \
     fnname(src_ptr, source_stride, ref_ptr, ref_stride, sad_array);           \
     for (i = 0; i < 4; i++) sad_array[i] >>= 4;                               \
-  }
-
-#define MAKE_BFP_JSADAVG_WRAPPER(fnname)                                    \
-  static unsigned int fnname##_bits8(                                       \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,    \
-      int ref_stride, const uint8_t *second_pred,                           \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param);                                               \
-  }                                                                         \
-  static unsigned int fnname##_bits10(                                      \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,    \
-      int ref_stride, const uint8_t *second_pred,                           \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param) >>                                             \
-           2;                                                               \
-  }                                                                         \
-  static unsigned int fnname##_bits12(                                      \
-      const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr,    \
-      int ref_stride, const uint8_t *second_pred,                           \
-      const DIST_WTD_COMP_PARAMS *jcp_param) {                              \
-    return fnname(src_ptr, source_stride, ref_ptr, ref_stride, second_pred, \
-                  jcp_param) >>                                             \
-           4;                                                               \
   }
 
 #if CONFIG_AV1_HIGHBITDEPTH
@@ -329,31 +298,6 @@ MAKE_BFP_SAD_WRAPPER(aom_highbd_sad64x16)
 MAKE_BFP_SADAVG_WRAPPER(aom_highbd_sad64x16_avg)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x16x4d)
 MAKE_BFP_SAD4D_WRAPPER(aom_highbd_sad64x16x3d)
-#endif
-
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad128x128_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad128x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x128_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad32x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad16x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad32x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad32x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad16x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad16x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad8x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad8x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad8x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad4x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad4x4_avg)
-#if !CONFIG_REALTIME_ONLY
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad4x16_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad16x4_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad8x32_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad32x8_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad16x64_avg)
-MAKE_BFP_JSADAVG_WRAPPER(aom_highbd_dist_wtd_sad64x16_avg)
 #endif
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
