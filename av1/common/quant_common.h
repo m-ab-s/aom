@@ -55,7 +55,7 @@ bool av1_use_qmatrix(const struct CommonQuantParams *quant_params,
                      const struct macroblockd *xd, int segment_id);
 
 // Reduce the large number of quantizers to a smaller number of levels for which
-// different matrices may be defined
+// different matrices may be defined. This is an increasing function in qindex.
 static inline int aom_get_qmlevel(int qindex, int first, int last) {
   return first + (qindex * (last + 1 - first)) / QINDEX_RANGE;
 }
@@ -64,7 +64,7 @@ static inline int aom_get_qmlevel(int qindex, int first, int last) {
 // This formula was empirically derived by encoding the CID22 validation
 // testset for each QP/QM tuple, and building a convex hull that
 // maximizes SSIMU2 scores, and a final subjective visual quality pass
-// as a sanity check.
+// as a sanity check. This is a decreasing function in qindex.
 static inline int aom_get_qmlevel_allintra(int qindex, int first, int last) {
   int qm_level = 0;
 

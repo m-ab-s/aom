@@ -190,6 +190,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/av1_convolve_test.cc"
               "${AOM_ROOT}/test/av1_fwd_txfm1d_test.cc"
               "${AOM_ROOT}/test/av1_fwd_txfm2d_test.cc"
+              "${AOM_ROOT}/test/av1_get_qmlevel_test.cc"
               "${AOM_ROOT}/test/av1_inv_txfm1d_test.cc"
               "${AOM_ROOT}/test/av1_inv_txfm2d_test.cc"
               "${AOM_ROOT}/test/av1_k_means_test.cc"
