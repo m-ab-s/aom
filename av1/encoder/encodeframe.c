@@ -548,6 +548,8 @@ static inline void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
       bsize_select = cm->seq_params->sb_size;
     }
     const BLOCK_SIZE bsize = seg_skip ? sb_size : bsize_select;
+    if (x->content_state_sb.source_sad_nonrd > kZeroSad)
+      x->force_color_check_block_level = 1;
     av1_set_fixed_partitioning(cpi, tile_info, mi, mi_row, mi_col, bsize);
   } else if (sf->part_sf.partition_search_type == VAR_BASED_PARTITION) {
     // set a variance-based partition
@@ -1215,6 +1217,7 @@ static inline void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     x->sb_me_mv.as_int = 0;
     x->sb_force_fixed_part = 1;
     x->color_palette_thresh = 64;
+    x->force_color_check_block_level = 0;
     x->nonrd_prune_ref_frame_search =
         cpi->sf.rt_sf.nonrd_prune_ref_frame_search;
 
