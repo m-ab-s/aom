@@ -1,15 +1,8 @@
 2024-10-24 v3.11.0
-  This release includes an experimental encoder initialization flag, perceptual
-  quality improvements, binary size reduction under certain configurations and
-  many bug fixes. This release changes the default encoder configuration for the
-  AOM_USAGE_REALTIME mode. This release is ABI compatible with the last release.
-
-  - New Features
-    * An experimental flag AOM_CODEC_USE_PRESET is added to allow users to use
-      default settings from the library without specifying all the codec
-      controls. This must be used together with the AOM_CODEC_USE_EXPERIMENTAL
-      flag, and your application must be recompiled and relinked when libaom is
-      upgraded to a future release.
+  This release includes perceptual quality improvements, binary size reduction
+  under certain configurations and many bug fixes. This release changes the
+  default encoder configuration for the AOM_USAGE_REALTIME mode. This release
+  is ABI compatible with the last release.
 
   - Perceptual Quality Improvements
     * Visual quality improvements for RTC screen content
