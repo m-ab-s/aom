@@ -1662,10 +1662,6 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     sf->rt_sf.use_rtc_tf = 0;
 }
 
-// TODO(kyslov): now this is very similar to
-// set_good_speed_features_framesize_independent
-// except it sets non-rd flag on speed 8. This function will likely
-// be modified in the future with RT-specific speed features.
 static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
                                                         SPEED_FEATURES *sf,
                                                         int speed) {
