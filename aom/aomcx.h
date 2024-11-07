@@ -1670,6 +1670,8 @@ typedef enum {
  * Setting the tuning option to AOM_TUNE_SSIMULACRA2 causes the following
  * options to be set (expressed as command-line options):
  *   * --enable-qm=1
+ *   * --sharpness=7
+ *   * --enable-cdef=3
  */
 typedef enum {
   AOM_TUNE_PSNR = 0,
@@ -1685,6 +1687,9 @@ typedef enum {
  * time.
  */
 #define AOM_HAVE_TUNE_SSIMULACRA2 1
+  /* Increases image quality and consistency, guided by the SSIMULACRA2 metric
+   * and subjective quality checks. Shares the rdmult code with AOM_TUNE_SSIM.
+   */
   AOM_TUNE_SSIMULACRA2 = 10,
 } aom_tune_metric;
 
