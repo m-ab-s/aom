@@ -865,7 +865,7 @@ static int adjust_hdr_cr_deltaq(int base_qindex) {
 
 void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
                        int q, int enable_chroma_deltaq, int enable_hdr_deltaq,
-                       bool is_allintra) {
+                       bool is_allintra, aom_tune_metric tuning) {
   // quantizer has to be reinitialized with av1_init_quantizer() if any
   // delta_q changes.
   CommonQuantParams *quant_params = &cm->quant_params;
@@ -873,11 +873,36 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   quant_params->y_dc_delta_q = 0;
 
   if (enable_chroma_deltaq) {
-    // TODO(aomedia:2717): need to design better delta
-    quant_params->u_dc_delta_q = 2;
-    quant_params->u_ac_delta_q = 2;
-    quant_params->v_dc_delta_q = 2;
-    quant_params->v_ac_delta_q = 2;
+    if (is_allintra && tuning == AOM_TUNE_SSIMULACRA2) {
+      int chroma_delta_q = 0;
+
+      // 4:2:0 subsampling: Constant chroma boost with gradual ramp-down for
+      // very high-quality qindexes.
+      // Lowering the chroma qindex by 16 was found to improve SSIMULACRA 2
+      // BD-Rate by 1.5-2% on Daala's subset1, as well as reducing chroma
+      // artifacts (smudging, discoloration) during subjective quality
+      // evaluations.
+      // The boost ramp-down was determined by generating the convex hull of
+      // SSIMULACRA 2 scores (for all boosts from 0-16), and finding a linear
+      // equation that fits the convex hull.
+      if (cm->seq_params->subsampling_x == 1 &&
+          cm->seq_params->subsampling_y == 1) {
+        chroma_delta_q = -clamp((quant_params->base_qindex / 2) - 14, 0, 16);
+      }
+
+      // TODO: bug https://crbug.com/aomedia/375221136 - find chroma_delta_q
+      // values for 4:4:4 and 4:2:2 subsampling modes.
+      quant_params->u_dc_delta_q = chroma_delta_q;
+      quant_params->u_ac_delta_q = chroma_delta_q;
+      quant_params->v_dc_delta_q = chroma_delta_q;
+      quant_params->v_ac_delta_q = chroma_delta_q;
+    } else {
+      // TODO(aomedia:2717): need to design better delta
+      quant_params->u_dc_delta_q = 2;
+      quant_params->u_ac_delta_q = 2;
+      quant_params->v_dc_delta_q = 2;
+      quant_params->v_ac_delta_q = 2;
+    }
   } else {
     quant_params->u_dc_delta_q = 0;
     quant_params->u_ac_delta_q = 0;
