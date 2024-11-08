@@ -43,4 +43,8 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi);
 
 int av1_get_sbq_user_rating_based(AV1_COMP *const cpi, int mi_row, int mi_col);
 
+#if !CONFIG_REALTIME_ONLY
+int av1_get_sbq_variance_boost(const AV1_COMP *const cpi, const MACROBLOCK *x);
+#endif
+
 #endif  // AOM_AV1_ENCODER_ALLINTRA_VIS_H_

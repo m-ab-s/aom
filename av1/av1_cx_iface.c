@@ -1800,6 +1800,8 @@ static aom_codec_err_t handle_tuning(aom_codec_alg_priv_t *ctx,
     // Enable chroma deltaq so the encoder can factor in chroma subsampling and
     // adjust chroma quality when necessary.
     extra_cfg->enable_chroma_deltaq = 1;
+    // Enable "Variance Boost" deltaq mode, optimized for images.
+    extra_cfg->deltaq_mode = DELTA_Q_VARIANCE_BOOST;
   }
   return AOM_CODEC_OK;
 }

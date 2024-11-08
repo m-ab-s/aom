@@ -25,6 +25,7 @@
 #include "av1/common/idct.h"
 #include "av1/common/reconinter.h"
 #include "av1/encoder/allintra_vis.h"
+#include "av1/encoder/aq_variance.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/ethread.h"
 #include "av1/encoder/hybrid_fwd_txfm.h"
@@ -33,6 +34,11 @@
 
 #define MB_WIENER_PRED_BLOCK_SIZE BLOCK_128X128
 #define MB_WIENER_PRED_BUF_STRIDE 128
+
+// Maximum delta-q range allowed for Variance Boost after scaling
+#define VAR_BOOST_MAX_DELTAQ_RANGE 80
+// Maximum quantization step boost allowed for Variance Boost
+#define VAR_BOOST_MAX_BOOST 8.0
 
 void av1_alloc_mb_wiener_var_pred_buf(AV1_COMMON *cm, ThreadData *td) {
   const int is_high_bitdepth = is_cur_buf_hbd(&td->mb.e_mbd);
@@ -1055,3 +1061,59 @@ int av1_get_sbq_user_rating_based(AV1_COMP *const cpi, int mi_row, int mi_col) {
 
   return qindex;
 }
+
+#if !CONFIG_REALTIME_ONLY
+int av1_get_sbq_variance_boost(const AV1_COMP *cpi, const MACROBLOCK *x) {
+  const AV1_COMMON *cm = &cpi->common;
+  const int base_qindex = cm->quant_params.base_qindex;
+  const aom_bit_depth_t bit_depth = cm->seq_params->bit_depth;
+
+  // Variance Boost only supports 64x64 SBs.
+  assert(cm->seq_params->sb_size == BLOCK_64X64);
+
+  // Strength is currently hard-coded and optimized for still pictures. In the
+  // future, we might want to expose this as a parameter that can be fine-tuned
+  // by the caller.
+  const int strength = 3;
+  int variance = av1_get_block_variance_boost(cpi, x);
+
+  // Variance = 0 areas are either completely flat patches or have very fine
+  // gradients. Boost these blocks as if they have a variance of 1.
+  if (variance == 0) {
+    variance = 1;
+  }
+
+  // At this point, variance has to be at least 1, otherwise there's an issue
+  // with its calculation.
+  assert(variance >= 1);
+
+  // Compute a boost based on a fast-growing formula.
+  // High and medium variance SBs essentially get no boost, while lower variance
+  // SBs get increasingly stronger boosts.
+  assert(strength >= 1 && strength <= 4);
+
+  // Still picture curve, with variance crossover point at 1024.
+  double qstep_ratio = 0.15 * strength * (-log2((double)variance) + 10.0) + 1.0;
+  qstep_ratio = fclamp(qstep_ratio, 1.0, VAR_BOOST_MAX_BOOST);
+
+  double base_q = av1_convert_qindex_to_q(base_qindex, bit_depth);
+  double target_q = base_q / qstep_ratio;
+  int target_qindex = av1_convert_q_to_qindex(target_q, bit_depth);
+
+  // Determine the SB's delta_q boost by computing an (unscaled) delta_q from
+  // the base and target q values, then scale that delta_q according to the
+  // frame's base qindex.
+  // The scaling coefficients were chosen empirically to maximize SSIMULACRA2
+  // scores, 10th percentile scores, and subjective quality. Boosts become
+  // smaller (for a given variance) the lower the base qindex.
+  int boost = -(int)round((base_qindex + 544.0) *
+                          (target_qindex - base_qindex) / (255.0 + 1024.0));
+  boost = AOMMIN(VAR_BOOST_MAX_DELTAQ_RANGE, boost);
+
+  // Variance Boost was designed to always operate in the lossy domain, so MINQ
+  // is excluded.
+  int sb_qindex = clamp(base_qindex - boost, MINQ + 1, MAXQ);
+
+  return sb_qindex;
+}
+#endif

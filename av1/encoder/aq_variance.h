@@ -28,6 +28,9 @@ int av1_compute_q_from_energy_level_deltaq_mode(const AV1_COMP *const cpi,
                                                 int block_var_level);
 int av1_block_wavelet_energy_level(const AV1_COMP *cpi, const MACROBLOCK *x,
                                    BLOCK_SIZE bs);
+
+unsigned int av1_get_block_variance_boost(const AV1_COMP *cpi,
+                                          const MACROBLOCK *x);
 #endif  // !CONFIG_REALTIME_ONLY
 
 int av1_log_block_var(const AV1_COMP *cpi, const MACROBLOCK *x, BLOCK_SIZE bs);

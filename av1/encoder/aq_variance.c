@@ -10,6 +10,7 @@
  */
 
 #include <math.h>
+#include <stdlib.h>
 
 #include "aom_ports/mem.h"
 
@@ -168,6 +169,70 @@ int av1_compute_q_from_energy_level_deltaq_mode(const AV1_COMP *const cpi,
     qindex_delta = -base_qindex + 1;
   }
   return base_qindex + qindex_delta;
+}
+
+// Comparer used by qsort() to order an array of unsigned int from smallest to
+// largest.
+static int comp_unsigned_int(const void *a, const void *b) {
+  unsigned int arg1 = *(const unsigned int *)a;
+  unsigned int arg2 = *(const unsigned int *)b;
+
+  return (arg1 > arg2) - (arg1 < arg2);
+}
+
+unsigned int av1_get_block_variance_boost(const AV1_COMP *cpi,
+                                          const MACROBLOCK *x) {
+#define SUBBLOCKS_IN_SB_DIM 8
+#define SUBBLOCKS_IN_SB 64
+#define SUBBLOCK_SIZE 8
+  DECLARE_ALIGNED(16, static const uint16_t,
+                  av1_highbd_all_zeros[MAX_SB_SIZE]) = { 0 };
+  DECLARE_ALIGNED(16, static const uint8_t, av1_all_zeros[MAX_SB_SIZE]) = { 0 };
+
+  const MACROBLOCKD *xd = &x->e_mbd;
+  unsigned int sse;
+  // Octile is currently hard-coded and optimized for still pictures. In the
+  // future, we might want to expose this as a parameter that can be fine-tuned
+  // by the caller.
+  // An octile of 5 was chosen because it was found to strike the best balance
+  // between quality and consistency. Lower octiles tend to score lower in
+  // SSIMU2, while higher octiles tend to harm subjective quality consistency,
+  // especially in <1 MP images.
+  const int octile = 5;
+  unsigned int variances[SUBBLOCKS_IN_SB];
+
+  // TODO: bug https://crbug.com/aomedia/375221136 - the current implementation
+  // truncates variances to integers during normalization, similar to SVT-AV1's
+  // counterpart. A possible improvement would be to use rounding: `(n + 32) /
+  // 64`, or just return variances as doubles.
+  aom_variance_fn_t vf = cpi->ppi->fn_ptr[BLOCK_8X8].vf;
+  for (int subb_i = 0; subb_i < SUBBLOCKS_IN_SB_DIM; subb_i++) {
+    int i = subb_i * SUBBLOCK_SIZE;
+    for (int subb_j = 0; subb_j < SUBBLOCKS_IN_SB_DIM; subb_j++) {
+      int j = subb_j * SUBBLOCK_SIZE;
+      if (is_cur_buf_hbd(xd)) {
+        variances[subb_i * SUBBLOCKS_IN_SB_DIM + subb_j] =
+            vf(x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+               x->plane[0].src.stride, CONVERT_TO_BYTEPTR(av1_highbd_all_zeros),
+               0, &sse) /
+            64;
+      } else {
+        variances[subb_i * SUBBLOCKS_IN_SB_DIM + subb_j] =
+            vf(x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+               x->plane[0].src.stride, av1_all_zeros, 0, &sse) /
+            64;
+      }
+    }
+  }
+
+  // Order the 8x8 SB values from smallest to largest variance.
+  qsort(variances, SUBBLOCKS_IN_SB, sizeof(unsigned int), comp_unsigned_int);
+
+  // Take the 8x8 variance value in the specified octile.
+  assert(octile >= 1 && octile <= 8);
+  const unsigned int variance = variances[octile * (SUBBLOCKS_IN_SB / 8) - 1];
+
+  return variance;
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
