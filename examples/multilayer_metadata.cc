@@ -154,8 +154,9 @@ std::vector<T> parse_integer_list(std::fstream &file, int min_indent,
   return result;
 }
 
-ColorProperties parse_color_properties(std::fstream &file, int min_indent,
-                                       int *line_idx) {
+std::pair<ColorProperties, bool> parse_color_properties(std::fstream &file,
+                                                        int min_indent,
+                                                        int *line_idx) {
   bool has_list_prefix;
   int indent = -1;
   std::string field_name;
@@ -176,7 +177,7 @@ ColorProperties parse_color_properties(std::fstream &file, int min_indent,
               field_name.c_str(), *line_idx);
     }
   }
-  return color;
+  return std::make_pair(color, true);
 }
 
 AlphaInformation parse_multilayer_layer_alpha(std::fstream &file,
@@ -215,13 +216,13 @@ AlphaInformation parse_multilayer_layer_alpha(std::fstream &file,
   return alpha_info;
 }
 
-DepthRepresentationElement parse_depth_representation_element(
+std::pair<DepthRepresentationElement, bool> parse_depth_representation_element(
     std::fstream &file, int min_indent, int *line_idx) {
   bool has_list_prefix;
   int indent = -1;
   std::string field_name;
   int value;
-  DepthRepresentationElement element;
+  DepthRepresentationElement element = {};
   while (parse_line(file, min_indent, /*is_list=*/false, &indent,
                     &has_list_prefix, line_idx, &field_name, &value)) {
     if (field_name == "sign_flag") {
@@ -236,7 +237,7 @@ DepthRepresentationElement parse_depth_representation_element(
       exit(EXIT_FAILURE);
     }
   }
-  return element;
+  return std::make_pair(element, true);
 }
 
 DepthInformation parse_multilayer_layer_depth(std::fstream &file,
@@ -362,25 +363,25 @@ MultilayerMetadata parse_multilayer_metadata(std::fstream &file) {
 }
 
 std::string format_depth_representation_element(
-    const std::optional<DepthRepresentationElement> &element) {
-  if (!element.has_value()) {
+    const std::pair<DepthRepresentationElement, bool> &element) {
+  if (!element.second) {
     return "absent";
   } else {
-    return "sign_flag " + std::to_string(element->sign_flag) + " exponent " +
-           std::to_string(element->exponent) + " mantissa " +
-           std::to_string(element->mantissa);
+    return "sign_flag " + std::to_string(element.first.sign_flag) +
+           " exponent " + std::to_string(element.first.exponent) +
+           " mantissa " + std::to_string(element.first.mantissa);
   }
 }
 
 std::string format_color_properties(
-    const std::optional<ColorProperties> &color_properties) {
-  if (!color_properties.has_value()) {
+    const std::pair<ColorProperties, bool> &color_properties) {
+  if (!color_properties.second) {
     return "absent";
   } else {
-    return std::to_string(color_properties->color_primaries) + "/" +
-           std::to_string(color_properties->transfer_characteristics) + "/" +
-           std::to_string(color_properties->matrix_coefficients) +
-           (color_properties->color_range ? "F" : "L");
+    return std::to_string(color_properties.first.color_primaries) + "/" +
+           std::to_string(color_properties.first.transfer_characteristics) +
+           "/" + std::to_string(color_properties.first.matrix_coefficients) +
+           (color_properties.first.color_range ? "F" : "L");
   }
 }
 

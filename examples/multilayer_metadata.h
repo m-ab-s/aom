@@ -2,10 +2,13 @@
 #define AOM_EXAMPLES_MULTILAYER_METADATA_H_
 
 #include <cstdint>
-#include <optional>
 #include <vector>
 
 namespace libaom_examples {
+
+// std::pair<T, bool> is used to indicate presence of a field,
+// like an std::optional (which cannot be used because it's C++17).
+// If the boolean is true, then the value is present.
 
 struct ColorProperties {
   bool color_range;  // true for full range values
@@ -29,7 +32,7 @@ struct AlphaInformation {
   uint16_t alpha_transparent_value;  // [0, 1<<alpha_bit_depth]
   uint16_t alpha_opaque_value;       // [0, 1<<alpha_bit_depth]
   // Relevant for ALPHA_STRAIGHT only.
-  std::optional<ColorProperties> alpha_color_description;
+  std::pair<ColorProperties, bool> alpha_color_description;
   // Relevant for ALPHA_SEGMENTATION only.
   // Must be either empty or have the same size as the number of values between
   // alpha_transparent_value and alpha_opaque_value, inclusively.
@@ -45,10 +48,10 @@ struct DepthRepresentationElement {
 };
 
 struct DepthInformation {
-  std::optional<DepthRepresentationElement> z_near;
-  std::optional<DepthRepresentationElement> z_far;
-  std::optional<DepthRepresentationElement> d_min;
-  std::optional<DepthRepresentationElement> d_max;
+  std::pair<DepthRepresentationElement, bool> z_near;
+  std::pair<DepthRepresentationElement, bool> z_far;
+  std::pair<DepthRepresentationElement, bool> d_min;
+  std::pair<DepthRepresentationElement, bool> d_max;
   uint8_t depth_representation_type;  // [0, 15]
   uint8_t disparity_ref_view_id;      // [0, 3]
   uint8_t depth_nonlinear_precision;  // [8, 23]
@@ -103,7 +106,7 @@ struct LayerMetadata {
   uint8_t layer_dependency_idc;                  // [0, 7]
   MultilayerMetadataScope layer_metadata_scope;  // [0, 3]
 
-  std::optional<ColorProperties> layer_color_description;
+  std::pair<ColorProperties, bool> layer_color_description;
 
   // Relevant for MULTIALYER_LAYER_TYPE_ALPHA with SCOPE_GLOBAL or SCOPE_MIXED.
   AlphaInformation global_alpha_info;

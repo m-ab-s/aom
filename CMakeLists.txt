@@ -404,7 +404,6 @@ if(ENABLE_EXAMPLES OR ENABLE_TESTS OR ENABLE_TOOLS)
   if(CONFIG_AV1_ENCODER)
     add_library(aom_encoder_app_util OBJECT ${AOM_ENCODER_APP_UTIL_SOURCES})
     set_property(TARGET ${example} PROPERTY FOLDER examples)
-    set_property(TARGET aom_encoder_app_util PROPERTY CXX_STANDARD 17)
   endif()
 endif()
 
@@ -524,7 +523,6 @@ if(CONFIG_AV1_ENCODER)
                                    $<TARGET_OBJECTS:aom_common_app_util>
                                    $<TARGET_OBJECTS:aom_encoder_app_util>)
     target_link_libraries(svc_encoder_rtc ${AOM_LIB_LINK_TYPE} aom_av1_rc)
-    set_property(TARGET svc_encoder_rtc PROPERTY CXX_STANDARD 17)
 
     # Maintain a list of encoder example targets.
     list(APPEND AOM_ENCODER_EXAMPLE_TARGETS aomenc lossless_encoder set_maps

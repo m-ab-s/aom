@@ -20,7 +20,6 @@
 #include <string.h>
 
 #include <memory>
-#include <optional>
 
 #include "config/aom_config.h"
 
@@ -1376,56 +1375,53 @@ static void write_literal(struct aom_write_bit_buffer *wb, int data, int bits,
 
 static void write_depth_representation_element(
     struct aom_write_bit_buffer *buffer,
-    const std::optional<libaom_examples::DepthRepresentationElement> &element) {
-  if (!element.has_value()) {
+    const std::pair<libaom_examples::DepthRepresentationElement, bool>
+        &element) {
+  if (!element.second) {
     return;
   }
-  write_literal(buffer, element->sign_flag, 1);
-  write_literal(buffer, element->exponent, 7);
+  write_literal(buffer, element.first.sign_flag, 1);
+  write_literal(buffer, element.first.exponent, 7);
   int mantissa_len = 1;
-  while (mantissa_len < 32 && (element->mantissa >> mantissa_len != 0)) {
+  while (mantissa_len < 32 && (element.first.mantissa >> mantissa_len != 0)) {
     ++mantissa_len;
   }
   write_literal(buffer, mantissa_len - 1, 5);
-  write_literal(buffer, element->mantissa, mantissa_len);
+  write_literal(buffer, element.first.mantissa, mantissa_len);
 }
 
 static void write_color_properties(
     struct aom_write_bit_buffer *buffer,
-    const std::optional<libaom_examples::ColorProperties> &color_properties) {
-  write_literal(buffer, color_properties.has_value(), 1);
-  if (color_properties.has_value()) {
-    write_literal(buffer, color_properties->color_range, 1);
-    write_literal(buffer, color_properties->color_primaries, 8);
-    write_literal(buffer, color_properties->transfer_characteristics, 8);
-    write_literal(buffer, color_properties->matrix_coefficients, 8);
+    const std::pair<libaom_examples::ColorProperties, bool> &color_properties) {
+  write_literal(buffer, color_properties.second, 1);
+  if (color_properties.second) {
+    write_literal(buffer, color_properties.first.color_range, 1);
+    write_literal(buffer, color_properties.first.color_primaries, 8);
+    write_literal(buffer, color_properties.first.transfer_characteristics, 8);
+    write_literal(buffer, color_properties.first.matrix_coefficients, 8);
   } else {
     write_literal(buffer, 0, 1);  // reserved_1bit
   }
 }
 
 static void add_multilayer_metadata(
-    aom_image_t *frame,
-    const std::optional<libaom_examples::MultilayerMetadata> &multilayer) {
-  if (!multilayer.has_value()) {
-    return;
-  }
+    aom_image_t *frame, const libaom_examples::MultilayerMetadata &multilayer) {
   // Pretty large buffer to accommodate the largest multilayer metadata
   // possible, with 4 alpha segmentation layers (each can be up to about 66kB).
-  std::vector<uint8_t> data(66000 * multilayer->layers.size());
+  std::vector<uint8_t> data(66000 * multilayer.layers.size());
   struct aom_write_bit_buffer buffer = { data.data(), 0 };
 
-  write_literal(&buffer, multilayer->use_case, 6);
-  if (multilayer->layers.empty()) {
+  write_literal(&buffer, multilayer.use_case, 6);
+  if (multilayer.layers.empty()) {
     die("Invalid multilayer metadata, no layers found\n");
-  } else if (multilayer->layers.size() > MAX_NUM_SPATIAL_LAYERS) {
+  } else if (multilayer.layers.size() > MAX_NUM_SPATIAL_LAYERS) {
     die("Invalid multilayer metadata, too many layers (max is %d)\n",
         MAX_NUM_SPATIAL_LAYERS);
   }
-  write_literal(&buffer, (int)multilayer->layers.size() - 1, 2);
+  write_literal(&buffer, (int)multilayer.layers.size() - 1, 2);
   assert(buffer.bit_offset % 8 == 0);
-  for (size_t i = 0; i < multilayer->layers.size(); ++i) {
-    const libaom_examples::LayerMetadata &layer = multilayer->layers[i];
+  for (size_t i = 0; i < multilayer.layers.size(); ++i) {
+    const libaom_examples::LayerMetadata &layer = multilayer.layers[i];
     // Alpha info with segmentation with labels can be up to about 66k bytes,
     // which requires 3 bytes to encode in leb128.
     const int bytes_reserved_for_size = 3;
@@ -1448,7 +1444,7 @@ static void add_multilayer_metadata(
     }
     assert(buffer.bit_offset % 8 == 0);
 
-    if (multilayer->use_case < 12) {
+    if (multilayer.use_case < 12) {
       if (layer.layer_type == libaom_examples::MULTIALYER_LAYER_TYPE_ALPHA &&
           layer.layer_metadata_scope >= libaom_examples::SCOPE_GLOBAL) {
         const libaom_examples::AlphaInformation &alpha_info =
@@ -1498,12 +1494,12 @@ static void add_multilayer_metadata(
                  layer.layer_metadata_scope >= libaom_examples::SCOPE_GLOBAL) {
         const libaom_examples::DepthInformation &depth_info =
             layer.global_depth_info;
-        write_literal(&buffer, depth_info.z_near.has_value(), 1);
-        write_literal(&buffer, depth_info.z_far.has_value(), 1);
-        write_literal(&buffer, depth_info.d_min.has_value(), 1);
-        write_literal(&buffer, depth_info.d_max.has_value(), 1);
+        write_literal(&buffer, depth_info.z_near.second, 1);
+        write_literal(&buffer, depth_info.z_far.second, 1);
+        write_literal(&buffer, depth_info.d_min.second, 1);
+        write_literal(&buffer, depth_info.d_max.second, 1);
         write_literal(&buffer, depth_info.depth_representation_type, 4);
-        if (depth_info.d_min.has_value() || depth_info.d_max.has_value()) {
+        if (depth_info.d_min.second || depth_info.d_max.second) {
           write_literal(&buffer, depth_info.disparity_ref_view_id, 2);
         }
         write_depth_representation_element(&buffer, depth_info.z_near);
@@ -1866,11 +1862,11 @@ int main(int argc, const char **argv) {
     svc_params.framerate_factor[2] = 1;
   }
 
-  std::optional<libaom_examples::MultilayerMetadata> multilayer_metadata;
+  libaom_examples::MultilayerMetadata multilayer_metadata;
   if (app_input.multilayer_metadata_file != NULL) {
     multilayer_metadata = libaom_examples::parse_multilayer_file(
         app_input.multilayer_metadata_file);
-    libaom_examples::print_multilayer_metadata(multilayer_metadata.value());
+    libaom_examples::print_multilayer_metadata(multilayer_metadata);
   }
 
   framerate = cfg.g_timebase.den / cfg.g_timebase.num;
@@ -2049,7 +2045,9 @@ int main(int argc, const char **argv) {
           aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_COMP_PRED,
                             &ref_frame_comp_pred);
         }
-        add_multilayer_metadata(&raw, multilayer_metadata);
+        if (app_input.multilayer_metadata_file != NULL) {
+          add_multilayer_metadata(&raw, multilayer_metadata);
+        }
         // Set the speed per layer.
         if (test_speed_per_layer) {
           int speed_per_layer = 10;
