@@ -1794,6 +1794,10 @@ static aom_codec_err_t handle_tuning(aom_codec_alg_priv_t *ctx,
     // We can turn on loop filter sharpness, as frames do not have to serve as
     // references to others.
     extra_cfg->sharpness = 7;
+    // Using the QM-PSNR metric was found to be beneficial for images (over the
+    // default PSNR metric), as it correlates better with subjective image
+    // quality consistency and better SSIMULACRA2 scores.
+    extra_cfg->dist_metric = AOM_DIST_METRIC_QM_PSNR;
     // CDEF_ALL has been found to blur images at high quality QPs, so let's use
     // a version that adapts on QP.
     extra_cfg->enable_cdef = CDEF_ADAPTIVE;
