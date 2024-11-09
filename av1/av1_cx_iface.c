@@ -2843,19 +2843,6 @@ static aom_codec_err_t ctrl_set_auto_intra_tools_off(aom_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-// Returns the index of the default_extra_cfg array element for the specified
-// usage. Returns index 0 if not found. This means default_extra_cfg[0] is used
-// for any usage that doesn't have a dedicated element in the default_extra_cfg
-// array.
-static int find_default_extra_cfg_for_usage(unsigned int usage) {
-  for (int i = 0; i < NELEMENTS(default_extra_cfg); ++i) {
-    if (default_extra_cfg[i].usage == usage) {
-      return i;
-    }
-  }
-  return 0;
-}
-
 static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
   aom_codec_err_t res = AOM_CODEC_OK;
 
@@ -2871,11 +2858,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
     priv->cfg = *ctx->config.enc;
     ctx->config.enc = &priv->cfg;
 
-    int extra_cfg_idx = 0;
-    if (ctx->init_flags & AOM_CODEC_USE_PRESET) {
-      extra_cfg_idx = find_default_extra_cfg_for_usage(priv->cfg.g_usage);
-    }
-    priv->extra_cfg = default_extra_cfg[extra_cfg_idx];
+    priv->extra_cfg = default_extra_cfg[0];
     // Special handling:
     // By default, if omitted: --enable-cdef=1, --qm-min=5, and --qm-max=9
     // Here we set its default values to 0, 4, and 10 respectively when

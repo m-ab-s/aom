@@ -124,17 +124,6 @@ TEST(EncodeAPI, TuneSsimulacra2NotAllIntra) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
-TEST(EncodeAPI, InitializeWithPreset) {
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_ctx_t enc;
-  aom_codec_enc_cfg_t cfg;
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME));
-  EXPECT_EQ(AOM_CODEC_OK,
-            aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_PRESET));
-  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
-}
-
 void EncodeSetSFrameOnFirstFrame(aom_img_fmt fmt, aom_codec_flags_t flag) {
   constexpr int kWidth = 2;
   constexpr int kHeight = 128;
