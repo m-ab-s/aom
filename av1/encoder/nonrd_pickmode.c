@@ -2010,7 +2010,7 @@ static void set_color_sensitivity(AV1_COMP *cpi, MACROBLOCK *x,
     }
     if (cpi->rc.percent_blocks_with_motion > 90 &&
         cpi->rc.frame_source_sad > 10000 && source_sad_nonrd > kLowSad) {
-      // Aggressive setting for color_sensitiivty for this content.
+      // Aggressive setting for color_sensitivity for this content.
       shift = 10;
       norm_uv_sad_thresh = 0;
       norm_uv_sad_thresh2 = 0;
