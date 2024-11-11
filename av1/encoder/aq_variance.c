@@ -89,7 +89,7 @@ void av1_vaq_frame_setup(AV1_COMP *cpi) {
   }
 }
 
-int av1_log_block_avg(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
+int av1_log_block_avg(const AV1_COMP *cpi, const MACROBLOCK *x, BLOCK_SIZE bs,
                       int mi_row, int mi_col) {
   // This functions returns the block average of luma block
   unsigned int sum, avg, num_pix;
@@ -119,10 +119,10 @@ int av1_log_block_avg(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs,
 
 #define DEFAULT_E_MIDPOINT 10.0
 
-static unsigned int haar_ac_energy(MACROBLOCK *x, BLOCK_SIZE bs) {
-  MACROBLOCKD *xd = &x->e_mbd;
+static unsigned int haar_ac_energy(const MACROBLOCK *x, BLOCK_SIZE bs) {
+  const MACROBLOCKD *xd = &x->e_mbd;
   int stride = x->plane[0].src.stride;
-  uint8_t *buf = x->plane[0].src.buf;
+  const uint8_t *buf = x->plane[0].src.buf;
   const int num_8x8_cols = block_size_wide[bs] / 8;
   const int num_8x8_rows = block_size_high[bs] / 8;
   const int hbd = is_cur_buf_hbd(xd);
@@ -133,12 +133,12 @@ static unsigned int haar_ac_energy(MACROBLOCK *x, BLOCK_SIZE bs) {
   return (unsigned int)((uint64_t)var * 256) >> num_pels_log2_lookup[bs];
 }
 
-static double log_block_wavelet_energy(MACROBLOCK *x, BLOCK_SIZE bs) {
+static double log_block_wavelet_energy(const MACROBLOCK *x, BLOCK_SIZE bs) {
   unsigned int haar_sad = haar_ac_energy(x, bs);
   return log1p(haar_sad);
 }
 
-int av1_block_wavelet_energy_level(const AV1_COMP *cpi, MACROBLOCK *x,
+int av1_block_wavelet_energy_level(const AV1_COMP *cpi, const MACROBLOCK *x,
                                    BLOCK_SIZE bs) {
   double energy, energy_midpoint;
   energy_midpoint = (is_stat_consumption_stage_twopass(cpi))
@@ -171,7 +171,7 @@ int av1_compute_q_from_energy_level_deltaq_mode(const AV1_COMP *const cpi,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-int av1_log_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs) {
+int av1_log_block_var(const AV1_COMP *cpi, const MACROBLOCK *x, BLOCK_SIZE bs) {
   DECLARE_ALIGNED(16, static const uint16_t,
                   av1_highbd_all_zeros[MAX_SB_SIZE]) = { 0 };
   DECLARE_ALIGNED(16, static const uint8_t, av1_all_zeros[MAX_SB_SIZE]) = { 0 };
@@ -185,7 +185,7 @@ int av1_log_block_var(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bs) {
   // subblock has a low variance.   This allows us to assign the same segment
   // number for the same sorts of area regardless of how the partitioning goes.
 
-  MACROBLOCKD *xd = &x->e_mbd;
+  const MACROBLOCKD *xd = &x->e_mbd;
   double var = 0;
   unsigned int sse;
   int i, j;
