@@ -318,6 +318,10 @@ FrameDropDecision AV1RateControlRTC::ComputeQP(
     av1_rc_postencode_update_drop_frame(cpi_);
     if (cpi_->svc.spatial_layer_id == cpi_->svc.number_spatial_layers - 1)
       cpi_->rc.frames_since_key++;
+    if (cpi_->svc.number_spatial_layers > 1 ||
+        cpi_->svc.number_temporal_layers > 1) {
+      av1_save_layer_context(cpi_);
+    }
     cpi_->frame_index_set.show_frame_count++;
     cpi_->common.current_frame.frame_number++;
     return FrameDropDecision::kDrop;
