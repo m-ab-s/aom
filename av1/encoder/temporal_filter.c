@@ -66,12 +66,12 @@ static inline void get_log_var_4x4sub_blk(
   const int y_offset = mb_row * mb_height * src_stride + mb_col * mb_width;
   const uint8_t *src_buf = frame_to_filter->y_buffer + y_offset;
 
+  aom_variance_fn_t vf = cpi->ppi->fn_ptr[BLOCK_4X4].vf;
   for (int i = 0; i < mb_height; i += MI_SIZE) {
     for (int j = 0; j < mb_width; j += MI_SIZE) {
       // Calculate the 4x4 sub-block variance.
       const int var = av1_calc_normalized_variance(
-          cpi->ppi->fn_ptr[BLOCK_4X4].vf, src_buf + (i * src_stride) + j,
-          src_stride, is_hbd);
+          vf, src_buf + (i * src_stride) + j, src_stride, is_hbd);
 
       // Record min and max for over-arching block
       var_min = AOMMIN(var_min, var);

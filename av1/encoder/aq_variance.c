@@ -198,18 +198,17 @@ int av1_log_block_var(const AV1_COMP *cpi, const MACROBLOCK *x, BLOCK_SIZE bs) {
   const int bw = MI_SIZE * mi_size_wide[bs] - right_overflow;
   const int bh = MI_SIZE * mi_size_high[bs] - bottom_overflow;
 
+  aom_variance_fn_t vf = cpi->ppi->fn_ptr[BLOCK_4X4].vf;
   for (i = 0; i < bh; i += 4) {
     for (j = 0; j < bw; j += 4) {
       if (is_cur_buf_hbd(xd)) {
-        var += log1p(cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                         x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                         x->plane[0].src.stride,
-                         CONVERT_TO_BYTEPTR(av1_highbd_all_zeros), 0, &sse) /
+        var += log1p(vf(x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+                        x->plane[0].src.stride,
+                        CONVERT_TO_BYTEPTR(av1_highbd_all_zeros), 0, &sse) /
                      16.0);
       } else {
-        var += log1p(cpi->ppi->fn_ptr[BLOCK_4X4].vf(
-                         x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-                         x->plane[0].src.stride, av1_all_zeros, 0, &sse) /
+        var += log1p(vf(x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+                        x->plane[0].src.stride, av1_all_zeros, 0, &sse) /
                      16.0);
       }
     }
