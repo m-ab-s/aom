@@ -147,9 +147,9 @@ static int64_t get_sse(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   return (int)distortion;
 }
 
-static double get_max_scale(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
-                            int mi_col) {
-  AV1_COMMON *const cm = &cpi->common;
+static double get_max_scale(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
+                            int mi_row, int mi_col) {
+  const AV1_COMMON *const cm = &cpi->common;
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
   const int mi_step = mi_size_wide[cpi->weber_bsize];
@@ -160,7 +160,7 @@ static double get_max_scale(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
     for (int col = mi_col; col < mi_col + mi_wide; col += mi_step) {
       if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
         continue;
-      WeberStats *weber_stats =
+      const WeberStats *weber_stats =
           &cpi->mb_weber_stats[(row / mi_step) * mb_stride + (col / mi_step)];
       if (weber_stats->max_scale < 1.0) continue;
       if (weber_stats->max_scale < min_max_scale)
@@ -170,9 +170,9 @@ static double get_max_scale(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
   return min_max_scale;
 }
 
-static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
+static int get_window_wiener_var(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  int mi_row, int mi_col) {
-  AV1_COMMON *const cm = &cpi->common;
+  const AV1_COMMON *const cm = &cpi->common;
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
 
@@ -189,7 +189,7 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
       if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
         continue;
 
-      WeberStats *weber_stats =
+      const WeberStats *weber_stats =
           &cpi->mb_weber_stats[(row / mi_step) * mb_stride + (col / mi_step)];
 
       base_num += ((double)weber_stats->distortion) *
@@ -213,9 +213,9 @@ static int get_window_wiener_var(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   return (int)sb_wiener_var;
 }
 
-static int get_var_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize,
+static int get_var_perceptual_ai(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
                                  int mi_row, int mi_col) {
-  AV1_COMMON *const cm = &cpi->common;
+  const AV1_COMMON *const cm = &cpi->common;
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
 
@@ -685,8 +685,8 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
   av1_dealloc_mb_wiener_var_pred_buf(&cpi->td);
 }
 
-static int get_rate_guided_quantizer(AV1_COMP *const cpi, BLOCK_SIZE bsize,
-                                     int mi_row, int mi_col) {
+static int get_rate_guided_quantizer(const AV1_COMP *const cpi,
+                                     BLOCK_SIZE bsize, int mi_row, int mi_col) {
   // Calculation uses 8x8.
   const int mb_step = mi_size_wide[cpi->weber_bsize];
   // Accumulate to 16x16
@@ -724,7 +724,7 @@ static int get_rate_guided_quantizer(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   double min_max_scale = AOMMAX(1.0, get_max_scale(cpi, bsize, mi_row, mi_col));
   scale = 1.0 / AOMMIN(1.0 / scale, min_max_scale);
 
-  AV1_COMMON *const cm = &cpi->common;
+  const AV1_COMMON *const cm = &cpi->common;
   const int base_qindex = cm->quant_params.base_qindex;
   int offset =
       av1_get_deltaq_offset(cm->seq_params->bit_depth, base_qindex, scale);
@@ -740,13 +740,13 @@ static int get_rate_guided_quantizer(AV1_COMP *const cpi, BLOCK_SIZE bsize,
   return qindex;
 }
 
-int av1_get_sbq_perceptual_ai(AV1_COMP *const cpi, BLOCK_SIZE bsize, int mi_row,
-                              int mi_col) {
+int av1_get_sbq_perceptual_ai(const AV1_COMP *const cpi, BLOCK_SIZE bsize,
+                              int mi_row, int mi_col) {
   if (cpi->oxcf.enable_rate_guide_deltaq) {
     return get_rate_guided_quantizer(cpi, bsize, mi_row, mi_col);
   }
 
-  AV1_COMMON *const cm = &cpi->common;
+  const AV1_COMMON *const cm = &cpi->common;
   const int base_qindex = cm->quant_params.base_qindex;
   int sb_wiener_var = get_var_perceptual_ai(cpi, bsize, mi_row, mi_col);
   int offset = 0;
@@ -1042,10 +1042,11 @@ void av1_set_mb_ur_variance(AV1_COMP *cpi) {
 }
 #endif
 
-int av1_get_sbq_user_rating_based(AV1_COMP *const cpi, int mi_row, int mi_col) {
+int av1_get_sbq_user_rating_based(const AV1_COMP *const cpi, int mi_row,
+                                  int mi_col) {
   const BLOCK_SIZE bsize = cpi->common.seq_params->sb_size;
   const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
-  AV1_COMMON *const cm = &cpi->common;
+  const AV1_COMMON *const cm = &cpi->common;
   const int base_qindex = cm->quant_params.base_qindex;
   if (base_qindex == MINQ || base_qindex == MAXQ) return base_qindex;
 
