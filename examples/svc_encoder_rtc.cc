@@ -514,10 +514,10 @@ static void parse_command_line(int argc, const char **argv_,
       enc_cfg->rc_target_bitrate, enc_cfg->kf_max_dist);
 }
 
-static int mode_to_num_temporal_layers[12] = {
+static const int mode_to_num_temporal_layers[12] = {
   1, 2, 3, 3, 2, 1, 1, 3, 3, 3, 3, 3,
 };
-static int mode_to_num_spatial_layers[12] = {
+static const int mode_to_num_spatial_layers[12] = {
   1, 1, 1, 1, 1, 2, 3, 2, 3, 3, 3, 3,
 };
 
