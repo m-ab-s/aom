@@ -180,14 +180,15 @@ static int comp_unsigned_int(const void *a, const void *b) {
   return (arg1 > arg2) - (arg1 < arg2);
 }
 
-unsigned int av1_get_block_variance_boost(const AV1_COMP *cpi,
-                                          const MACROBLOCK *x) {
+unsigned int av1_get_variance_boost_block_variance(const AV1_COMP *cpi,
+                                                   const MACROBLOCK *x) {
 #define SUBBLOCKS_IN_SB_DIM 8
 #define SUBBLOCKS_IN_SB 64
 #define SUBBLOCK_SIZE 8
   DECLARE_ALIGNED(16, static const uint16_t,
-                  av1_highbd_all_zeros[MAX_SB_SIZE]) = { 0 };
-  DECLARE_ALIGNED(16, static const uint8_t, av1_all_zeros[MAX_SB_SIZE]) = { 0 };
+                  av1_highbd_all_zeros[SUBBLOCK_SIZE]) = { 0 };
+  DECLARE_ALIGNED(16, static const uint8_t,
+                  av1_all_zeros[SUBBLOCK_SIZE]) = { 0 };
 
   const MACROBLOCKD *xd = &x->e_mbd;
   unsigned int sse;
@@ -199,6 +200,9 @@ unsigned int av1_get_block_variance_boost(const AV1_COMP *cpi,
   // SSIMU2, while higher octiles tend to harm subjective quality consistency,
   // especially in <1 MP images.
   const int octile = 5;
+  const uint8_t *all_zeros = is_cur_buf_hbd(xd)
+                                 ? CONVERT_TO_BYTEPTR(av1_highbd_all_zeros)
+                                 : av1_all_zeros;
   unsigned int variances[SUBBLOCKS_IN_SB];
 
   // TODO: bug https://crbug.com/aomedia/375221136 - the current implementation
@@ -210,18 +214,10 @@ unsigned int av1_get_block_variance_boost(const AV1_COMP *cpi,
     int i = subb_i * SUBBLOCK_SIZE;
     for (int subb_j = 0; subb_j < SUBBLOCKS_IN_SB_DIM; subb_j++) {
       int j = subb_j * SUBBLOCK_SIZE;
-      if (is_cur_buf_hbd(xd)) {
-        variances[subb_i * SUBBLOCKS_IN_SB_DIM + subb_j] =
-            vf(x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-               x->plane[0].src.stride, CONVERT_TO_BYTEPTR(av1_highbd_all_zeros),
-               0, &sse) /
-            64;
-      } else {
-        variances[subb_i * SUBBLOCKS_IN_SB_DIM + subb_j] =
-            vf(x->plane[0].src.buf + i * x->plane[0].src.stride + j,
-               x->plane[0].src.stride, av1_all_zeros, 0, &sse) /
-            64;
-      }
+      variances[subb_i * SUBBLOCKS_IN_SB_DIM + subb_j] =
+          vf(x->plane[0].src.buf + i * x->plane[0].src.stride + j,
+             x->plane[0].src.stride, all_zeros, 0, &sse) /
+          64;
     }
   }
 

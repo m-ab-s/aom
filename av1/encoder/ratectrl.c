@@ -171,7 +171,7 @@ int av1_convert_q_to_qindex(double q, aom_bit_depth_t bit_depth) {
   // Note: this operation can also be done with a binary search, as
   // av1_convert_qindex_to_q() is monotonically increasing with respect to
   // increasing qindex.
-  while (av1_convert_qindex_to_q(qindex, bit_depth) < q && qindex < MAXQ) {
+  while (qindex < MAXQ && av1_convert_qindex_to_q(qindex, bit_depth) < q) {
     qindex++;
   }
 

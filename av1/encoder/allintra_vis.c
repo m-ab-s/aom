@@ -1064,6 +1064,11 @@ int av1_get_sbq_user_rating_based(const AV1_COMP *const cpi, int mi_row,
 }
 
 #if !CONFIG_REALTIME_ONLY
+
+// Variance Boost: a variance adaptive quantization implementation
+// SVT-AV1 appendix with an overview and a graphical, step-by-step explanation
+// of the implementation
+// https://gitlab.com/AOMediaCodec/SVT-AV1/-/blob/master/Docs/Appendix-Variance-Boost.md
 int av1_get_sbq_variance_boost(const AV1_COMP *cpi, const MACROBLOCK *x) {
   const AV1_COMMON *cm = &cpi->common;
   const int base_qindex = cm->quant_params.base_qindex;
@@ -1076,17 +1081,13 @@ int av1_get_sbq_variance_boost(const AV1_COMP *cpi, const MACROBLOCK *x) {
   // future, we might want to expose this as a parameter that can be fine-tuned
   // by the caller.
   const int strength = 3;
-  int variance = av1_get_block_variance_boost(cpi, x);
+  unsigned int variance = av1_get_variance_boost_block_variance(cpi, x);
 
   // Variance = 0 areas are either completely flat patches or have very fine
   // gradients. Boost these blocks as if they have a variance of 1.
   if (variance == 0) {
     variance = 1;
   }
-
-  // At this point, variance has to be at least 1, otherwise there's an issue
-  // with its calculation.
-  assert(variance >= 1);
 
   // Compute a boost based on a fast-growing formula.
   // High and medium variance SBs essentially get no boost, while lower variance
@@ -1107,13 +1108,13 @@ int av1_get_sbq_variance_boost(const AV1_COMP *cpi, const MACROBLOCK *x) {
   // The scaling coefficients were chosen empirically to maximize SSIMULACRA2
   // scores, 10th percentile scores, and subjective quality. Boosts become
   // smaller (for a given variance) the lower the base qindex.
-  int boost = -(int)round((base_qindex + 544.0) *
-                          (target_qindex - base_qindex) / (255.0 + 1024.0));
+  int boost = (int)round((base_qindex + 544.0) * (base_qindex - target_qindex) /
+                         1279.0);
   boost = AOMMIN(VAR_BOOST_MAX_DELTAQ_RANGE, boost);
 
   // Variance Boost was designed to always operate in the lossy domain, so MINQ
   // is excluded.
-  int sb_qindex = clamp(base_qindex - boost, MINQ + 1, MAXQ);
+  int sb_qindex = AOMMAX(base_qindex - boost, MINQ + 1);
 
   return sb_qindex;
 }
