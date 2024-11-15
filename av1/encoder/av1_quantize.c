@@ -874,28 +874,49 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
 
   if (enable_chroma_deltaq) {
     if (is_allintra && tuning == AOM_TUNE_SSIMULACRA2) {
-      int chroma_delta_q = 0;
+      int chroma_dc_delta_q = 0;
+      int chroma_ac_delta_q = 0;
 
-      // 4:2:0 subsampling: Constant chroma boost with gradual ramp-down for
-      // very high-quality qindexes.
-      // Lowering the chroma qindex by 16 was found to improve SSIMULACRA 2
-      // BD-Rate by 1.5-2% on Daala's subset1, as well as reducing chroma
-      // artifacts (smudging, discoloration) during subjective quality
-      // evaluations.
-      // The boost ramp-down was determined by generating the convex hull of
-      // SSIMULACRA 2 scores (for all boosts from 0-16), and finding a linear
-      // equation that fits the convex hull.
       if (cm->seq_params->subsampling_x == 1 &&
           cm->seq_params->subsampling_y == 1) {
-        chroma_delta_q = -clamp((quant_params->base_qindex / 2) - 14, 0, 16);
+        // 4:2:0 subsampling: Constant chroma delta_q decrease (i.e. improved
+        // chroma quality relative to luma) with gradual ramp-down for very low
+        // qindexes.
+        // Lowering chroma delta_q by 16 was found to improve SSIMULACRA 2
+        // BD-Rate by 1.5-2% on Daala's subset1, as well as reducing chroma
+        // artifacts (smudging, discoloration) during subjective quality
+        // evaluations.
+        // The ramp-down of chroma increase was determined by generating the
+        // convex hull of SSIMULACRA 2 scores (for all boosts from 0-16), and
+        // finding a linear equation that fits the convex hull.
+        chroma_dc_delta_q = -clamp((quant_params->base_qindex / 2) - 14, 0, 16);
+        chroma_ac_delta_q = chroma_dc_delta_q;
+      } else if (cm->seq_params->subsampling_x == 0 &&
+                 cm->seq_params->subsampling_y == 0) {
+        // 4:4:4 subsampling: Constant chroma AC delta_q increase (i.e. improved
+        // luma quality relative to chroma) with gradual ramp-down for very low
+        // qindexes.
+        // Raising chroma AC delta_q by 24 was found to improve SSIMULACRA 2
+        // BD-Rate by 2.5-3% on Daala's subset1, as well as providing a more
+        // balanced bit allocation between the (relatively-starved) luma and
+        // chroma channels.
+        // Raising chroma DC delta_q appears to be harmful, both for SSIMULACRA
+        // 2 scores and subjective quality (harshens blocking artifacts).
+        // The ramp-down of chroma decrease was put into place so (lossy) QP 0
+        // encodes still score within 0.1 SSIMULACRA 2 points of the equivalent
+        // with no chroma delta_q (with a small efficiency improvement), while
+        // encodes in the SSIMULACRA 2 <=90 range yield full benefits from this
+        // adjustment.
+        chroma_dc_delta_q = 0;
+        chroma_ac_delta_q = clamp((quant_params->base_qindex / 2), 0, 24);
       }
 
       // TODO: bug https://crbug.com/aomedia/375221136 - find chroma_delta_q
-      // values for 4:4:4 and 4:2:2 subsampling modes.
-      quant_params->u_dc_delta_q = chroma_delta_q;
-      quant_params->u_ac_delta_q = chroma_delta_q;
-      quant_params->v_dc_delta_q = chroma_delta_q;
-      quant_params->v_ac_delta_q = chroma_delta_q;
+      // values for 4:2:2 subsampling mode.
+      quant_params->u_dc_delta_q = chroma_dc_delta_q;
+      quant_params->u_ac_delta_q = chroma_ac_delta_q;
+      quant_params->v_dc_delta_q = chroma_dc_delta_q;
+      quant_params->v_ac_delta_q = chroma_ac_delta_q;
     } else {
       // TODO(aomedia:2717): need to design better delta
       quant_params->u_dc_delta_q = 2;
