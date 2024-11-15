@@ -3507,7 +3507,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         obu_header_size = av1_write_obu_header(
             &ppi->level_params, &cpi->frame_header_count,
             OBU_TEMPORAL_DELIMITER,
-            ppi->seq_params.has_nonzero_operating_point_idc, 0, ctx->cx_data);
+            ppi->seq_params.has_nonzero_operating_point_idc,
+            /*is_layer_specific_obu=*/false, 0, ctx->cx_data);
         if (obu_header_size != 1) {
           aom_internal_error(&ppi->error, AOM_CODEC_ERROR, NULL);
         }
