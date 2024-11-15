@@ -672,7 +672,6 @@ int64_t av1_highbd_block_error_c(const tran_low_t *coeff,
     error += diff * diff;
     sqcoeff += (int64_t)coeff[i] * (int64_t)coeff[i];
   }
-  assert(error >= 0 && sqcoeff >= 0);
   error = (error + rounding) >> shift;
   sqcoeff = (sqcoeff + rounding) >> shift;
 

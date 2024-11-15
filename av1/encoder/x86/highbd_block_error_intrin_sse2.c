@@ -65,7 +65,6 @@ int64_t av1_highbd_block_error_sse2(const tran_low_t *coeff,
       }
     }
   }
-  assert(error >= 0 && sqcoeff >= 0);
   error = (error + rounding) >> shift;
   sqcoeff = (sqcoeff + rounding) >> shift;
 

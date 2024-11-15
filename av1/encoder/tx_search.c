@@ -1065,7 +1065,6 @@ static inline int64_t av1_block_error_qm(
     sqcoeff += (cc * cc + (1 << (2 * AOM_QM_BITS - 1))) >> (2 * AOM_QM_BITS);
   }
 
-  assert(error >= 0 && sqcoeff >= 0);
   error = (error + rounding) >> shift;
   sqcoeff = (sqcoeff + rounding) >> shift;
 

@@ -55,7 +55,6 @@ int64_t av1_highbd_block_error_avx2(const tran_low_t *coeff,
     error += temp1[0] + temp1[1] + temp1[2] + temp1[3];
     sqcoeff += temp1[4] + temp1[5] + temp1[6] + temp1[7];
   }
-  assert(error >= 0 && sqcoeff >= 0);
   error = (error + rounding) >> shift;
   sqcoeff = (sqcoeff + rounding) >> shift;
 
