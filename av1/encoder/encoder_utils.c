@@ -828,11 +828,14 @@ BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
   if (oxcf->q_cfg.deltaq_mode == DELTA_Q_USER_RATING_BASED) return BLOCK_64X64;
 #endif
   // Force 64x64 superblock size to increase resolution in perceptual
-  // AQ, user rating based, and Variance Boost modes.
+  // AQ and user rating based modes.
   if (oxcf->mode == ALLINTRA &&
       (oxcf->q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL_AI ||
-       oxcf->q_cfg.deltaq_mode == DELTA_Q_USER_RATING_BASED ||
-       oxcf->q_cfg.deltaq_mode == DELTA_Q_VARIANCE_BOOST)) {
+       oxcf->q_cfg.deltaq_mode == DELTA_Q_USER_RATING_BASED)) {
+    return BLOCK_64X64;
+  }
+  // Variance Boost only supports 64x64 superblocks.
+  if (oxcf->q_cfg.deltaq_mode == DELTA_Q_VARIANCE_BOOST) {
     return BLOCK_64X64;
   }
   assert(oxcf->tool_cfg.superblock_size == AOM_SUPERBLOCK_SIZE_DYNAMIC);
