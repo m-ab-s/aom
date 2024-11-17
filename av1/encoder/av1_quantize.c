@@ -815,7 +815,7 @@ void av1_init_plane_quantizers(const AV1_COMP *cpi, MACROBLOCK *x,
       qindex_rdmult, cm->seq_params->bit_depth,
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,
       boost_index, frame_type, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
-      is_stat_consumption_stage(cpi));
+      is_stat_consumption_stage(cpi), cpi->oxcf.tune_cfg.tuning);
 
   const int qindex_change = x->qindex != qindex;
   if (qindex_change || do_update) {

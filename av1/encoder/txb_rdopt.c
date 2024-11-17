@@ -335,12 +335,19 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const LV_MAP_EOB_COST *txb_eob_costs =
       &coeff_costs->eob_costs[eob_multi_size][plane_type];
 
-  const int rshift = 2;
+  // For the SSIMULACRA 2 tune, increase rshift from 2 to 4.
+  // This biases trellis quantization towards keeping more coefficients, and
+  // together with the SSIMULACRA2 rdmult adjustment in
+  // av1_compute_rd_mult_based_on_qindex(), this helps preserve image
+  // features (like repeating patterns and camera noise/film grain), which
+  // improves SSIMULACRA 2 scores.
+  const int rshift = cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIMULACRA2 ? 4 : 2;
+  const int rounding = (1 << rshift) >> 1;
 
   const int64_t rdmult =
       (((int64_t)x->rdmult *
         (plane_rd_mult[is_inter][plane_type] << (2 * (xd->bd - 8)))) +
-       2) >>
+       rounding) >>
       rshift;
 
   uint8_t levels_buf[TX_PAD_2D];
