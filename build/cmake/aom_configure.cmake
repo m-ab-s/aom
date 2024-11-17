@@ -308,6 +308,9 @@ if(MSVC)
   if(ENABLE_WERROR)
     add_compiler_flag_if_supported("/WX")
   endif()
+
+  # Compile source files in parallel
+  add_compiler_flag_if_supported("/MP")
 else()
   require_c_flag("-std=c99" YES)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
