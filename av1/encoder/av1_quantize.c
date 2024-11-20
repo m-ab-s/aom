@@ -943,26 +943,42 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
     }
   }
 
-  // Select the best QM formula based on whether we're encoding in allintra mode
-  // or any other mode
-  int (*get_qmlevel)(int, int, int);
+  // Select the best luma and chroma QM formulas based on encoding mode and
+  // tuning
+  int (*get_luma_qmlevel)(int, int, int);
+  int (*get_chroma_qmlevel)(int, int, int);
 
   if (is_allintra) {
-    get_qmlevel = aom_get_qmlevel_allintra;
+    get_luma_qmlevel = aom_get_qmlevel_allintra;
   } else {
-    get_qmlevel = aom_get_qmlevel;
+    get_luma_qmlevel = aom_get_qmlevel;
+  }
+
+  if (is_allintra) {
+    if (tuning == AOM_TUNE_SSIMULACRA2 && cm->seq_params->subsampling_x == 0 &&
+        cm->seq_params->subsampling_y == 0) {
+      // 4:4:4 subsampling mode has 4x the number of chroma coefficients
+      // compared to 4:2:0 (2x on each dimension). This means the encoder should
+      // use lower chroma QM levels that more closely match the scaling of an
+      // equivalent 4:2:0 chroma QM.
+      get_chroma_qmlevel = aom_get_qmlevel_444_chroma_ssimulacra2;
+    } else {
+      get_chroma_qmlevel = aom_get_qmlevel_allintra;
+    }
+  } else {
+    get_chroma_qmlevel = aom_get_qmlevel;
   }
 
   quant_params->qmatrix_level_y =
-      get_qmlevel(quant_params->base_qindex, min_qmlevel, max_qmlevel);
+      get_luma_qmlevel(quant_params->base_qindex, min_qmlevel, max_qmlevel);
   quant_params->qmatrix_level_u =
-      get_qmlevel(quant_params->base_qindex + quant_params->u_ac_delta_q,
-                  min_qmlevel, max_qmlevel);
+      get_chroma_qmlevel(quant_params->base_qindex + quant_params->u_ac_delta_q,
+                         min_qmlevel, max_qmlevel);
 
   if (cm->seq_params->separate_uv_delta_q) {
-    quant_params->qmatrix_level_v =
-        get_qmlevel(quant_params->base_qindex + quant_params->v_ac_delta_q,
-                    min_qmlevel, max_qmlevel);
+    quant_params->qmatrix_level_v = get_chroma_qmlevel(
+        quant_params->base_qindex + quant_params->v_ac_delta_q, min_qmlevel,
+        max_qmlevel);
   } else {
     quant_params->qmatrix_level_v = quant_params->qmatrix_level_u;
   }
