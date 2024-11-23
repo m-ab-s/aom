@@ -1765,7 +1765,7 @@ static int aom_get_variance_boost_delta_q_res(int qindex) {
   // Signaling delta_q changes across superblocks comes with inherent syntax
   // element overhead, which adds up to total payload size. This overhead
   // becomes proportionally bigger the higher the base qindex (i.e. lower
-  // quality, smaller filesize), so a balance needs to be struck.
+  // quality, smaller file size), so a balance needs to be struck.
   // - Smaller delta_q_res: more granular delta_q control, more bits spent
   // signaling deltas.
   // - Larger delta_q_res: coarser delta_q control, less bits spent signaling
