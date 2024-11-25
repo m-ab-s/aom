@@ -3137,7 +3137,8 @@ static inline bool enable_palette(AV1_COMP *cpi, bool is_mode_intra,
                                   BLOCK_SIZE bsize,
                                   unsigned int source_variance,
                                   int force_zeromv_skip, int skip_idtx_palette,
-                                  int force_palette_test) {
+                                  int force_palette_test,
+                                  unsigned int best_intra_sad_norm) {
   if (!cpi->oxcf.tool_cfg.enable_palette) return false;
   if (!av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                          bsize)) {
@@ -3150,6 +3151,10 @@ static inline bool enable_palette(AV1_COMP *cpi, bool is_mode_intra,
        bsize > BLOCK_16X16)) {
     return false;
   }
+
+  if (prune_palette_testing_inter(cpi, source_variance) &&
+      best_intra_sad_norm < 30)
+    return false;
 
   if ((is_mode_intra || force_palette_test) && source_variance > 0 &&
       !force_zeromv_skip &&
@@ -3503,12 +3508,13 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   }
 
   // Evaluate Intra modes in inter frame
+  unsigned int best_intra_sad_norm = UINT_MAX;
   if (!x->force_zeromv_skip_for_blk)
     av1_estimate_intra_mode(cpi, x, bsize, best_early_term,
                             search_state.ref_costs_single[INTRA_FRAME],
                             reuse_inter_pred, &orig_dst, tmp_buffer,
                             &this_mode_pred, &search_state.best_rdc,
-                            best_pickmode, ctx);
+                            best_pickmode, ctx, &best_intra_sad_norm);
 
   int skip_idtx_palette = (x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] ||
                            x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)]) &&
@@ -3517,7 +3523,11 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
   bool try_palette = enable_palette(
       cpi, is_mode_intra(best_pickmode->best_mode), bsize, x->source_variance,
-      x->force_zeromv_skip_for_blk, skip_idtx_palette, force_palette_test);
+      x->force_zeromv_skip_for_blk, skip_idtx_palette, force_palette_test,
+      best_intra_sad_norm);
+
+  if (try_palette && prune_palette_testing_inter(cpi, x->source_variance))
+    x->color_palette_thresh = 32;
 
   // Perform screen content mode evaluation for non-rd
   handle_screen_content_mode_nonrd(

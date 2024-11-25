@@ -198,16 +198,15 @@ static int get_init_ratio(double sse) { return (int)(300000 / sse); }
 // Allow for increase in enumerator to reduce overshoot.
 static int adjust_rtc_keyframe(const RATE_CONTROL *rc, int enumerator) {
   // Don't adjust if most of the image is flat.
-  if (rc->perc_flat_blocks_keyframe > 70) return enumerator;
+  if (rc->perc_spatial_flat_blocks > 70) return enumerator;
   if (rc->last_encoded_size_keyframe == 0 ||
       rc->frames_since_scene_change < rc->frames_since_key) {
     // Very first frame, or if scene change happened after last keyframe.
     if (rc->frame_spatial_variance > 1000 ||
-        (rc->frame_spatial_variance > 500 &&
-         rc->perc_flat_blocks_keyframe == 0))
+        (rc->frame_spatial_variance > 500 && rc->perc_spatial_flat_blocks == 0))
       return enumerator << 3;
     else if (rc->frame_spatial_variance > 500 &&
-             rc->perc_flat_blocks_keyframe < 10)
+             rc->perc_spatial_flat_blocks < 10)
       return enumerator << 2;
     else if (rc->frame_spatial_variance > 400)
       return enumerator << 1;
@@ -3405,7 +3404,7 @@ static const uint8_t AV1_VAR_OFFS[MAX_SB_SIZE] = {
   128, 128, 128, 128, 128, 128, 128, 128
 };
 
-/*!\brief Compute spatial activity for keyframe,  1 pass real-time mode.
+/*!\brief Compute spatial activity for frame,  1 pass real-time mode.
  *
  * Compute average spatial activity/variance for source frame over a
  * subset of superblocks.
@@ -3418,8 +3417,8 @@ static const uint8_t AV1_VAR_OFFS[MAX_SB_SIZE] = {
  * \remark Nothing is returned. Instead the average spatial variance
  * computed is stored in flag \c cpi->rc.frame_spatial_variance.
  */
-static void rc_spatial_act_keyframe_onepass_rt(AV1_COMP *cpi, uint8_t *src_y,
-                                               int src_ystride) {
+static void rc_spatial_act_onepass_rt(AV1_COMP *cpi, uint8_t *src_y,
+                                      int src_ystride) {
   AV1_COMMON *const cm = &cpi->common;
   int num_mi_cols = cm->mi_params.mi_cols;
   int num_mi_rows = cm->mi_params.mi_rows;
@@ -3428,7 +3427,7 @@ static void rc_spatial_act_keyframe_onepass_rt(AV1_COMP *cpi, uint8_t *src_y,
   uint64_t avg_variance = 0;
   int num_samples = 0;
   int num_zero_var_blocks = 0;
-  cpi->rc.perc_flat_blocks_keyframe = 0;
+  cpi->rc.perc_spatial_flat_blocks = 0;
   const int sb_size_by_mb = (cm->seq_params->sb_size == BLOCK_128X128)
                                 ? (cm->seq_params->mib_size >> 1)
                                 : cm->seq_params->mib_size;
@@ -3447,7 +3446,7 @@ static void rc_spatial_act_keyframe_onepass_rt(AV1_COMP *cpi, uint8_t *src_y,
     src_y += (src_ystride << 6) - (sb_cols << 6);
   }
   if (num_samples > 0) {
-    cpi->rc.perc_flat_blocks_keyframe = 100 * num_zero_var_blocks / num_samples;
+    cpi->rc.perc_spatial_flat_blocks = 100 * num_zero_var_blocks / num_samples;
     avg_variance = avg_variance / num_samples;
   }
   cpi->rc.frame_spatial_variance = avg_variance >> 12;
@@ -3775,8 +3774,8 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
        (cpi->sf.rt_sf.rc_compute_spatial_var_sc && rc->high_source_sad)) &&
       svc->spatial_layer_id == 0 && cm->seq_params->bit_depth == 8 &&
       cpi->oxcf.rc_cfg.max_intra_bitrate_pct > 0)
-    rc_spatial_act_keyframe_onepass_rt(cpi, frame_input->source->y_buffer,
-                                       frame_input->source->y_stride);
+    rc_spatial_act_onepass_rt(cpi, frame_input->source->y_buffer,
+                              frame_input->source->y_stride);
   // Check for dynamic resize, for single spatial layer for now.
   // For temporal layers only check on base temporal layer.
   if (cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC) {
