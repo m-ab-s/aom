@@ -1790,8 +1790,10 @@ static aom_codec_err_t handle_tuning(aom_codec_alg_priv_t *ctx,
   if (extra_cfg->tuning == AOM_TUNE_SSIMULACRA2) {
     if (ctx->cfg.g_usage != AOM_USAGE_ALL_INTRA) return AOM_CODEC_INCAPABLE;
     // Enable QMs as they've been found to be beneficial for images, when used
-    // with alternative QM formulas (see aom_get_qmlevel_allintra() and
-    // aom_get_qmlevel_444_chroma_ssimulacra2()).
+    // with alternative QM formulas:
+    // - aom_get_qmlevel_allintra(),
+    // - aom_get_qmlevel_luma_ssimulacra2()
+    // - aom_get_qmlevel_444_chroma_ssimulacra2()
     extra_cfg->enable_qm = 1;
     extra_cfg->qm_min = QM_FIRST_SSIMULACRA2;
     extra_cfg->qm_max = QM_LAST_SSIMULACRA2;

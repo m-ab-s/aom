@@ -949,23 +949,27 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   int (*get_chroma_qmlevel)(int, int, int);
 
   if (is_allintra) {
-    get_luma_qmlevel = aom_get_qmlevel_allintra;
-  } else {
-    get_luma_qmlevel = aom_get_qmlevel;
-  }
+    if (tuning == AOM_TUNE_SSIMULACRA2) {
+      // Use luma QM formula specifically tailored for tune SSIMULACRA 2
+      get_luma_qmlevel = aom_get_qmlevel_luma_ssimulacra2;
 
-  if (is_allintra) {
-    if (tuning == AOM_TUNE_SSIMULACRA2 && cm->seq_params->subsampling_x == 0 &&
-        cm->seq_params->subsampling_y == 0) {
-      // 4:4:4 subsampling mode has 4x the number of chroma coefficients
-      // compared to 4:2:0 (2x on each dimension). This means the encoder should
-      // use lower chroma QM levels that more closely match the scaling of an
-      // equivalent 4:2:0 chroma QM.
-      get_chroma_qmlevel = aom_get_qmlevel_444_chroma_ssimulacra2;
+      if (cm->seq_params->subsampling_x == 0 &&
+          cm->seq_params->subsampling_y == 0) {
+        // 4:4:4 subsampling mode has 4x the number of chroma coefficients
+        // compared to 4:2:0 (2x on each dimension). This means the encoder
+        // should use lower chroma QM levels that more closely match the scaling
+        // of an equivalent 4:2:0 chroma QM.
+        get_chroma_qmlevel = aom_get_qmlevel_444_chroma_ssimulacra2;
+      } else {
+        // For all other chroma subsampling modes, use the all intra QM formula
+        get_chroma_qmlevel = aom_get_qmlevel_allintra;
+      }
     } else {
+      get_luma_qmlevel = aom_get_qmlevel_allintra;
       get_chroma_qmlevel = aom_get_qmlevel_allintra;
     }
   } else {
+    get_luma_qmlevel = aom_get_qmlevel;
     get_chroma_qmlevel = aom_get_qmlevel;
   }
 
