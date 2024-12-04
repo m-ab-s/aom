@@ -3092,7 +3092,9 @@ static unsigned int estimate_scroll_motion(
   // Increase the search if last two frames were dropped.
   // Values set based on screen test set.
   int search_size_width = 96;
-  int search_size_height = cpi->rc.drop_count_consec > 1 ? 224 : 192;
+  int search_size_height = (cpi->rc.drop_count_consec > 1)
+                               ? (cpi->rc.frame_source_sad > 20000) ? 512 : 224
+                               : 192;
   // Adjust based on boundary.
   if ((pos_col - search_size_width < -border) ||
       (pos_col + search_size_width > cm->width + border))
