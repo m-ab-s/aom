@@ -1583,6 +1583,8 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   const int left_ctx = intra_mode_context[L];
   const unsigned int source_variance = x->source_variance;
   bmode_costs = x->mode_costs.y_mode_costs[above_ctx][left_ctx];
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
 
   av1_invalid_rd_stats(&best_rdc);
   av1_invalid_rd_stats(&this_rdc);
@@ -1594,6 +1596,12 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   // mode tests.
   for (int mode_index = 0; mode_index < RTC_INTRA_MODES; ++mode_index) {
     PREDICTION_MODE this_mode = intra_mode_list[mode_index];
+
+    // Force DC for spatially flat block for large bsize, on top-left corner.
+    // This removed potential artifact observed in gray scale image for high Q.
+    if (x->source_variance == 0 && mi_col == 0 && mi_row == 0 &&
+        bsize >= BLOCK_32X32 && this_mode > 0)
+      continue;
 
     // As per the statistics generated for intra mode evaluation in the nonrd
     // path, it is found that the probability of H_PRED mode being the winner is
