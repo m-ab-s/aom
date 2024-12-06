@@ -1804,8 +1804,12 @@ static aom_codec_err_t handle_tuning(aom_codec_alg_priv_t *ctx,
     // default PSNR metric), as it correlates better with subjective image
     // quality consistency and better SSIMULACRA2 scores.
     extra_cfg->dist_metric = AOM_DIST_METRIC_QM_PSNR;
-    // CDEF_ALL has been found to blur images at high quality QPs, so let's use
-    // a version that adapts on QP.
+    // CDEF_ALL has been found to blur images at medium and high quality
+    // qindexes, so let's use a version that adapts CDEF strength on frame
+    // qindexes. CDEF_ADAPTIVE strengths look like this for varying qindexes:
+    // - CDEF off:          0 -  32
+    // - Reduced strength: 33 - 220
+    // - Full strength:   221 - 255
     extra_cfg->enable_cdef = CDEF_ADAPTIVE;
     // Enable chroma deltaq so the encoder can factor in chroma subsampling and
     // adjust chroma quality when necessary.
