@@ -66,7 +66,7 @@ static inline int aom_get_qmlevel(int qindex, int first, int last) {
 // This formula was empirically derived by encoding the CID22 validation
 // testset for each QP/QM tuple, and building a convex hull that
 // maximizes SSIMULACRA 2 scores, and a final subjective visual quality pass
-// as a sanity check. This is a decreasing function in qindex.
+// as a quick validation. This is a decreasing function in qindex.
 // There are a total of 16 luma QM levels, and the higher the level, the
 // flatter these QMs are.
 // QM level 15 is a completely-flat matrix and level 0 is the steepest.
@@ -99,8 +99,8 @@ static inline int aom_get_qmlevel_allintra(int qindex, int first, int last) {
 // Luma QM levels tuned for SSIMULACRA 2 tune
 // This formula was empirically derived by encoding Daala's subset1 validation
 // testset for each QP/QM tuple, and building a convex hull that maximizes
-// SSIMULACRA 2 scores, and a final subjective visual quality pass as a sanity
-// check. This is a decreasing function in qindex.
+// SSIMULACRA 2 scores, and a final subjective visual quality pass as a quick
+// validation. This is a decreasing function in qindex.
 // There are a total of 16 luma QM levels, and the higher the level, the
 // flatter these QMs are.
 // QM level 15 is a completely-flat matrix and level 0 is the steepest.
@@ -138,8 +138,8 @@ static inline int aom_get_qmlevel_luma_ssimulacra2(int qindex, int first,
 // Chroma QM levels for 4:4:4 subsampling tuned for SSIMULACRA 2 tune
 // This formula was empirically derived by encoding Daala's subset1 validation
 // testset for each QP/QM tuple, and building a convex hull that maximizes
-// SSIMULACRA 2 scores, and a final subjective visual quality pass as a sanity
-// check. This is a decreasing function in qindex.
+// SSIMULACRA 2 scores, and a final subjective visual quality pass as a quick
+// validation. This is a decreasing function in qindex.
 // Like with luma QMs, there are a total of 16 chroma QM levels, and the higher
 // the level, the flatter these QMs are.
 // QM level 15 is a completely-flat matrix and level 0 is the steepest.
