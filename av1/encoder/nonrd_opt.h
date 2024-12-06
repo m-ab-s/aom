@@ -12,6 +12,7 @@
 #ifndef AOM_AV1_ENCODER_NONRD_OPT_H_
 #define AOM_AV1_ENCODER_NONRD_OPT_H_
 
+#include "av1/encoder/context_tree.h"
 #include "av1/encoder/rdopt_utils.h"
 #include "av1/encoder/rdopt.h"
 

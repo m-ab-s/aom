@@ -12,6 +12,7 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include "aom_dsp/aom_dsp_common.h"
 #include "aom_ports/mem.h"
 
 #include "av1/encoder/aq_variance.h"
