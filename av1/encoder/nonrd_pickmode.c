@@ -3161,7 +3161,7 @@ static inline bool enable_palette(AV1_COMP *cpi, bool is_mode_intra,
   }
 
   if (prune_palette_testing_inter(cpi, source_variance) &&
-      best_intra_sad_norm < 30)
+      best_intra_sad_norm < 10)
     return false;
 
   if ((is_mode_intra || force_palette_test) && source_variance > 0 &&
