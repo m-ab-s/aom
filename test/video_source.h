@@ -130,7 +130,8 @@ class VideoSource {
   // Prepare the stream for reading, rewind/open as necessary.
   virtual void Begin() = 0;
 
-  // Advance the cursor to the next frame
+  // Advance the cursor to the next frame. For spatial layers this
+  // advances the cursor to the next temporal unit.
   virtual void Next() = 0;
 
   // Get the current video frame, or nullptr on End-Of-Stream.
@@ -145,7 +146,8 @@ class VideoSource {
   // Get the timebase for the stream
   virtual aom_rational_t timebase() const = 0;
 
-  // Get the current frame counter, starting at 0.
+  // Get the current frame counter, starting at 0. For spatial layers
+  // this is the current temporal unit counter.
   virtual unsigned int frame() const = 0;
 
   // Get the current file limit.
