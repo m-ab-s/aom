@@ -11,10 +11,14 @@
 
 #include "gtest/gtest.h"
 
+#include <cstring>
 #include <string>
+
+#include "config/aom_config.h"
 
 #include "aom/aom_codec.h"
 #include "aom/aom_image.h"
+#include "aom/aomcx.h"
 #include "aom/internal/aom_image_internal.h"
 #include "aom_scale/yv12config.h"
 #include "test/codec_factory.h"
@@ -224,7 +228,7 @@ class MetadataMultilayerEncodeTest
     // One-time initialization only done on the first frame.
     if (num_encoded_frames_ == 0) {
       encoder->Control(AOME_SET_CPUUSED, 6);  // Speed up the test.
-      aom_svc_params svc_params = GetSvcParams();
+      aom_svc_params_t svc_params = GetSvcParams();
       encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params);
     }
 
@@ -314,8 +318,8 @@ class MetadataMultilayerEncodeTest
   }
 
  private:
-  aom_svc_params GetSvcParams() {
-    aom_svc_params svc_params = {};
+  aom_svc_params_t GetSvcParams() {
+    aom_svc_params_t svc_params = {};
     svc_params.number_spatial_layers = kNumSpatialLayers;
     svc_params.number_temporal_layers = 1;
     for (int i = 0; i < kNumSpatialLayers; ++i) {
