@@ -896,8 +896,8 @@ bool double_to_depth_representation_element(
   assert(v >= 1.0 && v < 2.0);
   v -= 1.0;
   uint32_t mantissa = 0;
-  uint16_t mantissa_len = 0;
-  constexpr uint16_t kMaxMantissaLen = 32;
+  uint8_t mantissa_len = 0;
+  constexpr uint8_t kMaxMantissaLen = 32;
   do {
     const int bit = (v >= 0.5);
     mantissa = (mantissa << 1) + bit;
@@ -905,7 +905,7 @@ bool double_to_depth_representation_element(
     ++mantissa_len;
     v *= 2.0;
   } while (mantissa_len < kMaxMantissaLen && v > 0.0);
-  *element = { sign, static_cast<uint8_t>(exp + 31), mantissa, mantissa_len };
+  *element = { sign, static_cast<uint8_t>(exp + 31), mantissa_len, mantissa };
   return true;
 }
 
