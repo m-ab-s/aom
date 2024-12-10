@@ -3091,7 +3091,7 @@ static unsigned int estimate_scroll_motion(
   // Make search_size_height larger to capture more common vertical scroll.
   // Increase the search if last two frames were dropped.
   // Values set based on screen test set.
-  int search_size_width = 96;
+  int search_size_width = 160;
   int search_size_height = (cpi->rc.drop_count_consec > 1)
                                ? (cpi->rc.frame_source_sad > 20000) ? 512 : 224
                                : 192;
@@ -3341,22 +3341,42 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
         unscaled_src->y_height >= 720) {
       cpi->rc.high_motion_content_screen_rtc = 1;
       // Compute fast coarse/global motion for 128x128 superblock centered
-      // at middle of frames, to determine if motion is scroll.
+      // at middle of frame, and one to the upper left and one to lower right.
+      // to determine if motion is scroll. Only test 3 points (pts) for now.
       // TODO(marpan): Only allow for 8 bit-depth for now.
       if (cm->seq_params->bit_depth == 8) {
-        int pos_col = (unscaled_src->y_width >> 1) - 64;
-        int pos_row = (unscaled_src->y_height >> 1) - 64;
-        src_y = unscaled_src->y_buffer + pos_row * src_ystride + pos_col;
-        last_src_y =
-            unscaled_last_src->y_buffer + pos_row * last_src_ystride + pos_col;
-        int best_intmv_col = 0;
-        int best_intmv_row = 0;
-        unsigned int y_sad = estimate_scroll_motion(
-            cpi, src_y, last_src_y, src_ystride, last_src_ystride,
-            BLOCK_128X128, pos_col, pos_row, &best_intmv_col, &best_intmv_row);
-        if (y_sad < 100 &&
-            (abs(best_intmv_col) > 16 || abs(best_intmv_row) > 16))
-          cpi->rc.high_motion_content_screen_rtc = 0;
+        for (int pts = 0; pts < 3; pts++) {
+          // fac and shift are used to move the center block for the other
+          // two points (pts).
+          int fac = 1;
+          int shift = 1;
+          if (pts == 1) {
+            fac = 1;
+            shift = 2;
+          } else if (pts == 2) {
+            fac = 3;
+            shift = 2;
+          }
+          const int pos_col = (fac * unscaled_src->y_width >> shift) - 64;
+          const int pos_row = (fac * unscaled_src->y_height >> shift) - 64;
+          if (pos_col >= 0 && pos_col < unscaled_src->y_width - 64 &&
+              pos_row >= 0 && pos_row < unscaled_src->y_height - 64) {
+            src_y = unscaled_src->y_buffer + pos_row * src_ystride + pos_col;
+            last_src_y = unscaled_last_src->y_buffer +
+                         pos_row * last_src_ystride + pos_col;
+            int best_intmv_col = 0;
+            int best_intmv_row = 0;
+            unsigned int y_sad = estimate_scroll_motion(
+                cpi, src_y, last_src_y, src_ystride, last_src_ystride,
+                BLOCK_128X128, pos_col, pos_row, &best_intmv_col,
+                &best_intmv_row);
+            if (y_sad < 100 &&
+                (abs(best_intmv_col) > 16 || abs(best_intmv_row) > 16)) {
+              cpi->rc.high_motion_content_screen_rtc = 0;
+              break;
+            }
+          }
+        }
       }
     }
     // Pass the flag value to all layer frames.

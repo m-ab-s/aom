@@ -3527,7 +3527,9 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   int skip_idtx_palette = (x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] ||
                            x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)]) &&
                           x->content_state_sb.source_sad_nonrd != kZeroSad &&
-                          !cpi->rc.high_source_sad;
+                          !cpi->rc.high_source_sad &&
+                          (cpi->rc.high_motion_content_screen_rtc ||
+                           cpi->rc.frame_source_sad < 10000);
 
   bool try_palette = enable_palette(
       cpi, is_mode_intra(best_pickmode->best_mode), bsize, x->source_variance,
