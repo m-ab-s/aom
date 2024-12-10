@@ -960,10 +960,18 @@ void av1_cdef_search(AV1_COMP *cpi) {
 
   // For CDEF_ADAPTIVE, set primary and secondary CDEF at reduced strength for
   // qindexes 33 through 220.
-  // Please note that the ">> 1" often reduces strengths by more than a half in
-  // practice, due to how few strength levels there are (0-15 pri, 0-3 sec).
-  // For example: a pri strength of 3 becomes 1, and a sec strength of 1 becomes
-  // 0.
+  // Note 1: for odd strengths, the 0.5 discarded by ">> 1" is a significant
+  // part of the strength when the strength is small, and because there are
+  // few strength levels, odd strengths are reduced significantly more than a
+  // half. This is intended behavior for reduced strength.
+  // For example: a pri strength of 3 becomes 1, and a sec strength of 1
+  // becomes 0.
+  // Note 2: a (signaled) sec strength value of 3 is special as it results in an
+  // actual sec strength of 4. We tried adding +1 to the sec strength 3 so it
+  // maps to a reduced sec strength of 2. However, on Daala's subset1, the
+  // resulting SSIMULACRA 2 scores were either exactly the same (at cpu-used 6),
+  // or within noise level (at cpu-used 3). Given that there were no discernable
+  // improvements, this special mapping was left out for reduced strength.
   if (cdef_control == CDEF_ADAPTIVE && cpi->oxcf.mode == ALLINTRA &&
       (cpi->oxcf.rc_cfg.mode == AOM_Q || cpi->oxcf.rc_cfg.mode == AOM_CQ) &&
       cpi->oxcf.rc_cfg.cq_level <= 220) {
