@@ -19,7 +19,6 @@
 #include <string.h>
 
 #include <cmath>
-#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <limits>
