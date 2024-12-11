@@ -375,6 +375,10 @@ bool AV1RateControlRTC::GetSegmentationData(
   if (cpi_->oxcf.q_cfg.aq_mode == 0) {
     return false;
   }
+  // Don't update the segmentation map if cyclic refresh is not enabled.
+  if (!cpi_->cyclic_refresh->apply_cyclic_refresh) {
+    return false;
+  }
   segmentation_data->segmentation_map = cpi_->enc_seg.map;
   segmentation_data->segmentation_map_size =
       cpi_->common.mi_params.mi_rows * cpi_->common.mi_params.mi_cols;
