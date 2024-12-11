@@ -716,7 +716,7 @@ TEST_P(RcExternMethodsInterfaceTest, CreateRateControlConfigTest) {
   TestCreateRateControlConfig();
 }
 
-TEST_P(RcExternMethodsInterfaceTest, DestoryRateControlRTCTest) {
+TEST_P(RcExternMethodsInterfaceTest, DestroyRateControlRTCTest) {
   TestDestroyRateControlRTC();
 }
 
