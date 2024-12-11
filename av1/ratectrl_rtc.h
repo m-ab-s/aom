@@ -13,6 +13,7 @@
 #define AOM_AV1_RATECTRL_RTC_H_
 
 #ifdef __cplusplus
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #else

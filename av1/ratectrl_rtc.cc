@@ -18,6 +18,7 @@
 #include "aom/aom_encoder.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_dsp/aom_dsp_common.h"
+#include "av1/common/common.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encoder_utils.h"
 #include "av1/encoder/pickcdef.h"
