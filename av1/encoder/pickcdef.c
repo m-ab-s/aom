@@ -970,7 +970,7 @@ void av1_cdef_search(AV1_COMP *cpi) {
   // actual sec strength of 4. We tried adding +1 to the sec strength 3 so it
   // maps to a reduced sec strength of 2. However, on Daala's subset1, the
   // resulting SSIMULACRA 2 scores were either exactly the same (at cpu-used 6),
-  // or within noise level (at cpu-used 3). Given that there were no discernable
+  // or within noise level (at cpu-used 3). Given that there were no discernible
   // improvements, this special mapping was left out for reduced strength.
   if (cdef_control == CDEF_ADAPTIVE && cpi->oxcf.mode == ALLINTRA &&
       (cpi->oxcf.rc_cfg.mode == AOM_Q || cpi->oxcf.rc_cfg.mode == AOM_CQ) &&
