@@ -27,11 +27,13 @@
 #include "av1/encoder/rc_utils.h"
 #include "av1/encoder/svc_layercontext.h"
 
+namespace {
+
 void AV1RateControlRtcConfigInitDefault(AV1RateControlRtcConfig *config) {
   if (config == nullptr) return;
-  config->is_screen = false;
   config->width = 1280;
   config->height = 720;
+  config->is_screen = false;
   config->max_quantizer = 63;
   config->min_quantizer = 2;
   config->target_bandwidth = 1000;
@@ -45,22 +47,24 @@ void AV1RateControlRtcConfigInitDefault(AV1RateControlRtcConfig *config) {
   config->frame_drop_thresh = 0;
   config->max_consec_drop_ms = 0;
   config->framerate = 30.0;
-  config->ss_number_layers = 1;
-  config->ts_number_layers = 1;
-  config->aq_mode = 0;
   av1_zero(config->layer_target_bitrate);
   config->layer_target_bitrate[0] = static_cast<int>(config->target_bandwidth);
   av1_zero(config->ts_rate_decimator);
   config->ts_rate_decimator[0] = 1;
+  config->aq_mode = 0;
+  config->ss_number_layers = 1;
+  config->ts_number_layers = 1;
   av1_zero(config->max_quantizers);
   av1_zero(config->min_quantizers);
-  av1_zero(config->scaling_factor_den);
   av1_zero(config->scaling_factor_num);
-  config->scaling_factor_num[0] = 1;
-  config->scaling_factor_den[0] = 1;
+  av1_zero(config->scaling_factor_den);
   config->max_quantizers[0] = config->max_quantizer;
   config->min_quantizers[0] = config->min_quantizer;
+  config->scaling_factor_num[0] = 1;
+  config->scaling_factor_den[0] = 1;
 }
+
+}  // namespace
 
 AV1RateControlRtcConfig::AV1RateControlRtcConfig() {
   AV1RateControlRtcConfigInitDefault(this);
@@ -456,9 +460,7 @@ AV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(void *controller) {
 
 void av1_ratecontrol_rtc_init_ratecontrol_config(
     AV1RateControlRtcConfig *config) {
-  if (config) {
-    *config = AV1RateControlRtcConfig();
-  }
+  AV1RateControlRtcConfigInitDefault(config);
 }
 
 }  // extern "C"
