@@ -168,7 +168,7 @@ bool parse_line(std::fstream &file, int min_indent, bool is_list, int *indent,
     if (!line.empty() &&
         (*indent < min_indent || (prev_indent > 0 && *indent < prev_indent))) {
       // Undo reading the last line.
-      if (!file.seekp(prev_file_position, std::ios::beg)) {
+      if (!file.seekg(prev_file_position, std::ios::beg)) {
         fprintf(stderr, "Failed to seek to previous file position\n");
         *syntax_error = true;
         return false;
