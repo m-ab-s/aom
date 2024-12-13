@@ -2183,7 +2183,7 @@ int main(int argc, const char **argv) {
       }
 
       if (rc_api) {
-        AV1FrameParamsRTC frame_params;
+        aom::AV1FrameParamsRTC frame_params;
         // TODO(jianj): Add support for SVC.
         frame_params.spatial_layer_id = 0;
         frame_params.temporal_layer_id = 0;

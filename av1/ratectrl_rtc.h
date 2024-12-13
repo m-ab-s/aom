@@ -45,7 +45,7 @@ struct AV1SegmentationData {
 
 enum FrameType { kKeyFrame, kInterFrame };
 
-struct AV1FrameParamsRTC {
+struct AomAV1FrameParamsRTC {
   enum FrameType frame_type;
   int spatial_layer_id;
   int temporal_layer_id;
@@ -110,6 +110,7 @@ struct AomAV1RateControlRtcConfig {
 #ifdef __cplusplus
 namespace aom {
 
+using AV1FrameParamsRTC = AomAV1FrameParamsRTC;
 using AV1RateControlRtcConfig = AomAV1RateControlRtcConfig;
 
 class AV1RateControlRTC {
@@ -158,7 +159,7 @@ int av1_ratecontrol_rtc_get_qp(void *controller);
 struct AV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(
     void *controller);
 enum FrameDropDecision av1_ratecontrol_rtc_compute_qp(
-    void *controller, const struct AV1FrameParamsRTC *frame_params);
+    void *controller, const struct AomAV1FrameParamsRTC *frame_params);
 
 void av1_ratecontrol_rtc_post_encode_update(void *controller,
                                             uint64_t encoded_frame_size);

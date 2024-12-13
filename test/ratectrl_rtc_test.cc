@@ -472,7 +472,7 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
   aom::AV1RateControlRtcConfig rc_cfg_;
   int aq_mode_;
   int key_interval_;
-  AV1FrameParamsRTC frame_params_;
+  aom::AV1FrameParamsRTC frame_params_;
   bool encoder_exit_;
   aom_svc_params_t svc_params_;
   aom_svc_layer_id_t layer_id_;
@@ -512,7 +512,7 @@ class RcExternMethodsInterfaceTest
  private:
   aom::AV1RateControlRtcConfig rc_cfg_;
   int aq_mode_;
-  AV1FrameParamsRTC frame_params_;
+  aom::AV1FrameParamsRTC frame_params_;
 };
 
 void RcExternMethodsInterfaceTest::SetConfig() {

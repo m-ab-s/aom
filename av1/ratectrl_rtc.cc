@@ -429,7 +429,7 @@ AV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(void *controller) {
 }
 
 FrameDropDecision av1_ratecontrol_rtc_compute_qp(
-    void *controller, const AV1FrameParamsRTC *frame_params) {
+    void *controller, const AomAV1FrameParamsRTC *frame_params) {
   if (controller == nullptr || frame_params == nullptr)
     return FrameDropDecision::kOk;
   return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
