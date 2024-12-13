@@ -1665,9 +1665,9 @@ static void show_psnr(struct psnr_stats *psnr_stream, double peak) {
   fprintf(stderr, "\n");
 }
 
-static AV1RateControlRtcConfig create_rtc_rc_config(
+static aom::AV1RateControlRtcConfig create_rtc_rc_config(
     const aom_codec_enc_cfg_t &cfg, const AppInput &app_input) {
-  AV1RateControlRtcConfig rc_cfg;
+  aom::AV1RateControlRtcConfig rc_cfg;
   rc_cfg.width = cfg.g_w;
   rc_cfg.height = cfg.g_h;
   rc_cfg.max_quantizer = cfg.rc_max_quantizer;
@@ -2028,7 +2028,8 @@ int main(int argc, const char **argv) {
 
   std::unique_ptr<aom::AV1RateControlRTC> rc_api;
   if (app_input.use_external_rc) {
-    const AV1RateControlRtcConfig rc_cfg = create_rtc_rc_config(cfg, app_input);
+    const aom::AV1RateControlRtcConfig rc_cfg =
+        create_rtc_rc_config(cfg, app_input);
     rc_api = aom::AV1RateControlRTC::Create(rc_cfg);
   }
 

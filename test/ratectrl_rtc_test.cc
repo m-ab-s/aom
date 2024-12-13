@@ -469,7 +469,7 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
   }
 
   std::unique_ptr<aom::AV1RateControlRTC> rc_api_;
-  AV1RateControlRtcConfig rc_cfg_;
+  aom::AV1RateControlRtcConfig rc_cfg_;
   int aq_mode_;
   int key_interval_;
   AV1FrameParamsRTC frame_params_;
@@ -510,7 +510,7 @@ class RcExternMethodsInterfaceTest
   void SetConfig();
 
  private:
-  AV1RateControlRtcConfig rc_cfg_;
+  aom::AV1RateControlRtcConfig rc_cfg_;
   int aq_mode_;
   AV1FrameParamsRTC frame_params_;
 };
@@ -648,7 +648,7 @@ void RcExternMethodsInterfaceTest::TestCreateRateControlConfig() {
   void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
 
-  AV1RateControlRtcConfig config;
+  aom::AV1RateControlRtcConfig config;
   av1_ratecontrol_rtc_init_ratecontrol_config(&config);
   ASSERT_EQ(config.width, 1280);
   ASSERT_EQ(config.height, 720);

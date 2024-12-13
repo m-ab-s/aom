@@ -71,9 +71,9 @@ enum FrameDropDecision {
 #define kAV1MaxSpatialLayers 4
 #endif  // __cplusplus
 
-struct AV1RateControlRtcConfig {
+struct AomAV1RateControlRtcConfig {
 #ifdef __cplusplus
-  AV1RateControlRtcConfig();
+  AomAV1RateControlRtcConfig();
 #endif
 
   int width;
@@ -109,6 +109,8 @@ struct AV1RateControlRtcConfig {
 
 #ifdef __cplusplus
 namespace aom {
+
+using AV1RateControlRtcConfig = AomAV1RateControlRtcConfig;
 
 class AV1RateControlRTC {
  public:
@@ -146,10 +148,11 @@ class AV1RateControlRTC {
 #ifdef __cplusplus
 extern "C" {
 #endif
-void *av1_ratecontrol_rtc_create(const struct AV1RateControlRtcConfig *rc_cfg);
+void *av1_ratecontrol_rtc_create(
+    const struct AomAV1RateControlRtcConfig *rc_cfg);
 void av1_ratecontrol_rtc_destroy(void *controller);
-bool av1_ratecontrol_rtc_update(void *controller,
-                                const struct AV1RateControlRtcConfig *rc_cfg);
+bool av1_ratecontrol_rtc_update(
+    void *controller, const struct AomAV1RateControlRtcConfig *rc_cfg);
 int av1_ratecontrol_rtc_get_qp(void *controller);
 
 struct AV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(
@@ -166,7 +169,7 @@ bool av1_ratecontrol_rtc_get_segmentation(
 struct AV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(void *controller);
 
 void av1_ratecontrol_rtc_init_ratecontrol_config(
-    struct AV1RateControlRtcConfig *config);
+    struct AomAV1RateControlRtcConfig *config);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
