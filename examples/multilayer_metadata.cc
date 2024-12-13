@@ -150,14 +150,14 @@ class ParsedValue {
  * In case of syntax error, 'syntax_error' is set to true and the function
  * returns false.
  */
-bool parse_line(std::fstream &file, int min_indent, bool is_list, int *indent,
+bool parse_line(std::ifstream &file, int min_indent, bool is_list, int *indent,
                 bool *has_list_prefix, int *line_idx, std::string *field_name,
                 ParsedValue *value, bool *syntax_error) {
   *field_name = "";
   *syntax_error = false;
   value->Clear();
   std::string line;
-  std::fstream::pos_type prev_file_position;
+  std::ifstream::pos_type prev_file_position;
   const int prev_indent = *indent;
   while (prev_file_position = file.tellg(), std::getline(file, line)) {
     cleanup_line(line);
@@ -225,7 +225,7 @@ bool parse_line(std::fstream &file, int min_indent, bool is_list, int *indent,
 }
 
 template <typename T>
-bool parse_integer_list(std::fstream &file, int min_indent, int *line_idx,
+bool parse_integer_list(std::ifstream &file, int min_indent, int *line_idx,
                         std::vector<T> *result) {
   bool has_list_prefix;
   int indent = -1;
@@ -261,7 +261,7 @@ std::pair<T, bool> value_present(const T &v) {
   return std::make_pair(v, true);
 }
 
-bool parse_color_properties(std::fstream &file, int min_indent, int *line_idx,
+bool parse_color_properties(std::ifstream &file, int min_indent, int *line_idx,
                             ColorProperties *color) {
   bool has_list_prefix;
   int indent = -1;
@@ -296,7 +296,7 @@ bool parse_color_properties(std::fstream &file, int min_indent, int *line_idx,
   return true;
 }
 
-bool parse_multilayer_layer_alpha(std::fstream &file, int min_indent,
+bool parse_multilayer_layer_alpha(std::ifstream &file, int min_indent,
                                   int *line_idx, AlphaInformation *alpha_info) {
   bool has_list_prefix;
   int indent = -1;
@@ -398,7 +398,7 @@ bool parse_multilayer_layer_alpha(std::fstream &file, int min_indent,
   return true;
 }
 
-bool parse_multilayer_layer_depth(std::fstream &file, int min_indent,
+bool parse_multilayer_layer_depth(std::ifstream &file, int min_indent,
                                   int *line_idx, DepthInformation *depth_info) {
   bool has_list_prefix;
   int indent = -1;
@@ -508,7 +508,7 @@ bool validate_layer(const LayerMetadata &layer, bool layer_has_alpha,
   return true;
 }
 
-bool parse_multilayer_layer_metadata(std::fstream &file, int min_indent,
+bool parse_multilayer_layer_metadata(std::ifstream &file, int min_indent,
                                      int *line_idx,
                                      std::vector<LayerMetadata> &layers) {
   bool has_list_prefix;
@@ -606,7 +606,7 @@ bool parse_multilayer_layer_metadata(std::fstream &file, int min_indent,
   return true;
 }
 
-bool parse_multilayer_metadata(std::fstream &file,
+bool parse_multilayer_metadata(std::ifstream &file,
                                MultilayerMetadata *multilayer) {
   int line_idx = 0;
   bool has_list_prefix;
@@ -910,7 +910,7 @@ bool double_to_depth_representation_element(
 
 bool parse_multilayer_file(const char *metadata_path,
                            MultilayerMetadata *multilayer) {
-  std::fstream file(metadata_path);
+  std::ifstream file(metadata_path);
   if (!file.is_open()) {
     fprintf(stderr, "Error: Failed to open %s\n", metadata_path);
     return false;
