@@ -15,6 +15,7 @@
 #define AOM_EXAMPLES_MULTILAYER_METADATA_H_
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace libaom_examples {
