@@ -420,7 +420,8 @@ int av1_ratecontrol_rtc_get_qp(void *controller) {
   return reinterpret_cast<aom::AV1RateControlRTC *>(controller)->GetQP();
 }
 
-AV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(void *controller) {
+AomAV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(
+    void *controller) {
   if (controller == nullptr) {
     return { { 0, 0 }, 0, 0 };
   }
@@ -444,14 +445,14 @@ void av1_ratecontrol_rtc_post_encode_update(void *controller,
 }
 
 bool av1_ratecontrol_rtc_get_segmentation(
-    void *controller, AV1SegmentationData *segmentation_data) {
+    void *controller, AomAV1SegmentationData *segmentation_data) {
   if (controller == nullptr || segmentation_data == nullptr) return false;
 
   return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
       ->GetSegmentationData(segmentation_data);
 }
 
-AV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(void *controller) {
+AomAV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(void *controller) {
   if (controller == nullptr) {
     return { 0, 0, 0 };
   }

@@ -158,9 +158,9 @@ class RcInterfaceTest : public ::libaom_test::EncoderTest,
       ASSERT_EQ(rc_api_->GetQP(), qp) << "at frame " << frame_cnt_ - 1;
       int encoder_lpf_level;
       encoder->Control(AOME_GET_LOOPFILTER_LEVEL, &encoder_lpf_level);
-      AV1LoopfilterLevel loopfilter_level = rc_api_->GetLoopfilterLevel();
+      aom::AV1LoopfilterLevel loopfilter_level = rc_api_->GetLoopfilterLevel();
       ASSERT_EQ(loopfilter_level.filter_level[0], encoder_lpf_level);
-      AV1CdefInfo cdef_level = rc_api_->GetCdefInfo();
+      aom::AV1CdefInfo cdef_level = rc_api_->GetCdefInfo();
       int cdef_y_strengths[16];
       encoder->Control(AV1E_GET_LUMA_CDEF_STRENGTH, cdef_y_strengths);
       ASSERT_EQ(cdef_level.cdef_strength_y, cdef_y_strengths[0]);
@@ -591,7 +591,7 @@ void RcExternMethodsInterfaceTest::TestGetLoopFilterLevelRateControl() {
   void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
 
-  AV1LoopfilterLevel lpf_level;
+  aom::AV1LoopfilterLevel lpf_level;
   lpf_level.filter_level[0] = 0xfdbd;
   lpf_level.filter_level[1] = 0xfdbd;
   lpf_level.filter_level_u = 0xfdbd;
@@ -621,7 +621,7 @@ void RcExternMethodsInterfaceTest::TestGetSegmentationDataRateControl() {
   void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
 
   ASSERT_NE(controller, nullptr);
-  AV1SegmentationData segmentation_data;
+  aom::AV1SegmentationData segmentation_data;
 
   ASSERT_TRUE(
       av1_ratecontrol_rtc_get_segmentation(controller, &segmentation_data));
@@ -631,7 +631,7 @@ void RcExternMethodsInterfaceTest::TestGetSegmentationDataRateControl() {
 void RcExternMethodsInterfaceTest::TestGetCdefInfoRateControl() {
   void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
-  AV1CdefInfo cdef_level;
+  aom::AV1CdefInfo cdef_level;
   cdef_level.cdef_strength_y = 0xabcd;
   cdef_level.cdef_strength_uv = 0xabcd;
   cdef_level.damping = 0xabcd;

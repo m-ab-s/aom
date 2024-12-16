@@ -24,19 +24,19 @@
 
 struct AV1_COMP;
 
-struct AV1LoopfilterLevel {
+struct AomAV1LoopfilterLevel {
   int filter_level[2];
   int filter_level_u;
   int filter_level_v;
 };
 
-struct AV1CdefInfo {
+struct AomAV1CdefInfo {
   int cdef_strength_y;
   int cdef_strength_uv;
   int damping;
 };
 
-struct AV1SegmentationData {
+struct AomAV1SegmentationData {
   const uint8_t *segmentation_map;
   size_t segmentation_map_size;
   const int *delta_q;
@@ -110,6 +110,9 @@ struct AomAV1RateControlRtcConfig {
 #ifdef __cplusplus
 namespace aom {
 
+using AV1LoopfilterLevel = AomAV1LoopfilterLevel;
+using AV1CdefInfo = AomAV1CdefInfo;
+using AV1SegmentationData = AomAV1SegmentationData;
 using AV1FrameParamsRTC = AomAV1FrameParamsRTC;
 using AV1RateControlRtcConfig = AomAV1RateControlRtcConfig;
 
@@ -156,7 +159,7 @@ bool av1_ratecontrol_rtc_update(
     void *controller, const struct AomAV1RateControlRtcConfig *rc_cfg);
 int av1_ratecontrol_rtc_get_qp(void *controller);
 
-struct AV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(
+struct AomAV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(
     void *controller);
 enum FrameDropDecision av1_ratecontrol_rtc_compute_qp(
     void *controller, const struct AomAV1FrameParamsRTC *frame_params);
@@ -165,9 +168,9 @@ void av1_ratecontrol_rtc_post_encode_update(void *controller,
                                             uint64_t encoded_frame_size);
 
 bool av1_ratecontrol_rtc_get_segmentation(
-    void *controller, struct AV1SegmentationData *segmentation_data);
+    void *controller, struct AomAV1SegmentationData *segmentation_data);
 
-struct AV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(void *controller);
+struct AomAV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(void *controller);
 
 void av1_ratecontrol_rtc_init_ratecontrol_config(
     struct AomAV1RateControlRtcConfig *config);
