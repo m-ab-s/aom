@@ -49,7 +49,7 @@ layers:
       matrix_coefficients: 6
 
     )";
-  libaom_test::TempOutFile tmp_file;
+  libaom_test::TempOutFile tmp_file(/*text_mode=*/true);
   fprintf(tmp_file.file(), "%s", metadata.c_str());
   fflush(tmp_file.file());
 
@@ -113,7 +113,7 @@ layers:
       matrix_coefficients: 6
 
     )";
-  libaom_test::TempOutFile tmp_file;
+  libaom_test::TempOutFile tmp_file(/*text_mode=*/true);
   fprintf(tmp_file.file(), "%s", metadata.c_str());
   fflush(tmp_file.file());
 
@@ -180,7 +180,7 @@ layers:
     luma_plane_only_flag: 1
     layer_metadata_scope: 2 # global
     )";
-  libaom_test::TempOutFile tmp_file;
+  libaom_test::TempOutFile tmp_file(/*text_mode=*/true);
   fprintf(tmp_file.file(), "%s", metadata.c_str());
   fflush(tmp_file.file());
 
@@ -203,7 +203,7 @@ layers:
     luma_plane_only_flag: 0
     layer_metadata_scope: 2 # global
     )";
-  libaom_test::TempOutFile tmp_file;
+  libaom_test::TempOutFile tmp_file(/*text_mode=*/true);
   fprintf(tmp_file.file(), "%s", metadata.c_str());
   fflush(tmp_file.file());
 
@@ -227,7 +227,7 @@ layers:
     luma_plane_only_flag: 0
     layer_metadata_scope: 2 # global
     )";
-  libaom_test::TempOutFile tmp_file;
+  libaom_test::TempOutFile tmp_file(/*text_mode=*/true);
   fprintf(tmp_file.file(), "%s", metadata.c_str());
   fflush(tmp_file.file());
 
