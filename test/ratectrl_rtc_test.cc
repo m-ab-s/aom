@@ -623,7 +623,9 @@ void RcExternMethodsInterfaceTest::TestGetSegmentationDataRateControl() {
   ASSERT_NE(controller, nullptr);
   aom::AV1SegmentationData segmentation_data;
 
-  ASSERT_TRUE(
+  // This should returen false as this test case doesn't run any part of the
+  // underlying rate control, and cyclic refresh will not be turned on.
+  ASSERT_FALSE(
       av1_ratecontrol_rtc_get_segmentation(controller, &segmentation_data));
   av1_ratecontrol_rtc_destroy(controller);
 }
