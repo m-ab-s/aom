@@ -14,10 +14,10 @@
 #include <memory>
 #include <new>
 
-#include "aom/aomcx.h"
 #include "aom/aom_encoder.h"
-#include "aom_mem/aom_mem.h"
+#include "aom/aomcx.h"
 #include "aom_dsp/aom_dsp_common.h"
+#include "aom_mem/aom_mem.h"
 #include "av1/common/common.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encoder_utils.h"
@@ -336,7 +336,7 @@ FrameDropDecision AV1RateControlRTC::ComputeQP(
     }
     cpi_->frame_index_set.show_frame_count++;
     cpi_->common.current_frame.frame_number++;
-    return FrameDropDecision::kDrop;
+    return kFrameDropDecisionDrop;
   }
   int bottom_index = 0, top_index = 0;
   cpi_->common.quant_params.base_qindex =
@@ -344,7 +344,7 @@ FrameDropDecision AV1RateControlRTC::ComputeQP(
                                cpi_->gf_frame_index, &bottom_index, &top_index);
   if (cpi_->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ)
     av1_cyclic_refresh_setup(cpi_);
-  return FrameDropDecision::kOk;
+  return kFrameDropDecisionOk;
 }
 
 int AV1RateControlRTC::GetQP() const {
@@ -433,10 +433,10 @@ AomAV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(
       ->GetLoopfilterLevel();
 }
 
-FrameDropDecision av1_ratecontrol_rtc_compute_qp(
+AomFrameDropDecision av1_ratecontrol_rtc_compute_qp(
     void *controller, const AomAV1FrameParamsRTC *frame_params) {
   if (controller == nullptr || frame_params == nullptr)
-    return FrameDropDecision::kOk;
+    return kAomFrameDropDecisionOk;
   return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
       ->ComputeQP(*frame_params);
 }

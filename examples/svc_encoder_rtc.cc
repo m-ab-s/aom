@@ -2187,7 +2187,8 @@ int main(int argc, const char **argv) {
         // TODO(jianj): Add support for SVC.
         frame_params.spatial_layer_id = 0;
         frame_params.temporal_layer_id = 0;
-        frame_params.frame_type = is_key_frame ? kKeyFrame : kInterFrame;
+        frame_params.frame_type =
+            is_key_frame ? aom::kKeyFrame : aom::kInterFrame;
         rc_api->ComputeQP(frame_params);
         const int current_qp = rc_api->GetQP();
         if (aom_codec_control(&codec, AV1E_SET_QUANTIZER_ONE_PASS,

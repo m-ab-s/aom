@@ -17,9 +17,9 @@
 #include <cstdint>
 #include <memory>
 #else
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 #endif  // __cplusplus
 
 struct AV1_COMP;
@@ -43,28 +43,25 @@ struct AomAV1SegmentationData {
   size_t delta_q_size;
 };
 
-enum FrameType { kKeyFrame, kInterFrame };
+typedef enum AomFrameType { kAomKeyFrame, kAomInterFrame } AomFrameType;
 
 struct AomAV1FrameParamsRTC {
-  enum FrameType frame_type;
+  AomFrameType frame_type;
   int spatial_layer_id;
   int temporal_layer_id;
 };
 
+typedef enum AomFrameDropDecision {
+  kAomFrameDropDecisionOk,    // Frame is encoded.
+  kAomFrameDropDecisionDrop,  // Frame is dropped.
+} AomFrameDropDecision;
+
 #ifdef __cplusplus
-enum class FrameDropDecision {
-  kOk,    // Frame is encoded.
-  kDrop,  // Frame is dropped.
-};
 // These constants come from AV1 spec.
 static constexpr size_t kAV1MaxLayers = 32;
 static constexpr size_t kAV1MaxTemporalLayers = 8;
 static constexpr size_t kAV1MaxSpatialLayers = 4;
 #else
-enum FrameDropDecision {
-  kFrameDropDecisionOk,    // Frame is encoded.
-  kFrameDropDecisionDrop,  // Frame is dropped.
-};
 // These constants come from AV1 spec.
 #define kAV1MaxLayers 32
 #define kAV1MaxTemporalLayers 8
@@ -116,6 +113,14 @@ using AV1SegmentationData = AomAV1SegmentationData;
 using AV1FrameParamsRTC = AomAV1FrameParamsRTC;
 using AV1RateControlRtcConfig = AomAV1RateControlRtcConfig;
 
+using FrameType = AomFrameType;
+constexpr FrameType kKeyFrame = kAomKeyFrame;
+constexpr FrameType kInterFrame = kAomInterFrame;
+
+using FrameDropDecision = AomFrameDropDecision;
+constexpr FrameDropDecision kFrameDropDecisionOk = kAomFrameDropDecisionOk;
+constexpr FrameDropDecision kFrameDropDecisionDrop = kAomFrameDropDecisionDrop;
+
 class AV1RateControlRTC {
  public:
   static std::unique_ptr<AV1RateControlRTC> Create(
@@ -161,7 +166,7 @@ int av1_ratecontrol_rtc_get_qp(void *controller);
 
 struct AomAV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(
     void *controller);
-enum FrameDropDecision av1_ratecontrol_rtc_compute_qp(
+AomFrameDropDecision av1_ratecontrol_rtc_compute_qp(
     void *controller, const struct AomAV1FrameParamsRTC *frame_params);
 
 void av1_ratecontrol_rtc_post_encode_update(void *controller,
