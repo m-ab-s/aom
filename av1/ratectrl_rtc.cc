@@ -402,46 +402,50 @@ void AV1RateControlRTC::PostEncodeUpdate(uint64_t encoded_frame_size) {
 
 extern "C" {
 
-void *av1_ratecontrol_rtc_create(const AomAV1RateControlRtcConfig *rc_cfg) {
+AomAV1RateControlRTC *av1_ratecontrol_rtc_create(
+    const AomAV1RateControlRtcConfig *rc_cfg) {
   if (rc_cfg == nullptr) return nullptr;
-  return aom::AV1RateControlRTC::Create(*rc_cfg).release();
+  return reinterpret_cast<AomAV1RateControlRTC *>(
+      aom::AV1RateControlRTC::Create(*rc_cfg).release());
 }
 
-void av1_ratecontrol_rtc_destroy(void *controller) {
+void av1_ratecontrol_rtc_destroy(AomAV1RateControlRTC *controller) {
   delete reinterpret_cast<aom::AV1RateControlRTC *>(controller);
 }
 
 bool av1_ratecontrol_rtc_update(
-    void *controller, const struct AomAV1RateControlRtcConfig *rc_cfg) {
+    AomAV1RateControlRTC *controller,
+    const struct AomAV1RateControlRtcConfig *rc_cfg) {
   if (controller == nullptr || rc_cfg == nullptr) return false;
 
   return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
       ->UpdateRateControl(*rc_cfg);
 }
 
-int av1_ratecontrol_rtc_get_qp(void *controller) {
+int av1_ratecontrol_rtc_get_qp(const AomAV1RateControlRTC *controller) {
   if (controller == nullptr) return 0;
-  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)->GetQP();
+  return reinterpret_cast<const aom::AV1RateControlRTC *>(controller)->GetQP();
 }
 
 AomAV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(
-    void *controller) {
+    const AomAV1RateControlRTC *controller) {
   if (controller == nullptr) {
     return { { 0, 0 }, 0, 0 };
   }
-  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
+  return reinterpret_cast<const aom::AV1RateControlRTC *>(controller)
       ->GetLoopfilterLevel();
 }
 
 AomFrameDropDecision av1_ratecontrol_rtc_compute_qp(
-    void *controller, const AomAV1FrameParamsRTC *frame_params) {
+    AomAV1RateControlRTC *controller,
+    const AomAV1FrameParamsRTC *frame_params) {
   if (controller == nullptr || frame_params == nullptr)
     return kAomFrameDropDecisionOk;
   return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
       ->ComputeQP(*frame_params);
 }
 
-void av1_ratecontrol_rtc_post_encode_update(void *controller,
+void av1_ratecontrol_rtc_post_encode_update(AomAV1RateControlRTC *controller,
                                             uint64_t encoded_frame_size) {
   if (controller == nullptr) return;
   reinterpret_cast<aom::AV1RateControlRTC *>(controller)
@@ -449,18 +453,21 @@ void av1_ratecontrol_rtc_post_encode_update(void *controller,
 }
 
 bool av1_ratecontrol_rtc_get_segmentation(
-    void *controller, AomAV1SegmentationData *segmentation_data) {
+    const AomAV1RateControlRTC *controller,
+    AomAV1SegmentationData *segmentation_data) {
   if (controller == nullptr || segmentation_data == nullptr) return false;
 
-  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)
+  return reinterpret_cast<const aom::AV1RateControlRTC *>(controller)
       ->GetSegmentationData(segmentation_data);
 }
 
-AomAV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(void *controller) {
+AomAV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(
+    const AomAV1RateControlRTC *controller) {
   if (controller == nullptr) {
     return { 0, 0, 0 };
   }
-  return reinterpret_cast<aom::AV1RateControlRTC *>(controller)->GetCdefInfo();
+  return reinterpret_cast<const aom::AV1RateControlRTC *>(controller)
+      ->GetCdefInfo();
 }
 
 void av1_ratecontrol_rtc_init_ratecontrol_config(

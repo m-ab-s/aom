@@ -99,6 +99,9 @@ typedef struct AomAV1RateControlRtcConfig {
   int scaling_factor_den[kAomAV1MaxSpatialLayers];
 } AomAV1RateControlRtcConfig;
 
+struct AomAV1RateControlRTC;
+typedef struct AomAV1RateControlRTC AomAV1RateControlRTC;
+
 #ifdef __cplusplus
 namespace aom {
 
@@ -152,24 +155,27 @@ class AV1RateControlRTC {
 #ifdef __cplusplus
 extern "C" {
 #endif
-void *av1_ratecontrol_rtc_create(const AomAV1RateControlRtcConfig *rc_cfg);
-void av1_ratecontrol_rtc_destroy(void *controller);
-bool av1_ratecontrol_rtc_update(void *controller,
+AomAV1RateControlRTC *av1_ratecontrol_rtc_create(
+    const AomAV1RateControlRtcConfig *rc_cfg);
+void av1_ratecontrol_rtc_destroy(AomAV1RateControlRTC *controller);
+bool av1_ratecontrol_rtc_update(AomAV1RateControlRTC *controller,
                                 const AomAV1RateControlRtcConfig *rc_cfg);
-int av1_ratecontrol_rtc_get_qp(void *controller);
+int av1_ratecontrol_rtc_get_qp(const AomAV1RateControlRTC *controller);
 
 AomAV1LoopfilterLevel av1_ratecontrol_rtc_get_loop_filter_level(
-    void *controller);
+    const AomAV1RateControlRTC *controller);
 AomFrameDropDecision av1_ratecontrol_rtc_compute_qp(
-    void *controller, const AomAV1FrameParamsRTC *frame_params);
+    AomAV1RateControlRTC *controller, const AomAV1FrameParamsRTC *frame_params);
 
-void av1_ratecontrol_rtc_post_encode_update(void *controller,
+void av1_ratecontrol_rtc_post_encode_update(AomAV1RateControlRTC *controller,
                                             uint64_t encoded_frame_size);
 
 bool av1_ratecontrol_rtc_get_segmentation(
-    void *controller, AomAV1SegmentationData *segmentation_data);
+    const AomAV1RateControlRTC *controller,
+    AomAV1SegmentationData *segmentation_data);
 
-AomAV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(void *controller);
+AomAV1CdefInfo av1_ratecontrol_rtc_get_cdef_info(
+    const AomAV1RateControlRTC *controller);
 
 void av1_ratecontrol_rtc_init_ratecontrol_config(
     AomAV1RateControlRtcConfig *config);

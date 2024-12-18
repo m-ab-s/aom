@@ -539,7 +539,7 @@ void RcExternMethodsInterfaceTest::SetConfig() {
 }
 
 void RcExternMethodsInterfaceTest::TestCreateRateControl() {
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
 
   ASSERT_NE(controller, nullptr);
 
@@ -547,7 +547,7 @@ void RcExternMethodsInterfaceTest::TestCreateRateControl() {
 }
 
 void RcExternMethodsInterfaceTest::TestUpdateRateControl() {
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
 
   ASSERT_NE(controller, nullptr);
 
@@ -561,7 +561,7 @@ void RcExternMethodsInterfaceTest::TestGetQPRateControl() {
   frame_params_.temporal_layer_id = 0;
   frame_params_.frame_type = kAomKeyFrame;
 
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
 
   const AomFrameDropDecision decision =
@@ -578,7 +578,7 @@ void RcExternMethodsInterfaceTest::TestComputeQPRateControl() {
   frame_params_.temporal_layer_id = 0;
   frame_params_.frame_type = kAomKeyFrame;
 
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
 
   const AomFrameDropDecision decision =
@@ -588,7 +588,7 @@ void RcExternMethodsInterfaceTest::TestComputeQPRateControl() {
 }
 
 void RcExternMethodsInterfaceTest::TestGetLoopFilterLevelRateControl() {
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
 
   AomAV1LoopfilterLevel lpf_level;
@@ -608,7 +608,7 @@ void RcExternMethodsInterfaceTest::TestGetLoopFilterLevelRateControl() {
 }
 
 void RcExternMethodsInterfaceTest::TestPostEncodeUpdateRateControl() {
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
   av1_ratecontrol_rtc_post_encode_update(controller, 380);
   av1_ratecontrol_rtc_destroy(controller);
@@ -616,7 +616,7 @@ void RcExternMethodsInterfaceTest::TestPostEncodeUpdateRateControl() {
 
 void RcExternMethodsInterfaceTest::TestGetSegmentationDataRateControl() {
   rc_cfg_.aq_mode = 1;  // VARIANCE_AQ = 1
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
   AomAV1SegmentationData segmentation_data;
   // This should return false as this test case doesn't run any part of the
@@ -627,7 +627,7 @@ void RcExternMethodsInterfaceTest::TestGetSegmentationDataRateControl() {
 }
 
 void RcExternMethodsInterfaceTest::TestGetCdefInfoRateControl() {
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
   AomAV1CdefInfo cdef_level;
   cdef_level.cdef_strength_y = 0xabcd;
@@ -643,7 +643,7 @@ void RcExternMethodsInterfaceTest::TestGetCdefInfoRateControl() {
 }
 
 void RcExternMethodsInterfaceTest::TestCreateRateControlConfig() {
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
 
   AomAV1RateControlRtcConfig config;
@@ -656,7 +656,7 @@ void RcExternMethodsInterfaceTest::TestCreateRateControlConfig() {
 }
 
 void RcExternMethodsInterfaceTest::TestDestroyRateControlRTC() {
-  void *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
+  AomAV1RateControlRTC *controller = av1_ratecontrol_rtc_create(&rc_cfg_);
   ASSERT_NE(controller, nullptr);
 
   av1_ratecontrol_rtc_destroy(controller);
