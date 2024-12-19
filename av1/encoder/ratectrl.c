@@ -3088,13 +3088,9 @@ static unsigned int estimate_scroll_motion(
   const int full_search = 1;
   // Keep border a multiple of 16.
   const int border = (cpi->oxcf.border_in_pixels >> 4) << 4;
-  // Make search_size_height larger to capture more common vertical scroll.
-  // Increase the search if last two frames were dropped.
   // Values set based on screen test set.
-  int search_size_width = 160;
-  int search_size_height = (cpi->rc.drop_count_consec > 1)
-                               ? (cpi->rc.frame_source_sad > 20000) ? 512 : 224
-                               : 192;
+  int search_size_height = (cpi->rc.frame_source_sad > 20000) ? 512 : 192;
+  int search_size_width = (cpi->rc.frame_source_sad > 20000) ? 512 : 160;
   // Adjust based on boundary.
   if ((pos_col - search_size_width < -border) ||
       (pos_col + search_size_width > cm->width + border))
