@@ -3081,20 +3081,15 @@ static int set_block_is_active(unsigned char *const active_map_4x4, int mi_cols,
 static unsigned int estimate_scroll_motion(
     const AV1_COMP *cpi, uint8_t *src_buf, uint8_t *last_src_buf,
     int src_stride, int ref_stride, BLOCK_SIZE bsize, int pos_col, int pos_row,
-    int *best_intmv_col, int *best_intmv_row) {
+    int *best_intmv_col, int *best_intmv_row, int sw_col, int sw_row) {
   const AV1_COMMON *const cm = &cpi->common;
   const int bw = block_size_wide[bsize];
   const int bh = block_size_high[bsize];
   const int full_search = 1;
   // Keep border a multiple of 16.
   const int border = (cpi->oxcf.border_in_pixels >> 4) << 4;
-  // Make search_size_height larger to capture more common vertical scroll.
-  // Increase the search if last two frames were dropped.
-  // Values set based on screen test set.
-  int search_size_width = 160;
-  int search_size_height = (cpi->rc.drop_count_consec > 1)
-                               ? (cpi->rc.frame_source_sad > 20000) ? 512 : 224
-                               : 192;
+  int search_size_width = sw_col;
+  int search_size_height = sw_row;
   // Adjust based on boundary.
   if ((pos_col - search_size_width < -border) ||
       (pos_col + search_size_width > cm->width + border))
@@ -3345,7 +3340,12 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
       // to determine if motion is scroll. Only test 3 points (pts) for now.
       // TODO(marpan): Only allow for 8 bit-depth for now.
       if (cm->seq_params->bit_depth == 8) {
-        for (int pts = 0; pts < 3; pts++) {
+        const int sw_row = (cpi->rc.frame_source_sad > 20000) ? 512 : 192;
+        const int sw_col = (cpi->rc.frame_source_sad > 20000) ? 512 : 160;
+        const int num_pts =
+            unscaled_src->y_width * unscaled_src->y_height >= 1920 * 1080 ? 3
+                                                                          : 1;
+        for (int pts = 0; pts < num_pts; pts++) {
           // fac and shift are used to move the center block for the other
           // two points (pts).
           int fac = 1;
@@ -3357,8 +3357,12 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
             fac = 3;
             shift = 2;
           }
-          const int pos_col = (fac * unscaled_src->y_width >> shift) - 64;
-          const int pos_row = (fac * unscaled_src->y_height >> shift) - 64;
+          int pos_col = (fac * unscaled_src->y_width >> shift) - 64;
+          int pos_row = (fac * unscaled_src->y_height >> shift) - 64;
+          pos_col = AOMMAX(sw_col,
+                           AOMMIN(unscaled_src->y_width - sw_col - 1, pos_col));
+          pos_row = AOMMAX(
+              sw_row, AOMMIN(unscaled_src->y_height - sw_row - 1, pos_row));
           if (pos_col >= 0 && pos_col < unscaled_src->y_width - 64 &&
               pos_row >= 0 && pos_row < unscaled_src->y_height - 64) {
             src_y = unscaled_src->y_buffer + pos_row * src_ystride + pos_col;
@@ -3369,7 +3373,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
             unsigned int y_sad = estimate_scroll_motion(
                 cpi, src_y, last_src_y, src_ystride, last_src_ystride,
                 BLOCK_128X128, pos_col, pos_row, &best_intmv_col,
-                &best_intmv_row);
+                &best_intmv_row, sw_col, sw_row);
             if (y_sad < 100 &&
                 (abs(best_intmv_col) > 16 || abs(best_intmv_row) > 16)) {
               cpi->rc.high_motion_content_screen_rtc = 0;
