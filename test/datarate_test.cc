@@ -759,6 +759,51 @@ TEST_P(DatarateTestSetFrameQpRealtime, SetFrameQpOnePass) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
+class DatarateTestPsnr
+    : public DatarateTest,
+      public ::testing::TestWithParam<const libaom_test::AV1CodecFactory *> {
+ public:
+  DatarateTestPsnr() : DatarateTest(GetParam()) {}
+
+ protected:
+  ~DatarateTestPsnr() override = default;
+
+  void SetUp() override {
+    InitializeConfig(libaom_test::kRealTime);
+    ResetModel();
+    frame_flags_ = AOM_EFLAG_CALCULATE_PSNR;
+  }
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
+    DatarateTest::PreEncodeFrameHook(video, encoder);
+#if !defined(CONFIG_INTERNAL_STATS)
+    frame_flags_ ^= AOM_EFLAG_CALCULATE_PSNR;
+#endif  // CONFIG_INTERNAL_STATS
+    if (video->img() == nullptr) {
+      frame_flags_ = 0;
+    }
+  }
+  void PostEncodeFrameHook(::libaom_test::Encoder *encoder) override {
+    libaom_test::CxDataIterator iter = encoder->GetCxData();
+
+    bool had_psnr = false;
+    while (const aom_codec_cx_pkt_t *pkt = iter.Next()) {
+      if (pkt->kind == AOM_CODEC_PSNR_PKT) had_psnr = true;
+    }
+
+    EXPECT_EQ(had_psnr, (frame_flags_ & AOM_EFLAG_CALCULATE_PSNR) ==
+                            AOM_EFLAG_CALCULATE_PSNR);
+  }
+};
+
+TEST_P(DatarateTestPsnr, PerFramePsnr) {
+  ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352, 288,
+                                       30, 1, 0, 100);
+
+  ResetModel();
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestLarge,
                            ::testing::Values(::libaom_test::kRealTime),
                            ::testing::Range(5, 7), ::testing::Values(0, 3),
@@ -783,6 +828,11 @@ AV1_INSTANTIATE_TEST_SUITE(DatarateTestSpeedChangeRealtime,
 
 INSTANTIATE_TEST_SUITE_P(
     AV1, DatarateTestSetFrameQpRealtime,
+    ::testing::Values(
+        static_cast<const libaom_test::CodecFactory *>(&libaom_test::kAV1)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AV1, DatarateTestPsnr,
     ::testing::Values(
         static_cast<const libaom_test::CodecFactory *>(&libaom_test::kAV1)));
 
