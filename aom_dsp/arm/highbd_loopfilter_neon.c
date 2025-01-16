@@ -581,18 +581,14 @@ static inline void filter8(const uint16x8_t p3q3, const uint16x8_t p2q2,
   //                    ^^^^^^^^^^^
   const uint16x8_t p23q23 = vaddq_u16(p3q3, p2q2);
 
-  // p2q2 = p3q3 + 2 * (p3q3 + p2q2) + p1q1 + p0q0 + q0p0
-  //               ^^^^^
-  uint16x8_t sum = vshlq_n_u16(p23q23, 1);
-
   // Add two other terms to make dual issue with shift more likely.
   // p2q2 = p3q3 + 2 * (p3q3 + p2q2) + p1q1 + p0q0 + q0p0
   //                                   ^^^^^^^^^^^
   const uint16x8_t p01q01 = vaddq_u16(p0q0, p1q1);
 
   // p2q2 = p3q3 + 2 * (p3q3 + p2q2) + p1q1 + p0q0 + q0p0
-  //                                 ^^^^^^^^^^^^^
-  sum = vaddq_u16(sum, p01q01);
+  //               ^^^^^             ^^^^^^^^^^^^^
+  uint16x8_t sum = vmlaq_n_u16(p01q01, p23q23, 2);
 
   // p2q2 = p3q3 + 2 * (p3q3 + p2q2) + p1q1 + p0q0 + q0p0
   //        ^^^^^^
@@ -628,19 +624,9 @@ void aom_highbd_lpf_horizontal_8_neon(uint16_t *s, int pitch,
                                       const uint8_t *blimit,
                                       const uint8_t *limit,
                                       const uint8_t *thresh, int bd) {
-  uint16_t *const dst_p3 = s - 4 * pitch;
-  uint16_t *const dst_p2 = s - 3 * pitch;
-  uint16_t *const dst_p1 = s - 2 * pitch;
-  uint16_t *const dst_p0 = s - pitch;
-  uint16_t *const dst_q0 = s;
-  uint16_t *const dst_q1 = s + pitch;
-  uint16_t *const dst_q2 = s + 2 * pitch;
-  uint16_t *const dst_q3 = s + 3 * pitch;
-
-  const uint16x4_t src[8] = { vld1_u16(dst_p3), vld1_u16(dst_p2),
-                              vld1_u16(dst_p1), vld1_u16(dst_p0),
-                              vld1_u16(dst_q0), vld1_u16(dst_q1),
-                              vld1_u16(dst_q2), vld1_u16(dst_q3) };
+  uint16x4_t src[8];
+  load_u16_4x8(s - 4 * pitch, pitch, &src[0], &src[1], &src[2], &src[3],
+               &src[4], &src[5], &src[6], &src[7]);
 
   // Adjust thresholds to bitdepth.
   const int outer_thresh = *blimit << (bd - 8);
@@ -658,54 +644,59 @@ void aom_highbd_lpf_horizontal_8_neon(uint16_t *s, int pitch,
   filter8_masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
                 bd, &needs_filter_mask, &is_flat4_mask, &hev_mask);
 
-#if AOM_ARCH_AARCH64
-  if (vaddv_u16(needs_filter_mask) == 0) {
+  if (vget_lane_u64(vreinterpret_u64_u16(needs_filter_mask), 0) == 0) {
     // None of the values will be filtered.
     return;
   }
-#endif  // AOM_ARCH_AARCH64
-
-  // Copy the masks to the high bits for packed comparisons later.
-  const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
-  const uint16x8_t needs_filter_mask_8 =
-      vcombine_u16(needs_filter_mask, needs_filter_mask);
-
-  uint16x8_t f4_p1q1;
-  uint16x8_t f4_p0q0;
-  // ZIP1 p0q0, p1q1 may perform better here.
-  const uint16x8_t p0q1 = vcombine_u16(src[3], src[5]);
-  filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
-  f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
 
   uint16x8_t p0q0_output, p1q1_output, p2q2_output;
-  // Because we did not return after testing |needs_filter_mask| we know it is
-  // nonzero. |is_flat4_mask| controls whether the needed filter is filter4 or
-  // filter8. Therefore if it is false when |needs_filter_mask| is true, filter8
-  // output is not used.
   uint16x8_t f8_p2q2, f8_p1q1, f8_p0q0;
-  const uint64x1_t need_filter8 = vreinterpret_u64_u16(is_flat4_mask);
-  if (vget_lane_u64(need_filter8, 0) == 0) {
-    // filter8() does not apply, but filter4() applies to one or more values.
-    p2q2_output = p2q2;
-    p1q1_output = vbslq_u16(needs_filter_mask_8, f4_p1q1, p1q1);
-    p0q0_output = vbslq_u16(needs_filter_mask_8, f4_p0q0, p0q0);
-  } else {
-    const uint16x8_t is_flat4_mask_8 =
-        vcombine_u16(is_flat4_mask, is_flat4_mask);
+  // Not needing filter4() at all is a very common case, so isolate it to avoid
+  // needlessly computing filter4().
+  if (vget_lane_s64(vreinterpret_s64_u16(is_flat4_mask), 0) == -1 &&
+      vget_lane_s64(vreinterpret_s64_u16(needs_filter_mask), 0) == -1) {
     filter8(p3q3, p2q2, p1q1, p0q0, &f8_p2q2, &f8_p1q1, &f8_p0q0);
-    p2q2_output = vbslq_u16(is_flat4_mask_8, f8_p2q2, p2q2);
-    p1q1_output = vbslq_u16(is_flat4_mask_8, f8_p1q1, f4_p1q1);
-    p1q1_output = vbslq_u16(needs_filter_mask_8, p1q1_output, p1q1);
-    p0q0_output = vbslq_u16(is_flat4_mask_8, f8_p0q0, f4_p0q0);
-    p0q0_output = vbslq_u16(needs_filter_mask_8, p0q0_output, p0q0);
+    p2q2_output = f8_p2q2;
+    p1q1_output = f8_p1q1;
+    p0q0_output = f8_p0q0;
+  } else {
+    // Copy the masks to the high bits for packed comparisons later.
+    const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
+    const uint16x8_t needs_filter_mask_8 =
+        vcombine_u16(needs_filter_mask, needs_filter_mask);
+
+    uint16x8_t f4_p1q1;
+    uint16x8_t f4_p0q0;
+    const uint16x8_t p0q1 = vcombine_u16(src[3], src[5]);
+    filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
+    f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
+
+    // Because we did not return after testing |needs_filter_mask| we know it is
+    // nonzero. |is_flat4_mask| controls whether the needed filter is filter4 or
+    // filter8. Therefore if it is false when |needs_filter_mask| is true,
+    // filter8 output is not used.
+    const uint64x1_t need_filter8 = vreinterpret_u64_u16(is_flat4_mask);
+    if (vget_lane_u64(need_filter8, 0) == 0) {
+      // filter8() does not apply, but filter4() applies to one or more values.
+      p2q2_output = p2q2;
+      p1q1_output = vbslq_u16(needs_filter_mask_8, f4_p1q1, p1q1);
+      p0q0_output = vbslq_u16(needs_filter_mask_8, f4_p0q0, p0q0);
+    } else {
+      const uint16x8_t is_flat4_mask_8 =
+          vcombine_u16(is_flat4_mask, is_flat4_mask);
+      filter8(p3q3, p2q2, p1q1, p0q0, &f8_p2q2, &f8_p1q1, &f8_p0q0);
+      p2q2_output = vbslq_u16(is_flat4_mask_8, f8_p2q2, p2q2);
+      p1q1_output = vbslq_u16(is_flat4_mask_8, f8_p1q1, f4_p1q1);
+      p1q1_output = vbslq_u16(needs_filter_mask_8, p1q1_output, p1q1);
+      p0q0_output = vbslq_u16(is_flat4_mask_8, f8_p0q0, f4_p0q0);
+      p0q0_output = vbslq_u16(needs_filter_mask_8, p0q0_output, p0q0);
+    }
   }
 
-  vst1_u16(dst_p2, vget_low_u16(p2q2_output));
-  vst1_u16(dst_p1, vget_low_u16(p1q1_output));
-  vst1_u16(dst_p0, vget_low_u16(p0q0_output));
-  vst1_u16(dst_q0, vget_high_u16(p0q0_output));
-  vst1_u16(dst_q1, vget_high_u16(p1q1_output));
-  vst1_u16(dst_q2, vget_high_u16(p2q2_output));
+  store_u16_4x6(s - 3 * pitch, pitch, vget_low_u16(p2q2_output),
+                vget_low_u16(p1q1_output), vget_low_u16(p0q0_output),
+                vget_high_u16(p0q0_output), vget_high_u16(p1q1_output),
+                vget_high_u16(p2q2_output));
 }
 
 void aom_highbd_lpf_horizontal_8_dual_neon(
@@ -723,16 +714,10 @@ static inline uint16x8_t reverse_low_half(const uint16x8_t a) {
 void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
                                     const uint8_t *blimit, const uint8_t *limit,
                                     const uint8_t *thresh, int bd) {
-  uint16_t *const dst = s - 4;
-  uint16_t *const dst_0 = dst;
-  uint16_t *const dst_1 = dst + pitch;
-  uint16_t *const dst_2 = dst + 2 * pitch;
-  uint16_t *const dst_3 = dst + 3 * pitch;
-
   // src_raw[n] contains p3, p2, p1, p0, q0, q1, q2, q3 for row n.
   // To get desired pairs after transpose, one half should be reversed.
-  uint16x8_t src[4] = { vld1q_u16(dst_0), vld1q_u16(dst_1), vld1q_u16(dst_2),
-                        vld1q_u16(dst_3) };
+  uint16x8_t src[4];
+  load_u16_8x4(s - 4, pitch, &src[0], &src[1], &src[2], &src[3]);
 
   // src[0] = p0q0
   // src[1] = p1q1
@@ -757,45 +742,54 @@ void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
   filter8_masks(p3q3, p2q2, p1q1, p0q0, hev_thresh, outer_mask, inner_thresh,
                 bd, &needs_filter_mask, &is_flat4_mask, &hev_mask);
 
-#if AOM_ARCH_AARCH64
-  if (vaddv_u16(needs_filter_mask) == 0) {
+  if (vget_lane_u64(vreinterpret_u64_u16(needs_filter_mask), 0) == 0) {
     // None of the values will be filtered.
     return;
   }
-#endif  // AOM_ARCH_AARCH64
-
-  // Copy the masks to the high bits for packed comparisons later.
-  const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
-  const uint16x8_t needs_filter_mask_8 =
-      vcombine_u16(needs_filter_mask, needs_filter_mask);
-
-  uint16x8_t f4_p1q1;
-  uint16x8_t f4_p0q0;
-  const uint16x8_t p0q1 = vcombine_u16(vget_low_u16(p0q0), vget_high_u16(p1q1));
-  filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
-  f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
 
   uint16x8_t p0q0_output, p1q1_output, p2q2_output;
-  // Because we did not return after testing |needs_filter_mask| we know it is
-  // nonzero. |is_flat4_mask| controls whether the needed filter is filter4 or
-  // filter8. Therefore if it is false when |needs_filter_mask| is true, filter8
-  // output is not used.
-  const uint64x1_t need_filter8 = vreinterpret_u64_u16(is_flat4_mask);
-  if (vget_lane_u64(need_filter8, 0) == 0) {
-    // filter8() does not apply, but filter4() applies to one or more values.
-    p2q2_output = p2q2;
-    p1q1_output = vbslq_u16(needs_filter_mask_8, f4_p1q1, p1q1);
-    p0q0_output = vbslq_u16(needs_filter_mask_8, f4_p0q0, p0q0);
-  } else {
-    const uint16x8_t is_flat4_mask_8 =
-        vcombine_u16(is_flat4_mask, is_flat4_mask);
-    uint16x8_t f8_p2q2, f8_p1q1, f8_p0q0;
+  uint16x8_t f8_p2q2, f8_p1q1, f8_p0q0;
+  // Not needing filter4() at all is a very common case, so isolate it to avoid
+  // needlessly computing filter4().
+  if (vget_lane_s64(vreinterpret_s64_u16(is_flat4_mask), 0) == -1 &&
+      vget_lane_s64(vreinterpret_s64_u16(needs_filter_mask), 0) == -1) {
     filter8(p3q3, p2q2, p1q1, p0q0, &f8_p2q2, &f8_p1q1, &f8_p0q0);
-    p2q2_output = vbslq_u16(is_flat4_mask_8, f8_p2q2, p2q2);
-    p1q1_output = vbslq_u16(is_flat4_mask_8, f8_p1q1, f4_p1q1);
-    p1q1_output = vbslq_u16(needs_filter_mask_8, p1q1_output, p1q1);
-    p0q0_output = vbslq_u16(is_flat4_mask_8, f8_p0q0, f4_p0q0);
-    p0q0_output = vbslq_u16(needs_filter_mask_8, p0q0_output, p0q0);
+    p2q2_output = f8_p2q2;
+    p1q1_output = f8_p1q1;
+    p0q0_output = f8_p0q0;
+  } else {
+    // Copy the masks to the high bits for packed comparisons later.
+    const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
+    const uint16x8_t needs_filter_mask_8 =
+        vcombine_u16(needs_filter_mask, needs_filter_mask);
+
+    uint16x8_t f4_p1q1;
+    uint16x8_t f4_p0q0;
+    const uint16x8_t p0q1 =
+        vcombine_u16(vget_low_u16(p0q0), vget_high_u16(p1q1));
+    filter4(p0q0, p0q1, p1q1, hev_mask, bd, &f4_p1q1, &f4_p0q0);
+    f4_p1q1 = vbslq_u16(hev_mask_8, p1q1, f4_p1q1);
+
+    // Because we did not return after testing |needs_filter_mask| we know it is
+    // nonzero. |is_flat4_mask| controls whether the needed filter is filter4 or
+    // filter8. Therefore if it is false when |needs_filter_mask| is true,
+    // filter8 output is not used.
+    const uint64x1_t need_filter8 = vreinterpret_u64_u16(is_flat4_mask);
+    if (vget_lane_u64(need_filter8, 0) == 0) {
+      // filter8() does not apply, but filter4() applies to one or more values.
+      p2q2_output = p2q2;
+      p1q1_output = vbslq_u16(needs_filter_mask_8, f4_p1q1, p1q1);
+      p0q0_output = vbslq_u16(needs_filter_mask_8, f4_p0q0, p0q0);
+    } else {
+      const uint16x8_t is_flat4_mask_8 =
+          vcombine_u16(is_flat4_mask, is_flat4_mask);
+      filter8(p3q3, p2q2, p1q1, p0q0, &f8_p2q2, &f8_p1q1, &f8_p0q0);
+      p2q2_output = vbslq_u16(is_flat4_mask_8, f8_p2q2, p2q2);
+      p1q1_output = vbslq_u16(is_flat4_mask_8, f8_p1q1, f4_p1q1);
+      p1q1_output = vbslq_u16(needs_filter_mask_8, p1q1_output, p1q1);
+      p0q0_output = vbslq_u16(is_flat4_mask_8, f8_p0q0, f4_p0q0);
+      p0q0_output = vbslq_u16(needs_filter_mask_8, p0q0_output, p0q0);
+    }
   }
 
   uint16x8_t output[4] = { p0q0_output, p1q1_output, p2q2_output, p3q3 };
@@ -805,10 +799,9 @@ void aom_highbd_lpf_vertical_8_neon(uint16_t *s, int pitch,
 
   // Reverse p values to produce original order:
   // p3 p2 p1 p0 q0 q1 q2 q3
-  vst1q_u16(dst_0, reverse_low_half(output[0]));
-  vst1q_u16(dst_1, reverse_low_half(output[1]));
-  vst1q_u16(dst_2, reverse_low_half(output[2]));
-  vst1q_u16(dst_3, reverse_low_half(output[3]));
+  store_u16_8x4(s - 4, pitch, reverse_low_half(output[0]),
+                reverse_low_half(output[1]), reverse_low_half(output[2]),
+                reverse_low_half(output[3]));
 }
 
 void aom_highbd_lpf_vertical_8_dual_neon(

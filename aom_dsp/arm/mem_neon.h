@@ -252,6 +252,28 @@ static inline void load_u16_4x7(const uint16_t *s, ptrdiff_t p,
   *s6 = vld1_u16(s);
 }
 
+static inline void load_u16_4x8(const uint16_t *s, ptrdiff_t p,
+                                uint16x4_t *const s0, uint16x4_t *const s1,
+                                uint16x4_t *const s2, uint16x4_t *const s3,
+                                uint16x4_t *const s4, uint16x4_t *const s5,
+                                uint16x4_t *const s6, uint16x4_t *const s7) {
+  *s0 = vld1_u16(s);
+  s += p;
+  *s1 = vld1_u16(s);
+  s += p;
+  *s2 = vld1_u16(s);
+  s += p;
+  *s3 = vld1_u16(s);
+  s += p;
+  *s4 = vld1_u16(s);
+  s += p;
+  *s5 = vld1_u16(s);
+  s += p;
+  *s6 = vld1_u16(s);
+  s += p;
+  *s7 = vld1_u16(s);
+}
+
 static inline void load_s16_8x2(const int16_t *s, const ptrdiff_t p,
                                 int16x8_t *const s0, int16x8_t *const s1) {
   *s0 = vld1q_s16(s);
@@ -612,6 +634,23 @@ static inline void store_u16_4x4(uint16_t *s, ptrdiff_t dst_stride,
   vst1_u16(s, s2);
   s += dst_stride;
   vst1_u16(s, s3);
+}
+
+static inline void store_u16_4x6(uint16_t *s, ptrdiff_t dst_stride,
+                                 const uint16x4_t s0, const uint16x4_t s1,
+                                 const uint16x4_t s2, const uint16x4_t s3,
+                                 const uint16x4_t s4, const uint16x4_t s5) {
+  vst1_u16(s, s0);
+  s += dst_stride;
+  vst1_u16(s, s1);
+  s += dst_stride;
+  vst1_u16(s, s2);
+  s += dst_stride;
+  vst1_u16(s, s3);
+  s += dst_stride;
+  vst1_u16(s, s4);
+  s += dst_stride;
+  vst1_u16(s, s5);
 }
 
 static inline void store_u16_8x2(uint16_t *s, ptrdiff_t dst_stride,
