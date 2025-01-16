@@ -15,6 +15,7 @@
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/arm/transpose_neon.h"
+#include "mem_neon.h"
 
 static inline int16x4_t clip3_s16(const int16x4_t val, const int16x4_t low,
                                   const int16x4_t high) {
@@ -226,13 +227,8 @@ void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
                                       const uint8_t *blimit,
                                       const uint8_t *limit,
                                       const uint8_t *thresh, int bd) {
-  uint16_t *const dst_p1 = (uint16_t *)(s - 2 * pitch);
-  uint16_t *const dst_p0 = (uint16_t *)(s - pitch);
-  uint16_t *const dst_q0 = (uint16_t *)(s);
-  uint16_t *const dst_q1 = (uint16_t *)(s + pitch);
-
-  const uint16x4_t src[4] = { vld1_u16(dst_p1), vld1_u16(dst_p0),
-                              vld1_u16(dst_q0), vld1_u16(dst_q1) };
+  uint16x4_t src[4];
+  load_u16_4x4(s - 2 * pitch, pitch, &src[0], &src[1], &src[2], &src[3]);
 
   // Adjust thresholds to bitdepth.
   const int outer_thresh = *blimit << (bd - 8);
@@ -247,12 +243,10 @@ void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
   filter4_masks(p0q0, p1q1, hev_thresh, outer_mask, inner_thresh, &hev_mask,
                 &needs_filter4_mask);
 
-#if AOM_ARCH_AARCH64
-  if (vaddv_u16(needs_filter4_mask) == 0) {
+  if (vget_lane_u64(vreinterpret_u64_u16(needs_filter4_mask), 0) == 0) {
     // None of the values will be filtered.
     return;
   }
-#endif  // AOM_ARCH_AARCH64
 
   // Copy the masks to the high bits for packed comparisons later.
   const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
@@ -272,10 +266,9 @@ void aom_highbd_lpf_horizontal_4_neon(uint16_t *s, int pitch,
   const uint16x8_t p1q1_mask = veorq_u16(hev_mask_8, needs_filter4_mask_8);
   const uint16x8_t p1q1_output = vbslq_u16(p1q1_mask, f_p1q1, p1q1);
 
-  vst1_u16(dst_p1, vget_low_u16(p1q1_output));
-  vst1_u16(dst_p0, vget_low_u16(p0q0_output));
-  vst1_u16(dst_q0, vget_high_u16(p0q0_output));
-  vst1_u16(dst_q1, vget_high_u16(p1q1_output));
+  store_u16_4x4(s - 2 * pitch, pitch, vget_low_u16(p1q1_output),
+                vget_low_u16(p0q0_output), vget_high_u16(p0q0_output),
+                vget_high_u16(p1q1_output));
 }
 
 void aom_highbd_lpf_horizontal_4_dual_neon(
@@ -290,14 +283,8 @@ void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
                                     const uint8_t *blimit, const uint8_t *limit,
                                     const uint8_t *thresh, int bd) {
   // Offset by 2 uint16_t values to load from first p1 position.
-  uint16_t *dst = s - 2;
-  uint16_t *dst_p1 = dst;
-  uint16_t *dst_p0 = dst + pitch;
-  uint16_t *dst_q0 = dst + pitch * 2;
-  uint16_t *dst_q1 = dst + pitch * 3;
-
-  uint16x4_t src[4] = { vld1_u16(dst_p1), vld1_u16(dst_p0), vld1_u16(dst_q0),
-                        vld1_u16(dst_q1) };
+  uint16x4_t src[4];
+  load_u16_4x4(s - 2, pitch, &src[0], &src[1], &src[2], &src[3]);
   transpose_array_inplace_u16_4x4(src);
 
   // Adjust thresholds to bitdepth.
@@ -313,12 +300,10 @@ void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
   filter4_masks(p0q0, p1q1, hev_thresh, outer_mask, inner_thresh, &hev_mask,
                 &needs_filter4_mask);
 
-#if AOM_ARCH_AARCH64
-  if (vaddv_u16(needs_filter4_mask) == 0) {
+  if (vget_lane_u64(vreinterpret_u64_u16(needs_filter4_mask), 0) == 0) {
     // None of the values will be filtered.
     return;
   }
-#endif  // AOM_ARCH_AARCH64
 
   // Copy the masks to the high bits for packed comparisons later.
   const uint16x8_t hev_mask_8 = vcombine_u16(hev_mask, hev_mask);
@@ -346,10 +331,7 @@ void aom_highbd_lpf_vertical_4_neon(uint16_t *s, int pitch,
   };
   transpose_array_inplace_u16_4x4(output);
 
-  vst1_u16(dst_p1, output[0]);
-  vst1_u16(dst_p0, output[1]);
-  vst1_u16(dst_q0, output[2]);
-  vst1_u16(dst_q1, output[3]);
+  store_u16_4x4(s - 2, pitch, output[0], output[1], output[2], output[3]);
 }
 
 void aom_highbd_lpf_vertical_4_dual_neon(
