@@ -858,8 +858,8 @@ if(BUILD_SHARED_LIBS)
   # errors (don't use it with AddressSanitizer)." See
   # https://clang.llvm.org/docs/AddressSanitizer.html#usage. Similarly, see
   # https://clang.llvm.org/docs/MemorySanitizer.html#usage.
-  if(NOT WIN32
-     AND NOT APPLE
+  if(NOT
+     (APPLE OR CYGWIN OR WIN32)
      AND NOT (CMAKE_C_COMPILER_ID MATCHES "Clang" AND SANITIZE))
     # The -z defs linker option reports unresolved symbol references from object
     # files when building a shared library.
