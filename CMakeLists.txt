@@ -333,6 +333,12 @@ if(CONFIG_AV1_ENCODER)
   # libaom static library.
   if(BUILD_SHARED_LIBS)
     target_link_libraries(aom_av1_rc ${AOM_LIB_LINK_TYPE} aom_static)
+    # TODO: https://aomedia.issues.chromium.org/391715078 - This condition can
+    # be removed after aom_av1_rc restricts its symbol visibility.
+    if(CYGWIN OR MINGW)
+      target_link_options(aom_av1_rc ${AOM_LIB_LINK_TYPE}
+                          LINKER:--allow-multiple-definition)
+    endif()
   else()
     target_link_libraries(aom_av1_rc ${AOM_LIB_LINK_TYPE} aom)
   endif()
