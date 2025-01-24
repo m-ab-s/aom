@@ -1635,7 +1635,7 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // palette mode is used. Disabling it leads to better compression efficiency.
   // 0: off
   // 1: less aggressive pruning mode
-  // 2: more aggressive pruning mode
+  // 2, 3: more aggressive pruning mode
   int prune_palette_search_nonrd;
 
   // Compute variance/sse on source difference, prior to encoding superblock.
@@ -1929,6 +1929,9 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // Flag to indicate more aggressive QP downward adjustment for screen static
   // content, to make convergence to min_qp faster.
   int rc_faster_convergence_static;
+
+  // Skip NEWMV mode evaluation based on sad for screen content.
+  int skip_newmv_mode_sad_screen;
 } REAL_TIME_SPEED_FEATURES;
 
 /*!\endcond */

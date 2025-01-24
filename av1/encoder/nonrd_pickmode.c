@@ -2432,6 +2432,11 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
     *ref_frame2 = NONE_FRAME;
   }
 
+  if (cpi->sf.rt_sf.skip_newmv_mode_sad_screen && cpi->rc.high_source_sad &&
+      x->content_state_sb.source_sad_nonrd >= kMedSad && bsize <= BLOCK_16X16 &&
+      !x->sb_me_block && (*ref_frame != LAST_FRAME || *this_mode == NEWMV))
+    return true;
+
   if (segfeature_active(&cm->seg, segment_id, SEG_LVL_SKIP) &&
       (*this_mode != GLOBALMV || *ref_frame != LAST_FRAME))
     return true;
@@ -3147,6 +3152,13 @@ static inline bool enable_palette(AV1_COMP *cpi, bool is_mode_intra,
                                   int force_zeromv_skip, int skip_idtx_palette,
                                   int force_palette_test,
                                   unsigned int best_intra_sad_norm) {
+  const unsigned int sad_thresh =
+      cpi->sf.rt_sf.prune_palette_search_nonrd > 2
+          ? (cpi->oxcf.frm_dim_cfg.width * cpi->oxcf.frm_dim_cfg.height <=
+             1280 * 720)
+                ? 6
+                : 12
+          : 10;
   if (!cpi->oxcf.tool_cfg.enable_palette) return false;
   if (!av1_allow_palette(cpi->common.features.allow_screen_content_tools,
                          bsize)) {
@@ -3161,7 +3173,7 @@ static inline bool enable_palette(AV1_COMP *cpi, bool is_mode_intra,
   }
 
   if (prune_palette_testing_inter(cpi, source_variance) &&
-      best_intra_sad_norm < 10)
+      best_intra_sad_norm < sad_thresh)
     return false;
 
   if ((is_mode_intra || force_palette_test) && source_variance > 0 &&
@@ -3537,7 +3549,8 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       best_intra_sad_norm);
 
   if (try_palette && prune_palette_testing_inter(cpi, x->source_variance))
-    x->color_palette_thresh = 32;
+    x->color_palette_thresh =
+        cpi->sf.rt_sf.prune_palette_search_nonrd > 2 ? 20 : 32;
 
   // Perform screen content mode evaluation for non-rd
   handle_screen_content_mode_nonrd(
