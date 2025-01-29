@@ -27,7 +27,8 @@
 // [-1, 2) * WARPEDPIXEL_PREC_SHIFTS.
 // We need an extra 2 taps to fit this in, for a total of 8 taps.
 /* clang-format off */
-const WarpedFilterCoeff av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1][8] = {
+const WarpedFilterCoeff av1_warped_filter[WARPEDPIXEL_PREC_SHIFTS * 3 + 1]
+                                         [8] = {
   // [-1, 0)
   { 0,   0, 127,   1,   0, 0, 0, 0 }, { 0, - 1, 127,   2,   0, 0, 0, 0 },
   { 1, - 3, 127,   4, - 1, 0, 0, 0 }, { 1, - 4, 126,   6, - 2, 1, 0, 0 },
