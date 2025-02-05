@@ -32,6 +32,7 @@
 #include "av1/av1_iface_common.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/enums.h"
+#include "av1/common/quant_common.h"
 #include "av1/common/scale.h"
 #include "av1/encoder/bitstream.h"
 #include "av1/encoder/enc_enums.h"

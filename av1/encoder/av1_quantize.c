@@ -13,6 +13,7 @@
 
 #include "config/aom_dsp_rtcd.h"
 
+#include "aom/aomcx.h"
 #include "aom_dsp/quantize.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/bitops.h"
