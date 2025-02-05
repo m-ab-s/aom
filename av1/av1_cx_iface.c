@@ -872,6 +872,15 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, enable_reduced_reference_set, 0, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_x, 1);
   RANGE_CHECK_HI(extra_cfg, chroma_subsampling_y, 1);
+  // 6.4.2 Color config semantics
+  // If matrix_coefficients is equal to MC_IDENTITY, it is a requirement of
+  // bitstream conformance that subsampling_x is equal to 0 and subsampling_y
+  // is equal to 0.
+  if (extra_cfg->matrix_coefficients == AOM_CICP_MC_IDENTITY &&
+      (extra_cfg->chroma_subsampling_x != 0 ||
+       extra_cfg->chroma_subsampling_y != 0)) {
+    ERROR("Subsampling must be 0 with AOM_CICP_MC_IDENTITY.");
+  }
 
   RANGE_CHECK_HI(extra_cfg, disable_trellis_quant, 3);
   RANGE_CHECK(extra_cfg, coeff_cost_upd_freq, 0, 3);
@@ -940,6 +949,15 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
 
   if (img->d_w != ctx->cfg.g_w || img->d_h != ctx->cfg.g_h)
     ERROR("Image size must match encoder init configuration size");
+
+  // 6.4.2 Color config semantics
+  // If matrix_coefficients is equal to MC_IDENTITY, it is a requirement of
+  // bitstream conformance that subsampling_x is equal to 0 and subsampling_y
+  // is equal to 0.
+  if (ctx->oxcf.color_cfg.matrix_coefficients == AOM_CICP_MC_IDENTITY &&
+      (img->x_chroma_shift != 0 || img->y_chroma_shift != 0)) {
+    ERROR("Subsampling must be 0 with AOM_CICP_MC_IDENTITY.");
+  }
 
 #if CONFIG_TUNE_BUTTERAUGLI
   if (ctx->extra_cfg.tuning == AOM_TUNE_BUTTERAUGLI) {
