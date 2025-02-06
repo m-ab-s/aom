@@ -672,6 +672,7 @@ enum aome_enc_control_id {
    * - 0 = disable
    * - 1 = enable for all frames (default)
    * - 2 = disable for non-reference frames
+   * - 3 = enable adaptively based on frame qindex
    */
   AV1E_SET_ENABLE_CDEF = 58,
 
