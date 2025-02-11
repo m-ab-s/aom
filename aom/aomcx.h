@@ -1578,8 +1578,8 @@ enum aome_enc_control_id {
    */
   AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR = 169,
 
-  /*!\brief Codec control to enable the low complexity decode mode. Value of
-   * zero means this mode is disabled.
+  /*!\brief Codec control to enable the low complexity decode mode, unsigned
+   * int parameter. Value of zero means this mode is disabled.
    */
   AV1E_SET_ENABLE_LOW_COMPLEXITY_DECODE = 170,
 
