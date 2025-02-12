@@ -3374,7 +3374,10 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
                 cpi, src_y, last_src_y, src_ystride, last_src_ystride,
                 BLOCK_128X128, pos_col, pos_row, &best_intmv_col,
                 &best_intmv_row, sw_col, sw_row);
-            if (y_sad < 100 &&
+            unsigned int sad_thresh =
+                (abs(best_intmv_col) > 150 || abs(best_intmv_row) > 150) ? 300
+                                                                         : 150;
+            if (y_sad < sad_thresh &&
                 (abs(best_intmv_col) > 16 || abs(best_intmv_row) > 16)) {
               cpi->rc.high_motion_content_screen_rtc = 0;
               break;
