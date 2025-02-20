@@ -476,21 +476,28 @@ if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
   list(APPEND AOM_APP_TARGETS ${AOM_DECODER_EXAMPLE_TARGETS})
 endif()
 
+# Function to disable specific compiler flags for a target
+function(disable_compiler_flags target_name)
+  set(options)
+  set(oneValueArgs)
+  set(multiValueArgs FLAGS)
+  cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}"
+                        ${ARGN})
+  foreach(flag IN LISTS ARG_FLAGS)
+    is_flag_present(AOM_CXX_FLAGS "${flag}" flag_present)
+    if(flag_present)
+      string(REPLACE "-W" "-Wno-" no_warn_flag "${flag}")
+      target_compile_options(${target_name} PRIVATE "${no_warn_flag}")
+    endif()
+  endforeach()
+endfunction()
+
 if(CONFIG_LIBYUV OR CONFIG_TUNE_BUTTERAUGLI)
   add_library(yuv OBJECT ${AOM_LIBYUV_SOURCES})
   if(NOT MSVC)
     target_compile_options(yuv PRIVATE -Wno-shadow)
-    # Many functions in libyuv trigger this warning when enabled with gcc and
-    # clang.
-    is_flag_present(AOM_CXX_FLAGS "-Wmissing-declarations" flag_present)
-    if(flag_present)
-      target_compile_options(yuv PRIVATE -Wno-missing-declarations)
-    endif()
-    # Many functions in libyuv trigger this warning when enabled with clang.
-    is_flag_present(AOM_CXX_FLAGS "-Wmissing-prototypes" flag_present)
-    if(flag_present)
-      target_compile_options(yuv PRIVATE -Wno-missing-prototypes)
-    endif()
+    disable_compiler_flags(yuv FLAGS -Wmissing-declarations
+                           -Wmissing-prototypes)
   endif()
   include_directories("${AOM_ROOT}/third_party/libyuv/include")
 endif()
