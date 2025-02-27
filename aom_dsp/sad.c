@@ -35,6 +35,18 @@ static inline unsigned int sad(const uint8_t *a, int a_stride, const uint8_t *b,
   return sad;
 }
 
+#if AOM_ARCH_X86_64
+unsigned int SumOfAbsoluteDiff64x32_c(const uint8_t *src, int src_stride,
+                                      const uint8_t *ref, int ref_stride) {
+  return sad(src, src_stride, ref, ref_stride, 64, 32);
+}
+
+unsigned int SumOfAbsoluteDiff64x64_c(const uint8_t *src, int src_stride,
+                                      const uint8_t *ref, int ref_stride) {
+  return sad(src, src_stride, ref, ref_stride, 64, 64);
+}
+#endif
+
 #define SADMXN(m, n)                                                      \
   unsigned int aom_sad##m##x##n##_c(const uint8_t *src, int src_stride,   \
                                     const uint8_t *ref, int ref_stride) { \

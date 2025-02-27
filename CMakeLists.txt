@@ -557,6 +557,8 @@ if(NOT MSVC)
 endif()
 target_include_directories(hwy PUBLIC ${HIGHWAY_INCLUDE_DIRS})
 
+target_link_libraries(aom ${AOM_LIB_LINK_TYPE} hwy)
+
 if(CONFIG_AV1_ENCODER)
   if(ENABLE_EXAMPLES)
     add_executable(aomenc "${AOM_ROOT}/apps/aomenc.c"
