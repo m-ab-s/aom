@@ -4542,10 +4542,10 @@ static void update_end_of_frame_stats(AV1_COMP *cpi) {
     if (!cpi->common.show_existing_frame) {
       AV1_COMMON *const cm = &cpi->common;
       struct loopfilter *const lf = &cm->lf;
-      cpi->ppi->filter_level[0] = lf->filter_level[0];
-      cpi->ppi->filter_level[1] = lf->filter_level[1];
-      cpi->ppi->filter_level_u = lf->filter_level_u;
-      cpi->ppi->filter_level_v = lf->filter_level_v;
+      cpi->ppi->filter_level[0] = lf->backup_filter_level[0];
+      cpi->ppi->filter_level[1] = lf->backup_filter_level[1];
+      cpi->ppi->filter_level_u = lf->backup_filter_level_u;
+      cpi->ppi->filter_level_v = lf->backup_filter_level_v;
     }
   }
   // Store frame level mv_stats from cpi to ppi.

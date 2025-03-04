@@ -1498,6 +1498,10 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // level.
   int use_coarse_filter_level_search;
 
+  // Reset luma filter levels to zero based on minimum filter levels of
+  // reference frames and current frame's pyramid level.
+  int adaptive_luma_loop_filter_skip;
+
   // Control how the CDEF strength is determined.
   CDEF_PICK_METHOD cdef_pick_method;
 
