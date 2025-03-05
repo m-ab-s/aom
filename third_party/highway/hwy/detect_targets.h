@@ -527,19 +527,22 @@
 
 #endif  // non-MSVC
 
-#if HWY_ARCH_X86 && (HWY_WANT_SSE2 || HWY_CHECK_SSE2)
+#if HWY_ARCH_X86 && \
+    ((defined(HWY_WANT_SSE2) && HWY_WANT_SSE2) || HWY_CHECK_SSE2)
 #define HWY_BASELINE_SSE2 HWY_SSE2
 #else
 #define HWY_BASELINE_SSE2 0
 #endif
 
-#if HWY_ARCH_X86 && (HWY_WANT_SSSE3 || HWY_CHECK_SSSE3)
+#if HWY_ARCH_X86 && \
+    ((defined(HWY_WANT_SSSE3) && HWY_WANT_SSSE3) || HWY_CHECK_SSSE3)
 #define HWY_BASELINE_SSSE3 HWY_SSSE3
 #else
 #define HWY_BASELINE_SSSE3 0
 #endif
 
-#if HWY_ARCH_X86 && (HWY_WANT_SSE4 || (HWY_CHECK_SSE4 && HWY_CHECK_PCLMUL_AES))
+#if HWY_ARCH_X86 && ((defined(HWY_WANT_SSE4) && HWY_WANT_SSE4) || \
+                     (HWY_CHECK_SSE4 && HWY_CHECK_PCLMUL_AES))
 #define HWY_BASELINE_SSE4 HWY_SSE4
 #else
 #define HWY_BASELINE_SSE4 0
@@ -663,6 +666,22 @@
 #error "Can only define one of HWY_COMPILE_ONLY_{SCALAR|EMU128|STATIC} - bug?"
 #endif
 // Defining one of HWY_COMPILE_ONLY_* will trump HWY_COMPILE_ALL_ATTAINABLE.
+
+#ifndef HWY_HAVE_ASM_HWCAP  // allow override
+#ifdef TOOLCHAIN_MISS_ASM_HWCAP_H
+#define HWY_HAVE_ASM_HWCAP 0  // CMake failed to find the header
+#elif defined(__has_include)  // note: wrapper macro fails on Clang ~17
+// clang-format off
+#if __has_include(<asm/hwcap.h>)
+// clang-format on
+#define HWY_HAVE_ASM_HWCAP 1  // header present
+#else
+#define HWY_HAVE_ASM_HWCAP 0  // header not present
+#endif                        // __has_include
+#else                         // compiler lacks __has_include
+#define HWY_HAVE_ASM_HWCAP 0
+#endif
+#endif  // HWY_HAVE_ASM_HWCAP
 
 #ifndef HWY_HAVE_AUXV  // allow override
 #ifdef TOOLCHAIN_MISS_SYS_AUXV_H

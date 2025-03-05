@@ -24,6 +24,7 @@
 HWY_BEFORE_NAMESPACE();
 namespace hwy {
 namespace HWY_NAMESPACE {
+namespace {
 
 struct TestComplexConj {
   template <typename T, class D>
@@ -59,7 +60,7 @@ struct TestMulComplex {
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
 #if HWY_TARGET != HWY_SCALAR
     const Vec<D> v1 = Iota(d, 2);
-    const Vec<D> v2 = Iota(d, 10);
+    const Vec<D> v2 = Iota(d, 5);
 
     const size_t N = Lanes(d);
     auto expected = AllocateAligned<T>(N);
@@ -69,8 +70,8 @@ struct TestMulComplex {
       // expected = (x + iy)(u + iv)
       auto x = ConvertScalarTo<T>(i + 2);
       auto y = ConvertScalarTo<T>(i + 2 + 1);
-      auto u = ConvertScalarTo<T>(i + 10);
-      auto v = ConvertScalarTo<T>(i + 10 + 1);
+      auto u = ConvertScalarTo<T>(i + 5);
+      auto v = ConvertScalarTo<T>(i + 5 + 1);
       expected[i + 0] = ConvertScalarTo<T>((x * u) - (y * v));
       expected[i + 1] = ConvertScalarTo<T>((x * v) + (y * u));
     }
@@ -90,8 +91,8 @@ struct TestMulComplexAdd {
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
 #if HWY_TARGET != HWY_SCALAR
     const Vec<D> v1 = Iota(d, 2);
-    const Vec<D> v2 = Iota(d, 10);
-    const Vec<D> v3 = Iota(d, 15);
+    const Vec<D> v2 = Iota(d, 5);
+    const Vec<D> v3 = Iota(d, 6);
 
     const size_t N = Lanes(d);
     auto expected = AllocateAligned<T>(N);
@@ -101,10 +102,10 @@ struct TestMulComplexAdd {
       // expected = (x + iy)(u + iv) + a + ib
       auto x = ConvertScalarTo<T>(i + 2);
       auto y = ConvertScalarTo<T>(i + 2 + 1);
-      auto u = ConvertScalarTo<T>(i + 10);
-      auto v = ConvertScalarTo<T>(i + 10 + 1);
-      auto a = ConvertScalarTo<T>(i + 15);
-      auto b = ConvertScalarTo<T>(i + 15 + 1);
+      auto u = ConvertScalarTo<T>(i + 5);
+      auto v = ConvertScalarTo<T>(i + 5 + 1);
+      auto a = ConvertScalarTo<T>(i + 6);
+      auto b = ConvertScalarTo<T>(i + 6 + 1);
       expected[i + 0] = ConvertScalarTo<T>((x * u) - (y * v) + a);
       expected[i + 1] = ConvertScalarTo<T>((x * v) + (y * u) + b);
     }
@@ -124,8 +125,8 @@ struct TestMaskedMulComplexOr {
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
 #if HWY_TARGET != HWY_SCALAR
     const Vec<D> v1 = Iota(d, 2);
-    const Vec<D> v2 = Iota(d, 10);
-    const Vec<D> v3 = Iota(d, 15);
+    const Vec<D> v2 = Iota(d, 5);
+    const Vec<D> v3 = Iota(d, 6);
 
     const size_t N = Lanes(d);
     auto expected = AllocateAligned<T>(N);
@@ -136,10 +137,10 @@ struct TestMaskedMulComplexOr {
       // expected = (x + iy)(u + iv)
       auto x = ConvertScalarTo<T>(i + 2);
       auto y = ConvertScalarTo<T>(i + 2 + 1);
-      auto u = ConvertScalarTo<T>(i + 10);
-      auto v = ConvertScalarTo<T>(i + 10 + 1);
-      auto a = ConvertScalarTo<T>(i + 15);
-      auto b = ConvertScalarTo<T>(i + 15 + 1);
+      auto u = ConvertScalarTo<T>(i + 5);
+      auto v = ConvertScalarTo<T>(i + 5 + 1);
+      auto a = ConvertScalarTo<T>(i + 6);
+      auto b = ConvertScalarTo<T>(i + 6 + 1);
       // Alternate between masking the real and imaginary lanes
       if ((i % 4) == 0) {
         bool_lanes[i + 0] = ConvertScalarTo<T>(1);
@@ -173,7 +174,7 @@ struct TestMulComplexConj {
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
 #if HWY_TARGET != HWY_SCALAR
     const Vec<D> v1 = Iota(d, 2);
-    const Vec<D> v2 = Iota(d, 10);
+    const Vec<D> v2 = Iota(d, 5);
 
     const size_t N = Lanes(d);
     auto expected = AllocateAligned<T>(N);
@@ -183,8 +184,8 @@ struct TestMulComplexConj {
       // expected = (x + iy)(u - iv)
       auto x = ConvertScalarTo<T>(i + 2);
       auto y = ConvertScalarTo<T>(i + 2 + 1);
-      auto u = ConvertScalarTo<T>(i + 10);
-      auto v = ConvertScalarTo<T>(i + 10 + 1);
+      auto u = ConvertScalarTo<T>(i + 5);
+      auto v = ConvertScalarTo<T>(i + 5 + 1);
       expected[i + 0] = ConvertScalarTo<T>((x * u) + (y * v));
       expected[i + 1] = ConvertScalarTo<T>((y * u) - (x * v));
     }
@@ -204,8 +205,8 @@ struct TestMulComplexConjAdd {
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
 #if HWY_TARGET != HWY_SCALAR
     const Vec<D> v1 = Iota(d, 2);
-    const Vec<D> v2 = Iota(d, 10);
-    const Vec<D> v3 = Iota(d, 15);
+    const Vec<D> v2 = Iota(d, 5);
+    const Vec<D> v3 = Iota(d, 6);
 
     const size_t N = Lanes(d);
     auto expected = AllocateAligned<T>(N);
@@ -215,10 +216,10 @@ struct TestMulComplexConjAdd {
       // expected = (x + iy)(u - iv) + a + ib
       auto x = ConvertScalarTo<T>(i + 2);
       auto y = ConvertScalarTo<T>(i + 2 + 1);
-      auto u = ConvertScalarTo<T>(i + 10);
-      auto v = ConvertScalarTo<T>(i + 10 + 1);
-      auto a = ConvertScalarTo<T>(i + 15);
-      auto b = ConvertScalarTo<T>(i + 15 + 1);
+      auto u = ConvertScalarTo<T>(i + 5);
+      auto v = ConvertScalarTo<T>(i + 5 + 1);
+      auto a = ConvertScalarTo<T>(i + 6);
+      auto b = ConvertScalarTo<T>(i + 6 + 1);
       expected[i + 0] = ConvertScalarTo<T>((a + (u * x)) + (v * y));
       expected[i + 1] = ConvertScalarTo<T>((b + (u * y)) - (v * x));
     }
@@ -238,7 +239,7 @@ struct TestMaskedMulComplexConj {
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
 #if HWY_TARGET != HWY_SCALAR
     const Vec<D> v1 = Iota(d, 2);
-    const Vec<D> v2 = Iota(d, 10);
+    const Vec<D> v2 = Iota(d, 5);
 
     const size_t N = Lanes(d);
     auto expected = AllocateAligned<T>(N);
@@ -249,8 +250,8 @@ struct TestMaskedMulComplexConj {
       // expected = (x + iy)(u - iv)
       auto x = ConvertScalarTo<T>(i + 2);
       auto y = ConvertScalarTo<T>(i + 2 + 1);
-      auto u = ConvertScalarTo<T>(i + 10);
-      auto v = ConvertScalarTo<T>(i + 10 + 1);
+      auto u = ConvertScalarTo<T>(i + 5);
+      auto v = ConvertScalarTo<T>(i + 5 + 1);
       // Alternate between masking the real and imaginary lanes
       if ((i % 4) == 0) {
         bool_lanes[i + 0] = ConvertScalarTo<T>(1);
@@ -284,8 +285,8 @@ struct TestMaskedMulComplexConjAdd {
   HWY_NOINLINE void operator()(T /*unused*/, D d) {
 #if HWY_TARGET != HWY_SCALAR
     const Vec<D> v1 = Iota(d, 2);
-    const Vec<D> v2 = Iota(d, 10);
-    const Vec<D> v3 = Iota(d, 15);
+    const Vec<D> v2 = Iota(d, 5);
+    const Vec<D> v3 = Iota(d, 6);
 
     const size_t N = Lanes(d);
     auto expected = AllocateAligned<T>(N);
@@ -296,10 +297,10 @@ struct TestMaskedMulComplexConjAdd {
       // expected = (x + iy)(u - iv) + a + ib
       auto x = ConvertScalarTo<T>(i + 2);
       auto y = ConvertScalarTo<T>(i + 2 + 1);
-      auto u = ConvertScalarTo<T>(i + 10);
-      auto v = ConvertScalarTo<T>(i + 10 + 1);
-      auto a = ConvertScalarTo<T>(i + 15);
-      auto b = ConvertScalarTo<T>(i + 15 + 1);
+      auto u = ConvertScalarTo<T>(i + 5);
+      auto v = ConvertScalarTo<T>(i + 5 + 1);
+      auto a = ConvertScalarTo<T>(i + 6);
+      auto b = ConvertScalarTo<T>(i + 6 + 1);
       // Alternate between masking the real and imaginary lanes
       if ((i % 4) == 2) {
         bool_lanes[i + 0] = ConvertScalarTo<T>(1);
@@ -329,6 +330,7 @@ HWY_NOINLINE void TestAllMaskedMulComplexConjAdd() {
   ForAllTypes(ForShrinkableVectors<TestMaskedMulComplexConjAdd>());
 }
 
+}  // namespace
 // NOLINTNEXTLINE(google-readability-namespace-comments)
 }  // namespace HWY_NAMESPACE
 }  // namespace hwy

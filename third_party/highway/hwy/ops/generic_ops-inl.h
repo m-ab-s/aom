@@ -358,7 +358,8 @@ HWY_API Mask<DTo> DemoteMaskTo(DTo d_to, DFrom d_from, Mask<DFrom> m) {
 #else
 #define HWY_NATIVE_LOAD_HIGHER
 #endif
-template <class D, typename T, class V = VFromD<D>(), HWY_IF_LANES_GT_D(D, 1)>
+template <class D, typename T, class V = VFromD<D>(), HWY_IF_LANES_GT_D(D, 1),
+          HWY_IF_POW2_GT_D(D, -3)>
 HWY_API V InsertIntoUpper(D d, T* p, V a) {
   Half<D> dh;
   const VFromD<decltype(dh)> b = LoadU(dh, p);
@@ -5336,10 +5337,7 @@ HWY_API Vec512<T> operator%(Vec512<T> a, Vec512<T> b) {
 
 template <class V, HWY_IF_UI32(TFromV<V>)>
 HWY_API V AverageRound(V a, V b) {
-  using T = TFromV<V>;
-  const DFromV<decltype(a)> d;
-  return Add(Add(ShiftRight<1>(a), ShiftRight<1>(b)),
-             And(Or(a, b), Set(d, T{1})));
+  return Sub(Or(a, b), ShiftRight<1>(Xor(a, b)));
 }
 
 #endif  // HWY_NATIVE_AVERAGE_ROUND_UI64
@@ -5354,10 +5352,7 @@ HWY_API V AverageRound(V a, V b) {
 #if HWY_HAVE_INTEGER64
 template <class V, HWY_IF_UI64(TFromV<V>)>
 HWY_API V AverageRound(V a, V b) {
-  using T = TFromV<V>;
-  const DFromV<decltype(a)> d;
-  return Add(Add(ShiftRight<1>(a), ShiftRight<1>(b)),
-             And(Or(a, b), Set(d, T{1})));
+  return Sub(Or(a, b), ShiftRight<1>(Xor(a, b)));
 }
 #endif
 
@@ -7759,11 +7754,11 @@ HWY_API V MaskedOr(M m, V a, V b) {
 #define HWY_NATIVE_ALLONES
 #endif
 
-template <class V>
-HWY_API bool AllBits1(V a) {
-  const RebindToUnsigned<DFromV<V>> du;
+template <class D, class V = VFromD<D>>
+HWY_API bool AllBits1(D d, V v) {
+  const RebindToUnsigned<decltype(d)> du;
   using TU = TFromD<decltype(du)>;
-  return AllTrue(du, Eq(BitCast(du, a), Set(du, hwy::HighestValue<TU>())));
+  return AllTrue(du, Eq(BitCast(du, v), Set(du, hwy::HighestValue<TU>())));
 }
 #endif  // HWY_NATIVE_ALLONES
 
@@ -7774,10 +7769,9 @@ HWY_API bool AllBits1(V a) {
 #define HWY_NATIVE_ALLZEROS
 #endif
 
-template <class V>
-HWY_API bool AllBits0(V a) {
-  DFromV<V> d;
-  return AllTrue(d, Eq(a, Zero(d)));
+template <class D, class V = VFromD<D>>
+HWY_API bool AllBits0(D d, V v) {
+  return AllTrue(d, Eq(v, Zero(d)));
 }
 #endif  // HWY_NATIVE_ALLZEROS
 

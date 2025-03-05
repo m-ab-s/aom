@@ -1948,8 +1948,10 @@ HWY_API V InsertLane(const V v, size_t i, T t) {
   const RebindToSigned<decltype(d)> di;
   using TI = TFromD<decltype(di)>;
   const svbool_t is_i = detail::EqN(Iota(di, 0), static_cast<TI>(i));
-  return IfThenElse(RebindMask(d, is_i),
-                    Set(d, hwy::ConvertScalarTo<TFromV<V>>(t)), v);
+  // The actual type may be int16_t for special floats; copy, not cast.
+  TFromV<V> t_bits;
+  hwy::CopySameSize(&t, &t_bits);
+  return IfThenElse(RebindMask(d, is_i), Set(d, t_bits), v);
 }
 
 // ================================================== SWIZZLE
@@ -5243,8 +5245,7 @@ HWY_SVE_FOREACH_UI(HWY_SVE_RETV_ARGPVV, AverageRound, rhadd)
 #else
 template <class V, HWY_IF_NOT_FLOAT_NOR_SPECIAL_V(V)>
 HWY_API V AverageRound(const V a, const V b) {
-  return Add(Add(ShiftRight<1>(a), ShiftRight<1>(b)),
-             detail::AndN(Or(a, b), 1));
+  return Sub(Or(a, b), ShiftRight<1>(Xor(a, b)));
 }
 #endif  // HWY_SVE_HAVE_2
 

@@ -30,7 +30,7 @@
     HWY_OS_LINUX
 // sys/auxv.h does not always include asm/hwcap.h, or define HWCAP*, hence we
 // still include this directly. See #1199.
-#ifndef TOOLCHAIN_MISS_ASM_HWCAP_H
+#if HWY_HAVE_ASM_HWCAP
 #include <asm/hwcap.h>
 #endif
 #if HWY_HAVE_AUXV
@@ -116,7 +116,7 @@ namespace x86 {
 
 // Returns the lower 32 bits of extended control register 0.
 // Requires CPU support for "OSXSAVE" (see below).
-uint32_t ReadXCR0() {
+static uint32_t ReadXCR0() {
 #if HWY_COMPILER_MSVC
   return static_cast<uint32_t>(_xgetbv(0));
 #else   // HWY_COMPILER_MSVC
