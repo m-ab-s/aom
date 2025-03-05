@@ -135,6 +135,51 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/test/sharpness_test.cc")
 endif()
 
+list(APPEND BENCHMARK_SOURCES
+            "${AOM_ROOT}/third_party/benchmark/include/benchmark/benchmark.h"
+            "${AOM_ROOT}/third_party/benchmark/include/benchmark/export.h"
+            "${AOM_ROOT}/third_party/benchmark/src/arraysize.h"
+            "${AOM_ROOT}/third_party/benchmark/src/benchmark_api_internal.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/benchmark_api_internal.h"
+            "${AOM_ROOT}/third_party/benchmark/src/benchmark.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/benchmark_main.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/benchmark_name.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/benchmark_register.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/benchmark_register.h"
+            "${AOM_ROOT}/third_party/benchmark/src/benchmark_runner.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/benchmark_runner.h"
+            "${AOM_ROOT}/third_party/benchmark/src/check.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/check.h"
+            "${AOM_ROOT}/third_party/benchmark/src/CMakeLists.txt"
+            "${AOM_ROOT}/third_party/benchmark/src/colorprint.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/colorprint.h"
+            "${AOM_ROOT}/third_party/benchmark/src/commandlineflags.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/commandlineflags.h"
+            "${AOM_ROOT}/third_party/benchmark/src/complexity.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/complexity.h"
+            "${AOM_ROOT}/third_party/benchmark/src/console_reporter.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/counter.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/counter.h"
+            "${AOM_ROOT}/third_party/benchmark/src/csv_reporter.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/cycleclock.h"
+            "${AOM_ROOT}/third_party/benchmark/src/internal_macros.h"
+            "${AOM_ROOT}/third_party/benchmark/src/json_reporter.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/log.h"
+            "${AOM_ROOT}/third_party/benchmark/src/mutex.h"
+            "${AOM_ROOT}/third_party/benchmark/src/perf_counters.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/perf_counters.h"
+            "${AOM_ROOT}/third_party/benchmark/src/re.h"
+            "${AOM_ROOT}/third_party/benchmark/src/reporter.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/statistics.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/statistics.h"
+            "${AOM_ROOT}/third_party/benchmark/src/string_util.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/string_util.h"
+            "${AOM_ROOT}/third_party/benchmark/src/sysinfo.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/thread_manager.h"
+            "${AOM_ROOT}/third_party/benchmark/src/thread_timer.h"
+            "${AOM_ROOT}/third_party/benchmark/src/timers.cc"
+            "${AOM_ROOT}/third_party/benchmark/src/timers.h")
+
 if(NOT BUILD_SHARED_LIBS)
   list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
               "${AOM_ROOT}/test/aom_mem_test.cc"
@@ -435,6 +480,18 @@ if(ENABLE_TESTS)
       target_compile_definitions(aom_gtest PUBLIC GTEST_HAS_PTHREAD=0)
     endif()
   endif()
+
+  if(NOT (MSVC OR WIN32))
+    add_library(aom_benchmark STATIC ${BENCHMARK_SOURCES})
+    target_compile_options(aom_benchmark PRIVATE -std=c++17)
+    target_compile_options(
+      aom_benchmark
+      PUBLIC -Wno-undef -Wno-format-nonliteral -Wno-missing-declarations
+             -Wno-extra-semi-stmt)
+    target_compile_options(
+      aom_benchmark
+      PUBLIC $<$<COMPILE_LANG_AND_ID:CXX,Clang>:-Wno-missing-prototypes>)
+  endif()
 endif()
 
 # Setup testdata download targets, test build targets, and test run targets. The
@@ -462,6 +519,7 @@ function(setup_aom_test_targets)
     add_library(test_aom_encoder OBJECT ${AOM_UNIT_TEST_ENCODER_SOURCES})
     set_property(TARGET test_aom_encoder PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
     add_dependencies(test_aom_encoder aom)
+    target_compile_options(test_aom_encoder PUBLIC -std=c++17)
     target_link_libraries(test_aom_encoder ${AOM_LIB_LINK_TYPE} aom_gtest)
   endif()
 
@@ -495,13 +553,25 @@ function(setup_aom_test_targets)
                                            $<TARGET_OBJECTS:aom_usage_exit>)
       set_property(TARGET test_intra_pred_speed
                    PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
+      target_compile_options(test_intra_pred_speed PUBLIC -std=c++17)
       target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE} aom
                             aom_gtest)
+      if(NOT (MSVC OR WIN32))
+        target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE}
+                              aom_benchmark)
+      endif()
       list(APPEND AOM_APP_TARGETS test_intra_pred_speed)
     endif()
   endif()
 
+  target_compile_options(test_libaom PUBLIC -std=c++17)
+  target_include_directories(
+    test_libaom
+    PUBLIC ${AOM_ROOT}/third_party/benchmark/include/benchmark)
   target_link_libraries(test_libaom ${AOM_LIB_LINK_TYPE} aom aom_gtest)
+  if(NOT (MSVC OR WIN32))
+    target_link_libraries(test_libaom ${AOM_LIB_LINK_TYPE} aom_benchmark)
+  endif()
 
   if(CONFIG_WEBM_IO)
     target_sources(test_libaom PRIVATE $<TARGET_OBJECTS:webm>)

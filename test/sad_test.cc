@@ -26,6 +26,10 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
 
+#if HAVE_AVX2 && !(defined(_WIN32) || defined(_WIN64))
+#include "third_party/benchmark/include/benchmark/benchmark.h"
+#endif
+
 typedef unsigned int (*SadMxNFunc)(const uint8_t *src_ptr, int src_stride,
                                    const uint8_t *ref_ptr, int ref_stride);
 typedef std::tuple<int, int, SadMxNFunc, int> SadMxNParam;
@@ -596,6 +600,41 @@ TEST_P(SADTest, DISABLED_Speed) {
   SpeedSAD();
   source_stride_ = tmp_stride;
 }
+
+// Exclude benchmark from windows build.
+#if HAVE_AVX2 && !(defined(_WIN32) || defined(_WIN64))
+static void FillRandomForBM(uint8_t *data, ACMRandom &rnd, int stride,
+                            int height) {
+  for (int j = 0; j < height; ++j) {
+    for (int i = 0; i < stride; ++i) {
+      data[j * stride + i] = rnd.Rand8();
+    }
+  }
+}
+
+static void BM_SADBasline(benchmark::State &state) {
+  // const int width = 64;
+  const int source_stride = 32;
+  const int reference_stride = 128;
+  ACMRandom rnd;
+  rnd.Reset(ACMRandom::DeterministicSeed());
+  uint8_t *source_data =
+      reinterpret_cast<uint8_t *>(aom_memalign(16, 128 * 256));
+  uint8_t *reference_data =
+      reinterpret_cast<uint8_t *>(aom_memalign(16, 4 * 128 * 256));
+  FillRandomForBM(source_data, rnd, source_stride, 64);
+  FillRandomForBM(reference_data, rnd, reference_stride, 64);
+  for (auto _ : state) {
+    (void)_;
+    aom_sad64x64_avx2(source_data, source_stride, reference_data,
+                      reference_stride);
+  }
+  aom_free(source_data);
+  aom_free(reference_data);
+}
+
+BENCHMARK(BM_SADBasline);
+#endif  // HAVE_AVX2 && !(defined(_WIN32) || defined(_WIN64))
 
 TEST_P(SADSkipTest, MaxRef) {
   FillConstant(source_data_, source_stride_, 0);
