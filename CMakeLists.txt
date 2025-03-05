@@ -550,10 +550,9 @@ endif()
 
 add_library(hwy ${AOM_HIGHWAY_SOURCES})
 if(NOT MSVC)
-  disable_compiler_flags(hwy FLAGS -Wundef -Wmissing-declarations
-                         -Wmissing-prototypes)
+  disable_compiler_flags(hwy FLAGS -Wmissing-declarations)
   # For Arm builds
-  disable_compiler_flags(hwy FLAGS -Wshadow -Wc++17-extensions)
+  disable_compiler_flags(hwy FLAGS -Wundef -Wshadow -Wc++17-extensions)
   target_compile_options(hwy PRIVATE -Wno-format-nonliteral)
 endif()
 target_include_directories(hwy PUBLIC ${HIGHWAY_INCLUDE_DIRS})
