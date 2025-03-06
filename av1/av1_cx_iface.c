@@ -1825,11 +1825,11 @@ static aom_codec_err_t handle_tuning(aom_codec_alg_priv_t *ctx,
     // Enable QMs as they've been found to be beneficial for images, when used
     // with alternative QM formulas:
     // - aom_get_qmlevel_allintra()
-    // - aom_get_qmlevel_luma_iq()
-    // - aom_get_qmlevel_444_chroma_iq()
+    // - aom_get_qmlevel_luma_ssimulacra2()
+    // - aom_get_qmlevel_444_chroma()
     extra_cfg->enable_qm = 1;
-    extra_cfg->qm_min = QM_FIRST_IQ;
-    extra_cfg->qm_max = QM_LAST_IQ;
+    extra_cfg->qm_min = QM_FIRST_IQ_SSIMULACRA2;
+    extra_cfg->qm_max = QM_LAST_IQ_SSIMULACRA2;
     // We can turn on loop filter sharpness, as frames do not have to serve as
     // references to others.
     extra_cfg->sharpness = 7;
