@@ -49,6 +49,7 @@ static const struct arg_enum_list tuning_enum[] = {
   { "butteraugli", AOM_TUNE_BUTTERAUGLI },
   { "vmaf_saliency_map", AOM_TUNE_VMAF_SALIENCY_MAP },
   { "iq", AOM_TUNE_IQ },
+  { "ssimulacra2", AOM_TUNE_SSIMULACRA2 },
   { NULL, 0 }
 };
 

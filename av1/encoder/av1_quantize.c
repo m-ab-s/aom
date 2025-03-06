@@ -874,7 +874,8 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   quant_params->y_dc_delta_q = 0;
 
   if (enable_chroma_deltaq) {
-    if (is_allintra && tuning == AOM_TUNE_IQ) {
+    if (is_allintra &&
+        (tuning == AOM_TUNE_IQ || tuning == AOM_TUNE_SSIMULACRA2)) {
       int chroma_dc_delta_q = 0;
       int chroma_ac_delta_q = 0;
 
@@ -969,7 +970,7 @@ void av1_set_quantizer(AV1_COMMON *const cm, int min_qmlevel, int max_qmlevel,
   int (*get_chroma_qmlevel)(int, int, int);
 
   if (is_allintra) {
-    if (tuning == AOM_TUNE_IQ) {
+    if (tuning == AOM_TUNE_IQ || tuning == AOM_TUNE_SSIMULACRA2) {
       // Use luma QM formula specifically tailored for tune IQ
       get_luma_qmlevel = aom_get_qmlevel_luma_iq;
 

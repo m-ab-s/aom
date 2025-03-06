@@ -1674,9 +1674,10 @@ typedef enum {
  * Changes the encoder to tune for certain types of input material.
  *
  * \note
- * AOM_TUNE_IQ is restricted to all intra mode (AOM_USAGE_ALL_INTRA). Setting
- * the tuning option to AOM_TUNE_IQ causes the following options to be set
- * (expressed as command-line options):
+ * AOM_TUNE_IQ and AOM_TUNE_SSIMULACRA2 are restricted to all intra mode
+ * (AOM_USAGE_ALL_INTRA). Setting the tuning option to either AOM_TUNE_IQ or
+ * AOM_TUNE_SSIMULACRA2 causes the following options to be set (expressed as
+ * command-line options):
  *   * --enable-qm=1
  *   * --qm-min=2
  *   * --qm-max=10
@@ -1703,6 +1704,12 @@ typedef enum {
    * the rdmult code with AOM_TUNE_SSIM.
    */
   AOM_TUNE_IQ = 10,
+/*!\brief Allows detection of the presence of AOM_TUNE_SSIMULACRA2 at compile
+ * time. */
+#define AOM_HAVE_TUNE_SSIMULACRA2 1
+  /* Tune that optimizes for maximum SSIMULACRA 2 scores. Shares the rdmult code
+     with AOM_TUNE_SSIM. */
+  AOM_TUNE_SSIMULACRA2 = 11,
 } aom_tune_metric;
 
 /*!\brief Distortion metric to use for RD optimization.
