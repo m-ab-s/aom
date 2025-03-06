@@ -602,7 +602,8 @@ TEST_P(SADTest, DISABLED_Speed) {
 }
 
 // Exclude benchmark from windows build.
-#if HAVE_AVX2 && !(defined(_WIN32) || defined(_WIN64))
+// avx2 highway is excluded from non 64 bit x86.
+#if HAVE_AVX2 && !(defined(_WIN32) || defined(_WIN64)) && AOM_ARCH_X86_64
 static void FillRandomForBM(uint8_t *data, ACMRandom &rnd, int stride,
                             int height) {
   for (int j = 0; j < height; ++j) {
@@ -612,28 +613,39 @@ static void FillRandomForBM(uint8_t *data, ACMRandom &rnd, int stride,
   }
 }
 
-static void BM_SADBasline(benchmark::State &state) {
-  // const int width = 64;
-  const int source_stride = 32;
-  const int reference_stride = 128;
+using SADFuncPtr = unsigned int (*)(const uint8_t *src_ptr, int src_stride,
+                                    const uint8_t *ref_ptr, int ref_stride);
+
+template <SADFuncPtr SADFunc, int width, int height>
+static void BM_SAD(benchmark::State &state) {
+  const int source_stride = (width + 31) & ~31;
+  const int reference_stride = width * 2;
+  constexpr int kAlignment = 16;
+  constexpr int kBlockSize = 128 * 256;
+  constexpr int kBufferSize = 4 * kBlockSize;
   ACMRandom rnd;
   rnd.Reset(ACMRandom::DeterministicSeed());
+  // This matches the allocation in SADTestBase::SetUpTestSuite()
   uint8_t *source_data =
-      reinterpret_cast<uint8_t *>(aom_memalign(16, 128 * 256));
+      reinterpret_cast<uint8_t *>(aom_memalign(kAlignment, kBlockSize));
   uint8_t *reference_data =
-      reinterpret_cast<uint8_t *>(aom_memalign(16, 4 * 128 * 256));
-  FillRandomForBM(source_data, rnd, source_stride, 64);
-  FillRandomForBM(reference_data, rnd, reference_stride, 64);
+      reinterpret_cast<uint8_t *>(aom_memalign(kAlignment, kBufferSize));
+  FillRandomForBM(source_data, rnd, source_stride, height);
+  FillRandomForBM(reference_data, rnd, reference_stride, height);
   for (auto _ : state) {
     (void)_;
-    aom_sad64x64_avx2(source_data, source_stride, reference_data,
-                      reference_stride);
+    SADFunc(source_data, source_stride, reference_data, reference_stride);
   }
   aom_free(source_data);
   aom_free(reference_data);
+  state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * width *
+                          height);
 }
 
-BENCHMARK(BM_SADBasline);
+BENCHMARK(BM_SAD<aom_sad64x64_avx2, 64, 64>);
+BENCHMARK(BM_SAD<SumOfAbsoluteDiff64x64_avx2, 64, 64>);
+BENCHMARK(BM_SAD<aom_sad64x32_avx2, 64, 32>);
+BENCHMARK(BM_SAD<SumOfAbsoluteDiff64x32_avx2, 64, 32>);
 #endif  // HAVE_AVX2 && !(defined(_WIN32) || defined(_WIN64))
 
 TEST_P(SADSkipTest, MaxRef) {
