@@ -60,7 +60,10 @@ int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
 #if !(defined(_WIN32) || defined(__WIN64))
-  benchmark::RunSpecifiedBenchmarks();
+  if (!benchmark::GetBenchmarkFilter().empty()) {
+    benchmark::RunSpecifiedBenchmarks();
+    return 0;
+  }
 #endif
 
 #if !CONFIG_SHARED
