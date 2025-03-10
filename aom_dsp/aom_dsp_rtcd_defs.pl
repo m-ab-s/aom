@@ -839,9 +839,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # compile for ia32, while Highway wouldn't generate avx2 for ia32.
   if (aom_config("AOM_ARCH_X86_64") eq "yes") {
     add_proto qw/unsigned int SumOfAbsoluteDiff64x32/, "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride";
-    specialize qw/SumOfAbsoluteDiff64x32 avx2/;
+    specialize qw/SumOfAbsoluteDiff64x32 avx2 avx512/;
     add_proto qw/unsigned int SumOfAbsoluteDiff64x64/, "const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr, int ref_stride";
-    specialize qw/SumOfAbsoluteDiff64x64 avx2/;
+    specialize qw/SumOfAbsoluteDiff64x64 avx2 avx512/;
   }
   foreach (@encoder_block_sizes) {
     ($w, $h) = @$_;
