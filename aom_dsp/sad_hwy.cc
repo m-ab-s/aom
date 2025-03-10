@@ -25,17 +25,17 @@ namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
 
-HWY_MAYBE_UNUSED unsigned int SumOfAbsoluteDiff64xN(const uint8_t *src_ptr,
-                                                    int src_stride,
-                                                    const uint8_t *ref_ptr,
-                                                    int ref_stride, int h) {
-  constexpr int kBlockWidth = 64;
-  constexpr hn::CappedTag<uint8_t, kBlockWidth> pixel_tag;
+template <int BlockWidth>
+HWY_MAYBE_UNUSED unsigned int SumOfAbsoluteDiff(const uint8_t *src_ptr,
+                                                int src_stride,
+                                                const uint8_t *ref_ptr,
+                                                int ref_stride, int h) {
+  constexpr hn::CappedTag<uint8_t, BlockWidth> pixel_tag;
   constexpr hn::Repartition<uint64_t, decltype(pixel_tag)> intermediate_sum_tag;
   const int vw = hn::Lanes(pixel_tag);
   auto sum_sad = hn::Zero(intermediate_sum_tag);
   for (int i = 0; i < h; ++i) {
-    for (int j = 0; j < kBlockWidth; j += vw) {
+    for (int j = 0; j < BlockWidth; j += vw) {
       auto src_vec = hn::LoadU(pixel_tag, &src_ptr[j]);
       auto ref_vec = hn::LoadU(pixel_tag, &ref_ptr[j]);
       auto sad = hn::SumsOf8AbsDiff(src_vec, ref_vec);
@@ -52,15 +52,22 @@ HWY_MAYBE_UNUSED unsigned int SumOfAbsoluteDiff64xN(const uint8_t *src_ptr,
 
 HWY_AFTER_NAMESPACE();
 
-#define FSAD64_H(h, suffix)                                                   \
-  extern "C" unsigned int SumOfAbsoluteDiff64x##h##_##suffix(                 \
-      const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,         \
-      int ref_stride) {                                                       \
-    return HWY_NAMESPACE::SumOfAbsoluteDiff64xN(src_ptr, src_stride, ref_ptr, \
-                                                ref_stride, h);               \
+#define FSAD(w, h, suffix)                                                   \
+  extern "C" unsigned int SumOfAbsoluteDiff##w##x##h##_##suffix(             \
+      const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,        \
+      int ref_stride) {                                                      \
+    return HWY_NAMESPACE::SumOfAbsoluteDiff<w>(src_ptr, src_stride, ref_ptr, \
+                                               ref_stride, h);               \
   }
 
+#define FOR_EACH_BLOCK_SIZE(X, suffix) \
+  X(64, 32, suffix)                    \
+  X(64, 64, suffix)
+
 #if HWY_TARGET == HWY_AVX2
-FSAD64_H(32, avx2)
-FSAD64_H(64, avx2)
+FOR_EACH_BLOCK_SIZE(FSAD, avx2)
 #endif  // HWY_TARGET == HWY_AVX2
+
+#if HWY_TARGET == HWY_AVX3
+FOR_EACH_BLOCK_SIZE(FSAD, avx512)
+#endif  // HWY_TARGET == HWY_AVX3
