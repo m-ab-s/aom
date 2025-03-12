@@ -644,13 +644,11 @@ static void BM_SAD(benchmark::State &state) {
 
 #if HAVE_AVX2
 BENCHMARK(BM_SAD<aom_sad64x64_avx2, 64, 64>);
-BENCHMARK(BM_SAD<SumOfAbsoluteDiff64x64_avx2, 64, 64>);
 BENCHMARK(BM_SAD<aom_sad64x32_avx2, 64, 32>);
-BENCHMARK(BM_SAD<SumOfAbsoluteDiff64x32_avx2, 64, 32>);
 #endif
 #if HAVE_AVX512
-BENCHMARK(BM_SAD<SumOfAbsoluteDiff64x64_avx512, 64, 64>);
-BENCHMARK(BM_SAD<SumOfAbsoluteDiff64x32_avx512, 64, 32>);
+BENCHMARK(BM_SAD<aom_sad64x64_avx512, 64, 64>);
+BENCHMARK(BM_SAD<aom_sad64x32_avx512, 64, 32>);
 #endif
 #endif  //  !(defined(_WIN32) || defined(_WIN64))
 
@@ -2604,10 +2602,6 @@ const SadMxNParam avx2_tests[] = {
   make_tuple(32, 64, &aom_sad32x64_avx2, -1),
   make_tuple(32, 32, &aom_sad32x32_avx2, -1),
   make_tuple(32, 16, &aom_sad32x16_avx2, -1),
-#if AOM_ARCH_X86_64
-  make_tuple(64, 64, &SumOfAbsoluteDiff64x64_avx2, -1),
-  make_tuple(64, 32, &SumOfAbsoluteDiff64x32_avx2, -1),
-#endif
 #if CONFIG_AV1_HIGHBITDEPTH
   make_tuple(128, 128, &aom_highbd_sad128x128_avx2, 8),
   make_tuple(128, 128, &aom_highbd_sad128x128_avx2, 10),
@@ -2663,8 +2657,8 @@ INSTANTIATE_TEST_SUITE_P(AVX2, SADTest, ::testing::ValuesIn(avx2_tests));
 
 #if HAVE_AVX512 && AOM_ARCH_X86_64
 const SadMxNParam avx512_tests[] = {
-  make_tuple(64, 64, &SumOfAbsoluteDiff64x64_avx512, -1),
-  make_tuple(64, 32, &SumOfAbsoluteDiff64x32_avx512, -1),
+  make_tuple(64, 64, &aom_sad64x64_avx512, -1),
+  make_tuple(64, 32, &aom_sad64x32_avx512, -1),
 };
 INSTANTIATE_TEST_SUITE_P(AVX512, SADTest, ::testing::ValuesIn(avx512_tests));
 #endif

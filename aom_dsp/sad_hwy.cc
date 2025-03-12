@@ -13,10 +13,11 @@
 
 #define HWY_TARGET_INCLUDE "aom_dsp/sad_hwy.cc"
 
+#include "config/aom_config.h"
+#define HWY_BROKEN_32BIT (AOM_ARCH_X86 & (HWY_AVX3 | (HWY_AVX3 - 1)))
+
 #include "third_party/highway/hwy/foreach_target.h"
 #include "third_party/highway/hwy/highway.h"
-
-#include "config/aom_config.h"
 
 HWY_BEFORE_NAMESPACE();
 
@@ -53,7 +54,7 @@ HWY_MAYBE_UNUSED unsigned int SumOfAbsoluteDiff(const uint8_t *src_ptr,
 HWY_AFTER_NAMESPACE();
 
 #define FSAD(w, h, suffix)                                                   \
-  extern "C" unsigned int SumOfAbsoluteDiff##w##x##h##_##suffix(             \
+  extern "C" unsigned int aom_sad##w##x##h##_##suffix(                       \
       const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,        \
       int ref_stride) {                                                      \
     return HWY_NAMESPACE::SumOfAbsoluteDiff<w>(src_ptr, src_stride, ref_ptr, \
@@ -61,8 +62,11 @@ HWY_AFTER_NAMESPACE();
   }
 
 #define FOR_EACH_BLOCK_SIZE(X, suffix) \
-  X(64, 32, suffix)                    \
-  X(64, 64, suffix)
+  X(128, 128, suffix)                  \
+  X(128, 64, suffix)                   \
+  X(64, 128, suffix)                   \
+  X(64, 64, suffix)                    \
+  X(64, 32, suffix)
 
 #if HWY_TARGET == HWY_AVX2
 FOR_EACH_BLOCK_SIZE(FSAD, avx2)
@@ -71,3 +75,6 @@ FOR_EACH_BLOCK_SIZE(FSAD, avx2)
 #if HWY_TARGET == HWY_AVX3
 FOR_EACH_BLOCK_SIZE(FSAD, avx512)
 #endif  // HWY_TARGET == HWY_AVX3
+
+#undef FSAD
+#undef FOR_EACH_BLOCK_SIZE
