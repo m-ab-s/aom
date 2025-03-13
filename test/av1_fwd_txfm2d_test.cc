@@ -668,8 +668,13 @@ INSTANTIATE_TEST_SUITE_P(SSE4_1, AV1HighbdFwdTxfm2dTest,
                                  Values(av1_highbd_fwd_txfm)));
 #endif  // HAVE_SSE4_1
 #if HAVE_AVX2
-static TX_SIZE Highbd_fwd_txfm_for_avx2[] = { TX_8X8,   TX_16X16, TX_32X32,
-                                              TX_64X64, TX_8X16,  TX_16X8 };
+static TX_SIZE Highbd_fwd_txfm_for_avx2[] = {
+  TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_64X64, TX_4X8,   TX_8X4,
+  TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_32X64, TX_64X32,
+#if !CONFIG_REALTIME_ONLY
+  TX_4X16, TX_16X4, TX_8X32,  TX_32X8,  TX_16X64, TX_64X16,
+#endif  // !CONFIG_REALTIME_ONLY
+};
 
 INSTANTIATE_TEST_SUITE_P(AVX2, AV1HighbdFwdTxfm2dTest,
                          Combine(ValuesIn(Highbd_fwd_txfm_for_avx2),
