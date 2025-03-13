@@ -155,10 +155,10 @@
 // Broken means excluded from enabled due to known compiler issues. We define
 // separate HWY_BROKEN_* and then OR them together (more than one might apply).
 
+#ifndef HWY_BROKEN_CLANG6  // allow override
 // x86 clang-6: we saw multiple AVX2/3 compile errors and in one case invalid
 // SSE4 codegen (possibly only for msan), so disable all those targets.
 #if HWY_ARCH_X86 && (HWY_COMPILER_CLANG != 0 && HWY_COMPILER_CLANG < 700)
-
 #define HWY_BROKEN_CLANG6 (HWY_SSE4 | (HWY_SSE4 - 1))
 // This entails a major speed reduction, so warn unless the user explicitly
 // opts in to scalar-only.
@@ -169,7 +169,9 @@
 #else
 #define HWY_BROKEN_CLANG6 0
 #endif
+#endif  // HWY_BROKEN_CLANG6
 
+#ifndef HWY_BROKEN_32BIT  // allow override
 // 32-bit may fail to compile AVX2/3.
 #if HWY_ARCH_X86_32
 // GCC-13 is ok with AVX2:
@@ -181,14 +183,18 @@
 #else
 #define HWY_BROKEN_32BIT 0
 #endif
+#endif  // HWY_BROKEN_32BIT
 
+#ifndef HWY_BROKEN_MSVC  // allow override
 // MSVC AVX3 support is buggy: https://github.com/Mysticial/Flops/issues/16
 #if HWY_COMPILER_MSVC != 0
 #define HWY_BROKEN_MSVC (HWY_AVX3 | (HWY_AVX3 - 1))
 #else
 #define HWY_BROKEN_MSVC 0
 #endif
+#endif  // HWY_BROKEN_MSVC
 
+#ifndef HWY_BROKEN_AVX3_DL_ZEN4  // allow override
 // AVX3_DL and AVX3_ZEN4 require clang >= 7 (ensured above), gcc >= 8.1 or ICC
 // 2021.
 #if (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 801) || \
@@ -197,7 +203,9 @@
 #else
 #define HWY_BROKEN_AVX3_DL_ZEN4 0
 #endif
+#endif  // HWY_BROKEN_AVX3_DL_ZEN4
 
+#ifndef HWY_BROKEN_AVX3_SPR  // allow override
 // AVX3_SPR requires clang >= 14, gcc >= 12, or ICC 2021.
 #if (HWY_COMPILER_CLANG != 0 && HWY_COMPILER_CLANG < 1400) ||      \
     (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1200) || \
@@ -206,25 +214,37 @@
 #else
 #define HWY_BROKEN_AVX3_SPR 0
 #endif
+#endif  // HWY_BROKEN_AVX3_SPR
 
+#ifndef HWY_BROKEN_ARM7_BIG_ENDIAN  // allow override
 // armv7be has not been tested and is not yet supported.
 #if HWY_ARCH_ARM_V7 && HWY_IS_BIG_ENDIAN
 #define HWY_BROKEN_ARM7_BIG_ENDIAN HWY_ALL_NEON
 #else
 #define HWY_BROKEN_ARM7_BIG_ENDIAN 0
 #endif
+#endif  // HWY_BROKEN_ARM7_BIG_ENDIAN
 
+#ifdef __ARM_NEON_FP
+#define HWY_HAVE_NEON_FP __ARM_NEON_FP
+#else
+#define HWY_HAVE_NEON_FP 0
+#endif
+
+#ifndef HWY_BROKEN_ARM7_WITHOUT_VFP4  // allow override
 // armv7-a without a detected vfpv4 is not supported
 // (for example Cortex-A8, Cortex-A9)
 // vfpv4 always have neon half-float _and_ FMA.
 #if HWY_ARCH_ARM_V7 && (__ARM_ARCH_PROFILE == 'A') && \
     !defined(__ARM_VFPV4__) &&                        \
-    !((__ARM_NEON_FP & 0x2 /* half-float */) && (__ARM_FEATURE_FMA == 1))
+    !((HWY_HAVE_NEON_FP & 0x2 /* half-float */) && (__ARM_FEATURE_FMA == 1))
 #define HWY_BROKEN_ARM7_WITHOUT_VFP4 HWY_ALL_NEON
 #else
 #define HWY_BROKEN_ARM7_WITHOUT_VFP4 0
 #endif
+#endif  // HWY_BROKEN_ARM7_WITHOUT_VFP4
 
+#ifndef HWY_BROKEN_NEON_BF16  // allow override
 // HWY_NEON_BF16 requires recent compilers.
 #if (HWY_COMPILER_CLANG != 0 && HWY_COMPILER_CLANG < 1700) || \
     (HWY_COMPILER_GCC_ACTUAL != 0 && HWY_COMPILER_GCC_ACTUAL < 1302)
@@ -232,9 +252,11 @@
 #else
 #define HWY_BROKEN_NEON_BF16 0
 #endif
+#endif  // HWY_BROKEN_NEON_BF16
 
 // SVE[2] require recent clang or gcc versions.
 
+#ifndef HWY_BROKEN_SVE  // allow override
 // In addition, SVE[2] is not currently supported by any Apple CPU (at least up
 // to and including M4 and A18).
 #if (HWY_COMPILER_CLANG && HWY_COMPILER_CLANG < 1900) ||           \
@@ -244,7 +266,9 @@
 #else
 #define HWY_BROKEN_SVE 0
 #endif
+#endif  // HWY_BROKEN_SVE
 
+#ifndef HWY_BROKEN_PPC10  // allow override
 #if (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1100)
 // GCC 10 supports the -mcpu=power10 option but does not support the PPC10
 // vector intrinsics
@@ -272,14 +296,18 @@
 #else
 #define HWY_BROKEN_PPC10 0
 #endif
+#endif  // HWY_BROKEN_PPC10
 
+#ifndef HWY_BROKEN_PPC_32BIT  // allow override
 // PPC8/PPC9/PPC10 targets may fail to compile on 32-bit PowerPC
 #if HWY_ARCH_PPC && !HWY_ARCH_PPC_64
 #define HWY_BROKEN_PPC_32BIT (HWY_PPC8 | HWY_PPC9 | HWY_PPC10)
 #else
 #define HWY_BROKEN_PPC_32BIT 0
 #endif
+#endif  // HWY_BROKEN_PPC_32BIT
 
+#ifndef HWY_BROKEN_RVV  // allow override
 // HWY_RVV fails to compile with GCC < 13 or Clang < 16.
 #if HWY_ARCH_RISCV &&                                     \
     ((HWY_COMPILER_CLANG && HWY_COMPILER_CLANG < 1600) || \
@@ -288,7 +316,9 @@
 #else
 #define HWY_BROKEN_RVV 0
 #endif
+#endif  // HWY_BROKEN_RVV
 
+#ifndef HWY_BROKEN_LOONGARCH  // allow override
 // HWY_LSX/HWY_LASX require GCC 14 or Clang 18.
 #if HWY_ARCH_LOONGARCH &&                                 \
     ((HWY_COMPILER_CLANG && HWY_COMPILER_CLANG < 1800) || \
@@ -297,7 +327,9 @@
 #else
 #define HWY_BROKEN_LOONGARCH 0
 #endif
+#endif  // HWY_BROKEN_LOONGARCH
 
+#ifndef HWY_BROKEN_Z14  // allow override
 #if HWY_ARCH_S390X
 #if HWY_COMPILER_CLANG && HWY_COMPILER_CLANG < 1900
 // Clang 18 and earlier have bugs with some ZVector intrinsics
@@ -311,6 +343,7 @@
 #else  // !HWY_ARCH_S390X
 #define HWY_BROKEN_Z14 0
 #endif  // HWY_ARCH_S390X
+#endif  // HWY_BROKEN_Z14
 
 // Allow the user to override this without any guarantee of success.
 #ifndef HWY_BROKEN_TARGETS
@@ -655,10 +688,10 @@
 // Choose targets for dynamic dispatch according to one of four policies
 
 // TODO: remove once HWY_LSX is actually supported
-#if HWY_ARCH_LOONGARCH
+#if HWY_ARCH_LOONGARCH && !defined(HWY_COMPILE_ONLY_SCALAR) && \
+    !defined(HWY_COMPILE_ONLY_EMU128)
 #undef HWY_COMPILE_ONLY_STATIC
-#undef HWY_COMPILE_ONLY_EMU128
-#define HWY_COMPILE_ONLY_SCALAR
+#define HWY_COMPILE_ONLY_EMU128
 #endif
 
 #if 1 < (defined(HWY_COMPILE_ONLY_SCALAR) + defined(HWY_COMPILE_ONLY_EMU128) + \

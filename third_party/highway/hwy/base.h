@@ -228,7 +228,7 @@ namespace hwy {
 // Better:
 //   HWY_ASSUME(x == 2);
 //   HWY_ASSUME(y == 3);
-#if HWY_HAS_CPP_ATTRIBUTE(assume)
+#if (HWY_CXX_LANG >= 202302L) && HWY_HAS_CPP_ATTRIBUTE(assume)
 #define HWY_ASSUME(expr) [[assume(expr)]]
 #elif HWY_COMPILER_MSVC || HWY_COMPILER_ICC
 #define HWY_ASSUME(expr) __assume(expr)
@@ -2918,7 +2918,7 @@ class Divisor {
 #ifndef HWY_HAVE_DIV128  // allow override
 // Exclude clang-cl because it calls __divti3 from clang_rt.builtins-x86_64,
 // which is not linked in.
-#if (HWY_COMPILER_MSVC && HWY_ARCH_X86_64) || \
+#if (HWY_COMPILER_MSVC >= 1920 && HWY_ARCH_X86_64) || \
     (defined(__SIZEOF_INT128__) && !HWY_COMPILER_CLANGCL)
 #define HWY_HAVE_DIV128 1
 #else
@@ -2926,9 +2926,15 @@ class Divisor {
 #endif
 #endif  // HWY_HAVE_DIV128
 
-// As above, but for 64-bit divisors: more expensive to compute and initialize.
-// If HWY_HAVE_DIV128, we can precompute the multiplicative inverse.
+// Divisor64 can precompute the multiplicative inverse.
 #if HWY_HAVE_DIV128
+
+#if HWY_COMPILER_MSVC >= 1920 && HWY_ARCH_X86_64
+#pragma intrinsic(_udiv128)
+#pragma intrinsic(__umulh)
+#endif
+
+// As above, but for 64-bit divisors: more expensive to compute and initialize.
 class Divisor64 {
  public:
   explicit Divisor64(uint64_t divisor) : divisor_(divisor) {
@@ -2959,7 +2965,7 @@ class Divisor64 {
   uint64_t divisor_;
 
   static uint64_t Div128(uint64_t hi, uint64_t div) {
-#if HWY_COMPILER_MSVC && HWY_ARCH_X86_64
+#if HWY_COMPILER_MSVC >= 1920 && HWY_ARCH_X86_64
     unsigned __int64 remainder;  // unused
     return _udiv128(hi, uint64_t{0}, div, &remainder);
 #else
@@ -2970,7 +2976,7 @@ class Divisor64 {
   }
 
   static uint64_t MulHigh(uint64_t a, uint64_t b) {
-#if HWY_COMPILER_MSVC && HWY_ARCH_X86_64
+#if HWY_COMPILER_MSVC >= 1920 && HWY_ARCH_X86_64
     return __umulh(a, b);
 #else
     using u128 = unsigned __int128;
