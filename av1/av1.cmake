@@ -368,6 +368,9 @@ if(NOT CONFIG_EXCLUDE_SIMD_MISMATCH)
               "${AOM_ROOT}/av1/encoder/x86/ml_avx2.c")
 endif()
 
+list(APPEND AOM_AV1_ENCODER_INTRIN_AVX512
+            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx512.cc")
+
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/av1_error_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/av1_fwd_txfm2d_neon.c"
@@ -769,6 +772,17 @@ function(setup_av1_targets)
     if(CONFIG_AV1_ENCODER)
       add_intrinsics_object_library("-mavx2" "avx2" "aom_av1_encoder"
                                     "AOM_AV1_ENCODER_INTRIN_AVX2")
+    endif()
+  endif()
+
+  if(HAVE_AVX512)
+    require_compiler_flag_nomsvc(
+      "-mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl" NO)
+
+    if(CONFIG_AV1_ENCODER)
+      add_intrinsics_object_library(
+        "-mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl" "avx512"
+        "aom_av1_encoder" "AOM_AV1_ENCODER_INTRIN_AVX512")
     endif()
   endif()
 
