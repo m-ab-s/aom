@@ -72,6 +72,11 @@ while (<CONFIG_FILE>) {
 }
 close CONFIG_FILE;
 
+# Disable any SIMD extensions that are disabled in the configuration.
+foreach my $opt (keys %config) {
+  $disabled{lc($1)} = 1 if !$config{$opt} && $opt =~ /HAVE_(.*)/;
+}
+
 #
 # Routines for the RTCD DSL to call
 #
