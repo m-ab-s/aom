@@ -161,26 +161,43 @@ static void lowbd_fwd_txfm2d_32x64_sse4_1(const int16_t *input, int32_t *output,
   }
 }
 
+#define DECLARE_LOWBD_TXFM2D(w, h)                                        \
+  extern void av1_lowbd_fwd_txfm2d_##w##x##h##_sse4_1(                    \
+      const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, \
+      int bd);
+DECLARE_LOWBD_TXFM2D(4, 4)
+DECLARE_LOWBD_TXFM2D(8, 8)
+DECLARE_LOWBD_TXFM2D(16, 16)
+DECLARE_LOWBD_TXFM2D(32, 32)
+DECLARE_LOWBD_TXFM2D(4, 8)
+DECLARE_LOWBD_TXFM2D(8, 16)
+DECLARE_LOWBD_TXFM2D(32, 16)
+DECLARE_LOWBD_TXFM2D(4, 16)
+DECLARE_LOWBD_TXFM2D(16, 4)
+DECLARE_LOWBD_TXFM2D(8, 32)
+DECLARE_LOWBD_TXFM2D(32, 8)
+DECLARE_LOWBD_TXFM2D(64, 16)
+
 static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
-  av1_lowbd_fwd_txfm2d_4x4_sse2,    // 4x4 transform
-  av1_lowbd_fwd_txfm2d_8x8_sse2,    // 8x8 transform
-  av1_lowbd_fwd_txfm2d_16x16_sse2,  // 16x16 transform
-  av1_lowbd_fwd_txfm2d_32x32_sse2,  // 32x32 transform
-  lowbd_fwd_txfm2d_64x64_sse4_1,    // 64x64 transform
-  av1_lowbd_fwd_txfm2d_4x8_sse2,    // 4x8 transform
-  av1_lowbd_fwd_txfm2d_8x4_sse2,    // 8x4 transform
-  av1_lowbd_fwd_txfm2d_8x16_sse2,   // 8x16 transform
-  av1_lowbd_fwd_txfm2d_16x8_sse2,   // 16x8 transform
-  av1_lowbd_fwd_txfm2d_16x32_sse2,  // 16x32 transform
-  av1_lowbd_fwd_txfm2d_32x16_sse2,  // 32x16 transform
-  lowbd_fwd_txfm2d_32x64_sse4_1,    // 32x64 transform
-  lowbd_fwd_txfm2d_64x32_sse4_1,    // 64x32 transform
-  av1_lowbd_fwd_txfm2d_4x16_sse2,   // 4x16 transform
-  av1_lowbd_fwd_txfm2d_16x4_sse2,   // 16x4 transform
-  av1_lowbd_fwd_txfm2d_8x32_sse2,   // 8x32 transform
-  av1_lowbd_fwd_txfm2d_32x8_sse2,   // 32x8 transform
-  av1_lowbd_fwd_txfm2d_16x64_sse2,  // 16x64 transform
-  av1_lowbd_fwd_txfm2d_64x16_sse2,  // 64x16 transform
+  av1_lowbd_fwd_txfm2d_4x4_sse4_1,    // 4x4 transform
+  av1_lowbd_fwd_txfm2d_8x8_sse4_1,    // 8x8 transform
+  av1_lowbd_fwd_txfm2d_16x16_sse4_1,  // 16x16 transform
+  av1_lowbd_fwd_txfm2d_32x32_sse4_1,  // 32x32 transform
+  lowbd_fwd_txfm2d_64x64_sse4_1,      // 64x64 transform
+  av1_lowbd_fwd_txfm2d_4x8_sse4_1,    // 4x8 transform
+  av1_lowbd_fwd_txfm2d_8x4_sse2,      // 8x4 transform
+  av1_lowbd_fwd_txfm2d_8x16_sse4_1,   // 8x16 transform
+  av1_lowbd_fwd_txfm2d_16x8_sse2,     // 16x8 transform
+  av1_lowbd_fwd_txfm2d_16x32_sse2,    // 16x32 transform
+  av1_lowbd_fwd_txfm2d_32x16_sse4_1,  // 32x16 transform
+  lowbd_fwd_txfm2d_32x64_sse4_1,      // 32x64 transform
+  lowbd_fwd_txfm2d_64x32_sse4_1,      // 64x32 transform
+  av1_lowbd_fwd_txfm2d_4x16_sse4_1,   // 4x16 transform
+  av1_lowbd_fwd_txfm2d_16x4_sse4_1,   // 16x4 transform
+  av1_lowbd_fwd_txfm2d_8x32_sse4_1,   // 8x32 transform
+  av1_lowbd_fwd_txfm2d_32x8_sse4_1,   // 32x8 transform
+  av1_lowbd_fwd_txfm2d_16x64_sse2,    // 16x64 transform
+  av1_lowbd_fwd_txfm2d_64x16_sse4_1,  // 64x16 transform
 };
 
 void av1_lowbd_fwd_txfm_sse4_1(const int16_t *src_diff, tran_low_t *coeff,
