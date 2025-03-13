@@ -316,6 +316,7 @@ list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm"
             "${AOM_ROOT}/av1/encoder/x86/error_sse2.asm")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
+            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_sse2.cc"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_sse2.h"
             "${AOM_ROOT}/av1/encoder/x86/av1_k_means_sse2.c"
