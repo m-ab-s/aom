@@ -131,6 +131,15 @@ set_aom_config_var(DECODE_HEIGHT_LIMIT 0 "Set limit for decode height.")
 set_aom_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 set_aom_config_var(STATIC_LINK_JXL 0 "Statically link the JPEG-XL library.")
 
+if(MSVC OR WIN32)
+  set(BUILD_BENCHMARK 0)
+else()
+  set(BUILD_BENCHMARK 1)
+endif()
+
+set_aom_config_var(CONFIG_BENCHMARK ${BUILD_BENCHMARK}
+                   "Build Benchmark for tests.")
+
 # AV1 experiment flags.
 set_aom_config_var(CONFIG_BITRATE_ACCURACY 0
                    "AV1 experiment: Improve bitrate accuracy.")

@@ -26,7 +26,7 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
 
-#if HAVE_AVX2 && !(defined(_WIN32) || defined(_WIN64))
+#if HAVE_AVX2 && CONFIG_BENCHMARK
 #include "third_party/benchmark/include/benchmark/benchmark.h"
 #endif
 
@@ -603,7 +603,7 @@ TEST_P(SADTest, DISABLED_Speed) {
 
 // Exclude benchmark from windows build.
 // avx2 highway is excluded from non 64 bit x86.
-#if !(defined(_WIN32) || defined(_WIN64)) && AOM_ARCH_X86_64
+#if CONFIG_BENCHMARK && AOM_ARCH_X86_64
 static void FillRandomForBM(uint8_t *data, ACMRandom &rnd, int stride,
                             int height) {
   for (int j = 0; j < height; ++j) {

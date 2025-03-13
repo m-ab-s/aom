@@ -481,7 +481,7 @@ if(ENABLE_TESTS)
     endif()
   endif()
 
-  if(NOT (MSVC OR WIN32))
+  if(CONFIG_BENCHMARK)
     add_library(aom_benchmark STATIC ${BENCHMARK_SOURCES})
     target_compile_options(aom_benchmark PRIVATE -std=c++17)
     target_compile_options(
@@ -556,7 +556,7 @@ function(setup_aom_test_targets)
       target_compile_options(test_intra_pred_speed PUBLIC -std=c++17)
       target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE} aom
                             aom_gtest)
-      if(NOT (MSVC OR WIN32))
+      if(CONFIG_BENCHMARK)
         target_link_libraries(test_intra_pred_speed ${AOM_LIB_LINK_TYPE}
                               aom_benchmark)
       endif()
@@ -569,7 +569,7 @@ function(setup_aom_test_targets)
     test_libaom
     PUBLIC ${AOM_ROOT}/third_party/benchmark/include/benchmark)
   target_link_libraries(test_libaom ${AOM_LIB_LINK_TYPE} aom aom_gtest)
-  if(NOT (MSVC OR WIN32))
+  if(CONFIG_BENCHMARK)
     target_link_libraries(test_libaom ${AOM_LIB_LINK_TYPE} aom_benchmark)
   endif()
 
