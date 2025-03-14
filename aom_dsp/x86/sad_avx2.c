@@ -14,34 +14,6 @@
 
 #include "aom_ports/mem.h"
 
-static inline unsigned int sad64xh_avx2(const uint8_t *src_ptr, int src_stride,
-                                        const uint8_t *ref_ptr, int ref_stride,
-                                        int h) {
-  int i;
-  __m256i sad1_reg, sad2_reg, ref1_reg, ref2_reg;
-  __m256i sum_sad = _mm256_setzero_si256();
-  __m256i sum_sad_h;
-  __m128i sum_sad128;
-  for (i = 0; i < h; i++) {
-    ref1_reg = _mm256_loadu_si256((__m256i const *)ref_ptr);
-    ref2_reg = _mm256_loadu_si256((__m256i const *)(ref_ptr + 32));
-    sad1_reg =
-        _mm256_sad_epu8(ref1_reg, _mm256_loadu_si256((__m256i const *)src_ptr));
-    sad2_reg = _mm256_sad_epu8(
-        ref2_reg, _mm256_loadu_si256((__m256i const *)(src_ptr + 32)));
-    sum_sad = _mm256_add_epi32(sum_sad, _mm256_add_epi32(sad1_reg, sad2_reg));
-    ref_ptr += ref_stride;
-    src_ptr += src_stride;
-  }
-  sum_sad_h = _mm256_srli_si256(sum_sad, 8);
-  sum_sad = _mm256_add_epi32(sum_sad, sum_sad_h);
-  sum_sad128 = _mm256_extracti128_si256(sum_sad, 1);
-  sum_sad128 = _mm_add_epi32(_mm256_castsi256_si128(sum_sad), sum_sad128);
-  unsigned int res = (unsigned int)_mm_cvtsi128_si32(sum_sad128);
-  _mm256_zeroupper();
-  return res;
-}
-
 static inline unsigned int sad32xh_avx2(const uint8_t *src_ptr, int src_stride,
                                         const uint8_t *ref_ptr, int ref_stride,
                                         int h) {
@@ -73,14 +45,6 @@ static inline unsigned int sad32xh_avx2(const uint8_t *src_ptr, int src_stride,
   return res;
 }
 
-#define FSADS64_H(h)                                                          \
-  unsigned int aom_sad_skip_64x##h##_avx2(                                    \
-      const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,         \
-      int ref_stride) {                                                       \
-    return 2 * sad64xh_avx2(src_ptr, src_stride * 2, ref_ptr, ref_stride * 2, \
-                            h / 2);                                           \
-  }
-
 #define FSAD32_H(h)                                                           \
   unsigned int aom_sad32x##h##_avx2(const uint8_t *src_ptr, int src_stride,   \
                                     const uint8_t *ref_ptr, int ref_stride) { \
@@ -95,10 +59,6 @@ static inline unsigned int sad32xh_avx2(const uint8_t *src_ptr, int src_stride,
                             h / 2);                                           \
   }
 
-#define FSAD64  \
-  FSADS64_H(64) \
-  FSADS64_H(32)
-
 #define FSAD32  \
   FSAD32_H(64)  \
   FSAD32_H(32)  \
@@ -108,11 +68,9 @@ static inline unsigned int sad32xh_avx2(const uint8_t *src_ptr, int src_stride,
   FSADS32_H(16)
 
 /* clang-format off */
-FSAD64
 FSAD32
 /* clang-format on */
 
-#undef FSAD64
 #undef FSAD32
 
 #define FSADAVG64_H(h)                                                        \

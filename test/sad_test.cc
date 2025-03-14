@@ -642,13 +642,34 @@ static void BM_SAD(benchmark::State &state) {
                           height);
 }
 
+template <SADFuncPtr SADFunc, int width, int height>
+static void BM_SAD_SKIP(benchmark::State &state) {
+  BM_SAD<SADFunc, width, height>(state);
+}
+
 #if HAVE_AVX2
+BENCHMARK(BM_SAD<aom_sad128x128_avx2, 128, 128>);
+BENCHMARK(BM_SAD<aom_sad128x64_avx2, 128, 64>);
+BENCHMARK(BM_SAD<aom_sad64x128_avx2, 64, 128>);
 BENCHMARK(BM_SAD<aom_sad64x64_avx2, 64, 64>);
 BENCHMARK(BM_SAD<aom_sad64x32_avx2, 64, 32>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_128x128_avx2, 128, 128>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_128x64_avx2, 128, 64>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x128_avx2, 64, 128>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x64_avx2, 64, 64>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x32_avx2, 64, 32>);
 #endif
 #if HAVE_AVX512
+BENCHMARK(BM_SAD<aom_sad128x128_avx512, 128, 128>);
+BENCHMARK(BM_SAD<aom_sad128x64_avx512, 128, 64>);
+BENCHMARK(BM_SAD<aom_sad64x128_avx512, 64, 128>);
 BENCHMARK(BM_SAD<aom_sad64x64_avx512, 64, 64>);
 BENCHMARK(BM_SAD<aom_sad64x32_avx512, 64, 32>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_128x128_avx512, 128, 128>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_128x64_avx512, 128, 64>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x128_avx512, 64, 128>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x64_avx512, 64, 64>);
+BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x32_avx512, 64, 32>);
 #endif
 #endif  //  !(defined(_WIN32) || defined(_WIN64))
 

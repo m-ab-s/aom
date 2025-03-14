@@ -894,6 +894,14 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sad_skip_16x8            sse2 neon neon_dotprod/;
   specialize qw/aom_sad_skip_8x16            sse2 neon/;
 
+  if (aom_config("AOM_ARCH_X86_64") eq "yes") {
+    specialize qw/aom_sad_skip_128x128    avx512/;
+    specialize qw/aom_sad_skip_128x64     avx512/;
+    specialize qw/aom_sad_skip_64x128     avx512/;
+    specialize qw/aom_sad_skip_64x64      avx512/;
+    specialize qw/aom_sad_skip_64x32      avx512/;
+  }
+
   specialize qw/aom_sad_skip_4x16            sse2 neon/;
   specialize qw/aom_sad_skip_8x32            sse2 neon/;
   specialize qw/aom_sad_skip_16x64           sse2 neon neon_dotprod/;
