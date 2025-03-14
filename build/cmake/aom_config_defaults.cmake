@@ -255,6 +255,8 @@ set_aom_option_var(ENABLE_AVX "Enables AVX optimizations on x86/x86_64 targets."
                    ON)
 set_aom_option_var(ENABLE_AVX2
                    "Enables AVX2 optimizations on x86/x86_64 targets." ON)
+set_aom_option_var(ENABLE_AVX512
+                   "Enables AVX512 optimizations on x86/x86_64 targets." ON)
 
 # RVV intrinsics flags.
 set_aom_option_var(ENABLE_RVV "Enables RVV optimizations on RISC-V targets." ON)
