@@ -604,15 +604,22 @@ static int get_qzbin_factor(int q, aom_bit_depth_t bit_depth) {
 void av1_build_quantizer(aom_bit_depth_t bit_depth, int y_dc_delta_q,
                          int u_dc_delta_q, int u_ac_delta_q, int v_dc_delta_q,
                          int v_ac_delta_q, QUANTS *const quants,
-                         Dequants *const deq) {
+                         Dequants *const deq, int sharpness) {
   int i, q, quant_QTX;
+  const int sharpness_adjustment = 16 * (7 - sharpness) / 7;
 
   for (q = 0; q < QINDEX_RANGE; q++) {
     const int qzbin_factor = get_qzbin_factor(q, bit_depth);
-    const int qrounding_factor = q == 0 ? 64 : 48;
+    int qrounding_factor = q == 0 ? 64 : 48;
 
     for (i = 0; i < 2; ++i) {
-      const int qrounding_factor_fp = 64;
+      int qrounding_factor_fp = 64;
+
+      if (sharpness != 0 && q != 0) {
+        qrounding_factor = 64 - sharpness_adjustment;
+        qrounding_factor_fp = 64 - sharpness_adjustment;
+      }
+
       // y quantizer with TX scale
       quant_QTX = i == 0 ? av1_dc_quant_QTX(q, y_dc_delta_q, bit_depth)
                          : av1_ac_quant_QTX(q, 0, bit_depth);
@@ -682,14 +689,16 @@ static inline bool deltaq_params_have_changed(
           prev_deltaq_params->u_dc_delta_q != quant_params->u_dc_delta_q ||
           prev_deltaq_params->v_dc_delta_q != quant_params->v_dc_delta_q ||
           prev_deltaq_params->u_ac_delta_q != quant_params->u_ac_delta_q ||
-          prev_deltaq_params->v_ac_delta_q != quant_params->v_ac_delta_q);
+          prev_deltaq_params->v_ac_delta_q != quant_params->v_ac_delta_q ||
+          prev_deltaq_params->sharpness != quant_params->sharpness);
 }
 
 void av1_init_quantizer(EncQuantDequantParams *const enc_quant_dequant_params,
-                        const CommonQuantParams *quant_params,
-                        aom_bit_depth_t bit_depth) {
+                        CommonQuantParams *quant_params,
+                        aom_bit_depth_t bit_depth, int sharpness) {
   DeltaQuantParams *const prev_deltaq_params =
       &enc_quant_dequant_params->prev_deltaq_params;
+  quant_params->sharpness = sharpness;
 
   // Re-initialize the quantizer only if any of the dc/ac deltaq parameters
   // change.
@@ -699,7 +708,7 @@ void av1_init_quantizer(EncQuantDequantParams *const enc_quant_dequant_params,
   av1_build_quantizer(bit_depth, quant_params->y_dc_delta_q,
                       quant_params->u_dc_delta_q, quant_params->u_ac_delta_q,
                       quant_params->v_dc_delta_q, quant_params->v_ac_delta_q,
-                      quants, dequants);
+                      quants, dequants, sharpness);
 
   // Record the state of deltaq parameters.
   prev_deltaq_params->y_dc_delta_q = quant_params->y_dc_delta_q;
@@ -707,6 +716,7 @@ void av1_init_quantizer(EncQuantDequantParams *const enc_quant_dequant_params,
   prev_deltaq_params->v_dc_delta_q = quant_params->v_dc_delta_q;
   prev_deltaq_params->u_ac_delta_q = quant_params->u_ac_delta_q;
   prev_deltaq_params->v_ac_delta_q = quant_params->v_ac_delta_q;
+  prev_deltaq_params->sharpness = sharpness;
 }
 
 /*!\brief Update quantize parameters in MACROBLOCK

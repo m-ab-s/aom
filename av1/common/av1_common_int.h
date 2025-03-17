@@ -622,6 +622,11 @@ struct CommonQuantParams {
   int base_qindex;
 
   /*!
+   * Sharpness adjustment in the quantization process.
+   */
+  int sharpness;
+
+  /*!
    * Delta of qindex (from base_qindex) for Y plane DC coefficient.
    * Note: y_ac_delta_q is implicitly 0.
    */

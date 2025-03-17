@@ -1618,7 +1618,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   prev_deltaq_params->v_ac_delta_q = INT_MAX;
 
   av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                     cm->seq_params->bit_depth);
+                     cm->seq_params->bit_depth, cpi->oxcf.algo_cfg.sharpness);
   av1_qm_init(&cm->quant_params, av1_num_planes(cm));
 
   av1_loop_filter_init(cm);
@@ -2665,7 +2665,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
                     cpi->oxcf.mode == ALLINTRA, cpi->oxcf.tune_cfg.tuning);
   av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
   av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                     cm->seq_params->bit_depth);
+                     cm->seq_params->bit_depth, cpi->oxcf.algo_cfg.sharpness);
   av1_set_variance_partition_thresholds(cpi, q, 0);
   av1_setup_frame(cpi);
 
@@ -2680,7 +2680,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
                         cpi->oxcf.mode == ALLINTRA, cpi->oxcf.tune_cfg.tuning);
       av1_set_speed_features_qindex_dependent(cpi, cpi->oxcf.speed);
       av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                         cm->seq_params->bit_depth);
+                         cm->seq_params->bit_depth,
+                         cpi->oxcf.algo_cfg.sharpness);
       av1_set_variance_partition_thresholds(cpi, q, 0);
       if (frame_is_intra_only(cm) || cm->features.error_resilient_mode ||
           cm->features.primary_ref_frame == PRIMARY_REF_NONE)
@@ -2985,7 +2986,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
                       oxcf->mode == ALLINTRA, oxcf->tune_cfg.tuning);
     av1_set_speed_features_qindex_dependent(cpi, oxcf->speed);
     av1_init_quantizer(&cpi->enc_quant_dequant_params, &cm->quant_params,
-                       cm->seq_params->bit_depth);
+                       cm->seq_params->bit_depth, cpi->oxcf.algo_cfg.sharpness);
 
     av1_set_variance_partition_thresholds(cpi, q, 0);
 
