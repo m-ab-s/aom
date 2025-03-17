@@ -142,16 +142,23 @@ static AOM_FORCE_INLINE void aom_sadMxNx3d_avx2(
     aom_sadMxNx3d_avx2(m, n, src, src_stride, ref, ref_stride, res);           \
   }
 
+#define SADMXN_AVX2_3D(m, n)                                                   \
+  void aom_sad##m##x##n##x3d_avx2(const uint8_t *src, int src_stride,          \
+                                  const uint8_t *const ref[4], int ref_stride, \
+                                  uint32_t res[4]) {                           \
+    aom_sadMxNx3d_avx2(m, n, src, src_stride, ref, ref_stride, res);           \
+  }
+
 SADMXN_AVX2(32, 16)
 SADMXN_AVX2(32, 32)
 SADMXN_AVX2(32, 64)
 
-SADMXN_AVX2(64, 32)
-SADMXN_AVX2(64, 64)
-SADMXN_AVX2(64, 128)
+SADMXN_AVX2_3D(64, 32)
+SADMXN_AVX2_3D(64, 64)
+SADMXN_AVX2_3D(64, 128)
 
-SADMXN_AVX2(128, 64)
-SADMXN_AVX2(128, 128)
+SADMXN_AVX2_3D(128, 64)
+SADMXN_AVX2_3D(128, 128)
 
 #if !CONFIG_REALTIME_ONLY
 SADMXN_AVX2(32, 8)

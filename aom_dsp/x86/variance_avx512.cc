@@ -1,5 +1,6 @@
 #define HWY_COMPILE_ONLY_STATIC 1
 
+#include "aom_dsp/reduce_sum_hwy.h"
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "third_party/highway/hwy/highway.h"
@@ -27,49 +28,6 @@ HWY_ATTR HWY_INLINE hn::VFromD<DZ> LoadLines(DZ extend_tag, DL load_tag,
     hwy::CopyBytes<kNumBytes>(src + line * stride, data + line * kNumBytes);
   }
   return hn::Load(extend_tag, data);
-}
-
-template <size_t NumBlocks>
-struct BlockReduceTraits {};
-
-template <>
-struct BlockReduceTraits<1> {
-  template <typename D>
-  HWY_ATTR HWY_INLINE static hn::VFromD<D> ReduceSum(D int_tag,
-                                                     hn::VFromD<D> v) {
-    (void)int_tag;
-    return v;
-  }
-};
-
-template <>
-struct BlockReduceTraits<2> {
-  template <typename D>
-  HWY_ATTR HWY_INLINE static hn::VFromD<hn::BlockDFromD<D>> ReduceSum(
-      D int_tag, hn::VFromD<D> v) {
-    (void)int_tag;
-    constexpr hn::BlockDFromD<D> block_tag;
-    return hn::Add(hn::LowerHalf(block_tag, v), hn::UpperHalf(block_tag, v));
-  }
-};
-
-template <>
-struct BlockReduceTraits<4> {
-  template <typename D>
-  HWY_ATTR HWY_INLINE static hn::VFromD<hn::BlockDFromD<D>> ReduceSum(
-      D int_tag, hn::VFromD<D> v) {
-    (void)int_tag;
-    constexpr hn::Half<D> half_tag;
-    constexpr hn::BlockDFromD<D> block_tag;
-    auto vh = hn::Add(hn::LowerHalf(half_tag, v), hn::UpperHalf(half_tag, v));
-    return hn::Add(hn::LowerHalf(block_tag, vh), hn::UpperHalf(block_tag, vh));
-  }
-};
-
-template <typename D>
-HWY_ATTR HWY_INLINE hn::Vec<hn::BlockDFromD<D>> BlockReduceSum(
-    D int_tag, hn::VFromD<D> v) {
-  return BlockReduceTraits<int_tag.MaxBlocks()>::ReduceSum(int_tag, v);
 }
 
 template <int Width, int Height>

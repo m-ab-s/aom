@@ -171,7 +171,9 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/psnr.h"
               "${AOM_ROOT}/aom_dsp/quantize.c"
               "${AOM_ROOT}/aom_dsp/quantize.h"
+              "${AOM_ROOT}/aom_dsp/reduce_sum_hwy.h"
               "${AOM_ROOT}/aom_dsp/sad.c"
+              "${AOM_ROOT}/aom_dsp/sad_hwy.h"
               "${AOM_ROOT}/aom_dsp/sad_av1.c"
               "${AOM_ROOT}/aom_dsp/subtract.c"
               "${AOM_ROOT}/aom_dsp/sse.c"
@@ -250,7 +252,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/quantize_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad4d_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad_avx2.c"
-              "${AOM_ROOT}/aom_dsp/sad_hwy.cc"
+              "${AOM_ROOT}/aom_dsp/x86/sad_avx2.cc"
               "${AOM_ROOT}/aom_dsp/x86/variance_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sse_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/variance_impl_avx2.c"
@@ -263,6 +265,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/aom_quantize_avx.c")
 
   list(APPEND AOM_DSP_ENCODER_INTRIN_AVX512
+              "${AOM_ROOT}/aom_dsp/x86/sad_avx512.cc"
               "${AOM_ROOT}/aom_dsp/x86/variance_avx512.cc")
 
   list(APPEND AOM_DSP_ENCODER_INTRIN_SSSE3
