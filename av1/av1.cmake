@@ -737,8 +737,9 @@ function(setup_av1_targets)
   endif()
 
   if(HAVE_SSE4_1)
-    require_compiler_flag_nomsvc("-msse4.1" NO)
-    add_intrinsics_object_library("-msse4.1" "sse4" "aom_av1_common"
+    require_compiler_flag_nomsvc("-march=sandybridge -maes" NO)
+    add_intrinsics_object_library("-march=sandybridge -maes" "sse4"
+                                  "aom_av1_common"
                                   "AOM_AV1_COMMON_INTRIN_SSE4_1")
 
     if(CONFIG_AV1_ENCODER)
@@ -748,41 +749,43 @@ function(setup_av1_targets)
       endif()
 
       if(AOM_AV1_ENCODER_INTRIN_SSE4_1)
-        add_intrinsics_object_library("-msse4.1" "sse4" "aom_av1_encoder"
+        add_intrinsics_object_library("-march=sandybridge -maes" "sse4"
+                                      "aom_av1_encoder"
                                       "AOM_AV1_ENCODER_INTRIN_SSE4_1")
       endif()
     endif()
   endif()
 
   if(HAVE_SSE4_2)
-    require_compiler_flag_nomsvc("-msse4.2" NO)
+    require_compiler_flag_nomsvc("-march=westmere -maes" NO)
     if(CONFIG_AV1_ENCODER)
       if(AOM_AV1_ENCODER_INTRIN_SSE4_2)
-        add_intrinsics_object_library("-msse4.2" "sse42" "aom_av1_encoder"
+        add_intrinsics_object_library("-march=westmere -maes" "sse4_2"
+                                      "aom_av1_encoder"
                                       "AOM_AV1_ENCODER_INTRIN_SSE4_2")
       endif()
     endif()
   endif()
 
   if(HAVE_AVX2)
-    require_compiler_flag_nomsvc("-mavx2" NO)
-    add_intrinsics_object_library("-mavx2" "avx2" "aom_av1_common"
+    require_compiler_flag_nomsvc("-march=haswell -maes" NO)
+    add_intrinsics_object_library("-march=haswell -maes" "avx2" "aom_av1_common"
                                   "AOM_AV1_COMMON_INTRIN_AVX2")
 
     if(CONFIG_AV1_ENCODER)
-      add_intrinsics_object_library("-mavx2" "avx2" "aom_av1_encoder"
+      add_intrinsics_object_library("-march=haswell -maes" "avx2"
+                                    "aom_av1_encoder"
                                     "AOM_AV1_ENCODER_INTRIN_AVX2")
     endif()
   endif()
 
   if(HAVE_AVX512)
-    require_compiler_flag_nomsvc(
-      "-mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl" NO)
+    require_compiler_flag_nomsvc("-march=skylake-avx512" NO)
 
     if(CONFIG_AV1_ENCODER)
-      add_intrinsics_object_library(
-        "-mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl" "avx512"
-        "aom_av1_encoder" "AOM_AV1_ENCODER_INTRIN_AVX512")
+      add_intrinsics_object_library("-march=skylake-avx512" "avx512"
+                                    "aom_av1_encoder"
+                                    "AOM_AV1_ENCODER_INTRIN_AVX512")
     endif()
   endif()
 

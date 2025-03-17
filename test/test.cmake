@@ -585,17 +585,17 @@ function(setup_aom_test_targets)
                                     "AOM_UNIT_TEST_COMMON_INTRIN_SSSE3")
   endif()
   if(HAVE_SSE4_1)
-    add_intrinsics_source_to_target("-msse4.1" "test_libaom"
+    add_intrinsics_source_to_target("-march=sandybridge -maes" "test_libaom"
                                     "AOM_UNIT_TEST_COMMON_INTRIN_SSE4_1")
     if(CONFIG_AV1_ENCODER)
       if(AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1)
-        add_intrinsics_source_to_target("-msse4.1" "test_libaom"
+        add_intrinsics_source_to_target("-march=sandybridge -maes" "test_libaom"
                                         "AOM_UNIT_TEST_ENCODER_INTRIN_SSE4_1")
       endif()
     endif()
   endif()
   if(HAVE_AVX2)
-    add_intrinsics_source_to_target("-mavx2" "test_libaom"
+    add_intrinsics_source_to_target("-march=haswell -maes" "test_libaom"
                                     "AOM_UNIT_TEST_COMMON_INTRIN_AVX2")
   endif()
   if(HAVE_NEON)
