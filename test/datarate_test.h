@@ -95,8 +95,12 @@ class DatarateTest : public ::libaom_test::EncoderTest {
         encoder->Control(AV1E_SET_COEFF_COST_UPD_FREQ, 0);
         encoder->Control(AV1E_SET_MODE_COST_UPD_FREQ, 0);
         encoder->Control(AV1E_SET_MV_COST_UPD_FREQ, 0);
+#if !CONFIG_REALTIME_ONLY
         encoder->Control(AV1E_SET_DELTAQ_MODE, 3);
+#endif
+#if CONFIG_QUANT_MATRIX
         encoder->Control(AV1E_SET_ENABLE_QM, 1);
+#endif
         encoder->Control(AOME_SET_SHARPNESS, 1);
         encoder->Control(AV1E_SET_ENABLE_CHROMA_DELTAQ, 1);
         encoder->Control(AOME_SET_CQ_LEVEL, 0);
