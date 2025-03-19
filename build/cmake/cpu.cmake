@@ -12,7 +12,6 @@
 if("${AOM_TARGET_CPU}" STREQUAL "arm64")
   set(AOM_ARCH_ARM 1)
   set(AOM_ARCH_AARCH64 1)
-  set(RTCD_ARCH_ARM "yes")
 
   set(ARM64_FLAVORS "NEON;ARM_CRC32;NEON_DOTPROD;NEON_I8MM;SVE;SVE2")
   set(AOM_ARM_CRC32_DEFAULT_FLAG "-march=armv8-a+crc")
@@ -89,7 +88,6 @@ svfloat32_t func(svfloat32_t a) {
 
 elseif("${AOM_TARGET_CPU}" MATCHES "^arm")
   set(AOM_ARCH_ARM 1)
-  set(RTCD_ARCH_ARM "yes")
 
   if(ENABLE_NEON)
     set(HAVE_NEON 1)
@@ -100,7 +98,6 @@ elseif("${AOM_TARGET_CPU}" MATCHES "^arm")
 
 elseif("${AOM_TARGET_CPU}" MATCHES "ppc")
   set(AOM_ARCH_PPC 1)
-  set(RTCD_ARCH_PPC "yes")
 
   if(ENABLE_VSX)
     set(HAVE_VSX 1)
@@ -111,10 +108,8 @@ elseif("${AOM_TARGET_CPU}" MATCHES "ppc")
 elseif("${AOM_TARGET_CPU}" MATCHES "^x86")
   if("${AOM_TARGET_CPU}" STREQUAL "x86")
     set(AOM_ARCH_X86 1)
-    set(RTCD_ARCH_X86 "yes")
   elseif("${AOM_TARGET_CPU}" STREQUAL "x86_64")
     set(AOM_ARCH_X86_64 1)
-    set(RTCD_ARCH_X86_64 "yes")
   endif()
 
   set(X86_FLAVORS "MMX;SSE;SSE2;SSE3;SSSE3;SSE4_1;SSE4_2;AVX;AVX2")
@@ -130,7 +125,6 @@ elseif("${AOM_TARGET_CPU}" MATCHES "^x86")
   endforeach()
 elseif("${AOM_TARGET_CPU}" MATCHES "riscv")
   set(AOM_ARCH_RISCV64 1)
-  set(RTCD_ARCH_RISCV64 "yes")
 
   if(ENABLE_RVV)
     set(HAVE_RVV 1)
