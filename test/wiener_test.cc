@@ -2107,5 +2107,115 @@ TEST(SearchWienerTest, 12bitSignedIntegerOverflowInLinsolveWiener) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
+// A test that reproduces crbug.com/oss-fuzz/384759831: signed integer overflow
+// in linsolve_wiener().
+TEST(SearchWienerTest, DISABLED_12bitSignedIntegerOverflowInLinsolveWiener2) {
+  constexpr int kWidth = 4;
+  constexpr int kHeight = 2;
+  static constexpr uint16_t kBuffer1[kWidth * kHeight] = {
+    // Y plane:
+    32, 4095, 2080, 2592, 32, 3104, 4095, 32,
+  };
+  unsigned char *img_data1 =
+      reinterpret_cast<unsigned char *>(const_cast<uint16_t *>(kBuffer1));
+  static constexpr uint16_t kBuffer2[kWidth * kHeight] = {
+    // Y plane:
+    4095, 4095, 2080, 4095, 4095, 32, 4095, 544,
+  };
+  unsigned char *img_data2 =
+      reinterpret_cast<unsigned char *>(const_cast<uint16_t *>(kBuffer2));
+  static constexpr uint16_t kBuffer3[kWidth * kHeight] = {
+    // Y plane:
+    3872, 3872, 3872, 2848, 800, 4095, 32, 3104,
+  };
+  unsigned char *img_data3 =
+      reinterpret_cast<unsigned char *>(const_cast<uint16_t *>(kBuffer3));
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY));
+  cfg.rc_end_usage = AOM_Q;
+  cfg.g_profile = 2;
+  cfg.g_bit_depth = AOM_BITS_12;
+  cfg.g_input_bit_depth = 12;
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_threads = 32;
+  cfg.monochrome = 1;
+  cfg.rc_min_quantizer = 51;
+  cfg.rc_max_quantizer = 55;
+  aom_codec_ctx_t enc;
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CQ_LEVEL, 53));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AV1E_SET_TILE_ROWS, 3));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AV1E_SET_TILE_COLUMNS, 6));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 6));
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_control(&enc, AV1E_SET_COLOR_RANGE, AOM_CR_FULL_RANGE));
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIM));
+
+  aom_image_t img;
+
+  // Encode frame
+  EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I42016, kWidth, kHeight, 1,
+                               img_data1));
+  img.monochrome = 1;
+  img.planes[1] = img.planes[2] = nullptr;
+  img.stride[1] = img.stride[2] = 0;
+  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
+  aom_codec_iter_t iter = nullptr;
+  const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter);
+  ASSERT_NE(pkt, nullptr);
+  EXPECT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  // pkt->data.frame.flags is 0x1f0011.
+  EXPECT_EQ(pkt->data.frame.flags & AOM_FRAME_IS_KEY, AOM_FRAME_IS_KEY);
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  EXPECT_EQ(pkt, nullptr);
+
+  // Encode frame
+  EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I42016, kWidth, kHeight, 1,
+                               img_data2));
+  img.monochrome = 1;
+  img.planes[1] = img.planes[2] = nullptr;
+  img.stride[1] = img.stride[2] = 0;
+  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
+  iter = nullptr;
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  ASSERT_NE(pkt, nullptr);
+  EXPECT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  // pkt->data.frame.flags is 0x20000.
+  EXPECT_EQ(pkt->data.frame.flags & AOM_FRAME_IS_KEY, 0u);
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  EXPECT_EQ(pkt, nullptr);
+
+  // Encode frame
+  EXPECT_EQ(&img, aom_img_wrap(&img, AOM_IMG_FMT_I42016, kWidth, kHeight, 1,
+                               img_data3));
+  img.monochrome = 1;
+  img.planes[1] = img.planes[2] = nullptr;
+  img.stride[1] = img.stride[2] = 0;
+  EXPECT_EQ(aom_codec_encode(&enc, &img, 0, 1, 0), AOM_CODEC_OK);
+  iter = nullptr;
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  ASSERT_NE(pkt, nullptr);
+  EXPECT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+  // pkt->data.frame.flags is 0x20000.
+  EXPECT_EQ(pkt->data.frame.flags & AOM_FRAME_IS_KEY, 0u);
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  EXPECT_EQ(pkt, nullptr);
+
+  // Flush encoder
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 1, 0));
+  iter = nullptr;
+  pkt = aom_codec_get_cx_data(&enc, &iter);
+  EXPECT_EQ(pkt, nullptr);
+
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+}
+
 }  // namespace wiener_highbd
 #endif  // CONFIG_AV1_HIGHBITDEPTH
