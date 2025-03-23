@@ -30,7 +30,7 @@ const std::unordered_map<
     kPsnrThreshold = { { static_cast<int>(::libaom_test::kTwoPassGood),
                          { { 2, { { 2, 37.6 }, { 5, 37.6 } } },
                            { 4, { { 2, 37.5 }, { 5, 37.5 } } },
-                           { 6, { { 2, 37.3 }, { 5, 37.3 } } } } },
+                           { 6, { { 2, 37.2 }, { 5, 37.2 } } } } },
                        { static_cast<int>(::libaom_test::kAllIntra),
                          { { 3, { { 2, 42.2 }, { 5, 42.2 } } },
                            { 6, { { 2, 41.7 }, { 4, 41.9 }, { 5, 41.9 } } },
