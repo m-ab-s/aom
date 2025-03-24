@@ -2676,14 +2676,6 @@ const SadMxNParam avx2_tests[] = {
 };
 INSTANTIATE_TEST_SUITE_P(AVX2, SADTest, ::testing::ValuesIn(avx2_tests));
 
-#if HAVE_AVX512 && AOM_ARCH_X86_64
-const SadMxNParam avx512_tests[] = {
-  make_tuple(64, 64, &aom_sad64x64_avx512, -1),
-  make_tuple(64, 32, &aom_sad64x32_avx512, -1),
-};
-INSTANTIATE_TEST_SUITE_P(AVX512, SADTest, ::testing::ValuesIn(avx512_tests));
-#endif
-
 const SadSkipMxNParam skip_avx2_tests[] = {
   make_tuple(128, 128, &aom_sad_skip_128x128_avx2, -1),
   make_tuple(128, 64, &aom_sad_skip_128x64_avx2, -1),
@@ -3006,5 +2998,56 @@ const SadMxNx4Param x3d_avx2_tests[] = {
 };
 INSTANTIATE_TEST_SUITE_P(AVX2, SADx3Test, ::testing::ValuesIn(x3d_avx2_tests));
 #endif  // HAVE_AVX2
+
+#if HAVE_AVX512
+const SadMxNParam avx512_tests[] = {
+  make_tuple(64, 128, &aom_sad64x128_avx512, -1),
+  make_tuple(128, 64, &aom_sad128x64_avx512, -1),
+  make_tuple(128, 128, &aom_sad128x128_avx512, -1),
+  make_tuple(64, 64, &aom_sad64x64_avx512, -1),
+  make_tuple(64, 32, &aom_sad64x32_avx512, -1),
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, SADTest, ::testing::ValuesIn(avx512_tests));
+
+const SadMxNAvgParam avg_avx512_tests[] = {
+  make_tuple(64, 128, &aom_sad64x128_avg_avx512, -1),
+  make_tuple(128, 64, &aom_sad128x64_avg_avx512, -1),
+  make_tuple(128, 128, &aom_sad128x128_avg_avx512, -1),
+  make_tuple(64, 64, &aom_sad64x64_avg_avx512, -1),
+  make_tuple(64, 32, &aom_sad64x32_avg_avx512, -1),
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, SADavgTest,
+                         ::testing::ValuesIn(avg_avx512_tests));
+
+const SadSkipMxNParam skip_avx512_tests[] = {
+  make_tuple(128, 128, &aom_sad_skip_128x128_avx512, -1),
+  make_tuple(128, 64, &aom_sad_skip_128x64_avx512, -1),
+  make_tuple(64, 128, &aom_sad_skip_64x128_avx512, -1),
+  make_tuple(64, 64, &aom_sad_skip_64x64_avx512, -1),
+  make_tuple(64, 32, &aom_sad_skip_64x32_avx512, -1),
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, SADSkipTest,
+                         ::testing::ValuesIn(skip_avx512_tests));
+
+const SadMxNx4Param x3d_avx512_tests[] = {
+  make_tuple(128, 128, &aom_sad128x128x3d_avx512, -1),
+  make_tuple(128, 64, &aom_sad128x64x3d_avx512, -1),
+  make_tuple(64, 128, &aom_sad64x128x3d_avx512, -1),
+  make_tuple(64, 64, &aom_sad64x64x3d_avx512, -1),
+  make_tuple(64, 32, &aom_sad64x32x3d_avx512, -1),
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, SADx3Test,
+                         ::testing::ValuesIn(x3d_avx512_tests));
+
+const SadMxNx4Param x4d_avx512_tests[] = {
+  make_tuple(128, 128, &aom_sad128x128x4d_avx512, -1),
+  make_tuple(128, 64, &aom_sad128x64x4d_avx512, -1),
+  make_tuple(64, 128, &aom_sad64x128x4d_avx512, -1),
+  make_tuple(64, 64, &aom_sad64x64x4d_avx512, -1),
+  make_tuple(64, 32, &aom_sad64x32x4d_avx512, -1),
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, SADx4Test,
+                         ::testing::ValuesIn(x4d_avx512_tests));
+#endif  // HAVE_AVX512
 
 }  // namespace
