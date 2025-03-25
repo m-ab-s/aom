@@ -129,6 +129,18 @@ HWY_MAYBE_UNUSED void SumOfAbsoluteDiffND(const uint8_t *src_ptr,
                                              ref_stride, h, res);              \
   }
 
+#define FSAD4DSKIP(w, h, suffix)                                               \
+  extern "C" HWY_ATTR void aom_sad_skip_##w##x##h##x4d_##suffix(               \
+      const uint8_t *src_ptr, int src_stride, const uint8_t *const ref_ptr[4], \
+      int ref_stride, uint32_t res[4]) {                                       \
+    HWY_NAMESPACE::SumOfAbsoluteDiffND<w, 4>(src_ptr, 2 * src_stride, ref_ptr, \
+                                             2 * ref_stride, ((h) >> 1), res); \
+    res[0] <<= 1;                                                              \
+    res[1] <<= 1;                                                              \
+    res[2] <<= 1;                                                              \
+    res[3] <<= 1;                                                              \
+  }
+
 #define FSAD3D(w, h, suffix)                                                   \
   extern "C" HWY_ATTR void aom_sad##w##x##h##x3d_##suffix(                     \
       const uint8_t *src_ptr, int src_stride, const uint8_t *const ref_ptr[4], \
