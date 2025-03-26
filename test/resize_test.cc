@@ -1171,9 +1171,15 @@ AV1_INSTANTIATE_TEST_SUITE(ResizeModeTestLarge,
                            ::testing::Values(10, 14), ::testing::Values(3, 6));
 #endif  // !CONFIG_REALTIME_ONLY
 
+#if CONFIG_REALTIME_ONLY
+AV1_INSTANTIATE_TEST_SUITE(ResizeTest,
+                           ::testing::Values(::libaom_test::kRealTime));
+#else
 AV1_INSTANTIATE_TEST_SUITE(ResizeTest,
                            ::testing::Values(::libaom_test::kRealTime,
                                              ::libaom_test::kOnePassGood));
+#endif
+
 AV1_INSTANTIATE_TEST_SUITE(ResizeRealtimeTest,
                            ::testing::Values(::libaom_test::kRealTime),
                            ::testing::Range(6, 10), ::testing::Values(1, 2, 4));
