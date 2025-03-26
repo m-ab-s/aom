@@ -9,6 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#ifndef AOM_AOM_DSP_SAD_HWY_H_
+#define AOM_AOM_DSP_SAD_HWY_H_
+
 #include "aom_dsp/reduce_sum_hwy.h"
 #include "third_party/highway/hwy/highway.h"
 
@@ -173,3 +176,5 @@ HWY_MAYBE_UNUSED void SumOfAbsoluteDiffND(const uint8_t *src_ptr,
   X(64, 32, suffix)
 
 HWY_AFTER_NAMESPACE();
+
+#endif  // AOM_AOM_DSP_SAD_HWY_H_
