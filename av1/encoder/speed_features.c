@@ -592,7 +592,9 @@ static void set_allintra_speed_features_framesize_independent(
 
 // Configures framesize dependent speed features for low complexity decoding.
 static void set_good_speed_features_lc_dec_framesize_dependent(
-    const AV1_COMP *const cpi, SPEED_FEATURES *const sf) {
+    const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
+  if (speed < 1 || speed > 3) return;
+
   const AV1_COMMON *const cm = &cpi->common;
   const int is_608p_or_larger = AOMMIN(cm->width, cm->height) >= 608;
   const FRAME_UPDATE_TYPE update_type =
@@ -604,6 +606,14 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
          cpi->common.current_frame.pyramid_level > 1)
             ? 1
             : 0;
+  }
+
+  const int short_dimension = AOMMIN(cm->width, cm->height);
+  if (short_dimension > 480 && short_dimension < 720) {
+    const int leaf_and_overlay_frames =
+        (update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
+         update_type == INTNL_OVERLAY_UPDATE);
+    if (leaf_and_overlay_frames) sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
   }
 }
 
@@ -934,7 +944,7 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (cpi->oxcf.enable_low_complexity_decode)
-    set_good_speed_features_lc_dec_framesize_dependent(cpi, sf);
+    set_good_speed_features_lc_dec_framesize_dependent(cpi, sf, speed);
 }
 
 // Configures framesize independent speed features for low complexity decoding.
