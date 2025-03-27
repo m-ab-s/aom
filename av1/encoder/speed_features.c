@@ -594,11 +594,11 @@ static void set_allintra_speed_features_framesize_independent(
 static void set_good_speed_features_lc_dec_framesize_dependent(
     const AV1_COMP *const cpi, SPEED_FEATURES *const sf) {
   const AV1_COMMON *const cm = &cpi->common;
-  const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
+  const int is_608p_or_larger = AOMMIN(cm->width, cm->height) >= 608;
   const FRAME_UPDATE_TYPE update_type =
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
 
-  if (is_480p_or_larger) {
+  if (is_608p_or_larger) {
     sf->lpf_sf.skip_loop_filter_using_filt_error =
         (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE &&
          cpi->common.current_frame.pyramid_level > 1)
