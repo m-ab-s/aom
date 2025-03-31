@@ -1,8 +1,17 @@
+/*
+ * Copyright (c) 2025, Alliance for Open Media. All rights reserved.
+ *
+ * This source code is subject to the terms of the BSD 2 Clause License and
+ * the Alliance for Open Media Patent License 1.0. If the BSD 2 Clause License
+ * was not distributed with this source code in the LICENSE file, you can
+ * obtain it at www.aomedia.org/license/software. If the Alliance for Open
+ * Media Patent License 1.0 was not distributed with this source code in the
+ * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
+ */
+
 #ifndef AV1_COMMON_SELFGUIDED_HWY_H_
 #define AV1_COMMON_SELFGUIDED_HWY_H_
 
-#include "aom_dsp/x86/synonyms.h"
-#include "aom_dsp/x86/synonyms_avx2.h"
 #include "av1/common/restoration.h"
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
@@ -719,7 +728,6 @@ HWY_ATTR HWY_INLINE int ApplySelfGuidedRestoration(
 HWY_AFTER_NAMESPACE();
 
 #define MAKE_SELFGUIDED_RESTORATION(suffix)                              \
-  HWY_BEFORE_NAMESPACE();                                                \
   extern "C" int av1_selfguided_restoration_##suffix(                    \
       const uint8_t *dgd8, int width, int height, int dgd_stride,        \
       int32_t *flt0, int32_t *flt1, int flt_stride, int sgr_params_idx,  \
@@ -743,7 +751,6 @@ HWY_AFTER_NAMESPACE();
     return HWY_NAMESPACE::ApplySelfGuidedRestoration(                    \
         dat8, width, height, stride, eps, xqd, dst8, dst_stride, tmpbuf, \
         bit_depth, highbd);                                              \
-  }                                                                      \
-  HWY_AFTER_NAMESPACE();
+  }
 
 #endif  // AV1_COMMON_SELFGUIDED_HWY_H_

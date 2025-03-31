@@ -2513,7 +2513,6 @@ HWY_MAYBE_UNUSED void LowBitdepthForwardTransform2D(const int16_t *src_diff,
 HWY_AFTER_NAMESPACE();
 
 #define MAKE_HIGHBD_TXFM2D(w, h, suffix)                                       \
-  HWY_BEFORE_NAMESPACE();                                                      \
   extern "C" void av1_fwd_txfm2d_##w##x##h##_##suffix(                         \
       const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type,      \
       int bd);                                                                 \
@@ -2523,11 +2522,9 @@ HWY_AFTER_NAMESPACE();
     (void)bd;                                                                  \
     HWY_NAMESPACE::ForwardTransform2D<TX_##w##X##h, int32_t>(input, output,    \
                                                              stride, tx_type); \
-  }                                                                            \
-  HWY_AFTER_NAMESPACE();
+  }
 
 #define MAKE_LOWBD_TXFM2D(w, h, suffix)                                        \
-  HWY_BEFORE_NAMESPACE();                                                      \
   extern "C" void av1_lowbd_fwd_txfm2d_##w##x##h##_##suffix(                   \
       const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type,      \
       int bd);                                                                 \
@@ -2537,11 +2534,9 @@ HWY_AFTER_NAMESPACE();
     (void)bd;                                                                  \
     HWY_NAMESPACE::ForwardTransform2D<TX_##w##X##h, int16_t>(input, output,    \
                                                              stride, tx_type); \
-  }                                                                            \
-  HWY_AFTER_NAMESPACE();
+  }
 
 #define MAKE_LOWBD_TXFM2D_DISPATCH(suffix)                                     \
-  HWY_BEFORE_NAMESPACE();                                                      \
   extern "C" void av1_lowbd_fwd_txfm_##suffix(                                 \
       const int16_t *src_diff, tran_low_t *coeff, int diff_stride,             \
       TxfmParam *txfm_param);                                                  \
@@ -2550,7 +2545,6 @@ HWY_AFTER_NAMESPACE();
       TxfmParam *txfm_param) {                                                 \
     HWY_NAMESPACE::LowBitdepthForwardTransform2D(src_diff, coeff, diff_stride, \
                                                  txfm_param);                  \
-  }                                                                            \
-  HWY_AFTER_NAMESPACE();
+  }
 
 #endif  // AOM_AV1_AV1_FWD_TXFM2D_HWY_H_

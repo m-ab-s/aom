@@ -9,7 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#define HWY_COMPILE_ONLY_STATIC 1
+#define HWY_BASELINE_TARGETS HWY_AVX3
+#define HWY_BROKEN_32BIT 0
 
 #include "aom_dsp/reduce_sum_hwy.h"
 #include "config/aom_config.h"
