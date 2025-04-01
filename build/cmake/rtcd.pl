@@ -72,6 +72,11 @@ while (<CONFIG_FILE>) {
 }
 close CONFIG_FILE;
 
+# Disable any SIMD extensions that are disabled in the configuration.
+foreach my $opt (keys %config) {
+  $disabled{lc($1)} = 1 if !$config{$opt} && $opt =~ /HAVE_(.*)/;
+}
+
 #
 # Routines for the RTCD DSL to call
 #
@@ -444,7 +449,8 @@ if ($opts{arch} eq 'x86') {
   @ALL_ARCHS = filter(qw/mmx sse sse2 sse3 ssse3 sse4_1 sse4_2 avx avx2/);
   x86;
 } elsif ($opts{arch} eq 'x86_64') {
-  @ALL_ARCHS = filter(qw/mmx sse sse2 sse3 ssse3 sse4_1 sse4_2 avx avx2/);
+  @ALL_ARCHS = filter(qw/mmx sse sse2 sse3 ssse3 sse4_1 sse4_2 avx avx2
+                         avx512/);
   if (keys %required == 0) {
     @REQUIRES = filter(qw/mmx sse sse2/);
     &require(@REQUIRES);

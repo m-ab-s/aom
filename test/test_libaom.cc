@@ -11,6 +11,10 @@
 
 #include "gtest/gtest.h"
 
+#if !(defined(_WIN32) || defined(__WIN64))
+#include "third_party/benchmark/include/benchmark/benchmark.h"
+#endif
+
 #include "config/aom_config.h"
 
 #if !CONFIG_SHARED
@@ -55,6 +59,13 @@ static void append_negative_gtest_filter(const char *str) {
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
+#if !(defined(_WIN32) || defined(__WIN64))
+  if (!benchmark::GetBenchmarkFilter().empty()) {
+    benchmark::RunSpecifiedBenchmarks();
+    return 0;
+  }
+#endif
+
 #if !CONFIG_SHARED
 #if AOM_ARCH_AARCH64
   const int caps = aom_arm_cpu_caps();
@@ -79,6 +90,7 @@ int main(int argc, char **argv) {
   if (!(simd_caps & HAS_SSE4_2)) append_negative_gtest_filter("SSE4_2");
   if (!(simd_caps & HAS_AVX)) append_negative_gtest_filter("AVX");
   if (!(simd_caps & HAS_AVX2)) append_negative_gtest_filter("AVX2");
+  if (!(simd_caps & HAS_AVX512)) append_negative_gtest_filter("AVX512");
 #endif  // AOM_ARCH_X86 || AOM_ARCH_X86_64
 
   // Shared library builds don't support whitebox tests that exercise internal

@@ -216,6 +216,52 @@ list(APPEND AOM_WEBM_DECODER_SOURCES "${AOM_ROOT}/common/webmdec.cc"
 list(APPEND AOM_WEBM_ENCODER_SOURCES "${AOM_ROOT}/common/webmenc.cc"
             "${AOM_ROOT}/common/webmenc.h")
 
+list(APPEND AOM_HIGHWAY_SOURCES
+            "${AOM_ROOT}/third_party/highway/hwy/abort.h"
+            "${AOM_ROOT}/third_party/highway/hwy/aligned_allocator.h"
+            "${AOM_ROOT}/third_party/highway/hwy/base.h"
+            "${AOM_ROOT}/third_party/highway/hwy/cache_control.h"
+            "${AOM_ROOT}/third_party/highway/hwy/per_target.h"
+            "${AOM_ROOT}/third_party/highway/hwy/print.h"
+            "${AOM_ROOT}/third_party/highway/hwy/foreach_target.h"
+            "${AOM_ROOT}/third_party/highway/hwy/highway_export.h"
+            "${AOM_ROOT}/third_party/highway/hwy/highway.h"
+            "${AOM_ROOT}/third_party/highway/hwy/print-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/timer-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/detect_compiler_arch.h"
+            "${AOM_ROOT}/third_party/highway/hwy/detect_targets.h"
+            "${AOM_ROOT}/third_party/highway/hwy/targets.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/arm_neon-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/arm_sve-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/emu128-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/generic_ops-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/scalar-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/set_macros-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/shared-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/x86_128-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/x86_256-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/x86_512-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/ops/x86_avx3-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/abort.cc"
+            "${AOM_ROOT}/third_party/highway/hwy/aligned_allocator.cc"
+            "${AOM_ROOT}/third_party/highway/hwy/per_target.cc"
+            "${AOM_ROOT}/third_party/highway/hwy/print.cc"
+            "${AOM_ROOT}/third_party/highway/hwy/targets.cc"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/algo/copy-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/algo/find-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/algo/transform-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/dot/dot-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/image/image.h"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/math/math-inl.h"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/image/image.cc")
+
+list(APPEND HIGHWAY_INCLUDE_DIRS "${AOM_ROOT}/third_party/highway/hwy"
+            "${AOM_ROOT}/third_party/highway/hwy/ops"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/algo"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/dot"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/image"
+            "${AOM_ROOT}/third_party/highway/hwy/contrib/math")
+
 include_directories(${AOM_ROOT} ${AOM_CONFIG_DIR} ${AOM_ROOT}/apps
                     ${AOM_ROOT}/common ${AOM_ROOT}/examples ${AOM_ROOT}/stats)
 
@@ -478,24 +524,44 @@ if(CONFIG_AV1_DECODER AND ENABLE_EXAMPLES)
   list(APPEND AOM_APP_TARGETS ${AOM_DECODER_EXAMPLE_TARGETS})
 endif()
 
+# Function to disable specific compiler flags for a target
+function(disable_compiler_flags target_name)
+  set(options)
+  set(oneValueArgs)
+  set(multiValueArgs FLAGS)
+  cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}"
+                        ${ARGN})
+  foreach(flag IN LISTS ARG_FLAGS)
+    is_flag_present(AOM_CXX_FLAGS "${flag}" flag_present)
+    if(flag_present)
+      string(REPLACE "-W" "-Wno-" no_warn_flag "${flag}")
+      target_compile_options(${target_name} PRIVATE "${no_warn_flag}")
+    endif()
+  endforeach()
+endfunction()
+
 if(CONFIG_LIBYUV OR CONFIG_TUNE_BUTTERAUGLI)
   add_library(yuv OBJECT ${AOM_LIBYUV_SOURCES})
   if(NOT MSVC)
     target_compile_options(yuv PRIVATE -Wno-shadow)
-    # Many functions in libyuv trigger this warning when enabled with gcc and
-    # clang.
-    is_flag_present(AOM_CXX_FLAGS "-Wmissing-declarations" flag_present)
-    if(flag_present)
-      target_compile_options(yuv PRIVATE -Wno-missing-declarations)
-    endif()
-    # Many functions in libyuv trigger this warning when enabled with clang.
-    is_flag_present(AOM_CXX_FLAGS "-Wmissing-prototypes" flag_present)
-    if(flag_present)
-      target_compile_options(yuv PRIVATE -Wno-missing-prototypes)
-    endif()
+    disable_compiler_flags(yuv FLAGS -Wmissing-declarations
+                           -Wmissing-prototypes)
   endif()
   include_directories("${AOM_ROOT}/third_party/libyuv/include")
 endif()
+
+add_library(hwy ${AOM_HIGHWAY_SOURCES})
+if(NOT MSVC)
+  disable_compiler_flags(hwy FLAGS -Wmissing-declarations)
+  # For Arm builds
+  disable_compiler_flags(hwy FLAGS -Wundef -Wshadow -Wc++17-extensions)
+  target_compile_options(hwy PRIVATE -Wno-format-nonliteral)
+endif()
+target_include_directories(hwy
+                           PUBLIC $<BUILD_INTERFACE:${HIGHWAY_INCLUDE_DIRS}>
+                                  $<INSTALL_INTERFACE:include>)
+
+target_link_libraries(aom ${AOM_LIB_LINK_TYPE} hwy)
 
 if(CONFIG_AV1_ENCODER)
   if(ENABLE_EXAMPLES)
