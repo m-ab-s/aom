@@ -79,9 +79,9 @@ macro(setup_aom_install_targets)
     endif()
 
     if(BUILD_SHARED_LIBS)
-      set(AOM_INSTALL_LIBS aom aom_static)
+      set(AOM_INSTALL_LIBS aom aom_static hwy)
     else()
-      set(AOM_INSTALL_LIBS aom)
+      set(AOM_INSTALL_LIBS aom hwy)
     endif()
 
     # Setup the install rules. install() will automatically prepend

@@ -551,7 +551,9 @@ if(NOT MSVC)
   disable_compiler_flags(hwy FLAGS -Wundef -Wshadow -Wc++17-extensions)
   target_compile_options(hwy PRIVATE -Wno-format-nonliteral)
 endif()
-target_include_directories(hwy PUBLIC ${HIGHWAY_INCLUDE_DIRS})
+target_include_directories(hwy
+                           PUBLIC $<BUILD_INTERFACE:${HIGHWAY_INCLUDE_DIRS}>
+                                  $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(aom ${AOM_LIB_LINK_TYPE} hwy)
 
