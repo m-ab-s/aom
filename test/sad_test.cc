@@ -26,7 +26,7 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
 
-#if HAVE_AVX2 && CONFIG_BENCHMARK
+#if CONFIG_BENCHMARK
 #include "third_party/benchmark/include/benchmark/benchmark.h"
 #endif
 
@@ -601,9 +601,7 @@ TEST_P(SADTest, DISABLED_Speed) {
   source_stride_ = tmp_stride;
 }
 
-// Exclude benchmark from windows build.
-// avx2 highway is excluded from non 64 bit x86.
-#if CONFIG_BENCHMARK && AOM_ARCH_X86_64
+#if CONFIG_BENCHMARK
 static void FillRandomForBM(uint8_t *data, ACMRandom &rnd, int stride,
                             int height) {
   for (int j = 0; j < height; ++j) {
@@ -671,7 +669,7 @@ BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x128_avx512, 64, 128>);
 BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x64_avx512, 64, 64>);
 BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x32_avx512, 64, 32>);
 #endif
-#endif  //  !(defined(_WIN32) || defined(_WIN64))
+#endif  // CONFIG_BENCHMARK
 
 TEST_P(SADSkipTest, MaxRef) {
   FillConstant(source_data_, source_stride_, 0);
