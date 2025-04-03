@@ -2497,6 +2497,7 @@ void av1_rc_postencode_update_drop_frame(AV1_COMP *cpi) {
   if (cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1) {
     cpi->svc.prev_number_spatial_layers = cpi->svc.number_spatial_layers;
   }
+  cpi->svc.prev_number_temporal_layers = cpi->svc.number_temporal_layers;
 }
 
 int av1_find_qindex(double desired_q, aom_bit_depth_t bit_depth,
