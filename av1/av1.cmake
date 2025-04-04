@@ -295,7 +295,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/common/x86/highbd_inv_txfm_sse4.c"
             "${AOM_ROOT}/av1/common/x86/intra_edge_sse4.c"
             "${AOM_ROOT}/av1/common/x86/reconinter_sse4.c"
-            "${AOM_ROOT}/av1/common/x86/selfguided_hwy_sse4.cc"
+            "${AOM_ROOT}/av1/common/x86/selfguided_sse4.cc"
             "${AOM_ROOT}/av1/common/x86/warp_plane_sse4.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
@@ -309,18 +309,18 @@ list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/av1/common/x86/jnt_convolve_avx2.c"
             "${AOM_ROOT}/av1/common/x86/reconinter_avx2.c"
             "${AOM_ROOT}/av1/common/x86/resize_avx2.c"
-            "${AOM_ROOT}/av1/common/x86/selfguided_hwy_avx2.cc"
+            "${AOM_ROOT}/av1/common/x86/selfguided_avx2.cc"
             "${AOM_ROOT}/av1/common/x86/warp_plane_avx2.c"
             "${AOM_ROOT}/av1/common/x86/wiener_convolve_avx2.c")
 
 list(APPEND AOM_AV1_COMMON_INTRIN_AVX512
-            "${AOM_ROOT}/av1/common/x86/selfguided_hwy_avx512.cc")
+            "${AOM_ROOT}/av1/common/x86/selfguided_avx512.cc")
 
 list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm"
             "${AOM_ROOT}/av1/encoder/x86/error_sse2.asm")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
-            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_hwy_sse2.cc"
+            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_sse2.cc"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_sse2.h"
             "${AOM_ROOT}/av1/encoder/x86/av1_k_means_sse2.c"
@@ -345,7 +345,7 @@ list(APPEND AOM_AV1_ENCODER_ASM_SSSE3_X86_64
 list(APPEND AOM_AV1_ENCODER_INTRIN_SSE4_1
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm1d_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_sse4.c"
-            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_hwy_sse4.cc"
+            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_sse4.cc"
             "${AOM_ROOT}/av1/encoder/x86/encodetxb_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/highbd_fwd_txfm_sse4.c"
             "${AOM_ROOT}/av1/encoder/x86/rdopt_sse4.c"
@@ -356,7 +356,7 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
             "${AOM_ROOT}/av1/encoder/x86/error_intrin_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_avx2.h"
             "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx2.c"
-            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_hwy_avx2.cc"
+            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx2.cc"
             "${AOM_ROOT}/av1/encoder/x86/wedge_utils_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/encodetxb_avx2.c"
             "${AOM_ROOT}/av1/encoder/x86/rdopt_avx2.c"
@@ -373,7 +373,7 @@ if(NOT CONFIG_EXCLUDE_SIMD_MISMATCH)
 endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_AVX512
-            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_hwy_avx512.cc")
+            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx512.cc")
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/av1_error_neon.c"
@@ -583,7 +583,7 @@ if(CONFIG_REALTIME_ONLY)
 
     list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_SSE4_1
                      "${AOM_ROOT}/av1/common/x86/highbd_warp_plane_sse4.c"
-                     "${AOM_ROOT}/av1/common/x86/selfguided_hwy_sse4.cc"
+                     "${AOM_ROOT}/av1/common/x86/selfguided_sse4.cc"
                      "${AOM_ROOT}/av1/common/x86/warp_plane_sse4.c")
 
     list(
@@ -595,12 +595,12 @@ if(CONFIG_REALTIME_ONLY)
                      "${AOM_ROOT}/av1/common/x86/cfl_avx2.c"
                      "${AOM_ROOT}/av1/common/x86/highbd_warp_affine_avx2.c"
                      "${AOM_ROOT}/av1/common/x86/highbd_wiener_convolve_avx2.c"
-                     "${AOM_ROOT}/av1/common/x86/selfguided_hwy_avx2.cc"
+                     "${AOM_ROOT}/av1/common/x86/selfguided_avx2.cc"
                      "${AOM_ROOT}/av1/common/x86/warp_plane_avx2.c"
                      "${AOM_ROOT}/av1/common/x86/wiener_convolve_avx2.c")
 
     list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_AVX512
-                     "${AOM_ROOT}/av1/common/x86/selfguided_hwy_avx512.cc")
+                     "${AOM_ROOT}/av1/common/x86/selfguided_avx512.cc")
 
     list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_NEON
                      "${AOM_ROOT}/av1/common/arm/cfl_neon.c"
