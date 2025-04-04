@@ -11,11 +11,11 @@
 
 #include "gtest/gtest.h"
 
-#include "config/aom_config.h"
-
-#if CONFIG_BENCHMARK
+#if !(defined(_WIN32) || defined(__WIN64))
 #include "third_party/benchmark/include/benchmark/benchmark.h"
 #endif
+
+#include "config/aom_config.h"
 
 #if !CONFIG_SHARED
 #include <string.h>
@@ -59,7 +59,7 @@ static void append_negative_gtest_filter(const char *str) {
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
-#if CONFIG_BENCHMARK
+#if !(defined(_WIN32) || defined(__WIN64))
   if (!benchmark::GetBenchmarkFilter().empty()) {
     benchmark::RunSpecifiedBenchmarks();
     return 0;
