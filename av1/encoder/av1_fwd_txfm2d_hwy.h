@@ -132,9 +132,11 @@ constexpr int GetTxhIndex(TX_SIZE tx_size) {
 template <typename D>
 HWY_ATTR HWY_INLINE hn::VFromD<D> SetPair(D int_tag, int a, int b) {
   return hn::BitCast(
-      int_tag, hn::Set(hn::RepartitionToWide<D>(),
-                       static_cast<int32_t>(static_cast<uint16_t>(a) |
-                                            (static_cast<uint32_t>(b) << 16))));
+      int_tag,
+      hn::Set(hn::RepartitionToWide<D>(),
+              static_cast<int32_t>(
+                  static_cast<uint16_t>(a) |
+                  (static_cast<uint32_t>(static_cast<uint16_t>(b)) << 16))));
 }
 
 template <size_t LaneSize>
