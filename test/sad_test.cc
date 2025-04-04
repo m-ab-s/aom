@@ -26,10 +26,6 @@
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/mem.h"
 
-#if HAVE_AVX2 && CONFIG_BENCHMARK
-#include "third_party/benchmark/include/benchmark/benchmark.h"
-#endif
-
 typedef unsigned int (*SadMxNFunc)(const uint8_t *src_ptr, int src_stride,
                                    const uint8_t *ref_ptr, int ref_stride);
 typedef std::tuple<int, int, SadMxNFunc, int> SadMxNParam;
@@ -600,78 +596,6 @@ TEST_P(SADTest, DISABLED_Speed) {
   SpeedSAD();
   source_stride_ = tmp_stride;
 }
-
-// Exclude benchmark from windows build.
-// avx2 highway is excluded from non 64 bit x86.
-#if CONFIG_BENCHMARK && AOM_ARCH_X86_64
-static void FillRandomForBM(uint8_t *data, ACMRandom &rnd, int stride,
-                            int height) {
-  for (int j = 0; j < height; ++j) {
-    for (int i = 0; i < stride; ++i) {
-      data[j * stride + i] = rnd.Rand8();
-    }
-  }
-}
-
-using SADFuncPtr = unsigned int (*)(const uint8_t *src_ptr, int src_stride,
-                                    const uint8_t *ref_ptr, int ref_stride);
-
-template <SADFuncPtr SADFunc, int width, int height>
-static void BM_SAD(benchmark::State &state) {
-  const int source_stride = (width + 31) & ~31;
-  const int reference_stride = width * 2;
-  constexpr int kAlignment = 16;
-  constexpr int kBlockSize = 128 * 256;
-  constexpr int kBufferSize = 4 * kBlockSize;
-  ACMRandom rnd;
-  rnd.Reset(ACMRandom::DeterministicSeed());
-  // This matches the allocation in SADTestBase::SetUpTestSuite()
-  uint8_t *source_data =
-      reinterpret_cast<uint8_t *>(aom_memalign(kAlignment, kBlockSize));
-  uint8_t *reference_data =
-      reinterpret_cast<uint8_t *>(aom_memalign(kAlignment, kBufferSize));
-  FillRandomForBM(source_data, rnd, source_stride, height);
-  FillRandomForBM(reference_data, rnd, reference_stride, height);
-  for (auto _ : state) {
-    (void)_;
-    SADFunc(source_data, source_stride, reference_data, reference_stride);
-  }
-  aom_free(source_data);
-  aom_free(reference_data);
-  state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * width *
-                          height);
-}
-
-template <SADFuncPtr SADFunc, int width, int height>
-static void BM_SAD_SKIP(benchmark::State &state) {
-  BM_SAD<SADFunc, width, height>(state);
-}
-
-#if HAVE_AVX2
-BENCHMARK(BM_SAD<aom_sad128x128_avx2, 128, 128>);
-BENCHMARK(BM_SAD<aom_sad128x64_avx2, 128, 64>);
-BENCHMARK(BM_SAD<aom_sad64x128_avx2, 64, 128>);
-BENCHMARK(BM_SAD<aom_sad64x64_avx2, 64, 64>);
-BENCHMARK(BM_SAD<aom_sad64x32_avx2, 64, 32>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_128x128_avx2, 128, 128>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_128x64_avx2, 128, 64>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x128_avx2, 64, 128>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x64_avx2, 64, 64>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x32_avx2, 64, 32>);
-#endif
-#if HAVE_AVX512
-BENCHMARK(BM_SAD<aom_sad128x128_avx512, 128, 128>);
-BENCHMARK(BM_SAD<aom_sad128x64_avx512, 128, 64>);
-BENCHMARK(BM_SAD<aom_sad64x128_avx512, 64, 128>);
-BENCHMARK(BM_SAD<aom_sad64x64_avx512, 64, 64>);
-BENCHMARK(BM_SAD<aom_sad64x32_avx512, 64, 32>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_128x128_avx512, 128, 128>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_128x64_avx512, 128, 64>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x128_avx512, 64, 128>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x64_avx512, 64, 64>);
-BENCHMARK(BM_SAD_SKIP<aom_sad_skip_64x32_avx512, 64, 32>);
-#endif
-#endif  //  !(defined(_WIN32) || defined(_WIN64))
 
 TEST_P(SADSkipTest, MaxRef) {
   FillConstant(source_data_, source_stride_, 0);
@@ -2998,66 +2922,5 @@ const SadMxNx4Param x3d_avx2_tests[] = {
 };
 INSTANTIATE_TEST_SUITE_P(AVX2, SADx3Test, ::testing::ValuesIn(x3d_avx2_tests));
 #endif  // HAVE_AVX2
-
-#if HAVE_AVX512
-const SadMxNParam avx512_tests[] = {
-  make_tuple(64, 128, &aom_sad64x128_avx512, -1),
-  make_tuple(128, 64, &aom_sad128x64_avx512, -1),
-  make_tuple(128, 128, &aom_sad128x128_avx512, -1),
-  make_tuple(64, 64, &aom_sad64x64_avx512, -1),
-  make_tuple(64, 32, &aom_sad64x32_avx512, -1),
-};
-INSTANTIATE_TEST_SUITE_P(AVX512, SADTest, ::testing::ValuesIn(avx512_tests));
-
-const SadMxNAvgParam avg_avx512_tests[] = {
-  make_tuple(64, 128, &aom_sad64x128_avg_avx512, -1),
-  make_tuple(128, 64, &aom_sad128x64_avg_avx512, -1),
-  make_tuple(128, 128, &aom_sad128x128_avg_avx512, -1),
-  make_tuple(64, 64, &aom_sad64x64_avg_avx512, -1),
-  make_tuple(64, 32, &aom_sad64x32_avg_avx512, -1),
-};
-INSTANTIATE_TEST_SUITE_P(AVX512, SADavgTest,
-                         ::testing::ValuesIn(avg_avx512_tests));
-
-const SadSkipMxNParam skip_avx512_tests[] = {
-  make_tuple(128, 128, &aom_sad_skip_128x128_avx512, -1),
-  make_tuple(128, 64, &aom_sad_skip_128x64_avx512, -1),
-  make_tuple(64, 128, &aom_sad_skip_64x128_avx512, -1),
-  make_tuple(64, 64, &aom_sad_skip_64x64_avx512, -1),
-  make_tuple(64, 32, &aom_sad_skip_64x32_avx512, -1),
-};
-INSTANTIATE_TEST_SUITE_P(AVX512, SADSkipTest,
-                         ::testing::ValuesIn(skip_avx512_tests));
-
-const SadMxNx4Param x3d_avx512_tests[] = {
-  make_tuple(128, 128, &aom_sad128x128x3d_avx512, -1),
-  make_tuple(128, 64, &aom_sad128x64x3d_avx512, -1),
-  make_tuple(64, 128, &aom_sad64x128x3d_avx512, -1),
-  make_tuple(64, 64, &aom_sad64x64x3d_avx512, -1),
-  make_tuple(64, 32, &aom_sad64x32x3d_avx512, -1),
-};
-INSTANTIATE_TEST_SUITE_P(AVX512, SADx3Test,
-                         ::testing::ValuesIn(x3d_avx512_tests));
-
-const SadMxNx4Param x4d_avx512_tests[] = {
-  make_tuple(128, 128, &aom_sad128x128x4d_avx512, -1),
-  make_tuple(128, 64, &aom_sad128x64x4d_avx512, -1),
-  make_tuple(64, 128, &aom_sad64x128x4d_avx512, -1),
-  make_tuple(64, 64, &aom_sad64x64x4d_avx512, -1),
-  make_tuple(64, 32, &aom_sad64x32x4d_avx512, -1),
-};
-INSTANTIATE_TEST_SUITE_P(AVX512, SADx4Test,
-                         ::testing::ValuesIn(x4d_avx512_tests));
-
-const SadSkipMxNx4Param skip_x4d_avx512_tests[] = {
-  make_tuple(128, 128, &aom_sad_skip_128x128x4d_avx512, -1),
-  make_tuple(128, 64, &aom_sad_skip_128x64x4d_avx512, -1),
-  make_tuple(64, 128, &aom_sad_skip_64x128x4d_avx512, -1),
-  make_tuple(64, 64, &aom_sad_skip_64x64x4d_avx512, -1),
-  make_tuple(64, 32, &aom_sad_skip_64x32x4d_avx512, -1),
-};
-INSTANTIATE_TEST_SUITE_P(AVX512, SADSkipx4Test,
-                         ::testing::ValuesIn(skip_x4d_avx512_tests));
-#endif  // HAVE_AVX512
 
 }  // namespace

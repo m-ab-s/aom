@@ -51,7 +51,6 @@ set_aom_detect_var(HAVE_SSE4_1 0 "Enables SSE 4.1 optimizations.")
 set_aom_detect_var(HAVE_SSE4_2 0 "Enables SSE 4.2 optimizations.")
 set_aom_detect_var(HAVE_AVX 0 "Enables AVX optimizations.")
 set_aom_detect_var(HAVE_AVX2 0 "Enables AVX2 optimizations.")
-set_aom_detect_var(HAVE_AVX512 0 "Enables AVX512 optimizations.")
 
 # RISC-V64 feature flags.
 set_aom_detect_var(HAVE_RVV 0 "Enables RVV optimizations.")
@@ -130,15 +129,6 @@ set_aom_config_var(CONFIG_TUNE_VMAF 0 "Enable encoding tuning for VMAF.")
 set_aom_config_var(DECODE_HEIGHT_LIMIT 0 "Set limit for decode height.")
 set_aom_config_var(DECODE_WIDTH_LIMIT 0 "Set limit for decode width.")
 set_aom_config_var(STATIC_LINK_JXL 0 "Statically link the JPEG-XL library.")
-
-if(MSVC OR WIN32)
-  set(BUILD_BENCHMARK 0)
-else()
-  set(BUILD_BENCHMARK 1)
-endif()
-
-set_aom_config_var(CONFIG_BENCHMARK ${BUILD_BENCHMARK}
-                   "Build Benchmark for tests.")
 
 # AV1 experiment flags.
 set_aom_config_var(CONFIG_BITRATE_ACCURACY 0
@@ -255,8 +245,6 @@ set_aom_option_var(ENABLE_AVX "Enables AVX optimizations on x86/x86_64 targets."
                    ON)
 set_aom_option_var(ENABLE_AVX2
                    "Enables AVX2 optimizations on x86/x86_64 targets." ON)
-set_aom_option_var(ENABLE_AVX512
-                   "Enables AVX512 optimizations on x86/x86_64 targets." ON)
 
 # RVV intrinsics flags.
 set_aom_option_var(ENABLE_RVV "Enables RVV optimizations on RISC-V targets." ON)

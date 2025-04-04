@@ -171,9 +171,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/psnr.h"
               "${AOM_ROOT}/aom_dsp/quantize.c"
               "${AOM_ROOT}/aom_dsp/quantize.h"
-              "${AOM_ROOT}/aom_dsp/reduce_sum_hwy.h"
               "${AOM_ROOT}/aom_dsp/sad.c"
-              "${AOM_ROOT}/aom_dsp/sad_hwy.h"
               "${AOM_ROOT}/aom_dsp/sad_av1.c"
               "${AOM_ROOT}/aom_dsp/subtract.c"
               "${AOM_ROOT}/aom_dsp/sse.c"
@@ -252,7 +250,7 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/quantize_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad4d_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sad_avx2.c"
-              "${AOM_ROOT}/aom_dsp/x86/sad_avx2.cc"
+              "${AOM_ROOT}/aom_dsp/x86/sad_impl_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/variance_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sse_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/variance_impl_avx2.c"
@@ -263,10 +261,6 @@ if(CONFIG_AV1_ENCODER)
 
   list(APPEND AOM_DSP_ENCODER_INTRIN_AVX
               "${AOM_ROOT}/aom_dsp/x86/aom_quantize_avx.c")
-
-  list(APPEND AOM_DSP_ENCODER_INTRIN_AVX512
-              "${AOM_ROOT}/aom_dsp/x86/sad_avx512.cc"
-              "${AOM_ROOT}/aom_dsp/x86/variance_avx512.cc")
 
   list(APPEND AOM_DSP_ENCODER_INTRIN_SSSE3
               "${AOM_ROOT}/aom_dsp/x86/masked_sad_intrin_ssse3.h"
@@ -484,14 +478,6 @@ function(setup_aom_dsp_targets)
     if(CONFIG_AV1_ENCODER)
       add_intrinsics_object_library("-mavx2" "avx2" "aom_dsp_encoder"
                                     "AOM_DSP_ENCODER_INTRIN_AVX2")
-    endif()
-  endif()
-
-  if(HAVE_AVX512)
-    if(CONFIG_AV1_ENCODER)
-      add_intrinsics_object_library("-march=skylake-avx512" "avx512"
-                                    "aom_dsp_encoder"
-                                    "AOM_DSP_ENCODER_INTRIN_AVX512")
     endif()
   endif()
 

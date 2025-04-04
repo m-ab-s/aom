@@ -3055,28 +3055,6 @@ INSTANTIATE_TEST_SUITE_P(
                                 0)));
 #endif  // HAVE_AVX2
 
-#if HAVE_AVX512
-const VarianceParams kArrayVariance_avx512[] = {
-  VarianceParams(7, 7, &aom_variance128x128_avx512),
-  VarianceParams(7, 6, &aom_variance128x64_avx512),
-  VarianceParams(6, 7, &aom_variance64x128_avx512),
-  VarianceParams(6, 6, &aom_variance64x64_avx512),
-  VarianceParams(6, 5, &aom_variance64x32_avx512),
-  VarianceParams(5, 6, &aom_variance32x64_avx512),
-  VarianceParams(5, 5, &aom_variance32x32_avx512),
-  VarianceParams(5, 4, &aom_variance32x16_avx512),
-  VarianceParams(4, 5, &aom_variance16x32_avx512),
-  VarianceParams(4, 4, &aom_variance16x16_avx512),
-  VarianceParams(4, 3, &aom_variance16x8_avx512),
-#if !CONFIG_REALTIME_ONLY
-  VarianceParams(6, 4, &aom_variance64x16_avx512),
-  VarianceParams(5, 3, &aom_variance32x8_avx512),
-#endif
-};
-INSTANTIATE_TEST_SUITE_P(AVX512, AvxVarianceTest,
-                         ::testing::ValuesIn(kArrayVariance_avx512));
-#endif  // HAVE_AVX512
-
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, MseWxHTest,

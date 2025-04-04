@@ -167,7 +167,6 @@ static inline uint64_t xgetbv(void) {
 #define HAS_AVX 0x40
 #define HAS_AVX2 0x80
 #define HAS_SSE4_2 0x100
-#define HAS_AVX512 0x200
 #ifndef BIT
 #define BIT(n) (1u << (n))
 #endif
@@ -220,14 +219,6 @@ static inline int x86_simd_caps(void) {
         cpuid(7, 0, reg_eax, reg_ebx, reg_ecx, reg_edx);
 
         if (reg_ebx & BIT(5)) flags |= HAS_AVX2;
-
-        // bits 16 (AVX-512F) & 17 (AVX-512DQ) & 28 (AVX-512CD) &
-        // 30 (AVX-512BW) & 32 (AVX-512VL)
-        if ((reg_ebx & (BIT(16) | BIT(17) | BIT(28) | BIT(30) | BIT(31))) ==
-            (BIT(16) | BIT(17) | BIT(28) | BIT(30) | BIT(31))) {
-          // Check for OS-support of ZMM and YMM state. Necessary for AVX-512.
-          if ((xgetbv() & 0xe6) == 0xe6) flags |= HAS_AVX512;
-        }
       }
     }
   }

@@ -19,6 +19,16 @@
 #include "av1/encoder/x86/av1_txfm1d_sse4.h"
 #include "av1/encoder/x86/av1_fwd_txfm_sse2.h"
 
+static inline void int16_array_with_stride_to_int32_array_without_stride(
+    const int16_t *input, int stride, int32_t *output, int txfm1d_size) {
+  int r, c;
+  for (r = 0; r < txfm1d_size; r++) {
+    for (c = 0; c < txfm1d_size; c++) {
+      output[r * txfm1d_size + c] = (int32_t)input[r * stride + c];
+    }
+  }
+}
+
 static inline void store_output_32bit_w8(int32_t *const out,
                                          const __m128i *const in1,
                                          const __m128i *const in2,
@@ -27,6 +37,137 @@ static inline void store_output_32bit_w8(int32_t *const out,
     _mm_store_si128((__m128i *)(out + stride * i), in1[i]);
     _mm_store_si128((__m128i *)(out + stride * i + 4), in2[i]);
   }
+}
+
+typedef void (*TxfmFuncSSE2)(__m128i *input, __m128i *output,
+                             const int8_t cos_bit, const int8_t *stage_range);
+
+static void fdct32_sse4_1(__m128i *input, __m128i *output, const int8_t cos_bit,
+                          const int8_t *stage_range) {
+  const int txfm_size = 32;
+  const int num_per_128 = 4;
+  int col_num = txfm_size / num_per_128;
+  int col;
+  (void)stage_range;
+  for (col = 0; col < col_num; col++) {
+    av1_fdct32_sse4_1((input + col), (output + col), cos_bit, col_num);
+  }
+}
+
+static void fdct64_new_sse4_1(__m128i *input, __m128i *output,
+                              const int8_t cos_bit, const int8_t *stage_range) {
+  const int txfm_size = 64;
+  const int num_per_128 = 4;
+  int col_num = txfm_size / num_per_128;
+  (void)stage_range;
+  for (int col = 0; col < col_num; col++) {
+    av1_fdct64_sse4_1((input + col), (output + col), cos_bit, col_num, col_num);
+  }
+}
+static void idtx32x32_sse4_1(__m128i *input, __m128i *output,
+                             const int8_t cos_bit, const int8_t *stage_range) {
+  (void)stage_range;
+
+  for (int i = 0; i < 8; i++) {
+    av1_idtx32_sse4_1(&input[i * 32], &output[i * 32], cos_bit, 1);
+  }
+}
+
+static inline TxfmFuncSSE2 fwd_txfm_type_to_func(TXFM_TYPE txfm_type) {
+  switch (txfm_type) {
+    case TXFM_TYPE_DCT32: return fdct32_sse4_1;
+    case TXFM_TYPE_DCT64: return fdct64_new_sse4_1;
+    case TXFM_TYPE_IDENTITY32: return idtx32x32_sse4_1;
+    default: assert(0);
+  }
+  return NULL;
+}
+
+static inline void fwd_txfm2d_sse4_1(const int16_t *input, int32_t *output,
+                                     const int stride,
+                                     const TXFM_2D_FLIP_CFG *cfg,
+                                     int32_t *txfm_buf) {
+  // TODO(sarahparker) This does not currently support rectangular transforms
+  // and will break without splitting txfm_size out into row and col size.
+  // Rectangular transforms use c code only, so it should be ok for now.
+  // It will be corrected when there are sse implementations for rectangular
+  // transforms.
+  assert(cfg->tx_size < TX_SIZES);
+  const int txfm_size = tx_size_wide[cfg->tx_size];
+  const int8_t *shift = cfg->shift;
+  const int8_t *stage_range_col = cfg->stage_range_col;
+  const int8_t *stage_range_row = cfg->stage_range_row;
+  const int8_t cos_bit_col = cfg->cos_bit_col;
+  const int8_t cos_bit_row = cfg->cos_bit_row;
+  const TxfmFuncSSE2 txfm_func_col = fwd_txfm_type_to_func(cfg->txfm_type_col);
+  const TxfmFuncSSE2 txfm_func_row = fwd_txfm_type_to_func(cfg->txfm_type_row);
+
+  __m128i *buf_128 = (__m128i *)txfm_buf;
+  __m128i *out_128 = (__m128i *)output;
+  int num_per_128 = 4;
+  int txfm2d_size_128 = txfm_size * txfm_size / num_per_128;
+
+  int16_array_with_stride_to_int32_array_without_stride(input, stride, txfm_buf,
+                                                        txfm_size);
+  av1_round_shift_array_32_sse4_1(buf_128, out_128, txfm2d_size_128, -shift[0]);
+  txfm_func_col(out_128, buf_128, cos_bit_col, stage_range_col);
+  av1_round_shift_array_32_sse4_1(buf_128, out_128, txfm2d_size_128, -shift[1]);
+  transpose_32(txfm_size, out_128, buf_128);
+  txfm_func_row(buf_128, out_128, cos_bit_row, stage_range_row);
+  av1_round_shift_array_32_sse4_1(out_128, out_128, txfm2d_size_128, -shift[2]);
+}
+
+static inline void fwd_txfm2d_64x64_sse4_1(const int16_t *input,
+                                           int32_t *output, const int stride,
+                                           const TXFM_2D_FLIP_CFG *cfg,
+                                           int32_t *txfm_buf) {
+  assert(cfg->tx_size < TX_SIZES);
+  const int txfm_size = tx_size_wide[cfg->tx_size];
+  const int8_t *shift = cfg->shift;
+  const int8_t *stage_range_col = cfg->stage_range_col;
+  const int8_t cos_bit_col = cfg->cos_bit_col;
+  const int8_t cos_bit_row = cfg->cos_bit_row;
+  const TxfmFuncSSE2 txfm_func_col = fwd_txfm_type_to_func(cfg->txfm_type_col);
+  __m128i *buf_128 = (__m128i *)txfm_buf;
+  __m128i *out_128 = (__m128i *)output;
+
+  const int num_per_128 = 4;
+  int txfm2d_size_128 = txfm_size * txfm_size / num_per_128;
+  int col_num = txfm_size / num_per_128;
+
+  int16_array_with_stride_to_int32_array_without_stride(input, stride, output,
+                                                        txfm_size);
+  /*col wise transform*/
+  txfm_func_col(out_128, buf_128, cos_bit_col, stage_range_col);
+  av1_round_shift_array_32_sse4_1(buf_128, out_128, txfm2d_size_128, -shift[1]);
+  transpose_32(txfm_size, out_128, buf_128);
+
+  /*row wise transform*/
+  for (int col = 0; col < (col_num >> 1); col++) {
+    av1_fdct64_sse4_1((buf_128 + col), (out_128 + col), cos_bit_row, col_num,
+                      (col_num >> 1));
+  }
+
+  txfm2d_size_128 = (col_num >> 1) * (txfm_size >> 1);
+  av1_round_shift_array_32_sse4_1(out_128, out_128, txfm2d_size_128, -shift[2]);
+}
+
+void av1_fwd_txfm2d_32x32_sse4_1(const int16_t *input, int32_t *output,
+                                 int stride, TX_TYPE tx_type, int bd) {
+  DECLARE_ALIGNED(16, int32_t, txfm_buf[1024]);
+  TXFM_2D_FLIP_CFG cfg;
+  av1_get_fwd_txfm_cfg(tx_type, TX_32X32, &cfg);
+  (void)bd;
+  fwd_txfm2d_sse4_1(input, output, stride, &cfg, txfm_buf);
+}
+
+void av1_fwd_txfm2d_64x64_sse4_1(const int16_t *input, int32_t *output,
+                                 int stride, TX_TYPE tx_type, int bd) {
+  DECLARE_ALIGNED(16, int32_t, txfm_buf[4096]);
+  TXFM_2D_FLIP_CFG cfg;
+  av1_get_fwd_txfm_cfg(tx_type, TX_64X64, &cfg);
+  (void)bd;
+  fwd_txfm2d_64x64_sse4_1(input, output, stride, &cfg, txfm_buf);
 }
 
 static void lowbd_fwd_txfm2d_64x64_sse4_1(const int16_t *input, int32_t *output,
@@ -161,43 +302,26 @@ static void lowbd_fwd_txfm2d_32x64_sse4_1(const int16_t *input, int32_t *output,
   }
 }
 
-#define DECLARE_LOWBD_TXFM2D(w, h)                                        \
-  extern void av1_lowbd_fwd_txfm2d_##w##x##h##_sse4_1(                    \
-      const int16_t *input, int32_t *output, int stride, TX_TYPE tx_type, \
-      int bd);
-DECLARE_LOWBD_TXFM2D(4, 4)
-DECLARE_LOWBD_TXFM2D(8, 8)
-DECLARE_LOWBD_TXFM2D(16, 16)
-DECLARE_LOWBD_TXFM2D(32, 32)
-DECLARE_LOWBD_TXFM2D(4, 8)
-DECLARE_LOWBD_TXFM2D(8, 16)
-DECLARE_LOWBD_TXFM2D(32, 16)
-DECLARE_LOWBD_TXFM2D(4, 16)
-DECLARE_LOWBD_TXFM2D(16, 4)
-DECLARE_LOWBD_TXFM2D(8, 32)
-DECLARE_LOWBD_TXFM2D(32, 8)
-DECLARE_LOWBD_TXFM2D(64, 16)
-
 static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {
-  av1_lowbd_fwd_txfm2d_4x4_sse4_1,    // 4x4 transform
-  av1_lowbd_fwd_txfm2d_8x8_sse4_1,    // 8x8 transform
-  av1_lowbd_fwd_txfm2d_16x16_sse4_1,  // 16x16 transform
-  av1_lowbd_fwd_txfm2d_32x32_sse4_1,  // 32x32 transform
-  lowbd_fwd_txfm2d_64x64_sse4_1,      // 64x64 transform
-  av1_lowbd_fwd_txfm2d_4x8_sse4_1,    // 4x8 transform
-  av1_lowbd_fwd_txfm2d_8x4_sse2,      // 8x4 transform
-  av1_lowbd_fwd_txfm2d_8x16_sse4_1,   // 8x16 transform
-  av1_lowbd_fwd_txfm2d_16x8_sse2,     // 16x8 transform
-  av1_lowbd_fwd_txfm2d_16x32_sse2,    // 16x32 transform
-  av1_lowbd_fwd_txfm2d_32x16_sse4_1,  // 32x16 transform
-  lowbd_fwd_txfm2d_32x64_sse4_1,      // 32x64 transform
-  lowbd_fwd_txfm2d_64x32_sse4_1,      // 64x32 transform
-  av1_lowbd_fwd_txfm2d_4x16_sse4_1,   // 4x16 transform
-  av1_lowbd_fwd_txfm2d_16x4_sse4_1,   // 16x4 transform
-  av1_lowbd_fwd_txfm2d_8x32_sse4_1,   // 8x32 transform
-  av1_lowbd_fwd_txfm2d_32x8_sse4_1,   // 32x8 transform
-  av1_lowbd_fwd_txfm2d_16x64_sse2,    // 16x64 transform
-  av1_lowbd_fwd_txfm2d_64x16_sse4_1,  // 64x16 transform
+  av1_lowbd_fwd_txfm2d_4x4_sse2,    // 4x4 transform
+  av1_lowbd_fwd_txfm2d_8x8_sse2,    // 8x8 transform
+  av1_lowbd_fwd_txfm2d_16x16_sse2,  // 16x16 transform
+  av1_lowbd_fwd_txfm2d_32x32_sse2,  // 32x32 transform
+  lowbd_fwd_txfm2d_64x64_sse4_1,    // 64x64 transform
+  av1_lowbd_fwd_txfm2d_4x8_sse2,    // 4x8 transform
+  av1_lowbd_fwd_txfm2d_8x4_sse2,    // 8x4 transform
+  av1_lowbd_fwd_txfm2d_8x16_sse2,   // 8x16 transform
+  av1_lowbd_fwd_txfm2d_16x8_sse2,   // 16x8 transform
+  av1_lowbd_fwd_txfm2d_16x32_sse2,  // 16x32 transform
+  av1_lowbd_fwd_txfm2d_32x16_sse2,  // 32x16 transform
+  lowbd_fwd_txfm2d_32x64_sse4_1,    // 32x64 transform
+  lowbd_fwd_txfm2d_64x32_sse4_1,    // 64x32 transform
+  av1_lowbd_fwd_txfm2d_4x16_sse2,   // 4x16 transform
+  av1_lowbd_fwd_txfm2d_16x4_sse2,   // 16x4 transform
+  av1_lowbd_fwd_txfm2d_8x32_sse2,   // 8x32 transform
+  av1_lowbd_fwd_txfm2d_32x8_sse2,   // 32x8 transform
+  av1_lowbd_fwd_txfm2d_16x64_sse2,  // 16x64 transform
+  av1_lowbd_fwd_txfm2d_64x16_sse2,  // 64x16 transform
 };
 
 void av1_lowbd_fwd_txfm_sse4_1(const int16_t *src_diff, tran_low_t *coeff,

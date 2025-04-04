@@ -79,9 +79,9 @@ macro(setup_aom_install_targets)
     endif()
 
     if(BUILD_SHARED_LIBS)
-      set(AOM_INSTALL_LIBS aom aom_static hwy)
+      set(AOM_INSTALL_LIBS aom aom_static)
     else()
-      set(AOM_INSTALL_LIBS aom hwy)
+      set(AOM_INSTALL_LIBS aom)
     endif()
 
     set(AOM_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
