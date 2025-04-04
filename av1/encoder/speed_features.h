@@ -592,6 +592,10 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
 
   // Number of refinement steps to apply after initial model generation
   int num_refinement_steps;
+
+  // Error advantage threshold level used to determine whether global motion
+  // compensation should be enabled
+  int gm_erroradv_tr_level;
 } GLOBAL_MOTION_SPEED_FEATURES;
 
 typedef struct PARTITION_SPEED_FEATURES {

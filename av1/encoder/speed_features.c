@@ -614,6 +614,8 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
         (update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
          update_type == INTNL_OVERLAY_UPDATE);
     if (leaf_and_overlay_frames) sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
+  } else if (is_608p_or_larger) {
+    sf->gm_sf.gm_erroradv_tr_level = 1;
   }
 }
 
@@ -2059,6 +2061,7 @@ static inline void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
   gm_sf->disable_gm_search_based_on_stats = 0;
   gm_sf->downsample_level = 0;
   gm_sf->num_refinement_steps = GM_MAX_REFINEMENT_STEPS;
+  gm_sf->gm_erroradv_tr_level = 0;
 }
 
 static inline void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
