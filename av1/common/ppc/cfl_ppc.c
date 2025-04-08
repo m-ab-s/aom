@@ -19,7 +19,6 @@
 #define OFF_1 16
 #define OFF_2 32
 #define OFF_3 48
-#define CFL_BUF_LINE_BYTES 64
 #define CFL_LINE_1 64
 #define CFL_LINE_2 128
 #define CFL_LINE_3 192
@@ -35,7 +34,6 @@ typedef vector unsigned long long uint64x2_t;  // NOLINT(runtime/int)
 static inline void subtract_average_vsx(const uint16_t *src_ptr, int16_t *dst,
                                         int width, int height, int round_offset,
                                         int num_pel_log2) {
-  //  int16_t *dst = dst_ptr;
   const int16_t *dst_end = dst + height * CFL_BUF_LINE;
   const int16_t *sum_buf = (const int16_t *)src_ptr;
   const int16_t *end = sum_buf + height * CFL_BUF_LINE;
@@ -75,7 +73,7 @@ static inline void subtract_average_vsx(const uint16_t *src_ptr, int16_t *dst,
   do {
     vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0, dst), vec_avg), OFF_0, dst);
     vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0 + CFL_LINE_1, dst), vec_avg),
-               OFF_0 + CFL_BUF_LINE_BYTES, dst);
+               OFF_0 + CFL_LINE_1, dst);
     vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0 + CFL_LINE_2, dst), vec_avg),
                OFF_0 + CFL_LINE_2, dst);
     vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0 + CFL_LINE_3, dst), vec_avg),
