@@ -775,8 +775,9 @@ void av1_change_config_seq(struct AV1_PRIMARY *ppi,
   // Init sequence level coding tools
   // This should not be called after the first key frame.
   // Note that for SVC encoding the sequence parameters
-  // (operating_points_cnt_minus_1, operating_point_idc[]) should be updated
-  // whenever the number of layers is changed. This is done in the
+  // (operating_points_cnt_minus_1, operating_point_idc[],
+  // has_nonzero_operating_point_idc) should be updated whenever the
+  // number of layers is changed. This is done in the
   // ctrl_set_svc_params().
   if (!ppi->seq_params_locked) {
     seq_params->operating_points_cnt_minus_1 =
