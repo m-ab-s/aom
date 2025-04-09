@@ -70,40 +70,42 @@ static inline void subtract_average_vsx(const uint16_t *src_ptr, int16_t *dst,
   sum_32x4 = vec_add(sum_32x4, perm_32);
   const int32x4_t avg = vec_sr(sum_32x4, div_shift);
   const int16x8_t vec_avg = vec_pack(avg, avg);
+  const int16_t *src = (const int16_t *)src_ptr;
   do {
-    vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0, dst), vec_avg), OFF_0, dst);
-    vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0 + CFL_LINE_1, dst), vec_avg),
+    vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0, src), vec_avg), OFF_0, dst);
+    vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0 + CFL_LINE_1, src), vec_avg),
                OFF_0 + CFL_LINE_1, dst);
-    vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0 + CFL_LINE_2, dst), vec_avg),
+    vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0 + CFL_LINE_2, src), vec_avg),
                OFF_0 + CFL_LINE_2, dst);
-    vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0 + CFL_LINE_3, dst), vec_avg),
+    vec_vsx_st(vec_sub(vec_vsx_ld(OFF_0 + CFL_LINE_3, src), vec_avg),
                OFF_0 + CFL_LINE_3, dst);
     if (width >= 16) {
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_1, dst), vec_avg), OFF_1, dst);
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_1 + CFL_LINE_1, dst), vec_avg),
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_1, src), vec_avg), OFF_1, dst);
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_1 + CFL_LINE_1, src), vec_avg),
                  OFF_1 + CFL_LINE_1, dst);
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_1 + CFL_LINE_2, dst), vec_avg),
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_1 + CFL_LINE_2, src), vec_avg),
                  OFF_1 + CFL_LINE_2, dst);
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_1 + CFL_LINE_3, dst), vec_avg),
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_1 + CFL_LINE_3, src), vec_avg),
                  OFF_1 + CFL_LINE_3, dst);
     }
     if (width == 32) {
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_2, dst), vec_avg), OFF_2, dst);
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_2 + CFL_LINE_1, dst), vec_avg),
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_2, src), vec_avg), OFF_2, dst);
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_2 + CFL_LINE_1, src), vec_avg),
                  OFF_2 + CFL_LINE_1, dst);
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_2 + CFL_LINE_2, dst), vec_avg),
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_2 + CFL_LINE_2, src), vec_avg),
                  OFF_2 + CFL_LINE_2, dst);
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_2 + CFL_LINE_3, dst), vec_avg),
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_2 + CFL_LINE_3, src), vec_avg),
                  OFF_2 + CFL_LINE_3, dst);
 
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_3, dst), vec_avg), OFF_3, dst);
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_3 + CFL_LINE_1, dst), vec_avg),
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_3, src), vec_avg), OFF_3, dst);
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_3 + CFL_LINE_1, src), vec_avg),
                  OFF_3 + CFL_LINE_1, dst);
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_3 + CFL_LINE_2, dst), vec_avg),
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_3 + CFL_LINE_2, src), vec_avg),
                  OFF_3 + CFL_LINE_2, dst);
-      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_3 + CFL_LINE_3, dst), vec_avg),
+      vec_vsx_st(vec_sub(vec_vsx_ld(OFF_3 + CFL_LINE_3, src), vec_avg),
                  OFF_3 + CFL_LINE_3, dst);
     }
+    src += CFL_BUF_LINE * 4;
   } while ((dst += CFL_BUF_LINE * 4) < dst_end);
 }
 
