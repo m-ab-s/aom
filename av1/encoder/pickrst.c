@@ -1507,7 +1507,6 @@ static int64_t finer_search_wiener(const RestSearchCtxt *rsc,
 
   WienerInfo *plane_wiener = &rui->wiener_info;
 
-  // printf("err  pre = %"PRId64"\n", err);
   const int start_step = 4;
   for (int s = start_step; s >= 1; s >>= 1) {
     for (int p = plane_off; p < WIENER_HALFWIN; ++p) {
@@ -1593,7 +1592,6 @@ static int64_t finer_search_wiener(const RestSearchCtxt *rsc,
       } while (1);
     }
   }
-  // printf("err post = %"PRId64"\n", err);
   return err;
 }
 

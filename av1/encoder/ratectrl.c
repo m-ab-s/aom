@@ -1448,8 +1448,6 @@ static int get_active_cq_level(const RATE_CONTROL *rc,
   static const double cq_adjust_threshold = 0.1;
   int active_cq_level = rc_cfg->cq_level;
   if (rc_cfg->mode == AOM_CQ || rc_cfg->mode == AOM_Q) {
-    // printf("Superres %d %d %d = %d\n", superres_denom, intra_only,
-    //        rc->frames_to_key, !(intra_only && rc->frames_to_key <= 1));
     if ((superres_mode == AOM_SUPERRES_QTHRESH ||
          superres_mode == AOM_SUPERRES_AUTO) &&
         superres_denom != SCALE_NUMERATOR) {
