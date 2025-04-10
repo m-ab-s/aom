@@ -34,7 +34,6 @@ typedef vector unsigned long long uint64x2_t;  // NOLINT(runtime/int)
 static inline void subtract_average_vsx(const uint16_t *src_ptr, int16_t *dst,
                                         int width, int height, int round_offset,
                                         int num_pel_log2) {
-  const int16_t *dst_end = dst + height * CFL_BUF_LINE;
   const int16_t *sum_buf = (const int16_t *)src_ptr;
   const int16_t *end = sum_buf + height * CFL_BUF_LINE;
   const uint32x4_t div_shift = vec_splats((uint32_t)num_pel_log2);
@@ -61,7 +60,8 @@ static inline void subtract_average_vsx(const uint16_t *src_ptr, int16_t *dst,
       sum_32x4_1 =
           vec_sum4s(vec_vsx_ld(OFF_3 + CFL_LINE_1, sum_buf), sum_32x4_1);
     }
-  } while ((sum_buf += (CFL_BUF_LINE * 2)) < end);
+    sum_buf += CFL_BUF_LINE * 2;
+  } while (sum_buf < end);
   int32x4_t sum_32x4 = vec_add(sum_32x4_0, sum_32x4_1);
 
   const int32x4_t perm_64 = vec_perm(sum_32x4, sum_32x4, mask_64);
@@ -106,7 +106,8 @@ static inline void subtract_average_vsx(const uint16_t *src_ptr, int16_t *dst,
                  OFF_3 + CFL_LINE_3, dst);
     }
     src += CFL_BUF_LINE * 4;
-  } while ((dst += CFL_BUF_LINE * 4) < dst_end);
+    dst += CFL_BUF_LINE * 4;
+  } while (src < end);
 }
 
 // Declare wrappers for VSX sizes
