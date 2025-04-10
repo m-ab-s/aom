@@ -2050,6 +2050,8 @@ void av1_pick_filter_restoration(const YV12_BUFFER_CONFIG *src, AV1_COMP *cpi) {
   min_lr_unit_size =
       AOMMAX(min_lr_unit_size, block_size_wide[cm->seq_params->sb_size]);
 
+  max_lr_unit_size = AOMMAX(min_lr_unit_size, max_lr_unit_size);
+
   for (int plane = 0; plane < num_planes; ++plane) {
     cpi->pick_lr_ctxt.rusi[plane] = allocate_search_structs(
         cm, &cm->rst_info[plane], plane > 0, min_lr_unit_size);

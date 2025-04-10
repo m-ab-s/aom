@@ -2619,6 +2619,29 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
     sf->rt_sf.gf_refresh_based_on_qp = 0;
 }
 
+// Override some speed features for low complexity decode based on qindex.
+static void set_speed_features_lc_dec_qindex_dependent(
+    const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
+  if (speed < 1 || speed > 3) return;
+
+  const AV1_COMMON *const cm = &cpi->common;
+  const int short_dimension = AOMMIN(cm->width, cm->height);
+  const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
+  const FRAME_UPDATE_TYPE update_type =
+      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+  const int leaf_and_overlay_frames =
+      (update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
+       update_type == INTNL_OVERLAY_UPDATE);
+
+  if (short_dimension > 480 && short_dimension < 720) {
+    sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+    sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+  } else if (is_720p_or_larger && speed <= 2 && leaf_and_overlay_frames) {
+    sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+    sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+  }
+}
+
 // Override some speed features based on qindex
 void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   AV1_COMMON *const cm = &cpi->common;
@@ -2821,4 +2844,7 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   set_subpel_search_method(&cpi->mv_search_params,
                            cpi->oxcf.unit_test_cfg.motion_vector_unit_test,
                            sf->mv_sf.subpel_search_method);
+
+  if (cpi->oxcf.enable_low_complexity_decode)
+    set_speed_features_lc_dec_qindex_dependent(cpi, sf, speed);
 }
