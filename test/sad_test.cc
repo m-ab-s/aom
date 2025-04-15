@@ -2923,4 +2923,15 @@ const SadMxNx4Param x3d_avx2_tests[] = {
 INSTANTIATE_TEST_SUITE_P(AVX2, SADx3Test, ::testing::ValuesIn(x3d_avx2_tests));
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+const SadMxNParam avx512_tests[] = {
+  make_tuple(64, 128, &aom_sad64x128_avx512, -1),
+  make_tuple(128, 64, &aom_sad128x64_avx512, -1),
+  make_tuple(128, 128, &aom_sad128x128_avx512, -1),
+  make_tuple(64, 64, &aom_sad64x64_avx512, -1),
+  make_tuple(64, 32, &aom_sad64x32_avx512, -1),
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, SADTest, ::testing::ValuesIn(avx512_tests));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 }  // namespace
