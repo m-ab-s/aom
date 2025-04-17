@@ -2285,7 +2285,12 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
       if (av1_is_scaled(sf)) aom_extend_frame_borders(&buf->buf, num_planes);
     }
   }
-  if (!frame_is_intra_only(cm) && !has_valid_ref_frame) {
+  // For 1 pass CBR mode: we can skip this check for spatial enhancement
+  // layer if the target_bandwidth is zero, since it will be dropped.
+  const bool dropped_frame =
+      has_no_stats_stage(cpi) && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
+      cpi->svc.spatial_layer_id > 0 && cpi->oxcf.rc_cfg.target_bandwidth == 0;
+  if (!frame_is_intra_only(cm) && !has_valid_ref_frame && !dropped_frame) {
     aom_internal_error(
         cm->error, AOM_CODEC_CORRUPT_FRAME,
         "Can't find at least one reference frame with valid size");

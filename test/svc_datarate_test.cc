@@ -79,9 +79,12 @@ void ScaleForFrameNumber(unsigned int frame, unsigned int initial_w,
 
 class ResizingVideoSource : public ::libaom_test::DummyVideoSource {
  public:
-  explicit ResizingVideoSource(int external_resize_pattern) {
+  explicit ResizingVideoSource(int external_resize_pattern, int width,
+                               int height) {
     external_resize_pattern_ = external_resize_pattern;
-    SetSize(1280, 720);
+    top_width_ = width;
+    top_height_ = height;
+    SetSize(top_width_, top_height_);
     limit_ = 300;
   }
   ~ResizingVideoSource() override = default;
@@ -92,7 +95,7 @@ class ResizingVideoSource : public ::libaom_test::DummyVideoSource {
     unsigned int width = 0;
     unsigned int height = 0;
     libaom_test::ACMRandom rnd(libaom_test::ACMRandom::DeterministicSeed());
-    ScaleForFrameNumber(frame_, 1280, 720, &width, &height,
+    ScaleForFrameNumber(frame_, top_width_, top_height_, &width, &height,
                         external_resize_pattern_);
     SetSize(width, height);
     FillFrame();
@@ -104,6 +107,9 @@ class ResizingVideoSource : public ::libaom_test::DummyVideoSource {
 
  private:
   int external_resize_pattern_;
+  // top_width_/height_ is the configured resolution when codec is created.
+  int top_width_;
+  int top_height_;
 };
 
 class DatarateTestSVC
@@ -208,8 +214,13 @@ class DatarateTestSVC
       encoder->Control(AV1E_SET_POSTENCODE_DROP_RTC, 1);
       // We want to force external resize on the very first frame.
       // Turn off frame-dropping.
+      // Set superblock_size to fixed mode (64 here) to avoid issue
+      // with av1_select_sb_size() being called multiple times for
+      // external resizing. The dynmaic mode (default) for superblock_size
+      // will be fixed in another change.
       if (external_resize_dynamic_drop_layer_) {
         encoder->Control(AV1E_SET_POSTENCODE_DROP_RTC, 0);
+        encoder->Control(AV1E_SET_SUPERBLOCK_SIZE, AOM_SUPERBLOCK_SIZE_64X64);
         DatarateTest::PreEncodeFrameHook(video, encoder);
         video->Next();
       }
@@ -310,9 +321,6 @@ class DatarateTestSVC
       }
       if (layer_id_.spatial_layer_id == 0 &&
           (video->frame() == 1 || video->frame() == 150)) {
-        // Set the new top width/height for external resize.
-        top_sl_width_ = video->img()->d_w;
-        top_sl_height_ = video->img()->d_h;
         for (int i = 0; i < 9; ++i) {
           bitrate_layer_[i] = svc_params_.layer_target_bitrate[i];
         }
@@ -346,8 +354,6 @@ class DatarateTestSVC
         encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
       } else if (layer_id_.spatial_layer_id == 0 &&
                  (video->frame() == 50 || video->frame() == 200)) {
-        top_sl_width_ = video->img()->d_w;
-        top_sl_height_ = video->img()->d_h;
         if (external_resize_pattern_ == 1) {
           // Input size is 1/2. Change layer bitrates to set top layer to 0.
           // This will trigger skip encoding/dropping of top spatial layer.
@@ -378,8 +384,6 @@ class DatarateTestSVC
         encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
       } else if (layer_id_.spatial_layer_id == 0 &&
                  (video->frame() == 100 || video->frame() == 250)) {
-        top_sl_width_ = video->img()->d_w;
-        top_sl_height_ = video->img()->d_h;
         // Input is original size. Change layer bitrates to nonzero for all
         // layers.
         cfg_.rc_target_bitrate =
@@ -2874,9 +2878,47 @@ class DatarateTestSVC
     cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
     cfg_.g_w = 1280;
     cfg_.g_h = 720;
-    top_sl_width_ = 1280;
-    top_sl_height_ = 720;
-    ResizingVideoSource video(1);
+    ResizingVideoSource video(1, 1280, 720);
+    ResetModel();
+    external_resize_dynamic_drop_layer_ = true;
+    external_resize_pattern_ = 1;
+    number_temporal_layers_ = 3;
+    number_spatial_layers_ = 3;
+    // SL0
+    const int bitrate_sl0 = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[0] = 50 * bitrate_sl0 / 100;
+    target_layer_bitrate_[1] = 70 * bitrate_sl0 / 100;
+    target_layer_bitrate_[2] = bitrate_sl0;
+    // SL1
+    const int bitrate_sl1 = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[3] = 50 * bitrate_sl1 / 100;
+    target_layer_bitrate_[4] = 70 * bitrate_sl1 / 100;
+    target_layer_bitrate_[5] = bitrate_sl1;
+    // SL2
+    const int bitrate_sl2 = 4 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[6] = 50 * bitrate_sl2 / 100;
+    target_layer_bitrate_[7] = 70 * bitrate_sl2 / 100;
+    target_layer_bitrate_[8] = bitrate_sl2;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  }
+
+  virtual void BasicRateTargetingSVC3TL3SLExternalResizePattern1HighResTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+    const int bitrate_array[2] = { 600, 1200 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    cfg_.g_w = 1850;
+    cfg_.g_h = 1110;
+    cfg_.g_forced_max_frame_width = 1850;
+    cfg_.g_forced_max_frame_height = 1110;
+    ResizingVideoSource video(1, 1850, 1110);
     ResetModel();
     external_resize_dynamic_drop_layer_ = true;
     external_resize_pattern_ = 1;
@@ -2914,9 +2956,47 @@ class DatarateTestSVC
     cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
     cfg_.g_w = 1280;
     cfg_.g_h = 720;
-    top_sl_width_ = 1280;
-    top_sl_height_ = 720;
-    ResizingVideoSource video(2);
+    ResizingVideoSource video(2, 1280, 720);
+    ResetModel();
+    external_resize_dynamic_drop_layer_ = true;
+    external_resize_pattern_ = 2;
+    number_temporal_layers_ = 3;
+    number_spatial_layers_ = 3;
+    // SL0
+    const int bitrate_sl0 = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[0] = 50 * bitrate_sl0 / 100;
+    target_layer_bitrate_[1] = 70 * bitrate_sl0 / 100;
+    target_layer_bitrate_[2] = bitrate_sl0;
+    // SL1
+    const int bitrate_sl1 = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[3] = 50 * bitrate_sl1 / 100;
+    target_layer_bitrate_[4] = 70 * bitrate_sl1 / 100;
+    target_layer_bitrate_[5] = bitrate_sl1;
+    // SL2
+    const int bitrate_sl2 = 4 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[6] = 50 * bitrate_sl2 / 100;
+    target_layer_bitrate_[7] = 70 * bitrate_sl2 / 100;
+    target_layer_bitrate_[8] = bitrate_sl2;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  }
+
+  virtual void BasicRateTargetingSVC3TL3SLExternalResizePattern2HighResTest() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+    const int bitrate_array[2] = { 600, 1200 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    cfg_.g_w = 1850;
+    cfg_.g_h = 1110;
+    cfg_.g_forced_max_frame_width = 1850;
+    cfg_.g_forced_max_frame_height = 1110;
+    ResizingVideoSource video(2, 1850, 1110);
     ResetModel();
     external_resize_dynamic_drop_layer_ = true;
     external_resize_pattern_ = 2;
@@ -3006,8 +3086,6 @@ class DatarateTestSVC
   bool external_resize_dynamic_drop_layer_;
   int bitrate_layer_[9];
   int external_resize_pattern_;
-  int top_sl_width_;
-  int top_sl_height_;
   bool dynamic_tl_;
 };
 
@@ -3305,7 +3383,7 @@ TEST_P(DatarateTestSVC, BasicRateTargetingRPS1TL1SLDropFrames) {
 // and denoiser enabled. The external resizer will resize down and back up,
 // setting 0/nonzero bitrate on spatial enhancement layers to disable/enable
 // layers. Resizing starts on first frame and the pattern is:
-//  1/4 -> 1/2 -> 1 -> 1/4 -> 1/2.
+//  1/4 -> 1/2 -> 1 -> 1/4 -> 1/2. Configured resolution is 1280x720.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL3SLExternalResizePattern1) {
   BasicRateTargetingSVC3TL3SLExternalResizePattern1Test();
 }
@@ -3314,9 +3392,29 @@ TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL3SLExternalResizePattern1) {
 // and denoiser enabled. The external resizer will resize down and back up,
 // setting 0/nonzero bitrate on spatial enhancement layers to disable/enable
 // layers. Resizing starts on first frame and the pattern is:
-//  1/2 -> 1/4 -> 1 -> 1/2 -> 1/4.
+//  1/4 -> 1/2 -> 1 -> 1/4 -> 1/2. Configured resolution is 1850x1110.
+TEST_P(DatarateTestSVC,
+       BasicRateTargetingSVC3TL3SLExternalResizePattern1HighRes) {
+  BasicRateTargetingSVC3TL3SLExternalResizePattern1HighResTest();
+}
+
+// For 1 pass CBR SVC with 3 spatial and 3 temporal layers with external resize
+// and denoiser enabled. The external resizer will resize down and back up,
+// setting 0/nonzero bitrate on spatial enhancement layers to disable/enable
+// layers. Resizing starts on first frame and the pattern is:
+//  1/2 -> 1/4 -> 1 -> 1/2 -> 1/4. Configured resolution is 1280x720.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL3SLExternalResizePattern2) {
   BasicRateTargetingSVC3TL3SLExternalResizePattern2Test();
+}
+
+// For 1 pass CBR SVC with 3 spatial and 3 temporal layers with external resize
+// and denoiser enabled. The external resizer will resize down and back up,
+// setting 0/nonzero bitrate on spatial enhancement layers to disable/enable
+// layers. Resizing starts on first frame and the pattern is:
+//  1/2 -> 1/4 -> 1 -> 1/2 -> 1/4. Configured resolution is 1850x1110.
+TEST_P(DatarateTestSVC,
+       BasicRateTargetingSVC3TL3SLExternalResizePattern2HighRes) {
+  BasicRateTargetingSVC3TL3SLExternalResizePattern2HighResTest();
 }
 
 // For 1 pass CBR SVC with 1 spatial and dynamic temporal layers.
