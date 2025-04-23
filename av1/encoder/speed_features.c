@@ -596,9 +596,13 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
   if (speed < 1 || speed > 3) return;
 
   const AV1_COMMON *const cm = &cpi->common;
-  const int is_608p_or_larger = AOMMIN(cm->width, cm->height) >= 608;
+  const bool is_608p_or_larger = AOMMIN(cm->width, cm->height) >= 608;
+  const bool is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
+  const bool is_between_480p_and_720p = AOMMIN(cm->width, cm->height) > 480 &&
+                                        AOMMIN(cm->width, cm->height) < 720;
   const FRAME_UPDATE_TYPE update_type =
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+  const bool is_vertical_video = cm->width < cm->height;
 
   if (is_608p_or_larger) {
     sf->lpf_sf.skip_loop_filter_using_filt_error =
@@ -608,17 +612,30 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
             : 0;
   }
 
-  const int short_dimension = AOMMIN(cm->width, cm->height);
-  if (short_dimension > 480 && short_dimension < 720) {
+  if (is_vertical_video && is_between_480p_and_720p) {
     const int leaf_and_overlay_frames =
         (update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
          update_type == INTNL_OVERLAY_UPDATE);
     if (leaf_and_overlay_frames) sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
 
     sf->hl_sf.disable_ref_frame_mvs = 1;
-  } else if (is_608p_or_larger) {
+  } else if (!is_vertical_video && is_720p_or_larger) {
     sf->gm_sf.gm_erroradv_tr_level = 1;
   }
+}
+
+// Configures framesize independent speed features for low complexity decoding.
+static void set_good_speed_features_lc_dec_framesize_independent(
+    const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
+  if (speed < 1 || speed > 3) return;
+
+  const FRAME_UPDATE_TYPE update_type =
+      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+
+  sf->lpf_sf.adaptive_luma_loop_filter_skip =
+      (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE)
+          ? 1
+          : 0;
 }
 
 static void set_good_speed_feature_framesize_dependent(
@@ -949,20 +966,6 @@ static void set_good_speed_feature_framesize_dependent(
 
   if (cpi->oxcf.enable_low_complexity_decode)
     set_good_speed_features_lc_dec_framesize_dependent(cpi, sf, speed);
-}
-
-// Configures framesize independent speed features for low complexity decoding.
-static void set_good_speed_features_lc_dec_framesize_independent(
-    const AV1_COMP *const cpi, SPEED_FEATURES *const sf) {
-  const FRAME_UPDATE_TYPE update_type =
-      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-
-  if (cpi->oxcf.enable_low_complexity_decode >= 1) {
-    sf->lpf_sf.adaptive_luma_loop_filter_skip =
-        (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE)
-            ? 1
-            : 0;
-  }
 }
 
 static void set_good_speed_features_framesize_independent(
@@ -1366,7 +1369,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (cpi->oxcf.enable_low_complexity_decode)
-    set_good_speed_features_lc_dec_framesize_independent(cpi, sf);
+    set_good_speed_features_lc_dec_framesize_independent(cpi, sf, speed);
 }
 
 static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
@@ -2620,23 +2623,28 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
 }
 
 // Override some speed features for low complexity decode based on qindex.
-static void set_speed_features_lc_dec_qindex_dependent(
+static void set_good_speed_features_lc_dec_qindex_dependent(
     const AV1_COMP *const cpi, SPEED_FEATURES *const sf, int speed) {
   if (speed < 1 || speed > 3) return;
 
   const AV1_COMMON *const cm = &cpi->common;
-  const int short_dimension = AOMMIN(cm->width, cm->height);
-  const int is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
+  const bool is_between_480p_and_720p = AOMMIN(cm->width, cm->height) > 480 &&
+                                        AOMMIN(cm->width, cm->height) < 720;
+  const bool is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
+  const bool is_vertical_video = cm->width < cm->height;
   const FRAME_UPDATE_TYPE update_type =
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-  const int leaf_and_overlay_frames =
+  const bool leaf_and_overlay_frames =
       (update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
        update_type == INTNL_OVERLAY_UPDATE);
 
-  if (short_dimension > 480 && short_dimension < 720) {
+  if (is_vertical_video && is_between_480p_and_720p) {
     sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
     sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
-  } else if (is_720p_or_larger && speed <= 2 && leaf_and_overlay_frames) {
+  } else if (!is_vertical_video && is_720p_or_larger && speed <= 2 &&
+             leaf_and_overlay_frames) {
+    // For 720p and above, only enable this feature for leaf and overlay frames
+    // to avoid quality degradation on ARF frames.
     sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
     sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
   }
@@ -2845,6 +2853,6 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
                            cpi->oxcf.unit_test_cfg.motion_vector_unit_test,
                            sf->mv_sf.subpel_search_method);
 
-  if (cpi->oxcf.enable_low_complexity_decode)
-    set_speed_features_lc_dec_qindex_dependent(cpi, sf, speed);
+  if (cpi->oxcf.enable_low_complexity_decode && cpi->oxcf.mode == GOOD)
+    set_good_speed_features_lc_dec_qindex_dependent(cpi, sf, speed);
 }
