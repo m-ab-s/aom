@@ -22,6 +22,7 @@
 #include "av1/encoder/encoder_utils.h"
 #include "av1/encoder/grain_test_vectors.h"
 #include "av1/encoder/mv_prec.h"
+#include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/rc_utils.h"
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/segmentation.h"
@@ -472,7 +473,7 @@ void av1_apply_active_map(AV1_COMP *cpi) {
 
 #if !CONFIG_REALTIME_ONLY
 static void process_tpl_stats_frame(AV1_COMP *cpi) {
-  const GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   AV1_COMMON *const cm = &cpi->common;
 
   assert(IMPLIES(gf_group->size > 0, cpi->gf_frame_index < gf_group->size));
@@ -529,9 +530,22 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
           // factor to adjust r0 is used.
           const int gfu_boost =
               (int)(200.0 * cpi->ppi->tpl_data.r0_adjust_factor / cpi->rd.r0);
-          cpi->ppi->p_rc.gfu_boost = combine_prior_with_tpl_boost(
-              MIN_BOOST_COMBINE_FACTOR, MAX_BOOST_COMBINE_FACTOR,
-              cpi->ppi->p_rc.gfu_boost, gfu_boost, cpi->rc.frames_to_key);
+
+          if (cpi->oxcf.algo_cfg.sharpness == 3 &&
+              gf_group->update_type[cpi->gf_frame_index] != KF_UPDATE) {
+            cpi->ppi->p_rc.gfu_boost = gfu_boost;
+
+            RATE_CONTROL *const rc = &cpi->rc;
+            PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+            av1_gop_bit_allocation(cpi, rc, gf_group, rc->frames_since_key == 0,
+                                   gf_group->arf_index != -1,
+                                   p_rc->gf_group_bits);
+            setup_target_rate(cpi);
+          } else {
+            cpi->ppi->p_rc.gfu_boost = combine_prior_with_tpl_boost(
+                MIN_BOOST_COMBINE_FACTOR, MAX_BOOST_COMBINE_FACTOR,
+                cpi->ppi->p_rc.gfu_boost, gfu_boost, cpi->rc.frames_to_key);
+          }
         }
       }
     }
@@ -706,8 +720,8 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
       }
 
       // For RTC-SVC: if force_zero_mode_spatial_ref is enabled, check if the
-      // motion search can be skipped for the references: last, golden, altref.
-      // If so, we can skip scaling that reference.
+      // motion search can be skipped for the references: last, golden,
+      // altref. If so, we can skip scaling that reference.
       if (cpi->ppi->use_svc && cpi->svc.force_zero_mode_spatial_ref &&
           cpi->ppi->rtc_ref.set_ref_frame_config) {
         if (ref_frame == LAST_FRAME && cpi->svc.skip_mvsearch_last) continue;
@@ -760,7 +774,8 @@ void av1_scale_references(AV1_COMP *cpi, const InterpFilter filter,
                   cm->seq_params->use_highbitdepth, AOM_BORDER_IN_PIXELS,
                   cm->features.byte_alignment, NULL, NULL, NULL, false, 0)) {
             if (force_scaling) {
-              // Release the reference acquired in the get_free_fb() call above.
+              // Release the reference acquired in the get_free_fb() call
+              // above.
               --new_fb->ref_count;
             }
             aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
@@ -883,12 +898,12 @@ BLOCK_SIZE av1_select_sb_size(const AV1EncoderConfig *const oxcf, int width,
         oxcf->row_mt == 1 && oxcf->max_threads > 1 && oxcf->speed >= 5)
       return BLOCK_64X64;
 
-    // For allintra encode, since the maximum partition size is set to 32X32 for
-    // speed>=6, superblock size is set to 64X64 instead of 128X128. This
-    // improves the multithread performance due to reduction in top right delay
-    // and thread sync wastage. Currently, this setting is selectively enabled
-    // only for speed>=9 and resolutions less than 4k since cost update
-    // frequency is set to INTERNAL_COST_UPD_OFF in these cases.
+    // For allintra encode, since the maximum partition size is set to 32X32
+    // for speed>=6, superblock size is set to 64X64 instead of 128X128. This
+    // improves the multithread performance due to reduction in top right
+    // delay and thread sync wastage. Currently, this setting is selectively
+    // enabled only for speed>=9 and resolutions less than 4k since cost
+    // update frequency is set to INTERNAL_COST_UPD_OFF in these cases.
     const int is_4k_or_larger = AOMMIN(width, height) >= 2160;
     if (oxcf->mode == ALLINTRA && oxcf->speed >= 9 && !is_4k_or_larger)
       return BLOCK_64X64;
@@ -1088,10 +1103,10 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
     return;
   }
 
-  // TODO(chengchen): multiple encoding for the lossless mode is time consuming.
-  // Find a better way to determine whether screen content tools should be used
-  // for lossless coding.
-  // Use a high q and a fixed partition to do quick encoding.
+  // Multiple encoding for the lossless mode is time
+  // consuming. Find a better way to determine whether screen content tools
+  // should be used for lossless coding. Use a high q and a fixed partition to
+  // do quick encoding.
   const int q_for_screen_content_quick_run =
       is_lossless_requested(&oxcf->rc_cfg) ? q_orig : AOMMAX(q_orig, 244);
   const int partition_search_type_orig = cpi->sf.part_sf.partition_search_type;
@@ -1384,9 +1399,9 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
 
       // As per the above computation, var will be in the range of
       // [17.492222, 84.527656], assuming the data type is of infinite
-      // precision. The following assert conservatively checks if var is in the
-      // range of [17.0, 85.0] to avoid any issues due to the precision of the
-      // relevant data type.
+      // precision. The following assert conservatively checks if var is in
+      // the range of [17.0, 85.0] to avoid any issues due to the precision of
+      // the relevant data type.
       assert(var > 17.0 && var < 85.0);
       cpi->ssim_rdmult_scaling_factors[index] = var;
       log_sum += log(var);
