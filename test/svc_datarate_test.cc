@@ -214,13 +214,8 @@ class DatarateTestSVC
       encoder->Control(AV1E_SET_POSTENCODE_DROP_RTC, 1);
       // We want to force external resize on the very first frame.
       // Turn off frame-dropping.
-      // Set superblock_size to fixed mode (64 here) to avoid issue
-      // with av1_select_sb_size() being called multiple times for
-      // external resizing. The dynmaic mode (default) for superblock_size
-      // will be fixed in another change.
       if (external_resize_dynamic_drop_layer_) {
         encoder->Control(AV1E_SET_POSTENCODE_DROP_RTC, 0);
-        encoder->Control(AV1E_SET_SUPERBLOCK_SIZE, AOM_SUPERBLOCK_SIZE_64X64);
         DatarateTest::PreEncodeFrameHook(video, encoder);
         video->Next();
       }
