@@ -608,8 +608,8 @@ void av1_get_horver_correlation_full_c(const int16_t *diff, int stride,
 }
 
 static void get_variance_stats(const AV1_COMP *cpi, const MACROBLOCK *x,
-                               int64_t *src_var, int64_t *rec_var) {
-  const int num_planes = 1;
+                               int num_planes, int64_t *src_var,
+                               int64_t *rec_var) {
   const MACROBLOCKD *xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
 
@@ -622,6 +622,7 @@ static void get_variance_stats(const AV1_COMP *cpi, const MACROBLOCK *x,
 
   for (int plane = 0; plane < num_planes; ++plane) {
     if (plane && !xd->is_chroma_ref) break;
+
     const struct macroblock_plane *const p = &x->plane[plane];
     const struct macroblockd_plane *const pd = &xd->plane[plane];
     const BLOCK_SIZE bs =
@@ -650,7 +651,7 @@ static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
   if (frame_is_kf_gf_arf(cpi)) return;
 
   int64_t src_var, rec_var;
-  get_variance_stats(cpi, x, &src_var, &rec_var);
+  get_variance_stats(cpi, x, 1, &src_var, &rec_var);
 
   if (src_var <= rec_var) return;
 
@@ -668,7 +669,7 @@ static void adjust_cost(const AV1_COMP *cpi, const MACROBLOCK *x,
   if (frame_is_kf_gf_arf(cpi)) return;
 
   int64_t src_var, rec_var;
-  get_variance_stats(cpi, x, &src_var, &rec_var);
+  get_variance_stats(cpi, x, 1, &src_var, &rec_var);
 
   if (src_var <= rec_var) return;
 
