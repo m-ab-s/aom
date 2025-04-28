@@ -484,9 +484,12 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   int allow_sub_blk_me_in_tf;
 
   /*!
-   * Enable/disable temporal mv prediction.
+   * Decide whether to disable temporal mv prediction.
+   * 0: Do not disable
+   * 1: Conditionally disable
+   * 2: Always disable
    */
-  int disable_ref_frame_mvs;
+  int ref_frame_mvs_lvl;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!

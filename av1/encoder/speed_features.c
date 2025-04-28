@@ -618,9 +618,10 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
          update_type == INTNL_OVERLAY_UPDATE);
     if (leaf_and_overlay_frames) sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
 
-    sf->hl_sf.disable_ref_frame_mvs = 1;
+    sf->hl_sf.ref_frame_mvs_lvl = 2;
   } else if (!is_vertical_video && is_720p_or_larger) {
     sf->gm_sf.gm_erroradv_tr_level = 1;
+    sf->hl_sf.ref_frame_mvs_lvl = 1;
   }
 }
 
@@ -2035,7 +2036,7 @@ static inline void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->accurate_bit_estimate = 0;
   hl_sf->weight_calc_level_in_tf = 0;
   hl_sf->allow_sub_blk_me_in_tf = 0;
-  hl_sf->disable_ref_frame_mvs = 0;
+  hl_sf->ref_frame_mvs_lvl = 0;
 }
 
 static inline void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {
