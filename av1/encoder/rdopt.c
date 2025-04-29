@@ -1422,6 +1422,11 @@ static int64_t motion_mode_rd(
       assert(mbmi->ref_frame[1] != INTRA_FRAME);
     }
 
+    if (cpi->oxcf.algo_cfg.sharpness == 3 &&
+        (mbmi->motion_mode == OBMC_CAUSAL ||
+         mbmi->motion_mode == WARPED_CAUSAL))
+      continue;
+
     // Do not search OBMC if the probability of selecting it is below a
     // predetermined threshold for this update_type and block size.
     const FRAME_UPDATE_TYPE update_type =
@@ -1667,6 +1672,10 @@ static int64_t motion_mode_rd(
             av1_broadcast_interp_filter(av1_unswitchable_filter(interp_filter));
       }
     }
+
+    adjust_cost(cpi, x, &this_yrd);
+    adjust_rdcost(cpi, x, rd_stats);
+    adjust_rdcost(cpi, x, rd_stats_y);
 
     const int64_t tmp_rd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
     if (mode_index == 0) {
@@ -3717,8 +3726,11 @@ static inline void refine_winner_mode_tx(
         av1_init_rd_stats(&rd_stats_uv);
       }
 
+      const int comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
+
       const ModeCosts *mode_costs = &x->mode_costs;
       if (is_inter_mode(mbmi->mode) &&
+          (!cpi->oxcf.algo_cfg.sharpness || !comp_pred) &&
           RDCOST(x->rdmult,
                  mode_costs->skip_txfm_cost[skip_ctx][0] + rd_stats_y.rate +
                      rd_stats_uv.rate,
@@ -5350,6 +5362,10 @@ static void tx_search_best_inter_candidates(
                 mode_costs->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
       }
     }
+
+    if (cpi->oxcf.algo_cfg.sharpness == 3 && is_comp_pred && rd_stats.skip_txfm)
+      continue;
+
     rd_stats.rdcost = RDCOST(x->rdmult, rd_stats.rate, rd_stats.dist);
     if (rd_stats.rdcost < best_rd_in_this_partition) {
       best_rd_in_this_partition = rd_stats.rdcost;
@@ -6136,6 +6152,9 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
       rd_stats_uv.rate = 0;
     }
 
+    if (comp_pred && mbmi->skip_txfm && cpi->oxcf.algo_cfg.sharpness == 3)
+      continue;
+
     if (sf->inter_sf.prune_compound_using_single_ref && is_single_pred &&
         this_rd < ref_frame_rd[ref_frame]) {
       ref_frame_rd[ref_frame] = this_rd;
@@ -6269,7 +6288,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
 
   search_state.best_mbmode.skip_mode = 0;
   if (cm->current_frame.skip_mode_info.skip_mode_flag &&
-      is_comp_ref_allowed(bsize)) {
+      cpi->oxcf.algo_cfg.sharpness != 3 && is_comp_ref_allowed(bsize)) {
     const struct segmentation *const seg = &cm->seg;
     unsigned char segment_id = mbmi->segment_id;
     if (!segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME)) {

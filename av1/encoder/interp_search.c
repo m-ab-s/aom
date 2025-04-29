@@ -474,6 +474,11 @@ static inline void find_best_non_dual_interp_filter(
         DUAL_FILTER_TYPE filt_type = i + SWITCHABLE_FILTERS * i;
         reset_interp_filter_allowed_mask(&interp_filter_search_mask, filt_type);
       }
+
+      if (cpi->oxcf.algo_cfg.sharpness == 3 && i == EIGHTTAP_SMOOTH) {
+        DUAL_FILTER_TYPE filt_type = i + SWITCHABLE_FILTERS * i;
+        reset_interp_filter_allowed_mask(&interp_filter_search_mask, filt_type);
+      }
     }
   }
 

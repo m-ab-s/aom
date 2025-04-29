@@ -998,8 +998,8 @@ static void set_good_speed_features_framesize_independent(
   sf->part_sf.simple_motion_search_prune_agg =
       allow_screen_content_tools ? NO_PRUNING : SIMPLE_AGG_LVL0;
 
-  // TODO(debargha): Test, tweak and turn on either 1 or 2
-  sf->inter_sf.inter_mode_rd_model_estimation = 1;
+  sf->inter_sf.inter_mode_rd_model_estimation =
+      cpi->oxcf.algo_cfg.sharpness ? 0 : 1;
   sf->inter_sf.model_based_post_interp_filter_breakout = 1;
   sf->inter_sf.prune_compound_using_single_ref = 1;
   sf->inter_sf.prune_mode_search_simple_translation = 1;
