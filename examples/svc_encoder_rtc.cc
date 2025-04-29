@@ -1430,8 +1430,55 @@ static void write_color_properties(
   }
 }
 
+static void write_alpha_information(
+    struct aom_write_bit_buffer *buffer,
+    const libaom_examples::AlphaInformation &alpha_info) {
+  write_literal(buffer, alpha_info.alpha_use_idc, 2);
+  write_literal(buffer, alpha_info.alpha_simple_flag, 1);
+  if (!alpha_info.alpha_simple_flag) {
+    write_literal(buffer, alpha_info.alpha_bit_depth, 3, /*offset=*/8);
+    write_literal(buffer, alpha_info.alpha_clip_idc, 2);
+    write_literal(buffer, alpha_info.alpha_incr_flag, 1);
+    write_literal(buffer, alpha_info.alpha_transparent_value,
+                  alpha_info.alpha_bit_depth + 1);
+    write_literal(buffer, alpha_info.alpha_opaque_value,
+                  alpha_info.alpha_bit_depth + 1);
+    if (buffer->bit_offset % 8 != 0) {
+      // ai_byte_alignment_bits
+      write_literal(buffer, 0, 8 - (buffer->bit_offset % 8));
+    }
+    assert(buffer->bit_offset % 8 == 0);
+
+    write_literal(buffer, 0, 6);  // ai_reserved_6bits
+    write_color_properties(buffer, alpha_info.alpha_color_description);
+  } else {
+    write_literal(buffer, 0, 5);  // ai_reserved_5bits
+  }
+}
+
+static void write_depth_information(
+    struct aom_write_bit_buffer *buffer,
+    const libaom_examples::DepthInformation &depth_info) {
+  write_literal(buffer, depth_info.z_near.second, 1);
+  write_literal(buffer, depth_info.z_far.second, 1);
+  write_literal(buffer, depth_info.d_min.second, 1);
+  write_literal(buffer, depth_info.d_max.second, 1);
+  write_literal(buffer, depth_info.depth_representation_type, 4);
+  if (depth_info.d_min.second || depth_info.d_max.second) {
+    write_literal(buffer, depth_info.disparity_ref_view_id, 2);
+  }
+  write_depth_representation_element(buffer, depth_info.z_near);
+  write_depth_representation_element(buffer, depth_info.z_far);
+  write_depth_representation_element(buffer, depth_info.d_min);
+  write_depth_representation_element(buffer, depth_info.d_max);
+  if (buffer->bit_offset % 8 != 0) {
+    write_literal(buffer, 0, 8 - (buffer->bit_offset % 8));
+  }
+}
+
 static void add_multilayer_metadata(
-    aom_image_t *frame, const libaom_examples::MultilayerMetadata &multilayer) {
+    aom_image_t *frame, const libaom_examples::MultilayerMetadata &multilayer,
+    int frame_idx, int spatial_id) {
   // Large enough buffer for the multilayer metadata.
   // Each layer's metadata is less than 100 bytes and there are at most 4
   // layers.
@@ -1473,51 +1520,12 @@ static void add_multilayer_metadata(
 
     if (layer.layer_type == libaom_examples::MULTILAYER_LAYER_TYPE_ALPHA &&
         layer.layer_metadata_scope >= libaom_examples::SCOPE_GLOBAL) {
-      const libaom_examples::AlphaInformation &alpha_info =
-          layer.global_alpha_info;
-      write_literal(&buffer, alpha_info.alpha_use_idc, 2);
-      write_literal(&buffer, alpha_info.alpha_simple_flag, 1);
-      if (!alpha_info.alpha_simple_flag) {
-        write_literal(&buffer, alpha_info.alpha_bit_depth, 3, /*offset=*/8);
-        write_literal(&buffer, alpha_info.alpha_clip_idc, 2);
-        write_literal(&buffer, alpha_info.alpha_incr_flag, 1);
-        write_literal(&buffer, alpha_info.alpha_transparent_value,
-                      alpha_info.alpha_bit_depth + 1);
-        write_literal(&buffer, alpha_info.alpha_opaque_value,
-                      alpha_info.alpha_bit_depth + 1);
-        if (buffer.bit_offset % 8 != 0) {
-          // ai_byte_alignment_bits
-          write_literal(&buffer, 0, 8 - (buffer.bit_offset % 8));
-        }
-        assert(buffer.bit_offset % 8 == 0);
-
-        write_literal(&buffer, 0, 6);  // ai_reserved_6bits
-        write_color_properties(&buffer, alpha_info.alpha_color_description);
-      } else {
-        write_literal(&buffer, 0, 5);  // ai_reserved_5bits
-      }
-
+      write_alpha_information(&buffer, layer.alpha);
       assert(buffer.bit_offset % 8 == 0);
     } else if (layer.layer_type ==
                    libaom_examples::MULTILAYER_LAYER_TYPE_DEPTH &&
                layer.layer_metadata_scope >= libaom_examples::SCOPE_GLOBAL) {
-      const libaom_examples::DepthInformation &depth_info =
-          layer.global_depth_info;
-      write_literal(&buffer, depth_info.z_near.second, 1);
-      write_literal(&buffer, depth_info.z_far.second, 1);
-      write_literal(&buffer, depth_info.d_min.second, 1);
-      write_literal(&buffer, depth_info.d_max.second, 1);
-      write_literal(&buffer, depth_info.depth_representation_type, 4);
-      if (depth_info.d_min.second || depth_info.d_max.second) {
-        write_literal(&buffer, depth_info.disparity_ref_view_id, 2);
-      }
-      write_depth_representation_element(&buffer, depth_info.z_near);
-      write_depth_representation_element(&buffer, depth_info.z_far);
-      write_depth_representation_element(&buffer, depth_info.d_min);
-      write_depth_representation_element(&buffer, depth_info.d_max);
-      if (buffer.bit_offset % 8 != 0) {
-        write_literal(&buffer, 0, 8 - (buffer.bit_offset % 8));
-      }
+      write_depth_information(&buffer, layer.depth);
       assert(buffer.bit_offset % 8 == 0);
     }
 
@@ -1538,6 +1546,36 @@ static void add_multilayer_metadata(
                            buffer.bit_buffer, buffer.bit_offset / 8,
                            AOM_MIF_KEY_FRAME)) {
     die("Error: Failed to add metadata\n");
+  }
+
+  if ((int)multilayer.layers.size() > spatial_id) {
+    const libaom_examples::LayerMetadata &layer = multilayer.layers[spatial_id];
+    for (const libaom_examples::FrameLocalMetadata &local_metadata :
+         layer.local_metadata) {
+      if (local_metadata.frame_idx == frame_idx) {
+        if (layer.layer_type == libaom_examples::MULTILAYER_LAYER_TYPE_ALPHA) {
+          buffer = { data.data(), 0 };
+          write_alpha_information(&buffer, local_metadata.alpha);
+          if (aom_img_add_metadata(frame,
+                                   34 /*METADATA_TYPE_ALPHA_INFORMATION*/,
+                                   buffer.bit_buffer, buffer.bit_offset / 8,
+                                   AOM_MIF_ANY_FRAME_LAYER_SPECIFIC)) {
+            die("Error: Failed to add metadata\n");
+          }
+        } else if (layer.layer_type ==
+                   libaom_examples::MULTILAYER_LAYER_TYPE_DEPTH) {
+          buffer = { data.data(), 0 };
+          write_depth_information(&buffer, local_metadata.depth);
+          if (aom_img_add_metadata(frame,
+                                   35 /*METADATA_TYPE_DEPTH_INFORMATION*/,
+                                   buffer.bit_buffer, buffer.bit_offset / 8,
+                                   AOM_MIF_ANY_FRAME_LAYER_SPECIFIC)) {
+            die("Error: Failed to add metadata\n");
+          }
+        }
+        break;
+      }
+    }
   }
 }
 
@@ -2034,7 +2072,7 @@ int main(int argc, const char **argv) {
                             &ref_frame_comp_pred);
         }
         if (app_input.multilayer_metadata_file != NULL) {
-          add_multilayer_metadata(&raw, multilayer_metadata);
+          add_multilayer_metadata(&raw, multilayer_metadata, frame_cnt, slx);
         }
         // Set the speed per layer.
         if (test_speed_per_layer) {
