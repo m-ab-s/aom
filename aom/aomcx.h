@@ -313,6 +313,10 @@ enum aome_enc_control_id {
 
   /*!\brief Codec control function to set number of spatial layers, int
    * parameter
+   *
+   * Valid range:
+   *   \li When using #AV1E_SET_SVC_REF_FRAME_CONFIG: [1, #AOM_MAX_SS_LAYERS]
+   *   \li When \em not using #AV1E_SET_SVC_REF_FRAME_CONFIG: [1, 3]
    */
   AOME_SET_NUMBER_SPATIAL_LAYERS = 27,
 
@@ -1746,8 +1750,20 @@ typedef struct aom_svc_layer_id {
  *
  */
 typedef struct aom_svc_params {
-  int number_spatial_layers;                 /**< Number of spatial layers */
-  int number_temporal_layers;                /**< Number of temporal layers */
+  /*!Number of spatial layers
+   *
+   * Valid range:
+   *   \li When using #AV1E_SET_SVC_REF_FRAME_CONFIG: [1, #AOM_MAX_SS_LAYERS]
+   *   \li When \em not using #AV1E_SET_SVC_REF_FRAME_CONFIG: [1, 3]
+   */
+  int number_spatial_layers;
+  /*!Number of temporal layers
+   *
+   * Valid range:
+   *   \li When using #AV1E_SET_SVC_REF_FRAME_CONFIG: [1, #AOM_MAX_TS_LAYERS]
+   *   \li When \em not using #AV1E_SET_SVC_REF_FRAME_CONFIG: [1, 3]
+   */
+  int number_temporal_layers;
   int max_quantizers[AOM_MAX_LAYERS];        /**< Max Q for each layer */
   int min_quantizers[AOM_MAX_LAYERS];        /**< Min Q for each layer */
   int scaling_factor_num[AOM_MAX_SS_LAYERS]; /**< Scaling factor-numerator */

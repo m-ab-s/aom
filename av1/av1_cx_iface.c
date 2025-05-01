@@ -3850,7 +3850,12 @@ static aom_codec_err_t ctrl_set_spatial_layer_id(aom_codec_alg_priv_t *ctx,
 static aom_codec_err_t ctrl_set_number_spatial_layers(aom_codec_alg_priv_t *ctx,
                                                       va_list args) {
   const int number_spatial_layers = va_arg(args, int);
-  if (number_spatial_layers > MAX_NUM_SPATIAL_LAYERS)
+  // Note svc.use_flexible_mode is set by AV1E_SET_SVC_REF_FRAME_CONFIG. When
+  // it is false (the default) the actual limit is 3 for both spatial and
+  // temporal layers. Given the order of these calls are unpredictable the
+  // final check is deferred until encoder_encode() (av1_set_svc_fixed_mode()).
+  if (number_spatial_layers <= 0 ||
+      number_spatial_layers > MAX_NUM_SPATIAL_LAYERS)
     return AOM_CODEC_INVALID_PARAM;
   ctx->ppi->number_spatial_layers = number_spatial_layers;
   // update_encoder_cfg() is somewhat costly and this control may be called
@@ -3879,6 +3884,16 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
   AV1_COMP *const cpi = ppi->cpi;
   aom_svc_params_t *const params = va_arg(args, aom_svc_params_t *);
   int64_t target_bandwidth = 0;
+  // Note svc.use_flexible_mode is set by AV1E_SET_SVC_REF_FRAME_CONFIG. When
+  // it is false (the default) the actual limit is 3 for both spatial and
+  // temporal layers. Given the order of these calls are unpredictable the
+  // final check is deferred until encoder_encode() (av1_set_svc_fixed_mode()).
+  if (params->number_spatial_layers <= 0 ||
+      params->number_spatial_layers > MAX_NUM_SPATIAL_LAYERS ||
+      params->number_temporal_layers <= 0 ||
+      params->number_temporal_layers > MAX_NUM_TEMPORAL_LAYERS) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
   ppi->number_spatial_layers = params->number_spatial_layers;
   ppi->number_temporal_layers = params->number_temporal_layers;
   cpi->svc.number_spatial_layers = params->number_spatial_layers;
