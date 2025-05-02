@@ -3681,6 +3681,11 @@ typedef struct AV1_COMP {
    * so scaling is not needed for last_source.
    */
   int scaled_last_source_available;
+
+  /*!
+   * ROI map.
+   */
+  aom_roi_map_t roi;
 } AV1_COMP;
 
 /*!
@@ -3872,6 +3877,10 @@ int av1_set_reference_enc(AV1_COMP *cpi, int idx, YV12_BUFFER_CONFIG *sd);
 void av1_set_frame_size(AV1_COMP *cpi, int width, int height);
 
 void av1_set_mv_search_params(AV1_COMP *cpi);
+
+int av1_set_roi_map(AV1_COMP *cpi, unsigned char *map, unsigned int rows,
+                    unsigned int cols, int delta_q[8], int delta_lf[8],
+                    int skip[8], int ref_frame[8]);
 
 int av1_set_active_map(AV1_COMP *cpi, unsigned char *map, int rows, int cols);
 

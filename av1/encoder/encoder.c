@@ -153,6 +153,73 @@ static inline void Scale2Ratio(AOM_SCALING_MODE mode, int *hr, int *hs) {
   }
 }
 
+static int check_seg_range(int seg_data[8], int range) {
+  for (int i = 0; i < 8; ++i) {
+    // Note abs() alone can't be used as the behavior of abs(INT_MIN) is
+    // undefined.
+    if (seg_data[i] > range || seg_data[i] < -range) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+int av1_set_roi_map(AV1_COMP *cpi, unsigned char *map, unsigned int rows,
+                    unsigned int cols, int delta_q[8], int delta_lf[8],
+                    int skip[8], int ref_frame[8]) {
+  AV1_COMMON *cm = &cpi->common;
+  aom_roi_map_t *roi = &cpi->roi;
+  const int range = 63;
+  const int ref_frame_range = 3;  // Alt-ref
+  const int skip_range = 1;
+  const int frame_rows = cpi->common.mi_params.mi_rows;
+  const int frame_cols = cpi->common.mi_params.mi_cols;
+
+  // Check number of rows and columns match
+  if (frame_rows != (int)rows || frame_cols != (int)cols) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
+
+  if (!check_seg_range(delta_q, range) || !check_seg_range(delta_lf, range) ||
+      !check_seg_range(ref_frame, ref_frame_range) ||
+      !check_seg_range(skip, skip_range))
+    return AOM_CODEC_INVALID_PARAM;
+
+  // Also disable segmentation if no deltas are specified.
+  if (!map ||
+      (!(delta_q[0] | delta_q[1] | delta_q[2] | delta_q[3] | delta_q[4] |
+         delta_q[5] | delta_q[6] | delta_q[7] | delta_lf[0] | delta_lf[1] |
+         delta_lf[2] | delta_lf[3] | delta_lf[4] | delta_lf[5] | delta_lf[6] |
+         delta_lf[7] | skip[0] | skip[1] | skip[2] | skip[3] | skip[4] |
+         skip[5] | skip[6] | skip[7]) &&
+       (ref_frame[0] == -1 && ref_frame[1] == -1 && ref_frame[2] == -1 &&
+        ref_frame[3] == -1 && ref_frame[4] == -1 && ref_frame[5] == -1 &&
+        ref_frame[6] == -1 && ref_frame[7] == -1))) {
+    av1_disable_segmentation(&cm->seg);
+    cpi->roi.enabled = 0;
+    return AOM_CODEC_OK;
+  }
+
+  if (roi->roi_map) {
+    aom_free(roi->roi_map);
+    roi->roi_map = NULL;
+  }
+  roi->roi_map = aom_malloc(rows * cols);
+  if (!roi->roi_map) return AOM_CODEC_MEM_ERROR;
+
+  // Copy to ROI structure in the compressor.
+  memcpy(roi->roi_map, map, rows * cols);
+  memcpy(&roi->delta_q, delta_q, MAX_SEGMENTS * sizeof(delta_q[0]));
+  memcpy(&roi->delta_lf, delta_lf, MAX_SEGMENTS * sizeof(delta_lf[0]));
+  memcpy(&roi->skip, skip, MAX_SEGMENTS * sizeof(skip[0]));
+  memcpy(&roi->ref_frame, ref_frame, MAX_SEGMENTS * sizeof(ref_frame[0]));
+  roi->enabled = 1;
+  roi->rows = rows;
+  roi->cols = cols;
+
+  return AOM_CODEC_OK;
+}
+
 int av1_set_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
                        int cols) {
   const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
@@ -2703,7 +2770,12 @@ static int encode_without_recode(AV1_COMP *cpi) {
     }
   }
   av1_apply_active_map(cpi);
-  if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) av1_cyclic_refresh_setup(cpi);
+  if (cpi->roi.enabled && !frame_is_intra_only(cm)) {
+    // For now if roi map is used: don't setup cyclic refresh.
+    av1_apply_roi_map(cpi);
+  } else if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {
+    av1_cyclic_refresh_setup(cpi);
+  }
   if (cm->seg.enabled) {
     if (!cm->seg.update_data && cm->prev_frame) {
       segfeatures_copy(&cm->seg, &cm->prev_frame->seg);

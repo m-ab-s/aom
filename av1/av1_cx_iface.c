@@ -3774,10 +3774,14 @@ static aom_codec_err_t ctrl_use_reference(aom_codec_alg_priv_t *ctx,
 
 static aom_codec_err_t ctrl_set_roi_map(aom_codec_alg_priv_t *ctx,
                                         va_list args) {
-  (void)ctx;
-  (void)args;
+  aom_roi_map_t *data = va_arg(args, aom_roi_map_t *);
 
-  // TODO(yaowu): Need to re-implement and test for AV1.
+  if (data) {
+    aom_roi_map_t *roi = data;
+    return av1_set_roi_map(ctx->ppi->cpi, roi->roi_map, roi->rows, roi->cols,
+                           roi->delta_q, roi->delta_lf, roi->skip,
+                           roi->ref_frame);
+  }
   return AOM_CODEC_INVALID_PARAM;
 }
 

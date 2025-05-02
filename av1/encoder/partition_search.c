@@ -2153,7 +2153,7 @@ static void encode_b_nonrd(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     if (tile_data->allow_update_cdf) update_stats(&cpi->common, td);
   }
   if ((cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ ||
-       cpi->active_map.enabled) &&
+       cpi->active_map.enabled || cpi->roi.enabled) &&
       mbmi->skip_txfm && !cpi->rc.rtc_external_ratectrl && cm->seg.enabled)
     av1_cyclic_reset_segment_skip(cpi, x, mi_row, mi_col, bsize, dry_run);
   // TODO(Ravi/Remya): Move this copy function to a better logical place

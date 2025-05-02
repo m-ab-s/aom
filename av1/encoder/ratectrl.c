@@ -3265,6 +3265,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
     for (int sbi_col = 0; sbi_col < sb_cols; ++sbi_col) {
       int block_is_active = 1;
       if (cpi->active_map.enabled && rc->percent_blocks_inactive > 0) {
+        // Fix this to include skip feature via ROI.
         block_is_active = set_block_is_active(active_map_4x4, mi_cols, mi_rows,
                                               sbi_col, sbi_row);
       }
