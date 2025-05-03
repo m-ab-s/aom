@@ -1371,6 +1371,11 @@ static void set_good_speed_features_framesize_independent(
 
   if (cpi->oxcf.enable_low_complexity_decode)
     set_good_speed_features_lc_dec_framesize_independent(cpi, sf, speed);
+
+  if (cpi->oxcf.algo_cfg.sharpness == 3) {
+    sf->tx_sf.adaptive_txb_search_level = 0;
+    sf->tx_sf.tx_type_search.use_skip_flag_prediction = 0;
+  }
 }
 
 static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
