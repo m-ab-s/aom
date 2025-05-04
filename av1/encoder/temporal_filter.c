@@ -130,6 +130,8 @@ static int get_q(const AV1_COMP *cpi) {
  *                                    4 sub-blocks
  * \param[out]  is_dc_diff_large      Pointer to the value that tells if the DC
  *                                    difference is large for the block
+ * \param[out]  is_low_cntras         Pointer to the value that tells if the AC
+ *                                    difference is large for the block
  *
  * \remark Nothing will be returned. Results are saved in subblock_mvs and
  *         subblock_mses
@@ -140,7 +142,8 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
                              const BLOCK_SIZE block_size, const int mb_row,
                              const int mb_col, MV *ref_mv,
                              bool allow_me_for_sub_blks, MV *subblock_mvs,
-                             int *subblock_mses, int *is_dc_diff_large) {
+                             int *subblock_mses, int *is_dc_diff_large,
+                             int *is_low_cntras) {
   // Frame information
   const int min_frame_size = AOMMIN(cpi->common.width, cpi->common.height);
 
@@ -189,6 +192,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   mbd->mi_col =
       mb_col * (block_size_wide[block_size] / block_size_wide[BLOCK_4X4]);
   *is_dc_diff_large = 0;
+  *is_low_cntras = 0;
 
   const SEARCH_METHODS search_method = NSTEP;
   const search_site_config *search_site_cfg =
@@ -198,6 +202,15 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   unsigned int sse, error;
   int distortion;
   int cost_list[5];
+
+  DECLARE_ALIGNED(16, uint8_t, dclevel[MAX_SB_SQUARE]);
+  memset(dclevel, 128, sizeof(dclevel));
+  int dclevel_stride = block_size_wide[block_size];
+  int64_t src_var = INT32_MAX;
+
+  if (cpi->oxcf.algo_cfg.sharpness)
+    src_var = cpi->ppi->fn_ptr[block_size].vf(mb->plane[0].src.buf, y_stride,
+                                              dclevel, dclevel_stride, &sse);
 
   // Do motion search.
   int_mv best_mv;  // Searched motion vector.
@@ -234,6 +247,8 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
         frame_to_filter->y_buffer + y_offset, y_stride, &sse);
     block_mse = DIVIDE_AND_ROUND(error, mb_pels);
     block_mv = best_mv.as_mv;
+
+    if (src_var <= 2 * (int64_t)error) *is_low_cntras = 1;
   } else {  // Do fractional search on the entire block and all sub-blocks.
     av1_make_default_subpel_ms_params(&ms_params, cpi, mb, block_size,
                                       &baseline_mv, cost_list);
@@ -253,6 +268,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
     block_mv = best_mv.as_mv;
     *ref_mv = best_mv.as_mv;
     *is_dc_diff_large = 50 * error < sse;
+    if (src_var <= 2 * (int64_t)distortion) *is_low_cntras = 1;
 
     if (allow_me_for_sub_blks) {
       // On 4 sub-blocks.
@@ -935,20 +951,24 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
       MV subblock_mvs[4] = { kZeroMv, kZeroMv, kZeroMv, kZeroMv };
       int subblock_mses[4] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX };
       int is_dc_diff_large = 0;
+      int is_low_cntras = 0;
 
-      if (frame ==
-          filter_frame_idx) {  // Frame to be filtered.
-                               // Change ref_mv sign for following frames.
+      if (frame == filter_frame_idx) {
+        // Change ref_mv sign for following frames.
         ref_mv.row *= -1;
         ref_mv.col *= -1;
       } else {  // Other reference frames.
         tf_motion_search(cpi, mb, frame_to_filter, frames[frame], block_size,
                          mb_row, mb_col, &ref_mv, allow_me_for_sub_blks,
-                         subblock_mvs, subblock_mses, &is_dc_diff_large);
+                         subblock_mvs, subblock_mses, &is_dc_diff_large,
+                         &is_low_cntras);
       }
 
       if (cpi->oxcf.kf_cfg.enable_keyframe_filtering == 1 &&
           frame_type == KEY_FRAME && is_dc_diff_large)
+        filter_strength = AOMMIN(filter_strength, 1);
+
+      if (cpi->oxcf.algo_cfg.sharpness == 3 && is_low_cntras)
         filter_strength = AOMMIN(filter_strength, 1);
 
       // Perform weighted averaging.
