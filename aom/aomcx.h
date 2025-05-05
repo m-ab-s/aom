@@ -1658,7 +1658,7 @@ typedef struct aom_scaling_mode {
   AOM_SCALING_MODE v_scaling_mode; /**< vertical scaling mode   */
 } aom_scaling_mode_t;
 
-/*!brief AV1 encoder content type */
+/*!\brief AV1 encoder content type */
 typedef enum {
   AOM_CONTENT_DEFAULT,
   AOM_CONTENT_SCREEN,
@@ -1666,7 +1666,7 @@ typedef enum {
   AOM_CONTENT_INVALID
 } aom_tune_content;
 
-/*!brief AV1 encoder timing info type signaling */
+/*!\brief AV1 encoder timing info type signaling */
 typedef enum {
   AOM_TIMING_UNSPECIFIED,
   AOM_TIMING_EQUAL,
@@ -1737,13 +1737,13 @@ typedef enum {
 #define AOM_MAX_SS_LAYERS 4 /**< Max number of spatial layers */
 #define AOM_MAX_TS_LAYERS 8 /**< Max number of temporal layers */
 
-/*!brief Struct for spatial and temporal layer ID */
+/*!\brief Struct for spatial and temporal layer ID */
 typedef struct aom_svc_layer_id {
   int spatial_layer_id;  /**< Spatial layer ID */
   int temporal_layer_id; /**< Temporal layer ID */
 } aom_svc_layer_id_t;
 
-/*!brief Parameter type for SVC
+/*!\brief Parameter type for SVC
  *
  * In the arrays of size AOM_MAX_LAYERS, the index for spatial layer `sl` and
  * temporal layer `tl` is sl * number_temporal_layers + tl.
@@ -1774,7 +1774,7 @@ typedef struct aom_svc_params {
   int framerate_factor[AOM_MAX_TS_LAYERS];
 } aom_svc_params_t;
 
-/*!brief Parameters for setting ref frame config */
+/*!\brief Parameters for setting ref frame config */
 typedef struct aom_svc_ref_frame_config {
   // Three arrays need to be set: reference[], ref_id[], refresh[].
   // reference[i]: is a boolean flag to indicate which of the 7 possible
@@ -1797,14 +1797,14 @@ typedef struct aom_svc_ref_frame_config {
   int refresh[8]; /**< Refresh flag for each of the 8 buffer slots. */
 } aom_svc_ref_frame_config_t;
 
-/*!brief Parameters for setting ref frame compound prediction */
+/*!\brief Parameters for setting ref frame compound prediction */
 typedef struct aom_svc_ref_frame_comp_pred {
   // Use compound prediction for the ref_frame pairs GOLDEN_LAST (0),
   // LAST2_LAST (1), and ALTREF_LAST (2).
   int use_comp_pred[3]; /**<Compound reference flag. */
 } aom_svc_ref_frame_comp_pred_t;
 
-/*!brief Frame drop modes for spatial/quality layer SVC */
+/*!\brief Frame drop modes for spatial/quality layer SVC */
 typedef enum {
   AOM_LAYER_DROP,           /**< Any spatial layer can drop. */
   AOM_FULL_SUPERFRAME_DROP, /**< Only full superframe can drop. */
