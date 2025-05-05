@@ -640,6 +640,8 @@ static void set_good_speed_features_lc_dec_framesize_independent(
       (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE)
           ? 1
           : 0;
+
+  sf->inter_sf.bias_warp_mode_rd_scale_pct = 4;
 }
 
 static void set_good_speed_feature_framesize_dependent(
@@ -2198,6 +2200,7 @@ static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->limit_inter_mode_cands = 0;
   inter_sf->limit_txfm_eval_per_mode = 0;
   inter_sf->skip_arf_compound = 0;
+  inter_sf->bias_warp_mode_rd_scale_pct = 0;
   set_txfm_rd_gate_level(inter_sf->txfm_rd_gate_level, 0);
 }
 

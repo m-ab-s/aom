@@ -1304,6 +1304,31 @@ static inline void update_mode_start_end_index(
     *mode_index_end = SIMPLE_TRANSLATION;
 }
 
+// Increase rd cost of warp mode for low complexity decoding.
+static inline void increase_warp_mode_rd(const MB_MODE_INFO *const best_mbmi,
+                                         const MB_MODE_INFO *const this_mbmi,
+                                         int64_t *const best_scaled_rd,
+                                         int64_t *const this_scaled_rd,
+                                         int rd_bias_scale_pct) {
+  // Check rd bias percentage is non-zero.
+  if (!rd_bias_scale_pct) return;
+  if (*best_scaled_rd == INT64_MAX || *this_scaled_rd == INT64_MAX) return;
+
+  // Experiments have been performed with increasing the RD cost of warp mode at
+  // the below locations of inter mode evaluation.
+  // (1). Inter mode evaluation loop in av1_rd_pick_inter_mode().
+  // (2). Motion mode evaluation during handle_inter_mode() call.
+  // (3). Motion mode evaluation for winner motion modes.
+  // (4). Tx search for best inter candidates.
+  // Based on the speed quality trade-off results of this speed feature, the rd
+  // bias logic is enabled only at (2), (3) and (4).
+  const double rd_bias_scale = rd_bias_scale_pct / 100.0;
+  if (best_mbmi->motion_mode == WARPED_CAUSAL)
+    *best_scaled_rd += (int64_t)(rd_bias_scale * *best_scaled_rd);
+  if (this_mbmi->motion_mode == WARPED_CAUSAL)
+    *this_scaled_rd += (int64_t)(rd_bias_scale * *this_scaled_rd);
+}
+
 /*!\brief AV1 motion mode search
  *
  * \ingroup inter_mode_search
@@ -1733,7 +1758,13 @@ static int64_t motion_mode_rd(
     if (mode_index == 0) {
       args->simple_rd[this_mode][mbmi->ref_mv_idx][mbmi->ref_frame[0]] = tmp_rd;
     }
-    if (mode_index == 0 || tmp_rd < best_rd) {
+    int64_t best_scaled_rd = best_rd;
+    int64_t this_scaled_rd = tmp_rd;
+    if (mode_index != 0)
+      increase_warp_mode_rd(&best_mbmi, mbmi, &best_scaled_rd, &this_scaled_rd,
+                            cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct);
+
+    if (mode_index == 0 || this_scaled_rd < best_scaled_rd) {
       // Update best_rd data if this is the best motion mode so far
       best_mbmi = *mbmi;
       best_rd = tmp_rd;
@@ -5091,7 +5122,15 @@ static inline void evaluate_motion_mode_for_winner_candidates(
           &cpi->common, x, mbmi, &rd_stats, &rd_stats_y, &rd_stats_uv,
           mode_enum, NULL, bsize, rd_stats.rdcost,
           cpi->sf.winner_mode_sf.multi_winner_mode_type, do_tx_search);
-      if (rd_stats.rdcost < search_state->best_rd) {
+
+      int64_t best_scaled_rd = search_state->best_rd;
+      int64_t this_scaled_rd = rd_stats.rdcost;
+      if (search_state->best_mode_index != THR_INVALID)
+        increase_warp_mode_rd(&search_state->best_mbmode, mbmi, &best_scaled_rd,
+                              &this_scaled_rd,
+                              cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct);
+
+      if (this_scaled_rd < best_scaled_rd) {
         *yrd = this_yrd;
         update_search_state(search_state, rd_cost, ctx, &rd_stats, &rd_stats_y,
                             &rd_stats_uv, mode_enum, x, do_tx_search);
@@ -5419,10 +5458,6 @@ static void tx_search_best_inter_candidates(
       continue;
 
     rd_stats.rdcost = RDCOST(x->rdmult, rd_stats.rate, rd_stats.dist);
-    if (rd_stats.rdcost < best_rd_in_this_partition) {
-      best_rd_in_this_partition = rd_stats.rdcost;
-      *yrd = this_yrd;
-    }
 
     const THR_MODES mode_enum = get_prediction_mode_idx(
         prediction_mode, mbmi->ref_frame[0], mbmi->ref_frame[1]);
@@ -5434,7 +5469,17 @@ static void tx_search_best_inter_candidates(
         NULL, bsize, rd_stats.rdcost,
         cpi->sf.winner_mode_sf.multi_winner_mode_type, txfm_search_done);
 
-    if (rd_stats.rdcost < search_state->best_rd) {
+    int64_t best_scaled_rd = search_state->best_rd;
+    int64_t this_scaled_rd = rd_stats.rdcost;
+    increase_warp_mode_rd(&search_state->best_mbmode, mbmi, &best_scaled_rd,
+                          &this_scaled_rd,
+                          cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct);
+    if (this_scaled_rd < best_rd_in_this_partition) {
+      best_rd_in_this_partition = rd_stats.rdcost;
+      *yrd = this_yrd;
+    }
+
+    if (this_scaled_rd < best_scaled_rd) {
       update_search_state(search_state, rd_cost, ctx, &rd_stats, &rd_stats_y,
                           &rd_stats_uv, mode_enum, x, txfm_search_done);
       search_state->best_skip_rd[0] = skip_rd;

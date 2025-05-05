@@ -1181,6 +1181,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Speed 2: 2%  faster, 0.05% psnr loss.
   // No change for speed 3 and up, because |disable_onesided_comp| is true.
   int skip_arf_compound;
+
+  // Percentage of scaling used to increase the rd cost of warp mode so that
+  // encoder decisions are biased against local warp, favoring low complexity
+  // modes.
+  int bias_warp_mode_rd_scale_pct;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
