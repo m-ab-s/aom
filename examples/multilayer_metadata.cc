@@ -479,7 +479,7 @@ bool validate_layer(const LayerMetadata &layer, bool layer_has_alpha,
                           layer.layer_metadata_scope >= SCOPE_GLOBAL)) {
     fprintf(stderr,
             "Error: alpha info must be set if and only if layer_type is "
-            "%d and layer_metadata_scpoe is >= %d\n",
+            "%d and layer_metadata_scope is >= %d\n",
             MULTILAYER_LAYER_TYPE_ALPHA, SCOPE_GLOBAL);
     return false;
   }
@@ -487,7 +487,7 @@ bool validate_layer(const LayerMetadata &layer, bool layer_has_alpha,
                           layer.layer_metadata_scope >= SCOPE_GLOBAL)) {
     fprintf(stderr,
             "Error: depth info must be set if and only if layer_type is "
-            "%d and layer_metadata_scpoe is >= %d\n",
+            "%d and layer_metadata_scope is >= %d\n",
             MULTILAYER_LAYER_TYPE_DEPTH, SCOPE_GLOBAL);
     return false;
   }
