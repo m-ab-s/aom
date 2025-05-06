@@ -3528,7 +3528,7 @@ static void process_first_pass_stats(AV1_COMP *cpi,
   set_twopass_params_based_on_fp_stats(cpi, this_frame);
 }
 
-void setup_target_rate(AV1_COMP *cpi) {
+void av1_setup_target_rate(AV1_COMP *cpi) {
   RATE_CONTROL *const rc = &cpi->rc;
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
 
@@ -3759,7 +3759,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   if (cpi->gf_frame_index < gf_group->size && !(frame_flags & FRAMEFLAGS_KEY)) {
     assert(cpi->gf_frame_index < gf_group->size);
 
-    setup_target_rate(cpi);
+    av1_setup_target_rate(cpi);
 
     // If this is an arf frame then we dont want to read the stats file or
     // advance the input pointer as we already have what we need.
@@ -4018,7 +4018,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   }
 
   frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
-  setup_target_rate(cpi);
+  av1_setup_target_rate(cpi);
 }
 
 void av1_init_second_pass(AV1_COMP *cpi) {

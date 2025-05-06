@@ -614,7 +614,7 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
             av1_gop_bit_allocation(cpi, rc, gf_group, rc->frames_since_key == 0,
                                    gf_group->arf_index != -1,
                                    p_rc->gf_group_bits);
-            setup_target_rate(cpi);
+            av1_setup_target_rate(cpi);
           } else {
             cpi->ppi->p_rc.gfu_boost = combine_prior_with_tpl_boost(
                 MIN_BOOST_COMBINE_FACTOR, MAX_BOOST_COMBINE_FACTOR,

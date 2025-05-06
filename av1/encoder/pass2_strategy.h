@@ -115,7 +115,7 @@ void av1_gop_bit_allocation(const AV1_COMP *cpi, RATE_CONTROL *const rc,
                             GF_GROUP *gf_group, int is_key_frame, int use_arf,
                             int64_t gf_group_bits);
 
-void setup_target_rate(AV1_COMP *cpi);
+void av1_setup_target_rate(AV1_COMP *cpi);
 
 #ifdef __cplusplus
 }  // extern "C"
