@@ -12,6 +12,8 @@
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
@@ -30,6 +32,7 @@
 #include "av1/common/common_data.h"
 #include "av1/common/entropy.h"
 #include "av1/common/entropymode.h"
+#include "av1/common/enums.h"
 #include "av1/common/idct.h"
 #include "av1/common/mvref_common.h"
 #include "av1/common/obmc.h"
@@ -44,6 +47,7 @@
 
 #include "av1/encoder/aq_variance.h"
 #include "av1/encoder/av1_quantize.h"
+#include "av1/encoder/block.h"
 #include "av1/encoder/cost.h"
 #include "av1/encoder/compound_type.h"
 #include "av1/encoder/encodemb.h"

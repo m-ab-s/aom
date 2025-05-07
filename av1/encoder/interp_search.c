@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "av1/common/filter.h"
 #include "av1/common/pred_common.h"
 #include "av1/encoder/interp_search.h"
 #include "av1/encoder/model_rd.h"
