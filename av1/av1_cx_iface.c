@@ -3962,7 +3962,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
         } else {
           lc->layer_target_bitrate = 1000 * layer_target_bitrate;
         }
-        lc->framerate_factor = params->framerate_factor[tl];
+        lc->framerate_factor = AOMMAX(1, params->framerate_factor[tl]);
         if (tl == ppi->number_temporal_layers - 1)
           target_bandwidth += lc->layer_target_bitrate;
       }
