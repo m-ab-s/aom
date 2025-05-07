@@ -603,6 +603,7 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
   const FRAME_UPDATE_TYPE update_type =
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
   const bool is_vertical_video = cm->width < cm->height;
+  const int boosted = frame_is_boosted(cpi);
 
   if (is_608p_or_larger) {
     sf->lpf_sf.skip_loop_filter_using_filt_error =
@@ -619,9 +620,11 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
     if (leaf_and_overlay_frames) sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
 
     sf->hl_sf.ref_frame_mvs_lvl = 2;
+    sf->lpf_sf.dual_sgr_penalty_level = boosted ? 1 : 3;
   } else if (!is_vertical_video && is_720p_or_larger) {
     sf->gm_sf.gm_erroradv_tr_level = 1;
     sf->hl_sf.ref_frame_mvs_lvl = 1;
+    sf->lpf_sf.dual_sgr_penalty_level = boosted ? 1 : 2;
   }
 }
 
