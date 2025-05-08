@@ -15,3 +15,4 @@
 #include "aom_dsp/sad_hwy.h"
 
 FOR_EACH_SAD_BLOCK_SIZE(FSAD, avx512)
+FOR_EACH_SAD_BLOCK_SIZE(FSAD_SKIP, avx512)
