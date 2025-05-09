@@ -814,7 +814,7 @@ static struct stream_state *new_stream(struct AvxEncoderConfig *global,
   }
 
   if (prev) {
-    memcpy(stream, prev, sizeof(*stream));
+    *stream = *prev;
     stream->index++;
     prev->next = stream;
   } else {
@@ -849,8 +849,7 @@ static struct stream_state *new_stream(struct AvxEncoderConfig *global,
 
     /* Allows removal of the application version from the EBML tags */
     stream->webm_ctx.debug = global->debug;
-    memcpy(&stream->config.cfg.encoder_cfg, &global->encoder_config,
-           sizeof(stream->config.cfg.encoder_cfg));
+    stream->config.cfg.encoder_cfg = global->encoder_config;
   }
 
   /* Output files must be specified for each stream */

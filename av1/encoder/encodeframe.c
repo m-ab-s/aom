@@ -1194,7 +1194,7 @@ static inline void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     if (update_cdf && (tile_info->mi_row_start != mi_row)) {
       if ((tile_info->mi_col_start == mi_col)) {
         // restore frame context at the 1st column sb
-        memcpy(xd->tile_ctx, x->row_ctx, sizeof(*xd->tile_ctx));
+        *xd->tile_ctx = *x->row_ctx;
       } else {
         // update context
         int wt_left = AVG_CDF_WEIGHT_LEFT;
@@ -1271,10 +1271,9 @@ static inline void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     // Update the top-right context in row_mt coding
     if (update_cdf && (tile_info->mi_row_end > (mi_row + mib_size))) {
       if (sb_cols_in_tile == 1)
-        memcpy(x->row_ctx, xd->tile_ctx, sizeof(*xd->tile_ctx));
+        x->row_ctx[0] = *xd->tile_ctx;
       else if (sb_col_in_tile >= 1)
-        memcpy(x->row_ctx + sb_col_in_tile - 1, xd->tile_ctx,
-               sizeof(*xd->tile_ctx));
+        x->row_ctx[sb_col_in_tile - 1] = *xd->tile_ctx;
     }
     enc_row_mt->sync_write_ptr(row_mt_sync, sb_row, sb_col_in_tile,
                                sb_cols_in_tile);

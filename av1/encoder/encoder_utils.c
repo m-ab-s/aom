@@ -749,9 +749,8 @@ void av1_update_film_grain_parameters(struct AV1_COMP *cpi,
 
   if (tune_cfg->film_grain_test_vector) {
     if (cm->current_frame.frame_type == KEY_FRAME) {
-      memcpy(&cm->film_grain_params,
-             film_grain_test_vectors + tune_cfg->film_grain_test_vector - 1,
-             sizeof(cm->film_grain_params));
+      cm->film_grain_params =
+          film_grain_test_vectors[tune_cfg->film_grain_test_vector - 1];
       if (oxcf->tool_cfg.enable_monochrome)
         reset_film_grain_chroma_params(&cm->film_grain_params);
       cm->film_grain_params.bit_depth = cm->seq_params->bit_depth;
