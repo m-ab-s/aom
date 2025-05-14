@@ -51,12 +51,13 @@ HWY_MAYBE_UNUSED unsigned int SumOfAbsoluteDiff(
       hn::ReduceSum(intermediate_sum_tag, sum_sad));
 }
 
-template <int BlockWidth>
-HWY_MAYBE_UNUSED void SumOfAbsoluteDiff4D(const uint8_t *src_ptr,
+template <int BlockWidth, int NumRef>
+HWY_MAYBE_UNUSED void SumOfAbsoluteDiffND(const uint8_t *src_ptr,
                                           int src_stride,
                                           const uint8_t *const ref_ptr[4],
                                           int ref_stride, int h,
                                           uint32_t res[4]) {
+  static_assert(NumRef == 3 || NumRef == 4, "NumRef must be 3 or 4.");
   constexpr hn::CappedTag<uint8_t, BlockWidth> pixel_tag;
   constexpr hn::Repartition<uint64_t, decltype(pixel_tag)> intermediate_sum_tag;
   const int vw = hn::Lanes(pixel_tag);
@@ -68,28 +69,34 @@ HWY_MAYBE_UNUSED void SumOfAbsoluteDiff4D(const uint8_t *src_ptr,
   ref_0 = ref_ptr[0];
   ref_1 = ref_ptr[1];
   ref_2 = ref_ptr[2];
-  ref_3 = ref_ptr[3];
+  if (NumRef == 4) {
+    ref_3 = ref_ptr[3];
+  }
   for (int i = 0; i < h; ++i) {
     for (int j = 0; j < BlockWidth; j += vw) {
       auto src_vec = hn::LoadU(pixel_tag, &src_ptr[j]);
       auto ref_vec_0 = hn::LoadU(pixel_tag, &ref_0[j]);
       auto ref_vec_1 = hn::LoadU(pixel_tag, &ref_1[j]);
       auto ref_vec_2 = hn::LoadU(pixel_tag, &ref_2[j]);
-      auto ref_vec_3 = hn::LoadU(pixel_tag, &ref_3[j]);
       auto sad_0 = hn::SumsOf8AbsDiff(src_vec, ref_vec_0);
       auto sad_1 = hn::SumsOf8AbsDiff(src_vec, ref_vec_1);
       auto sad_2 = hn::SumsOf8AbsDiff(src_vec, ref_vec_2);
-      auto sad_3 = hn::SumsOf8AbsDiff(src_vec, ref_vec_3);
       sum_sad_0 = hn::Add(sum_sad_0, sad_0);
       sum_sad_1 = hn::Add(sum_sad_1, sad_1);
       sum_sad_2 = hn::Add(sum_sad_2, sad_2);
-      sum_sad_3 = hn::Add(sum_sad_3, sad_3);
+      if (NumRef == 4) {
+        auto ref_vec_3 = hn::LoadU(pixel_tag, &ref_3[j]);
+        auto sad_3 = hn::SumsOf8AbsDiff(src_vec, ref_vec_3);
+        sum_sad_3 = hn::Add(sum_sad_3, sad_3);
+      }
     }
     src_ptr += src_stride;
     ref_0 += ref_stride;
     ref_1 += ref_stride;
     ref_2 += ref_stride;
-    ref_3 += ref_stride;
+    if (NumRef == 4) {
+      ref_3 += ref_stride;
+    }
   }
   constexpr hn::Repartition<uint32_t, decltype(pixel_tag)> uint32_tag;
   auto r02 = hn::InterleaveEven(uint32_tag, hn::BitCast(uint32_tag, sum_sad_0),
@@ -125,8 +132,19 @@ HWY_MAYBE_UNUSED void SumOfAbsoluteDiff4D(const uint8_t *src_ptr,
   HWY_ATTR void aom_sad##w##x##h##x4d_##suffix(                                \
       const uint8_t *src_ptr, int src_stride, const uint8_t *const ref_ptr[4], \
       int ref_stride, uint32_t res[4]) {                                       \
-    HWY_NAMESPACE::SumOfAbsoluteDiff4D<w>(src_ptr, src_stride, ref_ptr,        \
-                                          ref_stride, h, res);                 \
+    HWY_NAMESPACE::SumOfAbsoluteDiffND<w, 4>(src_ptr, src_stride, ref_ptr,     \
+                                             ref_stride, h, res);              \
+  }
+
+#define FSAD_3D(w, h, suffix)                                                  \
+  extern "C" void aom_sad##w##x##h##x3d_##suffix(                              \
+      const uint8_t *src_ptr, int src_stride, const uint8_t *const ref_ptr[4], \
+      int ref_stride, uint32_t res[4]);                                        \
+  HWY_ATTR void aom_sad##w##x##h##x3d_##suffix(                                \
+      const uint8_t *src_ptr, int src_stride, const uint8_t *const ref_ptr[4], \
+      int ref_stride, uint32_t res[4]) {                                       \
+    HWY_NAMESPACE::SumOfAbsoluteDiffND<w, 3>(src_ptr, src_stride, ref_ptr,     \
+                                             ref_stride, h, res);              \
   }
 
 #define FSAD_SKIP(w, h, suffix)                                              \
@@ -138,6 +156,21 @@ HWY_MAYBE_UNUSED void SumOfAbsoluteDiff4D(const uint8_t *src_ptr,
       int ref_stride) {                                                      \
     return 2 * HWY_NAMESPACE::SumOfAbsoluteDiff<w>(                          \
                    src_ptr, src_stride * 2, ref_ptr, ref_stride * 2, h / 2); \
+  }
+
+#define FSAD_4D_SKIP(w, h, suffix)                                             \
+  extern "C" void aom_sad_skip_##w##x##h##x4d_##suffix(                        \
+      const uint8_t *src_ptr, int src_stride, const uint8_t *const ref_ptr[4], \
+      int ref_stride, uint32_t res[4]);                                        \
+  HWY_ATTR void aom_sad_skip_##w##x##h##x4d_##suffix(                          \
+      const uint8_t *src_ptr, int src_stride, const uint8_t *const ref_ptr[4], \
+      int ref_stride, uint32_t res[4]) {                                       \
+    HWY_NAMESPACE::SumOfAbsoluteDiffND<w, 4>(src_ptr, 2 * src_stride, ref_ptr, \
+                                             2 * ref_stride, ((h) >> 1), res); \
+    res[0] <<= 1;                                                              \
+    res[1] <<= 1;                                                              \
+    res[2] <<= 1;                                                              \
+    res[3] <<= 1;                                                              \
   }
 
 #define FSAD_AVG(w, h, suffix)                                               \
