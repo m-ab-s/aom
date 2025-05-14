@@ -688,7 +688,8 @@ static void set_layer_pattern(
     int layering_mode, int superframe_cnt, aom_svc_layer_id_t *layer_id,
     aom_svc_ref_frame_config_t *ref_frame_config,
     aom_svc_ref_frame_comp_pred_t *ref_frame_comp_pred, int *use_svc_control,
-    int spatial_layer_id, int is_key_frame, int ksvc_mode, int speed) {
+    int spatial_layer_id, int is_key_frame, int ksvc_mode, int speed,
+    int *reference_updated) {
   // Setting this flag to 1 enables simplex example of
   // RPS (Reference Picture Selection) for 1 layer.
   int use_rps_example = 0;
@@ -925,23 +926,42 @@ static void set_layer_pattern(
         ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
       }
       break;
+
     case 5:
-      // 2 spatial layers, 1 temporal.
+      /*
+      // 2 spatial layers, 1 temporal, without temporal prediction on SL1.
       layer_id->temporal_layer_id = 0;
       if (layer_id->spatial_layer_id == 0) {
         // Reference LAST, update LAST.
         ref_frame_config->refresh[0] = 1;
         ref_frame_config->reference[SVC_LAST_FRAME] = 1;
       } else if (layer_id->spatial_layer_id == 1) {
+        // Reference LAST, which is SL0, and no refresh.
+        ref_frame_config->refresh[0] = 0;
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+      }
+      break;
+      */
+      // 2 spatial layers, 1 temporal.
+      layer_id->temporal_layer_id = 0;
+      if (layer_id->spatial_layer_id == 0) {
+        // Reference LAST, update LAST.
+        ref_frame_config->refresh[0] = 1;
+        ref_frame_config->ref_idx[SVC_LAST_FRAME] = 0;
+        ref_frame_config->ref_idx[SVC_LAST2_FRAME] = 2;
+        ref_frame_config->reference[SVC_LAST_FRAME] = 1;
+      } else if (layer_id->spatial_layer_id == 1) {
         // Reference LAST and GOLDEN. Set buffer_idx for LAST to slot 1
-        // and GOLDEN to slot 0. Update slot 1 (LAST).
+        // and GOLDEN to slot 0. Update slot 1 (GOLDEN).
         ref_frame_config->ref_idx[SVC_LAST_FRAME] = 1;
         ref_frame_config->ref_idx[SVC_GOLDEN_FRAME] = 0;
+        ref_frame_config->ref_idx[SVC_LAST2_FRAME] = 2;
         ref_frame_config->refresh[1] = 1;
         ref_frame_config->reference[SVC_LAST_FRAME] = 1;
         ref_frame_config->reference[SVC_GOLDEN_FRAME] = 1;
       }
       break;
+
     case 6:
       // 3 spatial layers, 1 temporal.
       // Note for this case, we set the buffer idx for all references to be
@@ -1384,6 +1404,12 @@ static void set_layer_pattern(
       }
       break;
     default: assert(0); die("Error: Unsupported temporal layering mode!\n");
+  }
+  for (i = 0; i < REF_FRAMES; i++) {
+    if (ref_frame_config->refresh[i] == 1) {
+      *reference_updated = 1;
+      break;
+    }
   }
 }
 
@@ -1996,6 +2022,12 @@ int main(int argc, const char **argv) {
     svc_params.max_quantizers[i] = cfg.rc_max_quantizer;
     svc_params.min_quantizers[i] = cfg.rc_min_quantizer;
   }
+  // SET QUANTIZER PER LAYER, E.G FOR 2 SPATIAL LAYERS:
+  // svc_params.max_quantizers[0] = 40;
+  // svc_params.min_quantizers[0] = 40;
+  // svc_params.max_quantizers[1] = 50;
+  // svc_params.min_quantizers[1] = 50;
+
   if (!app_input.scale_factors_explicitly_set) {
     for (i = 0; i < ss_number_layers; ++i) {
       svc_params.scaling_factor_num[i] = 1;
@@ -2053,6 +2085,7 @@ int main(int argc, const char **argv) {
 
       aom_codec_iter_t iter = NULL;
       const aom_codec_cx_pkt_t *pkt;
+      int reference_updated = 0;
       int layer = 0;
       // Flag for superframe whose base is key.
       int is_key_frame = (frame_cnt % cfg.kf_max_dist) == 0;
@@ -2063,7 +2096,8 @@ int main(int argc, const char **argv) {
         set_layer_pattern(app_input.layering_mode, frame_cnt, &layer_id,
                           &ref_frame_config, &ref_frame_comp_pred,
                           &use_svc_control, slx, is_key_frame,
-                          (app_input.layering_mode == 10), app_input.speed);
+                          (app_input.layering_mode == 10), app_input.speed,
+                          &reference_updated);
         aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id);
         if (use_svc_control) {
           aom_codec_control(&codec, AV1E_SET_SVC_REF_FRAME_CONFIG,
@@ -2326,11 +2360,8 @@ int main(int argc, const char **argv) {
       }
 #if CONFIG_AV1_DECODER
       if (got_data && app_input.decode) {
-        // Don't look for mismatch on top spatial and top temporal layers as
-        // they are non reference frames.
-        if ((ss_number_layers > 1 || ts_number_layers > 1) &&
-            !(layer_id.temporal_layer_id > 0 &&
-              layer_id.temporal_layer_id == ts_number_layers - 1)) {
+        // Don't look for mismatch on non reference frames.
+        if (reference_updated) {
           if (test_decode(&codec, &decoder, frame_cnt)) {
 #if CONFIG_INTERNAL_STATS
             fprintf(stats_file, "First mismatch occurred in frame %d\n",
