@@ -914,6 +914,15 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sad64x64_avg   avx2 sse2 neon neon_dotprod/;
   specialize qw/aom_sad64x32_avg   avx2 sse2 neon neon_dotprod/;
   specialize qw/aom_sad32x64_avg   avx2 sse2 neon neon_dotprod/;
+
+  if(aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/aom_sad128x128_avg    avx512/;
+    specialize qw/aom_sad128x64_avg     avx512/;
+    specialize qw/aom_sad64x128_avg     avx512/;
+    specialize qw/aom_sad64x64_avg      avx512/;
+    specialize qw/aom_sad64x32_avg      avx512/;
+  }
+
   specialize qw/aom_sad32x32_avg   avx2 sse2 neon neon_dotprod/;
   specialize qw/aom_sad32x16_avg   avx2 sse2 neon neon_dotprod/;
   specialize qw/aom_sad16x32_avg        sse2 neon neon_dotprod/;
@@ -1060,6 +1069,15 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sad64x64x4d   avx2 sse2 neon neon_dotprod/;
   specialize qw/aom_sad64x32x4d   avx2 sse2 neon neon_dotprod/;
   specialize qw/aom_sad32x64x4d   avx2 sse2 neon neon_dotprod/;
+
+  if(aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/aom_sad128x128x4d avx512/;
+    specialize qw/aom_sad128x64x4d  avx512/;
+    specialize qw/aom_sad64x128x4d  avx512/;
+    specialize qw/aom_sad64x64x4d   avx512/;
+    specialize qw/aom_sad64x32x4d   avx512/;
+  }
+
   specialize qw/aom_sad32x32x4d   avx2 sse2 neon neon_dotprod/;
   specialize qw/aom_sad32x16x4d   avx2 sse2 neon neon_dotprod/;
   specialize qw/aom_sad16x32x4d   avx2 sse2 neon neon_dotprod/;
