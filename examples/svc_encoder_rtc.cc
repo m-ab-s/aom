@@ -43,6 +43,8 @@
 #define OPTION_BUFFER_SIZE 1024
 #define MAX_NUM_SPATIAL_LAYERS 4
 
+#define GOOD_QUALITY 0
+
 typedef struct {
   const char *output_filename;
   char options[OPTION_BUFFER_SIZE];
@@ -952,7 +954,7 @@ static void set_layer_pattern(
         ref_frame_config->reference[SVC_LAST_FRAME] = 1;
       } else if (layer_id->spatial_layer_id == 1) {
         // Reference LAST and GOLDEN. Set buffer_idx for LAST to slot 1
-        // and GOLDEN to slot 0. Update slot 1 (GOLDEN).
+        // and GOLDEN to slot 0. Update slot 1 (LAST).
         ref_frame_config->ref_idx[SVC_LAST_FRAME] = 1;
         ref_frame_config->ref_idx[SVC_GOLDEN_FRAME] = 0;
         ref_frame_config->ref_idx[SVC_LAST2_FRAME] = 2;
@@ -1833,14 +1835,23 @@ int main(int argc, const char **argv) {
   exec_name = argv[0];
 
   // start with default encoder configuration
+#if GOOD_QUALITY
+  aom_codec_err_t res = aom_codec_enc_config_default(aom_codec_av1_cx(), &cfg,
+                                                     AOM_USAGE_GOOD_QUALITY);
+#else
   aom_codec_err_t res = aom_codec_enc_config_default(aom_codec_av1_cx(), &cfg,
                                                      AOM_USAGE_REALTIME);
+#endif
   if (res != AOM_CODEC_OK) {
     die("Failed to get config: %s\n", aom_codec_err_to_string(res));
   }
 
+#if GOOD_QUALITY
+  cfg.g_usage = AOM_USAGE_GOOD_QUALITY;
+#else
   // Real time parameters.
   cfg.g_usage = AOM_USAGE_REALTIME;
+#endif
 
   cfg.rc_end_usage = AOM_CBR;
   cfg.rc_min_quantizer = 2;
@@ -1983,10 +1994,17 @@ int main(int argc, const char **argv) {
   aom_codec_control(&codec, AV1E_SET_ENABLE_ORDER_HINT, 0);
   aom_codec_control(&codec, AV1E_SET_ENABLE_TPL_MODEL, 0);
   aom_codec_control(&codec, AV1E_SET_DELTAQ_MODE, 0);
+#if GOOD_QUALITY
+  aom_codec_control(&codec, AV1E_SET_COEFF_COST_UPD_FREQ, 0);
+  aom_codec_control(&codec, AV1E_SET_MODE_COST_UPD_FREQ, 0);
+  aom_codec_control(&codec, AV1E_SET_MV_COST_UPD_FREQ, 0);
+  aom_codec_control(&codec, AV1E_SET_DV_COST_UPD_FREQ, 0);
+#else
   aom_codec_control(&codec, AV1E_SET_COEFF_COST_UPD_FREQ, 3);
   aom_codec_control(&codec, AV1E_SET_MODE_COST_UPD_FREQ, 3);
   aom_codec_control(&codec, AV1E_SET_MV_COST_UPD_FREQ, 3);
   aom_codec_control(&codec, AV1E_SET_DV_COST_UPD_FREQ, 3);
+#endif
   aom_codec_control(&codec, AV1E_SET_CDF_UPDATE_MODE, 1);
 
   // Settings to reduce key frame encoding time.
