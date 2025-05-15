@@ -203,14 +203,26 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   int distortion;
   int cost_list[5];
 
-  DECLARE_ALIGNED(16, uint8_t, dclevel[MAX_SB_SQUARE]);
-  memset(dclevel, 128, sizeof(dclevel));
+  const int is_high_bitdepth = is_cur_buf_hbd(mbd);
+
+  union {
+    DECLARE_ALIGNED(16, uint16_t, buf16[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(16, uint8_t, buf8[MAX_SB_SQUARE]);
+  } dclevel;
+
+  if (is_high_bitdepth)
+    memset(dclevel.buf16, 0, sizeof(dclevel.buf16));
+  else
+    memset(dclevel.buf8, 0, sizeof(dclevel.buf8));
+
   int dclevel_stride = block_size_wide[block_size];
   int64_t src_var = INT32_MAX;
 
   if (cpi->oxcf.algo_cfg.sharpness)
-    src_var = cpi->ppi->fn_ptr[block_size].vf(mb->plane[0].src.buf, y_stride,
-                                              dclevel, dclevel_stride, &sse);
+    src_var = cpi->ppi->fn_ptr[block_size].vf(
+        mb->plane[0].src.buf, y_stride,
+        is_high_bitdepth ? CONVERT_TO_BYTEPTR(dclevel.buf16) : dclevel.buf8,
+        dclevel_stride, &sse);
 
   // Do motion search.
   int_mv best_mv;  // Searched motion vector.
