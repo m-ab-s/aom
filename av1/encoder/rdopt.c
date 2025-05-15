@@ -611,6 +611,92 @@ void av1_get_horver_correlation_full_c(const int16_t *diff, int stride,
   }
 }
 
+static void get_variance_stats_hbd(const MACROBLOCK *x, int64_t *src_var,
+                                   int64_t *rec_var) {
+  const MACROBLOCKD *xd = &x->e_mbd;
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
+  const struct macroblock_plane *const p = &x->plane[AOM_PLANE_Y];
+
+  BLOCK_SIZE bsize = mbmi->bsize;
+  int bw = block_size_wide[bsize];
+  int bh = block_size_high[bsize];
+
+  static const int gau_filter[3][3] = {
+    { 1, 2, 1 },
+    { 2, 4, 2 },
+    { 1, 2, 1 },
+  };
+
+  DECLARE_ALIGNED(16, uint16_t, dclevel[(MAX_SB_SIZE + 2) * (MAX_SB_SIZE + 2)]);
+
+  uint16_t *pred_ptr = &dclevel[bw + 1];
+  int pred_stride = xd->plane[0].dst.stride;
+
+  for (int idy = -1; idy < bh + 1; ++idy) {
+    for (int idx = -1; idx < bw + 1; ++idx) {
+      int offset_idy = idy;
+      int offset_idx = idx;
+      if (idy == -1) offset_idy = 0;
+      if (idy == bh) offset_idy = bh - 1;
+      if (idx == -1) offset_idx = 0;
+      if (idx == bw) offset_idx = bw - 1;
+
+      int offset = offset_idy * pred_stride + offset_idx;
+      pred_ptr[idy * bw + idx] = CONVERT_TO_SHORTPTR(pd->dst.buf)[offset];
+    }
+  }
+
+  *rec_var = 0;
+  for (int idy = 0; idy < bh; ++idy) {
+    for (int idx = 0; idx < bw; ++idx) {
+      int sum = 0;
+      for (int iy = 0; iy < 3; ++iy)
+        for (int ix = 0; ix < 3; ++ix)
+          sum += pred_ptr[(idy + iy - 1) * bw + (idx + ix - 1)] *
+                 gau_filter[iy][ix];
+
+      sum = sum >> 4;
+
+      int64_t diff = pred_ptr[idy * bw + idx] - sum;
+      *rec_var += diff * diff;
+    }
+  }
+  *rec_var <<= 4;
+
+  int src_stride = p->src.stride;
+  for (int idy = -1; idy < bh + 1; ++idy) {
+    for (int idx = -1; idx < bw + 1; ++idx) {
+      int offset_idy = idy;
+      int offset_idx = idx;
+      if (idy == -1) offset_idy = 0;
+      if (idy == bh) offset_idy = bh - 1;
+      if (idx == -1) offset_idx = 0;
+      if (idx == bw) offset_idx = bw - 1;
+
+      int offset = offset_idy * src_stride + offset_idx;
+      pred_ptr[idy * bw + idx] = CONVERT_TO_SHORTPTR(p->src.buf)[offset];
+    }
+  }
+
+  *src_var = 0;
+  for (int idy = 0; idy < bh; ++idy) {
+    for (int idx = 0; idx < bw; ++idx) {
+      int sum = 0;
+      for (int iy = 0; iy < 3; ++iy)
+        for (int ix = 0; ix < 3; ++ix)
+          sum += pred_ptr[(idy + iy - 1) * bw + (idx + ix - 1)] *
+                 gau_filter[iy][ix];
+
+      sum = sum >> 4;
+
+      int64_t diff = pred_ptr[idy * bw + idx] - sum;
+      *src_var += diff * diff;
+    }
+  }
+  *src_var <<= 4;
+}
+
 static void get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
                                int64_t *rec_var) {
   const MACROBLOCKD *xd = &x->e_mbd;
@@ -622,13 +708,14 @@ static void get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
   int bw = block_size_wide[bsize];
   int bh = block_size_high[bsize];
 
-  const int gau_filter[3][3] = {
+  static const int gau_filter[3][3] = {
     { 1, 2, 1 },
     { 2, 4, 2 },
     { 1, 2, 1 },
   };
 
   DECLARE_ALIGNED(16, uint8_t, dclevel[(MAX_SB_SIZE + 2) * (MAX_SB_SIZE + 2)]);
+
   uint8_t *pred_ptr = &dclevel[bw + 1];
   int pred_stride = xd->plane[0].dst.stride;
 
@@ -657,7 +744,7 @@ static void get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
 
       sum = sum >> 4;
 
-      int diff = pred_ptr[idy * bw + idx] - sum;
+      int64_t diff = pred_ptr[idy * bw + idx] - sum;
       *rec_var += diff * diff;
     }
   }
@@ -689,7 +776,7 @@ static void get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
 
       sum = sum >> 4;
 
-      int diff = pred_ptr[idy * bw + idx] - sum;
+      int64_t diff = pred_ptr[idy * bw + idx] - sum;
       *src_var += diff * diff;
     }
   }
@@ -703,7 +790,12 @@ static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
   if (frame_is_kf_gf_arf(cpi)) return;
 
   int64_t src_var, rec_var;
-  get_variance_stats(x, &src_var, &rec_var);
+
+  const bool is_hbd = is_cur_buf_hbd(&x->e_mbd);
+  if (is_hbd)
+    get_variance_stats_hbd(x, &src_var, &rec_var);
+  else
+    get_variance_stats(x, &src_var, &rec_var);
 
   if (src_var <= rec_var) return;
 
@@ -721,7 +813,12 @@ static void adjust_cost(const AV1_COMP *cpi, const MACROBLOCK *x,
   if (frame_is_kf_gf_arf(cpi)) return;
 
   int64_t src_var, rec_var;
-  get_variance_stats(x, &src_var, &rec_var);
+  const bool is_hbd = is_cur_buf_hbd(&x->e_mbd);
+
+  if (is_hbd)
+    get_variance_stats_hbd(x, &src_var, &rec_var);
+  else
+    get_variance_stats(x, &src_var, &rec_var);
 
   if (src_var <= rec_var) return;
 
