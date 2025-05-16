@@ -1587,6 +1587,15 @@ enum aome_enc_control_id {
    */
   AV1E_SET_ENABLE_LOW_COMPLEXITY_DECODE = 170,
 
+  /*!\brief Codec control to set the screen content detection mode,
+   * aom_screen_detection_mode parameter.
+   *
+   * - 1: AOM_SCREEN_DETECTION_STANDARD = standard (default)
+   * - 2: AOM_SCREEN_DETECTION_ANTIALIASING_AWARE = anti-aliased text and
+   *   graphics aware
+   */
+  AV1E_SET_SCREEN_CONTENT_DETECTION_MODE = 171,
+
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
   // No encoder control ID should be added below.
@@ -1667,6 +1676,14 @@ typedef enum {
   AOM_CONTENT_FILM,
   AOM_CONTENT_INVALID
 } aom_tune_content;
+
+/*!\brief Screen content detection mode */
+typedef enum {
+  /** Standard */
+  AOM_SCREEN_DETECTION_STANDARD = 1,
+  /** Anti-aliased text and graphics aware */
+  AOM_SCREEN_DETECTION_ANTIALIASING_AWARE = 2
+} aom_screen_detection_mode;
 
 /*!\brief AV1 encoder timing info type signaling */
 typedef enum {
@@ -2311,6 +2328,10 @@ AOM_CTRL_USE_TYPE(AV1E_SET_MAX_CONSEC_FRAME_DROP_MS_CBR, int)
 
 AOM_CTRL_USE_TYPE(AV1E_SET_ENABLE_LOW_COMPLEXITY_DECODE, unsigned int)
 #define AOM_CTRL_AV1E_SET_ENABLE_LOW_COMPLEXITY_DECODE
+
+AOM_CTRL_USE_TYPE(AV1E_SET_SCREEN_CONTENT_DETECTION_MODE,
+                  int) /* aom_screen_detection_mode */
+#define AOM_CTRL_SET_SCREEN_CONTENT_DETECTION_MODE
 
 /*!\endcond */
 /*! @} - end defgroup aom_encoder */

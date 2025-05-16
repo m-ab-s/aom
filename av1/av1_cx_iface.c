@@ -213,6 +213,7 @@ struct av1_extracfg {
   int strict_level_conformance;
   int kf_max_pyr_height;
   int sb_qp_sweep;
+  aom_screen_detection_mode screen_detection_mode;
 };
 
 #if !CONFIG_REALTIME_ONLY
@@ -367,6 +368,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // strict_level_conformance
   -1,              // kf_max_pyr_height
   0,               // sb_qp_sweep
+  AOM_SCREEN_DETECTION_STANDARD,
 };
 #else
 // Some settings are changed for realtime only build.
@@ -521,6 +523,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // strict_level_conformance
   -1,              // kf_max_pyr_height
   0,               // sb_qp_sweep
+  AOM_SCREEN_DETECTION_STANDARD,
 };
 #endif
 
@@ -923,6 +926,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
         "gf-min-pyr-height");
   }
 
+  RANGE_CHECK(extra_cfg, screen_detection_mode, 1, 2);
   return AOM_CODEC_OK;
 }
 
@@ -1292,6 +1296,7 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
   algo_cfg->loopfilter_control = extra_cfg->loopfilter_control;
   algo_cfg->skip_postproc_filtering = extra_cfg->skip_postproc_filtering;
+  algo_cfg->screen_detection_mode = extra_cfg->screen_detection_mode;
 
   // Set two-pass stats configuration.
   oxcf->twopass_stats_in = cfg->rc_twopass_stats_in;
@@ -2804,6 +2809,16 @@ static aom_codec_err_t ctrl_set_postencode_drop_rtc(aom_codec_alg_priv_t *ctx,
     return AOM_CODEC_INVALID_PARAM;
   cpi->rc.postencode_drop = enable_postencode_drop;
   return AOM_CODEC_OK;
+}
+
+static aom_codec_err_t ctrl_set_screen_content_detection_mode(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  const aom_screen_detection_mode screen_detection_mode =
+      CAST(AV1E_SET_SCREEN_CONTENT_DETECTION_MODE, args);
+
+  extra_cfg.screen_detection_mode = screen_detection_mode;
+  return update_extra_cfg(ctx, &extra_cfg);
 }
 
 #if !CONFIG_REALTIME_ONLY
@@ -4590,6 +4605,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     ctx->cfg.tile_height_count = arg_parse_list_helper(
         &arg, ctx->cfg.tile_heights, MAX_TILE_HEIGHTS, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.screen_detection_mode,
+                              argv, err_string)) {
+    extra_cfg.screen_detection_mode = arg_parse_int_helper(&arg, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -4810,6 +4828,8 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
     ctrl_set_max_consec_frame_drop_ms_cbr },
   { AV1E_SET_ENABLE_LOW_COMPLEXITY_DECODE,
     ctrl_set_enable_low_complexity_decode },
+  { AV1E_SET_SCREEN_CONTENT_DETECTION_MODE,
+    ctrl_set_screen_content_detection_mode },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

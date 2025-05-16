@@ -885,6 +885,11 @@ typedef struct {
    * on reconstructed frame.
    */
   bool skip_postproc_filtering;
+
+  /*!
+   * Controls screen content detection mode
+   */
+  aom_screen_detection_mode screen_detection_mode;
 } AlgoCfg;
 /*!\cond */
 
@@ -3901,6 +3906,12 @@ int av1_convert_sect5obus_to_annexb(uint8_t *buffer, size_t buffer_size,
 void av1_alloc_mb_wiener_var_pred_buf(AV1_COMMON *cm, ThreadData *td);
 
 void av1_dealloc_mb_wiener_var_pred_buf(ThreadData *td);
+
+uint8_t av1_find_dominant_value(const uint8_t *src, int stride, int rows,
+                                int cols);
+
+void av1_dilate_block(const uint8_t *src, int src_stride, uint8_t *dilated,
+                      int dilated_stride, int rows, int cols);
 
 // Set screen content options.
 // This function estimates whether to use screen content tools, by counting
