@@ -4045,8 +4045,12 @@ static void prune_4_way_partition_search(
   const PartitionBlkParams blk_params = part_search_state->part_blk_params;
   const BLOCK_SIZE bsize = blk_params.bsize;
 
+  const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
+
   // Do not prune if there is no valid partition
-  if (best_rdc->rdcost == INT64_MAX) return;
+  if (best_rdc->rdcost == INT64_MAX && part_cfg->enable_1to4_partitions &&
+      bsize != BLOCK_128X128)
+    return;
 
   // Determine bsize threshold to evaluate 4-way partitions
   BLOCK_SIZE part4_bsize_thresh = cpi->sf.part_sf.ext_partition_eval_thresh;
@@ -4074,7 +4078,6 @@ static void prune_4_way_partition_search(
 
   PARTITION_TYPE cur_part[NUM_PART4_TYPES] = { PARTITION_HORZ_4,
                                                PARTITION_VERT_4 };
-  const PartitionCfg *const part_cfg = &cpi->oxcf.part_cfg;
   // partition4_allowed is 1 if we can use a PARTITION_HORZ_4 or
   // PARTITION_VERT_4 for this block. This is almost the same as
   // partition4_allowed, except that we don't allow 128x32 or 32x128
