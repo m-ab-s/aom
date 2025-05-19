@@ -642,6 +642,13 @@ static void set_good_speed_features_lc_dec_framesize_independent(
           : 0;
 
   sf->inter_sf.bias_warp_mode_rd_scale_pct = 4;
+
+  const int is_key_frame = frame_is_intra_only(&cpi->common);
+  sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 2;
+
+  if (speed >= 2) {
+    sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 1;
+  }
 }
 
 static void set_good_speed_feature_framesize_dependent(
@@ -2126,6 +2133,7 @@ static inline void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
   part_sf->use_best_rd_for_pruning = 0;
   part_sf->skip_non_sq_part_based_on_none = 0;
   part_sf->disable_8x8_part_based_on_qidx = 0;
+  part_sf->split_partition_penalty_level = 0;
 }
 
 static inline void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {

@@ -834,6 +834,11 @@ typedef struct PARTITION_SPEED_FEATURES {
 
   // Disables 8x8 and below partitions for low quantizers.
   int disable_8x8_part_based_on_qidx;
+
+  // Decoder side speed feature to add penalty for use of smaller partitions.
+  // Takes values 0 - 2, 0 indicating no penalty and higher level indicating
+  // increased penalty.
+  int split_partition_penalty_level;
 } PARTITION_SPEED_FEATURES;
 
 typedef struct MV_SPEED_FEATURES {

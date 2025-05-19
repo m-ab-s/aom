@@ -4403,6 +4403,22 @@ static void none_partition_search(
   av1_restore_context(x, x_ctx, mi_row, mi_col, bsize, av1_num_planes(cm));
 }
 
+static inline double get_split_partition_penalty(
+    BLOCK_SIZE bsize, int split_partition_penalty_level) {
+  if (!split_partition_penalty_level) return 1.00;
+
+  // Higher penalty for smaller block sizes.
+  static const double penalty_factors[2][SQR_BLOCK_SIZES - 1] = {
+    { 1.080, 1.040, 1.020, 1.010, 1.000 },
+    { 1.100, 1.075, 1.050, 1.025, 1.000 },
+  };
+  const int sqr_bsize_idx = get_sqr_bsize_idx(bsize);
+  assert(sqr_bsize_idx > 0 && sqr_bsize_idx < SQR_BLOCK_SIZES);
+  const double this_penalty_factor =
+      penalty_factors[split_partition_penalty_level - 1][sqr_bsize_idx - 1];
+  return this_penalty_factor;
+}
+
 // PARTITION_SPLIT search.
 static void split_partition_search(
     AV1_COMP *const cpi, ThreadData *td, TileDataEnc *tile_data,
@@ -4514,7 +4530,10 @@ static void split_partition_search(
   *part_split_rd = sum_rdc.rdcost;
   if (reached_last_index && sum_rdc.rdcost < best_rdc->rdcost) {
     sum_rdc.rdcost = RDCOST(x->rdmult, sum_rdc.rate, sum_rdc.dist);
-    if (sum_rdc.rdcost < best_rdc->rdcost) {
+    const double penalty_factor = get_split_partition_penalty(
+        bsize, cpi->sf.part_sf.split_partition_penalty_level);
+    const int64_t this_rdcost = (int64_t)(sum_rdc.rdcost * penalty_factor);
+    if (this_rdcost < best_rdc->rdcost) {
       *best_rdc = sum_rdc;
       part_search_state->found_best_partition = true;
       pc_tree->partitioning = PARTITION_SPLIT;
