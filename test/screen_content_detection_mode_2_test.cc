@@ -37,13 +37,16 @@ constexpr int kHeight = 6;
 TEST(ScreenContentDetectionMode2, FindDominantValue) {
   // Find the dominant value of kSource[], which should be 255,
   // as it appears 22 times. This is in contrast to 0 (16 times).
-  EXPECT_EQ(av1_find_dominant_value(kSource, kWidth, kHeight, kWidth), 255);
+  EXPECT_EQ(av1_find_dominant_value(kSource, kWidth, /*rows=*/kHeight,
+                                    /*cols=*/kWidth),
+            255);
 }
 
 TEST(ScreenContentDetectionMode2, DilateBlock) {
   uint8_t dilated[kWidth * kHeight] = { 0 };
 
-  av1_dilate_block(kSource, kWidth, dilated, kWidth, kHeight, kWidth);
+  av1_dilate_block(kSource, kWidth, dilated, kWidth, /*rows=*/kHeight,
+                   /*cols=*/kWidth);
 
   // Compare values coming from av1_dilate_block() against the expected values
   for (int r = 0; r < kHeight; ++r) {

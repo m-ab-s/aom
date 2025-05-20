@@ -2052,12 +2052,14 @@ static void estimate_screen_content(AV1_COMP *cpi, FeatureFlags *features) {
       int count_buf[1 << 8];  // Maximum (1 << 8) bins for hbd path.
       const uint8_t *const this_src = src + r * stride + c;
       int n_colors;
-      if (use_hbd)
-        av1_count_colors_highbd(this_src, stride, kBlockWidth, kBlockHeight, bd,
-                                NULL, count_buf, &n_colors, NULL);
-      else
-        av1_count_colors(this_src, stride, kBlockWidth, kBlockHeight, count_buf,
-                         &n_colors);
+      if (use_hbd) {
+        av1_count_colors_highbd(this_src, stride, /*rows=*/kBlockHeight,
+                                /*cols=*/kBlockWidth, bd, NULL, count_buf,
+                                &n_colors, NULL);
+      } else {
+        av1_count_colors(this_src, stride, /*rows=*/kBlockHeight,
+                         /*cols=*/kBlockWidth, count_buf, &n_colors);
+      }
       if (n_colors > 1 && n_colors <= kColorThresh) {
         ++counts_1;
         struct buf_2d buf;
@@ -2295,8 +2297,8 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
 
       // First, find if the block could be palettized
       int number_of_colors;
-      av1_count_colors(blk, blk_stride, kBlockWidth, kBlockHeight, count_buf,
-                       &number_of_colors);
+      av1_count_colors(blk, blk_stride, /*rows=*/kBlockHeight,
+                       /*cols=*/kBlockWidth, count_buf, &number_of_colors);
 
       if (number_of_colors > 1 &&
           number_of_colors <= kComplexInitialColorThresh) {
@@ -2325,9 +2327,9 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
           // Dilate block with dominant color, to exclude anti-aliased pixels
           // from final palette count
           av1_dilate_block(blk, blk_stride, dilated_blk, kBlockWidth,
-                           kBlockWidth, kBlockHeight);
-          av1_count_colors(dilated_blk, kBlockWidth, kBlockWidth, kBlockHeight,
-                           count_buf, &number_of_colors);
+                           /*rows=*/kBlockHeight, /*cols=*/kBlockWidth);
+          av1_count_colors(dilated_blk, kBlockWidth, /*rows=*/kBlockHeight,
+                           /*cols=*/kBlockWidth, count_buf, &number_of_colors);
 
           if (number_of_colors <= kComplexFinalColorThresh) {
             ++count_palette;
