@@ -171,7 +171,7 @@ int av1_set_roi_map(AV1_COMP *cpi, unsigned char *map, unsigned int rows,
   AV1_COMMON *cm = &cpi->common;
   aom_roi_map_t *roi = &cpi->roi;
   const int range = 63;
-  const int ref_frame_range = 3;  // Alt-ref
+  const int ref_frame_range = REF_FRAMES;
   const int skip_range = 1;
   const int frame_rows = cpi->common.mi_params.mi_rows;
   const int frame_cols = cpi->common.mi_params.mi_cols;

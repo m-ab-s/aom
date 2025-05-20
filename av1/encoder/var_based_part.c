@@ -1674,7 +1674,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
                 ? cm->quant_params.base_qindex + x->delta_qindex
                 : cm->quant_params.base_qindex,
             0, QINDEX_RANGE - 1);
-  const int qindex = is_segment_id_boosted
+  const int qindex = is_segment_id_boosted || cpi->roi.delta_qp_enabled
                          ? av1_get_qindex(&cm->seg, segment_id, sb_qindex)
                          : sb_qindex;
   set_vbp_thresholds(
