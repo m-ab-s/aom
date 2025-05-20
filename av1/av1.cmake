@@ -258,6 +258,11 @@ list(APPEND AOM_AV1_ENCODER_SOURCES
             "${AOM_ROOT}/av1/encoder/dwt.c"
             "${AOM_ROOT}/av1/encoder/dwt.h")
 
+if(CONFIG_HIGHWAY)
+  list(APPEND AOM_AV1_ENCODER_SOURCES
+              "${AOM_ROOT}/av1/encoder/av1_fwd_txfm2d_hwy.h")
+endif()
+
 if(CONFIG_REALTIME_ONLY)
   list(REMOVE_ITEM AOM_AV1_ENCODER_SOURCES
                    "${AOM_ROOT}/av1/encoder/grain_test_vectors.h")
@@ -363,6 +368,11 @@ if(NOT CONFIG_EXCLUDE_SIMD_MISMATCH)
   list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
               "${AOM_ROOT}/av1/encoder/x86/cnn_avx2.c"
               "${AOM_ROOT}/av1/encoder/x86/ml_avx2.c")
+endif()
+
+if(CONFIG_HIGHWAY)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_AVX512
+              "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_hwy_avx512.cc")
 endif()
 
 list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
@@ -768,6 +778,12 @@ function(setup_av1_targets)
       add_intrinsics_object_library("-mavx2" "avx2" "aom_av1_encoder"
                                     "AOM_AV1_ENCODER_INTRIN_AVX2")
     endif()
+  endif()
+
+  if(HAVE_AVX512 AND CONFIG_AV1_ENCODER AND CONFIG_HIGHWAY)
+    add_intrinsics_object_library("-march=skylake-avx512" "avx512"
+                                  "aom_av1_encoder"
+                                  "AOM_AV1_ENCODER_INTRIN_AVX512")
   endif()
 
   if(HAVE_NEON)
