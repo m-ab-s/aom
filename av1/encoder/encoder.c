@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <float.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
@@ -2390,9 +2391,9 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
           "%i\n",
           count_palette, count_intrabc, count_photo,
           (int)(ceil(width / kBlockWidth) * ceil(height / kBlockHeight)));
-  fprintf(stats_file, "sc palette value: %i, threshold %lli\n",
+  fprintf(stats_file, "sc palette value: %i, threshold %" PRIi64 "\n",
           (count_palette - count_photo / 16) * kBlockArea * 10, area);
-  fprintf(stats_file, "sc ibc value: %i, threshold %lli\n",
+  fprintf(stats_file, "sc ibc value: %i, threshold %" PRIi64 "\n",
           (count_intrabc - count_photo / 16) * kBlockArea * 12, area);
   fprintf(stats_file, "allow sct: %i, allow ibc: %i\n",
           features->allow_screen_content_tools, features->allow_intrabc);
