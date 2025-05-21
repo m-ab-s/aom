@@ -2242,11 +2242,11 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
   // Threshold used to classify low-variance and high-variance blocks
   const int kVarThresh = 5;
   // Count of blocks that are candidates for using palette mode
-  int count_palette = 0;
+  int64_t count_palette = 0;
   // Count of blocks that are candidates for using IntraBC mode
-  int count_intrabc = 0;
+  int64_t count_intrabc = 0;
   // Count of "photo-like" blocks (i.e. can't use AV1 screen content tools)
-  int count_photo = 0;
+  int64_t count_photo = 0;
 
 #ifdef OUTPUT_SCR_DET_MODE2_STATS
   FILE *stats_file;
@@ -2389,13 +2389,13 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
 
 #ifdef OUTPUT_SCR_DET_MODE2_STATS
   fprintf(stats_file,
-          "block count palette: %i, count intrabc: %i, count photo: %i, total: "
-          "%i\n",
+          "block count palette: %" PRIi64 ", count intrabc: %" PRIi64
+          ", count photo: %" PRIi64 ", total: %i\n",
           count_palette, count_intrabc, count_photo,
           (int)(ceil(width / kBlockWidth) * ceil(height / kBlockHeight)));
-  fprintf(stats_file, "sc palette value: %i, threshold %" PRIi64 "\n",
+  fprintf(stats_file, "sc palette value: %" PRIi64 ", threshold %" PRIi64 "\n",
           (count_palette - count_photo / 16) * kBlockArea * 10, area);
-  fprintf(stats_file, "sc ibc value: %i, threshold %" PRIi64 "\n",
+  fprintf(stats_file, "sc ibc value: %" PRIi64 ", threshold %" PRIi64 "\n",
           (count_intrabc - count_photo / 16) * kBlockArea * 12, area);
   fprintf(stats_file, "allow sct: %i, allow ibc: %i\n",
           features->allow_screen_content_tools, features->allow_intrabc);
