@@ -3935,18 +3935,14 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
     // and if the ctrl_set_layer_id is not used after this call, the
     // previous (last_encoded) values of spatial/temporal_layer_id will be used,
     // which may be invalid.
-    cpi->svc.spatial_layer_id = AOMMAX(
-        0,
-        AOMMIN(cpi->svc.spatial_layer_id, cpi->svc.number_spatial_layers - 1));
-    cpi->svc.temporal_layer_id =
-        AOMMAX(0, AOMMIN(cpi->svc.temporal_layer_id,
-                         cpi->svc.number_temporal_layers - 1));
-    cpi->common.spatial_layer_id =
-        AOMMAX(0, AOMMIN(cpi->common.spatial_layer_id,
-                         cpi->svc.number_spatial_layers - 1));
-    cpi->common.temporal_layer_id =
-        AOMMAX(0, AOMMIN(cpi->common.temporal_layer_id,
-                         cpi->svc.number_temporal_layers - 1));
+    cpi->svc.spatial_layer_id =
+        clamp(cpi->svc.spatial_layer_id, 0, cpi->svc.number_spatial_layers - 1);
+    cpi->svc.temporal_layer_id = clamp(cpi->svc.temporal_layer_id, 0,
+                                       cpi->svc.number_temporal_layers - 1);
+    cpi->common.spatial_layer_id = clamp(cpi->common.spatial_layer_id, 0,
+                                         cpi->svc.number_spatial_layers - 1);
+    cpi->common.temporal_layer_id = clamp(cpi->common.temporal_layer_id, 0,
+                                          cpi->svc.number_temporal_layers - 1);
   }
 
   if (ppi->number_spatial_layers > 1 || ppi->number_temporal_layers > 1) {

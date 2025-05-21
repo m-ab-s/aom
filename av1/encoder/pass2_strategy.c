@@ -198,9 +198,7 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
 
     if ((twopass->bpm_factor <= 1 && factor < twopass->bpm_factor) ||
         (twopass->bpm_factor >= 1 && factor > twopass->bpm_factor)) {
-      twopass->bpm_factor = factor;
-      twopass->bpm_factor =
-          AOMMAX(min_fac, AOMMIN(max_fac, twopass->bpm_factor));
+      twopass->bpm_factor = fclamp(factor, min_fac, max_fac);
     }
   }
 #endif  // CONFIG_THREE_PASS
@@ -248,7 +246,7 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
       rate_err_factor = 1.0 - error_fraction;
     }
 
-    rate_err_factor = AOMMAX(min_fac, AOMMIN(max_fac, rate_err_factor));
+    rate_err_factor = fclamp(rate_err_factor, min_fac, max_fac);
   }
 
   // Is the rate control trending in the right direction. Only make
@@ -256,7 +254,7 @@ static void twopass_update_bpm_factor(AV1_COMP *cpi, int rate_err_tol) {
   if ((rate_err_factor < 1.0 && err_estimate >= 0) ||
       (rate_err_factor > 1.0 && err_estimate <= 0)) {
     twopass->bpm_factor *= rate_err_factor;
-    twopass->bpm_factor = AOMMAX(min_fac, AOMMIN(max_fac, twopass->bpm_factor));
+    twopass->bpm_factor = fclamp(twopass->bpm_factor, min_fac, max_fac);
   }
 }
 
@@ -1113,7 +1111,7 @@ static void smooth_filter_stats(const FIRSTPASS_STATS *stats, int start_idx,
   for (i = start_idx; i <= last_idx; i++) {
     double total_wt = 0;
     for (j = -HALF_FILT_LEN; j <= HALF_FILT_LEN; j++) {
-      int idx = AOMMIN(AOMMAX(i + j, start_idx), last_idx);
+      int idx = clamp(i + j, start_idx, last_idx);
       if (stats[idx].is_flash) continue;
 
       filt_intra_err[i] +=
@@ -1129,7 +1127,7 @@ static void smooth_filter_stats(const FIRSTPASS_STATS *stats, int start_idx,
   for (i = start_idx; i <= last_idx; i++) {
     double total_wt = 0;
     for (j = -HALF_FILT_LEN; j <= HALF_FILT_LEN; j++) {
-      int idx = AOMMIN(AOMMAX(i + j, start_idx), last_idx);
+      int idx = clamp(i + j, start_idx, last_idx);
       // Coded error involves idx and idx - 1.
       if (stats[idx].is_flash || (idx > 0 && stats[idx - 1].is_flash)) continue;
 
@@ -1356,7 +1354,7 @@ static int find_stable_regions(const FIRSTPASS_STATS *stats,
     double mean_coded = 0.001, var_coded = 0.001;
     int count = 0;
     for (j = -HALF_WIN; j <= HALF_WIN; j++) {
-      int idx = AOMMIN(AOMMAX(i + j, this_start), this_last);
+      int idx = clamp(i + j, this_start, this_last);
       if (stats[idx].is_flash || (idx > 0 && stats[idx - 1].is_flash)) continue;
       mean_intra += stats[idx].intra_error;
       var_intra += stats[idx].intra_error * stats[idx].intra_error;
@@ -3148,7 +3146,7 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
   double boost_score = 0.0;
   const double kf_max_boost =
       cpi->oxcf.rc_cfg.mode == AOM_Q
-          ? AOMMIN(AOMMAX(rc->frames_to_key * 2.0, KF_MIN_FRAME_BOOST),
+          ? fclamp(rc->frames_to_key * 2.0, KF_MIN_FRAME_BOOST,
                    KF_MAX_FRAME_BOOST)
           : KF_MAX_FRAME_BOOST;
 
@@ -3574,7 +3572,7 @@ static int smooth_filter_noise(FIRSTPASS_STATS *first_stats,
     double total_noise = 0;
     double total_wt = 0;
     for (int j = -HALF_FILT_LEN; j <= HALF_FILT_LEN; j++) {
-      int idx = AOMMIN(AOMMAX(i + j, 0), len - 1);
+      int idx = clamp(i + j, 0, len - 1);
       if (first_stats[idx].is_flash) continue;
 
       total_noise += first_stats[idx].noise_var;
@@ -3710,7 +3708,7 @@ static void estimate_coeff(FIRSTPASS_STATS *first_stats,
                     0.001) /
              AOMMAX(this_stats->intra_error - this_stats->noise_var, 0.001));
     // clip correlation coefficient.
-    this_stats->cor_coeff = AOMMIN(AOMMAX(this_stats->cor_coeff, 0), 1);
+    this_stats->cor_coeff = fclamp(this_stats->cor_coeff, 0.0, 1.0);
   }
   first_stats->cor_coeff = 1.0;
 }

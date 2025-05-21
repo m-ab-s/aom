@@ -1241,7 +1241,7 @@ int av1_compute_num_fp_contexts(AV1_PRIMARY *ppi, AV1EncoderConfig *oxcf) {
     if (num_fp_contexts < MAX_PARALLEL_FRAMES) num_fp_contexts = 1;
   }
 
-  num_fp_contexts = AOMMAX(1, AOMMIN(num_fp_contexts, MAX_PARALLEL_FRAMES));
+  num_fp_contexts = clamp(num_fp_contexts, 1, MAX_PARALLEL_FRAMES);
   // Limit recalculated num_fp_contexts to ppi->num_fp_contexts.
   num_fp_contexts = (ppi->num_fp_contexts == 1)
                         ? num_fp_contexts
