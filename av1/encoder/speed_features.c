@@ -596,23 +596,17 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
   if (speed < 1 || speed > 3) return;
 
   const AV1_COMMON *const cm = &cpi->common;
-  const bool is_608p_or_larger = AOMMIN(cm->width, cm->height) >= 608;
   const bool is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const bool is_between_480p_and_720p = AOMMIN(cm->width, cm->height) > 480 &&
                                         AOMMIN(cm->width, cm->height) < 720;
+  const bool is_vertical_video = cm->width < cm->height;
+
   const FRAME_UPDATE_TYPE update_type =
       get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-  const bool is_vertical_video = cm->width < cm->height;
   const int boosted = frame_is_boosted(cpi);
+  const int is_key_frame = frame_is_intra_only(cm);
 
-  if (is_608p_or_larger) {
-    sf->lpf_sf.skip_loop_filter_using_filt_error =
-        (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE &&
-         cpi->common.current_frame.pyramid_level > 1)
-            ? 1
-            : 0;
-  }
-
+  // Speed features for vertical videos
   if (is_vertical_video && is_between_480p_and_720p) {
     const int leaf_and_overlay_frames =
         (update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
@@ -620,11 +614,43 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
     if (leaf_and_overlay_frames) sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
 
     sf->hl_sf.ref_frame_mvs_lvl = 2;
+
     sf->lpf_sf.dual_sgr_penalty_level = boosted ? 1 : 3;
-  } else if (!is_vertical_video && is_720p_or_larger) {
+    sf->lpf_sf.skip_loop_filter_using_filt_error =
+        (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE &&
+         cpi->common.current_frame.pyramid_level > 1)
+            ? 1
+            : 0;
+
+    sf->inter_sf.bias_warp_mode_rd_scale_pct = 4;
+
+    sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 2;
+
+    if (speed >= 2) {
+      sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 1;
+    }
+  }
+
+  // Speed features for regular videos
+  if (!is_vertical_video && is_720p_or_larger) {
     sf->gm_sf.gm_erroradv_tr_level = 1;
+
     sf->hl_sf.ref_frame_mvs_lvl = 1;
+
     sf->lpf_sf.dual_sgr_penalty_level = boosted ? 1 : 2;
+    sf->lpf_sf.skip_loop_filter_using_filt_error =
+        (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE &&
+         cpi->common.current_frame.pyramid_level > 1)
+            ? 1
+            : 0;
+
+    sf->inter_sf.bias_warp_mode_rd_scale_pct = 4;
+
+    sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 2;
+
+    if (speed >= 2) {
+      sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 1;
+    }
   }
 }
 
@@ -640,15 +666,6 @@ static void set_good_speed_features_lc_dec_framesize_independent(
       (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE)
           ? 1
           : 0;
-
-  sf->inter_sf.bias_warp_mode_rd_scale_pct = 4;
-
-  const int is_key_frame = frame_is_intra_only(&cpi->common);
-  sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 2;
-
-  if (speed >= 2) {
-    sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 1;
-  }
 }
 
 static void set_good_speed_feature_framesize_dependent(
@@ -2658,15 +2675,20 @@ static void set_good_speed_features_lc_dec_qindex_dependent(
       (update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
        update_type == INTNL_OVERLAY_UPDATE);
 
+  // Speed features for vertical videos
   if (is_vertical_video && is_between_480p_and_720p) {
     sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
     sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
-  } else if (!is_vertical_video && is_720p_or_larger && speed <= 2 &&
-             leaf_and_overlay_frames) {
-    // For 720p and above, only enable this feature for leaf and overlay frames
-    // to avoid quality degradation on ARF frames.
-    sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
-    sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+  }
+
+  // Speed features for regular videos
+  if (!is_vertical_video && is_720p_or_larger) {
+    if (speed <= 2 && leaf_and_overlay_frames) {
+      // For 720p and above, only enable this feature for leaf and overlay
+      // frames to avoid quality degradation on ARF frames.
+      sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+      sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
+    }
   }
 }
 
