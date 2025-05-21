@@ -6306,13 +6306,6 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     args.ref_frame_cost = ref_frame_cost;
     args.best_pred_sse = search_state.best_pred_sse;
     args.skip_ifs = skip_interp_filter_search(cpi, is_single_pred);
-
-    if (!frame_is_kf_gf_arf(cpi) && cpi->oxcf.algo_cfg.sharpness == 3) {
-      if (ref_frame != ALTREF_FRAME && ref_frame != GOLDEN_FRAME &&
-          ref_frame != INTRA_FRAME)
-        continue;
-    }
-
     int64_t skip_rd[2] = { search_state.best_skip_rd[0],
                            search_state.best_skip_rd[1] };
     int64_t this_yrd = INT64_MAX;
