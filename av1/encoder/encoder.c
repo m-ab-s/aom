@@ -2389,15 +2389,15 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
 
 #ifdef OUTPUT_SCR_DET_MODE2_STATS
   fprintf(stats_file,
-          "block count palette: %" PRIi64 ", count intrabc: %" PRIi64
-          ", count photo: %" PRIi64 ", total: %i\n",
+          "block count palette: %" PRId64 ", count intrabc: %" PRId64
+          ", count photo: %" PRId64 ", total: %d\n",
           count_palette, count_intrabc, count_photo,
           (int)(ceil(width / kBlockWidth) * ceil(height / kBlockHeight)));
-  fprintf(stats_file, "sc palette value: %" PRIi64 ", threshold %" PRIi64 "\n",
+  fprintf(stats_file, "sc palette value: %" PRId64 ", threshold %" PRId64 "\n",
           (count_palette - count_photo / 16) * kBlockArea * 10, area);
-  fprintf(stats_file, "sc ibc value: %" PRIi64 ", threshold %" PRIi64 "\n",
+  fprintf(stats_file, "sc ibc value: %" PRId64 ", threshold %" PRId64 "\n",
           (count_intrabc - count_photo / 16) * kBlockArea * 12, area);
-  fprintf(stats_file, "allow sct: %i, allow ibc: %i\n",
+  fprintf(stats_file, "allow sct: %d, allow ibc: %d\n",
           features->allow_screen_content_tools, features->allow_intrabc);
 #endif
 }
