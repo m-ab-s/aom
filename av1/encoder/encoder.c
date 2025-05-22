@@ -2194,16 +2194,16 @@ void av1_dilate_block(const uint8_t *src, int src_stride, uint8_t *dilated,
  * graphics.
  *
  * Screen content detection is done by dividing frame's luma plane (Y) into
- * small blocks, counting the how many unique colors each block contains and
+ * small blocks, counting how many unique colors each block contains and
  * their per-pixel variance, and classifying these blocks into three main
  * categories:
  * 1. Palettizable blocks, low variance (can use palette mode)
  * 2. Palettizable blocks, high variance (can use palette mode and IntraBC)
  * 3. Non palettizable, photo-like blocks (can neither use palette mode nor
- *   IntraBC)
+ *    IntraBC)
  * Finally, this function decides whether the frame could benefit from
- * enabling screen content tools (palette mode with or without IntraBC),
- * based on the ratio of the three categories mentioned above.
+ * enabling palette mode with or without IntraBC, based on the ratio of the
+ * three categories mentioned above.
  */
 static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
                                                        FeatureFlags *features) {
@@ -2218,16 +2218,15 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
   const uint8_t *src = cpi->unfiltered_source->y_buffer;
   assert(src != NULL);
   const int use_hbd = cpi->unfiltered_source->flags & YV12_FLAG_HIGHBITDEPTH;
-
-  // Holds the down-converted block to 8 bit (if source is HBD)
-  uint8_t downconv_blk[kBlockArea];
-  // Hold the block after a round of dilation
-  uint8_t dilated_blk[kBlockArea];
   const int stride = cpi->unfiltered_source->y_stride;
   const int width = cpi->unfiltered_source->y_width;
   const int height = cpi->unfiltered_source->y_height;
   const int64_t area = (int64_t)width * height;
   const int bd = cm->seq_params->bit_depth;
+  // Holds the down-converted block to 8 bit (if source is HBD)
+  uint8_t downconv_blk[kBlockArea];
+  // Holds the block after a round of dilation
+  uint8_t dilated_blk[kBlockArea];
 
   // These threshold values are selected experimentally
   // Detects text and glyphs without anti-aliasing, and graphics with a 4-color
@@ -2243,9 +2242,9 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
   const int kVarThresh = 5;
   // Count of blocks that are candidates for using palette mode
   int64_t count_palette = 0;
-  // Count of blocks that are candidates for using IntraBC mode
+  // Count of blocks that are candidates for using IntraBC
   int64_t count_intrabc = 0;
-  // Count of "photo-like" blocks (i.e. can't use AV1 screen content tools)
+  // Count of "photo-like" blocks (i.e. can't use palette mode or IntraBC)
   int64_t count_photo = 0;
 
 #ifdef OUTPUT_SCR_DET_MODE2_STATS
@@ -2270,22 +2269,22 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
 
   for (int r = 0; r + kBlockHeight <= height; r += kBlockHeight) {
     for (int c = 0; c + kBlockWidth <= width; c += kBlockWidth) {
-      int count_buf[1 << 8];  // Maximum (1 << 8) bins for HBD path
-      const uint8_t *blk = src + r * (ptrdiff_t)stride + c;
-      const uint8_t *blk_src = blk;
+      int count_buf[1 << 8];
+      const uint8_t *blk_src = src + r * (ptrdiff_t)stride + c;
+      const uint8_t *blk = blk_src;
       int blk_stride = stride;
 
       // Down-convert pixels to 8-bit domain if source is HBD
       if (use_hbd) {
-        const uint16_t *blk_src_hbd = CONVERT_TO_SHORTPTR(blk);
+        const uint16_t *blk_src_hbd = CONVERT_TO_SHORTPTR(blk_src);
 
         for (int blk_r = 0; blk_r < kBlockHeight; ++blk_r) {
           for (int blk_c = 0; blk_c < kBlockWidth; ++blk_c) {
             const int downconv_val =
-                ((blk_src_hbd[blk_r * (ptrdiff_t)stride + blk_c]) >> (bd - 8));
+                (blk_src_hbd[blk_r * (ptrdiff_t)stride + blk_c]) >> (bd - 8);
 
-            assert(downconv_val <
-                   (1 << 8));  // Ensure down-converted value is 8-bit
+            // Ensure down-converted value is 8-bit
+            assert(downconv_val < (1 << 8));
             downconv_blk[blk_r * (ptrdiff_t)kBlockWidth + blk_c] = downconv_val;
           }
         }
