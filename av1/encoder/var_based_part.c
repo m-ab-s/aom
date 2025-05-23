@@ -549,7 +549,7 @@ static void set_vbp_thresholds_key_frame(AV1_COMP *cpi, int64_t thresholds[],
   } else {
     int shift_val = 2;
     if (cpi->sf.rt_sf.force_large_partition_blocks_intra) {
-      shift_val = 0;
+      shift_val = (cpi->oxcf.mode == ALLINTRA ? 1 : 0);
     }
 
     thresholds[2] = threshold_base >> shift_val;
