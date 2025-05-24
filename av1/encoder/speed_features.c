@@ -573,7 +573,10 @@ static void set_allintra_speed_features_framesize_independent(
 
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
     sf->rt_sf.hybrid_intra_pickmode = 0;
-    sf->rt_sf.var_part_split_threshold_shift = 9;
+    // Note that the threshold value below is intentionally lower than speed
+    // 8's. This is due to the lack of hybrid intra pick mode, which causes
+    // partitions to be bigger on average, causing noticeable ringing artifacts.
+    sf->rt_sf.var_part_split_threshold_shift = 7;
     sf->rt_sf.vbp_prune_16x16_split_using_min_max_sub_blk_var = true;
     sf->rt_sf.prune_h_pred_using_best_mode_so_far = true;
     sf->rt_sf.enable_intra_mode_pruning_using_neighbors = true;
