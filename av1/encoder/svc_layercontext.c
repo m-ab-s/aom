@@ -186,7 +186,8 @@ void av1_update_temporal_layer_framerate(AV1_COMP *const cpi) {
   RATE_CONTROL *const lrc = &lc->rc;
   const int tl = svc->temporal_layer_id;
   lc->framerate = cpi->framerate / lc->framerate_factor;
-  lrc->avg_frame_bandwidth = (int)round(lc->target_bandwidth / lc->framerate);
+  lrc->avg_frame_bandwidth =
+      saturate_cast_double_to_int(round(lc->target_bandwidth / lc->framerate));
   lrc->max_frame_bandwidth = cpi->rc.max_frame_bandwidth;
   // Update the average layer frame size (non-cumulative per-frame-bw).
   if (tl == 0) {
