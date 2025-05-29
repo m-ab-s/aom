@@ -1416,7 +1416,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
       yv12_g = av1_get_scaled_ref_frame(cpi, GOLDEN_FRAME);
       scaled_ref_golden = true;
     }
-    if (yv12_g && yv12_g != yv12) {
+    if (yv12_g && (yv12_g != yv12 || !use_last_ref)) {
       av1_setup_pre_planes(
           xd, 0, yv12_g, mi_row, mi_col,
           scaled_ref_golden ? NULL : get_ref_scale_factors(cm, GOLDEN_FRAME),
@@ -1440,7 +1440,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
       yv12_alt = av1_get_scaled_ref_frame(cpi, ALTREF_FRAME);
       scaled_ref_alt = true;
     }
-    if (yv12_alt && yv12_alt != yv12) {
+    if (yv12_alt && (yv12_alt != yv12 || !use_last_ref)) {
       av1_setup_pre_planes(
           xd, 0, yv12_alt, mi_row, mi_col,
           scaled_ref_alt ? NULL : get_ref_scale_factors(cm, ALTREF_FRAME),
