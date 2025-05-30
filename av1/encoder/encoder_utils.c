@@ -468,9 +468,11 @@ void av1_apply_roi_map(AV1_COMP *cpi) {
     // Translate the external delta q values to internal values.
     internal_delta_q[i] = av1_quantizer_to_qindex(abs(delta_q[i]));
     if (delta_q[i] < 0) internal_delta_q[i] = -internal_delta_q[i];
-    // Clamp to allowed best/worst quality.
-    if (qindex + internal_delta_q[i] < cpi->rc.best_quality)
-      internal_delta_q[i] = cpi->rc.best_quality - qindex;
+    // Clamp to allowed best/worst quality. For best quality clamp to 1
+    // to avoid qindex = 0 case (lossless segment) which can happen for
+    // best_quality = 0.
+    if (qindex + internal_delta_q[i] <= cpi->rc.best_quality)
+      internal_delta_q[i] = AOMMAX(1, cpi->rc.best_quality) - qindex;
     if (qindex + internal_delta_q[i] > cpi->rc.worst_quality)
       internal_delta_q[i] =
           cpi->rc.worst_quality - cm->quant_params.base_qindex;

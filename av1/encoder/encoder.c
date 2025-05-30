@@ -3102,7 +3102,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
     }
   }
   av1_apply_active_map(cpi);
-  if (cpi->roi.enabled && !frame_is_intra_only(cm)) {
+  if (cpi->roi.enabled) {
     // For now if roi map is used: don't setup cyclic refresh.
     av1_apply_roi_map(cpi);
   } else if (q_cfg->aq_mode == CYCLIC_REFRESH_AQ) {

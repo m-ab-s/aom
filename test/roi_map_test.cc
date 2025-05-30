@@ -95,8 +95,8 @@ class ROIMapTest
     cfg_.g_pass = AOM_RC_ONE_PASS;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.kf_max_dist = 90000;
-    cfg_.rc_min_quantizer = 2;
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 52;
     roi_feature_ = kSkip;
     ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30,
                                          1, 0, 400);
@@ -111,8 +111,8 @@ class ROIMapTest
     cfg_.g_pass = AOM_RC_ONE_PASS;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.kf_max_dist = 90000;
-    cfg_.rc_min_quantizer = 2;
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 40;
     roi_feature_ = kDeltaQ;
     ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30,
                                          1, 0, 400);
@@ -127,8 +127,8 @@ class ROIMapTest
     cfg_.g_pass = AOM_RC_ONE_PASS;
     cfg_.rc_end_usage = AOM_CBR;
     cfg_.kf_max_dist = 90000;
-    cfg_.rc_min_quantizer = 2;
-    cfg_.rc_max_quantizer = 56;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 52;
     roi_feature_ = kReference;
     ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30,
                                          1, 0, 400);
