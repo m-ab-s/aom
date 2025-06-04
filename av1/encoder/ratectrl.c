@@ -3568,7 +3568,8 @@ static void resize_reset_rc(AV1_COMP *cpi, int resize_width, int resize_height,
 
 /*!\brief Check for resize based on Q, for 1 pass real-time mode.
  *
- * Check if we should resize, based on average QP from past x frames.
+ * Check if we should resize, based on average QP and content/motion
+ * complexity from past x frames.
  * Only allow for resize at most 1/2 scale down for now, Scaling factor
  * for each step may be 3/4 or 1/2.
  *
@@ -3600,8 +3601,13 @@ static void dynamic_resize_one_pass_cbr(AV1_COMP *cpi) {
   if ((cm->width * cm->height) < min_width * min_height) down_size_on = 0;
 
   // Resize based on average buffer underflow and QP over some window.
-  // Ignore samples close to key frame, since QP is usually high after key.
-  if (cpi->rc.frames_since_key > cpi->framerate) {
+  // Ignore samples close to key frame or scene change, since QP is usually high
+  // after key and scene change.
+  // Need to incorpoate content/motion from scene detection analysis.
+  if (cpi->rc.frames_since_key > cpi->framerate &&
+      (cpi->oxcf.tune_cfg.content != AOM_CONTENT_SCREEN ||
+       cpi->oxcf.q_cfg.aq_mode != CYCLIC_REFRESH_AQ ||
+       cpi->cyclic_refresh->counter_encode_maxq_scene_change > 4)) {
     const int window = AOMMIN(30, (int)(2 * cpi->framerate));
     rc->resize_avg_qp += p_rc->last_q[INTER_FRAME];
     if (cpi->ppi->p_rc.buffer_level <
