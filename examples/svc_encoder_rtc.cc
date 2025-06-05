@@ -1784,7 +1784,7 @@ static void set_roi_map(const aom_codec_enc_cfg_t *cfg, aom_codec_ctx_t *codec,
   memset(&roi.delta_q, 0, sizeof(roi.delta_q));
   memset(&roi.delta_lf, 0, sizeof(roi.delta_lf));
   memset(roi.ref_frame, -1, sizeof(roi.ref_frame));
-  // Set ROI map to be 1 (segment #1) in middle squere of image,
+  // Set ROI map to be 1 (segment #1) in middle square of image,
   // 0 elsewhere.
   roi.enabled = 1;
   roi.roi_map = (uint8_t *)calloc(roi.rows * roi.cols, sizeof(*roi.roi_map));

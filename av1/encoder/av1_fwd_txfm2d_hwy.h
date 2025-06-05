@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AOM_AV1_AV1_FWD_TXFM2D_HWY_H_
-#define AOM_AV1_AV1_FWD_TXFM2D_HWY_H_
+#ifndef AOM_AV1_ENCODER_AV1_FWD_TXFM2D_HWY_H_
+#define AOM_AV1_ENCODER_AV1_FWD_TXFM2D_HWY_H_
 
 #include <stdint.h>
 
@@ -2554,4 +2554,4 @@ HWY_AFTER_NAMESPACE();
                                                  txfm_param);                  \
   }
 
-#endif  // AOM_AV1_AV1_FWD_TXFM2D_HWY_H_
+#endif  // AOM_AV1_ENCODER_AV1_FWD_TXFM2D_HWY_H_
