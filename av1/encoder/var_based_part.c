@@ -25,6 +25,7 @@
 
 #include "av1/common/reconinter.h"
 #include "av1/common/blockd.h"
+#include "av1/common/quant_common.h"
 
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodeframe_utils.h"

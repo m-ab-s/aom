@@ -48,6 +48,7 @@
 #include "av1/encoder/aq_complexity.h"
 #include "av1/encoder/aq_cyclicrefresh.h"
 #include "av1/encoder/aq_variance.h"
+#include "av1/encoder/av1_quantize.h"
 #include "av1/encoder/global_motion_facade.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodeframe_utils.h"

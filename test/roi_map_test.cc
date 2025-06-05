@@ -10,8 +10,14 @@
  */
 
 #include <climits>
+#include <cstring>
 #include <vector>
+
 #include "gtest/gtest.h"
+
+#include "aom/aomcx.h"
+#include "aom/aom_encoder.h"
+
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/i420_video_source.h"

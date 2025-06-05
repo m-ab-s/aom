@@ -26,6 +26,7 @@
 #include "av1/encoder/pass2_strategy.h"
 #include "av1/encoder/ratectrl.h"
 #include "av1/encoder/rc_utils.h"
+#include "av1/encoder/rd.h"
 #include "av1/encoder/rdopt.h"
 #include "av1/encoder/segmentation.h"
 #include "av1/encoder/superres_scale.h"
