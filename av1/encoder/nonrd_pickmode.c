@@ -314,7 +314,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
   int_mv *this_ref_frm_newmv = &frame_mv[NEWMV][ref_frame];
   unsigned int y_sad_zero;
   if (ref_frame > LAST_FRAME && cpi->oxcf.rc_cfg.mode == AOM_CBR &&
-      gf_temporal_ref) {
+      (cpi->ref_frame_flags & AOM_LAST_FLAG) && gf_temporal_ref) {
     int tmp_sad;
     int dis;
 
@@ -2465,6 +2465,11 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
 
   // Skip the mode if use reference frame mask flag is not set.
   if (!search_state->use_ref_frame_mask[*ref_frame]) return true;
+
+  // Don't skip non_last references if LAST is not used a reference.
+  if (!(cpi->ref_frame_flags & AOM_LAST_FLAG) &&
+      (*ref_frame == GOLDEN_FRAME || *ref_frame == ALTREF_FRAME))
+    return false;
 
   // Skip mode for some modes and reference frames when
   // force_zeromv_skip_for_blk flag is true.
