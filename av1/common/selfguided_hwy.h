@@ -122,8 +122,8 @@ HWY_ATTR HWY_INLINE void IntegralImages(D int32_tag, const T *HWY_RESTRICT src,
   constexpr hn::Rebind<T, D> uint_tag;
   constexpr hn::Repartition<int16_t, D> int16_tag;
   // Write out the zero top row
-  hwy::ZeroBytes(A, width);
-  hwy::ZeroBytes(B, width);
+  hwy::ZeroBytes(A, 4 * (width + 8));
+  hwy::ZeroBytes(B, 4 * (width + 8));
 
   for (int i = 0; i < height; ++i) {
     // Zero the left column.
@@ -316,61 +316,48 @@ HWY_ATTR HWY_INLINE void CalcAB(DL int32_tag, int32_t *HWY_RESTRICT A,
   }
 
   for (int i = -1; i < height + 1; i += Step) {
-    constexpr int kLineBufferElements = 2 * hn::MaxLanes(int32_tag);
-    for (int j = -1; j < width + 1; j += kLineBufferElements) {
-      // Gathering is incredibly high latency; store to intermediates to hide as
-      // much latency as possible.
-      HWY_ALIGN int32_t sum1_array[kLineBufferElements];
-      HWY_ALIGN int32_t a_res_array[kLineBufferElements];
-      for (int k = 0; k < kLineBufferElements; k += hn::MaxLanes(int32_tag)) {
-        const int32_t *HWY_RESTRICT Cij = C + i * buf_stride + j + k;
-        const int32_t *HWY_RESTRICT Dij = D + i * buf_stride + j + k;
+    for (int j = -1; j < width + 1;
+         j += static_cast<int>(hn::MaxLanes(int32_tag))) {
+      const int32_t *HWY_RESTRICT Cij = C + i * buf_stride + j;
+      const int32_t *HWY_RESTRICT Dij = D + i * buf_stride + j;
 
-        auto sum1 = BoxSumFromII(int32_tag, Dij, buf_stride, r);
-        auto sum2 = BoxSumFromII(int32_tag, Cij, buf_stride, r);
+      auto sum1 = BoxSumFromII(int32_tag, Dij, buf_stride, r);
+      auto sum2 = BoxSumFromII(int32_tag, Cij, buf_stride, r);
 
-        // When width + 2 isn't a multiple of 8, sum1 and sum2 will contain
-        // some uninitialised data in their upper words. We use a mask to
-        // ensure that these bits are set to 0.
-        int idx = AOMMIN(8, width + 1 - j);
-        assert(idx >= 1);
+      // When width + 2 isn't a multiple of 8, sum1 and sum2 will contain
+      // some uninitialised data in their upper words. We use a mask to
+      // ensure that these bits are set to 0.
+      int idx = AOMMIN(8, width + 1 - j);
+      assert(idx >= 1);
 
-        if (idx < 8) {
-          sum1 = hn::IfThenElseZero(mask[idx], sum1);
-          sum2 = hn::IfThenElseZero(mask[idx], sum2);
-        }
-
-        const auto p = ComputeP(int32_tag, sum1, sum2, bit_depth, n);
-
-        const auto z = hn::BitCast(
-            int32_tag, hn::Min(hn::ShiftRight<SGRPROJ_MTABLE_BITS>(hn::BitCast(
-                                   uint32_tag, hn::MulAdd(p, s, rnd_z))),
-                               hn::Set(uint32_tag, 255)));
-
-        const auto a_res = hn::GatherIndex(int32_tag, av1_x_by_xplus1, z);
-        hn::Store(sum1, int32_tag, &sum1_array[k]);
-        hn::Store(a_res, int32_tag, &a_res_array[k]);
+      if (idx < 8) {
+        sum1 = hn::IfThenElseZero(mask[idx], sum1);
+        sum2 = hn::IfThenElseZero(mask[idx], sum2);
       }
-      for (int k = 0; k < kLineBufferElements; k += hn::MaxLanes(int32_tag)) {
-        const auto a_res = hn::Load(int32_tag, &a_res_array[k]);
-        const auto sum1 = hn::Load(int32_tag, &sum1_array[k]);
 
-        hn::StoreU(a_res, int32_tag, A + i * buf_stride + j + k);
+      const auto p = ComputeP(int32_tag, sum1, sum2, bit_depth, n);
 
-        const auto a_complement =
-            hn::Sub(hn::Set(int32_tag, SGRPROJ_SGR), a_res);
+      const auto z = hn::BitCast(
+          int32_tag, hn::Min(hn::ShiftRight<SGRPROJ_MTABLE_BITS>(hn::BitCast(
+                                 uint32_tag, hn::MulAdd(p, s, rnd_z))),
+                             hn::Set(uint32_tag, 255)));
 
-        // sum1 might have lanes greater than 2^15, so we can't use madd to do
-        // multiplication involving sum1. However, a_complement and one_over_n
-        // are both less than 256, so we can multiply them first.
-        const auto a_comp_over_n = hn::WidenMulPairwiseAdd(
-            int32_tag, hn::BitCast(int16_tag, a_complement), one_over_n);
-        const auto b_int = hn::Mul(a_comp_over_n, sum1);
-        const auto b_res =
-            hn::ShiftRight<SGRPROJ_RECIP_BITS>(hn::Add(b_int, rnd_res));
+      const auto a_res = hn::GatherIndex(int32_tag, av1_x_by_xplus1, z);
 
-        hn::StoreU(b_res, int32_tag, B + i * buf_stride + j + k);
-      }
+      hn::StoreU(a_res, int32_tag, A + i * buf_stride + j);
+
+      const auto a_complement = hn::Sub(hn::Set(int32_tag, SGRPROJ_SGR), a_res);
+
+      // sum1 might have lanes greater than 2^15, so we can't use madd to do
+      // multiplication involving sum1. However, a_complement and one_over_n
+      // are both less than 256, so we can multiply them first.
+      const auto a_comp_over_n = hn::WidenMulPairwiseAdd(
+          int32_tag, hn::BitCast(int16_tag, a_complement), one_over_n);
+      const auto b_int = hn::Mul(a_comp_over_n, sum1);
+      const auto b_res =
+          hn::ShiftRight<SGRPROJ_RECIP_BITS>(hn::Add(b_int, rnd_res));
+
+      hn::StoreU(b_res, int32_tag, B + i * buf_stride + j);
     }
   }
 }
