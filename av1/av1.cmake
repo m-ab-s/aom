@@ -80,6 +80,7 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/scan.h"
             "${AOM_ROOT}/av1/common/seg_common.c"
             "${AOM_ROOT}/av1/common/seg_common.h"
+            "${AOM_ROOT}/av1/common/selfguided_hwy.h"
             "${AOM_ROOT}/av1/common/thread_common.c"
             "${AOM_ROOT}/av1/common/thread_common.h"
             "${AOM_ROOT}/av1/common/tile_common.c"
@@ -315,6 +316,11 @@ list(APPEND AOM_AV1_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/av1/common/x86/selfguided_avx2.c"
             "${AOM_ROOT}/av1/common/x86/warp_plane_avx2.c"
             "${AOM_ROOT}/av1/common/x86/wiener_convolve_avx2.c")
+
+if(CONFIG_HIGHWAY)
+  list(APPEND AOM_AV1_COMMON_INTRIN_AVX512
+              "${AOM_ROOT}/av1/common/x86/selfguided_hwy_avx512.cc")
+endif()
 
 list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm"
             "${AOM_ROOT}/av1/encoder/x86/error_sse2.asm")
@@ -600,6 +606,9 @@ if(CONFIG_REALTIME_ONLY)
                      "${AOM_ROOT}/av1/common/x86/warp_plane_avx2.c"
                      "${AOM_ROOT}/av1/common/x86/wiener_convolve_avx2.c")
 
+    list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_AVX512
+                     "${AOM_ROOT}/av1/common/x86/selfguided_hwy_avx512.cc")
+
     list(REMOVE_ITEM AOM_AV1_COMMON_INTRIN_NEON
                      "${AOM_ROOT}/av1/common/arm/cfl_neon.c"
                      "${AOM_ROOT}/av1/common/arm/highbd_warp_plane_neon.c"
@@ -784,6 +793,12 @@ function(setup_av1_targets)
     add_intrinsics_object_library("-march=skylake-avx512" "avx512"
                                   "aom_av1_encoder"
                                   "AOM_AV1_ENCODER_INTRIN_AVX512")
+  endif()
+
+  if(HAVE_AVX512 AND CONFIG_HIGHWAY)
+    add_intrinsics_object_library("-march=skylake-avx512" "avx512"
+                                  "aom_av1_common"
+                                  "AOM_AV1_COMMON_INTRIN_AVX512")
   endif()
 
   if(HAVE_NEON)

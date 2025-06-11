@@ -568,6 +568,11 @@ if ((aom_config("CONFIG_REALTIME_ONLY") ne "yes") || (aom_config("CONFIG_AV1_DEC
                                   int dgd_stride, int32_t *flt0, int32_t *flt1, int flt_stride,
                                   int sgr_params_idx, int bit_depth, int highbd";
   specialize qw/av1_selfguided_restoration sse4_1 avx2 neon/;
+
+  if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/av1_apply_selfguided_restoration avx512/;
+    specialize qw/av1_selfguided_restoration avx512/;
+  }
 }
 
 # CONVOLVE_ROUND/COMPOUND_ROUND functions
