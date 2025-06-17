@@ -3336,8 +3336,13 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
       // to determine if motion is scroll. Only test 3 points (pts) for now.
       // TODO(marpan): Only allow for 8 bit-depth for now.
       if (cm->seq_params->bit_depth == 8) {
-        const int sw_row = (cpi->rc.frame_source_sad > 20000) ? 512 : 192;
-        const int sw_col = (cpi->rc.frame_source_sad > 20000) ? 512 : 160;
+        int sw_row = (cpi->rc.frame_source_sad > 20000) ? 512 : 192;
+        int sw_col = (cpi->rc.frame_source_sad > 20000) ? 512 : 160;
+        if (cm->width * cm->height >= 3840 * 2160 &&
+            cpi->svc.number_temporal_layers > 1) {
+          sw_row = sw_row << 1;
+          sw_col = sw_col << 1;
+        }
         const int num_pts =
             unscaled_src->y_width * unscaled_src->y_height >= 1920 * 1080 ? 3
                                                                           : 1;

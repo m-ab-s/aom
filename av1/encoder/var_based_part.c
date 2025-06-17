@@ -1348,6 +1348,11 @@ static void do_int_pro_motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   int me_search_size_row = is_screen
                                ? source_sad_nonrd > kMedSad ? 512 : 192
                                : block_size_high[cm->seq_params->sb_size] >> 1;
+  if (cm->width * cm->height >= 3840 * 2160 &&
+      cpi->svc.temporal_layer_id == 0 && cpi->svc.number_temporal_layers > 1) {
+    me_search_size_row = me_search_size_row << 1;
+    me_search_size_col = me_search_size_col << 1;
+  }
   unsigned int y_sad_zero;
   *y_sad = av1_int_pro_motion_estimation(
       cpi, x, cm->seq_params->sb_size, mi_row, mi_col, &kZeroMv, &y_sad_zero,
