@@ -699,8 +699,8 @@ int av1_svc_get_min_ref_dist(const AV1_COMP *cpi) {
   for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
     if (rtc_ref->reference[i]) {
       const int ref_frame_map_idx = rtc_ref->ref_idx[i];
-      const int dist =
-          current_frame_num - rtc_ref->buffer_time_index[ref_frame_map_idx];
+      const int dist = (1 + current_frame_num) -
+                       rtc_ref->buffer_time_index[ref_frame_map_idx];
       if (dist < min_dist) min_dist = dist;
     }
   }

@@ -3700,8 +3700,8 @@ static inline int set_key_frame(AV1_COMP *cpi, unsigned int frame_flags) {
 
 // Set to true if this frame is a recovery frame, for 1 layer RPS,
 // and whether we should apply some boost (QP, adjust speed features, etc).
-// Recovery frame here means frame whose closest reference suddenly
-// switched from previous frame to one much further away.
+// Recovery frame here means frame whose closest reference is x frames away,
+// where x = 4.
 // TODO(marpan): Consider adding on/off flag to SVC_REF_FRAME_CONFIG to
 // allow more control for applications.
 static bool set_flag_rps_bias_recovery_frame(const AV1_COMP *const cpi) {
@@ -3711,8 +3711,8 @@ static bool set_flag_rps_bias_recovery_frame(const AV1_COMP *const cpi) {
       cpi->ppi->rtc_ref.reference_was_previous_frame) {
     int min_dist = av1_svc_get_min_ref_dist(cpi);
     // Only consider boost for this frame if its closest reference is further
-    // than x frames away, using x = 4 for now.
-    if (min_dist != INT_MAX && min_dist > 4) return true;
+    // than or equal to x frames away, using x = 4 for now.
+    if (min_dist != INT_MAX && min_dist >= 4) return true;
   }
   return false;
 }
