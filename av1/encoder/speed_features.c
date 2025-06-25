@@ -358,6 +358,7 @@ static void set_allintra_speed_features_framesize_independent(
   sf->tx_sf.tx_type_search.use_reduced_intra_txset = 1;
 
   sf->rt_sf.use_nonrd_pick_mode = 0;
+  sf->rt_sf.discount_color_cost = 0;
   sf->rt_sf.use_real_time_ref_set = 0;
 
   if (cpi->twopass_frame.fr_content_type == FC_GRAPHICS_ANIMATION ||
@@ -554,10 +555,11 @@ static void set_allintra_speed_features_framesize_independent(
   }
 
   if (speed >= 8) {
-    sf->rt_sf.hybrid_intra_pickmode = 1;
+    sf->rt_sf.hybrid_intra_pickmode = 2;
     sf->rt_sf.use_nonrd_pick_mode = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 1;
     sf->rt_sf.var_part_split_threshold_shift = 8;
+    sf->rt_sf.prune_palette_search_nonrd = 1;
     // Set mask for intra modes.
     for (int i = 0; i < BLOCK_SIZES; ++i)
       if (i >= BLOCK_32X32)
@@ -1061,6 +1063,7 @@ static void set_good_speed_features_framesize_independent(
   sf->tpl_sf.search_method = NSTEP_8PT;
 
   sf->rt_sf.use_nonrd_pick_mode = 0;
+  sf->rt_sf.discount_color_cost = 0;
   sf->rt_sf.use_real_time_ref_set = 0;
 
   if (cpi->twopass_frame.fr_content_type == FC_GRAPHICS_ANIMATION ||
@@ -2001,6 +2004,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.use_nonrd_altref_frame =
         (cpi->svc.number_spatial_layers > 1) ? 0 : 1;
     sf->rt_sf.use_nonrd_pick_mode = 1;
+    sf->rt_sf.discount_color_cost = 1;
     sf->rt_sf.nonrd_check_partition_merge_mode = 3;
     sf->rt_sf.skip_intra_pred = 1;
     sf->rt_sf.source_metrics_sb_nonrd = 1;
@@ -2369,6 +2373,7 @@ static inline void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->mode_search_skip_flags = 0;
   rt_sf->nonrd_prune_ref_frame_search = 0;
   rt_sf->use_nonrd_pick_mode = 0;
+  rt_sf->discount_color_cost = 0;
   rt_sf->use_nonrd_altref_frame = 0;
   rt_sf->use_comp_ref_nonrd = 0;
   rt_sf->use_real_time_ref_set = 0;

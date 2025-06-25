@@ -1633,6 +1633,11 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   // This flag controls the use of non-RD mode decision.
   int use_nonrd_pick_mode;
 
+  // Flag that controls discounting for color map cost during palette search.
+  // This saves about 5% of CPU and in non-RD speeds delivers better results
+  // across rtc_screen set (on speed 10 overall BDRate growth is 13%)
+  int discount_color_cost;
+
   // Use ALTREF frame in non-RD mode decision.
   int use_nonrd_altref_frame;
 
