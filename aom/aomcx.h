@@ -1633,9 +1633,6 @@ typedef enum aom_scaling_mode_1d {
 /*!\brief  aom region of interest map
  *
  * These defines the data structures for the region of interest map
- *
- * TODO(yaowu): create a unit test for ROI map related APIs
- *
  */
 typedef struct aom_roi_map {
   /*! If ROI is enabled. */
