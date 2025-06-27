@@ -346,6 +346,8 @@ static void auto_tile_size_balancing(AV1_COMMON *const cm, int num_sbs,
 
   tiles->uniform_spacing = 0;
 
+  const int max_size_sb =
+      tile_col_row ? tiles->max_width_sb : tiles->max_height_sb;
   for (i = 0, start_sb = 0; start_sb < num_sbs && i < MAX_TILE_COLS; ++i) {
     if (i == inc_index) ++size_sb;
     if (tile_col_row)
@@ -353,7 +355,7 @@ static void auto_tile_size_balancing(AV1_COMMON *const cm, int num_sbs,
     else
       tiles->row_start_sb[i] = start_sb;
 
-    start_sb += AOMMIN(size_sb, tiles->max_width_sb);
+    start_sb += AOMMIN(size_sb, max_size_sb);
   }
 
   if (tile_col_row) {
