@@ -141,6 +141,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/aom_mem_test.cc"
               "${AOM_ROOT}/test/av1_common_int_test.cc"
               "${AOM_ROOT}/test/av1_scale_test.cc"
+              "${AOM_ROOT}/test/bitwriter_buffer_test.cc"
               "${AOM_ROOT}/test/cdef_test.cc"
               "${AOM_ROOT}/test/cfl_test.cc"
               "${AOM_ROOT}/test/convolve_test.cc"
