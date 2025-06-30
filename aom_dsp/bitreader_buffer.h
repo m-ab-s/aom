@@ -38,6 +38,8 @@ int aom_rb_read_bit(struct aom_read_bit_buffer *rb);
 
 int aom_rb_read_literal(struct aom_read_bit_buffer *rb, int bits);
 
+// Reads a variable length unsigned integer. Valid range is 0..UINT32_MAX - 1.
+// Returns UINT32_MAX on error.
 uint32_t aom_rb_read_uvlc(struct aom_read_bit_buffer *rb);
 
 #if CONFIG_AV1_DECODER
