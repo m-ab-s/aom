@@ -80,7 +80,6 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/scan.h"
             "${AOM_ROOT}/av1/common/seg_common.c"
             "${AOM_ROOT}/av1/common/seg_common.h"
-            "${AOM_ROOT}/av1/common/selfguided_hwy.h"
             "${AOM_ROOT}/av1/common/thread_common.c"
             "${AOM_ROOT}/av1/common/thread_common.h"
             "${AOM_ROOT}/av1/common/tile_common.c"
@@ -92,6 +91,10 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/txb_common.h"
             "${AOM_ROOT}/av1/common/warped_motion.c"
             "${AOM_ROOT}/av1/common/warped_motion.h")
+
+if(CONFIG_HIGHWAY)
+  list(APPEND AOM_AV1_COMMON_SOURCES "${AOM_ROOT}/av1/common/selfguided_hwy.h")
+endif()
 
 list(APPEND AOM_AV1_DECODER_SOURCES
             "${AOM_ROOT}/av1/av1_dx_iface.c"
@@ -581,6 +584,7 @@ if(CONFIG_REALTIME_ONLY)
                      "${AOM_ROOT}/av1/common/cfl.h"
                      "${AOM_ROOT}/av1/common/restoration.c"
                      "${AOM_ROOT}/av1/common/restoration.h"
+                     "${AOM_ROOT}/av1/common/selfguided_hwy.h"
                      "${AOM_ROOT}/av1/common/warped_motion.c"
                      "${AOM_ROOT}/av1/common/warped_motion.h")
 
