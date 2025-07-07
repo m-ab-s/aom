@@ -10,6 +10,7 @@
  */
 
 #include <assert.h>
+#include <stdint.h>
 
 #include "config/aom_config.h"
 

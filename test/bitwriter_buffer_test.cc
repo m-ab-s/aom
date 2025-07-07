@@ -9,6 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <cstdint>
+
 #include "gtest/gtest.h"
 
 #include "aom_dsp/bitwriter_buffer.h"
