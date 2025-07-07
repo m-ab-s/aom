@@ -903,6 +903,21 @@ typedef struct MV_SPEED_FEATURES {
   // Allow intrabc motion search
   int use_intrabc;
 
+  // Prune intrabc candidate block hash search
+  // 0: check every block hash candidate
+  // 1: check the first 64 block hash candidates only
+  int prune_intrabc_candidate_block_hash_search;
+
+  // Intrabc search level
+  // 0: top + left search
+  // 1: top search only
+  int intrabc_search_level;
+
+  // Whether the maximum intrabc block size to hash is 8x8
+  // 0: Hash from 4x4 up to superblock size
+  // 1: Hash 4x4 and 8x8 only
+  int hash_max_8x8_intrabc_blocks;
+
   // Whether to downsample the rows in sad calculation during motion search.
   // This is only active when there are at least 16 rows. When this sf is
   // active, if there is a large discrepancy in the SAD values for the final

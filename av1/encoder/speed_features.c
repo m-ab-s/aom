@@ -383,6 +383,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->part_sf.reuse_best_prediction_for_part_ab = 1;
 
     sf->mv_sf.exhaustive_searches_thresh <<= 1;
+    sf->mv_sf.prune_intrabc_candidate_block_hash_search = 1;
 
     sf->intra_sf.prune_palette_search_level = 1;
     sf->intra_sf.prune_luma_palette_size_search_level = 2;
@@ -479,6 +480,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
 
     sf->mv_sf.reduce_search_range = 1;
+    sf->mv_sf.hash_max_8x8_intrabc_blocks = 1;
 
     sf->winner_mode_sf.enable_winner_mode_for_coeff_opt = 1;
     sf->winner_mode_sf.enable_winner_mode_for_use_tx_domain_dist = 1;
@@ -527,6 +529,7 @@ static void set_allintra_speed_features_framesize_independent(
     sf->part_sf.default_max_partition_size = BLOCK_32X32;
 
     sf->mv_sf.use_bsize_dependent_search_method = 1;
+    sf->mv_sf.intrabc_search_level = 1;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 3;
     sf->tx_sf.tx_type_search.prune_tx_type_est_rd = 0;
@@ -2184,6 +2187,9 @@ static inline void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->warp_search_method = WARP_SEARCH_SQUARE;
   mv_sf->warp_search_iters = 8;
   mv_sf->use_intrabc = 1;
+  mv_sf->prune_intrabc_candidate_block_hash_search = 0;
+  mv_sf->intrabc_search_level = 0;
+  mv_sf->hash_max_8x8_intrabc_blocks = 0;
 }
 
 static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {

@@ -15,6 +15,10 @@
       * Up to 6.9% SSIMULACRA 2 BD-Rate gains for speed 8
       * Up to 2.2% SSIMULACRA 2 BD-Rate gains for speed 9
 
+  - Speedups
+    * Optimize intraBC for better speed/efficiency tradeoffs for
+      all intra mode speeds >= 1
+
   - Bug Fixes
     * b:421196988: all intra speed 8: overuse of palette mode
       unnecessarily inflating file sizes
