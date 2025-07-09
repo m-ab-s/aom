@@ -441,7 +441,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/av1_wedge_compute_delta_squares sse2 avx2 neon/;
 
   # hash
-  add_proto qw/uint32_t av1_get_crc32c_value/, "void *crc_calculator, uint8_t *p, size_t length";
+  add_proto qw/uint32_t av1_get_crc32c_value/, "void *crc_calculator, const uint8_t *p, size_t length";
   specialize qw/av1_get_crc32c_value sse4_2 arm_crc32/;
 
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {

@@ -1585,7 +1585,7 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
               AOM_BUFFER_SIZE_FOR_BLOCK_HASH *
               sizeof(*cpi->td.mb.intrabc_hash_info.hash_value_buffer[0][0])));
 
-  cpi->td.mb.intrabc_hash_info.g_crc_initialized = 0;
+  cpi->td.mb.intrabc_hash_info.crc_initialized = 0;
 
   av1_set_speed_features_framesize_independent(cpi, oxcf->speed);
   av1_set_speed_features_framesize_dependent(cpi, oxcf->speed);
