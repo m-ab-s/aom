@@ -380,6 +380,11 @@ if(NOT CONFIG_EXCLUDE_SIMD_MISMATCH)
 endif()
 
 if(CONFIG_HIGHWAY)
+  list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
+              "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_hwy_avx2.cc")
+  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_AVX2
+                   "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx2.c"
+                   "${AOM_ROOT}/av1/encoder/x86/highbd_fwd_txfm_avx2.c")
   list(APPEND AOM_AV1_ENCODER_INTRIN_AVX512
               "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_hwy_avx512.cc")
 endif()
