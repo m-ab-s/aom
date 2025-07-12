@@ -1577,13 +1577,13 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   if (cpi->oxcf.kf_cfg.key_freq_max != 0)
     alloc_obmc_buffers(&cpi->td.mb.obmc_buffer, cm->error);
 
-  for (int x = 0; x < 2; x++)
-    for (int y = 0; y < 2; y++)
-      CHECK_MEM_ERROR(
-          cm, cpi->td.mb.intrabc_hash_info.hash_value_buffer[x][y],
-          (uint32_t *)aom_malloc(
-              AOM_BUFFER_SIZE_FOR_BLOCK_HASH *
-              sizeof(*cpi->td.mb.intrabc_hash_info.hash_value_buffer[0][0])));
+  for (int x = 0; x < 2; x++) {
+    CHECK_MEM_ERROR(
+        cm, cpi->td.mb.intrabc_hash_info.hash_value_buffer[x],
+        (uint32_t *)aom_malloc(
+            AOM_BUFFER_SIZE_FOR_BLOCK_HASH *
+            sizeof(*cpi->td.mb.intrabc_hash_info.hash_value_buffer[x])));
+  }
 
   cpi->td.mb.intrabc_hash_info.crc_initialized = 0;
 
