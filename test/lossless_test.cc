@@ -47,9 +47,6 @@ class LosslessTestLarge
       // alone will activate lossless
       if (cfg_.rc_max_quantizer > 0 || cfg_.rc_min_quantizer > 0) {
         encoder->Control(AV1E_SET_LOSSLESS, 1);
-
-        if (mode_ == libaom_test::kRealTime)
-          encoder->Control(AV1E_SET_ENABLE_CHROMA_DELTAQ, 1);
       }
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
     }
