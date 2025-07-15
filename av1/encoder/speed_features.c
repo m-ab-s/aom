@@ -605,8 +605,8 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
 
   const AV1_COMMON *const cm = &cpi->common;
   const bool is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
-  const bool is_between_480p_and_720p = AOMMIN(cm->width, cm->height) > 480 &&
-                                        AOMMIN(cm->width, cm->height) < 720;
+  const bool is_between_480p_and_1080p = AOMMIN(cm->width, cm->height) > 480 &&
+                                         AOMMIN(cm->width, cm->height) < 1080;
   const bool is_vertical_video = cm->width < cm->height;
 
   const FRAME_UPDATE_TYPE update_type =
@@ -615,7 +615,7 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
   const int is_key_frame = frame_is_intra_only(cm);
 
   // Speed features for vertical videos
-  if (is_vertical_video && is_between_480p_and_720p) {
+  if (is_vertical_video && is_between_480p_and_1080p) {
     const int leaf_and_overlay_frames =
         (update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
          update_type == INTNL_OVERLAY_UPDATE);
@@ -2677,8 +2677,8 @@ static void set_good_speed_features_lc_dec_qindex_dependent(
   if (speed < 1 || speed > 3) return;
 
   const AV1_COMMON *const cm = &cpi->common;
-  const bool is_between_480p_and_720p = AOMMIN(cm->width, cm->height) > 480 &&
-                                        AOMMIN(cm->width, cm->height) < 720;
+  const bool is_between_480p_and_1080p = AOMMIN(cm->width, cm->height) > 480 &&
+                                         AOMMIN(cm->width, cm->height) < 1080;
   const bool is_720p_or_larger = AOMMIN(cm->width, cm->height) >= 720;
   const bool is_vertical_video = cm->width < cm->height;
   const FRAME_UPDATE_TYPE update_type =
@@ -2688,7 +2688,7 @@ static void set_good_speed_features_lc_dec_qindex_dependent(
        update_type == INTNL_OVERLAY_UPDATE);
 
   // Speed features for vertical videos
-  if (is_vertical_video && is_between_480p_and_720p) {
+  if (is_vertical_video && is_between_480p_and_1080p) {
     sf->lpf_sf.min_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
     sf->lpf_sf.max_lr_unit_size = RESTORATION_UNITSIZE_MAX >> 1;
   }
