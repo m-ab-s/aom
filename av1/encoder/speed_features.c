@@ -423,6 +423,7 @@ static void set_allintra_speed_features_framesize_independent(
   if (speed >= 3) {
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
+    sf->hl_sf.screen_detection_mode2_fast_detection = 1;
 
     sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg = SIMPLE_AGG_LVL1;
@@ -2078,6 +2079,7 @@ static inline void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->weight_calc_level_in_tf = 0;
   hl_sf->allow_sub_blk_me_in_tf = 0;
   hl_sf->ref_frame_mvs_lvl = 0;
+  hl_sf->screen_detection_mode2_fast_detection = 0;
 }
 
 static inline void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {
