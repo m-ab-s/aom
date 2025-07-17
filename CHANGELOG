@@ -7,6 +7,12 @@
   Therefore aom_roi_map_t is to be considered as a new struct added in
   this release and this change does not break ABI compatibility.
 
+  - New Features
+    * New codec control AV1E_SET_ENABLE_ADAPTIVE_SHARPNESS
+      (--enable-adaptive-sharpness). When enabled, it modulates sharpness
+      based on frame QP, which helps mitigate blocking artifacts in the
+      low to medium quality range.
+
   - Compression Efficiency Improvements
     * Variance Boost is now enabled for tuning mode AOM_TUNE_IQ at
       speeds 8 and 9 (2-5% SSIMULACRA 2 BD-Rate gains)
