@@ -3579,12 +3579,13 @@ static void resize_reset_rc(AV1_COMP *cpi, int resize_width, int resize_height,
  * for each step may be 3/4 or 1/2.
  *
  * \ingroup rate_control
- * \param[in]       cpi          Top level encoder structure
+ * \param[in]       cpi            Top level encoder structure
+ * \param[in]       one_half_only  Only allow 1/2 scaling factor
  *
  * \remark Return resized width/height in \c cpi->resize_pending_params,
  * and update some resize counters in \c rc.
  */
-static void dynamic_resize_one_pass_cbr(AV1_COMP *cpi) {
+static void dynamic_resize_one_pass_cbr(AV1_COMP *cpi, int one_half_only) {
   const AV1_COMMON *const cm = &cpi->common;
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
@@ -3595,7 +3596,6 @@ static void dynamic_resize_one_pass_cbr(AV1_COMP *cpi) {
   const int min_width = (160 * 4) / 3;
   const int min_height = (90 * 4) / 3;
   int down_size_on = 1;
-  int one_half_only = 1;
   // Don't resize on key frame; reset the counters on key frame.
   if (cm->current_frame.frame_type == KEY_FRAME) {
     rc->resize_avg_qp = 0;
@@ -3815,7 +3815,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
   // For temporal layers only check on base temporal layer.
   if (cpi->oxcf.resize_cfg.resize_mode == RESIZE_DYNAMIC) {
     if (svc->number_spatial_layers == 1 && svc->temporal_layer_id == 0)
-      dynamic_resize_one_pass_cbr(cpi);
+      dynamic_resize_one_pass_cbr(cpi, /*one_half_only=*/1);
     if (rc->resize_state == THREE_QUARTER) {
       resize_pending_params->width = (3 + cpi->oxcf.frm_dim_cfg.width * 3) >> 2;
       resize_pending_params->height =
