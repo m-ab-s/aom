@@ -1870,6 +1870,8 @@ static aom_codec_err_t handle_tuning(aom_codec_alg_priv_t *ctx,
     extra_cfg->enable_chroma_deltaq = 1;
     // Enable "Variance Boost" deltaq mode, optimized for images.
     extra_cfg->deltaq_mode = DELTA_Q_VARIANCE_BOOST;
+    // Enable "anti-aliased text and graphics aware" screen detection mode.
+    extra_cfg->screen_detection_mode = AOM_SCREEN_DETECTION_ANTIALIASING_AWARE;
   }
   if (extra_cfg->tuning == AOM_TUNE_IQ) {
     // Enable adaptive sharpness to adjust loop filter levels according to QP.

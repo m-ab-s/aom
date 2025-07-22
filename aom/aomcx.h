@@ -1729,6 +1729,7 @@ typedef enum {
  *   * --enable-cdef=3
  *   * --enable-chroma-deltaq=1
  *   * --deltaq-mode=6
+ *   * --screen-detection-mode=2
  * AOM_TUNE_IQ additionally sets the following options:
  *   * --enable-adaptive-sharpness=1
  */
