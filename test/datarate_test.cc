@@ -772,15 +772,20 @@ class DatarateTestPsnr
     InitializeConfig(libaom_test::kRealTime);
     ResetModel();
     frame_flags_ = AOM_EFLAG_CALCULATE_PSNR;
+    expect_psnr_ = true;
   }
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
                           ::libaom_test::Encoder *encoder) override {
     DatarateTest::PreEncodeFrameHook(video, encoder);
-#if !defined(CONFIG_INTERNAL_STATS)
     frame_flags_ ^= AOM_EFLAG_CALCULATE_PSNR;
+#if CONFIG_INTERNAL_STATS
+    // CONFIG_INTERNAL_STATS unconditionally generates PSNR.
+    expect_psnr_ = true;
+#else
+    expect_psnr_ = (frame_flags_ & AOM_EFLAG_CALCULATE_PSNR) != 0;
 #endif  // CONFIG_INTERNAL_STATS
     if (video->img() == nullptr) {
-      frame_flags_ = 0;
+      expect_psnr_ = false;
     }
   }
   void PostEncodeFrameHook(::libaom_test::Encoder *encoder) override {
@@ -791,9 +796,11 @@ class DatarateTestPsnr
       if (pkt->kind == AOM_CODEC_PSNR_PKT) had_psnr = true;
     }
 
-    EXPECT_EQ(had_psnr, (frame_flags_ & AOM_EFLAG_CALCULATE_PSNR) ==
-                            AOM_EFLAG_CALCULATE_PSNR);
+    EXPECT_EQ(had_psnr, expect_psnr_);
   }
+
+ private:
+  bool expect_psnr_;
 };
 
 TEST_P(DatarateTestPsnr, PerFramePsnr) {
