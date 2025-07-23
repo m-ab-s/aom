@@ -179,6 +179,7 @@ class DatarateTestSVC
     external_resize_dynamic_drop_layer_ = false;
     external_resize_pattern_ = 0;
     dynamic_tl_ = false;
+    dynamic_scale_factors_ = false;
   }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -413,6 +414,31 @@ class DatarateTestSVC
         number_temporal_layers_ = 1;
         svc_params_.layer_target_bitrate[0] = cfg_.rc_target_bitrate;
         svc_params_.framerate_factor[0] = 1;
+        encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
+      }
+    } else if (dynamic_scale_factors_) {
+      if (layer_id_.spatial_layer_id == 0 && video->frame() == 0) {
+        // Change layer bitrates to set top layer to 0.
+        // This will trigger skip encoding/dropping of top spatial layer.
+        // Set scale factors to 1/2 on top layer.
+        bitrate_layer_[2] = svc_params_.layer_target_bitrate[2];
+        cfg_.rc_target_bitrate -= bitrate_layer_[2];
+        svc_params_.layer_target_bitrate[2] = 0;
+        svc_params_.scaling_factor_num[0] = 1;
+        svc_params_.scaling_factor_den[0] = 4;
+        svc_params_.scaling_factor_num[1] = 1;
+        svc_params_.scaling_factor_den[1] = 2;
+        svc_params_.scaling_factor_num[2] = 1;
+        svc_params_.scaling_factor_den[2] = 2;
+        encoder->Config(&cfg_);
+        encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
+      } else if (layer_id_.spatial_layer_id == 0 && video->frame() == 30) {
+        // Go back nonzero bitrate and set scale factors to 1/1 on top layer.
+        svc_params_.layer_target_bitrate[2] = bitrate_layer_[2];
+        cfg_.rc_target_bitrate += svc_params_.layer_target_bitrate[2];
+        svc_params_.scaling_factor_num[2] = 1;
+        svc_params_.scaling_factor_den[2] = 1;
+        encoder->Config(&cfg_);
         encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params_);
       }
     }
@@ -3039,6 +3065,31 @@ class DatarateTestSVC
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
 
+  virtual void BasicRateTargetingSVC1TL3SLIssue433046392() {
+    cfg_.rc_buf_initial_sz = 500;
+    cfg_.rc_buf_optimal_sz = 500;
+    cfg_.rc_buf_sz = 1000;
+    cfg_.rc_dropframe_thresh = 0;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 63;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_error_resilient = 0;
+    const int bitrate_array[2] = { 600, 1200 };
+    cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+    cfg_.g_w = 1280;
+    cfg_.g_h = 720;
+    ::libaom_test::Y4mVideoSource video("niklas_1280_720_30.y4m", 0, 60);
+    ResetModel();
+    dynamic_scale_factors_ = true;
+    number_temporal_layers_ = 1;
+    number_spatial_layers_ = 3;
+    target_layer_bitrate_[0] = 1 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[1] = 3 * cfg_.rc_target_bitrate / 8;
+    target_layer_bitrate_[2] = 4 * cfg_.rc_target_bitrate / 8;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  }
+
   int layer_frame_cnt_;
   int superframe_cnt_;
   int number_temporal_layers_;
@@ -3082,6 +3133,7 @@ class DatarateTestSVC
   int bitrate_layer_[9];
   int external_resize_pattern_;
   bool dynamic_tl_;
+  bool dynamic_scale_factors_;
 };
 
 // Check basic rate targeting for CBR, for 3 temporal layers, 1 spatial.
@@ -3417,6 +3469,19 @@ TEST_P(DatarateTestSVC,
 // during the sequence, and then back to 1.
 TEST_P(DatarateTestSVC, BasicRateTargetingSVC3TL1SLDynamicTL) {
   BasicRateTargetingSVC3TL1SLDynamicTLTest();
+}
+
+// For 1 pass CBR SVC with 3 spatial and 1 temporal layer.
+// This encoding is to catch the issue in b:433046392. Encoder is initialized
+// for 3 spatial layers with top resolution of 1280x720. Starting from first
+// frame the scale factor for top layer is set to 1/2 (so top layer will be
+// same resolution as middle) and 0 bitrate is set for top layer to skip
+// encoding that layer. Then mid-way in sequence the scale factor is set to 1/1
+// (so top layer is 1280x720) and non-zero bitrate is set for all layers.
+// Disabling usage of src_sad_blk_64x64 for spatial layers fixes the issues with
+// this encoding.
+TEST_P(DatarateTestSVC, BasicRateTargetingSVC1TL3SLIssue433046392) {
+  BasicRateTargetingSVC1TL3SLIssue433046392();
 }
 
 TEST(SvcParams, BitrateOverflow) {
