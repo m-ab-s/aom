@@ -151,6 +151,12 @@ class DatarateTestLarge
                               "pixel_capture_w320h240.yuv", 100);
     const int bitrate_array[2] = { 1000, 2000 };
     cfg_.rc_target_bitrate = bitrate_array[GET_PARAM(4)];
+#ifdef AOM_VALGRIND_BUILD
+    if (cfg_.rc_target_bitrate == 2000) {
+      GTEST_SKIP() << "No need to run this test for 2 bitrates, the issue for "
+                      "this test occurs at first bitrate = 1000.";
+    }
+#endif  // AOM_VALGRIND_BUILD
     ResetModel();
     avif_mode_ = 1;
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
