@@ -771,6 +771,7 @@ class DatarateTestPsnr
   void SetUp() override {
     InitializeConfig(libaom_test::kRealTime);
     ResetModel();
+    set_cpu_used_ = 10;
     frame_flags_ = AOM_EFLAG_CALCULATE_PSNR;
     expect_psnr_ = true;
   }
