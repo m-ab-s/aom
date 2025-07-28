@@ -27,6 +27,9 @@ typedef struct _CRC32C {
 // init table for software version crc32c
 void av1_crc32c_calculator_init(CRC32C *p_crc32c);
 
+// Number of 2x2 pixel blocks per superblock
+// The biggest superblock supported by AV1 is 128x128, therefore there can be
+// a maximum of 64x64 blocks per superblock: 64 * 64 = 4096
 #define AOM_BUFFER_SIZE_FOR_BLOCK_HASH (4096)
 
 #ifdef __cplusplus

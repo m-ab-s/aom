@@ -2105,7 +2105,7 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
     // add to hash table
     const int pic_width = cpi->source->y_crop_width;
     const int pic_height = cpi->source->y_crop_height;
-    uint32_t *block_hash_values[2] = { NULL };  // [two buffers used ping-pong]
+    uint32_t *block_hash_values[2] = { NULL };  // two buffers used ping-pong
     bool error = false;
 
     for (int j = 0; j < 2; ++j) {

@@ -260,6 +260,7 @@ bool av1_add_to_hash_map_by_row_with_precal_data(hash_table *p_hash_table,
   // Explore the entire frame hierarchically to add intrabc candidate blocks to
   // the hash table, by starting with coarser steps (the block size), towards
   // finer-grained steps until every candidate block has been considered.
+  // The nested for loop goes through the pic_hash array column by column.
 
   // Doing a hierarchical block exploration helps maximize spatial dispersion
   // of the first and foremost candidate blocks while minimizing overlap between
@@ -304,10 +305,16 @@ bool av1_add_to_hash_map_by_row_with_precal_data(hash_table *p_hash_table,
       }
     }
 
-    // Adjust offsets and step sizes with this state machine
+    // Adjust offsets and step sizes with this state machine.
+    // State 0 is needed because no blocks in pic_hash have been explored,
+    // so exploration requires a way to account for blocks with both zero
+    // x_offset and zero y_offset.
+    // State 0 is always meant to be executed first, but the relative order of
+    // states 1, 2 and 3 can be arbitrary, as long as no two adjacent blocks
+    // are explored consecutively.
     if (x_offset == 0 && y_offset == 0) {
       // State 0 -> State 1: special case
-      // This state will only execute when step == block_size
+      // This state transition will only execute when step == block_size
       x_offset = step / 2;
     } else if (x_offset == step / 2 && y_offset == 0) {
       // State 1 -> State 2
