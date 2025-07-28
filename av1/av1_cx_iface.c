@@ -100,7 +100,7 @@ struct av1_extracfg {
   unsigned int enable_chroma_deltaq;
   AQ_MODE aq_mode;
   DELTAQ_MODE deltaq_mode;
-  int deltaq_strength;
+  unsigned int deltaq_strength;
   int deltalf_mode;
   unsigned int frame_periodic_boost;
   aom_tune_content content;
@@ -914,7 +914,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
     }
   }
 
-  RANGE_CHECK(extra_cfg, deltaq_strength, 0, 1000);
+  RANGE_CHECK_HI(extra_cfg, deltaq_strength, 1000);
   RANGE_CHECK_HI(extra_cfg, loopfilter_control, 3);
   RANGE_CHECK_BOOL(extra_cfg, skip_postproc_filtering);
   RANGE_CHECK_HI(extra_cfg, enable_cdef, 3);
