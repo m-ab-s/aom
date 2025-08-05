@@ -3176,8 +3176,14 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
     width = cpi->oxcf.frm_dim_cfg.width;
     height = cpi->oxcf.frm_dim_cfg.height;
   }
+  // Set src_sad_blk_64x64 to NULL also for number_spatial layers > 1, as
+  // it is never allocated for number_spatial_layers > 1 (see the condition
+  // under which we allocate cpi->src_sad_blk_64x64 later in this function).
+  // This is guard against the case where the number_spatial_layers
+  // is changed dynamically without re-alloc of encoder.
   if (width != cm->render_width || height != cm->render_height ||
-      unscaled_src == NULL || unscaled_last_src == NULL) {
+      cpi->svc.number_spatial_layers > 1 || unscaled_src == NULL ||
+      unscaled_last_src == NULL) {
     aom_free(cpi->src_sad_blk_64x64);
     cpi->src_sad_blk_64x64 = NULL;
   }
