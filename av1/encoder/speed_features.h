@@ -921,8 +921,9 @@ typedef struct MV_SPEED_FEATURES {
   int prune_intrabc_candidate_block_hash_search;
 
   // Intrabc search level
-  // 0: top + left search
-  // 1: top search only
+  // 0: top + left search, all block sizes, always hash plus pixel search
+  // 1: top search only, 4x4, 8x8 and 16x16 block sizes only, perform pixel
+  //    search if and only if hash search failed to find a candidate
   int intrabc_search_level;
 
   // Whether the maximum intrabc block size to hash is 8x8
