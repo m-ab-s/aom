@@ -223,6 +223,7 @@ static void set_allintra_speed_feature_framesize_dependent(
   }
 
   if (speed >= 1) {
+    sf->part_sf.ml_4_partition_search_level_index = 1;
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
     } else if (is_480p_or_larger) {
@@ -250,6 +251,7 @@ static void set_allintra_speed_feature_framesize_dependent(
   }
 
   if (speed >= 2) {
+    sf->part_sf.ml_4_partition_search_level_index = 2;
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
     } else if (is_480p_or_larger) {
@@ -285,6 +287,7 @@ static void set_allintra_speed_feature_framesize_dependent(
 
   if (speed >= 3) {
     sf->part_sf.ml_early_term_after_part_split_level = 0;
+    sf->part_sf.ml_4_partition_search_level_index = 3;
 
     if (is_720p_or_larger) {
       for (int i = 0; i < PARTITION_BLOCK_SIZES; ++i) {
@@ -772,6 +775,7 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 1) {
+    sf->part_sf.ml_4_partition_search_level_index = 1;
     if (is_480p_or_lesser) sf->inter_sf.skip_newmv_in_drl = 1;
 
     if (is_720p_or_larger) {
@@ -802,6 +806,7 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 2) {
+    sf->part_sf.ml_4_partition_search_level_index = 2;
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
     } else if (is_480p_or_larger) {
@@ -891,6 +896,8 @@ static void set_good_speed_feature_framesize_dependent(
       }
       sf->part_sf.ml_partition_search_breakout_model_index = 0;
     }
+
+    sf->part_sf.ml_4_partition_search_level_index = 3;
 
     if (is_720p_or_larger) {
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 25);
@@ -2200,6 +2207,7 @@ static inline void init_part_sf(PARTITION_SPEED_FEATURES *part_sf) {
         -1;  // -1 means not enabled.
   }
   part_sf->ml_partition_search_breakout_model_index = 0;
+  part_sf->ml_4_partition_search_level_index = 0;
   part_sf->simple_motion_search_prune_agg = SIMPLE_AGG_LVL0;
   part_sf->simple_motion_search_split = 0;
   part_sf->simple_motion_search_prune_rect = 0;

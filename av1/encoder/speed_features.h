@@ -673,6 +673,9 @@ typedef struct PARTITION_SPEED_FEATURES {
   // ML based partition search breakout model index
   int ml_partition_search_breakout_model_index;
 
+  // ML based partition search breakout model index
+  int ml_4_partition_search_level_index;
+
   // Aggressiveness levels for pruning split and rectangular partitions based on
   // simple_motion_search. SIMPLE_AGG_LVL0 to SIMPLE_AGG_LVL5 correspond to
   // simple motion search based pruning. QIDX_BASED_AGG_LVL1 corresponds to
