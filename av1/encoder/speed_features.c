@@ -254,8 +254,6 @@ static void set_allintra_speed_feature_framesize_dependent(
     sf->part_sf.ml_4_partition_search_level_index = 2;
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
-    } else if (is_480p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
     } else {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
     }
@@ -809,8 +807,6 @@ static void set_good_speed_feature_framesize_dependent(
     sf->part_sf.ml_4_partition_search_level_index = 2;
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
-    } else if (is_480p_or_larger) {
-      sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
     } else {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_32X32;
     }
