@@ -33,13 +33,10 @@ static inline void transpose_concat_elems_u8_4x4(uint8x8_t a0, uint8x8_t a1,
   uint8x16_t a2q = vcombine_u8(a2, vdup_n_u8(0));
   uint8x16_t a3q = vcombine_u8(a3, vdup_n_u8(0));
 
-  uint8x16_t a01 = vzipq_u8(a0q, a1q).val[0];
-  uint8x16_t a23 = vzipq_u8(a2q, a3q).val[0];
+  uint8x16_t a02 = vzipq_u8(a0q, a2q).val[0];
+  uint8x16_t a13 = vzipq_u8(a1q, a3q).val[0];
 
-  uint16x8_t a0123 =
-      vzipq_u16(vreinterpretq_u16_u8(a01), vreinterpretq_u16_u8(a23)).val[0];
-
-  *b = vreinterpretq_u8_u16(a0123);
+  *b = vzipq_u8(a02, a13).val[0];
 }
 
 static inline void transpose_concat_elems_u8_8x4(uint8x8_t a0, uint8x8_t a1,
@@ -60,14 +57,13 @@ static inline void transpose_concat_elems_u8_8x4(uint8x8_t a0, uint8x8_t a1,
   uint8x16_t a2q = vcombine_u8(a2, vdup_n_u8(0));
   uint8x16_t a3q = vcombine_u8(a3, vdup_n_u8(0));
 
-  uint8x16_t a01 = vzipq_u8(a0q, a1q).val[0];
-  uint8x16_t a23 = vzipq_u8(a2q, a3q).val[0];
+  uint8x16_t a02 = vzipq_u8(a0q, a2q).val[0];
+  uint8x16_t a13 = vzipq_u8(a1q, a3q).val[0];
 
-  uint16x8x2_t a0123 =
-      vzipq_u16(vreinterpretq_u16_u8(a01), vreinterpretq_u16_u8(a23));
+  uint8x16x2_t a0123 = vzipq_u8(a02, a13);
 
-  *b0 = vreinterpretq_u8_u16(a0123.val[0]);
-  *b1 = vreinterpretq_u8_u16(a0123.val[1]);
+  *b0 = a0123.val[0];
+  *b1 = a0123.val[1];
 }
 
 static inline void transpose_concat_elems_s8_4x4(int8x8_t a0, int8x8_t a1,
@@ -86,13 +82,10 @@ static inline void transpose_concat_elems_s8_4x4(int8x8_t a0, int8x8_t a1,
   int8x16_t a2q = vcombine_s8(a2, vdup_n_s8(0));
   int8x16_t a3q = vcombine_s8(a3, vdup_n_s8(0));
 
-  int8x16_t a01 = vzipq_s8(a0q, a1q).val[0];
-  int8x16_t a23 = vzipq_s8(a2q, a3q).val[0];
+  int8x16_t a02 = vzipq_s8(a0q, a2q).val[0];
+  int8x16_t a13 = vzipq_s8(a1q, a3q).val[0];
 
-  int16x8_t a0123 =
-      vzipq_s16(vreinterpretq_s16_s8(a01), vreinterpretq_s16_s8(a23)).val[0];
-
-  *b = vreinterpretq_s8_s16(a0123);
+  *b = vzipq_s8(a02, a13).val[0];
 }
 
 static inline void transpose_concat_elems_s8_8x4(int8x8_t a0, int8x8_t a1,
@@ -112,14 +105,13 @@ static inline void transpose_concat_elems_s8_8x4(int8x8_t a0, int8x8_t a1,
   int8x16_t a2q = vcombine_s8(a2, vdup_n_s8(0));
   int8x16_t a3q = vcombine_s8(a3, vdup_n_s8(0));
 
-  int8x16_t a01 = vzipq_s8(a0q, a1q).val[0];
-  int8x16_t a23 = vzipq_s8(a2q, a3q).val[0];
+  int8x16_t a02 = vzipq_s8(a0q, a2q).val[0];
+  int8x16_t a13 = vzipq_s8(a1q, a3q).val[0];
 
-  int16x8x2_t a0123 =
-      vzipq_s16(vreinterpretq_s16_s8(a01), vreinterpretq_s16_s8(a23));
+  int8x16x2_t a0123 = vzipq_s8(a02, a13);
 
-  *b0 = vreinterpretq_s8_s16(a0123.val[0]);
-  *b1 = vreinterpretq_s8_s16(a0123.val[1]);
+  *b0 = a0123.val[0];
+  *b1 = a0123.val[1];
 }
 
 static inline void transpose_concat_elems_s16_4x4(int16x4_t s0, int16x4_t s1,
@@ -139,13 +131,13 @@ static inline void transpose_concat_elems_s16_4x4(int16x4_t s0, int16x4_t s1,
   int16x8_t s2q = vcombine_s16(s2, vdup_n_s16(0));
   int16x8_t s3q = vcombine_s16(s3, vdup_n_s16(0));
 
-  int32x4_t s01 = vreinterpretq_s32_s16(vzipq_s16(s0q, s1q).val[0]);
-  int32x4_t s23 = vreinterpretq_s32_s16(vzipq_s16(s2q, s3q).val[0]);
+  int16x8_t s02 = vzipq_s16(s0q, s2q).val[0];
+  int16x8_t s13 = vzipq_s16(s1q, s3q).val[0];
 
-  int32x4x2_t s0123 = vzipq_s32(s01, s23);
+  int16x8x2_t s0123 = vzipq_s16(s02, s13);
 
-  res[0] = vreinterpretq_s16_s32(s0123.val[0]);
-  res[1] = vreinterpretq_s16_s32(s0123.val[1]);
+  res[0] = s0123.val[0];
+  res[1] = s0123.val[1];
 }
 
 static inline void transpose_concat_elems_s16_8x4(int16x8_t s0, int16x8_t s1,
@@ -157,23 +149,21 @@ static inline void transpose_concat_elems_s16_8x4(int16x8_t s0, int16x8_t s1,
   // s2: 20, 21, 22, 23, 24, 25, 26, 27
   // s3: 30, 31, 32, 33, 34, 35, 36, 37
   //
-  // res_lo[0]: 00 10 20 30 01 11 21 31
-  // res_lo[1]: 02 12 22 32 03 13 23 33
-  // res_hi[0]: 04 14 24 34 05 15 25 35
-  // res_hi[1]: 06 16 26 36 07 17 27 37
+  // res[0]: 00 10 20 30 01 11 21 31
+  // res[1]: 02 12 22 32 03 13 23 33
+  // res[2]: 04 14 24 34 05 15 25 35
+  // res[3]: 06 16 26 36 07 17 27 37
 
-  int16x8x2_t tr01_16 = vzipq_s16(s0, s1);
-  int16x8x2_t tr23_16 = vzipq_s16(s2, s3);
+  int16x8x2_t s02 = vzipq_s16(s0, s2);
+  int16x8x2_t s13 = vzipq_s16(s1, s3);
 
-  int32x4x2_t tr01_32 = vzipq_s32(vreinterpretq_s32_s16(tr01_16.val[0]),
-                                  vreinterpretq_s32_s16(tr23_16.val[0]));
-  int32x4x2_t tr23_32 = vzipq_s32(vreinterpretq_s32_s16(tr01_16.val[1]),
-                                  vreinterpretq_s32_s16(tr23_16.val[1]));
+  int16x8x2_t s0123_lo = vzipq_s16(s02.val[0], s13.val[0]);
+  int16x8x2_t s0123_hi = vzipq_s16(s02.val[1], s13.val[1]);
 
-  res[0] = vreinterpretq_s16_s32(tr01_32.val[0]);
-  res[1] = vreinterpretq_s16_s32(tr01_32.val[1]);
-  res[2] = vreinterpretq_s16_s32(tr23_32.val[0]);
-  res[3] = vreinterpretq_s16_s32(tr23_32.val[1]);
+  res[0] = s0123_lo.val[0];
+  res[1] = s0123_lo.val[1];
+  res[2] = s0123_hi.val[0];
+  res[3] = s0123_hi.val[1];
 }
 
 static inline void transpose_elems_u8_8x8(
