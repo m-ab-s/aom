@@ -17,6 +17,165 @@
 #include "aom_dsp/aom_dsp_common.h"  // For AOM_FORCE_INLINE.
 #include "config/aom_config.h"
 
+static inline void transpose_concat_elems_u8_4x4(uint8x8_t a0, uint8x8_t a1,
+                                                 uint8x8_t a2, uint8x8_t a3,
+                                                 uint8x16_t *b) {
+  // Transpose 8-bit elements and concatenate result rows as follows:
+  // a0: 00, 01, 02, 03, XX, XX, XX, XX
+  // a1: 10, 11, 12, 13, XX, XX, XX, XX
+  // a2: 20, 21, 22, 23, XX, XX, XX, XX
+  // a3: 30, 31, 32, 33, XX, XX, XX, XX
+  //
+  // b: 00, 10, 20, 30, 01, 11, 21, 31, 02, 12, 22, 32, 03, 13, 23, 33
+
+  uint8x16_t a0q = vcombine_u8(a0, vdup_n_u8(0));
+  uint8x16_t a1q = vcombine_u8(a1, vdup_n_u8(0));
+  uint8x16_t a2q = vcombine_u8(a2, vdup_n_u8(0));
+  uint8x16_t a3q = vcombine_u8(a3, vdup_n_u8(0));
+
+  uint8x16_t a01 = vzipq_u8(a0q, a1q).val[0];
+  uint8x16_t a23 = vzipq_u8(a2q, a3q).val[0];
+
+  uint16x8_t a0123 =
+      vzipq_u16(vreinterpretq_u16_u8(a01), vreinterpretq_u16_u8(a23)).val[0];
+
+  *b = vreinterpretq_u8_u16(a0123);
+}
+
+static inline void transpose_concat_elems_u8_8x4(uint8x8_t a0, uint8x8_t a1,
+                                                 uint8x8_t a2, uint8x8_t a3,
+                                                 uint8x16_t *b0,
+                                                 uint8x16_t *b1) {
+  // Transpose 8-bit elements and concatenate result rows as follows:
+  // a0: 00, 01, 02, 03, 04, 05, 06, 07
+  // a1: 10, 11, 12, 13, 14, 15, 16, 17
+  // a2: 20, 21, 22, 23, 24, 25, 26, 27
+  // a3: 30, 31, 32, 33, 34, 35, 36, 37
+  //
+  // b0: 00, 10, 20, 30, 01, 11, 21, 31, 02, 12, 22, 32, 03, 13, 23, 33
+  // b1: 04, 14, 24, 34, 05, 15, 25, 35, 06, 16, 26, 36, 07, 17, 27, 37
+
+  uint8x16_t a0q = vcombine_u8(a0, vdup_n_u8(0));
+  uint8x16_t a1q = vcombine_u8(a1, vdup_n_u8(0));
+  uint8x16_t a2q = vcombine_u8(a2, vdup_n_u8(0));
+  uint8x16_t a3q = vcombine_u8(a3, vdup_n_u8(0));
+
+  uint8x16_t a01 = vzipq_u8(a0q, a1q).val[0];
+  uint8x16_t a23 = vzipq_u8(a2q, a3q).val[0];
+
+  uint16x8x2_t a0123 =
+      vzipq_u16(vreinterpretq_u16_u8(a01), vreinterpretq_u16_u8(a23));
+
+  *b0 = vreinterpretq_u8_u16(a0123.val[0]);
+  *b1 = vreinterpretq_u8_u16(a0123.val[1]);
+}
+
+static inline void transpose_concat_elems_s8_4x4(int8x8_t a0, int8x8_t a1,
+                                                 int8x8_t a2, int8x8_t a3,
+                                                 int8x16_t *b) {
+  // Transpose 8-bit elements and concatenate result rows as follows:
+  // a0: 00, 01, 02, 03, XX, XX, XX, XX
+  // a1: 10, 11, 12, 13, XX, XX, XX, XX
+  // a2: 20, 21, 22, 23, XX, XX, XX, XX
+  // a3: 30, 31, 32, 33, XX, XX, XX, XX
+  //
+  // b: 00, 10, 20, 30, 01, 11, 21, 31, 02, 12, 22, 32, 03, 13, 23, 33
+
+  int8x16_t a0q = vcombine_s8(a0, vdup_n_s8(0));
+  int8x16_t a1q = vcombine_s8(a1, vdup_n_s8(0));
+  int8x16_t a2q = vcombine_s8(a2, vdup_n_s8(0));
+  int8x16_t a3q = vcombine_s8(a3, vdup_n_s8(0));
+
+  int8x16_t a01 = vzipq_s8(a0q, a1q).val[0];
+  int8x16_t a23 = vzipq_s8(a2q, a3q).val[0];
+
+  int16x8_t a0123 =
+      vzipq_s16(vreinterpretq_s16_s8(a01), vreinterpretq_s16_s8(a23)).val[0];
+
+  *b = vreinterpretq_s8_s16(a0123);
+}
+
+static inline void transpose_concat_elems_s8_8x4(int8x8_t a0, int8x8_t a1,
+                                                 int8x8_t a2, int8x8_t a3,
+                                                 int8x16_t *b0, int8x16_t *b1) {
+  // Transpose 8-bit elements and concatenate result rows as follows:
+  // a0: 00, 01, 02, 03, 04, 05, 06, 07
+  // a1: 10, 11, 12, 13, 14, 15, 16, 17
+  // a2: 20, 21, 22, 23, 24, 25, 26, 27
+  // a3: 30, 31, 32, 33, 34, 35, 36, 37
+  //
+  // b0: 00, 10, 20, 30, 01, 11, 21, 31, 02, 12, 22, 32, 03, 13, 23, 33
+  // b1: 04, 14, 24, 34, 05, 15, 25, 35, 06, 16, 26, 36, 07, 17, 27, 37
+
+  int8x16_t a0q = vcombine_s8(a0, vdup_n_s8(0));
+  int8x16_t a1q = vcombine_s8(a1, vdup_n_s8(0));
+  int8x16_t a2q = vcombine_s8(a2, vdup_n_s8(0));
+  int8x16_t a3q = vcombine_s8(a3, vdup_n_s8(0));
+
+  int8x16_t a01 = vzipq_s8(a0q, a1q).val[0];
+  int8x16_t a23 = vzipq_s8(a2q, a3q).val[0];
+
+  int16x8x2_t a0123 =
+      vzipq_s16(vreinterpretq_s16_s8(a01), vreinterpretq_s16_s8(a23));
+
+  *b0 = vreinterpretq_s8_s16(a0123.val[0]);
+  *b1 = vreinterpretq_s8_s16(a0123.val[1]);
+}
+
+static inline void transpose_concat_elems_s16_4x4(int16x4_t s0, int16x4_t s1,
+                                                  int16x4_t s2, int16x4_t s3,
+                                                  int16x8_t res[2]) {
+  // Transpose 16-bit elements and concatenate result rows as follows:
+  // s0: 00, 01, 02, 03
+  // s1: 10, 11, 12, 13
+  // s2: 20, 21, 22, 23
+  // s3: 30, 31, 32, 33
+  //
+  // res[0]: 00 10 20 30 01 11 21 31
+  // res[1]: 02 12 22 32 03 13 23 33
+
+  int16x8_t s0q = vcombine_s16(s0, vdup_n_s16(0));
+  int16x8_t s1q = vcombine_s16(s1, vdup_n_s16(0));
+  int16x8_t s2q = vcombine_s16(s2, vdup_n_s16(0));
+  int16x8_t s3q = vcombine_s16(s3, vdup_n_s16(0));
+
+  int32x4_t s01 = vreinterpretq_s32_s16(vzipq_s16(s0q, s1q).val[0]);
+  int32x4_t s23 = vreinterpretq_s32_s16(vzipq_s16(s2q, s3q).val[0]);
+
+  int32x4x2_t s0123 = vzipq_s32(s01, s23);
+
+  res[0] = vreinterpretq_s16_s32(s0123.val[0]);
+  res[1] = vreinterpretq_s16_s32(s0123.val[1]);
+}
+
+static inline void transpose_concat_elems_s16_8x4(int16x8_t s0, int16x8_t s1,
+                                                  int16x8_t s2, int16x8_t s3,
+                                                  int16x8_t res[4]) {
+  // Transpose 16-bit elements and concatenate result rows as follows:
+  // s0: 00, 01, 02, 03, 04, 05, 06, 07
+  // s1: 10, 11, 12, 13, 14, 15, 16, 17
+  // s2: 20, 21, 22, 23, 24, 25, 26, 27
+  // s3: 30, 31, 32, 33, 34, 35, 36, 37
+  //
+  // res_lo[0]: 00 10 20 30 01 11 21 31
+  // res_lo[1]: 02 12 22 32 03 13 23 33
+  // res_hi[0]: 04 14 24 34 05 15 25 35
+  // res_hi[1]: 06 16 26 36 07 17 27 37
+
+  int16x8x2_t tr01_16 = vzipq_s16(s0, s1);
+  int16x8x2_t tr23_16 = vzipq_s16(s2, s3);
+
+  int32x4x2_t tr01_32 = vzipq_s32(vreinterpretq_s32_s16(tr01_16.val[0]),
+                                  vreinterpretq_s32_s16(tr23_16.val[0]));
+  int32x4x2_t tr23_32 = vzipq_s32(vreinterpretq_s32_s16(tr01_16.val[1]),
+                                  vreinterpretq_s32_s16(tr23_16.val[1]));
+
+  res[0] = vreinterpretq_s16_s32(tr01_32.val[0]);
+  res[1] = vreinterpretq_s16_s32(tr01_32.val[1]);
+  res[2] = vreinterpretq_s16_s32(tr23_32.val[0]);
+  res[3] = vreinterpretq_s16_s32(tr23_32.val[1]);
+}
+
 static inline void transpose_elems_u8_8x8(
     uint8x8_t a0, uint8x8_t a1, uint8x8_t a2, uint8x8_t a3, uint8x8_t a4,
     uint8x8_t a5, uint8x8_t a6, uint8x8_t a7, uint8x8_t *o0, uint8x8_t *o1,
