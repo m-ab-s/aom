@@ -712,26 +712,20 @@ void av1_convolve_y_sr_neon_i8mm(const uint8_t *src, int src_stride,
   }
 
   const int y_filter_taps = get_filter_tap(filter_params_y, subpel_y_qn);
-
-  if (y_filter_taps <= 6) {
-    av1_convolve_y_sr_neon(src, src_stride, dst, dst_stride, w, h,
-                           filter_params_y, subpel_y_qn);
-    return;
-  }
-
-  const int vert_offset = y_filter_taps / 2 - 1;
-  src -= vert_offset * src_stride;
-
   const int16_t *y_filter_ptr = av1_get_interp_filter_subpel_kernel(
       filter_params_y, subpel_y_qn & SUBPEL_MASK);
 
-  if (y_filter_taps > 8) {
-    convolve_y_sr_12tap_neon_i8mm(src, src_stride, dst, dst_stride, w, h,
-                                  y_filter_ptr);
-    return;
+  if (y_filter_taps <= 4) {
+    av1_convolve_y_sr_neon(src, src_stride, dst, dst_stride, w, h,
+                           filter_params_y, subpel_y_qn);
+  } else if (y_filter_taps == 12) {
+    convolve_y_sr_12tap_neon_i8mm(src - 5 * src_stride, src_stride, dst,
+                                  dst_stride, w, h, y_filter_ptr);
+  } else {
+    // 6-tap or 8-tap.
+    convolve_y_sr_8tap_neon_i8mm(src - 3 * src_stride, src_stride, dst,
+                                 dst_stride, w, h, y_filter_ptr);
   }
-  convolve_y_sr_8tap_neon_i8mm(src, src_stride, dst, dst_stride, w, h,
-                               y_filter_ptr);
 }
 
 static inline int16x8_t convolve8_8_2d_h(uint8x16_t samples,
