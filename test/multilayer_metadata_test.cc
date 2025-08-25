@@ -163,7 +163,7 @@ layers:
       transfer_characteristics: 13
       matrix_coefficients: 6
     )";
-  libaom_test::TempOutFile tmp_file(/*text_mode=*/true);
+  libaom_test::TempOutFile tmp_file;
   fprintf(tmp_file.file(), "%s", metadata.c_str());
   fflush(tmp_file.file());
 
