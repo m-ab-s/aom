@@ -47,7 +47,7 @@ static inline int16x4_t convolve12_4_x(uint8x16_t samples[2],
   int32x4_t sum = vusmmlaq_s32(horiz_const, perm_samples[0], filter[0]);
   sum = vusmmlaq_s32(sum, perm_samples[1], filter[1]);
 
-  return vqrshrn_n_s32(sum, FILTER_BITS);
+  return vshrn_n_s32(sum, 1);
 }
 
 static inline uint8x8_t convolve12_8_x(uint8x16_t samples[2],
@@ -72,9 +72,9 @@ static inline uint8x8_t convolve12_8_x(uint8x16_t samples[2],
   sum4567 = vusmmlaq_s32(sum4567, perm_samples[3], filter[1]);
 
   // Narrow and re-pack.
-  int16x8_t sum_s16 = vcombine_s16(vqrshrn_n_s32(sum0123, FILTER_BITS),
-                                   vqrshrn_n_s32(sum4567, FILTER_BITS));
-  return vqmovun_s16(sum_s16);
+  int16x8_t sum_s16 =
+      vcombine_s16(vshrn_n_s32(sum0123, 1), vshrn_n_s32(sum4567, 1));
+  return vqrshrun_n_s16(sum_s16, FILTER_BITS - 1);
 }
 
 static inline void convolve_x_sr_12tap_neon_i8mm(const uint8_t *src,
@@ -117,8 +117,8 @@ static inline void convolve_x_sr_12tap_neon_i8mm(const uint8_t *src,
       int16x4_t d2 = convolve12_4_x(s2, filter, permute_tbl, horiz_const);
       int16x4_t d3 = convolve12_4_x(s3, filter, permute_tbl, horiz_const);
 
-      uint8x8_t d01 = vqmovun_s16(vcombine_s16(d0, d1));
-      uint8x8_t d23 = vqmovun_s16(vcombine_s16(d2, d3));
+      uint8x8_t d01 = vqrshrun_n_s16(vcombine_s16(d0, d1), FILTER_BITS - 1);
+      uint8x8_t d23 = vqrshrun_n_s16(vcombine_s16(d2, d3), FILTER_BITS - 1);
 
       store_u8x4_strided_x2(dst + 0 * dst_stride, dst_stride, d01);
       store_u8x4_strided_x2(dst + 2 * dst_stride, dst_stride, d23);
