@@ -1,4 +1,4 @@
-2025-08-28 v3.13.0
+2025-09-02 v3.13.0
   This release is ABI compatible with the last release.
 
   The aom_roi_map_t struct, used only by the codec control
@@ -16,13 +16,13 @@
     * New codec control AV1E_SET_SCREEN_CONTENT_DETECTION_MODE
       (--screen-detection-mode).
       This codec control helps select between two screen detection modes:
-       - Mode 1: standard (default)
-       - Mode 2: anti-aliased text and graphics aware
+       * Mode 1: standard (default)
+       * Mode 2: anti-aliased text and graphics aware
     * New codec control AV1E_SET_ENABLE_ADAPTIVE_SHARPNESS
       (--enable-adaptive-sharpness). When enabled, it modulates sharpness
       based on frame QP, which helps mitigate blocking artifacts in the
       low to medium quality range.
-    * Added low complexity mode for 720p vertical videos.
+    * Added low complexity decode mode for 720p vertical videos.
     * ROI feature implemented for RTC: for delta QP, skip encoding, and
       reference selection.
     * External scaling feature for SVC: allow downscaled images to be
