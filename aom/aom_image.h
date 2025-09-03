@@ -284,26 +284,26 @@ aom_image_t *aom_img_alloc(aom_image_t *img, aom_img_fmt_t fmt,
  * storage for the image has been allocated elsewhere, and a descriptor is
  * desired to "wrap" that storage.
  *
- * \param[in]    img       Pointer to storage for descriptor. If this parameter
- *                         is NULL, the storage for the descriptor will be
- *                         allocated on the heap.
- * \param[in]    fmt       Format for the image
- * \param[in]    d_w       Width of the image. Must not exceed 0x08000000
- *                         (2^27).
- * \param[in]    d_h       Height of the image. Must not exceed 0x08000000
- *                         (2^27).
- * \param[in]    align     Alignment, in bytes, of each row in the image
- *                         (stride). Must not exceed 65536.
- * \param[in]    img_data  Storage to use for the image. The storage must
- *                         outlive the returned image descriptor; it can be
- *                         disposed of after calling aom_img_free().
+ * \param[in]    img           Pointer to storage for descriptor. If this
+ *                             parameter is NULL, the storage for the descriptor
+ *                             will be allocated on the heap.
+ * \param[in]    fmt           Format for the image
+ * \param[in]    d_w           Width of the image. Must not exceed 0x08000000
+ *                             (2^27).
+ * \param[in]    d_h           Height of the image. Must not exceed 0x08000000
+ *                             (2^27).
+ * \param[in]    stride_align  Alignment, in bytes, of each row in the image
+ *                             (stride). Must not exceed 65536.
+ * \param[in]    img_data      Storage to use for the image. The storage must
+ *                             outlive the returned image descriptor; it can be
+ *                             disposed of after calling aom_img_free().
  *
  * \return Returns a pointer to the initialized image descriptor. If the img
  *         parameter is non-null, the value of the img parameter will be
  *         returned.
  */
 aom_image_t *aom_img_wrap(aom_image_t *img, aom_img_fmt_t fmt, unsigned int d_w,
-                          unsigned int d_h, unsigned int align,
+                          unsigned int d_h, unsigned int stride_align,
                           unsigned char *img_data);
 
 /*!\brief Open a descriptor, allocating storage for the underlying image with a
