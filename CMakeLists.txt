@@ -23,7 +23,7 @@ endif()
 
 # VERSION is the release version of the library. It should be updated at the
 # same time as the LT_* variables.
-project(AOM LANGUAGES C CXX VERSION 3.12.0)
+project(AOM LANGUAGES C CXX VERSION 3.13.1)
 
 # GENERATED source property global visibility.
 if(POLICY CMP0118)
