@@ -1,3 +1,14 @@
+2025-09-05 v3.13.1
+  This release is ABI compatible with the last release.
+
+  This release fixes two issues with the newly installed cmake files in 3.13.0,
+  there are no changes to the library except for the version number.
+
+  - Bug Fixes
+    * b:441135035#comment9: the version number in AOMConfig.cmake is now
+      correct and AOM_LIBRARIES now contains only one libaom reference; there
+      is a AOM_STATIC_LIBRARIES variable for the static target.
+
 2025-09-02 v3.13.0
   This release is ABI compatible with the last release.
 
