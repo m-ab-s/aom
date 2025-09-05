@@ -59,7 +59,7 @@ endif()
 #
 # The VERSION number in project() should be updated when these variables are.
 set(LT_CURRENT 16)
-set(LT_REVISION 0)
+set(LT_REVISION 1)
 set(LT_AGE 13)
 math(EXPR SO_VERSION "${LT_CURRENT} - ${LT_AGE}")
 set(SO_FILE_VERSION "${SO_VERSION}.${LT_AGE}.${LT_REVISION}")
