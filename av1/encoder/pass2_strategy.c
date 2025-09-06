@@ -2985,6 +2985,7 @@ static int define_kf_interval(AV1_COMP *cpi,
                           : cpi->common.mi_params.MBs;
   const int future_stats_count =
       av1_firstpass_info_future_count(firstpass_info, 0);
+
   while (frames_to_key < future_stats_count &&
          frames_to_key < num_frames_to_detect_scenecut) {
     // Provided that we are not at the end of the file...
@@ -2999,7 +3000,19 @@ static int define_kf_interval(AV1_COMP *cpi,
             oxcf->rc_cfg.mode, cpi->ppi->p_rc.enable_scenecut_detection,
             num_mbs);
         if (scenecut_detected) {
-          break;
+          int test_next_gop = 0;
+
+          for (int idx = 0; idx < 32; ++idx) {
+            const FIRSTPASS_STATS *next_stats =
+                av1_firstpass_info_peek(firstpass_info, frames_to_key + idx);
+
+            if (next_stats == NULL) continue;
+
+            if (next_stats->lt_coded_error * 2.5 < next_stats->coded_error)
+              test_next_gop = 1;
+          }
+
+          if (!test_next_gop) break;
         }
       }
 
