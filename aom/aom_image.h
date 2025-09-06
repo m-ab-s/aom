@@ -169,7 +169,7 @@ typedef enum aom_chroma_sample_position {
  * with the next output aom_image. Its insert_flag is set to either
  * AOM_MIF_ANY_FRAME, or AOM_MIF_ANY_FRAME_LAYER_SPECIFIC if the OBU contains an
  * OBU header extension (i.e. the video contains multiple layers AND the
- * metadata was added using *_LAYER_SPECIFC insert flag if using libaom).
+ * metadata was added using *_LAYER_SPECIFIC insert flag if using libaom).
  */
 typedef enum aom_metadata_insert_flags {
   AOM_MIF_NON_KEY_FRAME = 0, /**< Adds metadata if it's not a keyframe */
@@ -327,7 +327,7 @@ aom_image_t *aom_img_alloc(aom_image_t *img, aom_img_fmt_t fmt,
  * example:
  * \code
  * aom_img_wrap(img, fmt, d_w, d_h, stride_align, (unsigned char *)1);
- * ... calculate buffer size and allocate buffer as desribed earlier
+ * ... calculate buffer size and allocate buffer as described earlier
  * aom_img_wrap(img, fmt, d_w, d_h, stride_align, img_data);
  * \endcode
  */
