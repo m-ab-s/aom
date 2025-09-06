@@ -1843,8 +1843,8 @@ static void adjust_active_best_and_worst_quality(const AV1_COMP *cpi,
     }
 #else
     (void)is_intrl_arf_boost;
-    active_best_quality -= cpi->ppi->twopass.extend_minq / 8;
-    active_worst_quality += cpi->ppi->twopass.extend_maxq / 4;
+    active_best_quality -= cpi->ppi->twopass.extend_minq / 4;
+    active_worst_quality += cpi->ppi->twopass.extend_maxq;
 #endif
   }
 
