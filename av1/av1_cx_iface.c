@@ -3262,6 +3262,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (ppi->use_svc && ppi->cpi->svc.use_flexible_mode == 0 && flags == 0)
     av1_set_svc_fixed_mode(ppi->cpi);
 
+  ppi->b_freeze_internal_state = flags & AOM_EFLAG_FREEZE_INTERNAL_STATE;
+
   // Note(yunqing): While applying encoding flags, always start from enabling
   // all, and then modifying according to the flags. Previous frame's flags are
   // overwritten.
@@ -3495,6 +3497,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
     // Call for LAP stage
     if (cpi_lap != NULL) {
+      if (cpi_lap->ppi->b_freeze_internal_state) {
+        av1_save_all_coding_context(cpi_lap);
+      }
       AV1_COMP_DATA cpi_lap_data = { 0 };
       cpi_lap_data.flush = !img;
       cpi_lap_data.timestamp_ratio = &ctx->timestamp_ratio;
@@ -3503,6 +3508,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
         aom_internal_error_copy(&ppi->error, cpi_lap->common.error);
       }
       av1_post_encode_updates(cpi_lap, &cpi_lap_data);
+      if (cpi_lap->ppi->b_freeze_internal_state) {
+        restore_all_coding_context(cpi_lap);
+      }
     }
 
     // Recalculate the maximum number of frames that can be encoded in
@@ -3521,6 +3529,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       cpi->ref_idx_to_skip = INVALID_IDX;
       cpi->ref_refresh_index = INVALID_IDX;
       cpi->refresh_idx_available = false;
+      if (cpi->ppi->b_freeze_internal_state) {
+        av1_save_all_coding_context(cpi);
+      }
 
 #if CONFIG_FPMT_TEST
       simulate_parallel_frame =
@@ -3562,6 +3573,10 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
       ppi->seq_params_locked = 1;
       av1_post_encode_updates(cpi, &cpi_data);
+
+      if (cpi->ppi->b_freeze_internal_state) {
+        restore_all_coding_context(cpi);
+      }
 
 #if CONFIG_ENTROPY_STATS
       if (ppi->cpi->oxcf.pass != 1 && !cpi->common.show_existing_frame)
