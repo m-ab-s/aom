@@ -3327,11 +3327,15 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   }
   // Update the high_motion_content_screen_rtc flag on TL0. Avoid the update
   // if too many consecutive frame drops occurred.
-  const uint64_t thresh_high_motion = 9 * 64 * 64;
+  const int scale =
+      (unscaled_src->y_width * unscaled_src->y_height > 1920 * 1080) ? 24 : 10;
+  const uint64_t thresh_high_motion = scale * 64 * 64;
   if (cpi->svc.temporal_layer_id == 0 && rc->drop_count_consec < 3) {
     cpi->rc.high_motion_content_screen_rtc = 0;
     if (cpi->oxcf.speed >= 11 &&
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
+        rc->num_col_blscroll_last_tl0 == 0 &&
+        rc->num_row_blscroll_last_tl0 == 0 &&
         rc->percent_blocks_with_motion > 40 &&
         rc->prev_avg_source_sad > thresh_high_motion &&
         rc->avg_source_sad > thresh_high_motion &&
