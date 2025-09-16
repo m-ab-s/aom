@@ -9,8 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#ifndef AV1_COMMON_WARP_PLANE_HWY_H_
-#define AV1_COMMON_WARP_PLANE_HWY_H_
+#ifndef AOM_AV1_COMMON_WARP_PLANE_HWY_H_
+#define AOM_AV1_COMMON_WARP_PLANE_HWY_H_
 
 #include "av1/common/warped_motion.h"
 #include "config/av1_rtcd.h"
@@ -1405,4 +1405,4 @@ HWY_ATTR void WarpAffine(const int32_t *HWY_RESTRICT mat,
 
 HWY_AFTER_NAMESPACE();
 
-#endif  // AV1_COMMON_WARP_PLANE_HWY_H_
+#endif  // AOM_AV1_COMMON_WARP_PLANE_HWY_H_
