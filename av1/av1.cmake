@@ -670,6 +670,7 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/av1/encoder/arm/temporal_filter_neon_dotprod.c")
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_SVE
+                   "${AOM_ROOT}/av1/encoder/arm/highbd_pickrst_sve.c"
                    "${AOM_ROOT}/av1/encoder/arm/pickrst_sve.c")
 
   list(REMOVE_ITEM AOM_AV1_ENCODER_SOURCES
