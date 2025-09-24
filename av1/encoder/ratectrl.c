@@ -1209,7 +1209,18 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
   int adjustment = 0;
   int active_worst_quality;
   int ambient_qp;
-  if (frame_is_intra_only(cm)) return rc->worst_quality;
+  if (frame_is_intra_only(cm)) {
+    if (cpi->sf.rt_sf.rc_compute_spatial_var_sc &&
+        svc->number_spatial_layers == 1 && rc->frame_spatial_variance < 1000 &&
+        p_rc->buffer_level > p_rc->optimal_buffer_level &&
+        p_rc->optimal_buffer_level > (rc->avg_frame_bandwidth << 3)) {
+      ambient_qp =
+          (rc->worst_quality + p_rc->avg_frame_qindex[INTER_FRAME]) >> 1;
+      return AOMMIN(rc->worst_quality, AOMMAX(ambient_qp, rc->best_quality));
+    } else {
+      return rc->worst_quality;
+    }
+  }
   // For ambient_qp we use minimum of avg_frame_qindex[KEY_FRAME/INTER_FRAME]
   // for the first few frames following key frame. These are both initialized
   // to worst_quality and updated with (3/4, 1/4) average in postencode_update.
@@ -3818,7 +3829,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
       cpi->src_sad_blk_64x64 = NULL;
     }
   }
-  if (((*frame_type == KEY_FRAME && cpi->sf.rt_sf.rc_adjust_keyframe) ||
+  if ((*frame_type == KEY_FRAME ||
        (cpi->sf.rt_sf.rc_compute_spatial_var_sc && rc->high_source_sad)) &&
       svc->spatial_layer_id == 0 && cm->seq_params->bit_depth == 8 &&
       cpi->oxcf.rc_cfg.max_intra_bitrate_pct > 0)
