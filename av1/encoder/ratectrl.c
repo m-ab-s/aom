@@ -1210,10 +1210,16 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
   int active_worst_quality;
   int ambient_qp;
   if (frame_is_intra_only(cm)) {
-    if (cpi->sf.rt_sf.rc_compute_spatial_var_sc &&
+    // Allow for active_worst_quality to go lower than rc->worst_quality (max)
+    // under certain conditions: that the frame spatial variance is below
+    // threshold and the buffer is full/stable. Also check the encoded vs target
+    // size for the last keyframe, and that no scene change since last keyframe.
+    if (cpi->sf.rt_sf.rc_compute_spatial_var_sc_kf &&
         svc->number_spatial_layers == 1 && rc->frame_spatial_variance < 1000 &&
         p_rc->buffer_level > p_rc->optimal_buffer_level &&
-        p_rc->optimal_buffer_level > (rc->avg_frame_bandwidth << 3)) {
+        p_rc->optimal_buffer_level > (rc->avg_frame_bandwidth << 3) &&
+        rc->last_encoded_size_keyframe < (rc->last_target_size_keyframe << 2) &&
+        rc->frames_since_scene_change >= rc->frames_since_key) {
       ambient_qp =
           (rc->worst_quality + p_rc->avg_frame_qindex[INTER_FRAME]) >> 1;
       return AOMMIN(rc->worst_quality, AOMMAX(ambient_qp, rc->best_quality));
@@ -3829,8 +3835,8 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
       cpi->src_sad_blk_64x64 = NULL;
     }
   }
-  if ((*frame_type == KEY_FRAME ||
-       (cpi->sf.rt_sf.rc_compute_spatial_var_sc && rc->high_source_sad)) &&
+  if (cpi->sf.rt_sf.rc_compute_spatial_var_sc_kf &&
+      (*frame_type == KEY_FRAME || rc->high_source_sad) &&
       svc->spatial_layer_id == 0 && !cm->seq_params->use_highbitdepth &&
       cpi->oxcf.rc_cfg.max_intra_bitrate_pct > 0)
     rc_spatial_act_onepass_rt(cpi, frame_input->source->y_buffer,
@@ -3927,7 +3933,7 @@ int av1_encodedframe_overshoot_cbr(AV1_COMP *cpi, int *q) {
     // For easy scene changes used lower QP, otherwise set max-q.
     // If rt_sf->compute_spatial_var_sc is enabled relax the max-q
     // condition based on frame spatial variance.
-    if (cpi->sf.rt_sf.rc_compute_spatial_var_sc) {
+    if (cpi->sf.rt_sf.rc_compute_spatial_var_sc_kf) {
       if (cpi->rc.frame_spatial_variance < 100) {
         *q = (cpi->rc.worst_quality + *q) >> 1;
       } else if (cpi->rc.frame_spatial_variance < 400 ||
