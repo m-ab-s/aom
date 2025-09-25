@@ -3831,7 +3831,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
   }
   if ((*frame_type == KEY_FRAME ||
        (cpi->sf.rt_sf.rc_compute_spatial_var_sc && rc->high_source_sad)) &&
-      svc->spatial_layer_id == 0 && cm->seq_params->bit_depth == 8 &&
+      svc->spatial_layer_id == 0 && !cm->seq_params->use_highbitdepth &&
       cpi->oxcf.rc_cfg.max_intra_bitrate_pct > 0)
     rc_spatial_act_onepass_rt(cpi, frame_input->source->y_buffer,
                               frame_input->source->y_stride);
