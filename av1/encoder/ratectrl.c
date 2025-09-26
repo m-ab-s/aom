@@ -1213,13 +1213,12 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
     // Allow for active_worst_quality to go lower than rc->worst_quality (max)
     // under certain conditions: that the frame spatial variance is below
     // threshold and the buffer is full/stable. Also check the encoded vs target
-    // size for the last keyframe, and that no scene change since last keyframe.
+    // size for the last keyframe.
     if (cpi->sf.rt_sf.rc_compute_spatial_var_sc_kf &&
         svc->number_spatial_layers == 1 && rc->frame_spatial_variance < 1000 &&
         p_rc->buffer_level > p_rc->optimal_buffer_level &&
         p_rc->optimal_buffer_level > (rc->avg_frame_bandwidth << 3) &&
-        rc->last_encoded_size_keyframe < (rc->last_target_size_keyframe << 2) &&
-        rc->frames_since_scene_change >= rc->frames_since_key) {
+        rc->last_encoded_size_keyframe < (rc->last_target_size_keyframe << 3)) {
       ambient_qp =
           (rc->worst_quality + p_rc->avg_frame_qindex[INTER_FRAME]) >> 1;
       return AOMMIN(rc->worst_quality, AOMMAX(ambient_qp, rc->best_quality));
