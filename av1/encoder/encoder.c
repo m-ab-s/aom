@@ -5085,6 +5085,11 @@ void av1_post_encode_updates(AV1_COMP *const cpi,
         generate_psnr_packet(cpi);
       }
     }
+
+    if (cpi_data->pop_lookahead == 1) {
+      av1_lookahead_pop(cpi->ppi->lookahead, cpi_data->flush,
+                        cpi->compressor_stage);
+    }
     return;
   }
 

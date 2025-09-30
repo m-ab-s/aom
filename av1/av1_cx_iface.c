@@ -3302,6 +3302,16 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
           "Cannot calculate per-frame PSNR when g_lag_in_frames is nonzero");
     }
 
+    // Don't attempt to freeze internal state when lag is non-zero in order to
+    // minimize risk of state leaking when e.g. multi-pass and b-frames are
+    // used.
+    if ((flags & AOM_EFLAG_FREEZE_INTERNAL_STATE) &&
+        ctx->cfg.g_lag_in_frames != 0) {
+      aom_internal_error(
+          &ppi->error, AOM_CODEC_INCAPABLE,
+          "Cannot freeze internal state when g_lag_in_frames is nonzero");
+    }
+
     // Set up internal flags
 #if CONFIG_INTERNAL_STATS
     assert(ppi->b_calculate_psnr == 1);

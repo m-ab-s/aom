@@ -1353,6 +1353,14 @@ TEST(EncodeAPI, FreezeInternalState) {
   // Bitstreams should be identical
   EXPECT_EQ(bitstream1, bitstream2);
 
+  // Encode one more frame for good measure.
+  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/2, /*duration=*/1,
+                             /*flags=*/0),
+            AOM_CODEC_OK);
+  while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+    // Drain packets
+  }
+
   aom_img_free(image);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
@@ -1422,7 +1430,7 @@ TEST(EncodeAPI, FreezeInternalStateSVC) {
 
   std::vector<uint8_t> bitstream1;
   bool psnr1 = false;
-  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/0, /*duration=*/1,
+  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/1, /*duration=*/1,
                              /*flags=*/AOM_EFLAG_FREEZE_INTERNAL_STATE |
                                  AOM_EFLAG_CALCULATE_PSNR),
             AOM_CODEC_OK);
@@ -1442,7 +1450,7 @@ TEST(EncodeAPI, FreezeInternalStateSVC) {
   // Encode SL1 - Delta Frame again without Freeze
   std::vector<uint8_t> bitstream2;
   bool psnr2 = false;
-  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/0, /*duration=*/1,
+  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/1, /*duration=*/1,
                              /*flags=*/AOM_EFLAG_CALCULATE_PSNR),
             AOM_CODEC_OK);
   iter = nullptr;
@@ -1458,6 +1466,180 @@ TEST(EncodeAPI, FreezeInternalStateSVC) {
   EXPECT_FALSE(bitstream2.empty());
 
   EXPECT_EQ(bitstream1, bitstream2);
+
+  // Encode one more frame for good measure.
+  layer_id.spatial_layer_id = 0;
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_LAYER_ID, &layer_id),
+            AOM_CODEC_OK);
+  ref_frame_config.refresh[0] = 1;
+  ref_frame_config.reference[0] = 1;
+  ref_frame_config.ref_idx[0] = 0;
+  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/2, /*duration=*/1,
+                             /*flags=*/0),
+            AOM_CODEC_OK);
+  while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+    // Drain packets
+  }
+
+  aom_img_free(image);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+TEST(EncodeAPI, FreezeInternalStateTemporalLayers) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = 176;
+  cfg.g_h = 144;
+  cfg.rc_target_bitrate = 300;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_CBR;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_PSNR),
+            AOM_CODEC_OK);
+
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 7), AOM_CODEC_OK);
+
+  aom_svc_params_t svc_params = {};
+  svc_params.number_spatial_layers = 1;
+  svc_params.number_temporal_layers = 2;
+  svc_params.max_quantizers[0] = 56;
+  svc_params.min_quantizers[0] = 10;
+  svc_params.max_quantizers[1] = 56;
+  svc_params.min_quantizers[1] = 10;
+  svc_params.scaling_factor_num[0] = 1;
+  svc_params.scaling_factor_den[0] = 1;
+  svc_params.layer_target_bitrate[0] = cfg.rc_target_bitrate * 2 / 3;
+  svc_params.layer_target_bitrate[1] = cfg.rc_target_bitrate;
+  svc_params.framerate_factor[0] = 1;
+  svc_params.framerate_factor[1] = 2;
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_PARAMS, &svc_params),
+            AOM_CODEC_OK);
+
+  aom_image_t *image = CreateGrayImage(AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h);
+  ASSERT_NE(image, nullptr);
+
+  aom_svc_layer_id_t layer_id = {};
+  aom_svc_ref_frame_config_t ref_frame_config = {};
+
+  // Encode a Keyframe.
+  layer_id.spatial_layer_id = 0;
+  layer_id.temporal_layer_id = 0;
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_LAYER_ID, &layer_id),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/0, /*duration=*/1,
+                             /*flags=*/AOM_EFLAG_FORCE_KF),
+            AOM_CODEC_OK);
+
+  aom_codec_iter_t iter = nullptr;
+  while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+  }  // Drain
+
+  // Encode a TL1 - Delta Frame
+  layer_id.temporal_layer_id = 1;
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_LAYER_ID, &layer_id),
+            AOM_CODEC_OK);
+  ref_frame_config.refresh[0] = 0;
+  ref_frame_config.reference[0] = 1;
+  ref_frame_config.ref_idx[0] = 0;
+  ASSERT_EQ(
+      aom_codec_control(&enc, AV1E_SET_SVC_REF_FRAME_CONFIG, &ref_frame_config),
+      AOM_CODEC_OK);
+
+  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/1, /*duration=*/1,
+                             /*flags=*/0),
+            AOM_CODEC_OK);
+
+  while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+  }  // Drain
+
+  // Encode a TL0 - Delta Frame, with frozen state.
+  layer_id.temporal_layer_id = 0;
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_LAYER_ID, &layer_id),
+            AOM_CODEC_OK);
+  ref_frame_config.refresh[0] = 1;
+  ref_frame_config.reference[0] = 1;
+  ref_frame_config.ref_idx[0] = 0;
+
+  std::vector<uint8_t> bitstream1;
+  bool psnr1 = false;
+  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/2, /*duration=*/1,
+                             /*flags=*/AOM_EFLAG_FREEZE_INTERNAL_STATE |
+                                 AOM_EFLAG_CALCULATE_PSNR),
+            AOM_CODEC_OK);
+  iter = nullptr;
+  const aom_codec_cx_pkt_t *pkt;
+  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+      bitstream1.assign((uint8_t *)pkt->data.frame.buf,
+                        (uint8_t *)pkt->data.frame.buf + pkt->data.frame.sz);
+    } else if (pkt->kind == AOM_CODEC_PSNR_PKT) {
+      psnr1 = true;
+    }
+  }
+  EXPECT_TRUE(psnr1);
+  EXPECT_FALSE(bitstream1.empty());
+
+  // Encode TL1 - Delta Frame again without frozen state.
+  std::vector<uint8_t> bitstream2;
+  bool psnr2 = false;
+  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/2, /*duration=*/1,
+                             /*flags=*/AOM_EFLAG_CALCULATE_PSNR),
+            AOM_CODEC_OK);
+  iter = nullptr;
+  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+      bitstream2.assign((uint8_t *)pkt->data.frame.buf,
+                        (uint8_t *)pkt->data.frame.buf + pkt->data.frame.sz);
+    } else if (pkt->kind == AOM_CODEC_PSNR_PKT) {
+      psnr2 = true;
+    }
+  }
+  EXPECT_TRUE(psnr2);
+  EXPECT_FALSE(bitstream2.empty());
+
+  EXPECT_EQ(bitstream1, bitstream2);
+
+  // Encode one more frame for good measure.
+  layer_id.temporal_layer_id = 1;
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_LAYER_ID, &layer_id),
+            AOM_CODEC_OK);
+  ref_frame_config.refresh[0] = 0;
+  ref_frame_config.reference[0] = 1;
+  ref_frame_config.ref_idx[0] = 0;
+  ASSERT_EQ(aom_codec_encode(&enc, image, /*pts=*/3, /*duration=*/1,
+                             /*flags=*/0),
+            AOM_CODEC_OK);
+  while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+    // Drain packets
+  }
+
+  aom_img_free(image);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+TEST(EncodeAPI, FreezeInternalStateNotAllowedWithNonZeroLag) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, kUsage), AOM_CODEC_OK);
+  cfg.g_w = 176;
+  cfg.g_h = 144;
+  cfg.rc_target_bitrate = 200;
+  cfg.g_lag_in_frames =
+      1;  // Not supported with AOM_EFLAG_FREEZE_INTERNAL_STATE.
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+
+  aom_image_t *image = CreateGrayImage(AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h);
+  ASSERT_NE(image, nullptr);
+
+  ASSERT_EQ(aom_codec_encode(
+                &enc, image, /*pts=*/0, /*duration=*/1,
+                /*flags=*/AOM_EFLAG_FREEZE_INTERNAL_STATE | AOM_EFLAG_FORCE_KF),
+            AOM_CODEC_INCAPABLE);
 
   aom_img_free(image);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
