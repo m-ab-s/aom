@@ -1219,8 +1219,11 @@ static int calc_active_worst_quality_no_stats_cbr(const AV1_COMP *cpi) {
         p_rc->buffer_level > p_rc->optimal_buffer_level &&
         p_rc->optimal_buffer_level > (rc->avg_frame_bandwidth << 3) &&
         rc->last_encoded_size_keyframe < (rc->last_target_size_keyframe << 3)) {
-      ambient_qp =
-          (rc->worst_quality + p_rc->avg_frame_qindex[INTER_FRAME]) >> 1;
+      if (p_rc->buffer_level > ((9 * p_rc->optimal_buffer_level) >> 3))
+        ambient_qp = p_rc->avg_frame_qindex[INTER_FRAME];
+      else
+        ambient_qp =
+            (rc->worst_quality + p_rc->avg_frame_qindex[INTER_FRAME]) >> 1;
       return AOMMIN(rc->worst_quality, AOMMAX(ambient_qp, rc->best_quality));
     } else {
       return rc->worst_quality;
