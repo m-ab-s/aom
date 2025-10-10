@@ -520,6 +520,7 @@ static int firstpass_intra_prediction(
   xd->lossless[xd->mi[0]->segment_id] = (qindex == 0);
   xd->mi[0]->mode = DC_PRED;
   xd->mi[0]->tx_size = TX_4X4;
+  xd->mi[0]->skip_txfm = 0;
 
   if (cpi->sf.fp_sf.disable_recon)
     first_pass_predict_intra_block_for_luma_plane(seq_params, x, bsize);

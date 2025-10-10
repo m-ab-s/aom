@@ -733,7 +733,6 @@ static void encode_block_intra(int plane, int block, int blk_row, int blk_col,
   const AV1_COMMON *const cm = &cpi->common;
   MACROBLOCK *const x = args->x;
   MACROBLOCKD *const xd = &x->e_mbd;
-  MB_MODE_INFO *mbmi = xd->mi[0];
   struct macroblock_plane *const p = &x->plane[plane];
   struct macroblockd_plane *const pd = &xd->plane[plane];
   tran_low_t *dqcoeff = p->dqcoeff + BLOCK_OFFSET(block);
@@ -826,10 +825,6 @@ static void encode_block_intra(int plane, int block, int blk_row, int blk_col,
 #endif
     update_txk_array(xd, blk_row, blk_col, tx_size, DCT_DCT);
   }
-
-  // For intra mode, skipped blocks are so rare that transmitting
-  // skip_txfm = 1 is very expensive.
-  mbmi->skip_txfm = 0;
 
 #if !CONFIG_REALTIME_ONLY
   if (plane == AOM_PLANE_Y && xd->cfl.store_y) {
