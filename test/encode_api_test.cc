@@ -1685,4 +1685,46 @@ TEST(EncodeAPI, Issue449376308) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+// This test is based on the issue:449341177. The issue occurs in the
+// codec_destroy after invalid params (quantizer out of range) are passed
+// to the set_svc_params control. The issue can occur for realtime mode
+// with lag_in_frames = 0.
+TEST(EncodeAPI, Issue449341177) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = 320;
+  cfg.g_h = 240;
+  cfg.rc_target_bitrate = 500;
+  cfg.g_timebase.num = 1;
+  cfg.g_timebase.den = 30;
+  cfg.rc_end_usage = AOM_CBR;
+  cfg.g_lag_in_frames = 0;
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  // AV1E_SET_SVC_PARAMS
+  aom_svc_params_t svc_params = {};
+  svc_params.number_spatial_layers = 3;
+  svc_params.number_temporal_layers = 2;
+  for (int i = 0; i < AOM_MAX_LAYERS; i++) {
+    // Set quantizer out of range.
+    svc_params.max_quantizers[i] = 80;
+    svc_params.min_quantizers[i] = 0;
+    svc_params.layer_target_bitrate[i] = 1000;
+  }
+  for (int i = 0; i < AOM_MAX_SS_LAYERS; i++) {
+    svc_params.scaling_factor_num[i] = 1;
+    svc_params.scaling_factor_den[i] = 1;
+  }
+  for (int i = 0; i < AOM_MAX_TS_LAYERS; i++) {
+    svc_params.framerate_factor[i] = 1;
+  }
+  // set_svc_params should fail because svc_params.max_quantizer[i] is set out
+  // of range.
+  EXPECT_NE(aom_codec_control(&enc, AV1E_SET_SVC_PARAMS, &svc_params),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 }  // namespace
