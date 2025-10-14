@@ -1645,6 +1645,7 @@ TEST(EncodeAPI, FreezeInternalStateNotAllowedWithNonZeroLag) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+#if !CONFIG_REALTIME_ONLY
 // This test is based on the issue:449376308. The segfault in
 // av1_update_layer_context_change_config() is triggered
 // by doing svc with nonzero lag_in_frames and good_quality usage.
@@ -1684,6 +1685,7 @@ TEST(EncodeAPI, Issue449376308) {
             AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+#endif
 
 // This test is based on the issue:449341177. The issue occurs in the
 // codec_destroy after invalid params (quantizer out of range) are passed
