@@ -746,8 +746,12 @@ static void encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
   TX_TYPE tx_type = DCT_DCT;
   const int bw = mi_size_wide[plane_bsize];
-  if (plane == 0 && is_blk_skip(x->txfm_search_info.blk_skip, plane,
-                                blk_row * bw + blk_col)) {
+
+  if (xd->mi[0]->skip_txfm) {
+    *eob = 0;
+    p->txb_entropy_ctx[block] = 0;
+  } else if (plane == 0 && is_blk_skip(x->txfm_search_info.blk_skip, plane,
+                                       blk_row * bw + blk_col)) {
     *eob = 0;
     p->txb_entropy_ctx[block] = 0;
   } else {
