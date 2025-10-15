@@ -33,6 +33,9 @@ bool is_create_model_called = false;
 // A flag to indicate if delete_model() is called.
 bool is_delete_model_called = false;
 
+// A flag to indicate if send_firstpass_stats() is called.
+bool is_send_firstpass_stats_called = false;
+
 aom_rc_status_t mock_create_model(void *priv,
                                   const aom_rc_config_t *ratectrl_config,
                                   aom_rc_model_t *ratectrl_model) {
@@ -54,8 +57,11 @@ aom_rc_status_t mock_delete_model(aom_rc_model_t ratectrl_model) {
 aom_rc_status_t mock_send_firstpass_stats(
     aom_rc_model_t ratectrl_model,
     const aom_rc_firstpass_stats_t *firstpass_stats) {
-  (void)ratectrl_model;
-  (void)firstpass_stats;
+  EXPECT_NE(ratectrl_model, nullptr);
+  EXPECT_NE(firstpass_stats, nullptr);
+  EXPECT_EQ(firstpass_stats->num_frames, kFrameNum);
+  EXPECT_NE(firstpass_stats->frame_stats, nullptr);
+  is_send_firstpass_stats_called = true;
   return AOM_RC_OK;
 }
 
@@ -94,6 +100,9 @@ class ExtRateCtrlTest : public ::libaom_test::EncoderTest,
     InitializeConfig(static_cast<libaom_test::TestMode>(GET_PARAM(1)));
     cfg_.g_threads = 1;
     cfg_.g_limit = kFrameNum;
+    is_create_model_called = false;
+    is_delete_model_called = false;
+    is_send_firstpass_stats_called = false;
   }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -112,6 +121,7 @@ TEST_P(ExtRateCtrlTest, TestExternalRateCtrl) {
   ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, kFrameNum);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   EXPECT_TRUE(is_create_model_called);
+  EXPECT_TRUE(is_send_firstpass_stats_called);
   EXPECT_TRUE(is_delete_model_called);
 }
 

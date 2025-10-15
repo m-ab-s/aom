@@ -3757,6 +3757,16 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     return;
   }
 
+  if (cpi->common.current_frame.frame_number == 0 &&
+      cpi->ext_ratectrl.funcs.send_firstpass_stats != NULL) {
+    const aom_codec_err_t codec_status = av1_extrc_send_firstpass_stats(
+        &cpi->ext_ratectrl, &cpi->ppi->twopass.firstpass_info);
+    if (codec_status != AOM_CODEC_OK) {
+      aom_internal_error(cpi->common.error, codec_status,
+                         "av1_extrc_send_firstpass_stats() failed");
+    }
+  }
+
   const FIRSTPASS_STATS *const start_pos = cpi->twopass_frame.stats_in;
   int update_total_stats = 0;
 
