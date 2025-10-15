@@ -140,10 +140,10 @@ typedef void *aom_rc_model_t;
 /*!\brief Superblock quantization parameters
  * Store the superblock quantiztaion parameters
  */
-typedef struct sb_parameters {
+typedef struct aom_sb_parameters {
   int q_index; /**< Quantizer step index [0..255]*/
   int rdmult;  /**< Superblock level Lagrangian multiplier*/
-} sb_params;
+} aom_sb_params;
 
 /*!\brief Encode frame decision made by the external rate control model
  *
@@ -158,7 +158,7 @@ typedef struct aom_rc_encodeframe_decision {
    * It is zero initialized by default. It will be set for key and ARF frames
    * but not leaf frames.
    */
-  sb_params *sb_params_list;
+  aom_sb_params *sb_params_list;
 } aom_rc_encodeframe_decision_t;
 
 /*!\brief Information for the frame to be encoded.
