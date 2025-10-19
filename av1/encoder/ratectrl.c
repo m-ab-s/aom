@@ -499,6 +499,7 @@ void av1_rc_init(const AV1EncoderConfig *oxcf, RATE_CONTROL *rc) {
   rc->force_max_q = 0;
   rc->postencode_drop = 0;
   rc->frames_since_scene_change = 0;
+  rc->last_frame_low_source_sad = 0;
 }
 
 static bool check_buffer_below_thresh(AV1_COMP *cpi, int64_t buffer_level,
@@ -2485,6 +2486,8 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   rc->frame_number_encoded++;
   rc->prev_frame_is_dropped = 0;
   rc->drop_count_consec = 0;
+  if (rc->frame_source_sad < 10000)
+    rc->last_frame_low_source_sad = current_frame->frame_number;
 }
 
 void av1_rc_postencode_update_drop_frame(AV1_COMP *cpi) {
@@ -3348,12 +3351,12 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
   }
   // Update the high_motion_content_screen_rtc flag on TL0. Avoid the update
   // if too many consecutive frame drops occurred.
-  // The threshold_high_motion is set to a large value, to account for
+  // The threshold_high_motion is kept to a large value, to account for
   // mis-detection for scroll for scaled input (where scroll motion can be
-  // subpel and not detected below). The threshold may be reduced when better
+  // subpel and not detected below). The threshold may be improved when better
   // scroll detection (for subpel) is added.
   const int scale =
-      (unscaled_src->y_width * unscaled_src->y_height >= 1920 * 1080) ? 40 : 16;
+      (unscaled_src->y_width * unscaled_src->y_height > 1920 * 1080) ? 30 : 10;
   const uint64_t thresh_high_motion = scale * 64 * 64;
   if (cpi->svc.temporal_layer_id == 0 && rc->drop_count_consec < 3) {
     cpi->rc.high_motion_content_screen_rtc = 0;
@@ -3364,6 +3367,7 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
         rc->percent_blocks_with_motion > 40 &&
         rc->prev_avg_source_sad > thresh_high_motion &&
         rc->avg_source_sad > thresh_high_motion &&
+        cm->current_frame.frame_number - rc->last_frame_low_source_sad > 10 &&
         rc->avg_frame_low_motion < 60 && unscaled_src->y_width >= 1280 &&
         unscaled_src->y_height >= 720) {
       cpi->rc.high_motion_content_screen_rtc = 1;
@@ -3866,10 +3870,6 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
   } else if (is_frame_resize_pending(cpi)) {
     resize_reset_rc(cpi, resize_pending_params->width,
                     resize_pending_params->height, cm->width, cm->height);
-  }
-  if (svc->temporal_layer_id == 0) {
-    rc->num_col_blscroll_last_tl0 = 0;
-    rc->num_row_blscroll_last_tl0 = 0;
   }
   // Set the GF interval and update flag.
   if (!rc->rtc_external_ratectrl)

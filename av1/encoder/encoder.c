@@ -3175,6 +3175,11 @@ static int encode_without_recode(AV1_COMP *cpi) {
   // frame.
   if (!frame_is_intra_only(cm)) av1_pick_and_set_high_precision_mv(cpi, q);
 
+  if (svc->temporal_layer_id == 0) {
+    cpi->rc.num_col_blscroll_last_tl0 = 0;
+    cpi->rc.num_row_blscroll_last_tl0 = 0;
+  }
+
   // transform / motion compensation build reconstruction frame
   av1_encode_frame(cpi);
 
