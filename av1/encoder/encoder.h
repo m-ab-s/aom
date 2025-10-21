@@ -3712,6 +3712,11 @@ typedef struct AV1_COMP {
    * External rate control.
    */
   AOM_EXT_RATECTRL ext_ratectrl;
+
+  /*!
+   * Store TPL stats before propagation
+   */
+  AomTplGopStats tpl_gop_stats;
 } AV1_COMP;
 
 /*!

@@ -36,6 +36,9 @@ bool is_delete_model_called = false;
 // A flag to indicate if send_firstpass_stats() is called.
 bool is_send_firstpass_stats_called = false;
 
+// A flag to indicate if send_tpl_gop_stats() is called.
+bool is_send_tpl_gop_stats_called = false;
+
 aom_rc_status_t mock_create_model(void *priv,
                                   const aom_rc_config_t *ratectrl_config,
                                   aom_rc_model_t *ratectrl_model) {
@@ -65,6 +68,16 @@ aom_rc_status_t mock_send_firstpass_stats(
   return AOM_RC_OK;
 }
 
+aom_rc_status_t mock_send_tpl_gop_stats(aom_rc_model_t ratectrl_model,
+                                        const AomTplGopStats *tpl_gop_stats) {
+  EXPECT_NE(ratectrl_model, nullptr);
+  EXPECT_NE(tpl_gop_stats, nullptr);
+  EXPECT_GT(tpl_gop_stats->size, 0);
+  EXPECT_NE(tpl_gop_stats->frame_stats_list, nullptr);
+  is_send_tpl_gop_stats_called = true;
+  return AOM_RC_OK;
+}
+
 aom_rc_status_t mock_get_encodeframe_decision(
     aom_rc_model_t ratectrl_model, const int frame_gop_index,
     aom_rc_encodeframe_decision_t *frame_decision) {
@@ -91,6 +104,7 @@ class ExtRateCtrlTest : public ::libaom_test::EncoderTest,
     rc_funcs->create_model = mock_create_model;
     rc_funcs->delete_model = mock_delete_model;
     rc_funcs->send_firstpass_stats = mock_send_firstpass_stats;
+    rc_funcs->send_tpl_gop_stats = mock_send_tpl_gop_stats;
     rc_funcs->get_encodeframe_decision = mock_get_encodeframe_decision;
     rc_funcs->update_encodeframe_result = mock_update_encodeframe_result;
   }
@@ -103,6 +117,7 @@ class ExtRateCtrlTest : public ::libaom_test::EncoderTest,
     is_create_model_called = false;
     is_delete_model_called = false;
     is_send_firstpass_stats_called = false;
+    is_send_tpl_gop_stats_called = false;
   }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -122,6 +137,7 @@ TEST_P(ExtRateCtrlTest, TestExternalRateCtrl) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   EXPECT_TRUE(is_create_model_called);
   EXPECT_TRUE(is_send_firstpass_stats_called);
+  EXPECT_TRUE(is_send_tpl_gop_stats_called);
   EXPECT_TRUE(is_delete_model_called);
 }
 
