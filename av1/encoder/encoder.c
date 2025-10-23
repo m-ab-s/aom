@@ -3427,6 +3427,24 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
       }
     }
 
+    if (cpi->ext_ratectrl.ready &&
+        (cpi->ext_ratectrl.funcs.rc_type & AOM_RC_QP) != 0 &&
+        cpi->ext_ratectrl.funcs.get_encodeframe_decision != NULL) {
+      aom_codec_err_t codec_status;
+      aom_rc_encodeframe_decision_t encode_frame_decision;
+      codec_status = av1_extrc_get_encodeframe_decision(
+          &cpi->ext_ratectrl, cpi->gf_frame_index, &encode_frame_decision);
+      if (codec_status != AOM_CODEC_OK) {
+        aom_internal_error(cm->error, codec_status,
+                           "av1_extrc_get_encodeframe_decision() failed");
+      }
+      // If the external model recommends a reserved value, we use the default
+      // q.
+      if (encode_frame_decision.q_index != AOM_DEFAULT_Q) {
+        q = encode_frame_decision.q_index;
+      }
+    }
+
     av1_set_quantizer(cm, q_cfg->qm_minlevel, q_cfg->qm_maxlevel, q,
                       q_cfg->enable_chroma_deltaq, q_cfg->enable_hdr_deltaq,
                       oxcf->mode == ALLINTRA, oxcf->tune_cfg.tuning);
@@ -3566,6 +3584,13 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
 
     if (cpi->use_ducky_encode) {
       // Ducky encode currently does not support recode loop.
+      loop = 0;
+    }
+
+    // Do not recode if external rate control is used.
+    if (cpi->ext_ratectrl.ready &&
+        (cpi->ext_ratectrl.funcs.rc_type & AOM_RC_QP) != 0 &&
+        cpi->ext_ratectrl.funcs.get_encodeframe_decision != NULL) {
       loop = 0;
     }
 #if CONFIG_BITRATE_ACCURACY || CONFIG_RD_COMMAND
