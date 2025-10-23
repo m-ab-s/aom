@@ -429,21 +429,6 @@ static inline void highbd_convolve_y_sr_12tap_sve2(
   const int16x8_t y_filter_0_7 = vld1q_s16(y_filter_ptr);
   const int16x8_t y_filter_4_11 = vld1q_s16(y_filter_ptr + 4);
 
-  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kHbdDotProdMergeBlockTbl);
-  // Scale indices by size of the true vector length to avoid reading from an
-  // 'undefined' portion of a vector on a system with SVE vectors > 128-bit.
-  uint16x8_t correction0 =
-      vreinterpretq_u16_u64(vdupq_n_u64(svcnth() * 0x0001000000000000ULL));
-  merge_block_tbl.val[0] = vaddq_u16(merge_block_tbl.val[0], correction0);
-
-  uint16x8_t correction1 =
-      vreinterpretq_u16_u64(vdupq_n_u64(svcnth() * 0x0001000100000000ULL));
-  merge_block_tbl.val[1] = vaddq_u16(merge_block_tbl.val[1], correction1);
-
-  uint16x8_t correction2 =
-      vreinterpretq_u16_u64(vdupq_n_u64(svcnth() * 0x0001000100010000ULL));
-  merge_block_tbl.val[2] = vaddq_u16(merge_block_tbl.val[2], correction2);
-
   const uint16x4_t max = vdup_n_u16((1 << bd) - 1);
 
   do {
@@ -472,13 +457,10 @@ static inline void highbd_convolve_y_sr_12tap_sve2(
       load_s16_4x4(s, src_stride, &sB, &sC, &sD, &sE);
 
       int16x8_t s89AB[2], s9ABC[2], sABCD[2], sBCDE[2];
+      transpose_concat_elems_s16_4x4(s8, s9, sA, sB, s89AB);
+      transpose_concat_elems_s16_4x4(s9, sA, sB, sC, s9ABC);
+      transpose_concat_elems_s16_4x4(sA, sB, sC, sD, sABCD);
       transpose_concat_elems_s16_4x4(sB, sC, sD, sE, sBCDE);
-
-      // Use the above transpose and reuse data from the previous loop to get
-      // the rest.
-      aom_tbl2x2_s16(s789A, sBCDE, merge_block_tbl.val[0], s89AB);
-      aom_tbl2x2_s16(s789A, sBCDE, merge_block_tbl.val[1], s9ABC);
-      aom_tbl2x2_s16(s789A, sBCDE, merge_block_tbl.val[2], sABCD);
 
       uint16x4_t d0 = highbd_convolve12_4_y(s0123, s4567, s89AB, y_filter_0_7,
                                             y_filter_4_11, max);
@@ -509,6 +491,10 @@ static inline void highbd_convolve_y_sr_12tap_sve2(
       s6789[1] = sABCD[1];
       s789A[0] = sBCDE[0];
       s789A[1] = sBCDE[1];
+
+      s8 = sC;
+      s9 = sD;
+      sA = sE;
 
       s += 4 * src_stride;
       d += 4 * dst_stride;
