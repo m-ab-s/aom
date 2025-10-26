@@ -248,18 +248,6 @@ void av1_dropout_qcoeff_num(MACROBLOCK *mb, int plane, int block,
   }
 }
 
-// Settings for optimization type. NOTE: To set optimization type for all intra
-// frames, both `KEY_BLOCK_OPT_TYPE` and `INTRA_BLOCK_OPT_TYPE` should be set.
-// TODO(yjshen): These settings are hard-coded and look okay for now. They
-// should be made configurable later.
-// Blocks of key frames ONLY.
-static const OPT_TYPE KEY_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of intra frames (key frames EXCLUSIVE).
-static const OPT_TYPE INTRA_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-// Blocks of inter frames. (NOTE: Dropout optimization is DISABLED by default
-// if trellis optimization is on for inter frames.)
-static const OPT_TYPE INTER_BLOCK_OPT_TYPE = TRELLIS_DROPOUT_OPT;
-
 enum {
   QUANT_FUNC_LOWBD = 0,
   QUANT_FUNC_HIGHBD = 1,
@@ -432,22 +420,11 @@ static void encode_block(int plane, int block, int blk_row, int blk_col,
                       &quant_param);
     av1_xform_quant(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
                     &quant_param);
-
-    // Whether trellis or dropout optimization is required for inter frames.
-    const bool do_trellis = INTER_BLOCK_OPT_TYPE == TRELLIS_OPT ||
-                            INTER_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT;
-    const bool do_dropout = INTER_BLOCK_OPT_TYPE == DROPOUT_OPT ||
-                            INTER_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT;
-
-    if (quant_param.use_optimize_b && do_trellis) {
+    if (use_trellis) {
       TXB_CTX txb_ctx;
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx);
       av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                      &dummy_rate_cost);
-    }
-    if (!quant_param.use_optimize_b && do_dropout) {
-      av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
-                         cm->quant_params.base_qindex);
     }
   } else {
     p->eobs[block] = 0;
@@ -780,31 +757,11 @@ static void encode_block_intra(int plane, int block, int blk_row, int blk_col,
 
     av1_xform_quant(x, plane, block, blk_row, blk_col, plane_bsize, &txfm_param,
                     &quant_param);
-
-    // Whether trellis or dropout optimization is required for key frames and
-    // intra frames.
-    const bool do_trellis = (frame_is_intra_only(cm) &&
-                             (KEY_BLOCK_OPT_TYPE == TRELLIS_OPT ||
-                              KEY_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT)) ||
-                            (!frame_is_intra_only(cm) &&
-                             (INTRA_BLOCK_OPT_TYPE == TRELLIS_OPT ||
-                              INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
-    const bool do_dropout = (frame_is_intra_only(cm) &&
-                             (KEY_BLOCK_OPT_TYPE == DROPOUT_OPT ||
-                              KEY_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT)) ||
-                            (!frame_is_intra_only(cm) &&
-                             (INTRA_BLOCK_OPT_TYPE == DROPOUT_OPT ||
-                              INTRA_BLOCK_OPT_TYPE == TRELLIS_DROPOUT_OPT));
-
-    if (quant_param.use_optimize_b && do_trellis) {
+    if (use_trellis) {
       TXB_CTX txb_ctx;
       get_txb_ctx(plane_bsize, tx_size, plane, a, l, &txb_ctx);
       av1_optimize_b(args->cpi, x, plane, block, tx_size, tx_type, &txb_ctx,
                      &dummy_rate_cost);
-    }
-    if (do_dropout) {
-      av1_dropout_qcoeff(x, plane, block, tx_size, tx_type,
-                         cm->quant_params.base_qindex);
     }
   }
 
