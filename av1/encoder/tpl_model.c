@@ -200,6 +200,16 @@ void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi,
       aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
                          "Failed to allocate frame buffer");
   }
+
+  if (aom_alloc_frame_buffer(
+          &tpl_data->prev_gop_arf_src, width, height, seq_params->subsampling_x,
+          seq_params->subsampling_y, seq_params->use_highbitdepth,
+          tpl_data->border_in_pixels, byte_alignment, false,
+          alloc_y_plane_only))
+    aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate prev gop arf buffer");
+
+  tpl_data->prev_gop_arf_disp_order = -1;
 }
 
 static inline int32_t tpl_get_satd_cost(BitDepthInfo bd_info, int16_t *src_diff,
@@ -1591,7 +1601,12 @@ static inline int init_gop_frames_for_tpl(
       tpl_data->tpl_frame[-i - 1].rec_picture = NULL;
       tpl_data->tpl_frame[-i - 1].frame_display_index = 0;
     } else {
-      tpl_data->tpl_frame[-i - 1].gf_picture = &cm->ref_frame_map[i]->buf;
+      if (cm->ref_frame_map[i]->display_order_hint ==
+          tpl_data->prev_gop_arf_disp_order) {
+        tpl_data->tpl_frame[-i - 1].gf_picture = &tpl_data->prev_gop_arf_src;
+      } else {
+        tpl_data->tpl_frame[-i - 1].gf_picture = &cm->ref_frame_map[i]->buf;
+      }
       tpl_data->tpl_frame[-i - 1].rec_picture = &cm->ref_frame_map[i]->buf;
       tpl_data->tpl_frame[-i - 1].frame_display_index =
           cm->ref_frame_map[i]->display_order_hint;

@@ -3837,6 +3837,8 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     frame_params->frame_type = KEY_FRAME;
     find_next_key_frame(cpi, &this_frame);
     this_frame = this_frame_copy;
+    // Mark prev gop arf source as unusable
+    cpi->ppi->tpl_data.prev_gop_arf_disp_order = -1;
   }
 
   if (rc->frames_to_fwd_kf <= 0)

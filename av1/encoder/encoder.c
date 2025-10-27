@@ -1750,6 +1750,8 @@ void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
   for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
     aom_free(tpl_data->tpl_stats_pool[frame]);
     aom_free_frame_buffer(&tpl_data->tpl_rec_pool[frame]);
+    aom_free_frame_buffer(&tpl_data->prev_gop_arf_src);
+    tpl_data->prev_gop_arf_disp_order = -1;
     tpl_data->tpl_stats_pool[frame] = NULL;
   }
 
@@ -4542,6 +4544,46 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
   current_frame->pyramid_level = get_true_pyr_level(
       cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index],
       current_frame->display_order_hint, cpi->ppi->gf_group.max_layer_depth);
+
+  const GF_GROUP *gf_group = &cpi->ppi->gf_group;
+  // Check if this is the last frame in the gop. If so, make a copy of the
+  // source for TPL.
+  if (gf_group->update_type[cpi->gf_frame_index] != OVERLAY_UPDATE &&
+      gf_group->update_type[cpi->gf_frame_index] != INTNL_OVERLAY_UPDATE) {
+    int is_last = 1;
+    for (int i = 0; i < gf_group->size; ++i) {
+      if (gf_group->display_idx[i] >
+          (int64_t)current_frame->display_order_hint) {
+        is_last = 0;
+        break;
+      }
+    }
+    if (is_last) {
+      cpi->ppi->tpl_data.prev_gop_arf_disp_order = -1;
+      const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+      int ret = aom_realloc_frame_buffer(
+          &cpi->ppi->tpl_data.prev_gop_arf_src, oxcf->frm_dim_cfg.width,
+          oxcf->frm_dim_cfg.height, cm->seq_params->subsampling_x,
+          cm->seq_params->subsampling_y, cm->seq_params->use_highbitdepth,
+          cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
+          NULL, cpi->alloc_pyramid, 0);
+      if (ret)
+        aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate tpl prev_gop_arf_src buf.");
+
+      // Currently it is not supported if source/refernece is resized.
+      if (cpi->source->y_width == cpi->ppi->tpl_data.prev_gop_arf_src.y_width &&
+          cpi->source->y_height ==
+              cpi->ppi->tpl_data.prev_gop_arf_src.y_height) {
+        // Copy the content from source to this buffer for next gop.
+        aom_yv12_copy_frame(cpi->source, &cpi->ppi->tpl_data.prev_gop_arf_src,
+                            av1_num_planes(cm));
+
+        cpi->ppi->tpl_data.prev_gop_arf_disp_order =
+            current_frame->display_order_hint;
+      }
+    }
+  }
 
   if (is_stat_generation_stage(cpi)) {
 #if !CONFIG_REALTIME_ONLY

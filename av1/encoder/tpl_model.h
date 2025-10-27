@@ -237,6 +237,16 @@ typedef struct TplParams {
   const YV12_BUFFER_CONFIG *ref_frame[INTER_REFS_PER_FRAME];
 
   /*!
+   * The buffer for the past gop's last frame's src.
+   */
+  YV12_BUFFER_CONFIG prev_gop_arf_src;
+
+  /*!
+   * Display order of the past gop's last frame.
+   */
+  int64_t prev_gop_arf_disp_order;
+
+  /*!
    * Parameters related to synchronization for top-right dependency in row based
    * multi-threading of tpl
    */
