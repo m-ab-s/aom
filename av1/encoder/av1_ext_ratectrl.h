@@ -37,8 +37,8 @@ aom_codec_err_t av1_extrc_delete(AOM_EXT_RATECTRL *ext_ratectrl);
 aom_codec_err_t av1_extrc_send_firstpass_stats(
     AOM_EXT_RATECTRL *ext_ratectrl, const FIRSTPASS_INFO *first_pass_info);
 
-aom_codec_err_t av1_extrc_send_tpl_stats(AOM_EXT_RATECTRL *ext_ratectrl,
-                                         const AomTplGopStats *tpl_gop_stats);
+aom_codec_err_t av1_extrc_send_tpl_stats(
+    AOM_EXT_RATECTRL *ext_ratectrl, const AomTplGopStats *extrc_tpl_gop_stats);
 
 aom_codec_err_t av1_extrc_get_encodeframe_decision(
     AOM_EXT_RATECTRL *ext_ratectrl, int gop_index,

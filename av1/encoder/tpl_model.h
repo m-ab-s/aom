@@ -687,11 +687,11 @@ int_mv av1_compute_mv_difference(const TplDepFrame *tpl_frame, int row, int col,
 double av1_tpl_compute_frame_mv_entropy(const TplDepFrame *tpl_frame,
                                         uint8_t right_shift);
 
-/*!\brief Free the memory allocated for cpi->tpl_gop_stats.
+/*!\brief Free the memory allocated for cpi->extrc_tpl_gop_stats.
  *
- * \param[in] tpl_gop_stats TPL stats for the GOP used for external RC.
+ * \param[in] extrc_tpl_gop_stats TPL stats for the GOP used for external RC.
  */
-void av1_free_tpl_gop_stats(AomTplGopStats *tpl_gop_stats);
+void av1_free_tpl_gop_stats(AomTplGopStats *extrc_tpl_gop_stats);
 
 #if CONFIG_RATECTRL_LOG
 typedef struct {

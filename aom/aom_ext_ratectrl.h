@@ -469,7 +469,7 @@ typedef aom_rc_status_t (*aom_rc_send_firstpass_stats_cb_fn_t)(
  * \param[in]  tpl_gop_stats    TPL stats for current GOP
  */
 typedef aom_rc_status_t (*aom_rc_send_tpl_gop_stats_cb_fn_t)(
-    aom_rc_model_t rate_ctrl_model, const AomTplGopStats *tpl_gop_stats);
+    aom_rc_model_t rate_ctrl_model, const AomTplGopStats *extrc_tpl_gop_stats);
 
 /*!\brief Receive encode frame decision callback prototype
  *

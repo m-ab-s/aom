@@ -105,13 +105,13 @@ aom_codec_err_t av1_extrc_send_firstpass_stats(
   return AOM_CODEC_OK;
 }
 
-aom_codec_err_t av1_extrc_send_tpl_stats(AOM_EXT_RATECTRL *ext_ratectrl,
-                                         const AomTplGopStats *tpl_gop_stats) {
+aom_codec_err_t av1_extrc_send_tpl_stats(
+    AOM_EXT_RATECTRL *ext_ratectrl, const AomTplGopStats *extrc_tpl_gop_stats) {
   assert(ext_ratectrl != NULL);
-  assert(tpl_gop_stats != NULL);
+  assert(extrc_tpl_gop_stats != NULL);
   if (ext_ratectrl->ready && ext_ratectrl->funcs.send_tpl_gop_stats != NULL) {
     aom_rc_status_t rc_status = ext_ratectrl->funcs.send_tpl_gop_stats(
-        ext_ratectrl->model, tpl_gop_stats);
+        ext_ratectrl->model, extrc_tpl_gop_stats);
     if (rc_status == AOM_RC_ERROR) {
       return AOM_CODEC_ERROR;
     }

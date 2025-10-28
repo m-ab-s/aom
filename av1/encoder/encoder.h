@@ -3716,7 +3716,7 @@ typedef struct AV1_COMP {
   /*!
    * Store TPL stats before propagation
    */
-  AomTplGopStats tpl_gop_stats;
+  AomTplGopStats extrc_tpl_gop_stats;
 } AV1_COMP;
 
 /*!

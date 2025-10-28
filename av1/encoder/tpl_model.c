@@ -1481,7 +1481,7 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
   MACROBLOCKD *xd = &x->e_mbd;
 
   AomTplFrameStats *tpl_frame_stats_before_propagation =
-      &cpi->tpl_gop_stats.frame_stats_list[tpl_data->frame_idx];
+      &cpi->extrc_tpl_gop_stats.frame_stats_list[tpl_data->frame_idx];
 
   const int tplb_cols_in_tile =
       ROUND_POWER_OF_TWO(mi_params->mi_cols, mi_size_wide_log2[bsize]);
@@ -1905,56 +1905,62 @@ static double get_frame_importance(const TplParams *tpl_data,
   return exp((mc_dep_cost_base - intra_cost_base) / cbcmp_base);
 }
 
-void av1_free_tpl_gop_stats(AomTplGopStats *tpl_gop_stats) {
-  if (tpl_gop_stats == NULL || tpl_gop_stats->frame_stats_list == NULL) {
+void av1_free_tpl_gop_stats(AomTplGopStats *extrc_tpl_gop_stats) {
+  if (extrc_tpl_gop_stats == NULL ||
+      extrc_tpl_gop_stats->frame_stats_list == NULL) {
     return;
   }
-  for (int frame_index = 0; frame_index < tpl_gop_stats->size; ++frame_index) {
-    aom_free(tpl_gop_stats->frame_stats_list[frame_index].block_stats_list);
-    tpl_gop_stats->frame_stats_list[frame_index].block_stats_list = NULL;
+  for (int frame_index = 0; frame_index < extrc_tpl_gop_stats->size;
+       ++frame_index) {
+    AomTplFrameStats *this_frame_stats =
+        &extrc_tpl_gop_stats->frame_stats_list[frame_index];
+    aom_free(this_frame_stats->block_stats_list);
+    this_frame_stats->block_stats_list = NULL;
   }
-  aom_free(tpl_gop_stats->frame_stats_list);
-  tpl_gop_stats->frame_stats_list = NULL;
-  tpl_gop_stats->size = 0;
+  aom_free(extrc_tpl_gop_stats->frame_stats_list);
+  extrc_tpl_gop_stats->frame_stats_list = NULL;
+  extrc_tpl_gop_stats->size = 0;
 }
 
 static void init_tpl_stats_before_propagation(
-    struct aom_internal_error_info *error_info, AomTplGopStats *tpl_gop_stats,
-    TplParams *tpl_stats, int tpl_gop_frames, int frame_width,
-    int frame_height) {
-  av1_free_tpl_gop_stats(tpl_gop_stats);
+    struct aom_internal_error_info *error_info,
+    AomTplGopStats *extrc_tpl_gop_stats, TplParams *tpl_stats,
+    int tpl_gop_frames, int frame_width, int frame_height) {
+  av1_free_tpl_gop_stats(extrc_tpl_gop_stats);
   AOM_CHECK_MEM_ERROR(
-      error_info, tpl_gop_stats->frame_stats_list,
-      aom_calloc(tpl_gop_frames, sizeof(*tpl_gop_stats->frame_stats_list)));
-  tpl_gop_stats->size = tpl_gop_frames;
+      error_info, extrc_tpl_gop_stats->frame_stats_list,
+      aom_calloc(tpl_gop_frames,
+                 sizeof(*extrc_tpl_gop_stats->frame_stats_list)));
+  extrc_tpl_gop_stats->size = tpl_gop_frames;
   for (int frame_index = 0; frame_index < tpl_gop_frames; ++frame_index) {
     const int mi_rows = tpl_stats->tpl_frame[frame_index].mi_rows;
     const int mi_cols = tpl_stats->tpl_frame[frame_index].mi_cols;
+    AomTplFrameStats *this_frame_stats =
+        &extrc_tpl_gop_stats->frame_stats_list[frame_index];
     AOM_CHECK_MEM_ERROR(
-        error_info,
-        tpl_gop_stats->frame_stats_list[frame_index].block_stats_list,
+        error_info, this_frame_stats->block_stats_list,
         aom_calloc(mi_rows * mi_cols,
-                   sizeof(*tpl_gop_stats->frame_stats_list[frame_index]
-                               .block_stats_list)));
-    tpl_gop_stats->frame_stats_list[frame_index].num_blocks = mi_rows * mi_cols;
-    tpl_gop_stats->frame_stats_list[frame_index].frame_width = frame_width;
-    tpl_gop_stats->frame_stats_list[frame_index].frame_height = frame_height;
+                   sizeof(*this_frame_stats->block_stats_list)));
+    this_frame_stats->num_blocks = mi_rows * mi_cols;
+    this_frame_stats->frame_width = frame_width;
+    this_frame_stats->frame_height = frame_height;
   }
 }
 
 static void trim_tpl_stats(struct aom_internal_error_info *error_info,
-                           AomTplGopStats *tpl_gop_stats, int extra_frames) {
+                           AomTplGopStats *extrc_tpl_gop_stats,
+                           int extra_frames) {
   int i;
   AomTplFrameStats *new_frame_stats;
-  const int new_size = tpl_gop_stats->size - extra_frames;
-  if (tpl_gop_stats->size <= extra_frames)
+  const int new_size = extrc_tpl_gop_stats->size - extra_frames;
+  if (extrc_tpl_gop_stats->size <= extra_frames)
     aom_internal_error(
         error_info, AOM_CODEC_ERROR,
         "The number of frames in AomTplGopStats is fewer than expected.");
   AOM_CHECK_MEM_ERROR(error_info, new_frame_stats,
                       aom_calloc(new_size, sizeof(*new_frame_stats)));
   for (i = 0; i < new_size; i++) {
-    AomTplFrameStats *frame_stats = &tpl_gop_stats->frame_stats_list[i];
+    AomTplFrameStats *frame_stats = &extrc_tpl_gop_stats->frame_stats_list[i];
     const int num_blocks = frame_stats->num_blocks;
     new_frame_stats[i].num_blocks = frame_stats->num_blocks;
     new_frame_stats[i].frame_width = frame_stats->frame_width;
@@ -1966,9 +1972,9 @@ static void trim_tpl_stats(struct aom_internal_error_info *error_info,
     memcpy(new_frame_stats[i].block_stats_list, frame_stats->block_stats_list,
            num_blocks * sizeof(*new_frame_stats[i].block_stats_list));
   }
-  av1_free_tpl_gop_stats(tpl_gop_stats);
-  tpl_gop_stats->size = new_size;
-  tpl_gop_stats->frame_stats_list = new_frame_stats;
+  av1_free_tpl_gop_stats(extrc_tpl_gop_stats);
+  extrc_tpl_gop_stats->size = new_size;
+  extrc_tpl_gop_stats->frame_stats_list = new_frame_stats;
 }
 
 int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
@@ -2012,9 +2018,9 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   av1_init_tpl_stats(tpl_data);
 
-  init_tpl_stats_before_propagation(cpi->common.error, &cpi->tpl_gop_stats,
-                                    tpl_data, tpl_gf_group_frames,
-                                    cpi->common.width, cpi->common.height);
+  init_tpl_stats_before_propagation(
+      cpi->common.error, &cpi->extrc_tpl_gop_stats, tpl_data,
+      tpl_gf_group_frames, cpi->common.width, cpi->common.height);
 
   TplBuffers *tpl_tmp_buffers = &cpi->td.tpl_tmp_buffers;
   if (!tpl_alloc_temp_buffers(tpl_tmp_buffers, tpl_data->tpl_bsize_1d)) {
@@ -2085,10 +2091,10 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
       cpi->ext_ratectrl.funcs.send_tpl_gop_stats != NULL) {
     // TPL stats has extra frames from next GOP. Trim those extra frames for
     // external RC.
-    trim_tpl_stats(cpi->common.error, &cpi->tpl_gop_stats,
+    trim_tpl_stats(cpi->common.error, &cpi->extrc_tpl_gop_stats,
                    extended_frame_count);
     const aom_codec_err_t codec_status =
-        av1_extrc_send_tpl_stats(&cpi->ext_ratectrl, &cpi->tpl_gop_stats);
+        av1_extrc_send_tpl_stats(&cpi->ext_ratectrl, &cpi->extrc_tpl_gop_stats);
     if (codec_status != AOM_CODEC_OK) {
       aom_internal_error(cpi->common.error, codec_status,
                          "av1_extrc_send_tpl_stats() failed");

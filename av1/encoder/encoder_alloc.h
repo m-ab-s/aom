@@ -380,7 +380,7 @@ static inline void dealloc_compressor_data(AV1_COMP *cpi) {
   cpi->mb_delta_q = NULL;
 
 #if !CONFIG_REALTIME_ONLY
-  av1_free_tpl_gop_stats(&cpi->tpl_gop_stats);
+  av1_free_tpl_gop_stats(&cpi->extrc_tpl_gop_stats);
 #endif
 }
 
