@@ -31,7 +31,7 @@ extern "C" {
  * types, removing or reassigning enums, adding/removing/rearranging
  * fields to structures.
  */
-#define AOM_EXT_RATECTRL_ABI_VERSION (1 + AOM_TPL_ABI_VERSION)
+#define AOM_EXT_RATECTRL_ABI_VERSION (2 + AOM_TPL_ABI_VERSION)
 
 /*!\brief Corresponds to MAX_STATIC_GF_GROUP_LENGTH defined in ratectrl.h
  */
@@ -407,22 +407,71 @@ typedef struct aom_rc_ref_frame {
   aom_rc_ref_name_t name[AOM_RC_MAX_REF_FRAMES];
 } aom_rc_ref_frame_t;
 
+/*!\brief A single reference frame.
+ */
+typedef struct aom_rc_single_ref_frame {
+  int index;              /**< Ref frame index. */
+  aom_rc_ref_name_t name; /**< Ref frame name. */
+} aom_rc_single_ref_frame_t;
+
+/*!\brief A single frame in the GOP.
+ */
+typedef struct aom_rc_gop_frame {
+  // Basic info
+  int order_idx;   /**< Index in display order within a GOP, starting at 0. */
+  int coding_idx;  /**< Index in coding order within a GOP, starting at 0. */
+  int display_idx; /**< The number of displayed frames preceding this frame in a
+                      GOP. */
+  int order_hint;  /**< Index in display order since a key frame. */
+  int global_order_idx; /**< Index in display order in the whole video chunk. */
+  int global_coding_idx; /**< Index in coding order in the whole video chunk. */
+  int is_key_frame;      /**< Whether this frame is a key frame. */
+  aom_rc_frame_update_type_t update_type; /**< The type of frame. */
+
+  // Reference frame info
+  /**
+   * For an overlay or show_existing frame: index of primary reference frame;
+   * otherwise -1.
+   */
+  int colocated_ref_idx;
+  /**
+   * The reference index that this frame should be updated to. -1 when this
+   * frame will not serve as a reference frame.
+   */
+  int update_ref_idx;
+  /**
+   * Additional bits to set in refresh_frame_flags, to allow extra frames to be
+   * evicted from the DPB. -1 for not set.
+   */
+  int extra_refresh_frame_flags;
+  /**
+   * Candidate reference frames which may be used for coding the current frame.
+   */
+  aom_rc_ref_frame_t ref_frame_list;
+  int layer_depth; /**< Layer depth in the GOP structure. */
+  /**
+   * Primary reference frame (used to update current frame's initial probability
+   * model).
+   */
+  aom_rc_single_ref_frame_t primary_ref_frame;
+} aom_rc_gop_frame_t;
+
 /*!\brief The decision made by the external rate control model to set the
- * group of picture.
+ * group of picture. This struct represents a list of GOPs.
  */
 typedef struct aom_rc_gop_decision {
-  int gop_coding_frames; /**< The number of frames of this GOP */
-  int use_alt_ref;       /**< Whether to use alt ref for this GOP */
-  int use_key_frame;     /**< Whether to set key frame for this GOP */
-  /*!
-   * Frame type for each frame in this GOP.
-   * This will be populated to |update_type| in GF_GROUP defined in firstpass.h
+  int show_frame_count;         /**< Number of visible frames in this GOP. */
+  int order_hint_offset;        /**< Order hint offset for this GOP. */
+  int global_order_idx_offset;  /**< Global order index offset for this GOP. */
+  int global_coding_idx_offset; /**< Global coding index offset for this GOP. */
+  int is_scene_cut; /**< Whether this GOP starts with a scene cut. */
+  /**
+   * The adjustment ratio, based on which the base QP index of this GOP will be
+   * adjusted from RateControlParam::base_q_index.
    */
-  aom_rc_frame_update_type_t update_type[AOM_RC_MAX_STATIC_GF_GROUP_LENGTH + 2];
-  /*! Ref frame buffer index to be updated for each frame in this GOP. */
-  int update_ref_index[AOM_RC_MAX_STATIC_GF_GROUP_LENGTH + 2];
-  /*! Ref frame list to be used for each frame in this GOP. */
-  aom_rc_ref_frame_t ref_frame_list[AOM_RC_MAX_STATIC_GF_GROUP_LENGTH + 2];
+  double base_q_ratio;
+  aom_rc_gop_frame_t *gop_frame_list; /**< List of frames in this GOP. */
+  int gop_frame_count;
 } aom_rc_gop_decision_t;
 
 /*!\brief The decision made by the external rate control model to set the
