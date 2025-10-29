@@ -626,7 +626,7 @@ static int64_t cfl_compute_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
   } else {
     av1_init_rd_stats(rd_stats);
     av1_txfm_rd_in_plane(x, cpi, rd_stats, INT64_MAX, 0, plane, plane_bsize,
-                         tx_size, FTXS_NONE, 0);
+                         tx_size, FTXS_NONE);
     av1_rd_cost_update(x->rdmult, rd_stats);
     cfl_cost = rd_stats->rdcost;
   }
