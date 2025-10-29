@@ -39,6 +39,51 @@ bool is_send_firstpass_stats_called = false;
 // A flag to indicate if send_tpl_gop_stats() is called.
 bool is_send_extrc_tpl_gop_stats_called = false;
 
+// A flag to indicate if get_gop_decision() is called.
+bool is_get_gop_decision_called = false;
+
+// Construct a single ALTREF GOP.
+const int kGopFrameCount = kFrameNum + 1;
+aom_rc_gop_frame_t gop_frame_list[kGopFrameCount];
+
+aom_rc_status_t mock_get_gop_decision(aom_rc_model_t /*ratectrl_model*/,
+                                      aom_rc_gop_decision_t *gop_decision) {
+  gop_decision->gop_frame_count = kGopFrameCount;
+  gop_decision->gop_frame_list = gop_frame_list;
+  for (int i = 0; i < kGopFrameCount; ++i) {
+    auto current_gop_frame = &gop_decision->gop_frame_list[i];
+    current_gop_frame->coding_idx = i;
+    if (i == 0) {
+      // Key frame
+      current_gop_frame->is_key_frame = true;
+      current_gop_frame->update_type = AOM_RC_KF_UPDATE;
+      current_gop_frame->layer_depth = 0;
+      current_gop_frame->display_idx = 0;
+    } else if (i == 1) {
+      // ALTREF
+      current_gop_frame->is_key_frame = false;
+      current_gop_frame->update_type = AOM_RC_ARF_UPDATE;
+      current_gop_frame->layer_depth = 1;
+      current_gop_frame->display_idx = 4;
+    } else if (i == 5) {
+      // Overlay frame
+      current_gop_frame->is_key_frame = false;
+      current_gop_frame->update_type = AOM_RC_OVERLAY_UPDATE;
+      current_gop_frame->layer_depth = AOM_RC_MAX_ARF_LAYERS - 1;
+      current_gop_frame->display_idx = 4;
+    } else {
+      // Leaf frames
+      current_gop_frame->is_key_frame = false;
+      current_gop_frame->update_type = AOM_RC_LF_UPDATE;
+      current_gop_frame->layer_depth = AOM_RC_MAX_ARF_LAYERS - 1;
+      current_gop_frame->display_idx = i - 2;  // Key and ARF in the front
+    }
+  }
+  gop_decision->global_order_idx_offset = 0;
+  is_get_gop_decision_called = true;
+  return AOM_RC_OK;
+}
+
 aom_rc_status_t mock_create_model(void *priv,
                                   const aom_rc_config_t *ratectrl_config,
                                   aom_rc_model_t *ratectrl_model) {
@@ -89,6 +134,7 @@ class ExtRateCtrlTest : public ::libaom_test::EncoderTest,
     rc_funcs->delete_model = mock_delete_model;
     rc_funcs->send_firstpass_stats = mock_send_firstpass_stats;
     rc_funcs->send_tpl_gop_stats = mock_send_extrc_tpl_gop_stats;
+    rc_funcs->get_gop_decision = nullptr;
     rc_funcs->get_encodeframe_decision = nullptr;
     rc_funcs->update_encodeframe_result = nullptr;
   }
@@ -102,6 +148,7 @@ class ExtRateCtrlTest : public ::libaom_test::EncoderTest,
     is_delete_model_called = false;
     is_send_firstpass_stats_called = false;
     is_send_extrc_tpl_gop_stats_called = false;
+    is_get_gop_decision_called = false;
   }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -129,7 +176,7 @@ TEST_P(ExtRateCtrlTest, TestExternalRateCtrl) {
 
 AV1_INSTANTIATE_TEST_SUITE(ExtRateCtrlTest,
                            ::testing::Values(::libaom_test::kTwoPassGood),
-                           ::testing::Values(0));
+                           ::testing::Values(3));
 
 // Corresponds to QP 43 for 8-bit video.
 const int kFrameQindex = 172;
@@ -178,5 +225,40 @@ TEST_P(ExtRateCtrlQpTest, TestExternalRateCtrlConstQp) {
 
 AV1_INSTANTIATE_TEST_SUITE(ExtRateCtrlQpTest,
                            ::testing::Values(::libaom_test::kTwoPassGood),
-                           ::testing::Values(0));
+                           ::testing::Values(3));
+
+class ExtRateCtrlGopTest : public ExtRateCtrlTest {
+ protected:
+  ExtRateCtrlGopTest() {
+    rc_funcs_.rc_type = AOM_RC_GOP;
+    rc_funcs_.get_gop_decision = mock_get_gop_decision;
+  }
+
+  void PostEncodeFrameHook(::libaom_test::Encoder *encoder) override {
+    if (cfg_.g_pass == AOM_RC_FIRST_PASS) return;
+    encoder->Control(AV1E_GET_GOP_INFO, &gop_info_);
+  }
+
+  void FramePktHook(const aom_codec_cx_pkt_t * /*pkt*/) override {
+    // This is verified here (not in PostEncodeFrameHook) because
+    // PostEncodeFrameHook is also called when encoder is reading frames into
+    // lookahead buffer, when GOP structure hasn't been determined.
+    ASSERT_EQ(gop_info_.gop_size, kGopFrameCount);
+  }
+
+  ~ExtRateCtrlGopTest() override = default;
+  aom_gop_info_t gop_info_;
+};
+
+TEST_P(ExtRateCtrlGopTest, TestExternalRateCtrlGop) {
+  ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, kFrameNum);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  EXPECT_TRUE(is_create_model_called);
+  EXPECT_TRUE(is_get_gop_decision_called);
+  EXPECT_TRUE(is_delete_model_called);
+}
+
+AV1_INSTANTIATE_TEST_SUITE(ExtRateCtrlGopTest,
+                           ::testing::Values(::libaom_test::kTwoPassGood),
+                           ::testing::Values(3));
 }  // namespace

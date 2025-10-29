@@ -43,6 +43,12 @@ extern "C" {
  */
 #define AOM_RC_MAX_REF_FRAMES 8
 
+/*!\brief Max layer depth.
+ *
+ * Corresponds to MAX_ARF_LAYERS defined in ratectrl.h.
+ */
+#define AOM_RC_MAX_ARF_LAYERS 6
+
 /*!\brief The type of the external rate control.
  *
  * This controls what encoder parameters are determined by the external rate

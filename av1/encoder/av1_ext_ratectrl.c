@@ -119,6 +119,22 @@ aom_codec_err_t av1_extrc_send_tpl_stats(
   return AOM_CODEC_OK;
 }
 
+aom_codec_err_t av1_extrc_get_gop_decision(
+    AOM_EXT_RATECTRL *ext_ratectrl, aom_rc_gop_decision_t *gop_decision) {
+  aom_rc_status_t rc_status;
+  assert(ext_ratectrl != NULL);
+  assert(gop_decision != NULL);
+  if ((ext_ratectrl->funcs.rc_type & AOM_RC_GOP) == 0) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
+  rc_status =
+      ext_ratectrl->funcs.get_gop_decision(ext_ratectrl->model, gop_decision);
+  if (rc_status == AOM_RC_ERROR) {
+    return AOM_CODEC_ERROR;
+  }
+  return AOM_CODEC_OK;
+}
+
 aom_codec_err_t av1_extrc_get_encodeframe_decision(
     AOM_EXT_RATECTRL *ext_ratectrl, int gop_index,
     aom_rc_encodeframe_decision_t *encode_frame_decision) {
