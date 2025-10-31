@@ -2092,6 +2092,12 @@ INSTANTIATE_TEST_SUITE_P(NEON, AV1ConvolveYCompoundTest,
                          BuildLowbdLumaParams(av1_dist_wtd_convolve_y_neon));
 #endif
 
+#if HAVE_NEON_DOTPROD
+INSTANTIATE_TEST_SUITE_P(
+    NEON_DOTPROD, AV1ConvolveYCompoundTest,
+    BuildLowbdLumaParams(av1_dist_wtd_convolve_y_neon_dotprod));
+#endif
+
 #if CONFIG_AV1_HIGHBITDEPTH
 /////////////////////////////////////////////////
 // Compound convolve-y functions (high bit-depth)
