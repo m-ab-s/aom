@@ -1417,26 +1417,24 @@ int av1_search_intra_uv_modes_in_interframe(
       cpi->oxcf.tool_cfg.enable_palette &&
       av1_allow_palette(cm->features.allow_screen_content_tools, mbmi->bsize);
   assert(intra_search_state->rate_uv_intra == INT_MAX);
-  if (intra_search_state->rate_uv_intra == INT_MAX) {
-    // If no good uv-predictor had been found, search for it.
-    const TX_SIZE uv_tx = av1_get_tx_size(AOM_PLANE_U, xd);
-    av1_rd_pick_intra_sbuv_mode(cpi, x, &intra_search_state->rate_uv_intra,
-                                &intra_search_state->rate_uv_tokenonly,
-                                &intra_search_state->dist_uvs,
-                                &intra_search_state->skip_uvs, bsize, uv_tx);
-    intra_search_state->mode_uv = mbmi->uv_mode;
-    if (try_palette) intra_search_state->pmi_uv = *pmi;
-    intra_search_state->uv_angle_delta = mbmi->angle_delta[PLANE_TYPE_UV];
+  // If no good uv-predictor had been found, search for it.
+  const TX_SIZE uv_tx = av1_get_tx_size(AOM_PLANE_U, xd);
+  av1_rd_pick_intra_sbuv_mode(cpi, x, &intra_search_state->rate_uv_intra,
+                              &intra_search_state->rate_uv_tokenonly,
+                              &intra_search_state->dist_uvs,
+                              &intra_search_state->skip_uvs, bsize, uv_tx);
+  intra_search_state->mode_uv = mbmi->uv_mode;
+  if (try_palette) intra_search_state->pmi_uv = *pmi;
+  intra_search_state->uv_angle_delta = mbmi->angle_delta[PLANE_TYPE_UV];
 
-    const int uv_rate = intra_search_state->rate_uv_tokenonly;
-    const int64_t uv_dist = intra_search_state->dist_uvs;
-    const int64_t uv_rd = RDCOST(x->rdmult, uv_rate, uv_dist);
-    if (uv_rd > best_rd) {
-      // If there is no good intra uv-mode available, we can skip all intra
-      // modes.
-      intra_search_state->skip_intra_modes = 1;
-      return 0;
-    }
+  const int uv_rate = intra_search_state->rate_uv_tokenonly;
+  const int64_t uv_dist = intra_search_state->dist_uvs;
+  const int64_t uv_rd = RDCOST(x->rdmult, uv_rate, uv_dist);
+  if (uv_rd > best_rd) {
+    // If there is no good intra uv-mode available, we can skip all intra
+    // modes.
+    intra_search_state->skip_intra_modes = 1;
+    return 0;
   }
 
   // If we are here, then the encoder has found at least one good intra uv
