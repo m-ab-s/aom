@@ -24,6 +24,11 @@
 #include "aom/aom_encoder.h"
 #include "aom/aom_image.h"
 
+#include "test/codec_factory.h"
+#include "test/encode_test_driver.h"
+#include "test/util.h"
+#include "test/video_source.h"
+
 namespace {
 
 #if CONFIG_REALTIME_ONLY
@@ -1727,6 +1732,51 @@ TEST(EncodeAPI, Issue449341177) {
   EXPECT_NE(aom_codec_control(&enc, AV1E_SET_SVC_PARAMS, &svc_params),
             AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+class GetGopInfoTest : public ::libaom_test::EncoderTest,
+                       public ::testing::Test {
+ protected:
+  GetGopInfoTest() : EncoderTest(&::libaom_test::kAV1) {}
+  ~GetGopInfoTest() override = default;
+
+  void SetUp() override {
+    InitializeConfig(::libaom_test::kTwoPassGood);
+    cfg_.g_w = 176;
+    cfg_.g_h = 144;
+    cfg_.rc_target_bitrate = 200;
+    cfg_.g_lag_in_frames = 25;
+    cfg_.g_limit = kFrameLimit;
+  }
+
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
+    if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, 3);
+    }
+  }
+
+  void PostEncodeFrameHook(::libaom_test::Encoder *encoder) override {
+    if (cfg_.g_pass == AOM_RC_FIRST_PASS) return;
+    encoder->Control(AV1E_GET_GOP_INFO, &gop_info_);
+  }
+
+  void FramePktHook(const aom_codec_cx_pkt_t * /*pkt*/) override {
+    // This is verified here (not in PostEncodeFrameHook) because
+    // PostEncodeFrameHook is also called when encoder is reading frames into
+    // lookahead buffer, when GOP structure hasn't been determined.
+    ASSERT_GT(gop_info_.gop_size, 0);
+  }
+
+  aom_gop_info_t gop_info_;
+  static constexpr int kFrameLimit = 10;
+};
+
+TEST_F(GetGopInfoTest, GetGopInfo) {
+  ::libaom_test::RandomVideoSource video;
+  video.SetSize(cfg_.g_w, cfg_.g_h);
+  video.set_limit(kFrameLimit);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
 }  // namespace

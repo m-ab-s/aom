@@ -1721,6 +1721,20 @@ static aom_codec_err_t update_extra_cfg(aom_codec_alg_priv_t *ctx,
   return res;
 }
 
+static aom_codec_err_t ctrl_get_gop_info(aom_codec_alg_priv_t *ctx,
+                                         va_list args) {
+  aom_gop_info_t *const gop_info = va_arg(args, aom_gop_info_t *);
+  if (gop_info == NULL) return AOM_CODEC_INVALID_PARAM;
+  const GF_GROUP *const gf_group = &ctx->ppi->gf_group;
+  gop_info->gop_size = gf_group->size;
+  for (int i = 0; i < gf_group->size; ++i) {
+    gop_info->coding_index[i] = i;
+    gop_info->display_index[i] = gf_group->display_idx[i];
+    gop_info->layer_depth[i] = gf_group->layer_depth[i];
+  }
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t ctrl_set_cpuused(aom_codec_alg_priv_t *ctx,
                                         va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
@@ -4961,6 +4975,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_GET_LUMA_CDEF_STRENGTH, ctrl_get_luma_cdef_strength },
   { AV1E_GET_HIGH_MOTION_CONTENT_SCREEN_RTC,
     ctrl_get_high_motion_content_screen_rtc },
+  { AV1E_GET_GOP_INFO, ctrl_get_gop_info },
 
   CTRL_MAP_END,
 };
