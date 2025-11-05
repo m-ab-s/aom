@@ -4548,7 +4548,8 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
   const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   // Check if this is the last frame in the gop. If so, make a copy of the
   // source for TPL.
-  if (gf_group->update_type[cpi->gf_frame_index] != OVERLAY_UPDATE &&
+  if (cpi->oxcf.algo_cfg.enable_tpl_model &&
+      gf_group->update_type[cpi->gf_frame_index] != OVERLAY_UPDATE &&
       gf_group->update_type[cpi->gf_frame_index] != INTNL_OVERLAY_UPDATE) {
     int is_last = 1;
     for (int i = 0; i < gf_group->size; ++i) {
