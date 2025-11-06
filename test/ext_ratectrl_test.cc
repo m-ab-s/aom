@@ -42,6 +42,13 @@ bool is_send_extrc_tpl_gop_stats_called = false;
 // A flag to indicate if get_gop_decision() is called.
 bool is_get_gop_decision_called = false;
 
+// A flag to indicate if update_encodeframe_result() is called.
+bool is_update_encodeframe_result_called = false;
+
+// Variables to store the parameters passed to update_encodeframe_result().
+int64_t bit_count = 0;
+int actual_encoding_qindex = 0;
+
 // Construct a single ALTREF GOP.
 const int kGopFrameCount = kFrameNum + 1;
 aom_rc_gop_frame_t gop_frame_list[kGopFrameCount];
@@ -123,6 +130,16 @@ aom_rc_status_t mock_send_extrc_tpl_gop_stats(
   return AOM_RC_OK;
 }
 
+aom_rc_status_t mock_update_encodeframe_result(
+    aom_rc_model_t /* ratectrl_model */,
+    const aom_rc_encodeframe_result_t *encode_frame_result) {
+  EXPECT_NE(encode_frame_result, nullptr);
+  bit_count = encode_frame_result->bit_count;
+  actual_encoding_qindex = encode_frame_result->actual_encoding_qindex;
+  is_update_encodeframe_result_called = true;
+  return AOM_RC_OK;
+}
+
 class ExtRateCtrlTest : public ::libaom_test::EncoderTest,
                         public ::libaom_test::CodecTestWith2Params<int, int> {
  protected:
@@ -149,6 +166,7 @@ class ExtRateCtrlTest : public ::libaom_test::EncoderTest,
     is_send_firstpass_stats_called = false;
     is_send_extrc_tpl_gop_stats_called = false;
     is_get_gop_decision_called = false;
+    is_update_encodeframe_result_called = false;
   }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -182,10 +200,8 @@ AV1_INSTANTIATE_TEST_SUITE(ExtRateCtrlTest,
 const int kFrameQindex = 172;
 
 aom_rc_status_t mock_get_encodeframe_decision_const_q(
-    aom_rc_model_t ratectrl_model, int frame_gop_index,
+    aom_rc_model_t /*ratectrl_model*/, int /*frame_gop_index*/,
     aom_rc_encodeframe_decision_t *frame_decision) {
-  (void)ratectrl_model;
-  (void)frame_gop_index;
   // Set constant QP.
   frame_decision->q_index = kFrameQindex;
   frame_decision->sb_params_list = NULL;  // Initialize to NULL
@@ -211,7 +227,6 @@ class ExtRateCtrlQpTest : public ExtRateCtrlTest {
     if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
     int q_index = -1;
     current_encoder_->Control(AOME_GET_LAST_QUANTIZER, &q_index);
-    std::cout << q_index << std::endl;
     EXPECT_EQ(q_index, kFrameQindex);
   }
 };
@@ -224,6 +239,56 @@ TEST_P(ExtRateCtrlQpTest, TestExternalRateCtrlConstQp) {
 }
 
 AV1_INSTANTIATE_TEST_SUITE(ExtRateCtrlQpTest,
+                           ::testing::Values(::libaom_test::kTwoPassGood),
+                           ::testing::Values(3));
+
+class ExtRateCtrlUpdateEncodeFrameResultTest : public ExtRateCtrlTest {
+ protected:
+  ExtRateCtrlUpdateEncodeFrameResultTest() {
+    rc_funcs_.rc_type = AOM_RC_QP;
+    rc_funcs_.get_encodeframe_decision = mock_get_encodeframe_decision_const_q;
+    rc_funcs_.update_encodeframe_result = mock_update_encodeframe_result;
+  }
+  ~ExtRateCtrlUpdateEncodeFrameResultTest() override = default;
+
+  void SetUp() override {
+    ExtRateCtrlTest::SetUp();
+    is_update_encodeframe_result_called = false;
+    bit_count = 0;
+    actual_encoding_qindex = 0;
+  }
+
+  void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
+    int q_index = -1;
+    current_encoder_->Control(AOME_GET_LAST_QUANTIZER, &q_index);
+    EXPECT_EQ(q_index, kFrameQindex);
+    EXPECT_EQ(actual_encoding_qindex, kFrameQindex);
+    // The second packet includes both invisible and visible frames. To verify
+    // frame size, there's no move_offset (obu_header_size + obu_payload_size)
+    // for vis_frame_size.
+    const int pkt_size_padding = pkt_count_ == 1 ? 0 : 2;
+    // Due to av1 packing invisible and visible frames together, we can only
+    // verify the size of the visible frame in the packet using vis_frame_size.
+    EXPECT_EQ((bit_count >> 3) + pkt_size_padding,
+              pkt->data.frame.vis_frame_size);
+    pkt_count_++;
+  }
+
+ private:
+  int pkt_count_ = 0;
+};
+
+TEST_P(ExtRateCtrlUpdateEncodeFrameResultTest,
+       TestExternalRateCtrlUpdateEncodeFrameResult) {
+  ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, kFrameNum);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  EXPECT_TRUE(is_create_model_called);
+  EXPECT_TRUE(is_delete_model_called);
+  EXPECT_TRUE(is_update_encodeframe_result_called);
+}
+
+AV1_INSTANTIATE_TEST_SUITE(ExtRateCtrlUpdateEncodeFrameResultTest,
                            ::testing::Values(::libaom_test::kTwoPassGood),
                            ::testing::Values(3));
 

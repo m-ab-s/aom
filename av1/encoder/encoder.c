@@ -4603,6 +4603,16 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
     return AOM_CODEC_ERROR;
   }
 
+  if (cpi->ext_ratectrl.ready &&
+      cpi->ext_ratectrl.funcs.update_encodeframe_result != NULL) {
+    aom_codec_err_t codec_status = av1_extrc_update_encodeframe_result(
+        &cpi->ext_ratectrl, (*frame_size) << 3, cm->quant_params.base_qindex);
+    if (codec_status != AOM_CODEC_OK) {
+      aom_internal_error(cm->error, codec_status,
+                         "av1_extrc_update_encodeframe_result() failed");
+    }
+  }
+
   return AOM_CODEC_OK;
 }
 

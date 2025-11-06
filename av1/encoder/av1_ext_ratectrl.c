@@ -149,6 +149,24 @@ aom_codec_err_t av1_extrc_get_encodeframe_decision(
   return AOM_CODEC_OK;
 }
 
+aom_codec_err_t av1_extrc_update_encodeframe_result(
+    AOM_EXT_RATECTRL *ext_ratectrl, int64_t bit_count,
+    int actual_encoding_qindex) {
+  assert(ext_ratectrl != NULL);
+  if (ext_ratectrl->ready) {
+    aom_rc_status_t rc_status;
+    aom_rc_encodeframe_result_t encode_frame_result;
+    encode_frame_result.bit_count = bit_count;
+    encode_frame_result.actual_encoding_qindex = actual_encoding_qindex;
+    rc_status = ext_ratectrl->funcs.update_encodeframe_result(
+        ext_ratectrl->model, &encode_frame_result);
+    if (rc_status == AOM_RC_ERROR) {
+      return AOM_CODEC_ERROR;
+    }
+  }
+  return AOM_CODEC_OK;
+}
+
 aom_codec_err_t av1_extrc_delete(AOM_EXT_RATECTRL *ext_ratectrl) {
   if (ext_ratectrl == NULL) {
     return AOM_CODEC_INVALID_PARAM;
