@@ -1734,6 +1734,7 @@ TEST(EncodeAPI, Issue449341177) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+#if !CONFIG_REALTIME_ONLY
 class GetGopInfoTest : public ::libaom_test::EncoderTest,
                        public ::testing::Test {
  protected:
@@ -1778,5 +1779,6 @@ TEST_F(GetGopInfoTest, GetGopInfo) {
   video.set_limit(kFrameLimit);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 }  // namespace
