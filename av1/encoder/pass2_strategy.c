@@ -3008,7 +3008,9 @@ static int define_kf_interval(AV1_COMP *cpi,
 
             if (next_stats == NULL) continue;
 
-            if (next_stats->lt_coded_error * 2.5 < next_stats->coded_error)
+            if (cpi->common.current_frame.frame_number + frames_to_key + idx >
+                    2 &&
+                next_stats->lt_coded_error * 2.5 < next_stats->coded_error)
               test_next_gop = 1;
           }
 
