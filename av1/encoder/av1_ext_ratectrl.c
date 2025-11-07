@@ -167,6 +167,18 @@ aom_codec_err_t av1_extrc_update_encodeframe_result(
   return AOM_CODEC_OK;
 }
 
+aom_codec_err_t av1_extrc_get_key_frame_decision(
+    AOM_EXT_RATECTRL *ext_ratectrl,
+    aom_rc_key_frame_decision_t *key_frame_decision) {
+  assert(ext_ratectrl != NULL);
+  if (!ext_ratectrl->ready || (ext_ratectrl->funcs.rc_type & AOM_RC_GOP) == 0) {
+    return AOM_CODEC_INVALID_PARAM;
+  }
+  aom_rc_status_t rc_status = ext_ratectrl->funcs.get_key_frame_decision(
+      ext_ratectrl->model, key_frame_decision);
+  return rc_status == AOM_RC_OK ? AOM_CODEC_OK : AOM_CODEC_ERROR;
+}
+
 aom_codec_err_t av1_extrc_delete(AOM_EXT_RATECTRL *ext_ratectrl) {
   if (ext_ratectrl == NULL) {
     return AOM_CODEC_INVALID_PARAM;

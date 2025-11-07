@@ -3284,15 +3284,30 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
   kf_raw_err = this_frame->intra_error;
   kf_mod_err = calculate_modified_err(frame_info, twopass, oxcf, this_frame);
 
-  // We assume the current frame is a key frame and we are looking for the next
-  // key frame. Therefore search_start_idx = 1
-  frames_to_key = define_kf_interval(cpi, firstpass_info, kf_cfg->key_freq_max,
-                                     /*search_start_idx=*/1);
-
-  if (frames_to_key != -1) {
-    rc->frames_to_key = AOMMIN(kf_cfg->key_freq_max, frames_to_key);
+  if (cpi->ext_ratectrl.ready &&
+      (cpi->ext_ratectrl.funcs.rc_type & AOM_RC_GOP) != 0 &&
+      cpi->ext_ratectrl.funcs.get_key_frame_decision != NULL) {
+    aom_rc_key_frame_decision_t key_frame_decision;
+    aom_codec_err_t codec_status = av1_extrc_get_key_frame_decision(
+        &cpi->ext_ratectrl, &key_frame_decision);
+    if (codec_status == AOM_CODEC_OK) {
+      rc->frames_to_key = key_frame_decision.key_frame_group_size;
+    } else {
+      aom_internal_error(cpi->common.error, codec_status,
+                         "av1_extrc_get_key_frame_decision() failed");
+    }
   } else {
-    rc->frames_to_key = kf_cfg->key_freq_max;
+    // We assume the current frame is a key frame and we are looking for the
+    // next key frame. Therefore search_start_idx = 1
+    frames_to_key =
+        define_kf_interval(cpi, firstpass_info, kf_cfg->key_freq_max,
+                           /*search_start_idx=*/1);
+
+    if (frames_to_key != -1) {
+      rc->frames_to_key = AOMMIN(kf_cfg->key_freq_max, frames_to_key);
+    } else {
+      rc->frames_to_key = kf_cfg->key_freq_max;
+    }
   }
 
   if (cpi->ppi->lap_enabled) correct_frames_to_key(cpi);

@@ -45,6 +45,9 @@ bool is_get_gop_decision_called = false;
 // A flag to indicate if update_encodeframe_result() is called.
 bool is_update_encodeframe_result_called = false;
 
+// A flag to indicate if get_key_frame_decision() is called.
+bool is_get_key_frame_decision_called = false;
+
 // Variables to store the parameters passed to update_encodeframe_result().
 int64_t bit_count = 0;
 int actual_encoding_qindex = 0;
@@ -52,6 +55,14 @@ int actual_encoding_qindex = 0;
 // Construct a single ALTREF GOP.
 const int kGopFrameCount = kFrameNum + 1;
 aom_rc_gop_frame_t gop_frame_list[kGopFrameCount];
+
+aom_rc_status_t mock_get_key_frame_decision(
+    aom_rc_model_t /*ratectrl_model*/,
+    aom_rc_key_frame_decision_t *key_frame_decision) {
+  key_frame_decision->key_frame_group_size = 1;
+  is_get_key_frame_decision_called = true;
+  return AOM_RC_OK;
+}
 
 aom_rc_status_t mock_get_gop_decision(aom_rc_model_t /*ratectrl_model*/,
                                       aom_rc_gop_decision_t *gop_decision) {
@@ -152,6 +163,7 @@ class ExtRateCtrlTest : public ::libaom_test::EncoderTest,
     rc_funcs->send_firstpass_stats = mock_send_firstpass_stats;
     rc_funcs->send_tpl_gop_stats = mock_send_extrc_tpl_gop_stats;
     rc_funcs->get_gop_decision = nullptr;
+    rc_funcs->get_key_frame_decision = nullptr;
     rc_funcs->get_encodeframe_decision = nullptr;
     rc_funcs->update_encodeframe_result = nullptr;
   }
@@ -167,6 +179,7 @@ class ExtRateCtrlTest : public ::libaom_test::EncoderTest,
     is_send_extrc_tpl_gop_stats_called = false;
     is_get_gop_decision_called = false;
     is_update_encodeframe_result_called = false;
+    is_get_key_frame_decision_called = false;
   }
 
   void PreEncodeFrameHook(::libaom_test::VideoSource *video,
@@ -324,6 +337,38 @@ TEST_P(ExtRateCtrlGopTest, TestExternalRateCtrlGop) {
 }
 
 AV1_INSTANTIATE_TEST_SUITE(ExtRateCtrlGopTest,
+                           ::testing::Values(::libaom_test::kTwoPassGood),
+                           ::testing::Values(3));
+
+class ExtRateCtrlKeyFrameTest : public ExtRateCtrlTest {
+ protected:
+  ExtRateCtrlKeyFrameTest() {
+    rc_funcs_.rc_type = AOM_RC_GOP;
+    rc_funcs_.get_key_frame_decision = mock_get_key_frame_decision;
+  }
+
+  ~ExtRateCtrlKeyFrameTest() override = default;
+
+  void SetUp() override {
+    ExtRateCtrlTest::SetUp();
+    is_get_key_frame_decision_called = false;
+  }
+
+  void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) return;
+    EXPECT_TRUE(pkt->data.frame.flags & AOM_FRAME_IS_KEY);
+  }
+};
+
+TEST_P(ExtRateCtrlKeyFrameTest, TestExternalRateCtrlKeyFrame) {
+  ::libaom_test::Y4mVideoSource video("screendata.y4m", 0, kFrameNum);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  EXPECT_TRUE(is_create_model_called);
+  EXPECT_TRUE(is_get_key_frame_decision_called);
+  EXPECT_TRUE(is_delete_model_called);
+}
+
+AV1_INSTANTIATE_TEST_SUITE(ExtRateCtrlKeyFrameTest,
                            ::testing::Values(::libaom_test::kTwoPassGood),
                            ::testing::Values(3));
 }  // namespace
