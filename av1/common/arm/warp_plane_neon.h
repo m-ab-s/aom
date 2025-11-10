@@ -24,22 +24,90 @@
 #include "av1/common/warped_motion.h"
 #include "av1/common/scale.h"
 
-static AOM_FORCE_INLINE void vertical_filter_4x1_f1(const int16x8_t *src,
-                                                    int32x4_t *res, int sy);
-
 static AOM_FORCE_INLINE void vertical_filter_4x1_f4(const int16x8_t *src,
                                                     int32x4_t *res, int sy,
                                                     int gamma);
-
-static AOM_FORCE_INLINE void vertical_filter_8x1_f1(const int16x8_t *src,
-                                                    int32x4_t *res_low,
-                                                    int32x4_t *res_high,
-                                                    int sy);
 
 static AOM_FORCE_INLINE void vertical_filter_8x1_f8(const int16x8_t *src,
                                                     int32x4_t *res_low,
                                                     int32x4_t *res_high, int sy,
                                                     int gamma);
+
+static AOM_FORCE_INLINE void vertical_filter_4x1_f1(const int16x8_t *src,
+                                                    int32x4_t *res, int sy) {
+  int16_t *f_ptr =
+      (int16_t *)(av1_warped_filter + (sy >> WARPEDDIFF_PREC_BITS));
+  int16x8_t f = vld1q_s16(f_ptr);
+
+  int32x4_t m0123;
+  if (f_ptr[0] != 0) {
+    m0123 = vmull_lane_s16(vget_low_s16(src[0]), vget_low_s16(f), 0);
+  } else {
+    m0123 = vdupq_n_s32(0);
+  }
+  if (f_ptr[1] != 0) {
+    m0123 = vmlal_lane_s16(m0123, vget_low_s16(src[1]), vget_low_s16(f), 1);
+  }
+
+  m0123 = vmlal_lane_s16(m0123, vget_low_s16(src[2]), vget_low_s16(f), 2);
+  m0123 = vmlal_lane_s16(m0123, vget_low_s16(src[3]), vget_low_s16(f), 3);
+  m0123 = vmlal_lane_s16(m0123, vget_low_s16(src[4]), vget_high_s16(f), 0);
+  m0123 = vmlal_lane_s16(m0123, vget_low_s16(src[5]), vget_high_s16(f), 1);
+
+  if (f_ptr[6] != 0) {
+    m0123 = vmlal_lane_s16(m0123, vget_low_s16(src[6]), vget_high_s16(f), 2);
+  }
+  if (f_ptr[7] != 0) {
+    m0123 = vmlal_lane_s16(m0123, vget_low_s16(src[7]), vget_high_s16(f), 3);
+  }
+
+  *res = m0123;
+}
+
+static AOM_FORCE_INLINE void vertical_filter_8x1_f1(const int16x8_t *s,
+                                                    int32x4_t *res_low,
+                                                    int32x4_t *res_high,
+                                                    int sy) {
+  int16_t *f_ptr =
+      (int16_t *)(av1_warped_filter + (sy >> WARPEDDIFF_PREC_BITS));
+  int16x8_t f = vld1q_s16(f_ptr);
+
+  int32x4_t m0123, m4567;
+  if (f_ptr[0] != 0) {
+    m0123 = vmull_lane_s16(vget_low_s16(s[0]), vget_low_s16(f), 0);
+    m4567 = vmull_lane_s16(vget_high_s16(s[0]), vget_low_s16(f), 0);
+  } else {
+    m0123 = vdupq_n_s32(0);
+    m4567 = vdupq_n_s32(0);
+  }
+  if (f_ptr[1] != 0) {
+    m0123 = vmlal_lane_s16(m0123, vget_low_s16(s[1]), vget_low_s16(f), 1);
+    m4567 = vmlal_lane_s16(m4567, vget_high_s16(s[1]), vget_low_s16(f), 1);
+  }
+  m0123 = vmlal_lane_s16(m0123, vget_low_s16(s[2]), vget_low_s16(f), 2);
+  m4567 = vmlal_lane_s16(m4567, vget_high_s16(s[2]), vget_low_s16(f), 2);
+
+  m0123 = vmlal_lane_s16(m0123, vget_low_s16(s[3]), vget_low_s16(f), 3);
+  m4567 = vmlal_lane_s16(m4567, vget_high_s16(s[3]), vget_low_s16(f), 3);
+
+  m0123 = vmlal_lane_s16(m0123, vget_low_s16(s[4]), vget_high_s16(f), 0);
+  m4567 = vmlal_lane_s16(m4567, vget_high_s16(s[4]), vget_high_s16(f), 0);
+
+  m0123 = vmlal_lane_s16(m0123, vget_low_s16(s[5]), vget_high_s16(f), 1);
+  m4567 = vmlal_lane_s16(m4567, vget_high_s16(s[5]), vget_high_s16(f), 1);
+
+  if (f_ptr[6] != 0) {
+    m0123 = vmlal_lane_s16(m0123, vget_low_s16(s[6]), vget_high_s16(f), 2);
+    m4567 = vmlal_lane_s16(m4567, vget_high_s16(s[6]), vget_high_s16(f), 2);
+  }
+  if (f_ptr[7] != 0) {
+    m0123 = vmlal_lane_s16(m0123, vget_low_s16(s[7]), vget_high_s16(f), 3);
+    m4567 = vmlal_lane_s16(m4567, vget_high_s16(s[7]), vget_high_s16(f), 3);
+  }
+
+  *res_low = m0123;
+  *res_high = m4567;
+}
 
 static AOM_FORCE_INLINE void load_filters_4(int16x8_t out[], int offset,
                                             int stride) {
