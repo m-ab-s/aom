@@ -2481,13 +2481,15 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   }
   if (cpi->refresh_frame.golden_frame)
     rc->frame_num_last_gf_refresh = current_frame->frame_number;
+
+  if (rc->frame_source_sad < 10000)
+    rc->last_frame_low_source_sad = rc->frame_number_encoded;
+
   rc->prev_coded_width = cm->width;
   rc->prev_coded_height = cm->height;
   rc->frame_number_encoded++;
   rc->prev_frame_is_dropped = 0;
   rc->drop_count_consec = 0;
-  if (rc->frame_source_sad < 10000)
-    rc->last_frame_low_source_sad = current_frame->frame_number;
 }
 
 void av1_rc_postencode_update_drop_frame(AV1_COMP *cpi) {
@@ -3362,12 +3364,12 @@ static void rc_scene_detection_onepass_rt(AV1_COMP *cpi,
     cpi->rc.high_motion_content_screen_rtc = 0;
     if (cpi->oxcf.speed >= 11 &&
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
-        rc->num_col_blscroll_last_tl0 == 0 &&
-        rc->num_row_blscroll_last_tl0 == 0 &&
+        rc->num_col_blscroll_last_tl0 < 5 &&
+        rc->num_row_blscroll_last_tl0 < 5 &&
         rc->percent_blocks_with_motion > 40 &&
         rc->prev_avg_source_sad > thresh_high_motion &&
         rc->avg_source_sad > thresh_high_motion &&
-        cm->current_frame.frame_number - rc->last_frame_low_source_sad > 10 &&
+        rc->frame_number_encoded - rc->last_frame_low_source_sad > 12 &&
         rc->avg_frame_low_motion < 60 && unscaled_src->y_width >= 1280 &&
         unscaled_src->y_height >= 720) {
       cpi->rc.high_motion_content_screen_rtc = 1;
