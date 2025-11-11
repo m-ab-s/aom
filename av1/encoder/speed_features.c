@@ -1832,6 +1832,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   if (is_psnr_calc_enabled(cpi) && (cpi->oxcf.frm_dim_cfg.width != cm->width ||
                                     cpi->oxcf.frm_dim_cfg.height != cm->height))
     sf->rt_sf.use_rtc_tf = 0;
+
+  // This speed feature is causing artifacts with active_maps enabled, so
+  // disable for now.
+  if (cpi->active_map.enabled)
+    sf->rt_sf.set_zeromv_skip_based_on_source_sad = 0;
 }
 
 static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
