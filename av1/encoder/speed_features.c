@@ -233,12 +233,11 @@ static void set_allintra_speed_feature_framesize_dependent(
     }
 
     if (is_720p_or_larger) {
-      sf->part_sf.ml_partition_search_breakout_thresh[0] = 0.9999999f;
-      sf->part_sf.ml_partition_search_breakout_thresh[1] = 0.9999999f;
-      sf->part_sf.ml_partition_search_breakout_thresh[2] = 0.9618367258814811f;
-      sf->part_sf.ml_partition_search_breakout_thresh[3] = 0.9990705139233304f;
-      sf->part_sf.ml_partition_search_breakout_thresh[4] = 0.9648891196441841f;
-
+      sf->part_sf.ml_partition_search_breakout_thresh[0] = 0.5f;
+      sf->part_sf.ml_partition_search_breakout_thresh[1] = 0.5042595622791082f;
+      sf->part_sf.ml_partition_search_breakout_thresh[2] = 0.5f;
+      sf->part_sf.ml_partition_search_breakout_thresh[3] = 0.8378425823517456f;
+      sf->part_sf.ml_partition_search_breakout_thresh[4] = 0.8047585616503903f;
       sf->part_sf.ml_partition_search_breakout_model_index = 1;
     } else {
       sf->part_sf.ml_partition_search_breakout_thresh[0] = -1.0f;
@@ -259,11 +258,11 @@ static void set_allintra_speed_feature_framesize_dependent(
     }
 
     if (is_720p_or_larger) {
-      sf->part_sf.ml_partition_search_breakout_thresh[0] = 0.9583713938680828f;
-      sf->part_sf.ml_partition_search_breakout_thresh[1] = 0.9999999f;
-      sf->part_sf.ml_partition_search_breakout_thresh[2] = 0.9634239069901543f;
-      sf->part_sf.ml_partition_search_breakout_thresh[3] = 0.9000000000000001f;
-      sf->part_sf.ml_partition_search_breakout_thresh[4] = 0.9196596355880025f;
+      sf->part_sf.ml_partition_search_breakout_thresh[0] = 0.5f;
+      sf->part_sf.ml_partition_search_breakout_thresh[1] = 0.5042595622791082f;
+      sf->part_sf.ml_partition_search_breakout_thresh[2] = 0.5f;
+      sf->part_sf.ml_partition_search_breakout_thresh[3] = 0.8378425823517456f;
+      sf->part_sf.ml_partition_search_breakout_thresh[4] = 0.8047585616503903f;
       sf->part_sf.ml_partition_search_breakout_model_index = 1;
     }
 
@@ -785,11 +784,11 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (is_720p_or_larger) {
-      sf->part_sf.ml_partition_search_breakout_thresh[0] = 0.9999999f;
-      sf->part_sf.ml_partition_search_breakout_thresh[1] = 0.9999999f;
-      sf->part_sf.ml_partition_search_breakout_thresh[2] = 0.9618367258814811f;
-      sf->part_sf.ml_partition_search_breakout_thresh[3] = 0.9990705139233304f;
-      sf->part_sf.ml_partition_search_breakout_thresh[4] = 0.9648891196441841f;
+      sf->part_sf.ml_partition_search_breakout_thresh[0] = 0.5f;
+      sf->part_sf.ml_partition_search_breakout_thresh[1] = 0.5042595622791082f;
+      sf->part_sf.ml_partition_search_breakout_thresh[2] = 0.5f;
+      sf->part_sf.ml_partition_search_breakout_thresh[3] = 0.8378425823517456f;
+      sf->part_sf.ml_partition_search_breakout_thresh[4] = 0.8047585616503903f;
       sf->part_sf.ml_partition_search_breakout_model_index = 1;
     } else {
       sf->part_sf.ml_partition_search_breakout_thresh[0] = -1.0f;
@@ -812,11 +811,11 @@ static void set_good_speed_feature_framesize_dependent(
     }
 
     if (is_720p_or_larger) {
-      sf->part_sf.ml_partition_search_breakout_thresh[0] = 0.9583713938680828f;
-      sf->part_sf.ml_partition_search_breakout_thresh[1] = 0.9999999f;
-      sf->part_sf.ml_partition_search_breakout_thresh[2] = 0.9634239069901543f;
-      sf->part_sf.ml_partition_search_breakout_thresh[3] = 0.9000000000000001f;
-      sf->part_sf.ml_partition_search_breakout_thresh[4] = 0.9196596355880025f;
+      sf->part_sf.ml_partition_search_breakout_thresh[0] = 0.5f;
+      sf->part_sf.ml_partition_search_breakout_thresh[1] = 0.5042595622791082f;
+      sf->part_sf.ml_partition_search_breakout_thresh[2] = 0.5f;
+      sf->part_sf.ml_partition_search_breakout_thresh[3] = 0.8378425823517456f;
+      sf->part_sf.ml_partition_search_breakout_thresh[4] = 0.8047585616503903f;
       sf->part_sf.ml_partition_search_breakout_model_index = 1;
     }
 
