@@ -1563,6 +1563,12 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // Control how the CDEF strength is determined.
   CDEF_PICK_METHOD cdef_pick_method;
 
+  // Decoder side speed feature for adaptive CDEF with strength reduction.
+  // Zero out values with low CDEF strengths (luma and/or chroma). This is
+  // done as CDEF is a relatively-expensive filter to compute during decode.
+  // This speed feature is only enable in all intra mode.
+  bool zero_low_cdef_strengths;
+
   // Decoder side speed feature to add penalty for use of dual-sgr filters.
   // Takes values 0 - 10, 0 indicating no penalty and each additional level
   // adding a penalty of 1%

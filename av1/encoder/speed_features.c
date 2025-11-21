@@ -2427,6 +2427,7 @@ static inline void init_lpf_sf(LOOP_FILTER_SPEED_FEATURES *lpf_sf) {
   lpf_sf->lpf_pick = LPF_PICK_FROM_FULL_IMAGE;
   lpf_sf->use_coarse_filter_level_search = 0;
   lpf_sf->cdef_pick_method = CDEF_FULL_SEARCH;
+  lpf_sf->zero_low_cdef_strengths = 0;
   // Set decoder side speed feature to use less dual sgr modes
   lpf_sf->dual_sgr_penalty_level = 0;
   // Enable Wiener and Self-guided Loop restoration filters by default.
@@ -2799,6 +2800,12 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
               : cm->quant_params.base_qindex > qindex_thresh;
     }
     return;
+  }
+
+  if (cpi->oxcf.mode == ALLINTRA) {
+    if (cm->quant_params.base_qindex <= 140) {
+      sf->lpf_sf.zero_low_cdef_strengths = 1;
+    }
   }
 
   if (speed == 0) {
