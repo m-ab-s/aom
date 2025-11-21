@@ -2190,13 +2190,9 @@ static void define_gf_group_pass0(AV1_COMP *cpi) {
   const GFConfig *const gf_cfg = &oxcf->gf_cfg;
   int target;
 
-  if (oxcf->q_cfg.aq_mode == CYCLIC_REFRESH_AQ) {
-    av1_cyclic_refresh_set_golden_update(cpi);
-  } else {
-    p_rc->baseline_gf_interval = p_rc->gf_intervals[p_rc->cur_gf_index];
-    rc->intervals_till_gf_calculate_due--;
-    p_rc->cur_gf_index++;
-  }
+  p_rc->baseline_gf_interval = p_rc->gf_intervals[p_rc->cur_gf_index];
+  rc->intervals_till_gf_calculate_due--;
+  p_rc->cur_gf_index++;
 
   // correct frames_to_key when lookahead queue is flushing
   correct_frames_to_key(cpi);
@@ -2208,7 +2204,13 @@ static void define_gf_group_pass0(AV1_COMP *cpi) {
   p_rc->constrained_gf_group =
       (p_rc->baseline_gf_interval >= rc->frames_to_key) ? 1 : 0;
 
-  gf_group->max_layer_depth_allowed = oxcf->gf_cfg.gf_max_pyr_height;
+  // Default for pyr_height if inputs not set.
+  if (oxcf->gf_cfg.gf_max_pyr_height == 0 ||
+      oxcf->gf_cfg.gf_min_pyr_height == 0) {
+    gf_group->max_layer_depth_allowed = 1;
+  } else {
+    gf_group->max_layer_depth_allowed = oxcf->gf_cfg.gf_max_pyr_height;
+  }
 
   // Rare case when the look-ahead is less than the target GOP length, can't
   // generate ARF frame.
@@ -3900,7 +3902,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       p_rc->frames_till_regions_update = rest_frames;
 
       int ret;
-      if (cpi->ppi->lap_enabled) {
+      if (cpi->ppi->lap_enabled && !is_one_pass_rt_lag_params(cpi)) {
         mark_flashes(twopass->stats_buf_ctx->stats_in_start,
                      twopass->stats_buf_ctx->stats_in_end);
         estimate_noise(twopass->stats_buf_ctx->stats_in_start,
@@ -4020,6 +4022,13 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     }
 
     define_gf_group(cpi, frame_params, 0);
+
+    if (is_one_pass_rt_lag_params(cpi)) {
+      rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
+      frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
+      av1_setup_target_rate(cpi);
+      return;
+    }
 
     if (gf_group->update_type[cpi->gf_frame_index] != ARF_UPDATE &&
         rc->frames_since_key > 0)

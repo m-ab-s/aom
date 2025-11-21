@@ -1356,10 +1356,13 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
   color_cfg->chroma_sample_position = extra_cfg->chroma_sample_position;
 
   // Set Group of frames configuration.
-  // Force lag_in_frames to 0 for REALTIME mode
+#if CONFIG_REALTIME_ONLY
   gf_cfg->lag_in_frames = (oxcf->mode == REALTIME)
                               ? 0
                               : clamp(cfg->g_lag_in_frames, 0, MAX_LAG_BUFFERS);
+#else
+  gf_cfg->lag_in_frames = clamp(cfg->g_lag_in_frames, 0, MAX_LAG_BUFFERS);
+#endif
   gf_cfg->enable_auto_arf = extra_cfg->enable_auto_alt_ref;
   gf_cfg->enable_auto_brf = extra_cfg->enable_auto_bwd_ref;
   gf_cfg->min_gf_interval = extra_cfg->min_gf_interval;
@@ -3009,7 +3012,7 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 
       set_encoder_config(&priv->oxcf, &priv->cfg, &priv->extra_cfg);
       if (priv->oxcf.rc_cfg.mode != AOM_CBR &&
-          priv->oxcf.pass == AOM_RC_ONE_PASS && priv->oxcf.mode == GOOD) {
+          priv->oxcf.pass == AOM_RC_ONE_PASS) {
         // Enable look ahead - enabled for AOM_Q, AOM_CQ, AOM_VBR
         *num_lap_buffers =
             AOMMIN((int)priv->cfg.g_lag_in_frames,
@@ -3522,7 +3525,7 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 #endif  // CONFIG_MULTITHREAD
 
     // Call for LAP stage
-    if (cpi_lap != NULL) {
+    if (cpi_lap != NULL && !is_one_pass_rt_lag_params(cpi)) {
       if (cpi_lap->ppi->b_freeze_internal_state) {
         av1_save_all_coding_context(cpi_lap);
       }

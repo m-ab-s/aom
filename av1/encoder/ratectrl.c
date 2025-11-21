@@ -2747,7 +2747,7 @@ void av1_set_target_rate(AV1_COMP *cpi, int width, int height) {
 
 int av1_calc_pframe_target_size_one_pass_vbr(
     const AV1_COMP *const cpi, FRAME_UPDATE_TYPE frame_update_type) {
-  static const int af_ratio = 10;
+  const int af_ratio = is_one_pass_rt_lag_params(cpi) ? 6 : 10;
   const RATE_CONTROL *const rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   int64_t target;

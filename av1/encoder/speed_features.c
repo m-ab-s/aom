@@ -1836,6 +1836,15 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   // disable for now.
   if (cpi->active_map.enabled)
     sf->rt_sf.set_zeromv_skip_based_on_source_sad = 0;
+
+  if (is_one_pass_rt_lag_params(cpi)) {
+    sf->rt_sf.use_nonrd_altref_frame = 1;
+    // For non-zero lag: disable the 3 speed features below for now,
+    // until further testing.
+    sf->rt_sf.use_rtc_tf = 0;
+    sf->rt_sf.nonrd_check_partition_merge_mode = 0;
+    sf->rt_sf.nonrd_check_partition_split = 0;
+  }
 }
 
 static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
@@ -1974,7 +1983,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   sf->rt_sf.mode_search_skip_flags |= FLAG_SKIP_INTRA_DIRMISMATCH;
   sf->rt_sf.num_inter_modes_for_tx_search = 5;
   sf->rt_sf.prune_inter_modes_using_temp_var = 1;
-  sf->rt_sf.use_real_time_ref_set = 1;
+  sf->rt_sf.use_real_time_ref_set = is_one_pass_rt_lag_params(cpi) ? 0 : 1;
   sf->rt_sf.use_simple_rd_model = 1;
   sf->rt_sf.prune_inter_modes_with_golden_ref = boosted ? 0 : 1;
   // TODO(any): This sf could be removed.
@@ -2002,6 +2011,13 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
   if (!frame_is_intra_only(&cpi->common)) sf->rt_sf.var_part_based_on_qidx = 1;
   sf->rt_sf.use_fast_fixed_part = 0;
   sf->rt_sf.increase_source_sad_thresh = 0;
+
+  if (is_one_pass_rt_lag_params(cpi) && speed <= 6) {
+    sf->hl_sf.frame_parameter_update = 1;
+    sf->inter_sf.use_dist_wtd_comp_flag = 0;
+    sf->inter_sf.disable_masked_comp = 1;
+    sf->inter_sf.disable_onesided_comp = 1;
+  }
 
   if (speed >= 6) {
     sf->mv_sf.use_fullpel_costlist = 1;
