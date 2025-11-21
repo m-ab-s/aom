@@ -203,9 +203,6 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   copy_mbmi_ext_frame_to_mbmi_ext(&x->mbmi_ext, &ctx->mbmi_ext_best,
                                   av1_ref_frame_type(ctx->mic.ref_frame));
 
-  memcpy(txfm_info->blk_skip, ctx->blk_skip,
-         sizeof(txfm_info->blk_skip[0]) * ctx->num_4x4_blk);
-
   txfm_info->skip_txfm = ctx->rd_stats.skip_txfm;
 
   xd->tx_type_map = ctx->tx_type_map;

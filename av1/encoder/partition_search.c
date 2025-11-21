@@ -5554,16 +5554,6 @@ bool av1_rd_pick_partition(AV1_COMP *const cpi, ThreadData *td,
     part_search_state.partition_rect_allowed[VERT] &= !blk_params.has_cols;
   }
 
-#ifndef NDEBUG
-  // Nothing should rely on the default value of this array (which is just
-  // leftover from encoding the previous block. Setting it to fixed pattern
-  // when debugging.
-  // bit 0, 1, 2 are blk_skip of each plane
-  // bit 4, 5, 6 are initialization checking of each plane
-  memset(x->txfm_search_info.blk_skip, 0x77,
-         sizeof(x->txfm_search_info.blk_skip));
-#endif  // NDEBUG
-
   assert(mi_size_wide[bsize] == mi_size_high[bsize]);
 
   // Set buffers and offsets.
