@@ -1976,11 +1976,10 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   int *inter_minq;
   ASSIGN_MINQ_TABLE(bit_depth, inter_minq);
   int active_best_quality = 0;
-  const int is_intrl_arf_boost =
-      gf_group->update_type[gf_index] == INTNL_ARF_UPDATE;
-  int is_leaf_frame =
-      !(gf_group->update_type[gf_index] == ARF_UPDATE ||
-        gf_group->update_type[gf_index] == GF_UPDATE || is_intrl_arf_boost);
+  FRAME_UPDATE_TYPE update_type = gf_group->update_type[gf_index];
+  const int is_intrl_arf_boost = update_type == INTNL_ARF_UPDATE;
+  int is_leaf_frame = !(update_type == ARF_UPDATE || update_type == GF_UPDATE ||
+                        is_intrl_arf_boost);
 
   // TODO(jingning): Consider to rework this hack that covers issues incurred
   // in lightfield setting.
@@ -1988,7 +1987,8 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
     is_leaf_frame = !(refresh_frame->golden_frame ||
                       refresh_frame->alt_ref_frame || is_intrl_arf_boost);
   }
-  const int is_overlay_frame = rc->is_src_frame_alt_ref;
+  const int is_overlay_frame =
+      update_type == OVERLAY_UPDATE || update_type == INTNL_OVERLAY_UPDATE;
 
   if (is_leaf_frame || is_overlay_frame) {
     if (rc_mode == AOM_Q) return cq_level;
