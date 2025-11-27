@@ -307,6 +307,54 @@ class DatarateTestLarge
     RunBasicRateTargetingTestReversed(&video, bitrate_array[GET_PARAM(4)], 0.85,
                                       1.15);
   }
+
+  virtual void BasicRateTargetingQvgaCBRKf() {
+    ::libaom_test::I420VideoSource video("desktop1.320_180.yuv", 320, 180, 30,
+                                         1, 0, 500);
+
+    cfg_.g_profile = 0;
+    cfg_.g_timebase = video.timebase();
+
+    SetUpCBR();
+    cfg_.kf_max_dist = 10;
+    cfg_.kf_min_dist = 10;
+    const int bitrate_array[2] = { 250, 650 };
+    ResetModel();
+    RunBasicRateTargetingTestReversed(&video, bitrate_array[GET_PARAM(4)], 0.5,
+                                      1.5);
+  }
+
+  virtual void BasicRateTargetingQvga2CBRKf() {
+    ::libaom_test::I420VideoSource video("desktopqvga2.320_240.yuv", 320, 240,
+                                         30, 1, 0, 500);
+
+    cfg_.g_profile = 0;
+    cfg_.g_timebase = video.timebase();
+
+    SetUpCBR();
+    cfg_.kf_max_dist = 10;
+    cfg_.kf_min_dist = 10;
+    const int bitrate_array[2] = { 250, 650 };
+    ResetModel();
+    RunBasicRateTargetingTestReversed(&video, bitrate_array[GET_PARAM(4)], 0.5,
+                                      1.5);
+  }
+
+  virtual void BasicRateTargetingCifCBRKf() {
+    ::libaom_test::I420VideoSource video("hantro_collage_w352h288.yuv", 352,
+                                         288, 30, 1, 0, 140);
+
+    cfg_.g_profile = 0;
+    cfg_.g_timebase = video.timebase();
+
+    SetUpCBR();
+    cfg_.kf_max_dist = 10;
+    cfg_.kf_min_dist = 10;
+    const int bitrate_array[2] = { 250, 650 };
+    ResetModel();
+    RunBasicRateTargetingTestReversed(&video, bitrate_array[GET_PARAM(4)], 0.5,
+                                      1.5);
+  }
 };
 
 // Params: test mode, speed, aq mode.
@@ -547,6 +595,21 @@ TEST_P(DatarateTestRealtime, BasicRateTargetingSuperresCBRMultiThreads) {
   BasicRateTargetingSuperresCBRMultiThreads();
 }
 
+// Check basic rate targeting for QVGA CBR with short keyframe spacing.
+TEST_P(DatarateTestRealtime, BasicRateTargetingQvgaCBRKf) {
+  BasicRateTargetingQvgaCBRKf();
+}
+
+// Check basic rate targeting for QVGA CBR with short keyframe spacing.
+TEST_P(DatarateTestRealtime, BasicRateTargetingQvga2CBRKf) {
+  BasicRateTargetingQvga2CBRKf();
+}
+
+// Check basic rate targeting for CIF CBR with short keyframe spacing.
+TEST_P(DatarateTestRealtime, BasicRateTargetingCifCBRKf) {
+  BasicRateTargetingCifCBRKf();
+}
+
 // Check that (1) the first dropped frame gets earlier and earlier
 // as the drop frame threshold is increased, and (2) that the total number of
 // frame drops does not decrease as we increase frame drop threshold.
@@ -680,12 +743,12 @@ AV1_INSTANTIATE_TEST_SUITE(DatarateTestFrameDropLarge,
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestRealtime,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Range(7, 12), ::testing::Values(0, 3),
+                           ::testing::Range(5, 12), ::testing::Values(0, 3),
                            ::testing::Values(0, 1));
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestFrameDropRealtime,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Range(7, 12), ::testing::Values(0, 3));
+                           ::testing::Range(5, 12), ::testing::Values(0, 3));
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestSpeedChangeRealtime,
                            ::testing::Values(::libaom_test::kRealTime),

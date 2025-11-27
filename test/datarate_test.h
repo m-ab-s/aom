@@ -239,7 +239,6 @@ class DatarateTest : public ::libaom_test::EncoderTest {
                                          double low_rate_err_limit,
                                          double high_rate_err_limit) {
     cfg_.rc_target_bitrate = bitrate;
-    ResetModel();
     ASSERT_NO_FATAL_FAILURE(RunLoop(video));
     ASSERT_GE(static_cast<double>(cfg_.rc_target_bitrate),
               effective_datarate_ * low_rate_err_limit)
