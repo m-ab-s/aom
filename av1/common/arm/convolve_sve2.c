@@ -52,7 +52,7 @@ static inline void convolve_2d_sr_vert_12tap_sve2(
   const int bd = 8;
   const int16x8_t sub_const = vdupq_n_s16(1 << (bd - 1));
 
-  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kDotProdMergeBlockTbl);
+  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kHbdDotProdMergeBlockTbl);
   // Scale indices by size of the true vector length to avoid reading from an
   // 'undefined' portion of a vector on a system with SVE vectors > 128-bit.
   uint16x8_t correction0 =

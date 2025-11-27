@@ -22,6 +22,26 @@
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/transpose_neon.h"
 
+DECLARE_ALIGNED(16, const uint16_t, kHbdDotProdTbl[32]) = {
+  0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
+  4, 5, 6, 7, 5, 6, 7, 0, 6, 7, 0, 1, 7, 0, 1, 2,
+};
+
+// clang-format off
+DECLARE_ALIGNED(16, const uint16_t, kDeinterleaveTbl[8]) = {
+  0, 2, 4, 6, 1, 3, 5, 7,
+};
+// clang-format on
+
+DECLARE_ALIGNED(16, static const uint8_t, kDotProdMergeBlockTbl[48]) = {
+  // Shift left and insert new last column in transposed 4x4 block.
+  2, 3, 4, 5, 6, 7, 16, 17, 10, 11, 12, 13, 14, 15, 24, 25,
+  // Shift left and insert two new columns in transposed 4x4 block.
+  4, 5, 6, 7, 16, 17, 18, 19, 12, 13, 14, 15, 24, 25, 26, 27,
+  // Shift left and insert three new columns in transposed 4x4 block.
+  6, 7, 16, 17, 18, 19, 20, 21, 14, 15, 24, 25, 26, 27, 28, 29
+};
+
 static inline uint16x4_t highbd_convolve8_4_h(int16x8_t s[4], int16x8_t filter,
                                               uint16x4_t max) {
   int64x2_t sum[4];
@@ -131,16 +151,6 @@ static inline void highbd_convolve8_horiz_8tap_sve(
   }
 }
 
-// clang-format off
-DECLARE_ALIGNED(16, static const uint16_t, kDotProdTbl[16]) = {
-  0, 1, 2, 3, 1, 2, 3, 4, 2, 3, 4, 5, 3, 4, 5, 6,
-};
-
-DECLARE_ALIGNED(16, static const uint16_t, kDeinterleaveTbl[8]) = {
-  0, 2, 4, 6, 1, 3, 5, 7,
-};
-// clang-format on
-
 static inline uint16x4_t highbd_convolve4_4_h(int16x8_t s, int16x8_t filter,
                                               uint16x8x2_t permute_tbl,
                                               uint16x4_t max) {
@@ -184,7 +194,7 @@ static inline void highbd_convolve8_horiz_4tap_sve(
 
   if (width == 4) {
     const uint16x4_t max = vdup_n_u16((1 << bd) - 1);
-    uint16x8x2_t permute_tbl = vld1q_u16_x2(kDotProdTbl);
+    uint16x8x2_t permute_tbl = vld1q_u16_x2(kHbdDotProdTbl);
 
     const int16_t *s = (const int16_t *)src;
     uint16_t *d = dst;
@@ -267,15 +277,6 @@ void aom_highbd_convolve8_horiz_sve(const uint8_t *src8, ptrdiff_t src_stride,
                                     width, height, bd);
   }
 }
-
-DECLARE_ALIGNED(16, static const uint8_t, kDotProdMergeBlockTbl[48]) = {
-  // Shift left and insert new last column in transposed 4x4 block.
-  2, 3, 4, 5, 6, 7, 16, 17, 10, 11, 12, 13, 14, 15, 24, 25,
-  // Shift left and insert two new columns in transposed 4x4 block.
-  4, 5, 6, 7, 16, 17, 18, 19, 12, 13, 14, 15, 24, 25, 26, 27,
-  // Shift left and insert three new columns in transposed 4x4 block.
-  6, 7, 16, 17, 18, 19, 20, 21, 14, 15, 24, 25, 26, 27, 28, 29
-};
 
 static inline void aom_tbl2x4_s16(int16x8_t t0[4], int16x8_t t1[4],
                                   uint8x16_t tbl, int16x8_t res[4]) {
