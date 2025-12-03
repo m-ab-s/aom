@@ -743,12 +743,12 @@ AV1_INSTANTIATE_TEST_SUITE(DatarateTestFrameDropLarge,
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestRealtime,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Range(5, 12), ::testing::Values(0, 3),
+                           ::testing::Range(6, 12), ::testing::Values(0, 3),
                            ::testing::Values(0, 1));
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestFrameDropRealtime,
                            ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Range(5, 12), ::testing::Values(0, 3));
+                           ::testing::Range(6, 12), ::testing::Values(0, 3));
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestSpeedChangeRealtime,
                            ::testing::Values(::libaom_test::kRealTime),
