@@ -1002,12 +1002,13 @@ void av1_cdef_search(AV1_COMP *cpi) {
       cdef_info->cdef_strengths[j] =
           new_pri_luma_strength * CDEF_SEC_STRENGTHS + new_sec_luma_strength;
 
+      int new_pri_chroma_strength;
+      int new_sec_chroma_strength;
+
       if (num_planes > 1) {
         const int chroma_strength = cdef_info->cdef_uv_strengths[j];
-        const int new_pri_chroma_strength =
-            (chroma_strength / CDEF_SEC_STRENGTHS) >> 1;
-        const int new_sec_chroma_strength =
-            (chroma_strength % CDEF_SEC_STRENGTHS) >> 1;
+        new_pri_chroma_strength = (chroma_strength / CDEF_SEC_STRENGTHS) >> 1;
+        new_sec_chroma_strength = (chroma_strength % CDEF_SEC_STRENGTHS) >> 1;
 
         cdef_info->cdef_uv_strengths[j] =
             new_pri_chroma_strength * CDEF_SEC_STRENGTHS +
@@ -1029,11 +1030,8 @@ void av1_cdef_search(AV1_COMP *cpi) {
           cdef_info->cdef_strengths[j] = 0;
         }
         if (num_planes > 1) {
-          const int chroma_strength = cdef_info->cdef_uv_strengths[j];
-          const int pri_chroma_strength = chroma_strength / CDEF_SEC_STRENGTHS;
-          const int sec_chroma_strength = chroma_strength % CDEF_SEC_STRENGTHS;
           const bool is_low_chroma_strength =
-              pri_chroma_strength <= 4 && sec_chroma_strength <= 1;
+              new_pri_chroma_strength <= 4 && new_sec_chroma_strength <= 1;
 
           if (is_low_luma_strength || is_low_chroma_strength) {
             // Disable CDEF on chroma if we've disabled it on luma
