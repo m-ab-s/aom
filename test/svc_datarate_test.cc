@@ -2776,10 +2776,18 @@ TEST(SvcParams, BitrateOverflow) {
   EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+// Speed 6 takes too long on valgrind, so do only 1 bitrate and one aq_mode.
+#ifdef AOM_VALGRIND_BUILD
+AV1_INSTANTIATE_TEST_SUITE(DatarateTestSVC,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Range(6, 12), ::testing::Values(3),
+                           ::testing::Values(1));
+#else  // AOM_VALGRIND_BUILD
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestSVC,
                            ::testing::Values(::libaom_test::kRealTime),
                            ::testing::Range(6, 12), ::testing::Values(0, 3),
                            ::testing::Values(0, 1));
+#endif
 
 }  // namespace
 }  // namespace datarate_test
