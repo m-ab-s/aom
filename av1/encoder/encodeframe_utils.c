@@ -9,6 +9,9 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "aom/aom_codec.h"
+#include "aom/internal/aom_codec_internal.h"
+
 #include "av1/common/common_data.h"
 #include "av1/common/quant_common.h"
 #include "av1/common/reconintra.h"
