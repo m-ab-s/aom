@@ -2624,9 +2624,9 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
 // Function to perform inter mode evaluation for non-rd
 static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     AV1_COMP *cpi, MACROBLOCK *x, InterModeSearchStateNonrd *search_state,
-    PRED_BUFFER **this_mode_pred, PRED_BUFFER *tmp_buffer,
-    InterPredParams inter_pred_params_sr, int *best_early_term,
-    unsigned int *sse_zeromv_norm, bool *check_globalmv,
+    PICK_MODE_CONTEXT *ctx, PRED_BUFFER **this_mode_pred,
+    PRED_BUFFER *tmp_buffer, InterPredParams inter_pred_params_sr,
+    int *best_early_term, unsigned int *sse_zeromv_norm, bool *check_globalmv,
 #if CONFIG_AV1_TEMPORAL_DENOISING
     int64_t *zero_last_cost_orig, int denoise_svc_pickmode,
 #endif
@@ -2662,6 +2662,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
   PREDICTION_MODE this_best_mode;
   RD_STATS nonskip_rdc;
   av1_invalid_rd_stats(&nonskip_rdc);
+
+  (void)ctx;
 
   if (x->sb_me_block && this_mode == NEWMV && ref_frame == LAST_FRAME) {
     // Set the NEWMV_LAST to the sb MV.
@@ -3482,7 +3484,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
 
     // Perform inter mode evaluation for non-rd
     if (!handle_inter_mode_nonrd(
-            cpi, x, &search_state, &this_mode_pred, tmp_buffer,
+            cpi, x, &search_state, ctx, &this_mode_pred, tmp_buffer,
             inter_pred_params_sr, &best_early_term, &sse_zeromv_norm,
             &check_globalmv,
 #if CONFIG_AV1_TEMPORAL_DENOISING
