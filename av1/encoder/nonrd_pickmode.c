@@ -2628,7 +2628,8 @@ static AOM_FORCE_INLINE bool handle_inter_mode_nonrd(
     PRED_BUFFER *tmp_buffer, InterPredParams inter_pred_params_sr,
     int *best_early_term, unsigned int *sse_zeromv_norm, bool *check_globalmv,
 #if CONFIG_AV1_TEMPORAL_DENOISING
-    int64_t *zero_last_cost_orig, int denoise_svc_pickmode,
+    PICK_MODE_CONTEXT *ctx, int64_t *zero_last_cost_orig,
+    int denoise_svc_pickmode,
 #endif
     int idx, int force_mv_inter_layer, int is_single_pred, int gf_temporal_ref,
     int use_model_yrd_large, int filter_search_enabled_blk, BLOCK_SIZE bsize,
@@ -3488,7 +3489,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
             inter_pred_params_sr, &best_early_term, &sse_zeromv_norm,
             &check_globalmv,
 #if CONFIG_AV1_TEMPORAL_DENOISING
-            &zero_last_cost_orig, denoise_svc_pickmode,
+            ctx, &zero_last_cost_orig, denoise_svc_pickmode,
 #endif
             idx, force_mv_inter_layer, is_single_pred, gf_temporal_ref,
             use_model_yrd_large, filter_search_enabled_blk, bsize, this_mode,
