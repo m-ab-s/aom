@@ -732,7 +732,7 @@ static inline void cdef_params_init(const YV12_BUFFER_CONFIG *frame,
 }
 
 void av1_pick_cdef_from_qp(AV1_COMMON *const cm, int skip_cdef,
-                           int is_screen_content) {
+                           int is_screen_content, bool avoid_uv_cdef) {
   const int bd = cm->seq_params->bit_depth;
   const int q =
       av1_ac_quant_QTX(cm->quant_params.base_qindex, 0, bd) >> (bd - 8);
@@ -796,7 +796,8 @@ void av1_pick_cdef_from_qp(AV1_COMMON *const cm, int skip_cdef,
   cdef_info->cdef_strengths[0] =
       predicted_y_f1 * CDEF_SEC_STRENGTHS + predicted_y_f2;
   cdef_info->cdef_uv_strengths[0] =
-      predicted_uv_f1 * CDEF_SEC_STRENGTHS + predicted_uv_f2;
+      avoid_uv_cdef ? 0
+                    : predicted_uv_f1 * CDEF_SEC_STRENGTHS + predicted_uv_f2;
 
   // mbmi->cdef_strength is already set in the encoding stage. We don't need to
   // set it again here.
@@ -824,15 +825,16 @@ void av1_pick_cdef_from_qp(AV1_COMMON *const cm, int skip_cdef,
 void av1_cdef_search(AV1_COMP *cpi) {
   AV1_COMMON *cm = &cpi->common;
   CDEF_CONTROL cdef_control = cpi->oxcf.tool_cfg.cdef_control;
+  const bool apply_adaptive_cdef =
+      cdef_control == CDEF_ADAPTIVE && cpi->oxcf.mode == ALLINTRA &&
+      (cpi->oxcf.rc_cfg.mode == AOM_Q || cpi->oxcf.rc_cfg.mode == AOM_CQ);
 
   assert(cdef_control != CDEF_NONE);
   // For CDEF_ADAPTIVE, turning off CDEF around qindex 32 was best for still
   // pictures
   if ((cdef_control == CDEF_REFERENCE &&
        cpi->ppi->rtc_ref.non_reference_frame) ||
-      (cdef_control == CDEF_ADAPTIVE && cpi->oxcf.mode == ALLINTRA &&
-       (cpi->oxcf.rc_cfg.mode == AOM_Q || cpi->oxcf.rc_cfg.mode == AOM_CQ) &&
-       cpi->oxcf.rc_cfg.cq_level <= 32)) {
+      (apply_adaptive_cdef && cpi->oxcf.rc_cfg.cq_level <= 32)) {
     CdefInfo *const cdef_info = &cm->cdef_info;
     cdef_info->nb_cdef_strengths = 1;
     cdef_info->cdef_bits = 0;
@@ -844,7 +846,8 @@ void av1_cdef_search(AV1_COMP *cpi) {
   // Indicate if external RC is used for testing
   const int rtc_ext_rc = cpi->rc.rtc_external_ratectrl;
   if (rtc_ext_rc) {
-    av1_pick_cdef_from_qp(cm, 0, 0);
+    av1_pick_cdef_from_qp(cm, /*skip_cdef=*/0, /*is_screen_content=*/0,
+                          /*avoid_uv_cdef=*/false);
     return;
   }
   CDEF_PICK_METHOD pick_method = cpi->sf.lpf_sf.cdef_pick_method;
@@ -854,8 +857,14 @@ void av1_cdef_search(AV1_COMP *cpi) {
             AOMMAX(cpi->sf.rt_sf.screen_content_cdef_filter_qindex_thresh,
                    cpi->rc.best_quality + 5) &&
         cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
-    av1_pick_cdef_from_qp(cm, cpi->sf.rt_sf.skip_cdef_sb,
-                          use_screen_content_model);
+
+    // For adaptive CDEF, do not apply CDEF to chroma channels.
+    // This is done to reduce decode time, as CDEF is a relatively-expensive
+    // filter to compute.
+    const bool avoid_uv_cdef = apply_adaptive_cdef;
+
+    av1_pick_cdef_from_qp(cm, cpi->sf.rt_sf.skip_cdef_sb != 0,
+                          use_screen_content_model, avoid_uv_cdef);
     return;
   }
   const CommonModeInfoParams *const mi_params = &cm->mi_params;
@@ -902,9 +911,7 @@ void av1_cdef_search(AV1_COMP *cpi) {
   // For adaptive CDEF, reduce primary and secondary CDEF strengths for
   // qindexes up to 220.
   const bool should_reduce_cdef_strengths =
-      cdef_control == CDEF_ADAPTIVE && cpi->oxcf.mode == ALLINTRA &&
-      (cpi->oxcf.rc_cfg.mode == AOM_Q || cpi->oxcf.rc_cfg.mode == AOM_CQ) &&
-      cpi->oxcf.rc_cfg.cq_level <= 220;
+      apply_adaptive_cdef && cpi->oxcf.rc_cfg.cq_level <= 220;
   // For adaptive CDEF with strength reduction, zero out CDEF strengths with
   // low values (luma and/or chroma). This is done to reduce decode time, as
   // CDEF is a relatively-expensive filter to compute.
