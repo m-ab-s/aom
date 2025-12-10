@@ -1844,6 +1844,13 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     sf->rt_sf.use_rtc_tf = 0;
     sf->rt_sf.nonrd_check_partition_merge_mode = 0;
     sf->rt_sf.nonrd_check_partition_split = 0;
+    // These (nonrd) speed features that force zeromv-LAST early in partition
+    // are disabled since for src_frame_alt_ref frame the zeromv-ALTREF_FRAME
+    // mode is forced in the nonrd_pickmode.
+    if (cpi->rc.is_src_frame_alt_ref) {
+      sf->rt_sf.increase_source_sad_thresh = 0;
+      sf->rt_sf.part_early_exit_zeromv = 0;
+    }
   }
 }
 
