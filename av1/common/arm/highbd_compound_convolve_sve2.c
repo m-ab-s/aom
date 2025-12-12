@@ -24,6 +24,7 @@
 #include "av1/common/convolve.h"
 #include "av1/common/filter.h"
 #include "av1/common/filter.h"
+#include "av1/common/arm/convolve_sve2.h"
 #include "av1/common/arm/highbd_compound_convolve_neon.h"
 #include "av1/common/arm/highbd_convolve_neon.h"
 #include "av1/common/arm/highbd_convolve_sve2.h"
@@ -473,7 +474,7 @@ static inline void highbd_12_dist_wtd_convolve_y_8tap_sve2(
       vdupq_n_s64((1 << (12 + FILTER_BITS)) + (1 << (12 + FILTER_BITS - 1)));
   const int16x8_t y_filter = vld1q_s16(y_filter_ptr);
 
-  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kHbdDotProdMergeBlockTbl);
+  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kSVEDotProdMergeBlockTbl);
   // Scale indices by size of the true vector length to avoid reading from an
   // 'undefined' portion of a vector on a system with SVE vectors > 128-bit.
   uint16x8_t correction0 =
@@ -649,7 +650,7 @@ static inline void highbd_dist_wtd_convolve_y_8tap_sve2(
       vdupq_n_s64((1 << (bd + FILTER_BITS)) + (1 << (bd + FILTER_BITS - 1)));
   const int16x8_t y_filter = vld1q_s16(y_filter_ptr);
 
-  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kHbdDotProdMergeBlockTbl);
+  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kSVEDotProdMergeBlockTbl);
   // Scale indices by size of the true vector length to avoid reading from an
   // 'undefined' portion of a vector on a system with SVE vectors > 128-bit.
   uint16x8_t correction0 =
@@ -1200,7 +1201,7 @@ static inline void highbd_dist_wtd_convolve_2d_vert_8tap_sve2(
   const int16x8_t y_filter = vld1q_s16(y_filter_ptr);
   const int64x2_t offset_s64 = vdupq_n_s64(offset);
 
-  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kHbdDotProdMergeBlockTbl);
+  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kSVEDotProdMergeBlockTbl);
   // Scale indices by size of the true vector length to avoid reading from an
   // 'undefined' portion of a vector on a system with SVE vectors > 128-bit.
   uint16x8_t correction0 =

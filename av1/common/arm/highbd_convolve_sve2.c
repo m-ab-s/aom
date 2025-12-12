@@ -24,18 +24,8 @@
 #include "aom_ports/mem.h"
 #include "av1/common/convolve.h"
 #include "av1/common/filter.h"
+#include "av1/common/arm/convolve_sve2.h"
 #include "av1/common/arm/highbd_convolve_sve2.h"
-
-// clang-format off
-DECLARE_ALIGNED(16, const uint16_t, kHbdDotProdMergeBlockTbl[24]) = {
-  // Shift left and insert new last column in transposed 4x4 block.
-  1, 2, 3, 0, 5, 6, 7, 4,
-  // Shift left and insert two new columns in transposed 4x4 block.
-  2, 3, 0, 1, 6, 7, 4, 5,
-  // Shift left and insert three new columns in transposed 4x4 block.
-  3, 0, 1, 2, 7, 4, 5, 6,
-};
-// clang-format on
 
 static inline uint16x4_t convolve12_4_x(
     int16x8_t s0, int16x8_t s1, int16x8_t filter_0_7, int16x8_t filter_4_11,
@@ -559,7 +549,7 @@ static void highbd_convolve_y_sr_8tap_sve2(const uint16_t *src,
 
   const int16x8_t y_filter = vld1q_s16(filter_y);
 
-  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kHbdDotProdMergeBlockTbl);
+  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kSVEDotProdMergeBlockTbl);
   // Scale indices by size of the true vector length to avoid reading from an
   // 'undefined' portion of a vector on a system with SVE vectors > 128-bit.
   uint16x8_t correction0 =
@@ -1202,7 +1192,7 @@ static inline void highbd_convolve_2d_sr_vert_12tap_sve2(
   const int16x8_t y_filter_0_7 = vld1q_s16(y_filter_ptr);
   const int16x8_t y_filter_4_11 = vld1q_s16(y_filter_ptr + 4);
 
-  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kHbdDotProdMergeBlockTbl);
+  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kSVEDotProdMergeBlockTbl);
   // Scale indices by size of the true vector length to avoid reading from an
   // 'undefined' portion of a vector on a system with SVE vectors > 128-bit.
   uint16x8_t correction0 =
@@ -1345,7 +1335,7 @@ static void highbd_convolve_2d_sr_vert_8tap_sve2(
   const int32x4_t shift = vdupq_n_s32(-conv_params->round_1);
   const int16x8_t y_filter = vld1q_s16(filter_y);
 
-  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kHbdDotProdMergeBlockTbl);
+  uint16x8x3_t merge_block_tbl = vld1q_u16_x3(kSVEDotProdMergeBlockTbl);
   // Scale indices by size of the true vector length to avoid reading from an
   // 'undefined' portion of a vector on a system with SVE vectors > 128-bit.
   uint16x8_t correction0 =
