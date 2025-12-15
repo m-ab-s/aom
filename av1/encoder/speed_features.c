@@ -2941,7 +2941,8 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       const int qindex_high[2] = { 180, 160 };
       if (cm->quant_params.base_qindex <= qindex_low[is_720p_or_larger] ||
           cm->quant_params.base_qindex > qindex_high[is_720p_or_larger]) {
-        sf->lpf_sf.disable_loop_restoration_luma = 1;
+        sf->lpf_sf.disable_sgr_filter = true;
+        sf->lpf_sf.disable_wiener_coeff_refine_search = true;
       }
     }
   }
