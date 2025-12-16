@@ -1401,29 +1401,34 @@ static inline void update_mode_start_end_index(
     *mode_index_end = SIMPLE_TRANSLATION;
 }
 
-// Increase rd cost of warp mode for low complexity decoding.
-static inline void increase_warp_mode_rd(const MB_MODE_INFO *const best_mbmi,
-                                         const MB_MODE_INFO *const this_mbmi,
-                                         int64_t *const best_scaled_rd,
-                                         int64_t *const this_scaled_rd,
-                                         int rd_bias_scale_pct) {
-  // Check rd bias percentage is non-zero.
-  if (!rd_bias_scale_pct) return;
+// Increase rd cost of warp and obmc motion modes for low complexity decoding.
+static inline void increase_motion_mode_rd(const MB_MODE_INFO *const best_mbmi,
+                                           const MB_MODE_INFO *const this_mbmi,
+                                           int64_t *const best_scaled_rd,
+                                           int64_t *const this_scaled_rd,
+                                           int rd_warp_bias_scale_pct,
+                                           float rd_obmc_bias_scale_pct) {
   if (*best_scaled_rd == INT64_MAX || *this_scaled_rd == INT64_MAX) return;
 
-  // Experiments have been performed with increasing the RD cost of warp mode at
-  // the below locations of inter mode evaluation.
+  // Experiments have been performed with increasing the RD cost of warp and
+  // obmc motion modes at the below locations of inter mode evaluation.
   // (1). Inter mode evaluation loop in av1_rd_pick_inter_mode().
   // (2). Motion mode evaluation during handle_inter_mode() call.
   // (3). Motion mode evaluation for winner motion modes.
   // (4). Tx search for best inter candidates.
   // Based on the speed quality trade-off results of this speed feature, the rd
   // bias logic is enabled only at (2), (3) and (4).
-  const double rd_bias_scale = rd_bias_scale_pct / 100.0;
+  const double rd_warp_bias_scale = rd_warp_bias_scale_pct / 100.0;
+  const double rd_obmc_bias_scale = rd_obmc_bias_scale_pct / 100.0;
   if (best_mbmi->motion_mode == WARPED_CAUSAL)
-    *best_scaled_rd += (int64_t)(rd_bias_scale * *best_scaled_rd);
+    *best_scaled_rd += (int64_t)(rd_warp_bias_scale * *best_scaled_rd);
+  else if (best_mbmi->motion_mode == OBMC_CAUSAL)
+    *best_scaled_rd += (int64_t)(rd_obmc_bias_scale * *best_scaled_rd);
+
   if (this_mbmi->motion_mode == WARPED_CAUSAL)
-    *this_scaled_rd += (int64_t)(rd_bias_scale * *this_scaled_rd);
+    *this_scaled_rd += (int64_t)(rd_warp_bias_scale * *this_scaled_rd);
+  else if (this_mbmi->motion_mode == OBMC_CAUSAL)
+    *this_scaled_rd += (int64_t)(rd_obmc_bias_scale * *this_scaled_rd);
 }
 
 /*!\brief AV1 motion mode search
@@ -1857,8 +1862,10 @@ static int64_t motion_mode_rd(
     int64_t best_scaled_rd = best_rd;
     int64_t this_scaled_rd = tmp_rd;
     if (mode_index != 0)
-      increase_warp_mode_rd(&best_mbmi, mbmi, &best_scaled_rd, &this_scaled_rd,
-                            cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct);
+      increase_motion_mode_rd(&best_mbmi, mbmi, &best_scaled_rd,
+                              &this_scaled_rd,
+                              cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
+                              cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
 
     if (mode_index == 0 || this_scaled_rd < best_scaled_rd) {
       // Update best_rd data if this is the best motion mode so far
@@ -5213,9 +5220,10 @@ static inline void evaluate_motion_mode_for_winner_candidates(
       int64_t best_scaled_rd = search_state->best_rd;
       int64_t this_scaled_rd = rd_stats.rdcost;
       if (search_state->best_mode_index != THR_INVALID)
-        increase_warp_mode_rd(&search_state->best_mbmode, mbmi, &best_scaled_rd,
-                              &this_scaled_rd,
-                              cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct);
+        increase_motion_mode_rd(&search_state->best_mbmode, mbmi,
+                                &best_scaled_rd, &this_scaled_rd,
+                                cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
+                                cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
 
       if (this_scaled_rd < best_scaled_rd) {
         *yrd = this_yrd;
@@ -5555,9 +5563,10 @@ static void tx_search_best_inter_candidates(
 
     int64_t best_scaled_rd = search_state->best_rd;
     int64_t this_scaled_rd = rd_stats.rdcost;
-    increase_warp_mode_rd(&search_state->best_mbmode, mbmi, &best_scaled_rd,
-                          &this_scaled_rd,
-                          cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct);
+    increase_motion_mode_rd(&search_state->best_mbmode, mbmi, &best_scaled_rd,
+                            &this_scaled_rd,
+                            cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
+                            cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
     if (this_scaled_rd < best_rd_in_this_partition) {
       best_rd_in_this_partition = rd_stats.rdcost;
       *yrd = this_yrd;

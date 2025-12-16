@@ -659,6 +659,7 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
     sf->lpf_sf.switchable_lr_with_bias_level = 1;
 
     sf->inter_sf.bias_warp_mode_rd_scale_pct = 4;
+    sf->inter_sf.bias_obmc_mode_rd_scale_pct = 1.5f;
 
     sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 2;
 
@@ -2331,6 +2332,7 @@ static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->limit_txfm_eval_per_mode = 0;
   inter_sf->skip_arf_compound = 0;
   inter_sf->bias_warp_mode_rd_scale_pct = 0;
+  inter_sf->bias_obmc_mode_rd_scale_pct = 0.0f;
   set_txfm_rd_gate_level(inter_sf->txfm_rd_gate_level, 0);
 }
 
