@@ -3577,6 +3577,8 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
 
 #endif  // CONFIG_FPMT_TEST
       if (!simulate_parallel_frame) {
+        // May need a better way for checking the frame's frame_parallel_level,
+        // especially for the first frame of the following gop.
         if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] == 0) {
           status = av1_get_compressed_data(cpi, &cpi_data);
         } else if (ppi->gf_group.frame_parallel_level[cpi->gf_frame_index] ==

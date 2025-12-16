@@ -5048,6 +5048,10 @@ static inline void update_gf_group_index(AV1_COMP *cpi) {
       cpi->gf_frame_index = 0;
   } else {
     ++cpi->gf_frame_index;
+    // In rare cases, the gop size can be MAX_STATIC_GF_GROUP_LENGTH for VOD
+    // encoding. Need to reset this to 0 for the following gop.
+    if (cpi->gf_frame_index == MAX_STATIC_GF_GROUP_LENGTH)
+      cpi->gf_frame_index = 0;
   }
 }
 
