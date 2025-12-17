@@ -3754,6 +3754,51 @@ static void estimate_coeff(FIRSTPASS_STATS *first_stats,
   first_stats->cor_coeff = 1.0;
 }
 
+static void get_one_pass_rt_lag_params(AV1_COMP *cpi, unsigned int frame_flags,
+                                       EncodeFrameParams *const frame_params) {
+  RATE_CONTROL *const rc = &cpi->rc;
+  PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
+  GF_GROUP *const gf_group = &cpi->ppi->gf_group;
+  const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  // Check forced key frames.
+  const int frames_to_next_forced_key = detect_app_forced_key(cpi);
+  if (frames_to_next_forced_key == 0) {
+    rc->frames_to_key = 0;
+    frame_flags &= FRAMEFLAGS_KEY;
+  } else if (frames_to_next_forced_key > 0 &&
+             frames_to_next_forced_key < rc->frames_to_key) {
+    rc->frames_to_key = frames_to_next_forced_key;
+  }
+  frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
+  if (cpi->gf_frame_index < gf_group->size && !(frame_flags & FRAMEFLAGS_KEY)) {
+    av1_setup_target_rate(cpi);
+  }
+  // Keyframe processing.
+  if (rc->frames_to_key <= 0) {
+    FIRSTPASS_STATS this_frame;
+    assert(rc->frames_to_key == 0);
+    // Define next KF group and assign bits to it.
+    frame_params->frame_type = KEY_FRAME;
+    rc->frames_since_key = 0;
+    find_next_key_frame(cpi, &this_frame);
+  }
+  // Define a new GF/ARF group. (Should always enter here for key frames).
+  if (cpi->gf_frame_index == gf_group->size) {
+    int max_gop_length =
+        (oxcf->gf_cfg.lag_in_frames >= 32)
+            ? AOMMIN(MAX_GF_INTERVAL, oxcf->gf_cfg.lag_in_frames -
+                                          oxcf->algo_cfg.arnr_max_frames / 2)
+            : MAX_GF_LENGTH_LAP;
+    // Limit the max gop length for the last gop in 1 pass setting.
+    max_gop_length = AOMMIN(max_gop_length, rc->frames_to_key);
+    calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
+    define_gf_group(cpi, frame_params, 0);
+    rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
+    frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
+    av1_setup_target_rate(cpi);
+  }
+}
+
 void av1_get_second_pass_params(AV1_COMP *cpi,
                                 EncodeFrameParams *const frame_params,
                                 unsigned int frame_flags) {
@@ -3762,6 +3807,11 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
   TWO_PASS *const twopass = &cpi->ppi->twopass;
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+
+  if (is_one_pass_rt_lag_params(cpi)) {
+    get_one_pass_rt_lag_params(cpi, frame_flags, frame_params);
+    return;
+  }
 
   if (cpi->use_ducky_encode &&
       cpi->ducky_encode_info.frame_info.gop_mode == DUCKY_ENCODE_GOP_MODE_RCL) {
@@ -3902,7 +3952,7 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
       p_rc->frames_till_regions_update = rest_frames;
 
       int ret;
-      if (cpi->ppi->lap_enabled && !is_one_pass_rt_lag_params(cpi)) {
+      if (cpi->ppi->lap_enabled) {
         mark_flashes(twopass->stats_buf_ctx->stats_in_start,
                      twopass->stats_buf_ctx->stats_in_end);
         estimate_noise(twopass->stats_buf_ctx->stats_in_start,
@@ -4022,13 +4072,6 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     }
 
     define_gf_group(cpi, frame_params, 0);
-
-    if (is_one_pass_rt_lag_params(cpi)) {
-      rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
-      frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];
-      av1_setup_target_rate(cpi);
-      return;
-    }
 
     if (gf_group->update_type[cpi->gf_frame_index] != ARF_UPDATE &&
         rc->frames_since_key > 0)
