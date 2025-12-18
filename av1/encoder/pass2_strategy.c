@@ -3775,12 +3775,29 @@ static void get_one_pass_rt_lag_params(AV1_COMP *cpi, unsigned int frame_flags,
   }
   // Keyframe processing.
   if (rc->frames_to_key <= 0) {
-    FIRSTPASS_STATS this_frame;
+    const KeyFrameCfg *const kf_cfg = &oxcf->kf_cfg;
     assert(rc->frames_to_key == 0);
-    // Define next KF group and assign bits to it.
+    // Define next KF group.
     frame_params->frame_type = KEY_FRAME;
     rc->frames_since_key = 0;
-    find_next_key_frame(cpi, &this_frame);
+    // Use arfs if possible.
+    p_rc->use_arf_in_this_kf_group = is_altref_enabled(
+        oxcf->gf_cfg.lag_in_frames, oxcf->gf_cfg.enable_auto_arf);
+    // Reset the GF group data structures.
+    av1_zero(*gf_group);
+    cpi->gf_frame_index = 0;
+    // KF is always a GF so clear frames till next gf counter.
+    rc->frames_till_gf_update_due = 0;
+    int num_frames_to_app_forced_key = detect_app_forced_key(cpi);
+    p_rc->this_key_frame_forced =
+        cpi->common.current_frame.frame_number != 0 && rc->frames_to_key == 0;
+    if (num_frames_to_app_forced_key != -1)
+      rc->frames_to_key = num_frames_to_app_forced_key;
+    else
+      rc->frames_to_key = AOMMAX(1, kf_cfg->key_freq_max);
+    correct_frames_to_key(cpi);
+    p_rc->kf_boost = DEFAULT_KF_BOOST;
+    gf_group->update_type[0] = KF_UPDATE;
   }
   // Define a new GF/ARF group. (Should always enter here for key frames).
   if (cpi->gf_frame_index == gf_group->size) {
