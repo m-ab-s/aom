@@ -4092,7 +4092,14 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
       seq_params->operating_points_cnt_minus_1 =
           ppi->number_spatial_layers * ppi->number_temporal_layers - 1;
 
+      struct aom_internal_error_info *const error = cpi->common.error;
+      if (setjmp(error->jmp)) {
+        error->setjmp = 0;
+        return error->error_code;
+      }
+      error->setjmp = 1;
       av1_init_layer_context(cpi);
+      error->setjmp = 0;
       // update_encoder_cfg() is somewhat costly and this control may be called
       // multiple times, so update_encoder_cfg() is only called to ensure frame
       // and superblock sizes are updated before they're fixed by the first
