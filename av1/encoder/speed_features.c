@@ -1839,6 +1839,11 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     sf->rt_sf.set_zeromv_skip_based_on_source_sad = 0;
 
   if (is_one_pass_rt_lag_params(cpi)) {
+    const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
+    if (refresh_frame->alt_ref_frame) {
+      sf->rt_sf.source_metrics_sb_nonrd = 0;
+      sf->rt_sf.var_part_based_on_qidx = 0;
+    }
     sf->rt_sf.use_nonrd_altref_frame = 1;
     // For non-zero lag: disable the 3 speed features below for now,
     // until further testing.

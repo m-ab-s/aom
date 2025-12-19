@@ -3808,6 +3808,31 @@ static void get_one_pass_rt_lag_params(AV1_COMP *cpi, unsigned int frame_flags,
             : MAX_GF_LENGTH_LAP;
     // Limit the max gop length for the last gop in 1 pass setting.
     max_gop_length = AOMMIN(max_gop_length, rc->frames_to_key);
+    // Go through source frames in lookahead buffer and compute source metrics:
+    // scene change, frame average source sad, etc.
+    for (int i = 1; i < max_gop_length; i++) {
+      EncodeFrameInput frame_input;
+      memset(&frame_input, 0, sizeof(frame_input));
+      struct lookahead_entry *e =
+          av1_lookahead_peek(cpi->ppi->lookahead, i, cpi->compressor_stage);
+      struct lookahead_entry *e_prev =
+          av1_lookahead_peek(cpi->ppi->lookahead, i - 1, cpi->compressor_stage);
+      if (e != NULL && e_prev != NULL) {
+        frame_input.source = &e->img;
+        frame_input.last_source = &e_prev->img;
+        rc->high_source_sad_lag[i] = -1;
+        rc->frame_source_sad_lag[i] = 0;
+        rc->avg_source_sad = 0;
+        av1_rc_scene_detection_onepass_rt(cpi, &frame_input);
+        rc->high_source_sad_lag[i] = rc->high_source_sad;
+        rc->frame_source_sad_lag[i] = rc->frame_source_sad;
+        // Use rc->high_source_sad_lag[i] and frame_source_sad_lag[i] to
+        // adjust/adapt the gop parameters. Reset the parameters for the
+        // encoding.
+        rc->high_source_sad = 0;
+        rc->frame_source_sad = UINT64_MAX;
+      }
+    }
     calculate_gf_length(cpi, max_gop_length, MAX_NUM_GF_INTERVALS);
     define_gf_group(cpi, frame_params, 0);
     rc->frames_till_gf_update_due = p_rc->baseline_gf_interval;
