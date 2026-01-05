@@ -5039,20 +5039,10 @@ static inline void update_frames_till_gf_update(AV1_COMP *cpi) {
 
 static inline void update_gf_group_index(AV1_COMP *cpi) {
   // Increment the gf group index ready for the next frame.
-  if (is_one_pass_rt_params(cpi) &&
-      cpi->svc.spatial_layer_id == cpi->svc.number_spatial_layers - 1) {
-    ++cpi->gf_frame_index;
-    // Reset gf_frame_index in case it reaches MAX_STATIC_GF_GROUP_LENGTH
-    // for real time encoding.
-    if (cpi->gf_frame_index == MAX_STATIC_GF_GROUP_LENGTH)
-      cpi->gf_frame_index = 0;
-  } else {
-    ++cpi->gf_frame_index;
-    // In rare cases, the gop size can be MAX_STATIC_GF_GROUP_LENGTH for VOD
-    // encoding. Need to reset this to 0 for the following gop.
-    if (cpi->gf_frame_index == MAX_STATIC_GF_GROUP_LENGTH)
-      cpi->gf_frame_index = 0;
-  }
+  ++cpi->gf_frame_index;
+  // Reset gf_frame_index in case it reaches MAX_STATIC_GF_GROUP_LENGTH.
+  if (cpi->gf_frame_index == MAX_STATIC_GF_GROUP_LENGTH)
+    cpi->gf_frame_index = 0;
 }
 
 static void update_fb_of_context_type(const AV1_COMP *const cpi,
