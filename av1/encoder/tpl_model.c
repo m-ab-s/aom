@@ -1024,9 +1024,33 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
   tpl_stats->srcrf_dist = recon_error << TPL_DEP_COST_SCALE_LOG2;
   tpl_stats->srcrf_sse = pred_error << TPL_DEP_COST_SCALE_LOG2;
 
+  const YV12_BUFFER_CONFIG *ref_frame_ptr[2];
+
+  if (best_mode == NEW_NEWMV) {
+    ref_frame_ptr[0] = tpl_data->ref_frame[comp_ref_frames[best_cmp_rf_idx][0]];
+    ref_frame_ptr[1] =
+        tpl_data->src_ref_frame[comp_ref_frames[best_cmp_rf_idx][1]];
+    get_rate_distortion(&rate_cost, &recon_error, &pred_error, src_diff, coeff,
+                        qcoeff, dqcoeff, cm, x, ref_frame_ptr, rec_buffer_pool,
+                        rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
+                        use_y_only_rate_distortion, 0 /*do_recon*/, NULL);
+    tpl_stats->cmp_recrf_dist[0] = recon_error << TPL_DEP_COST_SCALE_LOG2;
+    tpl_stats->cmp_recrf_rate[0] = rate_cost;
+
+    rate_cost = 0;
+    ref_frame_ptr[0] =
+        tpl_data->src_ref_frame[comp_ref_frames[best_cmp_rf_idx][0]];
+    ref_frame_ptr[1] = tpl_data->ref_frame[comp_ref_frames[best_cmp_rf_idx][1]];
+    get_rate_distortion(&rate_cost, &recon_error, &pred_error, src_diff, coeff,
+                        qcoeff, dqcoeff, cm, x, ref_frame_ptr, rec_buffer_pool,
+                        rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
+                        use_y_only_rate_distortion, 0 /*do_recon*/, NULL);
+    tpl_stats->cmp_recrf_dist[1] = recon_error << TPL_DEP_COST_SCALE_LOG2;
+    tpl_stats->cmp_recrf_rate[1] = rate_cost;
+  }
+
   // Final encode
   rate_cost = 0;
-  const YV12_BUFFER_CONFIG *ref_frame_ptr[2];
 
   ref_frame_ptr[0] =
       best_mode == NEW_NEWMV
@@ -1056,17 +1080,11 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
   tpl_stats->recrf_dist = AOMMAX(tpl_stats->srcrf_dist, tpl_stats->recrf_dist);
   tpl_stats->recrf_rate = AOMMAX(tpl_stats->srcrf_rate, tpl_stats->recrf_rate);
 
-  if (best_mode == NEW_NEWMV) {
-    ref_frame_ptr[0] = tpl_data->ref_frame[comp_ref_frames[best_cmp_rf_idx][0]];
-    ref_frame_ptr[1] =
-        tpl_data->src_ref_frame[comp_ref_frames[best_cmp_rf_idx][1]];
-    get_rate_distortion(&rate_cost, &recon_error, &pred_error, src_diff, coeff,
-                        qcoeff, dqcoeff, cm, x, ref_frame_ptr, rec_buffer_pool,
-                        rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
-                        use_y_only_rate_distortion, 1 /*do_recon*/, NULL);
-    tpl_stats->cmp_recrf_dist[0] = recon_error << TPL_DEP_COST_SCALE_LOG2;
-    tpl_stats->cmp_recrf_rate[0] = rate_cost;
-
+  if (best_mode == NEWMV) {
+    tpl_stats->mv[best_rf_idx] = best_mv[0];
+    tpl_stats->ref_frame_index[0] = best_rf_idx;
+    tpl_stats->ref_frame_index[1] = NONE_FRAME;
+  } else if (best_mode == NEW_NEWMV) {
     tpl_stats->cmp_recrf_dist[0] =
         AOMMAX(tpl_stats->srcrf_dist, tpl_stats->cmp_recrf_dist[0]);
     tpl_stats->cmp_recrf_rate[0] =
@@ -1077,17 +1095,6 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
     tpl_stats->cmp_recrf_rate[0] =
         AOMMIN(tpl_stats->recrf_rate, tpl_stats->cmp_recrf_rate[0]);
 
-    rate_cost = 0;
-    ref_frame_ptr[0] =
-        tpl_data->src_ref_frame[comp_ref_frames[best_cmp_rf_idx][0]];
-    ref_frame_ptr[1] = tpl_data->ref_frame[comp_ref_frames[best_cmp_rf_idx][1]];
-    get_rate_distortion(&rate_cost, &recon_error, &pred_error, src_diff, coeff,
-                        qcoeff, dqcoeff, cm, x, ref_frame_ptr, rec_buffer_pool,
-                        rec_stride_pool, tx_size, best_mode, mi_row, mi_col,
-                        use_y_only_rate_distortion, 1 /*do_recon*/, NULL);
-    tpl_stats->cmp_recrf_dist[1] = recon_error << TPL_DEP_COST_SCALE_LOG2;
-    tpl_stats->cmp_recrf_rate[1] = rate_cost;
-
     tpl_stats->cmp_recrf_dist[1] =
         AOMMAX(tpl_stats->srcrf_dist, tpl_stats->cmp_recrf_dist[1]);
     tpl_stats->cmp_recrf_rate[1] =
@@ -1097,13 +1104,7 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
         AOMMIN(tpl_stats->recrf_dist, tpl_stats->cmp_recrf_dist[1]);
     tpl_stats->cmp_recrf_rate[1] =
         AOMMIN(tpl_stats->recrf_rate, tpl_stats->cmp_recrf_rate[1]);
-  }
 
-  if (best_mode == NEWMV) {
-    tpl_stats->mv[best_rf_idx] = best_mv[0];
-    tpl_stats->ref_frame_index[0] = best_rf_idx;
-    tpl_stats->ref_frame_index[1] = NONE_FRAME;
-  } else if (best_mode == NEW_NEWMV) {
     tpl_stats->ref_frame_index[0] = comp_ref_frames[best_cmp_rf_idx][0];
     tpl_stats->ref_frame_index[1] = comp_ref_frames[best_cmp_rf_idx][1];
     tpl_stats->mv[tpl_stats->ref_frame_index[0]] = best_mv[0];
