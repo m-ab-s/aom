@@ -100,7 +100,8 @@ static int are_seq_headers_consistent(const SequenceHeader *seq_params_old,
 
 // On success, sets pbi->sequence_header_ready to 1 and returns the number of
 // bytes read from 'rb'.
-// On failure, sets pbi->common.error.error_code and returns 0.
+// On failure, calls aom_internal_error() and does not return, or sets
+// pbi->common.error.error_code and returns 0.
 static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
                                          struct aom_read_bit_buffer *rb) {
   AV1_COMMON *const cm = &pbi->common;
@@ -137,8 +138,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
     seq_params->operating_point_idc[0] = 0;
     seq_params->has_nonzero_operating_point_idc = false;
     if (!read_bitstream_level(&seq_params->seq_level_idx[0], rb)) {
-      pbi->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
-      return 0;
+      aom_internal_error(&pbi->error, AOM_CODEC_UNSUP_BITSTREAM,
+                         "Value %d of seq_level_idx[%d] is not yet defined",
+                         seq_params->seq_level_idx[0], 0);
     }
     seq_params->tier[0] = 0;
     seq_params->op_params[0].decoder_model_param_present_flag = 0;
@@ -164,8 +166,9 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
       if (seq_params->operating_point_idc[i] != 0)
         seq_params->has_nonzero_operating_point_idc = true;
       if (!read_bitstream_level(&seq_params->seq_level_idx[i], rb)) {
-        pbi->error.error_code = AOM_CODEC_UNSUP_BITSTREAM;
-        return 0;
+        aom_internal_error(&pbi->error, AOM_CODEC_UNSUP_BITSTREAM,
+                           "Value %d of seq_level_idx[%d] is not yet defined",
+                           seq_params->seq_level_idx[i], i);
       }
       // This is the seq_level_idx[i] > 7 check in the spec. seq_level_idx 7
       // is equivalent to level 3.3.
