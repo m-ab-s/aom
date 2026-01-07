@@ -1135,6 +1135,8 @@ static void set_good_speed_features_framesize_independent(
   sf->rd_sf.perform_coeff_opt = 1;
   sf->hl_sf.superres_auto_search_type = SUPERRES_AUTO_DUAL;
 
+  sf->lpf_sf.reduce_wiener_window_size = 1;
+
   if (speed >= 1) {
     sf->hl_sf.adjust_num_frames_for_arf_filtering =
         allow_screen_content_tools ? 0 : 1;
@@ -1245,7 +1247,6 @@ static void set_good_speed_features_framesize_independent(
     sf->lpf_sf.prune_wiener_based_on_src_var = 1;
     sf->lpf_sf.prune_sgr_based_on_wiener = 1;
     sf->lpf_sf.disable_loop_restoration_chroma = boosted ? 0 : 1;
-    sf->lpf_sf.reduce_wiener_window_size = boosted ? 0 : 1;
 
     // TODO(any): Re-evaluate this feature set to 1 in speed 2.
     sf->tpl_sf.allow_compound_pred = 0;
