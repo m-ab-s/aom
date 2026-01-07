@@ -1734,6 +1734,29 @@ TEST(EncodeAPI, Issue449341177) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+// This test is based on the issue:471095598. For profile 2 444 12 bit,
+// assert is triggered on first frame in intra_mode_search.c, the function
+// av1_count_colors_highbd, for good quality mode.
+// Disabled until the assert issue is fixed.
+TEST(EncodeAPI, DISABLED_Issue471095598) {
+  aom_codec_iface_t *encoder_iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(
+      aom_codec_enc_config_default(encoder_iface, &cfg, AOM_USAGE_GOOD_QUALITY),
+      AOM_CODEC_OK);
+  cfg.g_profile = 2;
+  cfg.g_bit_depth = AOM_BITS_12;
+  cfg.g_lag_in_frames = 0;
+  aom_codec_ctx_t encoder;
+  ASSERT_EQ(aom_codec_enc_init(&encoder, encoder_iface, &cfg,
+                               AOM_CODEC_USE_HIGHBITDEPTH),
+            AOM_CODEC_OK);
+  aom_image_t *img = CreateGrayImage(AOM_IMG_FMT_I44416, cfg.g_w, cfg.g_h);
+  ASSERT_EQ(aom_codec_encode(&encoder, img, 0, 1, 0), AOM_CODEC_OK);
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&encoder), AOM_CODEC_OK);
+}
+
 #if !CONFIG_REALTIME_ONLY
 class GetGopInfoTest : public ::libaom_test::EncoderTest,
                        public ::testing::Test {
