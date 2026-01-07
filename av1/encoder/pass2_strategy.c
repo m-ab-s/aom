@@ -2179,10 +2179,12 @@ static void correct_frames_to_key(AV1_COMP *cpi) {
  * case of one pass encoding where no lookahead stats are avialable.
  *
  * \param[in]    cpi             Top-level encoder structure
+ * \param[in]    is_final_pass   Whether it is the second call to
+ *                               define_gf_group().
  *
  * \remark Nothing is returned. Instead, cpi->ppi->gf_group is changed.
  */
-static void define_gf_group_pass0(AV1_COMP *cpi) {
+static void define_gf_group_pass0(AV1_COMP *cpi, const int is_final_pass) {
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
@@ -2220,7 +2222,7 @@ static void define_gf_group_pass0(AV1_COMP *cpi) {
     gf_group->max_layer_depth_allowed = 0;
 
   // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
-  av1_gop_setup_structure(cpi);
+  av1_gop_setup_structure(cpi, is_final_pass);
 
   // Allocate bits to each of the frames in the GF group.
   // TODO(sarahparker) Extend this to work with pyramid structure.
@@ -2544,7 +2546,7 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   }
 
   if (has_no_stats_stage(cpi)) {
-    define_gf_group_pass0(cpi);
+    define_gf_group_pass0(cpi, is_final_pass);
     return;
   }
 
@@ -2645,7 +2647,7 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   update_gop_length(rc, p_rc, i, is_final_pass);
 
   // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
-  av1_gop_setup_structure(cpi);
+  av1_gop_setup_structure(cpi, is_final_pass);
 
   set_gop_bits_boost(cpi, i, is_intra_only, is_final_pass, use_alt_ref,
                      alt_offset, start_pos, &gf_stats);
@@ -2721,7 +2723,7 @@ static int define_gf_group_pass3(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   update_gop_length(rc, p_rc, i, is_final_pass);
 
   // Set up the structure of this Group-Of-Pictures (same as GF_GROUP)
-  av1_gop_setup_structure(cpi);
+  av1_gop_setup_structure(cpi, is_final_pass);
 
   set_gop_bits_boost(cpi, i, is_intra_only, is_final_pass, use_alt_ref, 0,
                      start_pos, &gf_stats);

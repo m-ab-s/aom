@@ -873,7 +873,7 @@ static void construct_gop_structure_from_rc(
   }
 }
 
-void av1_gop_setup_structure(AV1_COMP *cpi) {
+void av1_gop_setup_structure(AV1_COMP *cpi, const int is_final_pass) {
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   GF_GROUP *const gf_group = &cpi->ppi->gf_group;
@@ -882,9 +882,12 @@ void av1_gop_setup_structure(AV1_COMP *cpi) {
   const int key_frame = rc->frames_since_key == 0;
   FRAME_UPDATE_TYPE first_frame_update_type = ARF_UPDATE;
 
+  // define_gf_group() is called twice in av1_set_second_pass_params() with
+  // `is_final_pass` being 0 and 1 separately. But only one GOP can be advanced
+  // with the external RC. That is only done when `is_final_pass` is true.
   if (cpi->ext_ratectrl.ready &&
       (cpi->ext_ratectrl.funcs.rc_type & AOM_RC_GOP) != 0 &&
-      cpi->ext_ratectrl.funcs.get_gop_decision != NULL) {
+      cpi->ext_ratectrl.funcs.get_gop_decision != NULL && is_final_pass) {
     aom_rc_gop_decision_t gop_decision;
     aom_codec_err_t codec_status =
         av1_extrc_get_gop_decision(&cpi->ext_ratectrl, &gop_decision);
