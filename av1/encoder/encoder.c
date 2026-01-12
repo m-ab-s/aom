@@ -553,7 +553,7 @@ static void set_bitstream_level_tier(AV1_PRIMARY *const ppi, int width,
       aom_internal_error(
           &ppi->error, AOM_CODEC_UNSUP_BITSTREAM,
           "AV1 does not support this combination of profile, level, and tier.");
-    // Buffer size in bits/s is bitrate in bits/s * 1 s
+    // Buffer size in bits is bitrate in bits/s * 1 s
     seq_params->op_params[i].buffer_size = seq_params->op_params[i].bitrate;
   }
 }

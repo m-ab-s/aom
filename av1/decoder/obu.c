@@ -183,7 +183,7 @@ static uint32_t read_sequence_header_obu(AV1Decoder *pbi,
           aom_internal_error(&pbi->error, AOM_CODEC_UNSUP_BITSTREAM,
                              "AV1 does not support this combination of "
                              "profile, level, and tier.");
-        // Buffer size in bits/s is bitrate in bits/s * 1 s
+        // Buffer size in bits is bitrate in bits/s * 1 s
         seq_params->op_params[i].buffer_size = seq_params->op_params[i].bitrate;
       }
       if (seq_params->timing_info_present &&
