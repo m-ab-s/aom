@@ -870,6 +870,18 @@ static void construct_gop_structure_from_rc(
         gop_frame_rc->is_key_frame ? KEY_FRAME : INTER_FRAME;
     gf_group->refbuf_state[frame_index] =
         gop_frame_rc->is_key_frame ? REFBUF_RESET : REFBUF_UPDATE;
+    // Always override the ref frame map from external RC.
+    gf_group->use_ext_ref_frame_map[frame_index] = 1;
+    for (int i = 0; i < REF_FRAMES; ++i) {
+      gf_group->ref_frame_list[frame_index][i] = INVALID_IDX;
+    }
+    for (int i = 0; i < AOM_RC_MAX_REF_FRAMES; ++i) {
+      int ref_name = gop_frame_rc->ref_frame_list.name[i];
+      int buf_idx = gop_frame_rc->ref_frame_list.index[i];
+      if (ref_name >= LAST_FRAME && ref_name <= ALTREF_FRAME) {
+        gf_group->ref_frame_list[frame_index][ref_name] = (int8_t)buf_idx;
+      }
+    }
   }
 }
 
