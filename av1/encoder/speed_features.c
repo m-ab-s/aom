@@ -1268,7 +1268,6 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.prune_ext_part_using_split_info = 1;
     sf->part_sf.simple_motion_search_rect_split = 1;
 
-    sf->mv_sf.full_pixel_search_level = 1;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED;
     sf->mv_sf.search_method = DIAMOND;
     sf->mv_sf.disable_second_mv = 2;
@@ -1332,6 +1331,7 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 4) {
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
+    sf->mv_sf.full_pixel_search_level = 1;
 
     sf->gm_sf.prune_zero_mv_with_sse = 2;
     sf->gm_sf.downsample_level = 1;
