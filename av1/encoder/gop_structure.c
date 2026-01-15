@@ -849,9 +849,13 @@ static void construct_gop_structure_from_rc(
         &rc_gop_decision->gop_frame_list[frame_index];
     gf_group->update_type[frame_index] = gop_frame_rc->update_type;
     gf_group->layer_depth[frame_index] = gop_frame_rc->layer_depth;
-    gf_group->display_idx[frame_index] =
-        gop_frame_rc->display_idx + rc_gop_decision->global_order_idx_offset;
     gf_group->update_ref_idx[frame_index] = gop_frame_rc->update_ref_idx;
+    // `display_idx` means differently in libaom and RC.
+    // - in libaom: it is display order index in the GOP, equivalent to
+    //              `order_idx` in RC
+    // - in RC: it is the number of display frames precedeing this frame, which
+    //          is equivalent to `cur_frame_idx` in libaom.
+    gf_group->display_idx[frame_index] = gop_frame_rc->order_idx;
     gf_group->cur_frame_idx[frame_index] = gop_frame_rc->display_idx;
     switch (gf_group->update_type[frame_index]) {
       case LF_UPDATE:
@@ -861,11 +865,10 @@ static void construct_gop_structure_from_rc(
       case ARF_UPDATE:
       case INTNL_ARF_UPDATE:
         gf_group->arf_src_offset[frame_index] =
-            gop_frame_rc->display_idx - frame_index;
+            gop_frame_rc->order_idx - frame_index;
         break;
       default: gf_group->arf_src_offset[frame_index] = 0;
     }
-    gf_group->cur_frame_idx[frame_index] = frame_index;
     gf_group->frame_type[frame_index] =
         gop_frame_rc->is_key_frame ? KEY_FRAME : INTER_FRAME;
     gf_group->refbuf_state[frame_index] =

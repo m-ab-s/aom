@@ -3857,6 +3857,14 @@ void av1_get_second_pass_params(AV1_COMP *cpi,
     return;
   }
 
+  if (cpi->ext_ratectrl.ready &&
+      (cpi->ext_ratectrl.funcs.rc_type & AOM_RC_GOP) != 0 &&
+      cpi->ext_ratectrl.funcs.get_gop_decision != NULL) {
+    frame_params->show_frame =
+        !(gf_group->update_type[cpi->gf_frame_index] == ARF_UPDATE ||
+          gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE);
+  }
+
   if (cpi->use_ducky_encode &&
       cpi->ducky_encode_info.frame_info.gop_mode == DUCKY_ENCODE_GOP_MODE_RCL) {
     frame_params->frame_type = gf_group->frame_type[cpi->gf_frame_index];

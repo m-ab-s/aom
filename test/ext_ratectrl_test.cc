@@ -92,26 +92,30 @@ aom_rc_status_t mock_get_gop_decision(aom_rc_model_t /*ratectrl_model*/,
       current_gop_frame->layer_depth = 0;
       current_gop_frame->display_idx = 0;
       current_gop_frame->update_ref_idx = 0;
+      current_gop_frame->order_idx = 0;
     } else {
       current_gop_frame->is_key_frame = false;
       if (i == 1) {
         // ALTREF
         current_gop_frame->update_type = AOM_RC_ARF_UPDATE;
         current_gop_frame->layer_depth = 1;
-        current_gop_frame->display_idx = 4;
+        current_gop_frame->display_idx = 1;
         current_gop_frame->update_ref_idx = 1;
+        current_gop_frame->order_idx = 4;
       } else if (i == 5) {
         // Overlay frame
         current_gop_frame->is_key_frame = false;
         current_gop_frame->update_type = AOM_RC_OVERLAY_UPDATE;
         current_gop_frame->layer_depth = AOM_RC_MAX_ARF_LAYERS - 1;
         current_gop_frame->display_idx = 4;
+        current_gop_frame->order_idx = 4;
       } else {
         // Leaf frames
         current_gop_frame->is_key_frame = false;
         current_gop_frame->update_type = AOM_RC_LF_UPDATE;
         current_gop_frame->layer_depth = AOM_RC_MAX_ARF_LAYERS - 1;
-        current_gop_frame->display_idx = i - 2;  // Key and ARF in the front
+        current_gop_frame->display_idx = i - 1;  // Key in the front
+        current_gop_frame->order_idx = i - 1;
         current_gop_frame->update_ref_idx = 2;
       }
       // For leaf and overlay frames, set ALTREF to buffer 1.
