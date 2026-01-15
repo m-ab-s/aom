@@ -1370,7 +1370,7 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
   // temporal filtering result).
   if (oxcf->mode == GOOD && gf_cfg->lag_in_frames >= 32 &&
       gf_cfg->lag_in_frames < 39)
-    gf_cfg->lag_in_frames = clamp(39, 0, MAX_LAG_BUFFERS);
+    gf_cfg->lag_in_frames = AOMMIN(39, MAX_LAG_BUFFERS);
 
   gf_cfg->enable_auto_arf = extra_cfg->enable_auto_alt_ref;
   gf_cfg->enable_auto_brf = extra_cfg->enable_auto_bwd_ref;
