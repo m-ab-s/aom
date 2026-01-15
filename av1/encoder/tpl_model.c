@@ -1051,6 +1051,31 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
 
   // Final encode
   rate_cost = 0;
+  // Add uv bound if needed
+  if (best_mode == D203_PRED && xd->left_available &&
+      mi_row + tx_size_high_unit[tx_size] < xd->tile.mi_row_end) {
+    const int num_planes = use_y_only_rate_distortion ? 1 : av1_num_planes(cm);
+    for (int plane = 1; plane < num_planes; ++plane) {
+      struct macroblockd_plane *pd = &xd->plane[plane];
+      int dst_mb_offset_uv =
+          ((mi_row * MI_SIZE) >> pd->subsampling_y) * rec_stride_pool[plane] +
+          ((mi_col * MI_SIZE) >> pd->subsampling_x);
+      uint8_t *dst_uv_buffer = rec_buffer_pool[plane] + dst_mb_offset_uv;
+      int dst_uv_buffer_stride = rec_stride_pool[plane];
+      int bh_uv = (bh >> pd->subsampling_y);
+
+      if (is_cur_buf_hbd(xd)) {
+        uint16_t *dst_uv = CONVERT_TO_SHORTPTR(dst_uv_buffer);
+        for (int i = 0; i < bh_uv; ++i)
+          dst_uv[(bh_uv + i) * dst_uv_buffer_stride - 1] =
+              dst_uv[(bh_uv - 1) * dst_uv_buffer_stride - 1];
+      } else {
+        for (int i = 0; i < bh_uv; ++i)
+          dst_uv_buffer[(bh_uv + i) * dst_uv_buffer_stride - 1] =
+              dst_uv_buffer[(bh_uv - 1) * dst_uv_buffer_stride - 1];
+      }
+    }
+  }
 
   ref_frame_ptr[0] =
       best_mode == NEW_NEWMV
