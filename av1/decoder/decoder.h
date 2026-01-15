@@ -334,6 +334,8 @@ typedef struct AV1Decoder {
 #if CONFIG_INSPECTION
   aom_inspect_cb inspect_cb;
   void *inspect_ctx;
+  int *sb_bits;
+  int sb_bits_alloc_size;
 #endif
   int operating_point;
   int current_operating_point;

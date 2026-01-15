@@ -2786,9 +2786,25 @@ static inline void decode_tile(AV1Decoder *pbi, ThreadData *const td,
          mi_col += cm->seq_params->mib_size) {
       set_cb_buffer(pbi, dcb, &td->cb_buffer_base, num_planes, 0, 0);
 
+#if CONFIG_INSPECTION
+      const int start_bits = aom_reader_tell(td->bit_reader);
+#endif
       // Bit-stream parsing and decoding of the superblock
       decode_partition(pbi, td, mi_row, mi_col, td->bit_reader,
                        cm->seq_params->sb_size, 0x3);
+#if CONFIG_INSPECTION
+      const int end_bits = aom_reader_tell(td->bit_reader);
+#endif
+
+#if CONFIG_INSPECTION
+      if (pbi->sb_bits) {
+        const int mib_size = cm->seq_params->mib_size;
+        const int sb_cols = (cm->mi_params.mi_cols + mib_size - 1) / mib_size;
+        const int sb_row = mi_row / mib_size;
+        const int sb_col = mi_col / mib_size;
+        pbi->sb_bits[sb_row * sb_cols + sb_col] = end_bits - start_bits;
+      }
+#endif
 
       if (aom_reader_has_overflowed(td->bit_reader)) {
         aom_merge_corrupted_flag(&dcb->corrupted, 1);
@@ -2809,6 +2825,18 @@ static const uint8_t *decode_tiles(AV1Decoder *pbi, const uint8_t *data,
                                    const uint8_t *data_end, int start_tile,
                                    int end_tile) {
   AV1_COMMON *const cm = &pbi->common;
+#if CONFIG_INSPECTION
+  const int mib_size = cm->seq_params->mib_size;
+  const int sb_cols = (cm->mi_params.mi_cols + mib_size - 1) / mib_size;
+  const int sb_rows = (cm->mi_params.mi_rows + mib_size - 1) / mib_size;
+  const int required_size = sb_cols * sb_rows;
+  if (pbi->sb_bits_alloc_size < required_size) {
+    aom_free(pbi->sb_bits);
+    CHECK_MEM_ERROR(cm, pbi->sb_bits,
+                    (int *)aom_malloc(sizeof(*pbi->sb_bits) * required_size));
+    pbi->sb_bits_alloc_size = required_size;
+  }
+#endif
   ThreadData *const td = &pbi->td;
   CommonTileParams *const tiles = &cm->tiles;
   const int tile_cols = tiles->cols;
