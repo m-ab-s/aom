@@ -1463,6 +1463,10 @@ static inline void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
       gf_group->layer_depth[frame_idx] >= layer_depth_th;
 }
 
+static inline bool use_tpl_for_extrc(AOM_EXT_RATECTRL const *ext_rc) {
+  return ext_rc->ready && ext_rc->funcs.send_tpl_gop_stats != NULL;
+}
+
 static void tpl_store_before_propagation(AomTplBlockStats *tpl_block_stats,
                                          TplDepStats *src_stats, int mi_row,
                                          int mi_col) {
@@ -1515,10 +1519,6 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
   TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_data->frame_idx];
   MACROBLOCKD *xd = &x->e_mbd;
-
-  AomTplFrameStats *tpl_frame_stats_before_propagation =
-      &cpi->extrc_tpl_gop_stats.frame_stats_list[tpl_data->frame_idx];
-
   const int tplb_cols_in_tile =
       ROUND_POWER_OF_TWO(mi_params->mi_cols, mi_size_wide_log2[bsize]);
   const int tplb_row = ROUND_POWER_OF_TWO(mi_row, mi_size_high_log2[bsize]);
@@ -1555,10 +1555,15 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
     tpl_model_store(tpl_frame->tpl_stats_ptr, mi_row, mi_col, tpl_frame->stride,
                     &tpl_stats, tpl_data->tpl_stats_block_mis_log2);
 
-    AomTplBlockStats *block_stats =
-        &tpl_frame_stats_before_propagation
-             ->block_stats_list[mi_row * tpl_frame->mi_cols + mi_col];
-    tpl_store_before_propagation(block_stats, &tpl_stats, mi_row, mi_col);
+    if (use_tpl_for_extrc(&cpi->ext_ratectrl)) {
+      AomTplFrameStats *tpl_frame_stats_before_propagation =
+          &cpi->extrc_tpl_gop_stats.frame_stats_list[tpl_data->frame_idx];
+      AomTplBlockStats *block_stats =
+          &tpl_frame_stats_before_propagation
+               ->block_stats_list[mi_row * tpl_frame->mi_cols + mi_col];
+      tpl_store_before_propagation(block_stats, &tpl_stats, mi_row, mi_col);
+    }
+
     (*tpl_row_mt->sync_write_ptr)(&tpl_data->tpl_mt_sync, tplb_row,
                                   tplb_col_in_tile, tplb_cols_in_tile);
   }
@@ -2059,9 +2064,11 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   av1_init_tpl_stats(tpl_data);
 
-  init_tpl_stats_before_propagation(
-      cpi->common.error, &cpi->extrc_tpl_gop_stats, tpl_data,
-      tpl_gf_group_frames, cpi->common.width, cpi->common.height);
+  if (use_tpl_for_extrc(&cpi->ext_ratectrl)) {
+    init_tpl_stats_before_propagation(
+        cpi->common.error, &cpi->extrc_tpl_gop_stats, tpl_data,
+        tpl_gf_group_frames, cpi->common.width, cpi->common.height);
+  }
 
   TplBuffers *tpl_tmp_buffers = &cpi->td.tpl_tmp_buffers;
   if (!tpl_alloc_temp_buffers(tpl_tmp_buffers, tpl_data->tpl_bsize_1d)) {
@@ -2128,8 +2135,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                              num_planes);
   }
 
-  if (cpi->ext_ratectrl.ready &&
-      cpi->ext_ratectrl.funcs.send_tpl_gop_stats != NULL) {
+  if (use_tpl_for_extrc(&cpi->ext_ratectrl)) {
     // TPL stats has extra frames from next GOP. Trim those extra frames for
     // external RC.
     trim_tpl_stats(cpi->common.error, &cpi->extrc_tpl_gop_stats,
