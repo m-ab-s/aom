@@ -1002,6 +1002,11 @@ void av1_get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
             (int)cpi->ppi->gf_group.ref_frame_list[gf_index][rf];
       }
     }
+    for (int i = 0; i < REF_FRAMES; ++i) {
+      if (remapped_ref_idx[i] == INVALID_IDX) {
+        remapped_ref_idx[i] = 0;
+      }
+    }
     return;
   }
 
