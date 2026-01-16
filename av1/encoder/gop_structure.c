@@ -911,6 +911,9 @@ void av1_gop_setup_structure(AV1_COMP *cpi, const int is_final_pass) {
                          "av1_extrc_get_gop_decision() failed");
     }
     construct_gop_structure_from_rc(gf_group, &gop_decision);
+    if (gop_decision.gop_frame_list[0].is_key_frame) {
+      rc->frames_since_key = 0;
+    }
   } else {
     if (key_frame) {
       first_frame_update_type = KF_UPDATE;
