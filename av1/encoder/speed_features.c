@@ -943,7 +943,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
     } else {
-      sf->mv_sf.skip_fullpel_search_using_startmv = boosted ? 0 : 1;
+      sf->mv_sf.skip_fullpel_search_using_startmv_refmv = boosted ? 0 : 1;
     }
 
     sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
@@ -977,7 +977,7 @@ static void set_good_speed_feature_framesize_dependent(
 
     sf->inter_sf.skip_newmv_in_drl = 4;
     sf->inter_sf.prune_comp_ref_frames = 1;
-    sf->mv_sf.skip_fullpel_search_using_startmv = boosted ? 0 : 1;
+    sf->mv_sf.skip_fullpel_search_using_startmv_refmv = boosted ? 0 : 1;
 
     if (!is_720p_or_larger) {
       sf->inter_sf.mv_cost_upd_level = INTERNAL_COST_UPD_SBROW_SET;
@@ -1011,7 +1011,7 @@ static void set_good_speed_feature_framesize_dependent(
     sf->inter_sf.prune_comp_ref_frames = 2;
     sf->inter_sf.prune_nearest_near_mv_using_refmv_weight =
         (boosted || allow_screen_content_tools) ? 0 : 1;
-    sf->mv_sf.skip_fullpel_search_using_startmv = boosted ? 0 : 2;
+    sf->mv_sf.skip_fullpel_search_using_startmv_refmv = boosted ? 0 : 2;
 
     if (is_720p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
@@ -1331,7 +1331,6 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 4) {
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
-    sf->mv_sf.full_pixel_search_level = 1;
 
     sf->gm_sf.prune_zero_mv_with_sse = 2;
     sf->gm_sf.downsample_level = 1;
@@ -2280,7 +2279,7 @@ static inline void init_mv_sf(MV_SPEED_FEATURES *mv_sf) {
   mv_sf->use_downsampled_sad = 0;
   mv_sf->disable_extensive_joint_motion_search = 0;
   mv_sf->disable_second_mv = 0;
-  mv_sf->skip_fullpel_search_using_startmv = 0;
+  mv_sf->skip_fullpel_search_using_startmv_refmv = 0;
   mv_sf->warp_search_method = WARP_SEARCH_SQUARE;
   mv_sf->warp_search_iters = 8;
   mv_sf->use_intrabc = 1;

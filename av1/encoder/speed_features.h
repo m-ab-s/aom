@@ -956,11 +956,14 @@ typedef struct MV_SPEED_FEATURES {
   // 2: disable second MV
   int disable_second_mv;
 
-  // Skips full pixel search based on start mv of prior ref_mv_idx.
+  // Skips full pixel search based on closeness of start mv and ref mv
+  // of previous search.
   // 0: Disabled
-  // 1: Skips the full pixel search upto 4 neighbor full-pel MV positions.
-  // 2: Skips the full pixel search upto 8 neighbor full-pel MV positions.
-  int skip_fullpel_search_using_startmv;
+  // 1: Skips the full pixel search upto 4 neighbor full-pel start MV and ref MV
+  // positions.
+  // 2: Skips the full pixel search upto 8 neighbor full-pel start MV and ref MV
+  // positions.
+  int skip_fullpel_search_using_startmv_refmv;
 
   // Method to use for refining WARPED_CAUSAL motion vectors
   // TODO(rachelbarker): Can this be unified with OBMC in some way?
