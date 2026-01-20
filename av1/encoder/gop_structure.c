@@ -865,7 +865,7 @@ static void construct_gop_structure_from_rc(
       case ARF_UPDATE:
       case INTNL_ARF_UPDATE:
         gf_group->arf_src_offset[frame_index] =
-            gop_frame_rc->order_idx - frame_index;
+            gop_frame_rc->order_idx - gop_frame_rc->display_idx;
         break;
       default: gf_group->arf_src_offset[frame_index] = 0;
     }
