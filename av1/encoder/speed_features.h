@@ -256,6 +256,11 @@ enum {
 
 typedef struct {
   TX_TYPE_PRUNE_MODE prune_2d_txfm_mode;
+
+  // Limit the intra transform search type.
+  // 1 : Limit the intra transform search type to the ones in the table
+  // av1_derived_intra_tx_used_flag[INTRA_MODES].
+  // 2 : Limit the intra transform search type to the default transform.
   int fast_intra_tx_type_search;
 
   // INT_MAX: Disable fast search.

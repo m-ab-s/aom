@@ -1813,6 +1813,9 @@ static inline uint16_t get_tx_mask(
   } else if (fast_tx_search) {
     allowed_tx_mask = 0x0c01;  // V_DCT, H_DCT, DCT_DCT
     allowed_tx_mask &= ext_tx_used_flag;
+  } else if (!is_inter && txfm_params->use_derived_intra_tx_type_set) {
+    allowed_tx_mask = av1_derived_intra_tx_used_flag[intra_dir];
+    allowed_tx_mask &= ext_tx_used_flag;
   } else {
     assert(plane == 0);
     allowed_tx_mask = ext_tx_used_flag;

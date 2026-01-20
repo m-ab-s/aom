@@ -975,13 +975,15 @@ void av1_cdef_search(AV1_COMP *cpi) {
   if (fast) {
     for (int j = 0; j < cdef_info->nb_cdef_strengths; j++) {
       const int luma_strength = cdef_info->cdef_strengths[j];
-      const int chroma_strength = cdef_info->cdef_uv_strengths[j];
       int pri_strength, sec_strength;
 
       STORE_CDEF_FILTER_STRENGTH(cdef_info->cdef_strengths[j], pick_method,
                                  luma_strength);
-      STORE_CDEF_FILTER_STRENGTH(cdef_info->cdef_uv_strengths[j], pick_method,
-                                 chroma_strength);
+      if (num_planes > 1) {
+        const int chroma_strength = cdef_info->cdef_uv_strengths[j];
+        STORE_CDEF_FILTER_STRENGTH(cdef_info->cdef_uv_strengths[j], pick_method,
+                                   chroma_strength);
+      }
     }
   }
 
