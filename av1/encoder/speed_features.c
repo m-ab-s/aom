@@ -1857,6 +1857,9 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.increase_source_sad_thresh = 0;
       sf->rt_sf.part_early_exit_zeromv = 0;
     }
+    // This feature is for CBR mode, turning if off means the gop interval
+    // will not be changed after encoding.
+    sf->rt_sf.gf_refresh_based_on_qp = 0;
   }
 }
 

@@ -4157,8 +4157,7 @@ static inline int has_no_stats_stage(const AV1_COMP *const cpi) {
 
 static inline int is_one_pass_rt_lag_params(const AV1_COMP *cpi) {
   return cpi->oxcf.pass == AOM_RC_ONE_PASS &&
-         cpi->oxcf.gf_cfg.lag_in_frames > 0 && cpi->oxcf.mode == REALTIME &&
-         cpi->oxcf.rc_cfg.mode != AOM_CBR;
+         cpi->oxcf.gf_cfg.lag_in_frames > 0 && cpi->oxcf.mode == REALTIME;
 }
 
 static inline int is_one_pass_rt_params(const AV1_COMP *cpi) {

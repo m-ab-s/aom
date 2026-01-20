@@ -1508,6 +1508,21 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                                *frame_flags);
     if (use_rtc_reference_structure_one_layer(cpi))
       av1_set_rtc_reference_structure_one_layer(cpi, cpi->gf_frame_index == 0);
+  } else if (is_one_pass_rt_lag_params(cpi) && oxcf->rc_cfg.mode == AOM_CBR) {
+    // For realtime mode with lookahead in CBR: the current frame buffer_level
+    // is used to update the frame target_bandwidth, so we need to call
+    // av1_calc_i/pframe_target_size_one_pass_cbr() here for every frame.
+    int target;
+    const FRAME_UPDATE_TYPE cur_update_type =
+        gf_group->update_type[cpi->gf_frame_index];
+    if (cur_update_type == KF_UPDATE) {
+      target = av1_calc_iframe_target_size_one_pass_cbr(cpi);
+    } else {
+      target = av1_calc_pframe_target_size_one_pass_cbr(cpi, cur_update_type);
+    }
+    gf_group->bit_allocation[cpi->gf_frame_index] = target;
+    av1_rc_set_frame_target(cpi, target, cm->width, cm->height);
+    cpi->rc.base_frame_target = target;
   }
 #endif
 #if CONFIG_COLLECT_COMPONENT_TIMING

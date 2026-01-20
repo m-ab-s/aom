@@ -2772,7 +2772,14 @@ int av1_calc_pframe_target_size_one_pass_cbr(
   const RATE_CONTROL *rc = &cpi->rc;
   const PRIMARY_RATE_CONTROL *p_rc = &cpi->ppi->p_rc;
   const RateControlCfg *rc_cfg = &oxcf->rc_cfg;
-  const int64_t diff = p_rc->optimal_buffer_level - p_rc->buffer_level;
+  const RefreshFrameInfo *const refresh_frame = &cpi->refresh_frame;
+  int64_t diff = p_rc->optimal_buffer_level - p_rc->buffer_level;
+  // For refresh alt or golden: keep diff negative to force setting
+  // higher target bandwidth on these frames.
+  // Only realtime mode with lookahead.
+  if (is_one_pass_rt_lag_params(cpi) &&
+      (refresh_frame->alt_ref_frame || refresh_frame->golden_frame))
+    diff = AOMMIN(diff, -p_rc->optimal_buffer_level);
   const int64_t one_pct_bits = 1 + p_rc->optimal_buffer_level / 100;
   int min_frame_target =
       AOMMAX(rc->avg_frame_bandwidth >> 4, FRAME_OVERHEAD_BITS);
