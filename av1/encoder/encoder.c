@@ -3434,6 +3434,19 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
         cpi->ext_ratectrl.funcs.get_encodeframe_decision != NULL) {
       aom_codec_err_t codec_status;
       aom_rc_encodeframe_decision_t encode_frame_decision;
+      const int sb_rows = CEIL_POWER_OF_TWO(cm->mi_params.mi_rows,
+                                            cm->seq_params->mib_size_log2);
+      const int sb_cols = CEIL_POWER_OF_TWO(cm->mi_params.mi_cols,
+                                            cm->seq_params->mib_size_log2);
+      // This assumes frame sizes don't change when used with external RC.
+      // cpi->ext_ratectrl is zero'ed at init.
+      if (cpi->ext_ratectrl.sb_params_list == NULL) {
+        CHECK_MEM_ERROR(
+            cm, cpi->ext_ratectrl.sb_params_list,
+            (aom_sb_params *)aom_calloc(
+                sb_rows * sb_cols, sizeof(*cpi->ext_ratectrl.sb_params_list)));
+        encode_frame_decision.sb_params_list = cpi->ext_ratectrl.sb_params_list;
+      }
       codec_status = av1_extrc_get_encodeframe_decision(
           &cpi->ext_ratectrl, cpi->gf_frame_index, &encode_frame_decision);
       if (codec_status != AOM_CODEC_OK) {
