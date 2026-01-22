@@ -2831,8 +2831,11 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
 
   if (cpi->oxcf.mode == REALTIME) {
     if (speed >= 6) {
-      // Disable this as speculative fix to issue: 457951958.
-      sf->part_sf.adjust_var_based_rd_partitioning = 0;
+      const int qindex_thresh = boosted ? 190 : (is_720p_or_larger ? 120 : 150);
+      sf->part_sf.adjust_var_based_rd_partitioning =
+          frame_is_intra_only(cm)
+              ? 0
+              : cm->quant_params.base_qindex > qindex_thresh;
     }
     return;
   }
