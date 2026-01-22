@@ -560,7 +560,7 @@ static void set_allintra_speed_features_framesize_independent(
     // target image quality is very low.
     sf->part_sf.default_max_partition_size = BLOCK_32X32;
 
-    sf->mv_sf.use_bsize_dependent_search_method = 1;
+    sf->mv_sf.use_bsize_dependent_search_method = 3;
     sf->mv_sf.intrabc_search_level = 1;
 
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 3;
@@ -1050,6 +1050,12 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.prune_ref_mv_idx_search = 1;
     }
 
+    if (is_720p_or_larger) {
+      sf->mv_sf.use_bsize_dependent_search_method = 1;
+    } else {
+      sf->mv_sf.use_bsize_dependent_search_method = 2;
+    }
+
     if (!is_720p_or_larger) {
       sf->tx_sf.tx_type_search.fast_inter_tx_type_prob_thresh =
           is_boosted_arf2_bwd_type ? 450 : 150;
@@ -1458,7 +1464,6 @@ static void set_good_speed_features_framesize_independent(
     sf->part_sf.prune_part4_search = 3;
 
     sf->mv_sf.simple_motion_subpel_force_stop = FULL_PEL;
-    sf->mv_sf.use_bsize_dependent_search_method = 1;
 
     sf->tpl_sf.gop_length_decision_method = 3;
 
@@ -2134,7 +2139,7 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.var_part_based_on_qidx = 4;
     sf->rt_sf.partition_direct_merging = 1;
     sf->rt_sf.prune_compoundmode_with_singlemode_var = false;
-    sf->mv_sf.use_bsize_dependent_search_method = 2;
+    sf->mv_sf.use_bsize_dependent_search_method = 4;
     sf->rt_sf.prune_hv_pred_modes_using_src_sad = true;
   }
   if (speed >= 9) {
