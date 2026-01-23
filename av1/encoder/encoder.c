@@ -3445,8 +3445,8 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
             cm, cpi->ext_ratectrl.sb_params_list,
             (aom_sb_params *)aom_calloc(
                 sb_rows * sb_cols, sizeof(*cpi->ext_ratectrl.sb_params_list)));
-        encode_frame_decision.sb_params_list = cpi->ext_ratectrl.sb_params_list;
       }
+      encode_frame_decision.sb_params_list = cpi->ext_ratectrl.sb_params_list;
       codec_status = av1_extrc_get_encodeframe_decision(
           &cpi->ext_ratectrl, cpi->gf_frame_index, &encode_frame_decision);
       if (codec_status != AOM_CODEC_OK) {
