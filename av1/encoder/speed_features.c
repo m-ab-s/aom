@@ -1117,6 +1117,7 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
 
   sf->interp_sf.use_fast_interpolation_filter_search = 1;
+  sf->interp_sf.disable_dual_filter = 1;
 
   sf->intra_sf.intra_pruning_with_hog = 1;
 
@@ -1236,7 +1237,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.alt_ref_search_fp = 1;
 
     sf->interp_sf.adaptive_interp_filter_search = 1;
-    sf->interp_sf.disable_dual_filter = 1;
 
     sf->intra_sf.disable_smooth_intra =
         !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key > 1);
