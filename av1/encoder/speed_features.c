@@ -1238,8 +1238,6 @@ static void set_good_speed_features_framesize_independent(
 
     sf->interp_sf.adaptive_interp_filter_search = 1;
 
-    sf->intra_sf.disable_smooth_intra =
-        !frame_is_intra_only(&cpi->common) || (cpi->rc.frames_to_key > 1);
     sf->intra_sf.intra_pruning_with_hog = 2;
     sf->intra_sf.skip_intra_in_interframe = is_inter_frame ? 2 : 1;
     sf->intra_sf.skip_filter_intra_in_inter_frames = 1;
@@ -1419,6 +1417,7 @@ static void set_good_speed_features_framesize_independent(
     sf->interp_sf.skip_interp_filter_search = boosted ? 0 : 1;
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 3;
+    sf->intra_sf.disable_smooth_intra = 1;
 
     // TODO(any): Extend multi-winner mode processing support for inter frames
     sf->winner_mode_sf.multi_winner_mode_type =
