@@ -1336,6 +1336,8 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 4) {
+    sf->hl_sf.weight_calc_level_in_tf = 1;
+
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->gm_sf.prune_zero_mv_with_sse = 2;
@@ -1394,7 +1396,6 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 5) {
-    sf->hl_sf.weight_calc_level_in_tf = 1;
     sf->hl_sf.adjust_num_frames_for_arf_filtering =
         allow_screen_content_tools ? 0 : 2;
 
