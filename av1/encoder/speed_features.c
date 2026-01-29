@@ -1426,7 +1426,7 @@ static void set_good_speed_features_framesize_independent(
                                           : MULTI_WINNER_MODE_OFF;
 
     // Disable Self-guided Loop restoration filter.
-    sf->lpf_sf.disable_sgr_filter = true;
+    sf->lpf_sf.enable_sgr_ep_pruning = 2;
     sf->lpf_sf.disable_wiener_coeff_refine_search = true;
 
     sf->tpl_sf.prune_starting_mv = 3;

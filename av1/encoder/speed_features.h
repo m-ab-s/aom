@@ -1598,7 +1598,14 @@ typedef struct LOOP_FILTER_SPEED_FEATURES {
   // search_switchable()
   int switchable_lr_with_bias_level;
 
-  // prune sgr ep using binary search like mechanism
+  // Enable fast search in self guided restoration
+  // 0 : Search over all 16 SGR projection parameters listed
+  //     in av1_sgr_params[SGRPROJ_PARAMS].
+  // 1 : Approximate search using binary search like mechanism,
+  //     a total of 8 SGR projection parameters are searched.
+  // 2 : Search only 'ep' values in
+  //     sgproj_ep_grp1_seed[SGRPROJ_EP_GRP1_SEARCH_COUNT],
+  //     a total of 4 SGR projection parameters are searched.
   int enable_sgr_ep_pruning;
 
   // Disable loop restoration for Chroma plane
