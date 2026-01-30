@@ -996,9 +996,11 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL2;
     }
 
-    if (is_720p_or_larger)
+    if (is_720p_or_larger) {
       sf->part_sf.ext_part_eval_based_on_cur_best =
           (allow_screen_content_tools || frame_is_intra_only(cm)) ? 0 : 1;
+      sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
+    }
 
     if (is_480p_or_larger) {
       sf->tpl_sf.reduce_num_frames = 1;
@@ -1013,9 +1015,7 @@ static void set_good_speed_feature_framesize_dependent(
         (boosted || allow_screen_content_tools) ? 0 : 1;
     sf->mv_sf.skip_fullpel_search_using_startmv_refmv = boosted ? 0 : 2;
 
-    if (is_720p_or_larger) {
-      sf->part_sf.auto_max_partition_based_on_simple_motion = NOT_IN_USE;
-    } else if (is_480p_or_larger) {
+    if (is_480p_or_larger && !is_720p_or_larger) {
       sf->part_sf.auto_max_partition_based_on_simple_motion = DIRECT_PRED;
     }
 
