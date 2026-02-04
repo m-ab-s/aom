@@ -1114,6 +1114,7 @@ static void set_good_speed_features_framesize_independent(
   sf->inter_sf.reduce_inter_modes = boosted ? 1 : 2;
   sf->inter_sf.selective_ref_frame = 1;
   sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_SKIP_MV_SEARCH;
+  sf->inter_sf.enable_fast_compound_mode_search = 1;
 
   sf->interp_sf.use_fast_interpolation_filter_search = 1;
   sf->interp_sf.disable_dual_filter = 1;
@@ -1177,7 +1178,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.skip_arf_compound = 1;
     sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
     sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_DISABLED;
-    sf->inter_sf.enable_fast_compound_mode_search = 1;
 
     sf->interp_sf.use_interp_filter = 1;
 
