@@ -1592,7 +1592,7 @@ AV1EncoderConfig av1_get_encoder_config(const aom_codec_enc_cfg_t *cfg) {
 static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
                                           const aom_codec_enc_cfg_t *cfg) {
   aom_codec_err_t res;
-  int force_key = 0;
+  volatile int force_key = 0;
 
   if (cfg->g_w != ctx->cfg.g_w || cfg->g_h != ctx->cfg.g_h) {
     if (cfg->g_lag_in_frames > 1 || cfg->g_pass != AOM_RC_ONE_PASS)
@@ -1644,11 +1644,26 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
     bool is_sb_size_changed = false;
     av1_change_config_seq(ctx->ppi, &ctx->oxcf, &is_sb_size_changed);
     for (int i = 0; i < ctx->ppi->num_fp_contexts; i++) {
-      av1_change_config(ctx->ppi->parallel_cpi[i], &ctx->oxcf,
-                        is_sb_size_changed);
+      AV1_COMP *const cpi = ctx->ppi->parallel_cpi[i];
+      struct aom_internal_error_info *const error = cpi->common.error;
+      if (setjmp(error->jmp)) {
+        error->setjmp = 0;
+        return error->error_code;
+      }
+      error->setjmp = 1;
+      av1_change_config(cpi, &ctx->oxcf, is_sb_size_changed);
+      error->setjmp = 0;
     }
     if (ctx->ppi->cpi_lap != NULL) {
-      av1_change_config(ctx->ppi->cpi_lap, &ctx->oxcf, is_sb_size_changed);
+      AV1_COMP *const cpi = ctx->ppi->cpi_lap;
+      struct aom_internal_error_info *const error = cpi->common.error;
+      if (setjmp(error->jmp)) {
+        error->setjmp = 0;
+        return error->error_code;
+      }
+      error->setjmp = 1;
+      av1_change_config(cpi, &ctx->oxcf, is_sb_size_changed);
+      error->setjmp = 0;
     }
   }
 
