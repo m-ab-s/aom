@@ -51,6 +51,33 @@
 
 #include "common/args_helper.h"
 
+// Creates a setjmp target using `CPI->common.error->jmp` and sets
+// `CPI->common.error->setjmp = 1`. Returns `CPI->common.error->error_code` on
+// longjmp. This macro expects `aom_codec_alg_priv_t *ctx` to be available.
+// This should be accompanied by a call to DISABLE_SETJMP using the same CPI
+// before going out of scope.
+#define ENABLE_SETJMP(CPI)                                      \
+  do {                                                          \
+    struct aom_internal_error_info *const enable_setjmp_error = \
+        (CPI)->common.error;                                    \
+    if (setjmp(enable_setjmp_error->jmp)) {                     \
+      enable_setjmp_error->setjmp = 0;                          \
+      ctx->base.err_detail = enable_setjmp_error->has_detail    \
+                                 ? enable_setjmp_error->detail  \
+                                 : NULL;                        \
+      return enable_setjmp_error->error_code;                   \
+    }                                                           \
+    enable_setjmp_error->setjmp = 1;                            \
+  } while (0)
+
+// Sets CPI->common.error->setjmp = 0.
+#define DISABLE_SETJMP(CPI)                                     \
+  do {                                                          \
+    struct aom_internal_error_info *const enable_setjmp_error = \
+        (CPI)->common.error;                                    \
+    enable_setjmp_error->setjmp = 0;                            \
+  } while (0)
+
 struct av1_extracfg {
   int cpu_used;
   unsigned int enable_auto_alt_ref;
@@ -1645,25 +1672,15 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
     av1_change_config_seq(ctx->ppi, &ctx->oxcf, &is_sb_size_changed);
     for (int i = 0; i < ctx->ppi->num_fp_contexts; i++) {
       AV1_COMP *const cpi = ctx->ppi->parallel_cpi[i];
-      struct aom_internal_error_info *const error = cpi->common.error;
-      if (setjmp(error->jmp)) {
-        error->setjmp = 0;
-        return error->error_code;
-      }
-      error->setjmp = 1;
+      ENABLE_SETJMP(cpi);
       av1_change_config(cpi, &ctx->oxcf, is_sb_size_changed);
-      error->setjmp = 0;
+      DISABLE_SETJMP(cpi);
     }
     if (ctx->ppi->cpi_lap != NULL) {
       AV1_COMP *const cpi = ctx->ppi->cpi_lap;
-      struct aom_internal_error_info *const error = cpi->common.error;
-      if (setjmp(error->jmp)) {
-        error->setjmp = 0;
-        return error->error_code;
-      }
-      error->setjmp = 1;
+      ENABLE_SETJMP(cpi);
       av1_change_config(cpi, &ctx->oxcf, is_sb_size_changed);
-      error->setjmp = 0;
+      DISABLE_SETJMP(cpi);
     }
   }
 
@@ -1715,25 +1732,15 @@ static aom_codec_err_t update_encoder_cfg(aom_codec_alg_priv_t *ctx) {
   av1_change_config_seq(ctx->ppi, &ctx->oxcf, &is_sb_size_changed);
   for (int i = 0; i < ctx->ppi->num_fp_contexts; i++) {
     AV1_COMP *const cpi = ctx->ppi->parallel_cpi[i];
-    struct aom_internal_error_info *const error = cpi->common.error;
-    if (setjmp(error->jmp)) {
-      error->setjmp = 0;
-      return error->error_code;
-    }
-    error->setjmp = 1;
+    ENABLE_SETJMP(cpi);
     av1_change_config(cpi, &ctx->oxcf, is_sb_size_changed);
-    error->setjmp = 0;
+    DISABLE_SETJMP(cpi);
   }
   if (ctx->ppi->cpi_lap != NULL) {
     AV1_COMP *const cpi_lap = ctx->ppi->cpi_lap;
-    struct aom_internal_error_info *const error = cpi_lap->common.error;
-    if (setjmp(error->jmp)) {
-      error->setjmp = 0;
-      return error->error_code;
-    }
-    error->setjmp = 1;
+    ENABLE_SETJMP(cpi_lap);
     av1_change_config(cpi_lap, &ctx->oxcf, is_sb_size_changed);
-    error->setjmp = 0;
+    DISABLE_SETJMP(cpi_lap);
   }
   return AOM_CODEC_OK;
 }
@@ -4101,14 +4108,9 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
       ctx->oxcf.rc_cfg.target_bandwidth = oxcf->rc_cfg.target_bandwidth =
           target_bandwidth;
       set_primary_rc_buffer_sizes(oxcf, ppi);
-      struct aom_internal_error_info *const error = cpi->common.error;
-      if (setjmp(error->jmp)) {
-        error->setjmp = 0;
-        return error->error_code;
-      }
-      error->setjmp = 1;
+      ENABLE_SETJMP(cpi);
       av1_update_layer_context_change_config(cpi, target_bandwidth);
-      error->setjmp = 0;
+      DISABLE_SETJMP(cpi);
       check_reset_rc_flag(cpi);
     } else {
       // Note av1_init_layer_context() relies on cpi->oxcf. The order of that
@@ -4122,14 +4124,9 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
       seq_params->operating_points_cnt_minus_1 =
           ppi->number_spatial_layers * ppi->number_temporal_layers - 1;
 
-      struct aom_internal_error_info *const error = cpi->common.error;
-      if (setjmp(error->jmp)) {
-        error->setjmp = 0;
-        return error->error_code;
-      }
-      error->setjmp = 1;
+      ENABLE_SETJMP(cpi);
       av1_init_layer_context(cpi);
-      error->setjmp = 0;
+      DISABLE_SETJMP(cpi);
       // update_encoder_cfg() is somewhat costly and this control may be called
       // multiple times, so update_encoder_cfg() is only called to ensure frame
       // and superblock sizes are updated before they're fixed by the first
