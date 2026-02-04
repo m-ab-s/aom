@@ -4015,7 +4015,7 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
   AV1_PRIMARY *const ppi = ctx->ppi;
   AV1_COMP *const cpi = ppi->cpi;
   aom_svc_params_t *const params = va_arg(args, aom_svc_params_t *);
-  int64_t target_bandwidth = 0;
+  volatile int64_t target_bandwidth = 0;
   // Note svc.use_flexible_mode is set by AV1E_SET_SVC_REF_FRAME_CONFIG. When
   // it is false (the default) the actual limit is 3 for both spatial and
   // temporal layers. Given the order of these calls are unpredictable the
@@ -4101,7 +4101,14 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
       ctx->oxcf.rc_cfg.target_bandwidth = oxcf->rc_cfg.target_bandwidth =
           target_bandwidth;
       set_primary_rc_buffer_sizes(oxcf, ppi);
+      struct aom_internal_error_info *const error = cpi->common.error;
+      if (setjmp(error->jmp)) {
+        error->setjmp = 0;
+        return error->error_code;
+      }
+      error->setjmp = 1;
       av1_update_layer_context_change_config(cpi, target_bandwidth);
+      error->setjmp = 0;
       check_reset_rc_flag(cpi);
     } else {
       // Note av1_init_layer_context() relies on cpi->oxcf. The order of that
