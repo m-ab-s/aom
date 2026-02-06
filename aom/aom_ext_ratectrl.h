@@ -398,6 +398,7 @@ typedef struct aom_rc_config {
   int min_base_q_index;      /**< for VBR mode only */
   int max_base_q_index;      /**< for VBR mode only */
   int base_qp;               /**< base QP for leaf frames, 0-255 */
+  int superblock_size;       /**< 64 or 128 */
 } aom_rc_config_t;
 
 /*!\brief Control what ref frame to use and its index.

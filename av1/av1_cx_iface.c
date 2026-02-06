@@ -4285,6 +4285,11 @@ static aom_codec_err_t ctrl_set_external_rate_control(aom_codec_alg_priv_t *ctx,
     ratectrl_config.max_base_q_index = oxcf->rc_cfg.worst_allowed_q;
     ratectrl_config.base_qp = ctx->extra_cfg.cq_level;
 
+    const BLOCK_SIZE sb_size = av1_select_sb_size(
+        oxcf, frame_info->frame_width, frame_info->frame_height,
+        cpi->ppi->number_spatial_layers);
+    ratectrl_config.superblock_size = (sb_size == BLOCK_128X128) ? 128 : 64;
+
     if (ctx->cfg.rc_end_usage == AOM_VBR) {
       ratectrl_config.rc_mode = AOM_RC_VBR;
     } else if (ctx->cfg.rc_end_usage == AOM_Q) {
