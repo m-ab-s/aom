@@ -1159,7 +1159,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Prune inter modes based on tpl stats
   // 0 : no pruning
-  // 1 - 3 indicate increasing aggressiveness in order.
+  // 1 : Allow pruning of LAST2 frame
+  // 2 - 4: Allow pruning of all reference frames with increased aggressiveness
+  // of pruning in order
   int prune_inter_modes_based_on_tpl;
 
   // Skip NEARMV and NEAR_NEARMV modes using ref frames of above and left

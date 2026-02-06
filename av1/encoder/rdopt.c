@@ -2556,27 +2556,16 @@ static inline void get_block_level_tpl_stats(
 static inline int prune_modes_based_on_tpl_stats(
     PruneInfoFromTpl *inter_cost_info_from_tpl, const int *refs, int ref_mv_idx,
     const PREDICTION_MODE this_mode, int prune_mode_level) {
+  const int is_ref_last2 = refs[0] == LAST2_FRAME || refs[1] == LAST2_FRAME;
+  if (prune_mode_level == 1 && !is_ref_last2) return 0;
+
   const int have_newmv = have_newmv_in_inter_mode(this_mode);
-  if ((prune_mode_level < 2) && have_newmv) return 0;
+  if ((prune_mode_level == 2) && have_newmv) return 0;
 
   const int64_t best_inter_cost = inter_cost_info_from_tpl->best_inter_cost;
   if (best_inter_cost == INT64_MAX) return 0;
 
-  const int prune_level = prune_mode_level - 1;
   int64_t cur_inter_cost;
-
-  const int is_globalmv =
-      (this_mode == GLOBALMV) || (this_mode == GLOBAL_GLOBALMV);
-  const int prune_index = is_globalmv ? MAX_REF_MV_SEARCH : ref_mv_idx;
-
-  // Thresholds used for pruning:
-  // Lower value indicates aggressive pruning and higher value indicates
-  // conservative pruning which is set based on ref_mv_idx and speed feature.
-  // 'prune_index' 0, 1, 2 corresponds to ref_mv indices 0, 1 and 2. prune_index
-  // 3 corresponds to GLOBALMV/GLOBAL_GLOBALMV
-  static const int tpl_inter_mode_prune_mul_factor[3][MAX_REF_MV_SEARCH + 1] = {
-    { 6, 6, 6, 4 }, { 6, 4, 4, 4 }, { 5, 4, 4, 4 }
-  };
 
   const int is_comp_pred = (refs[1] > INTRA_FRAME);
   if (!is_comp_pred) {
@@ -2590,6 +2579,22 @@ static inline int prune_modes_based_on_tpl_stats(
     // more aggressive pruning
     cur_inter_cost = AOMMAX(inter_cost_ref0, inter_cost_ref1);
   }
+
+  if (is_ref_last2) return (cur_inter_cost > best_inter_cost);
+
+  const int is_globalmv =
+      (this_mode == GLOBALMV) || (this_mode == GLOBAL_GLOBALMV);
+  const int prune_index = is_globalmv ? MAX_REF_MV_SEARCH : ref_mv_idx;
+  const int prune_level = prune_mode_level - 2;
+
+  // Thresholds used for pruning:
+  // Lower value indicates aggressive pruning and higher value indicates
+  // conservative pruning which is set based on ref_mv_idx and speed feature.
+  // 'prune_index' 0, 1, 2 corresponds to ref_mv indices 0, 1 and 2.
+  // prune_index 3 corresponds to GLOBALMV/GLOBAL_GLOBALMV
+  static const int tpl_inter_mode_prune_mul_factor[3][MAX_REF_MV_SEARCH + 1] = {
+    { 6, 6, 6, 4 }, { 6, 4, 4, 4 }, { 5, 4, 4, 4 }
+  };
 
   // Prune the mode if cur_inter_cost is greater than threshold times
   // best_inter_cost
