@@ -4131,11 +4131,10 @@ static inline void init_mode_skip_mask(mode_skip_mask_t *mask,
             0) {
           // Prune inter modes when relative dist of ALTREF2 and ALTREF is close
           // to the relative dist of LAST_FRAME.
-          if (inter_sf->alt_ref_search_fp == 1 &&
-              (abs(cpi->ref_frame_dist_info
-                       .ref_relative_dist[ref_frame - LAST_FRAME]) >
-               1.5 * abs(cpi->ref_frame_dist_info
-                             .ref_relative_dist[LAST_FRAME - LAST_FRAME]))) {
+          if (abs(cpi->ref_frame_dist_info
+                      .ref_relative_dist[ref_frame - LAST_FRAME] -
+                  cpi->ref_frame_dist_info
+                      .ref_relative_dist[LAST_FRAME - LAST_FRAME]) > 4) {
             continue;
           }
           if (x->pred_mv_sad[ref_frame] > sad_thresh)
