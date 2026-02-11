@@ -1463,10 +1463,6 @@ static inline void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
       gf_group->layer_depth[frame_idx] >= layer_depth_th;
 }
 
-static inline bool use_tpl_for_extrc(AOM_EXT_RATECTRL const *ext_rc) {
-  return ext_rc->ready && ext_rc->funcs.send_tpl_gop_stats != NULL;
-}
-
 static void tpl_store_before_propagation(AomTplBlockStats *tpl_block_stats,
                                          TplDepStats *src_stats, int mi_row,
                                          int mi_col) {
@@ -1555,7 +1551,7 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
     tpl_model_store(tpl_frame->tpl_stats_ptr, mi_row, mi_col, tpl_frame->stride,
                     &tpl_stats, tpl_data->tpl_stats_block_mis_log2);
 
-    if (use_tpl_for_extrc(&cpi->ext_ratectrl)) {
+    if (av1_use_tpl_for_extrc(&cpi->ext_ratectrl)) {
       AomTplFrameStats *tpl_frame_stats_before_propagation =
           &cpi->extrc_tpl_gop_stats.frame_stats_list[tpl_data->frame_idx];
       AomTplBlockStats *block_stats =
@@ -2064,7 +2060,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
 
   av1_init_tpl_stats(tpl_data);
 
-  if (use_tpl_for_extrc(&cpi->ext_ratectrl)) {
+  if (av1_use_tpl_for_extrc(&cpi->ext_ratectrl)) {
     init_tpl_stats_before_propagation(
         cpi->common.error, &cpi->extrc_tpl_gop_stats, tpl_data,
         tpl_gf_group_frames, cpi->common.width, cpi->common.height);
@@ -2135,7 +2131,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
                              num_planes);
   }
 
-  if (use_tpl_for_extrc(&cpi->ext_ratectrl)) {
+  if (av1_use_tpl_for_extrc(&cpi->ext_ratectrl)) {
     // TPL stats has extra frames from next GOP. Trim those extra frames for
     // external RC.
     trim_tpl_stats(cpi->common.error, &cpi->extrc_tpl_gop_stats,

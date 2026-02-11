@@ -869,11 +869,18 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
     if (frame_params->frame_type != KEY_FRAME) {
       // In rare case, it's possible to have non ARF/GF update_type here.
       // We should set allow_tpl to zero in the situation
-      allow_tpl =
-          allow_tpl && (update_type == ARF_UPDATE || update_type == GF_UPDATE ||
-                        (cpi->use_ducky_encode &&
-                         cpi->ducky_encode_info.frame_info.gop_mode ==
-                             DUCKY_ENCODE_GOP_MODE_RCL));
+      bool frame_type_allow_tpl =
+          update_type == ARF_UPDATE || update_type == GF_UPDATE;
+      // When external rate control is used, sometimes the sequence ends with
+      // a GOP with only 1 frame which is a leaf frame. TPL stats needs to be
+      // calculated for it as well.
+      if (av1_use_tpl_for_extrc(&cpi->ext_ratectrl)) {
+        frame_type_allow_tpl |= update_type == LF_UPDATE;
+      }
+      allow_tpl = allow_tpl && (frame_type_allow_tpl ||
+                                (cpi->use_ducky_encode &&
+                                 cpi->ducky_encode_info.frame_info.gop_mode ==
+                                     DUCKY_ENCODE_GOP_MODE_RCL));
     }
 
     if (allow_tpl) {
