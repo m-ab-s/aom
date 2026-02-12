@@ -52,7 +52,7 @@ class ResizingVideoSource : public ::libaom_test::DummyVideoSource {
   void FillFrame() override {
     // Read frame from input_file and scale up.
     ASSERT_NE(input_file_, nullptr);
-    fread(img_input_->img_data, raw_size_, 1, input_file_);
+    ASSERT_EQ(fread(img_input_->img_data, raw_size_, 1, input_file_), 1);
     libyuv::I420Scale(
         img_input_->planes[AOM_PLANE_Y], img_input_->stride[AOM_PLANE_Y],
         img_input_->planes[AOM_PLANE_U], img_input_->stride[AOM_PLANE_U],
