@@ -960,6 +960,7 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
   assert(p_mt_info->workers != NULL);
   assert(p_mt_info->tile_thr_data != NULL);
 
+  const int is_highbitdepth = ppi->seq_params.use_highbitdepth;
   int num_workers = p_mt_info->num_workers;
   int num_enc_workers = av1_get_num_mod_workers_for_alloc(p_mt_info, MOD_ENC);
   assert(num_enc_workers <= num_workers);
@@ -988,6 +989,11 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
           aom_internal_error(&ppi->error, AOM_CODEC_MEM_ERROR,
                              "Failed to allocate PICK_MODE_CONTEXT");
       }
+
+      AOM_CHECK_MEM_ERROR(
+          &ppi->error, td->upsample_pred,
+          aom_memalign(16, (1 + is_highbitdepth) * ((MAX_SB_SIZE + 16) + 16) *
+                               MAX_SB_SIZE * sizeof(*td->upsample_pred)));
 
       if (!is_first_pass && i < num_enc_workers) {
         // Set up sms_tree.
@@ -1630,6 +1636,7 @@ static inline void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       thread_data->td->mb.palette_buffer = thread_data->td->palette_buffer;
       thread_data->td->mb.comp_rd_buffer = thread_data->td->comp_rd_buffer;
       thread_data->td->mb.tmp_conv_dst = thread_data->td->tmp_conv_dst;
+      thread_data->td->mb.upsample_pred = thread_data->td->upsample_pred;
       for (int j = 0; j < 2; ++j) {
         thread_data->td->mb.tmp_pred_bufs[j] =
             thread_data->td->tmp_pred_bufs[j];
@@ -1641,6 +1648,8 @@ static inline void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
           thread_data->td->src_var_info_of_4x4_sub_blocks;
 
       thread_data->td->mb.e_mbd.tmp_conv_dst = thread_data->td->mb.tmp_conv_dst;
+      thread_data->td->mb.e_mbd.tmp_upsample_pred =
+          thread_data->td->mb.upsample_pred;
       for (int j = 0; j < 2; ++j) {
         thread_data->td->mb.e_mbd.tmp_obmc_bufs[j] =
             thread_data->td->mb.tmp_pred_bufs[j];
@@ -2290,6 +2299,9 @@ static inline void prepare_tpl_workers(AV1_COMP *cpi, AVxWorkerHook hook,
       }
       thread_data->td->mb.tmp_conv_dst = thread_data->td->tmp_conv_dst;
       thread_data->td->mb.e_mbd.tmp_conv_dst = thread_data->td->mb.tmp_conv_dst;
+      thread_data->td->mb.upsample_pred = thread_data->td->upsample_pred;
+      thread_data->td->mb.e_mbd.tmp_upsample_pred =
+          thread_data->td->mb.upsample_pred;
     }
   }
 }
@@ -2466,6 +2478,9 @@ static void prepare_tf_workers(AV1_COMP *cpi, AVxWorkerHook hook,
         aom_internal_error(cpi->common.error, AOM_CODEC_MEM_ERROR,
                            "Error allocating temporal filter data");
       }
+      thread_data->td->mb.upsample_pred = thread_data->td->upsample_pred;
+      thread_data->td->mb.e_mbd.tmp_upsample_pred =
+          thread_data->td->mb.upsample_pred;
     }
   }
 }

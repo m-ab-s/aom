@@ -879,6 +879,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   const FrameDimensionCfg *const frm_dim_cfg = &cpi->oxcf.frm_dim_cfg;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
   FeatureFlags *const features = &cm->features;
+  const int is_highbitdepth = seq_params->use_highbitdepth;
 
   // in case of LAP, lag in frames is set according to number of lap buffers
   // calculated at init time. This stores and restores LAP's lag in frames to
@@ -974,6 +975,14 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
         x->e_mbd.tmp_obmc_bufs[i] = x->tmp_pred_bufs[i];
       }
     }
+  }
+
+  if (x->upsample_pred == NULL) {
+    CHECK_MEM_ERROR(
+        cm, x->upsample_pred,
+        aom_memalign(16, (1 + is_highbitdepth) * ((MAX_SB_SIZE + 16) + 16) *
+                             MAX_SB_SIZE * sizeof(*x->upsample_pred)));
+    x->e_mbd.tmp_upsample_pred = x->upsample_pred;
   }
 
   av1_reset_segment_features(cm);

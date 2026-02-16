@@ -957,6 +957,11 @@ typedef struct macroblock {
    *   prediction.
    */
   uint8_t *tmp_pred_bufs[2];
+
+  /*!
+   *  Buffer used for upsampled prediction.
+   */
+  uint8_t *upsample_pred;
   /**@}*/
 
   /*****************************************************************************

@@ -1489,6 +1489,7 @@ typedef struct ThreadData {
   CONV_BUF_TYPE *tmp_conv_dst;
   uint64_t abs_sum_level;
   uint8_t *tmp_pred_bufs[2];
+  uint8_t *upsample_pred;
   uint8_t *wiener_tmp_pred_buf;
   int intrabc_used;
   int deltaq_used;
