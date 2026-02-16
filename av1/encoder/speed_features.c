@@ -1092,7 +1092,6 @@ static void set_good_speed_features_framesize_independent(
   sf->gm_sf.prune_ref_frame_for_gm_search = boosted ? 0 : 1;
   sf->gm_sf.disable_gm_search_based_on_stats = 1;
 
-  sf->part_sf.less_rectangular_check_level = 1;
   sf->part_sf.ml_prune_partition = 1;
   sf->part_sf.prune_ext_partition_types_search_level = 1;
   sf->part_sf.prune_part4_search = 2;
@@ -1265,7 +1264,6 @@ static void set_good_speed_features_framesize_independent(
     sf->gm_sf.prune_zero_mv_with_sse = 1;
     sf->gm_sf.num_refinement_steps = 0;
 
-    sf->part_sf.less_rectangular_check_level = 2;
     sf->part_sf.simple_motion_search_prune_agg =
         allow_screen_content_tools
             ? SIMPLE_AGG_LVL0
@@ -2918,9 +2916,9 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
     }
   }
 
-  if (speed >= 4) {
+  if (speed >= 3) {
     // Disable rectangular partitions for lower quantizers
-    const int aggr = AOMMIN(1, speed - 4);
+    const int aggr = (speed <= 4) ? 0 : 1;
     const int qindex_thresh[2] = { 65, 80 };
     int disable_rect_part;
     disable_rect_part = !boosted;
@@ -2947,7 +2945,12 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->mv_sf.search_method = NSTEP_8PT;
       }
     }
+    sf->part_sf.less_rectangular_check_level = 1;
   }
+
+  if (speed == 3)
+    sf->part_sf.less_rectangular_check_level =
+        (cm->quant_params.base_qindex >= 170) ? 1 : 2;
 
   if (speed >= 4) {
     // Disable LR search at low and high quantizers and enable only for
@@ -2961,6 +2964,7 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->lpf_sf.disable_wiener_coeff_refine_search = true;
       }
     }
+    sf->part_sf.less_rectangular_check_level = 2;
   }
 
   if (speed == 1) {
