@@ -2895,7 +2895,7 @@ static AOM_FORCE_INLINE void second_level_check_v2(
                             best_mv->col + diag_step.col };
   int has_better_mv = 0;
 
-  if (var_params->subpel_search_type != USE_2_TAPS_ORIG) {
+  if (var_params->subpel_search_type > USE_2_TAPS) {
     check_better(xd, cm, &row_bias_mv, best_mv, mv_limits, var_params,
                  mv_cost_params, besterr, sse1, distortion, &has_better_mv);
     check_better(xd, cm, &col_bias_mv, best_mv, mv_limits, var_params,
@@ -3326,7 +3326,7 @@ int av1_find_best_sub_pixel_tree(MACROBLOCKD *xd, const AV1_COMMON *const cm,
     *distortion = start_mv_stats->distortion;
     *sse1 = start_mv_stats->sse;
   } else {
-    if (subpel_search_type != USE_2_TAPS_ORIG) {
+    if (subpel_search_type > USE_2_TAPS) {
       besterr = upsampled_setup_center_error(xd, cm, bestmv, var_params,
                                              mv_cost_params, sse1, distortion);
     } else {
@@ -3346,7 +3346,7 @@ int av1_find_best_sub_pixel_tree(MACROBLOCKD *xd, const AV1_COMMON *const cm,
     }
 
     MV diag_step;
-    if (subpel_search_type != USE_2_TAPS_ORIG) {
+    if (subpel_search_type > USE_2_TAPS) {
       diag_step = first_level_check(xd, cm, iter_center_mv, bestmv, hstep,
                                     mv_limits, var_params, mv_cost_params,
                                     &besterr, sse1, distortion);
