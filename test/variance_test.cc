@@ -3661,7 +3661,6 @@ const VarianceParams kArrayVariance_neon_dotprod[] = {
   VarianceParams(3, 3, &aom_variance8x8_neon_dotprod),
   VarianceParams(3, 2, &aom_variance8x4_neon_dotprod),
   VarianceParams(2, 3, &aom_variance4x8_neon_dotprod),
-  VarianceParams(2, 2, &aom_variance4x4_neon_dotprod),
 #if !CONFIG_REALTIME_ONLY
   VarianceParams(2, 4, &aom_variance4x16_neon_dotprod),
   VarianceParams(4, 2, &aom_variance16x4_neon_dotprod),

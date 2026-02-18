@@ -1404,7 +1404,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_variance8x8       sse2      neon neon_dotprod/;
   specialize qw/aom_variance8x4       sse2      neon neon_dotprod/;
   specialize qw/aom_variance4x8       sse2      neon neon_dotprod/;
-  specialize qw/aom_variance4x4       sse2      neon neon_dotprod/;
+  specialize qw/aom_variance4x4       sse2      neon/;
 
   specialize qw/aom_sub_pixel_variance128x128   avx2 neon ssse3/;
   specialize qw/aom_sub_pixel_variance128x64    avx2 neon ssse3/;
