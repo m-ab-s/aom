@@ -1767,8 +1767,18 @@ typedef enum {
 /*!\brief Allows detection of the presence of AOM_TUNE_SSIMULACRA2 at compile
  * time. */
 #define AOM_HAVE_TUNE_SSIMULACRA2 1
-  /* Tune that optimizes for maximum SSIMULACRA 2 scores. Shares the rdmult code
-     with AOM_TUNE_SSIM. */
+  /* A tuning mode that optimizes for maximum SSIMULACRA 2 scores. Shares the
+   * rdmult code with AOM_TUNE_SSIM.
+   * Unlike metrics like AOM_TUNE_VMAF_* or AOM_TUNE_BUTTERAUGLI,
+   * AOM_TUNE_SSIMULACRA2 doesn't use the SSIMULACRA 2 metric for
+   * rate-distortion optimization decisions. Instead, the tuning mode relies
+   * purely on hand-crafted heuristics. This means no additional external
+   * dependencies are required.
+   * AOM_TUNE_SSIMULACRA2 shares most of the tweaks and optimizations with
+   * AOM_TUNE_IQ. However, AOM_TUNE_SSIMULACRA2 fine-tunes the encoder in ways
+   * that have been shown to not come with a corresponding positive impact on
+   * subjective quality in human evaluations.
+   */
   AOM_TUNE_SSIMULACRA2 = 11,
 } aom_tune_metric;
 
