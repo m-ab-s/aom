@@ -1726,6 +1726,11 @@ static aom_codec_err_t ctrl_get_baseline_gf_interval(aom_codec_alg_priv_t *ctx,
 }
 
 static aom_codec_err_t update_encoder_cfg(aom_codec_alg_priv_t *ctx) {
+  // Disable denoiser for spatial layers. Bug: 485332522.
+  // TODO: bug 485332522 - Disable denoiser for spatial layers until
+  // more testing is done
+  if (ctx->ppi->cpi->svc.number_spatial_layers > 1)
+    ctx->extra_cfg.noise_sensitivity = 0;
   set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
   av1_check_fpmt_config(ctx->ppi, &ctx->oxcf);
   bool is_sb_size_changed = false;
