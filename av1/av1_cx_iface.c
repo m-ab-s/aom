@@ -1928,8 +1928,6 @@ static aom_codec_err_t handle_tuning(aom_codec_alg_priv_t *ctx,
     extra_cfg->enable_chroma_deltaq = 1;
     // Enable "Variance Boost" deltaq mode, optimized for images.
     extra_cfg->deltaq_mode = DELTA_Q_VARIANCE_BOOST;
-    // Enable "anti-aliased text and graphics aware" screen detection mode.
-    extra_cfg->screen_detection_mode = AOM_SCREEN_DETECTION_ANTIALIASING_AWARE;
   }
   if (extra_cfg->tuning == AOM_TUNE_IQ) {
     // Enable adaptive sharpness to adjust loop filter levels according to QP.
@@ -3017,14 +3015,20 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
 
     priv->extra_cfg = default_extra_cfg;
     // Special handling:
-    // By default, if omitted: --enable-cdef=1, --qm-min=5, and --qm-max=9
-    // Here we set its default values to 0, 4, and 10 respectively when
-    // --allintra is turned on.
-    // However, if users set --enable-cdef, --qm-min, or --qm-max, either from
-    // the command line or aom_codec_control(), the encoder still respects it.
+    // By default, if omitted: --enable-cdef=1, --screen-detection-mode=1,
+    // --qm-min=5, and --qm-max=9.
+    // Here we set its default values to --enable-cdef=0,
+    // --screen-detection-mode=2, --qm-min=4, and --qm-max=10 when --allintra
+    // is turned on.
+    // However, if users set --enable-cdef, --screen-detection-mode, --qm-min,
+    // or --qm-max, either from the command line or aom_codec_control(), the
+    // encoder still respects it.
     if (priv->cfg.g_usage == AOM_USAGE_ALL_INTRA) {
       // CDEF has been found to blur images, so it's disabled in all-intra mode
       priv->extra_cfg.enable_cdef = 0;
+      // Enable "anti-aliased text and graphics aware" screen detection mode.
+      priv->extra_cfg.screen_detection_mode =
+          AOM_SCREEN_DETECTION_ANTIALIASING_AWARE;
       // These QM min/max values have been found to be beneficial for images,
       // when used with an alternative QM formula (see
       // aom_get_qmlevel_allintra()).

@@ -1596,9 +1596,10 @@ enum aome_enc_control_id {
   /*!\brief Codec control to set the screen content detection mode,
    * aom_screen_detection_mode parameter.
    *
-   * - 1: AOM_SCREEN_DETECTION_STANDARD = standard (default)
+   * - 1: AOM_SCREEN_DETECTION_STANDARD = standard (default in good quality and
+       realtime modes)
    * - 2: AOM_SCREEN_DETECTION_ANTIALIASING_AWARE = anti-aliased text and
-   *   graphics aware
+   *   graphics aware (default in all intra mode)
    */
   AV1E_SET_SCREEN_CONTENT_DETECTION_MODE = 171,
 
@@ -1743,7 +1744,6 @@ typedef enum {
  *   * --enable-cdef=3
  *   * --enable-chroma-deltaq=1
  *   * --deltaq-mode=6
- *   * --screen-detection-mode=2
  * AOM_TUNE_IQ additionally sets the following options:
  *   * --enable-adaptive-sharpness=1
  */
