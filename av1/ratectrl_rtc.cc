@@ -16,6 +16,7 @@
 
 #include "aom/aom_encoder.h"
 #include "aom/aomcx.h"
+#include "aom/internal/aom_codec_internal.h"
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_mem/aom_mem.h"
 #include "av1/common/common.h"
