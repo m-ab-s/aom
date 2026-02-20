@@ -1145,7 +1145,7 @@ void av1_get_ref_frames(RefFrameMapPair ref_frame_map_pairs[REF_FRAMES],
 
   // Do not map GOLDEN and ALTREF based on their pyramid level if all reference
   // frames have the same level.
-  if (n_min_level_refs <= n_bufs) {
+  if (n_min_level_refs < n_bufs) {
     // Map the GOLDEN_FRAME.
     if (golden_idx > -1)
       add_ref_to_slot(&buffer_map[golden_idx], remapped_ref_idx, GOLDEN_FRAME);
