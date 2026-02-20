@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
+#include <setjmp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
