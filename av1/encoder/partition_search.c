@@ -10,6 +10,7 @@
  */
 
 #include <float.h>
+#include <inttypes.h>
 
 #include "config/aom_config.h"
 
