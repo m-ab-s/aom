@@ -2412,7 +2412,7 @@ int av1_get_q_index_from_qstep_ratio(int leaf_qindex, double qstep_ratio,
       if (qstep <= target_qstep) break;
     }
   } else {
-    for (qindex = leaf_qindex; qindex <= MAXQ; ++qindex) {
+    for (qindex = leaf_qindex; qindex < MAXQ; ++qindex) {
       const double qstep = av1_dc_quant_QTX(qindex, 0, bit_depth);
       if (qstep >= target_qstep) break;
     }
