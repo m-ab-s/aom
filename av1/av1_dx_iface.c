@@ -247,13 +247,9 @@ static aom_codec_err_t parse_operating_points(struct aom_read_bit_buffer *rb,
     }
   }
 
-  if (aom_get_num_layers_from_operating_point_idc(
-          operating_point_idc0, &si->number_spatial_layers,
-          &si->number_temporal_layers) != AOM_CODEC_OK) {
-    return AOM_CODEC_ERROR;
-  }
-
-  return AOM_CODEC_OK;
+  return aom_get_num_layers_from_operating_point_idc(
+      operating_point_idc0, &si->number_spatial_layers,
+      &si->number_temporal_layers);
 }
 
 static aom_codec_err_t decoder_peek_si_internal(const uint8_t *data,
