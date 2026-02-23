@@ -30,61 +30,62 @@
     var_filter_block2d_bil_w##w(src, tmp0, src_stride, 1, (h + padding), \
                                 xoffset);                                \
     var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);           \
-    return aom_variance##w##x##h(tmp1, w, ref, ref_stride, sse);         \
+    return aom_variance##w##x##h##_neon(tmp1, w, ref, ref_stride, sse);  \
   }
 
-#define SPECIALIZED_SUBPEL_VARIANCE_WXH_NEON(w, h, padding)                  \
-  unsigned int aom_sub_pixel_variance##w##x##h##_neon(                       \
-      const uint8_t *src, int src_stride, int xoffset, int yoffset,          \
-      const uint8_t *ref, int ref_stride, unsigned int *sse) {               \
-    if (xoffset == 0) {                                                      \
-      if (yoffset == 0) {                                                    \
-        return aom_variance##w##x##h(src, src_stride, ref, ref_stride, sse); \
-      } else if (yoffset == 4) {                                             \
-        uint8_t tmp[w * h];                                                  \
-        var_filter_block2d_avg(src, tmp, src_stride, src_stride, w, h);      \
-        return aom_variance##w##x##h(tmp, w, ref, ref_stride, sse);          \
-      } else {                                                               \
-        uint8_t tmp[w * h];                                                  \
-        var_filter_block2d_bil_w##w(src, tmp, src_stride, src_stride, h,     \
-                                    yoffset);                                \
-        return aom_variance##w##x##h(tmp, w, ref, ref_stride, sse);          \
-      }                                                                      \
-    } else if (xoffset == 4) {                                               \
-      uint8_t tmp0[w * (h + padding)];                                       \
-      if (yoffset == 0) {                                                    \
-        var_filter_block2d_avg(src, tmp0, src_stride, 1, w, h);              \
-        return aom_variance##w##x##h(tmp0, w, ref, ref_stride, sse);         \
-      } else if (yoffset == 4) {                                             \
-        uint8_t tmp1[w * (h + padding)];                                     \
-        var_filter_block2d_avg(src, tmp0, src_stride, 1, w, (h + padding));  \
-        var_filter_block2d_avg(tmp0, tmp1, w, w, w, h);                      \
-        return aom_variance##w##x##h(tmp1, w, ref, ref_stride, sse);         \
-      } else {                                                               \
-        uint8_t tmp1[w * (h + padding)];                                     \
-        var_filter_block2d_avg(src, tmp0, src_stride, 1, w, (h + padding));  \
-        var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);           \
-        return aom_variance##w##x##h(tmp1, w, ref, ref_stride, sse);         \
-      }                                                                      \
-    } else {                                                                 \
-      uint8_t tmp0[w * (h + padding)];                                       \
-      if (yoffset == 0) {                                                    \
-        var_filter_block2d_bil_w##w(src, tmp0, src_stride, 1, h, xoffset);   \
-        return aom_variance##w##x##h(tmp0, w, ref, ref_stride, sse);         \
-      } else if (yoffset == 4) {                                             \
-        uint8_t tmp1[w * h];                                                 \
-        var_filter_block2d_bil_w##w(src, tmp0, src_stride, 1, (h + padding), \
-                                    xoffset);                                \
-        var_filter_block2d_avg(tmp0, tmp1, w, w, w, h);                      \
-        return aom_variance##w##x##h(tmp1, w, ref, ref_stride, sse);         \
-      } else {                                                               \
-        uint8_t tmp1[w * h];                                                 \
-        var_filter_block2d_bil_w##w(src, tmp0, src_stride, 1, (h + padding), \
-                                    xoffset);                                \
-        var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);           \
-        return aom_variance##w##x##h(tmp1, w, ref, ref_stride, sse);         \
-      }                                                                      \
-    }                                                                        \
+#define SPECIALIZED_SUBPEL_VARIANCE_WXH_NEON(w, h, padding)                   \
+  unsigned int aom_sub_pixel_variance##w##x##h##_neon(                        \
+      const uint8_t *src, int src_stride, int xoffset, int yoffset,           \
+      const uint8_t *ref, int ref_stride, unsigned int *sse) {                \
+    if (xoffset == 0) {                                                       \
+      if (yoffset == 0) {                                                     \
+        return aom_variance##w##x##h##_neon(src, src_stride, ref, ref_stride, \
+                                            sse);                             \
+      } else if (yoffset == 4) {                                              \
+        uint8_t tmp[w * h];                                                   \
+        var_filter_block2d_avg(src, tmp, src_stride, src_stride, w, h);       \
+        return aom_variance##w##x##h##_neon(tmp, w, ref, ref_stride, sse);    \
+      } else {                                                                \
+        uint8_t tmp[w * h];                                                   \
+        var_filter_block2d_bil_w##w(src, tmp, src_stride, src_stride, h,      \
+                                    yoffset);                                 \
+        return aom_variance##w##x##h##_neon(tmp, w, ref, ref_stride, sse);    \
+      }                                                                       \
+    } else if (xoffset == 4) {                                                \
+      uint8_t tmp0[w * (h + padding)];                                        \
+      if (yoffset == 0) {                                                     \
+        var_filter_block2d_avg(src, tmp0, src_stride, 1, w, h);               \
+        return aom_variance##w##x##h##_neon(tmp0, w, ref, ref_stride, sse);   \
+      } else if (yoffset == 4) {                                              \
+        uint8_t tmp1[w * (h + padding)];                                      \
+        var_filter_block2d_avg(src, tmp0, src_stride, 1, w, (h + padding));   \
+        var_filter_block2d_avg(tmp0, tmp1, w, w, w, h);                       \
+        return aom_variance##w##x##h##_neon(tmp1, w, ref, ref_stride, sse);   \
+      } else {                                                                \
+        uint8_t tmp1[w * (h + padding)];                                      \
+        var_filter_block2d_avg(src, tmp0, src_stride, 1, w, (h + padding));   \
+        var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);            \
+        return aom_variance##w##x##h##_neon(tmp1, w, ref, ref_stride, sse);   \
+      }                                                                       \
+    } else {                                                                  \
+      uint8_t tmp0[w * (h + padding)];                                        \
+      if (yoffset == 0) {                                                     \
+        var_filter_block2d_bil_w##w(src, tmp0, src_stride, 1, h, xoffset);    \
+        return aom_variance##w##x##h##_neon(tmp0, w, ref, ref_stride, sse);   \
+      } else if (yoffset == 4) {                                              \
+        uint8_t tmp1[w * h];                                                  \
+        var_filter_block2d_bil_w##w(src, tmp0, src_stride, 1, (h + padding),  \
+                                    xoffset);                                 \
+        var_filter_block2d_avg(tmp0, tmp1, w, w, w, h);                       \
+        return aom_variance##w##x##h##_neon(tmp1, w, ref, ref_stride, sse);   \
+      } else {                                                                \
+        uint8_t tmp1[w * h];                                                  \
+        var_filter_block2d_bil_w##w(src, tmp0, src_stride, 1, (h + padding),  \
+                                    xoffset);                                 \
+        var_filter_block2d_bil_w##w(tmp0, tmp1, w, w, h, yoffset);            \
+        return aom_variance##w##x##h##_neon(tmp1, w, ref, ref_stride, sse);   \
+      }                                                                       \
+    }                                                                         \
   }
 
 SUBPEL_VARIANCE_WXH_NEON(4, 4, 2)
