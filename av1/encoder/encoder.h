@@ -791,9 +791,12 @@ typedef struct {
 } InputCfg;
 
 typedef struct {
-  // If true, encoder will use fixed QP offsets, that are either:
+  // Controls how the encoder applies fixed QP offsets.
+  // If the value is 0, QP offsets are chosen adaptively.
+  // If the value is 1, fixed QP offsets are either:
   // - Given by the user, and stored in 'fixed_qp_offsets' array, OR
   // - Picked automatically from cq_level.
+  // If the value is 2, no QP offsets will be applied.
   int use_fixed_qp_offsets;
   // Indicates the minimum flatness of the quantization matrix.
   int qm_minlevel;

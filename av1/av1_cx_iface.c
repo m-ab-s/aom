@@ -851,7 +851,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   }
 
   if (cfg->rc_end_usage == AOM_Q) {
-    RANGE_CHECK_HI(cfg, use_fixed_qp_offsets, 1);
+    RANGE_CHECK_HI(cfg, use_fixed_qp_offsets, 2);
   } else {
     if (cfg->use_fixed_qp_offsets > 0) {
       ERROR("--use_fixed_qp_offsets can only be used with --end-usage=q");
@@ -1291,7 +1291,8 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
   q_cfg->deltaq_mode = extra_cfg->deltaq_mode;
   q_cfg->deltaq_strength = extra_cfg->deltaq_strength;
   q_cfg->use_fixed_qp_offsets =
-      cfg->use_fixed_qp_offsets && (rc_cfg->mode == AOM_Q);
+      (rc_cfg->mode == AOM_Q) ? cfg->use_fixed_qp_offsets : 0;
+
   q_cfg->enable_hdr_deltaq =
       (q_cfg->deltaq_mode == DELTA_Q_HDR) &&
       (cfg->g_bit_depth == AOM_BITS_10) &&

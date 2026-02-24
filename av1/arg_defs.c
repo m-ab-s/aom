@@ -641,11 +641,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
 
   .use_fixed_qp_offsets =
       ARG_DEF(NULL, "use-fixed-qp-offsets", 1,
-              "Enable fixed QP offsets for frames at different levels of the "
-              "pyramid. Selected automatically from --cq-level if "
-              "--fixed-qp-offsets is not provided. If this option is not "
-              "specified (default), offsets are adaptively chosen by the "
-              "encoder."),
+              "Controls how the encoder applies fixed QP offsets for frames at "
+              "different levels of the pyramid (0: adaptively-chosen offsets "
+              "from --cq-level if --fixed-qp-offsets is not provided "
+              "(default), 1: fixed QP offsets, 2: no QP offsets)"),
 
   .fixed_qp_offsets = ARG_DEF(
       NULL, "fixed-qp-offsets", 1,

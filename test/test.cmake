@@ -237,6 +237,7 @@ if(NOT BUILD_SHARED_LIBS)
               "${AOM_ROOT}/test/subtract_test.cc"
               "${AOM_ROOT}/test/sum_squares_test.cc"
               "${AOM_ROOT}/test/sse_sum_test.cc"
+              "${AOM_ROOT}/test/use_fixed_qp_offsets_test.cc"
               "${AOM_ROOT}/test/variance_test.cc"
               "${AOM_ROOT}/test/warp_filter_test.cc"
               "${AOM_ROOT}/test/warp_filter_test_util.cc"
