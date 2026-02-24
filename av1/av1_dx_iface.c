@@ -62,6 +62,7 @@ struct aom_codec_alg_priv {
   unsigned int is_annexb;
   int operating_point;
   int output_all_layers;
+  unsigned int frame_size_limit;
 
   AVxWorker *frame_worker;
 
@@ -112,6 +113,8 @@ static aom_codec_err_t decoder_init(aom_codec_ctx_t *ctx) {
     priv->tile_mode = 0;
     priv->decode_tile_row = -1;
     priv->decode_tile_col = -1;
+
+    priv->frame_size_limit = 0;
   }
 
   return AOM_CODEC_OK;
@@ -485,6 +488,8 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   // thread or loopfilter thread.
   frame_worker_data->pbi->max_threads = ctx->cfg.threads;
   frame_worker_data->pbi->inv_tile_order = ctx->invert_tile_order;
+  frame_worker_data->pbi->common.decode_frame_size_limit =
+      ctx->frame_size_limit;
   frame_worker_data->pbi->common.tiles.large_scale = ctx->tile_mode;
   frame_worker_data->pbi->is_annexb = ctx->is_annexb;
   frame_worker_data->pbi->dec_tile_row = ctx->decode_tile_row;
@@ -1584,6 +1589,12 @@ static aom_codec_err_t ctrl_set_skip_film_grain(aom_codec_alg_priv_t *ctx,
   return AOM_CODEC_OK;
 }
 
+static aom_codec_err_t ctrl_set_frame_size_limit(aom_codec_alg_priv_t *ctx,
+                                                 va_list args) {
+  ctx->frame_size_limit = va_arg(args, unsigned int);
+  return AOM_CODEC_OK;
+}
+
 static aom_codec_err_t ctrl_get_accounting(aom_codec_alg_priv_t *ctx,
                                            va_list args) {
 #if !CONFIG_ACCOUNTING
@@ -1691,6 +1702,7 @@ static aom_codec_ctrl_fn_map_t decoder_ctrl_maps[] = {
   { AV1D_SET_ROW_MT, ctrl_set_row_mt },
   { AV1D_SET_EXT_REF_PTR, ctrl_set_ext_ref_ptr },
   { AV1D_SET_SKIP_FILM_GRAIN, ctrl_set_skip_film_grain },
+  { AOMD_SET_FRAME_SIZE_LIMIT, ctrl_set_frame_size_limit },
 
   // Getters
   { AOMD_GET_FRAME_CORRUPTED, ctrl_get_frame_corrupted },

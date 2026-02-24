@@ -51,6 +51,7 @@ list(APPEND AOM_UNIT_TEST_COMMON_SOURCES
 add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_SOURCES)
 
 list(APPEND AOM_UNIT_TEST_DECODER_SOURCES "${AOM_ROOT}/test/decode_api_test.cc"
+            "${AOM_ROOT}/test/decode_frame_size_limit_test.cc"
             "${AOM_ROOT}/test/decode_scalability_test.cc"
             "${AOM_ROOT}/test/external_frame_buffer_test.cc"
             "${AOM_ROOT}/test/invalid_file_test.cc"

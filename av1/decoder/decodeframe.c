@@ -1957,6 +1957,12 @@ static inline void resize_context_buffers(AV1_COMMON *cm, int width,
                        "Dimensions of %dx%d beyond allowed size of %dx%d.",
                        width, height, DECODE_WIDTH_LIMIT, DECODE_HEIGHT_LIMIT);
 #endif
+  if (cm->decode_frame_size_limit &&
+      (uint64_t)width * height > cm->decode_frame_size_limit) {
+    aom_internal_error(cm->error, AOM_CODEC_CORRUPT_FRAME,
+                       "Dimensions of %dx%d beyond allowed size of %u.", width,
+                       height, cm->decode_frame_size_limit);
+  }
   if (cm->width != width || cm->height != height) {
     const int new_mi_rows = CEIL_POWER_OF_TWO(height, MI_SIZE_LOG2);
     const int new_mi_cols = CEIL_POWER_OF_TWO(width, MI_SIZE_LOG2);
