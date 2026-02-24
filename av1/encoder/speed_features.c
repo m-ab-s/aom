@@ -774,7 +774,7 @@ static void set_good_speed_feature_framesize_dependent(
 
   if (speed >= 1) {
     sf->part_sf.ml_4_partition_search_level_index = 1;
-    if (is_480p_or_lesser) sf->inter_sf.skip_newmv_in_drl = 1;
+    sf->inter_sf.skip_newmv_in_drl = 1;
 
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
