@@ -6257,6 +6257,13 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
 
     txfm_info->skip_txfm = 0;
     sf_args.num_single_modes_processed += is_single_pred;
+
+    const bool optimized_init = !cpi->oxcf.fp_mt;
+    if (!optimized_init) {
+      init_mbmi(mbmi, this_mode, ref_frames, cm);
+      set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
+    }
+
 #if CONFIG_COLLECT_COMPONENT_TIMING
     start_timing(cpi, skip_inter_mode_time);
 #endif
@@ -6268,8 +6275,10 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
 #endif
     if (is_skip_inter_mode) continue;
 
-    init_mbmi(mbmi, this_mode, ref_frames, cm);
-    set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
+    if (optimized_init) {
+      init_mbmi(mbmi, this_mode, ref_frames, cm);
+      set_ref_ptrs(cm, xd, ref_frame, second_ref_frame);
+    }
 
     // Select prediction reference frames.
     for (i = 0; i < num_planes; i++) {
