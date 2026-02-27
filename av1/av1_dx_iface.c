@@ -488,14 +488,13 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
   // thread or loopfilter thread.
   frame_worker_data->pbi->max_threads = ctx->cfg.threads;
   frame_worker_data->pbi->inv_tile_order = ctx->invert_tile_order;
-  frame_worker_data->pbi->common.decode_frame_size_limit =
-      ctx->frame_size_limit;
   frame_worker_data->pbi->common.tiles.large_scale = ctx->tile_mode;
   frame_worker_data->pbi->is_annexb = ctx->is_annexb;
   frame_worker_data->pbi->dec_tile_row = ctx->decode_tile_row;
   frame_worker_data->pbi->dec_tile_col = ctx->decode_tile_col;
   frame_worker_data->pbi->operating_point = ctx->operating_point;
   frame_worker_data->pbi->output_all_layers = ctx->output_all_layers;
+  frame_worker_data->pbi->frame_size_limit = ctx->frame_size_limit;
   frame_worker_data->pbi->ext_tile_debug = ctx->ext_tile_debug;
   frame_worker_data->pbi->row_mt = ctx->row_mt;
   frame_worker_data->pbi->is_fwd_kf_present = 0;
