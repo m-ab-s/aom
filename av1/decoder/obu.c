@@ -66,11 +66,11 @@ static int is_obu_in_current_operating_point(AV1Decoder *pbi,
   return 0;
 }
 
-static void byte_alignment(AV1Decoder *pbi,
+static void byte_alignment(struct aom_internal_error_info *error_info,
                            struct aom_read_bit_buffer *const rb) {
   while (rb->bit_offset & 7) {
     if (aom_rb_read_bit(rb)) {
-      aom_internal_error(&pbi->error, AOM_CODEC_CORRUPT_FRAME,
+      aom_internal_error(error_info, AOM_CODEC_CORRUPT_FRAME,
                          "byte_alignment() is not all 0 bits");
     }
   }
@@ -343,7 +343,7 @@ static uint32_t read_one_tile_group_obu(
 
   uint32_t header_size = read_tile_group_header(pbi, rb, &start_tile, &end_tile,
                                                 tile_start_implicit);
-  byte_alignment(pbi, rb);
+  byte_alignment(&pbi->error, rb);
   data += header_size;
   av1_decode_tg_tiles_and_wrapup(pbi, data, data_end, p_data_end, start_tile,
                                  end_tile, is_first_tg);
@@ -827,9 +827,10 @@ static size_t read_metadata(AV1Decoder *pbi, const uint8_t *data, size_t sz,
   return type_length + (rb.bit_offset >> 3);
 }
 
-// On success, returns 'sz'. On failure, sets pbi->error.error_code and returns
+// On success, returns 'sz'. On failure, sets error_info->error_code and returns
 // 0.
-static size_t read_padding(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
+static size_t read_padding(struct aom_internal_error_info *error_info,
+                           const uint8_t *data, size_t sz) {
   // The spec allows a padding OBU to be header-only (i.e., obu_size = 0). So
   // check trailing bits only if sz > 0.
   if (sz > 0) {
@@ -837,7 +838,7 @@ static size_t read_padding(AV1Decoder *pbi, const uint8_t *data, size_t sz) {
     // trailing byte should be 0x80. See https://crbug.com/aomedia/2393.
     const uint8_t last_nonzero_byte = get_last_nonzero_byte(data, sz);
     if (last_nonzero_byte != 0x80) {
-      pbi->error.error_code = AOM_CODEC_CORRUPT_FRAME;
+      error_info->error_code = AOM_CODEC_CORRUPT_FRAME;
       return 0;
     }
   }
@@ -1024,7 +1025,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (obu_header.type != OBU_FRAME) break;
         obu_payload_offset = frame_header_size;
         // Byte align the reader before reading the tile group.
-        byte_alignment(pbi, &rb);
+        byte_alignment(&pbi->error, &rb);
         AOM_FALLTHROUGH_INTENDED;  // fall through to read tile group.
       case OBU_TILE_GROUP:
         if (!pbi->seen_frame_header) {
@@ -1073,7 +1074,7 @@ int aom_decode_frame_from_obus(struct AV1Decoder *pbi, const uint8_t *data,
         if (pbi->error.error_code != AOM_CODEC_OK) return -1;
         break;
       case OBU_PADDING:
-        decoded_payload_size = read_padding(pbi, data, payload_size);
+        decoded_payload_size = read_padding(&pbi->error, data, payload_size);
         if (pbi->error.error_code != AOM_CODEC_OK) return -1;
         break;
       default:
