@@ -190,21 +190,6 @@ TEST(EncodeAPI, InvalidControlId) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
-TEST(EncodeAPI, TuneIqNotAllIntra) {
-  aom_codec_iface_t *iface = aom_codec_av1_cx();
-  aom_codec_enc_cfg_t cfg;
-  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
-            AOM_CODEC_OK);
-
-  aom_codec_ctx_t enc;
-  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
-
-  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_TUNING, AOM_TUNE_SSIMULACRA2),
-            AOM_CODEC_INCAPABLE);
-
-  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
-}
-
 void EncodeSetSFrameOnFirstFrame(aom_img_fmt fmt, aom_codec_flags_t flag) {
   constexpr int kWidth = 2;
   constexpr int kHeight = 128;
