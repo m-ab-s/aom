@@ -442,6 +442,20 @@ if(EMSCRIPTEN)
   unset(AOM_LIB_LINK_TYPE)
 endif()
 
+# Sanitize boolean variables to ensure they are 0 or 1.
+foreach(aom_config_var ${AOM_CONFIG_VARS})
+  if(
+    NOT aom_config_var MATCHES
+    "AOM_RTCD_FLAGS|CONFIG_MAX_DECODE_PROFILE|DECODE_HEIGHT_LIMIT|DECODE_WIDTH_LIMIT"
+    )
+    if(${aom_config_var})
+      set(${aom_config_var} 1)
+    else()
+      set(${aom_config_var} 0)
+    endif()
+  endif()
+endforeach()
+
 # Generate aom_config templates.
 set(aom_config_asm_template "${AOM_CONFIG_DIR}/config/aom_config.asm.cmake")
 set(aom_config_h_template "${AOM_CONFIG_DIR}/config/aom_config.h.cmake")
