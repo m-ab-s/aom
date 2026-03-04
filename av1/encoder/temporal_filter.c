@@ -46,6 +46,9 @@
 
 // NOTE: All `tf` in this file means `temporal filtering`.
 
+// Number of 16x16 blocks within one 64x64 TF block.
+#define NUM_16X16 16
+
 // Forward Declaration.
 static void tf_determine_block_partition(const MV block_mv, const int block_mse,
                                          const MV *midblock_mvs,
@@ -433,7 +436,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
                                  midblock_mses, subblock_mvs, subblock_mses);
   } else {
     // Copy 64X64 block mv and mse values to sub blocks
-    for (int i = 0; i < 16; ++i) {
+    for (int i = 0; i < NUM_16X16; ++i) {
       subblock_mvs[i] = block_mv;
       subblock_mses[i] = block_mse;
     }
@@ -498,7 +501,7 @@ static void tf_determine_block_partition(const MV block_mv, const int block_mse,
   min_subblock_mse = INT_MAX;
   max_subblock_mse = INT_MIN;
   sum_subblock_mse = 0;
-  for (i = 0; i < 16; ++i) {
+  for (i = 0; i < NUM_16X16; ++i) {
     sum_subblock_mse += subblock_mses[i];
     min_subblock_mse = AOMMIN(min_subblock_mse, subblock_mses[i]);
     max_subblock_mse = AOMMAX(max_subblock_mse, subblock_mses[i]);
@@ -509,7 +512,7 @@ static void tf_determine_block_partition(const MV block_mv, const int block_mse,
       ((block_mse * 14 <= sum_subblock_mse) &&
        (max_subblock_mse - min_subblock_mse) * 8 <
            sum_subblock_mse)) {  // No split.
-    for (i = 0; i < 16; ++i) {
+    for (i = 0; i < NUM_16X16; ++i) {
       subblock_mvs[i] = block_mv;
       subblock_mses[i] = block_mse;
     }
@@ -835,6 +838,18 @@ void av1_apply_temporal_filter_c(
     decay_factor[plane] = 1 / (n_decay * q_decay * s_decay);
   }
 
+  // Figure out each 16x16 block's d_factor beforehand.
+  double d_factor[NUM_16X16] = { 0 };
+  for (int subblock_idx = 0; subblock_idx < NUM_16X16; subblock_idx++) {
+    // Larger motion vector -> smaller filtering weight.
+    const MV mv = subblock_mvs[subblock_idx];
+    const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
+    double distance_threshold = min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD;
+    distance_threshold = AOMMAX(distance_threshold, 1);
+    d_factor[subblock_idx] = distance / distance_threshold;
+    d_factor[subblock_idx] = AOMMAX(d_factor[subblock_idx], 1);
+  }
+
   // Allocate memory for pixel-wise squared differences. They,
   // regardless of the subsampling, are assigned with memory of size `mb_pels`.
   uint32_t *square_diff = aom_memalign(16, mb_pels * sizeof(uint32_t));
@@ -920,15 +935,9 @@ void av1_apply_temporal_filter_c(
         const double combined_error =
             weight_factor * window_error + block_error * inv_factor;
 
-        // Larger motion vector -> smaller filtering weight.
-        const MV mv = subblock_mvs[subblock_idx];
-        const double distance = sqrt(pow(mv.row, 2) + pow(mv.col, 2));
-        const double distance_threshold =
-            (double)AOMMAX(min_frame_size * TF_SEARCH_DISTANCE_THRESHOLD, 1);
-        const double d_factor = AOMMAX(distance / distance_threshold, 1);
-
         // Compute filter weight.
-        double scaled_error = combined_error * d_factor * decay_factor[plane];
+        double scaled_error =
+            combined_error * d_factor[subblock_idx] * decay_factor[plane];
         scaled_error = AOMMIN(scaled_error, 7);
         int weight;
         if (tf_wgt_calc_lvl == 0) {
@@ -1105,14 +1114,14 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
       // Motion search.
       // block size is 64x64. 16 16x16 in 1 64x64.
       // Store motion search results in 16x16 units.
-      MV subblock_mvs[16] = { kZeroMv, kZeroMv, kZeroMv, kZeroMv,
-                              kZeroMv, kZeroMv, kZeroMv, kZeroMv,
-                              kZeroMv, kZeroMv, kZeroMv, kZeroMv,
-                              kZeroMv, kZeroMv, kZeroMv, kZeroMv };
-      int subblock_mses[16] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX,
-                                INT_MAX, INT_MAX, INT_MAX, INT_MAX,
-                                INT_MAX, INT_MAX, INT_MAX, INT_MAX,
-                                INT_MAX, INT_MAX, INT_MAX, INT_MAX };
+      MV subblock_mvs[NUM_16X16] = { kZeroMv, kZeroMv, kZeroMv, kZeroMv,
+                                     kZeroMv, kZeroMv, kZeroMv, kZeroMv,
+                                     kZeroMv, kZeroMv, kZeroMv, kZeroMv,
+                                     kZeroMv, kZeroMv, kZeroMv, kZeroMv };
+      int subblock_mses[NUM_16X16] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX,
+                                       INT_MAX, INT_MAX, INT_MAX, INT_MAX,
+                                       INT_MAX, INT_MAX, INT_MAX, INT_MAX,
+                                       INT_MAX, INT_MAX, INT_MAX, INT_MAX };
       int is_dc_diff_large = 0;
       int is_low_cntras = 0;
 
