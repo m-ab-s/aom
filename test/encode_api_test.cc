@@ -11,6 +11,7 @@
 
 #include <cassert>
 #include <climits>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -494,6 +495,8 @@ class AV1Encoder {
                  aom_rc_mode end_usage, unsigned int usage);
   void Encode(bool key_frame);
 
+  aom_codec_ctx_t *GetCodecCtx() { return &enc_; }
+
  private:
   // Flushes the encoder. Should be called after all the Encode() calls.
   void Flush();
@@ -532,6 +535,32 @@ void AV1Encoder::Configure(unsigned int threads, unsigned int width,
     cfg_.rc_max_quantizer = 58;
     ASSERT_EQ(aom_codec_enc_init(&enc_, iface, &cfg_, 0), AOM_CODEC_OK);
     ASSERT_EQ(aom_codec_control(&enc_, AOME_SET_CPUUSED, speed_), AOM_CODEC_OK);
+
+    const int log2_threads =
+        (cfg_.g_threads == 0) ? 0 : static_cast<int>(std::log2(cfg_.g_threads));
+    int tile_columns_log2 = 0;
+    int tile_rows_log2 = 0;
+    switch (log2_threads) {
+      case 4:
+        tile_columns_log2 = 2;
+        tile_rows_log2 = 2;
+        break;
+      case 3:
+        tile_columns_log2 = 2;
+        tile_rows_log2 = 1;
+        break;
+      case 2:
+        tile_columns_log2 = 1;
+        tile_rows_log2 = 1;
+        break;
+      default: tile_columns_log2 = log2_threads;
+    }
+    ASSERT_EQ(
+        aom_codec_control(&enc_, AV1E_SET_TILE_COLUMNS, tile_columns_log2),
+        AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_control(&enc_, AV1E_SET_TILE_ROWS, tile_rows_log2),
+              AOM_CODEC_OK);
+
     initialized_ = true;
     return;
   }
@@ -979,6 +1008,60 @@ TEST(EncodeAPI, Buganizer392929025) {
   // Free resources.
   aom_img_free(image);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+void ReproBuganizer487259772(const bool row_mt, int initial_threads = 2) {
+  AV1Encoder encoder(7);
+
+  encoder.Configure(initial_threads, 800, 600, AOM_VBR, AOM_USAGE_REALTIME);
+  // This is not exposed by the WebCodecs interface. It's set to 1 in Chrome's
+  // implementation.
+  ASSERT_EQ(aom_codec_control(encoder.GetCodecCtx(), AV1E_SET_ROW_MT, row_mt),
+            AOM_CODEC_OK);
+  encoder.Encode(false);
+  encoder.Encode(false);
+  encoder.Encode(false);
+
+  encoder.Configure(1, 352, 288, AOM_VBR, AOM_USAGE_REALTIME);
+  encoder.Encode(false);
+  encoder.Encode(false);
+  encoder.Encode(false);
+  encoder.Encode(false);
+
+  encoder.Configure(1, 48, 480, AOM_VBR, AOM_USAGE_REALTIME);
+  encoder.Encode(false);
+  encoder.Encode(true);
+  encoder.Encode(false);
+
+  encoder.Configure(1, 8, 8, AOM_VBR, AOM_USAGE_REALTIME);
+  encoder.Encode(false);
+  encoder.Encode(false);
+
+  encoder.Configure(1, 24, 24, AOM_VBR, AOM_USAGE_REALTIME);
+  encoder.Encode(false);
+  encoder.Encode(false);
+
+  encoder.Configure(1, 97, 53, AOM_VBR, AOM_USAGE_REALTIME);
+  encoder.Encode(false);
+  encoder.Encode(false);
+
+  encoder.Configure(1, 32, 320, AOM_VBR, AOM_USAGE_REALTIME);
+  encoder.Encode(false);
+  encoder.Encode(false);
+}
+
+TEST(EncodeAPI, Buganizer487259772NoThreads) {
+  ReproBuganizer487259772(/*row_mt=*/false, /*initial_threads=*/1);
+}
+
+// TODO: bug 487259772 - Enable this test after assertion/crash (NULL mbmi) in
+// av1_loopfilter is fixed.
+TEST(EncodeAPI, DISABLED_Buganizer487259772NoRowMT) {
+  ReproBuganizer487259772(/*row_mt=*/false);
+}
+
+TEST(EncodeAPI, Buganizer487259772RowMT) {
+  ReproBuganizer487259772(/*row_mt=*/true);
 }
 
 class EncodeAPIParameterized
