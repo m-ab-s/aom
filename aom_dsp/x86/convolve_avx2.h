@@ -22,6 +22,10 @@
 #include "av1/common/convolve.h"
 #include "av1/common/filter.h"
 
+#define SECOND_32_BLK (32)
+#define THIRD_32_BLK (32 << 1)
+#define FOURTH_32_BLK (SECOND_32_BLK + THIRD_32_BLK)
+
 // filters for 16
 DECLARE_ALIGNED(32, static const uint8_t, filt_global_avx2[]) = {
   0,  1,  1,  2,  2, 3,  3,  4,  4,  5,  5,  6,  6,  7,  7,  8,  0,  1,  1,
@@ -56,6 +60,18 @@ DECLARE_ALIGNED(32, static const uint8_t,
 DECLARE_ALIGNED(32, static const uint8_t,
                 filt2_global_sse2[16]) = { 2,  3,  3,  4,  4,  5,  5,  6,
                                            10, 11, 11, 12, 12, 13, 13, 14 };
+
+DECLARE_ALIGNED(32, static const uint8_t,
+                filt3_global_sse2[16]) = { 0, 1, 1, 2, 8, 9, 9, 10,
+                                           0, 0, 0, 0, 0, 0, 0, 0 };
+
+DECLARE_ALIGNED(32, static const uint8_t,
+                filt4_global_sse2[16]) = { 2, 3, 3, 4, 10, 11, 11, 12,
+                                           0, 0, 0, 0, 0,  0,  0,  0 };
+
+DECLARE_ALIGNED(32, static const uint8_t,
+                filt5_global_sse2[16]) = { 0, 1, 1, 2, 4, 5, 5, 6,
+                                           0, 0, 0, 0, 0, 0, 0, 0 };
 
 DECLARE_ALIGNED(32, static const uint8_t,
                 filt1_global_avx2[32]) = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
@@ -1161,6 +1177,297 @@ static inline __m256i highbd_convolve_rounding(
       _mm256_add_epi32(res_signed, *round_const), round_shift);
 
   return res_round;
+}
+
+static inline __m256i round_sr_x_avx2(const __m256i data) {
+  // we can perform the below steps:
+  // data = (data + 2) >> 2
+  // data = (data + 8) >> 4,
+  // in the below form as well
+  // data = (data + 0x22) >> 6
+  const __m256i value = _mm256_set1_epi16(34);
+  const __m256i reg = _mm256_add_epi16(data, value);
+  return _mm256_srai_epi16(reg, 6);
+}
+
+static inline __m128i convolve_x_4tap_4x2_ssse3(const uint8_t *const src,
+                                                const ptrdiff_t src_stride,
+                                                __m128i *const coeffs) {
+  __m128i data[2];
+  const __m128i f_l0 = _mm_load_si128((__m128i const *)filt1_global_sse2);
+  const __m128i f_l1 = _mm_load_si128((__m128i const *)filt2_global_sse2);
+  const __m128i src_1 =
+      load_8bit_8x2_to_1_reg_sse2(src, (int)(sizeof(*src) * src_stride));
+
+  data[0] = _mm_shuffle_epi8(src_1, f_l0);
+  data[1] = _mm_shuffle_epi8(src_1, f_l1);
+  return convolve_lowbd_4tap_ssse3(data, coeffs);
+}
+
+static inline __m128i round_sr_x_ssse3(const __m128i data) {
+  const __m128i val = _mm_set1_epi16(34);
+  const __m128i reg = _mm_add_epi16(data, val);
+  return _mm_srai_epi16(reg, 6);
+}
+
+static inline void store_x_u8_4x2_sse2(const __m128i reg, uint8_t *const dst,
+                                       const ptrdiff_t dst_stride) {
+  xx_storel_32(dst, reg);
+  *(uint32_t *)(dst + dst_stride) =
+      ((uint32_t)_mm_extract_epi16(reg, 3) << 16) | _mm_extract_epi16(reg, 2);
+}
+
+static inline void pack_store_x_4x2_sse2(const __m128i reg, uint8_t *const dst,
+                                         const ptrdiff_t dst_stride) {
+  const __m128i reg_pack = _mm_packus_epi16(reg, reg);
+  store_x_u8_4x2_sse2(reg_pack, dst, dst_stride);
+}
+
+static inline __m128i convolve_x_4tap_2x2_ssse3(const uint8_t *const src,
+                                                const ptrdiff_t src_stride,
+                                                __m128i *const coeffs) {
+  __m128i data[2];
+  const __m128i f_0 = _mm_load_si128((__m128i const *)filt3_global_sse2);
+  const __m128i f_1 = _mm_load_si128((__m128i const *)filt4_global_sse2);
+  const __m128i reg =
+      load_8bit_8x2_to_1_reg_sse2(src, (int)(sizeof(*src) * src_stride));
+
+  data[0] = _mm_shuffle_epi8(reg, f_0);
+  data[1] = _mm_shuffle_epi8(reg, f_1);
+  return convolve_lowbd_4tap_ssse3(data, coeffs);
+}
+
+static inline void pack_store_x_2x2_sse2(const __m128i reg, uint8_t *const dst,
+                                         const ptrdiff_t dst_stride) {
+  const __m128i data = _mm_packus_epi16(reg, reg);
+  *(int16_t *)dst = (int16_t)_mm_cvtsi128_si32(data);
+  *(int16_t *)(dst + dst_stride) = (int16_t)_mm_extract_epi16(data, 1);
+}
+
+static inline __m128i convolve_x_2tap_ssse3(const __m128i *data,
+                                            const __m128i *coeff) {
+  return _mm_maddubs_epi16(data[0], coeff[0]);
+}
+
+static inline __m128i load8_x_4x2_sse4(const void *const src,
+                                       const ptrdiff_t offset) {
+  const __m128i s = _mm_cvtsi32_si128(loadu_int32(src));
+  return _mm_insert_epi32(s, loadu_int32((uint8_t *)src + offset), 1);
+}
+
+static inline __m128i load_x_u8_4x2_sse4(const uint8_t *const src,
+                                         const ptrdiff_t stride) {
+  return load8_x_4x2_sse4(src, sizeof(*src) * stride);
+}
+
+static inline __m128i convolve_x_2tap_2x2_ssse3(const uint8_t *const src,
+                                                const ptrdiff_t stride,
+                                                const __m128i *coeffs) {
+  const __m128i flt = _mm_load_si128((__m128i const *)filt5_global_sse2);
+  const __m128i reg = load_x_u8_4x2_sse4(src, stride);
+  const __m128i data = _mm_shuffle_epi8(reg, flt);
+  return convolve_x_2tap_ssse3(&data, coeffs);
+}
+
+static inline __m128i convolve_x_2tap_4x2_ssse3(const uint8_t *const src,
+                                                const ptrdiff_t stride,
+                                                const __m128i *coeffs) {
+  const __m128i flt = _mm_load_si128((__m128i const *)filt1_global_sse2);
+  const __m128i data =
+      load_8bit_8x2_to_1_reg_sse2(src, (int)(sizeof(*src) * stride));
+  const __m128i res = _mm_shuffle_epi8(data, flt);
+  return convolve_x_2tap_ssse3(&res, coeffs);
+}
+
+static inline void convolve_x_2tap_8x2_ssse3(const uint8_t *const src,
+                                             const ptrdiff_t stride,
+                                             const __m128i *coeffs,
+                                             __m128i *data) {
+  __m128i res[2];
+  const __m128i reg_00 = _mm_loadu_si128((__m128i *)src);
+  const __m128i reg_10 = _mm_loadu_si128((__m128i *)(src + stride));
+  const __m128i reg_01 = _mm_srli_si128(reg_00, 1);
+  const __m128i reg_11 = _mm_srli_si128(reg_10, 1);
+  res[0] = _mm_unpacklo_epi8(reg_00, reg_01);
+  res[1] = _mm_unpacklo_epi8(reg_10, reg_11);
+
+  data[0] = convolve_x_2tap_ssse3(&res[0], coeffs);
+  data[1] = convolve_x_2tap_ssse3(&res[1], coeffs);
+}
+
+static inline __m256i loadu_x_8bit_16x2_avx2(const void *const src,
+                                             const ptrdiff_t offset) {
+  const __m128i reg0 = _mm_loadu_si128((__m128i *)src);
+  const __m128i reg1 = _mm_loadu_si128((__m128i *)((uint8_t *)src + offset));
+  return _mm256_setr_m128i(reg0, reg1);
+}
+
+static inline __m256i convolve_x_2tap_avx2(const __m256i *data,
+                                           const __m256i *coeffs) {
+  return _mm256_maddubs_epi16(data[0], coeffs[0]);
+}
+
+static inline void convolve_x_2tap_16x2_avx2(const uint8_t *const src,
+                                             const ptrdiff_t stride,
+                                             const __m256i *coeffs,
+                                             __m256i *data) {
+  const __m256i reg0 = loadu_x_8bit_16x2_avx2(src, stride);
+  const __m256i reg1 = loadu_x_8bit_16x2_avx2(src + 1, stride);
+  const __m256i res0 = _mm256_unpacklo_epi8(reg0, reg1);
+  const __m256i res1 = _mm256_unpackhi_epi8(reg0, reg1);
+  data[0] = convolve_x_2tap_avx2(&res0, coeffs);
+  data[1] = convolve_x_2tap_avx2(&res1, coeffs);
+}
+
+static inline void storeu_x_8bit_16x2_ssse3(const __m256i src, void *const dst,
+                                            const ptrdiff_t offset) {
+  const __m128i reg0 = _mm256_castsi256_si128(src);
+  const __m128i reg1 = _mm256_extracti128_si256(src, 1);
+  _mm_storeu_si128((__m128i *)dst, reg0);
+  _mm_storeu_si128((__m128i *)((uint8_t *)dst + offset), reg1);
+}
+
+static inline void storeu_x_u8_16x2_ssse3(const __m256i src, uint8_t *const dst,
+                                          const ptrdiff_t stride) {
+  storeu_x_8bit_16x2_ssse3(src, dst, sizeof(*dst) * stride);
+}
+
+static inline void pack_store_x_16x2_avx2(const __m256i data0,
+                                          const __m256i data1,
+                                          uint8_t *const dst,
+                                          const ptrdiff_t stride) {
+  const __m256i res = _mm256_packus_epi16(data0, data1);
+  storeu_x_u8_16x2_ssse3(res, dst, stride);
+}
+
+static inline void round_pack_store_16x2_avx2(const __m256i *data,
+                                              uint8_t *const dst,
+                                              const ptrdiff_t dst_stride) {
+  __m256i reg[2];
+
+  reg[0] = round_sr_x_avx2(data[0]);
+  reg[1] = round_sr_x_avx2(data[1]);
+  pack_store_x_16x2_avx2(reg[0], reg[1], dst, dst_stride);
+}
+
+static inline void convolve_x_2tap_32_avx2(const uint8_t *const src,
+                                           const __m256i *coeffs,
+                                           __m256i *data) {
+  const __m256i res0 = _mm256_loadu_si256((__m256i *)src);
+  const __m256i res1 = _mm256_loadu_si256((__m256i *)(src + 1));
+  const __m256i reg0 = _mm256_unpacklo_epi8(res0, res1);
+  const __m256i reg1 = _mm256_unpackhi_epi8(res0, res1);
+
+  data[0] = convolve_x_2tap_avx2(&reg0, coeffs);
+  data[1] = convolve_x_2tap_avx2(&reg1, coeffs);
+}
+
+static inline void pack_store_x_avx2(const __m256i data0, const __m256i data1,
+                                     uint8_t *const dst) {
+  const __m256i reg = _mm256_packus_epi16(data0, data1);
+  _mm256_storeu_si256((__m256i *)dst, reg);
+}
+
+static inline void round_pack_store_32_avx2(const __m256i *data,
+                                            uint8_t *const dst) {
+  __m256i reg[2];
+
+  reg[0] = round_sr_x_avx2(data[0]);
+  reg[1] = round_sr_x_avx2(data[1]);
+  pack_store_x_avx2(reg[0], reg[1], dst);
+}
+
+static inline void convolve_round_2tap_32_avx2(const uint8_t *const src,
+                                               const __m256i *coeffs,
+                                               uint8_t *const dst) {
+  __m256i data[2];
+
+  convolve_x_2tap_32_avx2(src, coeffs, data);
+  round_pack_store_32_avx2(data, dst);
+}
+
+static inline void load_avg_store_2tap_32_avx2(const uint8_t *const src,
+                                               uint8_t *const dst) {
+  const __m256i res0 = _mm256_loadu_si256((__m256i *)src);
+  const __m256i res1 = _mm256_loadu_si256((__m256i *)(src + 1));
+  const __m256i data = _mm256_avg_epu8(res0, res1);
+  _mm256_storeu_si256((__m256i *)dst, data);
+}
+
+static inline __m256i load_convolve_8tap_8x2_avx2(const uint8_t *const src,
+                                                  const ptrdiff_t stride,
+                                                  const __m256i *coeffs,
+                                                  const __m256i *flt) {
+  const __m256i res = loadu_x_8bit_16x2_avx2(src, stride);
+  return convolve_lowbd_x(res, coeffs, flt);
+}
+
+static inline void load_convolve_8tap_16x2_avx2(const uint8_t *const src,
+                                                const int32_t src_stride,
+                                                const __m256i *coeffs,
+                                                const __m256i *flt,
+                                                __m256i *reg) {
+  reg[0] = load_convolve_8tap_8x2_avx2(src + 0, src_stride, coeffs, flt);
+  reg[1] = load_convolve_8tap_8x2_avx2(src + 8, src_stride, coeffs, flt);
+}
+
+static inline void load_convolve_8tap_32_avx2(const uint8_t *const src,
+                                              const __m256i *coeffs,
+                                              const __m256i *filt,
+                                              __m256i *data) {
+  const __m256i reg_0 = _mm256_loadu_si256((__m256i *)src);
+  const __m256i reg_8 = _mm256_loadu_si256((__m256i *)(src + 8));
+
+  data[0] = convolve_lowbd_x(reg_0, coeffs, filt);
+  data[1] = convolve_lowbd_x(reg_8, coeffs, filt);
+}
+
+static inline void load_convolve_round_8tap_32_avx2(const uint8_t *const src,
+                                                    const __m256i *coeffs,
+                                                    const __m256i *filt,
+                                                    uint8_t *const dst) {
+  __m256i data[2];
+
+  load_convolve_8tap_32_avx2(src, coeffs, filt, data);
+  round_pack_store_32_avx2(data, dst);
+}
+
+static inline void load_convolve_6tap_32_avx2(const uint8_t *const src,
+                                              const __m256i *coeffs,
+                                              const __m256i *filt,
+                                              __m256i *data) {
+  const __m256i reg0 = _mm256_loadu_si256((__m256i *)src);
+  const __m256i reg1 = _mm256_loadu_si256((__m256i *)(src + 8));
+
+  data[0] = convolve_lowbd_x_6tap(reg0, coeffs, filt);
+  data[1] = convolve_lowbd_x_6tap(reg1, coeffs, filt);
+}
+
+static inline void convolve_sr_store_6tap_32_avx2(const uint8_t *const src,
+                                                  const __m256i *coeffs,
+                                                  const __m256i *filt,
+                                                  uint8_t *const dst) {
+  __m256i data[2];
+
+  load_convolve_6tap_32_avx2(src, coeffs, filt, data);
+  round_pack_store_32_avx2(data, dst);
+}
+
+static inline __m256i load_convolve_6tap_8x2_avx2(const uint8_t *const src,
+                                                  const ptrdiff_t stride,
+                                                  const __m256i *coeffs,
+                                                  const __m256i *filt) {
+  const __m256i data = loadu_x_8bit_16x2_avx2(src, stride);
+  return convolve_lowbd_x_6tap(data, coeffs, filt);
+}
+
+static inline void load_convolve_6tap_16x2_avx2(const uint8_t *const src,
+                                                const int32_t src_stride,
+                                                const __m256i *coeffs,
+                                                const __m256i *filt,
+                                                __m256i *data) {
+  data[0] = load_convolve_6tap_8x2_avx2(src + 0, src_stride, coeffs, filt);
+  data[1] = load_convolve_6tap_8x2_avx2(src + 8, src_stride, coeffs, filt);
 }
 
 #endif  // AOM_AOM_DSP_X86_CONVOLVE_AVX2_H_
