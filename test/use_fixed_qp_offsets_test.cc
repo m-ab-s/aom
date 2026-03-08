@@ -57,7 +57,7 @@ class UseFixedQPOffsetsTest
     // interpret as the frame being read into the lookahead buffer.
     if (qp == 0) return;
 
-    if (use_fixed_qp_offsets_ == 2) {
+    if (cfg_.use_fixed_qp_offsets == 2) {
       // Setting use_fixed_qp_offsets = 2 means every frame should use the same
       // QP
       ASSERT_EQ(qp, frame_qp_);
@@ -74,7 +74,6 @@ class UseFixedQPOffsetsTest
   }
 
   int frame_qp_;
-  int use_fixed_qp_offsets_;
 };
 
 TEST_P(UseFixedQPOffsetsTest, TestQPOffsets) { DoTest(); }
