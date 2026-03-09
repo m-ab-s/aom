@@ -26,14 +26,17 @@ struct ThreadData;
 // TODO(wtc): These two variables are only used in avx2, sse2, neon
 // implementations, where the block size is still hard coded to TF_BLOCK_SIZE.
 // This should be fixed to align with the c implementation.
-#define BH 32
-#define BW 32
+#define BH 64
+#define BW 64
 
 // Block size used in temporal filtering.
 #define TF_BLOCK_SIZE BLOCK_64X64
 
 // Window size for temporal filtering.
 #define TF_WINDOW_LENGTH 5
+
+// Number of 16x16 blocks within one 64x64 TF block.
+#define NUM_16X16 16
 
 // A constant number, sqrt(pi / 2),  used for noise estimation.
 static const double SQRT_PI_BY_2 = 1.25331413732;

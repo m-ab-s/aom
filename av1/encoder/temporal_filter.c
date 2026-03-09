@@ -46,9 +46,6 @@
 
 // NOTE: All `tf` in this file means `temporal filtering`.
 
-// Number of 16x16 blocks within one 64x64 TF block.
-#define NUM_16X16 16
-
 // Forward Declaration.
 static void tf_determine_block_partition(const MV block_mv, const int block_mse,
                                          const MV *midblock_mvs,
@@ -1176,7 +1173,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
 #endif  // CONFIG_AV1_HIGHBITDEPTH
         } else {
           // for 8-bit
-          if (!is_yuv422_format && TF_BLOCK_SIZE == BLOCK_32X32 &&
+          if (!is_yuv422_format && TF_BLOCK_SIZE == BLOCK_64X64 &&
               TF_WINDOW_LENGTH == 5) {
             av1_apply_temporal_filter(
                 frame_to_filter, mbd, block_size, mb_row, mb_col, num_planes,
