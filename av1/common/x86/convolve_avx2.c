@@ -930,7 +930,7 @@ static inline void av1_convolve_x_sr_general_avx2(
             const __m128i data =
                 convolve_x_2tap_4x2_ssse3(src_ptr, src_stride, coeffs_128);
             const __m128i reg = round_sr_x_ssse3(data);
-            pack_store_4x2_sse2(reg, dst, dst_stride);
+            pack_store_x_4x2_sse2(reg, dst, dst_stride);
             src_ptr += 2 * src_stride;
             dst += 2 * dst_stride;
             h -= 2;
