@@ -784,7 +784,25 @@ static void get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
 }
 
 static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
-                          RD_STATS *rd_cost) {
+                          RD_STATS *rd_cost, bool is_inter_pred) {
+  if ((cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IQ ||
+       cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIMULACRA2) &&
+      is_inter_pred) {
+    // Tune IQ and SSIMULACRA2 are often used to encode layered AVIFs, where
+    // keyframes can be encoded at a lower quality (i.e. higher QP) than
+    // inter-coded frames.
+    // In this case, libaom tends to underestimate the true RD cost of inter
+    // prediction candidates, causing encoded file size to increase without a
+    // corresponding increase in quality.
+    // To compensate for this effect, make inter block candidates appear more
+    // expensive to the encoder to slightly bias toward intra prediction.
+    // Doing this increases overall compression efficiency, while still allowing
+    // the encoder to pick inter prediction when it's beneficial.
+    rd_cost->dist += rd_cost->dist >> 3;
+    rd_cost->rdcost += rd_cost->rdcost >> 3;
+    return;
+  }
+
   if (cpi->oxcf.algo_cfg.sharpness != 3) return;
 
   if (frame_is_kf_gf_arf(cpi)) return;
@@ -807,7 +825,14 @@ static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
 }
 
 static void adjust_cost(const AV1_COMP *cpi, const MACROBLOCK *x,
-                        int64_t *rd_cost) {
+                        int64_t *rd_cost, bool is_inter_pred) {
+  if ((cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IQ ||
+       cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIMULACRA2) &&
+      is_inter_pred) {
+    *rd_cost += *rd_cost >> 3;
+    return;
+  }
+
   if (cpi->oxcf.algo_cfg.sharpness != 3) return;
 
   if (frame_is_kf_gf_arf(cpi)) return;
@@ -1851,9 +1876,13 @@ static int64_t motion_mode_rd(
       }
     }
 
-    adjust_cost(cpi, x, &this_yrd);
-    adjust_rdcost(cpi, x, rd_stats);
-    adjust_rdcost(cpi, x, rd_stats_y);
+    if (this_yrd < INT64_MAX) {
+      adjust_cost(cpi, x, &this_yrd, /*is_inter_pred=*/true);
+    }
+    adjust_rdcost(cpi, x, rd_stats, /*is_inter_pred=*/true);
+    if (rd_stats_y->rdcost < INT64_MAX) {
+      adjust_rdcost(cpi, x, rd_stats_y, /*is_inter_pred=*/true);
+    }
 
     const int64_t tmp_rd = RDCOST(x->rdmult, rd_stats->rate, rd_stats->dist);
     if (mode_index == 0) {
@@ -5787,7 +5816,7 @@ static inline void search_intra_modes_in_interframe(
         &best_model_rd, top_intra_model_rd);
 
     if (intra_rd_y < INT64_MAX) {
-      adjust_cost(cpi, x, &intra_rd_y);
+      adjust_cost(cpi, x, &intra_rd_y, /*is_inter_pred=*/false);
     }
 
     if (is_luma_result_valid && intra_rd_y < yrd_threshold) {
@@ -5871,7 +5900,7 @@ static inline void search_intra_modes_in_interframe(
 
   intra_rd_stats.rdcost = this_rd;
 
-  adjust_rdcost(cpi, x, &intra_rd_stats);
+  adjust_rdcost(cpi, x, &intra_rd_stats, /*is_inter_pred=*/false);
 
   // Collect mode stats for multiwinner mode processing
   const int txfm_search_done = 1;
@@ -6343,8 +6372,8 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
       ref_frame_rd[ref_frame] = this_rd;
     }
 
-    adjust_cost(cpi, x, &this_rd);
-    adjust_rdcost(cpi, x, &rd_stats);
+    adjust_cost(cpi, x, &this_rd, /*is_inter_pred=*/true);
+    adjust_rdcost(cpi, x, &rd_stats, /*is_inter_pred=*/true);
 
     // Did this mode help, i.e., is it the new best mode
     if (this_rd < search_state.best_rd) {
