@@ -1374,12 +1374,26 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
         int eval_txfm = prune_mode_by_skip_rd(cpi, x, xd, bsize, ref_skip_rd,
                                               rs2 + *rate_mv);
+        int64_t est_rd = INT64_MAX;
+        RD_STATS est_rd_stats;
         if (eval_txfm) {
-          RD_STATS est_rd_stats;
-          estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
-
+          est_rd = estimate_yrd_for_sb(cpi, bsize, x, INT64_MAX, &est_rd_stats);
+        }
+        if (est_rd != INT64_MAX) {
           best_rd_cur = RDCOST(x->rdmult, rs2 + tmp_rate_mv + est_rd_stats.rate,
                                est_rd_stats.dist);
+          int rate_sum;
+          uint8_t tmp_skip_txfm_sb;
+          int64_t dist_sum, tmp_skip_sse_sb;
+          model_rd_sb_fn[MODELRD_TYPE_MASKED_COMPOUND](
+              cpi, bsize, x, xd, 0, 0, &rate_sum, &dist_sum, &tmp_skip_txfm_sb,
+              &tmp_skip_sse_sb, NULL, NULL, NULL);
+          comp_model_rd_cur =
+              RDCOST(x->rdmult, rs2 + tmp_rate_mv + rate_sum, dist_sum);
+          // Backup rate and distortion for future reuse
+          backup_stats(cur_type, comp_rate, comp_dist, comp_model_rate,
+                       comp_model_dist, rate_sum, dist_sum, &est_rd_stats,
+                       comp_rs2, rs2);
         }
       }
 
