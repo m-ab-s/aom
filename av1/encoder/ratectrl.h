@@ -339,6 +339,11 @@ typedef struct {
   bool accumulate_stats_stage;
 
   /*!
+   * Indicate if it is realtime mode or not
+   */
+  bool rtc_mode;
+
+  /*!
    * Stores the determined gf group lengths for a set of gf groups
    */
   int gf_intervals[MAX_NUM_GF_INTERVALS];

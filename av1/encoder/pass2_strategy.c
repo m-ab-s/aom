@@ -604,7 +604,7 @@ static double calc_frame_boost(const PRIMARY_RATE_CONTROL *p_rc,
   // (zoom in). The range for this_frame_mv_in_out is -1.0 to +1.0.
   if (this_frame_mv_in_out > 0.0) {
     frame_boost += frame_boost * (this_frame_mv_in_out * 2.0);
-    if (!p_rc->accumulate_stats_stage)
+    if (!p_rc->accumulate_stats_stage && !p_rc->rtc_mode)
       max_boost += max_boost * (this_frame_mv_in_out * 2.0);
   }
   // In the extreme case the boost is halved.
@@ -991,6 +991,21 @@ static void allocate_gf_group_bits(GF_GROUP *gf_group,
     gf_group->bit_allocation[gf_group_size] = 0;
 }
 
+// Returns true if KF group and GF group both are almost completely static.
+static inline int is_almost_static(double gf_zero_motion, int kf_zero_motion,
+                                   int is_lap_enabled) {
+  if (is_lap_enabled) {
+    /*
+     * when LAP enabled kf_zero_motion is not reliable, so use strict
+     * constraint on gf_zero_motion.
+     */
+    return (gf_zero_motion >= 0.999);
+  } else {
+    return (gf_zero_motion >= 0.995) &&
+           (kf_zero_motion >= STATIC_KF_GROUP_THRESH);
+  }
+}
+
 #define ARF_ABS_ZOOM_THRESH 4.4
 static inline int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
                                 int flash_detected, int active_max_gf_interval,
@@ -1030,7 +1045,10 @@ static inline int detect_gf_cut(AV1_COMP *cpi, int frame_index, int cur_start,
 
   // If almost totally static, we will not use the the max GF length later,
   // so we can continue for more frames.
-  if ((frame_index - cur_start) >= active_max_gf_interval + 1) {
+  if ((frame_index - cur_start) >= active_max_gf_interval + 1 &&
+      ((cpi->oxcf.mode != REALTIME) ||
+       !is_almost_static(gf_stats->zero_motion_accumulator,
+                         twopass->kf_zeromotion_pct, cpi->ppi->lap_enabled))) {
     return 1;
   }
   return 0;
@@ -2397,50 +2415,53 @@ static void set_gop_bits_boost(AV1_COMP *cpi, int i, int is_intra_only,
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
   const RateControlCfg *const rc_cfg = &oxcf->rc_cfg;
 
-  TWO_PASS_FRAME stats_in_backup = cpi->twopass_frame;
-  int gfu_boost_sum = 0;
-  int gfu_count = 0;
-  int accumulate_i = 0;
-  p_rc->accumulate_stats_stage = true;
-  if (rc->frames_since_key == 0) {
-    for (int k = 0; k < MAX_NUM_GF_INTERVALS; k++) {
-      if (p_rc->gf_intervals[k] == 0) {
-        break;
-      }
-
-      int new_i = p_rc->gf_intervals[k];
-      int ext_len_new = new_i - (k == 0 ? is_intra_only : 0);
-      if (use_alt_ref) {
-        if (accumulate_i >= rc->frames_to_key) {
+  if (cpi->oxcf.mode != REALTIME) {
+    TWO_PASS_FRAME stats_in_backup = cpi->twopass_frame;
+    int gfu_boost_sum = 0;
+    int gfu_count = 0;
+    int accumulate_i = 0;
+    p_rc->accumulate_stats_stage = true;
+    if (rc->frames_since_key == 0) {
+      for (int k = 0; k < MAX_NUM_GF_INTERVALS; k++) {
+        if (p_rc->gf_intervals[k] == 0) {
           break;
         }
-        const int forward_frames =
-            (rc->frames_to_key - accumulate_i - new_i >= ext_len_new)
-                ? ext_len_new
-                : AOMMAX(0, rc->frames_to_key - accumulate_i - new_i);
-        if (k) {
-          cpi->twopass_frame.stats_in += new_i;
-          if (cpi->twopass_frame.stats_in >=
-              twopass->stats_buf_ctx->stats_in_end) {
-            cpi->twopass_frame.stats_in = twopass->stats_buf_ctx->stats_in_end;
+
+        int new_i = p_rc->gf_intervals[k];
+        int ext_len_new = new_i - (k == 0 ? is_intra_only : 0);
+        if (use_alt_ref) {
+          if (accumulate_i >= rc->frames_to_key) {
+            break;
           }
+          const int forward_frames =
+              (rc->frames_to_key - accumulate_i - new_i >= ext_len_new)
+                  ? ext_len_new
+                  : AOMMAX(0, rc->frames_to_key - accumulate_i - new_i);
+          if (k) {
+            cpi->twopass_frame.stats_in += new_i;
+            if (cpi->twopass_frame.stats_in >=
+                twopass->stats_buf_ctx->stats_in_end) {
+              cpi->twopass_frame.stats_in =
+                  twopass->stats_buf_ctx->stats_in_end;
+            }
+          }
+          reset_fpf_position(&cpi->twopass_frame, cpi->twopass_frame.stats_in);
+          // Calculate the boost for alt ref.
+          int gfu_boost_tmp = av1_calc_arf_boost(
+              twopass, &cpi->twopass_frame, p_rc, frame_info, alt_offset,
+              forward_frames, ext_len_new, &p_rc->num_stats_used_for_gfu_boost,
+              &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled);
+          gfu_boost_sum += gfu_boost_tmp;
         }
-        reset_fpf_position(&cpi->twopass_frame, cpi->twopass_frame.stats_in);
-        // Calculate the boost for alt ref.
-        int gfu_boost_tmp = av1_calc_arf_boost(
-            twopass, &cpi->twopass_frame, p_rc, frame_info, alt_offset,
-            forward_frames, ext_len_new, &p_rc->num_stats_used_for_gfu_boost,
-            &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled);
-        gfu_boost_sum += gfu_boost_tmp;
+        gfu_count++;
+        accumulate_i += new_i;
       }
-      gfu_count++;
-      accumulate_i += new_i;
+      assert(gfu_count > 0);
+      p_rc->gfu_boost_average = gfu_boost_sum / gfu_count;
     }
-    assert(gfu_count > 0);
-    p_rc->gfu_boost_average = gfu_boost_sum / gfu_count;
+    cpi->twopass_frame = stats_in_backup;
+    p_rc->accumulate_stats_stage = false;
   }
-  cpi->twopass_frame = stats_in_backup;
-  p_rc->accumulate_stats_stage = false;
 
   int ext_len = i - is_intra_only;
   if (use_alt_ref) {
@@ -2562,6 +2583,7 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
   RATE_CONTROL *const rc = &cpi->rc;
   PRIMARY_RATE_CONTROL *const p_rc = &cpi->ppi->p_rc;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
+  TWO_PASS *const twopass = &cpi->ppi->twopass;
   FIRSTPASS_STATS next_frame;
   const FIRSTPASS_STATS *const start_pos = cpi->twopass_frame.stats_in;
   GF_GROUP *gf_group = &cpi->ppi->gf_group;
@@ -2626,8 +2648,12 @@ static void define_gf_group(AV1_COMP *cpi, EncodeFrameParams *frame_params,
 
   int use_alt_ref;
   if (can_disable_arf) {
-    use_alt_ref = p_rc->use_arf_in_this_kf_group &&
-                  (i < gf_cfg->lag_in_frames) && (i >= MIN_GF_INTERVAL);
+    use_alt_ref =
+        p_rc->use_arf_in_this_kf_group && (i < gf_cfg->lag_in_frames) &&
+        (i >= MIN_GF_INTERVAL) &&
+        ((cpi->oxcf.mode != REALTIME) ||
+         !is_almost_static(gf_stats.zero_motion_accumulator,
+                           twopass->kf_zeromotion_pct, cpi->ppi->lap_enabled));
   } else {
     use_alt_ref = p_rc->use_arf_in_this_kf_group &&
                   (i < gf_cfg->lag_in_frames) && (i > 2);
