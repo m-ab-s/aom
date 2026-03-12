@@ -4180,8 +4180,8 @@ static inline void init_mode_skip_mask(mode_skip_mask_t *mask,
   // Prune reference frames which are not the closest to the current
   // frame and with large pred_mv_sad.
   if (inter_sf->prune_single_ref) {
-    assert(inter_sf->prune_single_ref > 0 && inter_sf->prune_single_ref < 3);
-    const double prune_threshes[2] = { 1.20, 1.05 };
+    assert(inter_sf->prune_single_ref > 0 && inter_sf->prune_single_ref < 4);
+    const double prune_threshes[3] = { 1.20, 1.20, 1.05 };
 
     for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
       const RefFrameDistanceInfo *const ref_frame_dist_info =
@@ -4189,8 +4189,10 @@ static inline void init_mode_skip_mask(mode_skip_mask_t *mask,
       const int is_closest_ref =
           (ref_frame == ref_frame_dist_info->nearest_past_ref) ||
           (ref_frame == ref_frame_dist_info->nearest_future_ref);
+      const int ref_idx = ref_frame - LAST_FRAME;
 
-      if (!is_closest_ref) {
+      if (!(cpi->keep_single_ref_frame_mask & (1 << ref_idx) ||
+            is_closest_ref)) {
         const int dir =
             (ref_frame_dist_info->ref_relative_dist[ref_frame - LAST_FRAME] < 0)
                 ? 0

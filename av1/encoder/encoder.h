@@ -3340,6 +3340,13 @@ typedef struct AV1_COMP {
   int prune_ref_frame_mask;
 
   /*!
+   * Mark the reference frames which are important (based on the temporal
+   * distance and quality) to prevent pruning the reference frame at block
+   * level.
+   */
+  int keep_single_ref_frame_mask;
+
+  /*!
    * Loop Restoration context.
    */
   AV1LrStruct lr_ctxt;

@@ -1285,6 +1285,7 @@ static void set_good_speed_features_framesize_independent(
     set_txfm_rd_gate_level(sf->inter_sf.txfm_rd_gate_level,
                            boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2));
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 2;
+    sf->inter_sf.prune_single_ref = 1;
 
     sf->interp_sf.adaptive_interp_filter_search = 2;
 
@@ -1401,7 +1402,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
 
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
-    sf->inter_sf.prune_single_ref = is_boosted_arf2_bwd_type ? 0 : 1;
+    sf->inter_sf.prune_single_ref = is_boosted_arf2_bwd_type ? 0 : 2;
     sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_DEFAULT] = boosted ? 0 : 4;
     sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_COMP_TYPE_MODE] = boosted ? 0 : 5;
     sf->inter_sf.enable_fast_compound_mode_search = 2;
@@ -1439,7 +1440,7 @@ static void set_good_speed_features_framesize_independent(
 
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 1 : 4;
     sf->inter_sf.selective_ref_frame = 6;
-    sf->inter_sf.prune_single_ref = is_boosted_arf2_bwd_type ? 0 : 2;
+    sf->inter_sf.prune_single_ref = is_boosted_arf2_bwd_type ? 0 : 3;
     sf->inter_sf.prune_ext_comp_using_neighbors = 3;
 
     sf->intra_sf.chroma_intra_pruning_with_hog = 4;
