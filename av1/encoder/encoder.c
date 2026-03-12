@@ -1537,7 +1537,6 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   cm->current_frame_id = -1;
   cpi->tile_data = NULL;
   cpi->last_show_frame_buf = NULL;
-  cpi->ppi->p_rc.rtc_mode = (cpi->oxcf.mode == REALTIME);
   realloc_segmentation_maps(cpi);
 
   cpi->refresh_frame.alt_ref_frame = false;

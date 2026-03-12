@@ -328,6 +328,7 @@ typedef struct {
    */
   int gfu_boost;
 
+#if !CONFIG_REALTIME_ONLY
   /*!
    * Average boost factor of ARFs and GFs within a kf interval
    */
@@ -337,12 +338,7 @@ typedef struct {
    * Indicate if it is gfu_boost accumulation stage
    */
   bool accumulate_stats_stage;
-
-  /*!
-   * Indicate if it is realtime mode or not
-   */
-  bool rtc_mode;
-
+#endif
   /*!
    * Stores the determined gf group lengths for a set of gf groups
    */
