@@ -1388,7 +1388,7 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
 
   // Set Group of frames configuration.
 #if CONFIG_REALTIME_ONLY
-  // When CONFIG_REALTIMIE_ONLY=1 and mode=REALTIME, then force lag_in_frames
+  // When CONFIG_REALTIME_ONLY=1 and mode=REALTIME, then force lag_in_frames
   // = 0.
   gf_cfg->lag_in_frames = (oxcf->mode == REALTIME)
                               ? 0
@@ -3057,16 +3057,18 @@ static aom_codec_err_t encoder_init(aom_codec_ctx_t *ctx) {
       set_encoder_config(&priv->oxcf, &priv->cfg, &priv->extra_cfg);
       if (priv->oxcf.pass == AOM_RC_ONE_PASS) {
         // Enable look ahead.
-        *num_lap_buffers = AOMMIN(
 #if CONFIG_REALTIME_ONLY
-            // When CONFIG_REALTIMIE_ONLY=1 and mode=REALTIME, then force
-            // lag_in_frames = 0.
-            (priv->oxcf.mode == REALTIME) ? 0 : (int)priv->cfg.g_lag_in_frames,
+        // When CONFIG_REALTIME_ONLY=1 and mode=REALTIME, then force
+        // lag_in_frames = 0.
+        const int lag_in_frames =
+            (priv->oxcf.mode == REALTIME) ? 0 : (int)priv->cfg.g_lag_in_frames;
 #else
-            (int)priv->cfg.g_lag_in_frames,
+        const int lag_in_frames = (int)priv->cfg.g_lag_in_frames;
 #endif
-            AOMMIN(MAX_LAP_BUFFERS, priv->oxcf.kf_cfg.key_freq_max +
-                                        SCENE_CUT_KEY_TEST_INTERVAL));
+        *num_lap_buffers =
+            AOMMIN(lag_in_frames,
+                   AOMMIN(MAX_LAP_BUFFERS, priv->oxcf.kf_cfg.key_freq_max +
+                                               SCENE_CUT_KEY_TEST_INTERVAL));
         if ((int)priv->cfg.g_lag_in_frames - (*num_lap_buffers) >=
             LAP_LAG_IN_FRAMES) {
           lap_lag_in_frames = LAP_LAG_IN_FRAMES;
