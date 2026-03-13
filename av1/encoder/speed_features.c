@@ -1301,9 +1301,6 @@ static void set_good_speed_features_framesize_independent(
     sf->tpl_sf.prune_intra_modes = 1;
     sf->tpl_sf.reduce_first_step_size = 6;
     sf->tpl_sf.subpel_force_stop = QUARTER_PEL;
-#if CONFIG_REALTIME_ONLY
-    sf->tpl_sf.gop_length_decision_method = 1;
-#endif
 
     sf->tx_sf.adaptive_txb_search_level = boosted ? 2 : 3;
     sf->tx_sf.tx_type_search.use_skip_flag_prediction = 2;
@@ -2193,11 +2190,7 @@ static inline void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {
 }
 
 static inline void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
-#if !CONFIG_REALTIME_ONLY
   tpl_sf->gop_length_decision_method = 1;
-#else
-  tpl_sf->gop_length_decision_method = 0;
-#endif
   tpl_sf->prune_intra_modes = 0;
   tpl_sf->prune_starting_mv = 0;
   tpl_sf->reduce_first_step_size = 0;
@@ -2642,6 +2635,8 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   init_winner_mode_sf(&sf->winner_mode_sf);
   init_lpf_sf(&sf->lpf_sf);
   init_rt_sf(&sf->rt_sf);
+
+  cpi->ppi->p_rc.rtc_mode = (cpi->oxcf.mode == REALTIME);
 
   switch (oxcf->mode) {
     case GOOD:
