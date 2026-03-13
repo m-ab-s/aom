@@ -1589,7 +1589,10 @@ static void init_tf_ctx(AV1_COMP *cpi, int filter_frame_lookahead_idx,
 
 int av1_check_show_filtered_frame(const YV12_BUFFER_CONFIG *frame,
                                   const FRAME_DIFF *frame_diff, int q_index,
-                                  aom_bit_depth_t bit_depth) {
+                                  aom_bit_depth_t bit_depth,
+                                  int enable_overlay) {
+  if (!enable_overlay) return 1;
+
   const int frame_height = frame->y_crop_height;
   const int frame_width = frame->y_crop_width;
   const int block_height = block_size_high[TF_BLOCK_SIZE];

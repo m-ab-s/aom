@@ -341,17 +341,19 @@ void av1_temporal_filter(struct AV1_COMP *cpi,
  * to make decision.
  *
  * \ingroup src_frame_proc
- * \param[in]  frame        filtered frame's buffer
- * \param[in]  frame_diff   structure of sse and sum of the
- *                          filtered frame.
- * \param[in]  q_index      q_index used for this frame
- * \param[in]  bit_depth    bit depth
+ * \param[in]  frame          filtered frame's buffer
+ * \param[in]  frame_diff     structure of sse and sum of the
+ *                            filtered frame.
+ * \param[in]  q_index        q_index used for this frame
+ * \param[in]  bit_depth      bit depth
+ * \param[in]  enable_overlay arf overlay is enabled or disabled
  * \return     return 1 if this frame can be shown directly, otherwise
  *             return 0
  */
 int av1_check_show_filtered_frame(const YV12_BUFFER_CONFIG *frame,
                                   const FRAME_DIFF *frame_diff, int q_index,
-                                  aom_bit_depth_t bit_depth);
+                                  aom_bit_depth_t bit_depth,
+                                  int enable_overlay);
 
 /*!\cond */
 // Allocates memory for members of TemporalFilterData.
