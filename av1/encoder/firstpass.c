@@ -683,10 +683,10 @@ static void accumulate_mv_stats(const MV best_mv, const FULLPEL_MV mv,
 //   golden_frame: the frame buffer of the golden frame.
 //   unit_row: row index in the unit of first pass block size.
 //   unit_col: column index in the unit of first pass block size.
-//   recon_yoffset: the y offset of the reconstructed  frame buffer,
+//   recon_yoffset: the y offset of the reconstructed frame buffer,
 //                  indicating the starting point of the current block.
-//   recont_uvoffset: the u/v offset of the reconstructed frame buffer,
-//                    indicating the starting point of the current block.
+//   recon_uvoffset: the u/v offset of the reconstructed frame buffer,
+//                   indicating the starting point of the current block.
 //   src_yoffset: the y offset of the source frame buffer.
 //   fp_block_size: first pass block size.
 //   this_intra_error: the intra prediction error of this block.
