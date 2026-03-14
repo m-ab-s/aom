@@ -2636,8 +2636,6 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   init_lpf_sf(&sf->lpf_sf);
   init_rt_sf(&sf->rt_sf);
 
-  cpi->ppi->p_rc.rtc_mode = (cpi->oxcf.mode == REALTIME);
-
   switch (oxcf->mode) {
     case GOOD:
       set_good_speed_features_framesize_independent(cpi, sf, speed);

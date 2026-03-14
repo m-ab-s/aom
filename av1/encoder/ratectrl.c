@@ -1170,16 +1170,15 @@ static int get_active_quality(int q, int gfu_boost, int low, int high,
 static int gfboost_thresh[3] = { 4000, 4000, 3000 };
 
 static int get_kf_active_quality(const PRIMARY_RATE_CONTROL *const p_rc, int q,
-                                 aom_bit_depth_t bit_depth, const int res_idx) {
+                                 aom_bit_depth_t bit_depth, const int res_idx,
+                                 const bool rtc_mode) {
   int *kf_low_motion_minq;
   int *kf_high_motion_minq;
-  ASSIGN_MINQ_TABLE_2(bit_depth, kf_low_motion_minq, res_idx > 1,
-                      p_rc->rtc_mode);
-  ASSIGN_MINQ_TABLE_2(bit_depth, kf_high_motion_minq, res_idx > 1,
-                      p_rc->rtc_mode);
+  ASSIGN_MINQ_TABLE_2(bit_depth, kf_low_motion_minq, res_idx > 1, rtc_mode);
+  ASSIGN_MINQ_TABLE_2(bit_depth, kf_high_motion_minq, res_idx > 1, rtc_mode);
 
-  int kf_low_local = p_rc->rtc_mode ? kf_low_rtc : kf_low;
-  int kf_high_local = p_rc->rtc_mode ? kf_high_rtc : kf_high;
+  int kf_low_local = rtc_mode ? kf_low_rtc : kf_low;
+  int kf_high_local = rtc_mode ? kf_high_rtc : kf_high;
 
   return get_active_quality(q, p_rc->kf_boost, kf_low_local, kf_high_local,
                             kf_low_motion_minq, kf_high_motion_minq);
@@ -1187,16 +1186,14 @@ static int get_kf_active_quality(const PRIMARY_RATE_CONTROL *const p_rc, int q,
 
 static int get_gf_active_quality_no_rc(const PRIMARY_RATE_CONTROL *const p_rc,
                                        int q, aom_bit_depth_t bit_depth,
-                                       const int res_idx) {
+                                       const int res_idx, const bool rtc_mode) {
   int *arfgf_low_motion_minq;
   int *arfgf_high_motion_minq;
-  ASSIGN_MINQ_TABLE_2(bit_depth, arfgf_low_motion_minq, res_idx > 1,
-                      p_rc->rtc_mode);
-  ASSIGN_MINQ_TABLE_2(bit_depth, arfgf_high_motion_minq, res_idx > 1,
-                      p_rc->rtc_mode);
+  ASSIGN_MINQ_TABLE_2(bit_depth, arfgf_low_motion_minq, res_idx > 1, rtc_mode);
+  ASSIGN_MINQ_TABLE_2(bit_depth, arfgf_high_motion_minq, res_idx > 1, rtc_mode);
   int gf_low_local, gf_high_local;
 
-  if (p_rc->rtc_mode == false) {
+  if (!rtc_mode) {
     gf_low_local = (p_rc->gfu_boost_average < gfboost_thresh[res_idx])
                        ? gf_low_1
                        : gf_low_2;
@@ -1213,12 +1210,13 @@ static int get_gf_active_quality_no_rc(const PRIMARY_RATE_CONTROL *const p_rc,
 }
 
 static int get_gf_active_quality(const PRIMARY_RATE_CONTROL *const p_rc, int q,
-                                 aom_bit_depth_t bit_depth, const int res_idx) {
-  return get_gf_active_quality_no_rc(p_rc, q, bit_depth, res_idx);
+                                 aom_bit_depth_t bit_depth, const int res_idx,
+                                 const bool rtc_mode) {
+  return get_gf_active_quality_no_rc(p_rc, q, bit_depth, res_idx, rtc_mode);
 }
 
 static int get_gf_high_motion_quality(int q, aom_bit_depth_t bit_depth,
-                                      const int res_idx, bool rtc_mode) {
+                                      const int res_idx, const bool rtc_mode) {
   int *arfgf_high_motion_minq;
   ASSIGN_MINQ_TABLE_2(bit_depth, arfgf_high_motion_minq, res_idx > 1, rtc_mode);
   return arfgf_high_motion_minq[q];
@@ -1384,6 +1382,7 @@ static int calc_active_best_quality_no_stats_cbr(const AV1_COMP *cpi,
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   // res_idx is 0 for res < 480p, 1 for 480p, 2 for 608p+
   const int res_idx = is_480p_or_larger + is_608p_or_larger;
+  const bool rtc_mode = (cpi->oxcf.mode == REALTIME);
 
   if (frame_is_intra_only(cm)) {
     // Handle the special case for key frames forced when we have reached
@@ -1399,8 +1398,9 @@ static int calc_active_best_quality_no_stats_cbr(const AV1_COMP *cpi,
       // not first frame of one pass and kf_boost is set
       double q_adj_factor = 1.0;
       double q_val;
-      active_best_quality = get_kf_active_quality(
-          p_rc, p_rc->avg_frame_qindex[KEY_FRAME], bit_depth, res_idx);
+      active_best_quality =
+          get_kf_active_quality(p_rc, p_rc->avg_frame_qindex[KEY_FRAME],
+                                bit_depth, res_idx, rtc_mode);
       // Allow somewhat lower kf minq with small image formats.
       if ((width * height) <= (352 * 288)) {
         q_adj_factor -= 0.25;
@@ -1422,7 +1422,8 @@ static int calc_active_best_quality_no_stats_cbr(const AV1_COMP *cpi,
         p_rc->avg_frame_qindex[INTER_FRAME] < active_worst_quality) {
       q = p_rc->avg_frame_qindex[INTER_FRAME];
     }
-    active_best_quality = get_gf_active_quality(p_rc, q, bit_depth, res_idx);
+    active_best_quality =
+        get_gf_active_quality(p_rc, q, bit_depth, res_idx, rtc_mode);
   } else {
     // Use the lower of active_worst_quality and recent/average Q.
     FRAME_TYPE frame_type =
@@ -1598,6 +1599,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   // res_idx is 0 for res < 480p, 1 for 480p, 2 for 608p+
   const int res_idx = is_480p_or_larger + is_608p_or_larger;
+  const bool rtc_mode = (cpi->oxcf.mode == REALTIME);
 
   assert(has_no_stats_stage(cpi));
   assert(rc_mode == AOM_VBR ||
@@ -1613,7 +1615,7 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
   int active_worst_quality = calc_active_worst_quality_no_stats_vbr(cpi);
   int q;
   int *inter_minq;
-  ASSIGN_MINQ_TABLE_2(bit_depth, inter_minq, res_idx > 1, p_rc->rtc_mode);
+  ASSIGN_MINQ_TABLE_2(bit_depth, inter_minq, res_idx > 1, rtc_mode);
 
   if (frame_is_intra_only(cm)) {
     if (rc_mode == AOM_Q) {
@@ -1639,8 +1641,9 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
     } else {  // not first frame of one pass and kf_boost is set
       double q_adj_factor = 1.0;
 
-      active_best_quality = get_kf_active_quality(
-          p_rc, p_rc->avg_frame_qindex[KEY_FRAME], bit_depth, res_idx);
+      active_best_quality =
+          get_kf_active_quality(p_rc, p_rc->avg_frame_qindex[KEY_FRAME],
+                                bit_depth, res_idx, rtc_mode);
 
       // Allow somewhat lower kf minq with small image formats.
       if ((width * height) <= (352 * 288)) {
@@ -1667,7 +1670,8 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
     // For constrained quality don't allow Q less than the cq level
     if (rc_mode == AOM_CQ) {
       if (q < cq_level) q = cq_level;
-      active_best_quality = get_gf_active_quality(p_rc, q, bit_depth, res_idx);
+      active_best_quality =
+          get_gf_active_quality(p_rc, q, bit_depth, res_idx, rtc_mode);
       // Constrained quality use slightly lower active best.
       active_best_quality = active_best_quality * 15 / 16;
     } else if (rc_mode == AOM_Q) {
@@ -1679,7 +1683,8 @@ static int rc_pick_q_and_bounds_no_stats(const AV1_COMP *cpi, int width,
               : av1_compute_qdelta(rc, q_val, q_val * 0.50, bit_depth);
       active_best_quality = AOMMAX(qindex + delta_qindex, rc->best_quality);
     } else {
-      active_best_quality = get_gf_active_quality(p_rc, q, bit_depth, res_idx);
+      active_best_quality =
+          get_gf_active_quality(p_rc, q, bit_depth, res_idx, rtc_mode);
     }
   } else {
     if (rc_mode == AOM_Q) {
@@ -1821,6 +1826,7 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   // res_idx is 0 for res < 480p, 1 for 480p, 2 for 608p+
   const int res_idx = is_480p_or_larger + is_608p_or_larger;
+  const bool rtc_mode = (cpi->oxcf.mode == REALTIME);
 
   if (rc->frames_to_key <= 1 && oxcf->rc_cfg.mode == AOM_Q) {
     // If the next frame is also a key frame or the current frame is the
@@ -1867,8 +1873,8 @@ static void get_intra_q_and_bounds(const AV1_COMP *cpi, int width, int height,
     double q_val;
 
     // Baseline value derived from active_worst_quality and kf boost.
-    active_best_quality =
-        get_kf_active_quality(p_rc, active_worst_quality, bit_depth, res_idx);
+    active_best_quality = get_kf_active_quality(p_rc, active_worst_quality,
+                                                bit_depth, res_idx, rtc_mode);
     if (cpi->is_screen_content_type) {
       active_best_quality /= 2;
     }
@@ -2068,9 +2074,10 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
   const int is_480p_or_larger = AOMMIN(cm->width, cm->height) >= 480;
   // res_idx is 0 for res < 480p, 1 for 480p, 2 for 608p+
   const int res_idx = is_480p_or_larger + is_608p_or_larger;
+  const bool rtc_mode = (cpi->oxcf.mode == REALTIME);
 
   int *inter_minq;
-  ASSIGN_MINQ_TABLE_2(bit_depth, inter_minq, res_idx > 1, p_rc->rtc_mode);
+  ASSIGN_MINQ_TABLE_2(bit_depth, inter_minq, res_idx > 1, rtc_mode);
 
   // TODO(jingning): Consider to rework this hack that covers issues incurred
   // in lightfield setting.
@@ -2103,11 +2110,12 @@ static int get_active_best_quality(const AV1_COMP *const cpi,
     q = p_rc->avg_frame_qindex[INTER_FRAME];
   }
   if (rc_mode == AOM_CQ && q < cq_level) q = cq_level;
-  active_best_quality = get_gf_active_quality(p_rc, q, bit_depth, res_idx);
+  active_best_quality =
+      get_gf_active_quality(p_rc, q, bit_depth, res_idx, rtc_mode);
   // Constrained quality use slightly lower active best.
   if (rc_mode == AOM_CQ) active_best_quality = active_best_quality * 15 / 16;
   const int min_boost =
-      get_gf_high_motion_quality(q, bit_depth, res_idx, p_rc->rtc_mode);
+      get_gf_high_motion_quality(q, bit_depth, res_idx, rtc_mode);
   const int boost = min_boost - active_best_quality;
   active_best_quality = min_boost - (int)(boost * p_rc->arf_boost_factor);
   if (!is_intrl_arf_boost) return active_best_quality;

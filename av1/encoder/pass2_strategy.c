@@ -604,7 +604,7 @@ static double calc_frame_boost(const PRIMARY_RATE_CONTROL *p_rc,
   // (zoom in). The range for this_frame_mv_in_out is -1.0 to +1.0.
   if (this_frame_mv_in_out > 0.0) {
     frame_boost += frame_boost * (this_frame_mv_in_out * 2.0);
-    if (!p_rc->accumulate_stats_stage && !p_rc->rtc_mode)
+    if (!p_rc->accumulate_stats_stage)
       max_boost += max_boost * (this_frame_mv_in_out * 2.0);
   }
   // In the extreme case the boost is halved.
@@ -2460,8 +2460,9 @@ static void set_gop_bits_boost(AV1_COMP *cpi, int i, int is_intra_only,
       p_rc->gfu_boost_average = gfu_boost_sum / gfu_count;
     }
     cpi->twopass_frame = stats_in_backup;
-    p_rc->accumulate_stats_stage = false;
   }
+
+  p_rc->accumulate_stats_stage = (cpi->oxcf.mode == REALTIME);
 
   int ext_len = i - is_intra_only;
   if (use_alt_ref) {
