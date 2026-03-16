@@ -1,3 +1,13 @@
+2026-03-16 v3.13.2
+  This release is ABI compatible with the last release.
+
+  This release fixes two bugs.
+
+  - Bug Fixes
+    * x86: enable SSE4.2 in x86_simd_caps
+      https://aomedia-review.googlesource.com/206481
+    * b:448994065: Working nasm-3.0.0 is not detected with libaom on 3.13.1
+
 2025-09-05 v3.13.1
   This release is ABI compatible with the last release.
 
