@@ -583,10 +583,15 @@ static double baseline_err_per_mb(const FRAME_INFO *frame_info) {
   }
 }
 
+// scale_max_boost = (cpi->oxcf.mode != REALTIME) in most cases as it was only
+// tuned in non-rtc cases. The only exception is when we derive
+// gfu_boost_average, we pass scale_max_boost = false for better coding
+// efficiency.
 static double calc_frame_boost(const PRIMARY_RATE_CONTROL *p_rc,
                                const FRAME_INFO *frame_info,
                                const FIRSTPASS_STATS *this_frame,
-                               double this_frame_mv_in_out, double max_boost) {
+                               double this_frame_mv_in_out, double max_boost,
+                               const bool scale_max_boost) {
   double frame_boost;
   const double lq = av1_convert_qindex_to_q(p_rc->avg_frame_qindex[INTER_FRAME],
                                             frame_info->bit_depth);
@@ -604,8 +609,7 @@ static double calc_frame_boost(const PRIMARY_RATE_CONTROL *p_rc,
   // (zoom in). The range for this_frame_mv_in_out is -1.0 to +1.0.
   if (this_frame_mv_in_out > 0.0) {
     frame_boost += frame_boost * (this_frame_mv_in_out * 2.0);
-    if (!p_rc->accumulate_stats_stage)
-      max_boost += max_boost * (this_frame_mv_in_out * 2.0);
+    if (scale_max_boost) max_boost += max_boost * (this_frame_mv_in_out * 2.0);
   }
   // In the extreme case the boost is halved.
   else {
@@ -677,7 +681,7 @@ int av1_calc_arf_boost(const TWO_PASS *twopass,
                        const PRIMARY_RATE_CONTROL *p_rc, FRAME_INFO *frame_info,
                        int offset, int f_frames, int b_frames,
                        int *num_fpstats_used, int *num_fpstats_required,
-                       int project_gfu_boost) {
+                       int project_gfu_boost, const bool scale_max_boost) {
   int i;
   GF_GROUP_STATS gf_stats;
   init_gf_stats(&gf_stats);
@@ -710,10 +714,10 @@ int av1_calc_arf_boost(const TWO_PASS *twopass,
                                        : gf_stats.decay_accumulator;
     }
 
-    boost_score +=
-        gf_stats.decay_accumulator *
-        calc_frame_boost(p_rc, frame_info, this_frame,
-                         gf_stats.this_frame_mv_in_out, GF_MAX_BOOST);
+    boost_score += gf_stats.decay_accumulator *
+                   calc_frame_boost(p_rc, frame_info, this_frame,
+                                    gf_stats.this_frame_mv_in_out, GF_MAX_BOOST,
+                                    scale_max_boost);
     if (num_fpstats_used) (*num_fpstats_used)++;
   }
 
@@ -746,10 +750,10 @@ int av1_calc_arf_boost(const TWO_PASS *twopass,
                                        : gf_stats.decay_accumulator;
     }
 
-    boost_score +=
-        gf_stats.decay_accumulator *
-        calc_frame_boost(p_rc, frame_info, this_frame,
-                         gf_stats.this_frame_mv_in_out, GF_MAX_BOOST);
+    boost_score += gf_stats.decay_accumulator *
+                   calc_frame_boost(p_rc, frame_info, this_frame,
+                                    gf_stats.this_frame_mv_in_out, GF_MAX_BOOST,
+                                    scale_max_boost);
     if (num_fpstats_used) (*num_fpstats_used)++;
   }
   arf_boost += (int)boost_score;
@@ -2420,7 +2424,6 @@ static void set_gop_bits_boost(AV1_COMP *cpi, int i, int is_intra_only,
     int gfu_boost_sum = 0;
     int gfu_count = 0;
     int accumulate_i = 0;
-    p_rc->accumulate_stats_stage = true;
     if (rc->frames_since_key == 0) {
       for (int k = 0; k < MAX_NUM_GF_INTERVALS; k++) {
         if (p_rc->gf_intervals[k] == 0) {
@@ -2446,11 +2449,14 @@ static void set_gop_bits_boost(AV1_COMP *cpi, int i, int is_intra_only,
             }
           }
           reset_fpf_position(&cpi->twopass_frame, cpi->twopass_frame.stats_in);
-          // Calculate the boost for alt ref.
+          // Calculate the boost for alt ref. Note that we pass the
+          // scale_max_boost=false to derive gfu_boost_average, which can help
+          // the coding efficiency for some clips with global motion.
           int gfu_boost_tmp = av1_calc_arf_boost(
               twopass, &cpi->twopass_frame, p_rc, frame_info, alt_offset,
               forward_frames, ext_len_new, &p_rc->num_stats_used_for_gfu_boost,
-              &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled);
+              &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled,
+              /*scale_max_boost=*/false);
           gfu_boost_sum += gfu_boost_tmp;
         }
         gfu_count++;
@@ -2462,9 +2468,9 @@ static void set_gop_bits_boost(AV1_COMP *cpi, int i, int is_intra_only,
     cpi->twopass_frame = stats_in_backup;
   }
 
-  p_rc->accumulate_stats_stage = (cpi->oxcf.mode == REALTIME);
-
   int ext_len = i - is_intra_only;
+  const bool scale_max_boost = (cpi->oxcf.mode != REALTIME);
+
   if (use_alt_ref) {
     const int forward_frames = (rc->frames_to_key - i >= ext_len)
                                    ? ext_len
@@ -2474,15 +2480,17 @@ static void set_gop_bits_boost(AV1_COMP *cpi, int i, int is_intra_only,
     p_rc->gfu_boost = av1_calc_arf_boost(
         twopass, &cpi->twopass_frame, p_rc, frame_info, alt_offset,
         forward_frames, ext_len, &p_rc->num_stats_used_for_gfu_boost,
-        &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled);
+        &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled,
+        scale_max_boost);
   } else {
     reset_fpf_position(&cpi->twopass_frame, start_pos);
-    p_rc->gfu_boost = AOMMIN(
-        MAX_GF_BOOST,
-        av1_calc_arf_boost(
-            twopass, &cpi->twopass_frame, p_rc, frame_info, alt_offset, ext_len,
-            0, &p_rc->num_stats_used_for_gfu_boost,
-            &p_rc->num_stats_required_for_gfu_boost, cpi->ppi->lap_enabled));
+    p_rc->gfu_boost =
+        AOMMIN(MAX_GF_BOOST,
+               av1_calc_arf_boost(twopass, &cpi->twopass_frame, p_rc,
+                                  frame_info, alt_offset, ext_len, 0,
+                                  &p_rc->num_stats_used_for_gfu_boost,
+                                  &p_rc->num_stats_required_for_gfu_boost,
+                                  cpi->ppi->lap_enabled, scale_max_boost));
   }
 
 #define LAST_ALR_BOOST_FACTOR 0.2f

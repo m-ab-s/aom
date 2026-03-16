@@ -1365,10 +1365,10 @@ static void tf_setup_filtering_buffer(AV1_COMP *cpi,
     num_before = AOMMIN(is_forward_keyframe ? num_frames / 2 : 0, max_before);
     num_after = AOMMIN(num_frames - 1, max_after);
   } else {
-    int gfu_boost = av1_calc_arf_boost(&cpi->ppi->twopass, &cpi->twopass_frame,
-                                       &cpi->ppi->p_rc, &cpi->frame_info,
-                                       filter_frame_lookahead_idx, max_before,
-                                       max_after, NULL, NULL, 0);
+    int gfu_boost = av1_calc_arf_boost(
+        &cpi->ppi->twopass, &cpi->twopass_frame, &cpi->ppi->p_rc,
+        &cpi->frame_info, filter_frame_lookahead_idx, max_before, max_after,
+        NULL, NULL, 0, cpi->oxcf.mode != REALTIME);
 
     num_frames = AOMMIN(num_frames, gfu_boost / 150);
     num_frames += !(num_frames & 1);  // Make the number odd.
