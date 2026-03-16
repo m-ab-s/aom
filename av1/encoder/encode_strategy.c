@@ -611,6 +611,11 @@ int av1_calc_refresh_idx_for_intnl_arf(
   }
 }
 
+static int get_new_fb_map_idx_rc(int new_fb_map_idx) {
+  if (new_fb_map_idx == INVALID_IDX) return 0;
+  return 1 << new_fb_map_idx;
+}
+
 int av1_get_refresh_frame_flags(
     const AV1_COMP *const cpi, const EncodeFrameParams *const frame_params,
     FRAME_UPDATE_TYPE frame_update_type, int gf_index, int cur_disp_order,
@@ -637,11 +642,15 @@ int av1_get_refresh_frame_flags(
 #if !CONFIG_REALTIME_ONLY
   if (cpi->use_ducky_encode &&
       cpi->ducky_encode_info.frame_info.gop_mode == DUCKY_ENCODE_GOP_MODE_RCL) {
-    int new_fb_map_idx = cpi->ppi->gf_group.update_ref_idx[gf_index];
-    if (new_fb_map_idx == INVALID_IDX) return 0;
-    return 1 << new_fb_map_idx;
+    return get_new_fb_map_idx_rc(gf_group->update_ref_idx[gf_index]);
   }
 #endif  // !CONFIG_REALTIME_ONLY
+
+  if (cpi->ext_ratectrl.ready &&
+      (cpi->ext_ratectrl.funcs.rc_type & AOM_RC_GOP) != 0 &&
+      cpi->ext_ratectrl.funcs.get_gop_decision != NULL) {
+    return get_new_fb_map_idx_rc(gf_group->update_ref_idx[gf_index]);
+  }
 
   int refresh_mask = 0;
   if (ext_refresh_frame_flags->update_pending) {
