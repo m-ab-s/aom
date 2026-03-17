@@ -623,15 +623,14 @@ void av1_loop_restoration_alloc(AV1LrSync *lr_sync, AV1_COMMON *cm,
   lr_sync->num_workers = num_workers;
 
   for (int worker_idx = 0; worker_idx < num_workers; ++worker_idx) {
-    if (worker_idx < num_workers - 1) {
+    if (worker_idx == 0) {
+      lr_sync->lrworkerdata[worker_idx].rst_tmpbuf = cm->rst_tmpbuf;
+      lr_sync->lrworkerdata[worker_idx].rlbs = cm->rlbs;
+    } else {
       CHECK_MEM_ERROR(cm, lr_sync->lrworkerdata[worker_idx].rst_tmpbuf,
                       (int32_t *)aom_memalign(16, RESTORATION_TMPBUF_SIZE));
       CHECK_MEM_ERROR(cm, lr_sync->lrworkerdata[worker_idx].rlbs,
                       aom_malloc(sizeof(RestorationLineBuffers)));
-
-    } else {
-      lr_sync->lrworkerdata[worker_idx].rst_tmpbuf = cm->rst_tmpbuf;
-      lr_sync->lrworkerdata[worker_idx].rlbs = cm->rlbs;
     }
   }
 
@@ -679,7 +678,7 @@ void av1_loop_restoration_dealloc(AV1LrSync *lr_sync) {
     aom_free(lr_sync->job_queue);
 
     if (lr_sync->lrworkerdata) {
-      for (int worker_idx = 0; worker_idx < lr_sync->num_workers - 1;
+      for (int worker_idx = 1; worker_idx < lr_sync->num_workers;
            worker_idx++) {
         LRWorkerData *const workerdata_data =
             lr_sync->lrworkerdata + worker_idx;
