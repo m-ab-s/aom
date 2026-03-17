@@ -321,9 +321,11 @@ static inline void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
              (cpi->ext_ratectrl.funcs.rc_type & AOM_RC_QP) != 0 &&
              cpi->ext_ratectrl.funcs.get_encodeframe_decision != NULL &&
              cpi->ext_ratectrl.sb_params_list != NULL) {
-    const int q_index = cpi->ext_ratectrl.sb_params_list[sb_index].q_index;
-    if (q_index != AOM_DEFAULT_Q) {
-      current_qindex = q_index;
+    if (cpi->ext_ratectrl.use_delta_q) {
+      const int q_index = cpi->ext_ratectrl.sb_params_list[sb_index].q_index;
+      if (q_index != AOM_DEFAULT_Q) {
+        current_qindex = q_index;
+      }
     }
   } else if (cpi->oxcf.q_cfg.deltaq_mode == DELTA_Q_PERCEPTUAL) {
     if (DELTA_Q_PERCEPTUAL_MODULATION == 1) {
