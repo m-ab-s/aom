@@ -18,9 +18,11 @@
 #include "aom_dsp/x86/convolve_common_intrin.h"
 #include "aom_dsp/x86/synonyms.h"
 
-static inline void av1_convolve_y_sr_general_avx2(
-    const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride, int w,
-    int h, const InterpFilterParams *filter_params_y, const int subpel_y_qn) {
+void av1_convolve_y_sr_avx2(const uint8_t *src, int32_t src_stride,
+                            uint8_t *dst, int32_t dst_stride, int32_t w,
+                            int32_t h,
+                            const InterpFilterParams *filter_params_y,
+                            const int32_t subpel_y_qn) {
   __m128i coeffs_128[4];
   __m256i coeffs[6];
   int x = 0, y = h;
@@ -834,19 +836,12 @@ static inline void av1_convolve_y_sr_general_avx2(
   }
 }
 
-void av1_convolve_y_sr_avx2(const uint8_t *src, int32_t src_stride,
+void av1_convolve_x_sr_avx2(const uint8_t *src, int32_t src_stride,
                             uint8_t *dst, int32_t dst_stride, int32_t w,
                             int32_t h,
-                            const InterpFilterParams *filter_params_y,
-                            const int32_t subpel_y_qn) {
-  av1_convolve_y_sr_general_avx2(src, src_stride, dst, dst_stride, w, h,
-                                 filter_params_y, subpel_y_qn);
-}
-
-static inline void av1_convolve_x_sr_general_avx2(
-    const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride, int w,
-    int h, const InterpFilterParams *filter_params_x, const int subpel_x_qn,
-    ConvolveParams *conv_params) {
+                            const InterpFilterParams *filter_params_x,
+                            const int32_t subpel_x_qn,
+                            ConvolveParams *conv_params) {
   const int bits = FILTER_BITS - conv_params->round_0;
   int i, j, horiz_tap = get_filter_tap(filter_params_x, subpel_x_qn);
 
@@ -1398,14 +1393,4 @@ static inline void av1_convolve_x_sr_general_avx2(
       }
     }
   }
-}
-
-void av1_convolve_x_sr_avx2(const uint8_t *src, int32_t src_stride,
-                            uint8_t *dst, int32_t dst_stride, int32_t w,
-                            int32_t h,
-                            const InterpFilterParams *filter_params_x,
-                            const int32_t subpel_x_qn,
-                            ConvolveParams *conv_params) {
-  av1_convolve_x_sr_general_avx2(src, src_stride, dst, dst_stride, w, h,
-                                 filter_params_x, subpel_x_qn, conv_params);
 }
