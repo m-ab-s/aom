@@ -2931,6 +2931,14 @@ static int test_candidate_kf(const FIRSTPASS_INFO *firstpass_info,
       // Get the next frame details
       const FIRSTPASS_STATS *local_next_frame =
           av1_firstpass_info_peek(firstpass_info, this_stats_index + i);
+
+      if ((local_next_frame->intra_error - this_stats->intra_error) /
+                  DOUBLE_DIVIDE_CHECK(this_stats->intra_error) >
+              0.1 &&
+          this_stats->coded_error > local_next_frame->coded_error * 6) {
+        break;
+      }
+
       double next_iiratio =
           (BOOST_FACTOR * local_next_frame->intra_error /
            DOUBLE_DIVIDE_CHECK(local_next_frame->coded_error));
