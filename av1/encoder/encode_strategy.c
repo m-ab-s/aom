@@ -797,7 +797,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
         frame_input->source = tf_buf;
         show_existing_alt_ref = av1_check_show_filtered_frame(
             tf_buf, &frame_diff, q_index, cm->seq_params->bit_depth,
-            cpi->oxcf.algo_cfg.enable_overlay);
+            cpi->oxcf.algo_cfg.enable_overlay, 0);
         if (show_existing_alt_ref) {
           cpi->common.showable_frame |= 1;
         } else {
@@ -834,7 +834,7 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
                           tf_buf_second_arf);
       show_existing_alt_ref =
           av1_check_show_filtered_frame(tf_buf_second_arf, &frame_diff, q_index,
-                                        cm->seq_params->bit_depth, 1);
+                                        cm->seq_params->bit_depth, 1, 1);
       if (show_existing_alt_ref) {
         aom_extend_frame_borders(tf_buf_second_arf, av1_num_planes(cm));
         frame_input->source = tf_buf_second_arf;
