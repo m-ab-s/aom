@@ -1463,9 +1463,13 @@ static inline void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
       gf_group->layer_depth[frame_idx] >= layer_depth_th;
 }
 
-static void tpl_store_before_propagation(AomTplBlockStats *tpl_block_stats,
+static void tpl_store_before_propagation(AV1_COMP *cpi,
+                                         AomTplBlockStats *tpl_block_stats,
                                          TplDepStats *src_stats, int mi_row,
                                          int mi_col) {
+  TplParams *const tpl_data = &cpi->ppi->tpl_data;
+  GF_GROUP *gf_group = &cpi->ppi->gf_group;
+
   tpl_block_stats->row = mi_row * MI_SIZE;
   tpl_block_stats->col = mi_col * MI_SIZE;
   tpl_block_stats->srcrf_sse = src_stats->srcrf_sse;
@@ -1490,8 +1494,12 @@ static void tpl_store_before_propagation(AomTplBlockStats *tpl_block_stats,
   tpl_block_stats->intra_rate = src_stats->intra_rate;
   tpl_block_stats->cmp_recrf_rate[0] = src_stats->cmp_recrf_rate[0];
   tpl_block_stats->cmp_recrf_rate[1] = src_stats->cmp_recrf_rate[1];
-  tpl_block_stats->ref_frame_index[0] = src_stats->ref_frame_index[0];
-  tpl_block_stats->ref_frame_index[1] = src_stats->ref_frame_index[1];
+  tpl_block_stats->ref_frame_index[0] =
+      gf_group->ref_frame_list[tpl_data->frame_idx]
+                              [LAST_FRAME + src_stats->ref_frame_index[0]];
+  tpl_block_stats->ref_frame_index[1] =
+      gf_group->ref_frame_list[tpl_data->frame_idx]
+                              [LAST_FRAME + src_stats->ref_frame_index[1]];
   for (int ref = 0; ref < AOM_RC_INTER_REFS_PER_FRAME; ++ref) {
     tpl_block_stats->mv[ref].as_mv.col = src_stats->mv[ref].as_mv.col;
     tpl_block_stats->mv[ref].as_mv.row = src_stats->mv[ref].as_mv.row;
@@ -1557,7 +1565,8 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
       AomTplBlockStats *block_stats =
           &tpl_frame_stats_before_propagation
                ->block_stats_list[mi_row * tpl_frame->mi_cols + mi_col];
-      tpl_store_before_propagation(block_stats, &tpl_stats, mi_row, mi_col);
+      tpl_store_before_propagation(cpi, block_stats, &tpl_stats, mi_row,
+                                   mi_col);
     }
 
     (*tpl_row_mt->sync_write_ptr)(&tpl_data->tpl_mt_sync, tplb_row,
