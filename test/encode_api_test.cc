@@ -193,11 +193,10 @@ TEST(EncodeAPI, InvalidControlId) {
 }
 
 TEST(EncodeAPI, InvalidUVStrides) {
-  static constexpr std::array<aom_img_fmt_t, 11> kAv1ImageFormats = {
-    AOM_IMG_FMT_YV12,    AOM_IMG_FMT_I420,   AOM_IMG_FMT_AOMYV12,
-    AOM_IMG_FMT_AOMI420, AOM_IMG_FMT_I422,   AOM_IMG_FMT_I444,
-    AOM_IMG_FMT_NV12,    AOM_IMG_FMT_I42016, AOM_IMG_FMT_YV1216,
-    AOM_IMG_FMT_I42216,  AOM_IMG_FMT_I44416
+  static constexpr std::array<aom_img_fmt_t, 9> kAv1ImageFormats = {
+    AOM_IMG_FMT_YV12,   AOM_IMG_FMT_I420,   AOM_IMG_FMT_I422,
+    AOM_IMG_FMT_I444,   AOM_IMG_FMT_NV12,   AOM_IMG_FMT_I42016,
+    AOM_IMG_FMT_YV1216, AOM_IMG_FMT_I42216, AOM_IMG_FMT_I44416
   };
   struct UVStride {
     int u_stride;
@@ -256,10 +255,8 @@ TEST(EncodeAPI, InvalidUVStrides) {
         // Monochrome should ignore the U and V planes and NV12 only sets one
         // stride value, they should always succeed. The AOM* aom_img_fmt_t
         // variants are unsupported by the encoder.
-        aom_codec_err_t expected_err =
-            ((cfg.monochrome && img_fmt != AOM_IMG_FMT_AOMYV12 &&
-              img_fmt != AOM_IMG_FMT_AOMI420) ||
-             img_fmt == AOM_IMG_FMT_NV12)
+        const aom_codec_err_t expected_err =
+            (cfg.monochrome || img_fmt == AOM_IMG_FMT_NV12)
                 ? AOM_CODEC_OK
                 : AOM_CODEC_INVALID_PARAM;
         EXPECT_EQ(aom_codec_encode(&enc, &img, /*pts=*/0, /*duration=*/1,
@@ -272,13 +269,9 @@ TEST(EncodeAPI, InvalidUVStrides) {
         // Ensure the encoder can recover when given valid strides.
         img.stride[AOM_PLANE_U] = orig.u_stride;
         img.stride[AOM_PLANE_V] = orig.v_stride;
-        expected_err =
-            (img_fmt == AOM_IMG_FMT_AOMYV12 || img_fmt == AOM_IMG_FMT_AOMI420)
-                ? AOM_CODEC_INVALID_PARAM
-                : AOM_CODEC_OK;
         EXPECT_EQ(aom_codec_encode(&enc, &img, /*pts=*/0, /*duration=*/1,
                                    /*flags=*/0),
-                  expected_err)
+                  AOM_CODEC_OK)
             << "Error: " << aom_codec_error_detail(&enc)
             << ", format: " << img_fmt << ", U stride: " << orig.u_stride
             << ", V stride: " << orig.v_stride;
