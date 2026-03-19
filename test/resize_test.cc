@@ -410,6 +410,26 @@ TEST_P(ResizeCrashTest, TestRestorationFilterCrash) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
+// Recreate the compound mask prediction crash that was
+// fixed by https://aomedia-review.googlesource.com/c/aom/+/208801
+TEST_P(ResizeCrashTest, TestCompoundMaskPredictionCrash) {
+  ::libaom_test::Y4mVideoSource video("SDR_Dance_ldsn_1080p.y4m", 0, 2);
+  cfg_.g_lag_in_frames = 0;
+  cfg_.g_profile = 0;
+  cfg_.g_bit_depth = AOM_BITS_8;
+  cfg_.g_input_bit_depth = 8;
+  cfg_.g_threads = 4;
+  cfg_.rc_end_usage = AOM_Q;
+  cfg_.use_fixed_qp_offsets = 2;
+
+  first_frame_cq_level_ = 63;
+  second_frame_cq_level_ = 50;
+  first_tile_rows_cols_ = 1;
+  second_tile_rows_cols_ = 1;
+
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
 const unsigned int kStepDownFrame = 3;
 const unsigned int kStepUpFrame = 6;
 
@@ -1240,7 +1260,7 @@ AV1_INSTANTIATE_TEST_SUITE(ResizeTest,
 AV1_INSTANTIATE_TEST_SUITE(ResizeTest,
                            ::testing::Values(::libaom_test::kRealTime,
                                              ::libaom_test::kOnePassGood));
-AV1_INSTANTIATE_TEST_SUITE(ResizeCrashTest, ::testing::Values(3));
+AV1_INSTANTIATE_TEST_SUITE(ResizeCrashTest, ::testing::Values(2));
 #endif
 
 AV1_INSTANTIATE_TEST_SUITE(ResizeRealtimeTest,
