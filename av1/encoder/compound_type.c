@@ -730,6 +730,41 @@ static int handle_wedge_inter_intra_mode(
   return 0;
 }
 
+// Store the estimated RD Cost of compound average.
+static inline void push_comp_avg_est_rd(
+    int64_t *top_comp_avg_est_rd, int64_t tmp_rd,
+    bool skip_comp_eval_using_top_comp_avg_est_rd) {
+  if (!skip_comp_eval_using_top_comp_avg_est_rd) return;
+
+  // Insert the RD Cost in sorted order
+  for (int i = 0; i < TOP_COMP_AVG_EST_RD_COUNT; i++) {
+    if (tmp_rd < top_comp_avg_est_rd[i]) {
+      for (int j = TOP_COMP_AVG_EST_RD_COUNT - 1; j > i; j--) {
+        top_comp_avg_est_rd[j] = top_comp_avg_est_rd[j - 1];
+      }
+      top_comp_avg_est_rd[i] = tmp_rd;
+      break;
+    }
+  }
+}
+
+// Avoid further evaluation of compound modes based on top estimated RD Costs of
+// compound average.
+static inline bool prune_comp_eval_using_comp_avg_est_rd(
+    const int64_t *top_comp_avg_est_rd, int64_t tmp_rd, int64_t ref_best_rd,
+    bool skip_comp_eval_using_top_comp_avg_est_rd) {
+  if (!skip_comp_eval_using_top_comp_avg_est_rd) return false;
+
+  // Do not prune if there is no valid top RD Cost for comparison
+  if (top_comp_avg_est_rd[TOP_COMP_AVG_EST_RD_COUNT - 1] == INT64_MAX ||
+      ref_best_rd == INT64_MAX)
+    return false;
+
+  if (tmp_rd > top_comp_avg_est_rd[TOP_COMP_AVG_EST_RD_COUNT - 1]) return true;
+
+  return false;
+}
+
 int av1_handle_inter_intra_mode(const AV1_COMP *const cpi, MACROBLOCK *const x,
                                 BLOCK_SIZE bsize, MB_MODE_INFO *mbmi,
                                 HandleInterModeArgs *args, int64_t ref_best_rd,
@@ -1654,6 +1689,19 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
                        comp_model_rd_cur, rs2);
       if (have_newmv_in_inter_mode(this_mode))
         update_mask_best_mv(mbmi, best_mv, &best_tmp_rate_mv, tmp_rate_mv);
+    }
+    if (cur_type == COMPOUND_AVERAGE) {
+      const bool skip_comp_eval_using_top_comp_avg_est_rd =
+          cpi->sf.inter_sf.skip_comp_eval_using_top_comp_avg_est_rd;
+      push_comp_avg_est_rd(x->top_comp_avg_est_rd, best_rd_cur,
+                           skip_comp_eval_using_top_comp_avg_est_rd);
+      if (prune_comp_eval_using_comp_avg_est_rd(
+              x->top_comp_avg_est_rd, best_rd_cur, ref_best_rd,
+              skip_comp_eval_using_top_comp_avg_est_rd)) {
+        *rd = INT64_MAX;
+        restore_dst_buf(xd, *orig_dst, 1);
+        return 0;
+      }
     }
     // reset to original mvs for next iteration
     mbmi->mv[0].as_int = cur_mv[0].as_int;

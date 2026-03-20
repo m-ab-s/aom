@@ -1234,6 +1234,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 1;
     sf->inter_sf.alt_ref_search_fp = 1;
     sf->inter_sf.prune_inter_modes_based_on_tpl = 1;
+    sf->inter_sf.skip_comp_eval_using_top_comp_avg_est_rd = true;
 
     sf->interp_sf.adaptive_interp_filter_search = 1;
 
@@ -2378,6 +2379,7 @@ static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_arf_compound = 0;
   inter_sf->bias_warp_mode_rd_scale_pct = 0;
   inter_sf->bias_obmc_mode_rd_scale_pct = 0.0f;
+  inter_sf->skip_comp_eval_using_top_comp_avg_est_rd = false;
   set_txfm_rd_gate_level(inter_sf->txfm_rd_gate_level, 0);
 }
 
