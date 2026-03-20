@@ -2254,7 +2254,6 @@ static bool ref_mv_idx_early_breakout(
 
 // Compute the estimated RD cost for the motion vector with simple translation.
 static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
-                                          RD_STATS *rd_stats,
                                           HandleInterModeArgs *args,
                                           int ref_mv_idx, int64_t ref_best_rd,
                                           BLOCK_SIZE bsize) {
@@ -2271,7 +2270,8 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
     { p[0].dst.buf, p[1].dst.buf, p[2].dst.buf },
     { p[0].dst.stride, p[1].dst.stride, p[2].dst.stride },
   };
-  av1_init_rd_stats(rd_stats);
+  RD_STATS rd_stats;
+  av1_init_rd_stats(&rd_stats);
 
   mbmi->interinter_comp.type = COMPOUND_AVERAGE;
   mbmi->comp_group_idx = 0;
@@ -2286,10 +2286,10 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
   mbmi->motion_mode = SIMPLE_TRANSLATION;
   mbmi->ref_mv_idx = ref_mv_idx;
 
-  rd_stats->rate += args->ref_frame_cost + args->single_comp_cost;
+  rd_stats.rate += args->ref_frame_cost + args->single_comp_cost;
   const int drl_cost =
       get_drl_cost(mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
-  rd_stats->rate += drl_cost;
+  rd_stats.rate += drl_cost;
 
   int_mv cur_mv[2];
   if (!build_cur_mv(cur_mv, mbmi->mode, cm, x, 0)) {
@@ -2300,9 +2300,9 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
     mbmi->mv[i].as_int = cur_mv[i].as_int;
   }
   const int ref_mv_cost = cost_mv_ref(mode_costs, mbmi->mode, mode_ctx);
-  rd_stats->rate += ref_mv_cost;
+  rd_stats.rate += ref_mv_cost;
 
-  if (RDCOST(x->rdmult, rd_stats->rate, 0) > ref_best_rd) {
+  if (RDCOST(x->rdmult, rd_stats.rate, 0) > ref_best_rd) {
     return INT64_MAX;
   }
 
@@ -2324,7 +2324,7 @@ static int64_t simple_translation_pred_rd(AV1_COMP *const cpi, MACROBLOCK *x,
   int64_t est_dist;
   model_rd_sb_fn[MODELRD_CURVFIT](cpi, bsize, x, xd, 0, 0, &est_rate, &est_dist,
                                   NULL, NULL, NULL, NULL, NULL);
-  return RDCOST(x->rdmult, rd_stats->rate + est_rate, est_dist);
+  return RDCOST(x->rdmult, rd_stats.rate + est_rate, est_dist);
 }
 
 // Represents a set of integers, from 0 to sizeof(int) * 8, as bits in
@@ -2341,7 +2341,6 @@ static inline bool mask_check_bit(int mask, int index) {
 // Returns an integer where, if the i-th bit is set, it means that the i-th
 // motion vector should be searched. This is only set for NEAR_MV.
 static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
-                                RD_STATS *rd_stats,
                                 HandleInterModeArgs *const args,
                                 int64_t ref_best_rd, BLOCK_SIZE bsize,
                                 const int ref_set) {
@@ -2386,7 +2385,7 @@ static int ref_mv_idx_to_search(AV1_COMP *const cpi, MACROBLOCK *x,
       continue;
     }
     idx_rdcost[ref_mv_idx] = simple_translation_pred_rd(
-        cpi, x, rd_stats, args, ref_mv_idx, ref_best_rd, bsize);
+        cpi, x, args, ref_mv_idx, ref_best_rd, bsize);
   }
   // Find the index with the best RD cost.
   int best_idx = 0;
@@ -3123,7 +3122,7 @@ static int64_t handle_inter_mode(
   int_mv save_mv[MAX_REF_MV_SEARCH - 1][2];
   int best_ref_mv_idx = -1;
   const int idx_mask =
-      ref_mv_idx_to_search(cpi, x, rd_stats, args, ref_best_rd, bsize, ref_set);
+      ref_mv_idx_to_search(cpi, x, args, ref_best_rd, bsize, ref_set);
   const int16_t mode_ctx =
       av1_mode_context_analyzer(mbmi_ext->mode_context, mbmi->ref_frame);
   const ModeCosts *mode_costs = &x->mode_costs;
