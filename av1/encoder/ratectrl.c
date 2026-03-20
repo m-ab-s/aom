@@ -3246,12 +3246,12 @@ static unsigned int estimate_scroll_motion(
   unsigned int best_sad;
   int best_sad_col, best_sad_row;
   // Find the best match per 1-D search
-  *best_intmv_col =
-      av1_vector_match(hbuf, src_hbuf, mi_size_wide_log2[bsize],
-                       search_size_width, full_search, &best_sad_col);
-  *best_intmv_row =
-      av1_vector_match(vbuf, src_vbuf, mi_size_high_log2[bsize],
-                       search_size_height, full_search, &best_sad_row);
+  *best_intmv_col = av1_vector_match(hbuf, src_hbuf, mi_size_wide_log2[bsize],
+                                     search_size_width, search_size_width,
+                                     full_search, &best_sad_col);
+  *best_intmv_row = av1_vector_match(vbuf, src_vbuf, mi_size_high_log2[bsize],
+                                     search_size_height, search_size_height,
+                                     full_search, &best_sad_row);
   if (best_sad_col < best_sad_row) {
     *best_intmv_row = 0;
     best_sad = best_sad_col;

@@ -1340,10 +1340,8 @@ static void do_int_pro_motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   MACROBLOCKD *xd = &x->e_mbd;
   MB_MODE_INFO *mi = xd->mi[0];
   const int is_screen = cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN;
-  const int increase_col_sw = source_sad_nonrd > kMedSad &&
-                              !cpi->rc.high_motion_content_screen_rtc &&
-                              (cpi->svc.temporal_layer_id == 0 ||
-                               cpi->rc.num_col_blscroll_last_tl0 > 2);
+  const int increase_col_sw =
+      source_sad_nonrd > kMedSad && !cpi->rc.high_motion_content_screen_rtc;
   int me_search_size_col = is_screen
                                ? increase_col_sw ? 512 : 96
                                : block_size_wide[cm->seq_params->sb_size] >> 1;
@@ -1352,15 +1350,14 @@ static void do_int_pro_motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   int me_search_size_row = is_screen
                                ? source_sad_nonrd > kMedSad ? 512 : 192
                                : block_size_high[cm->seq_params->sb_size] >> 1;
-  if (cm->width * cm->height >= 3840 * 2160 &&
-      cpi->svc.temporal_layer_id == 0 && cpi->svc.number_temporal_layers > 1) {
+  if (cm->width * cm->height >= 3840 * 2160) {
     me_search_size_row = me_search_size_row << 1;
     me_search_size_col = me_search_size_col << 1;
   }
   unsigned int y_sad_zero;
   *y_sad = av1_int_pro_motion_estimation(
       cpi, x, cm->seq_params->sb_size, mi_row, mi_col, &kZeroMv, &y_sad_zero,
-      me_search_size_col, me_search_size_row);
+      me_search_size_col, me_search_size_row, 1);
   // The logic below selects whether the motion estimated in the
   // int_pro_motion() will be used in nonrd_pickmode. Only do this
   // for screen for now.

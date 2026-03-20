@@ -331,7 +331,7 @@ static int search_new_mv(AV1_COMP *cpi, MACROBLOCK *x,
     MV ref_mv = av1_get_ref_mv(x, 0).as_mv;
     tmp_sad = av1_int_pro_motion_estimation(
         cpi, x, bsize, mi_row, mi_col, &ref_mv, &y_sad_zero, me_search_size_col,
-        me_search_size_row);
+        me_search_size_row, 0);
 
     if (tmp_sad > x->pred_mv_sad[LAST_FRAME]) return -1;
 
@@ -3591,7 +3591,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN &&
       x->content_state_sb.source_sad_nonrd != kZeroSad &&
       bsize <= BLOCK_16X16) {
-    unsigned int thresh_sse = cpi->rc.high_source_sad ? 15000 : 200000;
+    unsigned int thresh_sse = cpi->rc.high_source_sad ? 15000 : 100000;
     unsigned int thresh_source_var = cpi->rc.high_source_sad ? 50 : 200;
     unsigned int best_sse_inter_motion =
         (unsigned int)(search_state.best_rdc.sse >>
@@ -3622,7 +3622,7 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
                           x->content_state_sb.source_sad_nonrd != kZeroSad &&
                           !cpi->rc.high_source_sad &&
                           (cpi->rc.high_motion_content_screen_rtc ||
-                           cpi->rc.frame_source_sad < 10000);
+                           cpi->rc.frame_source_sad < 1000);
 
   bool try_palette = enable_palette(
       cpi, is_mode_intra(best_pickmode->best_mode), bsize, x->source_variance,
