@@ -1880,7 +1880,9 @@ static int64_t motion_mode_rd(
       adjust_cost(cpi, x, &this_yrd, /*is_inter_pred=*/true);
     }
     adjust_rdcost(cpi, x, rd_stats, /*is_inter_pred=*/true);
-    if (rd_stats_y->rdcost < INT64_MAX) {
+    // Bug 494653438: If do_tx_search is 0, rd_stats_y is uninitialized, so
+    // valgrind will warn if we use rd_stats_y->rdcost in a conditional.
+    if (!do_tx_search || rd_stats_y->rdcost < INT64_MAX) {
       adjust_rdcost(cpi, x, rd_stats_y, /*is_inter_pred=*/true);
     }
 
