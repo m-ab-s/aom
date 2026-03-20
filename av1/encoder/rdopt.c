@@ -2998,9 +2998,9 @@ static inline bool fast_interp_search(const AV1_COMP *cpi, MACROBLOCK *x,
  * \param[in]     bsize             Current block size.
  * \param[in,out] rd_stats          Struct to keep track of the overall RD
  *                                  information.
- * \param[in,out] rd_stats_y        Struct to keep track of the RD information
+ * \param[out]    rd_stats_y        Struct to keep track of the RD information
  *                                  for only the Y plane.
- * \param[in,out] rd_stats_uv       Struct to keep track of the RD information
+ * \param[out]    rd_stats_uv       Struct to keep track of the RD information
  *                                  for only the UV planes.
  * \param[in]     args              HandleInterModeArgs struct holding
  *                                  miscellaneous arguments for inter mode
@@ -3044,7 +3044,8 @@ static inline bool fast_interp_search(const AV1_COMP *cpi, MACROBLOCK *x,
  * \param[out]    yrd               Stores the rdcost corresponding to encoding
  *                                  the luma plane.
  *
- * \return The RD cost for the mode being searched.
+ * \return The RD cost for the mode being searched. If the return value is
+ *         INT64_MAX, the output parameters are not set; do not use them.
  */
 static int64_t handle_inter_mode(
     AV1_COMP *const cpi, TileDataEnc *tile_data, MACROBLOCK *x,
