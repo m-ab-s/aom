@@ -1156,7 +1156,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
         // only supports 32x32 block size and 5x5 filtering window.
         if (is_frame_high_bitdepth(frame_to_filter)) {  // for high bit-depth
 #if CONFIG_AV1_HIGHBITDEPTH
-          if (!is_yuv422_format && TF_BLOCK_SIZE == BLOCK_32X32 &&
+          if (!is_yuv422_format && TF_BLOCK_SIZE == BLOCK_64X64 &&
               TF_WINDOW_LENGTH == 5) {
             av1_highbd_apply_temporal_filter(
                 frame_to_filter, mbd, block_size, mb_row, mb_col, num_planes,
