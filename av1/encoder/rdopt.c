@@ -514,8 +514,8 @@ static inline void inter_modes_info_sort(const InterModesInfo *inter_modes_info,
 
 // Initialize estimated RD Cost records of compound average.
 static inline void init_comp_avg_est_rd(
-    struct macroblock *x, bool skip_comp_eval_using_top_comp_avg_est_rd) {
-  if (!skip_comp_eval_using_top_comp_avg_est_rd) return;
+    struct macroblock *x, int skip_cmp_using_top_cmp_avg_est_rd_lvl) {
+  if (!skip_cmp_using_top_cmp_avg_est_rd_lvl) return;
 
   for (int j = 0; j < TOP_COMP_AVG_EST_RD_COUNT; j++) {
     x->top_comp_avg_est_rd[j] = INT64_MAX;
@@ -6285,8 +6285,7 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     mode_start = SINGLE_REF_MODE_START;
     mode_end = SINGLE_REF_MODE_END;
   }
-  init_comp_avg_est_rd(x,
-                       sf->inter_sf.skip_comp_eval_using_top_comp_avg_est_rd);
+  init_comp_avg_est_rd(x, sf->inter_sf.skip_cmp_using_top_cmp_avg_est_rd_lvl);
   for (THR_MODES midx = mode_start; midx < mode_end; ++midx) {
     // Get the actual prediction mode we are trying in this iteration
     const THR_MODES mode_enum = av1_default_mode_order[midx];

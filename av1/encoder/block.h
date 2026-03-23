@@ -874,7 +874,7 @@ typedef struct SetOffsetsLoc {
 /*!\endcond */
 
 //! Maximum number of estimated RD Cost records for compound average.
-#define TOP_COMP_AVG_EST_RD_COUNT 2
+#define TOP_COMP_AVG_EST_RD_COUNT 5
 
 /*! \brief Encoder's parameters related to the current coding block.
  *

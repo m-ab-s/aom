@@ -1242,7 +1242,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Avoid further evaluation of compound modes using top estimate RD Costs of
   // compound average.
-  bool skip_comp_eval_using_top_comp_avg_est_rd;
+  // Values are 0 (not used),1 - 3 with progressively increasing
+  // aggressiveness, i.e., decreasing number of top candidates.
+  int skip_cmp_using_top_cmp_avg_est_rd_lvl;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {

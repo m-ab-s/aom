@@ -24,6 +24,11 @@ typedef int64_t (*pick_interinter_mask_type)(
     const int16_t *const residual1, const int16_t *const diff10,
     uint64_t *best_sse);
 
+// look-up table for number of top compound average estimated RD Costs that
+// should be considered based on skip_cmp_using_top_cmp_avg_est_rd_lvl
+// speed feature.
+static const int num_comp_mode_skip_cand[3] = { 5, 4, 2 };
+
 // Checks if characteristics of search match
 static inline int is_comp_rd_match(const AV1_COMP *const cpi,
                                    const MACROBLOCK *const x,
@@ -733,13 +738,18 @@ static int handle_wedge_inter_intra_mode(
 // Store the estimated RD Cost of compound average.
 static inline void push_comp_avg_est_rd(
     int64_t *top_comp_avg_est_rd, int64_t tmp_rd,
-    bool skip_comp_eval_using_top_comp_avg_est_rd) {
-  if (!skip_comp_eval_using_top_comp_avg_est_rd) return;
+    int skip_cmp_using_top_cmp_avg_est_rd_lvl) {
+  if (!skip_cmp_using_top_cmp_avg_est_rd_lvl) return;
+  assert(skip_cmp_using_top_cmp_avg_est_rd_lvl <= 3);
+
+  const int num_top_cand =
+      num_comp_mode_skip_cand[skip_cmp_using_top_cmp_avg_est_rd_lvl - 1];
+  assert(num_top_cand <= TOP_COMP_AVG_EST_RD_COUNT);
 
   // Insert the RD Cost in sorted order
-  for (int i = 0; i < TOP_COMP_AVG_EST_RD_COUNT; i++) {
+  for (int i = 0; i < num_top_cand; i++) {
     if (tmp_rd < top_comp_avg_est_rd[i]) {
-      for (int j = TOP_COMP_AVG_EST_RD_COUNT - 1; j > i; j--) {
+      for (int j = num_top_cand - 1; j > i; j--) {
         top_comp_avg_est_rd[j] = top_comp_avg_est_rd[j - 1];
       }
       top_comp_avg_est_rd[i] = tmp_rd;
@@ -752,15 +762,20 @@ static inline void push_comp_avg_est_rd(
 // compound average.
 static inline bool prune_comp_eval_using_comp_avg_est_rd(
     const int64_t *top_comp_avg_est_rd, int64_t tmp_rd, int64_t ref_best_rd,
-    bool skip_comp_eval_using_top_comp_avg_est_rd) {
-  if (!skip_comp_eval_using_top_comp_avg_est_rd) return false;
+    int skip_cmp_using_top_cmp_avg_est_rd_lvl) {
+  if (!skip_cmp_using_top_cmp_avg_est_rd_lvl) return false;
+  assert(skip_cmp_using_top_cmp_avg_est_rd_lvl <= 3);
+
+  const int num_top_cand =
+      num_comp_mode_skip_cand[skip_cmp_using_top_cmp_avg_est_rd_lvl - 1];
+  assert(num_top_cand <= TOP_COMP_AVG_EST_RD_COUNT);
 
   // Do not prune if there is no valid top RD Cost for comparison
-  if (top_comp_avg_est_rd[TOP_COMP_AVG_EST_RD_COUNT - 1] == INT64_MAX ||
+  if (top_comp_avg_est_rd[num_top_cand - 1] == INT64_MAX ||
       ref_best_rd == INT64_MAX)
     return false;
 
-  if (tmp_rd > top_comp_avg_est_rd[TOP_COMP_AVG_EST_RD_COUNT - 1]) return true;
+  if (tmp_rd > top_comp_avg_est_rd[num_top_cand - 1]) return true;
 
   return false;
 }
@@ -1691,13 +1706,13 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         update_mask_best_mv(mbmi, best_mv, &best_tmp_rate_mv, tmp_rate_mv);
     }
     if (cur_type == COMPOUND_AVERAGE) {
-      const bool skip_comp_eval_using_top_comp_avg_est_rd =
-          cpi->sf.inter_sf.skip_comp_eval_using_top_comp_avg_est_rd;
+      const int skip_cmp_using_top_cmp_avg_est_rd_lvl =
+          cpi->sf.inter_sf.skip_cmp_using_top_cmp_avg_est_rd_lvl;
       push_comp_avg_est_rd(x->top_comp_avg_est_rd, best_rd_cur,
-                           skip_comp_eval_using_top_comp_avg_est_rd);
+                           skip_cmp_using_top_cmp_avg_est_rd_lvl);
       if (prune_comp_eval_using_comp_avg_est_rd(
               x->top_comp_avg_est_rd, best_rd_cur, ref_best_rd,
-              skip_comp_eval_using_top_comp_avg_est_rd)) {
+              skip_cmp_using_top_cmp_avg_est_rd_lvl)) {
         *rd = INT64_MAX;
         restore_dst_buf(xd, *orig_dst, 1);
         return 0;

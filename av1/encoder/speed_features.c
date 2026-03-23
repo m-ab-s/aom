@@ -770,6 +770,12 @@ static void set_good_speed_feature_framesize_dependent(
     sf->part_sf.ml_4_partition_search_level_index = 1;
     sf->inter_sf.skip_newmv_in_drl = 1;
 
+    if (is_480p_or_lesser) {
+      sf->inter_sf.skip_cmp_using_top_cmp_avg_est_rd_lvl = 1;
+    } else {
+      sf->inter_sf.skip_cmp_using_top_cmp_avg_est_rd_lvl = 2;
+    }
+
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
     } else if (is_480p_or_larger) {
@@ -841,6 +847,8 @@ static void set_good_speed_feature_framesize_dependent(
     } else {
       sf->inter_sf.limit_inter_mode_cands = is_lf_frame ? 2 : 0;
     }
+
+    sf->inter_sf.skip_cmp_using_top_cmp_avg_est_rd_lvl = 3;
 
     if (is_480p_or_larger) {
       sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 1;
@@ -1234,7 +1242,6 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 1;
     sf->inter_sf.alt_ref_search_fp = 1;
     sf->inter_sf.prune_inter_modes_based_on_tpl = 1;
-    sf->inter_sf.skip_comp_eval_using_top_comp_avg_est_rd = true;
     sf->inter_sf.prune_single_ref = boosted ? 1 : 2;
 
     sf->interp_sf.adaptive_interp_filter_search = 1;
@@ -2379,7 +2386,7 @@ static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_arf_compound = 0;
   inter_sf->bias_warp_mode_rd_scale_pct = 0;
   inter_sf->bias_obmc_mode_rd_scale_pct = 0.0f;
-  inter_sf->skip_comp_eval_using_top_comp_avg_est_rd = false;
+  inter_sf->skip_cmp_using_top_cmp_avg_est_rd_lvl = 0;
   set_txfm_rd_gate_level(inter_sf->txfm_rd_gate_level, 0);
 }
 
