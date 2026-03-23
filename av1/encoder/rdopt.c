@@ -4221,8 +4221,8 @@ static inline void init_mode_skip_mask(mode_skip_mask_t *mask,
   // Prune reference frames which are not the closest to the current
   // frame and with large pred_mv_sad.
   if (inter_sf->prune_single_ref) {
-    assert(inter_sf->prune_single_ref > 0 && inter_sf->prune_single_ref < 4);
-    const double prune_threshes[3] = { 1.20, 1.20, 1.05 };
+    assert(inter_sf->prune_single_ref > 0 && inter_sf->prune_single_ref < 5);
+    const double prune_thresh = (inter_sf->prune_single_ref <= 3) ? 1.20 : 1.05;
 
     for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
       const RefFrameDistanceInfo *const ref_frame_dist_info =
@@ -4239,9 +4239,7 @@ static inline void init_mode_skip_mask(mode_skip_mask_t *mask,
                 ? 0
                 : 1;
         if (x->best_pred_mv_sad[dir] < INT_MAX &&
-            x->pred_mv_sad[ref_frame] >
-                prune_threshes[inter_sf->prune_single_ref - 1] *
-                    x->best_pred_mv_sad[dir])
+            x->pred_mv_sad[ref_frame] > prune_thresh * x->best_pred_mv_sad[dir])
           mask->pred_modes[ref_frame] |= INTER_SINGLE_ALL;
       }
     }

@@ -1725,12 +1725,9 @@ static int compare_score_data_asc(const void *a, const void *b) {
 static inline void setup_keep_single_ref_frame_mask(AV1_COMP *cpi) {
   const int prune_single_ref = cpi->sf.inter_sf.prune_single_ref;
   const AV1_COMMON *const cm = &cpi->common;
+  cpi->keep_single_ref_frame_mask = 0;
+  if (frame_is_intra_only(cm)) return;
 
-  if (prune_single_ref != 1 || frame_is_intra_only(cm)) {
-    cpi->keep_single_ref_frame_mask =
-        (prune_single_ref == 0) ? ((1 << REF_FRAMES) - 1) : 0;
-    return;
-  }
   RefScoreData ref_score_data[INTER_REFS_PER_FRAME];
   for (int i = 0; i < INTER_REFS_PER_FRAME; ++i) {
     ref_score_data[i].score = INT_MAX;
@@ -1755,8 +1752,15 @@ static inline void setup_keep_single_ref_frame_mask(AV1_COMP *cpi) {
   qsort(ref_score_data, INTER_REFS_PER_FRAME, sizeof(ref_score_data[0]),
         compare_score_data_asc);
 
-  cpi->keep_single_ref_frame_mask = 0;
-  const int num_frames_to_keep = 3;
+  // Decide the number of reference frames for which pruning via the speed
+  // feature prune_single_ref is disallowed.
+  // prune_single_ref = 0 => None of the 7 reference frames are pruned.
+  // prune_single_ref = 1 => The best 5 reference frames are not pruned.
+  // prune_single_ref = 2 => The best 3 reference frames are not pruned.
+  // prune_single_ref = 3, 4 => All the 7 references are allowed to be pruned.
+  static const int num_frames_to_keep_lookup[5] = { INTER_REFS_PER_FRAME, 5, 3,
+                                                    0, 0 };
+  const int num_frames_to_keep = num_frames_to_keep_lookup[prune_single_ref];
   for (int i = 0; i < num_frames_to_keep; ++i) {
     const int idx = ref_score_data[i].index;
     cpi->keep_single_ref_frame_mask |= 1 << idx;
