@@ -1030,12 +1030,15 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Prune compound reference frames
   // 0 no pruning
-  // 1 prune compound references which do not satisfy the two conditions:
+  // 1 prune based on temporal distance and pred_mv_sad. However, disallow
+  //   pruning of important reference frame pairs decided based on temporal
+  //   distance and quality.
+  // 2 prune compound references which do not satisfy the two conditions:
   //   a) The references are at a nearest distance from the current frame in
   //   both past and future direction.
   //   b) The references have minimum pred_mv_sad in both past and future
   //   direction.
-  // 2 prune compound references except the one with nearest distance from the
+  // 3 prune compound references except the one with nearest distance from the
   //   current frame in both past and future direction.
   int prune_comp_ref_frames;
 

@@ -1721,11 +1721,14 @@ static int compare_score_data_asc(const void *a, const void *b) {
 
 // Determines whether a given reference frame is "good" based on temporal
 // distance and base_qindex. The "good" reference frames are not allowed to be
-// pruned by the speed feature "prune_single_ref" frame at block level.
-static inline void setup_keep_single_ref_frame_mask(AV1_COMP *cpi) {
+// pruned by the speed feature "prune_single_ref" and "prune_comp_ref_frames"
+// at block level.
+static inline void setup_keep_ref_frame_mask(AV1_COMP *cpi) {
   const int prune_single_ref = cpi->sf.inter_sf.prune_single_ref;
+  const int prune_comp_ref_frames = cpi->sf.inter_sf.prune_comp_ref_frames;
   const AV1_COMMON *const cm = &cpi->common;
   cpi->keep_single_ref_frame_mask = 0;
+  cpi->keep_comp_ref_frame_mask = 0;
   if (frame_is_intra_only(cm)) return;
 
   RefScoreData ref_score_data[INTER_REFS_PER_FRAME];
@@ -1758,12 +1761,34 @@ static inline void setup_keep_single_ref_frame_mask(AV1_COMP *cpi) {
   // prune_single_ref = 1 => The best 5 reference frames are not pruned.
   // prune_single_ref = 2 => The best 3 reference frames are not pruned.
   // prune_single_ref = 3, 4 => All the 7 references are allowed to be pruned.
-  static const int num_frames_to_keep_lookup[5] = { INTER_REFS_PER_FRAME, 5, 3,
-                                                    0, 0 };
-  const int num_frames_to_keep = num_frames_to_keep_lookup[prune_single_ref];
-  for (int i = 0; i < num_frames_to_keep; ++i) {
+  static const int num_single_ref_to_keep_lookup[5] = { INTER_REFS_PER_FRAME, 5,
+                                                        3, 0, 0 };
+  assert(prune_single_ref >= 0 && prune_single_ref <= 4);
+  const int num_single_ref_to_keep =
+      num_single_ref_to_keep_lookup[prune_single_ref];
+  for (int i = 0; i < num_single_ref_to_keep; ++i) {
     const int idx = ref_score_data[i].index;
     cpi->keep_single_ref_frame_mask |= 1 << idx;
+  }
+
+  // Decide the number of reference frame pairs for which pruning via the speed
+  // feature "prune_comp_ref_frames" is disallowed.
+  // prune_comp_ref_frames = 0    => None of the allowed reference frame pairs
+  //                                 are pruned.
+  // prune_comp_ref_frames = 1    => The best 3 reference frame pairs are not
+  //                                 allowed to be pruned, i.e, reference frame
+  //                                 pairs with rank (1, 2), (1, 3), (2, 3) are
+  //                                 not  pruned.
+  // prune_comp_ref_frames = 2, 3 => All the reference frame pairs are allowed
+  //                                 to be pruned.
+  static const int num_comp_ref_to_keep_lookup[4] = { INTER_REFS_PER_FRAME, 3,
+                                                      0, 0 };
+  assert(prune_comp_ref_frames >= 0 && prune_comp_ref_frames <= 3);
+  const int num_comp_ref_to_keep =
+      num_comp_ref_to_keep_lookup[prune_comp_ref_frames];
+  for (int i = 0; i < num_comp_ref_to_keep; ++i) {
+    const int idx = ref_score_data[i].index;
+    cpi->keep_comp_ref_frame_mask |= 1 << idx;
   }
 }
 
@@ -2336,7 +2361,7 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
   setup_prune_ref_frame_mask(cpi);
   // Disable certain reference frame pruning based on temporal distance and
   // quality of that reference frame.
-  setup_keep_single_ref_frame_mask(cpi);
+  setup_keep_ref_frame_mask(cpi);
 
   x->txfm_search_info.txb_split_count = 0;
 #if CONFIG_SPEED_STATS

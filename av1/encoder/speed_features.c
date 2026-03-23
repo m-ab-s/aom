@@ -929,6 +929,12 @@ static void set_good_speed_feature_framesize_dependent(
       sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL2;
     }
 
+    if (is_480p_or_lesser) {
+      sf->inter_sf.prune_comp_ref_frames = 0;
+    } else {
+      sf->inter_sf.prune_comp_ref_frames = 1;
+    }
+
     sf->inter_sf.disable_interintra_wedge_var_thresh = UINT_MAX;
   }
 
@@ -954,9 +960,9 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_480p_or_lesser) sf->inter_sf.skip_newmv_in_drl = 3;
 
     if (is_720p_or_larger) {
-      sf->inter_sf.prune_comp_ref_frames = 1;
+      sf->inter_sf.prune_comp_ref_frames = 2;
     } else if (is_480p_or_larger) {
-      sf->inter_sf.prune_comp_ref_frames = is_boosted_arf2_bwd_type ? 0 : 1;
+      sf->inter_sf.prune_comp_ref_frames = is_boosted_arf2_bwd_type ? 0 : 2;
     }
 
     if (is_720p_or_larger)
@@ -978,7 +984,7 @@ static void set_good_speed_feature_framesize_dependent(
     if (is_720p_or_larger) sf->hl_sf.recode_tolerance = 40;
 
     sf->inter_sf.skip_newmv_in_drl = 4;
-    sf->inter_sf.prune_comp_ref_frames = 1;
+    sf->inter_sf.prune_comp_ref_frames = 2;
     sf->mv_sf.skip_fullpel_search_using_startmv_refmv = boosted ? 0 : 1;
 
     if (!is_720p_or_larger) {
@@ -1012,7 +1018,7 @@ static void set_good_speed_feature_framesize_dependent(
   if (speed >= 6) {
     sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 4;
     sf->inter_sf.prune_nearmv_using_neighbors = PRUNE_NEARMV_LEVEL3;
-    sf->inter_sf.prune_comp_ref_frames = 2;
+    sf->inter_sf.prune_comp_ref_frames = 3;
     sf->inter_sf.prune_nearest_near_mv_using_refmv_weight =
         (boosted || allow_screen_content_tools) ? 0 : 1;
     sf->mv_sf.skip_fullpel_search_using_startmv_refmv = boosted ? 0 : 2;
