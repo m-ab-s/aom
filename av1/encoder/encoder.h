@@ -108,17 +108,6 @@ typedef struct aom_rational64 {
 } aom_rational64_t;  // alias for struct aom_rational
 
 enum {
-  // Good Quality Fast Encoding. The encoder balances quality with the amount of
-  // time it takes to encode the output. Speed setting controls how fast.
-  GOOD,
-  // Realtime Fast Encoding. Will force some restrictions on bitrate
-  // constraints.
-  REALTIME,
-  // All intra mode. All the frames are coded as intra frames.
-  ALLINTRA
-} UENUM1BYTE(MODE);
-
-enum {
   FRAMEFLAGS_KEY = 1 << 0,
   FRAMEFLAGS_GOLDEN = 1 << 1,
   FRAMEFLAGS_BWDREF = 1 << 2,
