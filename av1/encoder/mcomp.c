@@ -1366,6 +1366,22 @@ static int fast_bigdia_search(const FULLPEL_MV start_mv,
                        do_init_search, cost_list, best_mv, best_mv_stats);
 }
 
+static inline void update_best_site(unsigned int sad, const FULLPEL_MV *best_mv,
+                                    const search_site *site, int idx,
+                                    const MV_COST_PARAMS *mv_cost_params,
+                                    unsigned int *bestsad, int *best_site) {
+  if (sad < *bestsad) {
+    const FULLPEL_MV this_mv = { best_mv->row + site[idx].mv.row,
+                                 best_mv->col + site[idx].mv.col };
+    const unsigned int thissad =
+        sad + mvsad_err_cost_(&this_mv, mv_cost_params);
+    if (thissad < *bestsad) {
+      *bestsad = thissad;
+      *best_site = idx;
+    }
+  }
+}
+
 static int diamond_search_sad(FULLPEL_MV start_mv, unsigned int start_mv_sad,
                               const FULLPEL_MOTION_SEARCH_PARAMS *ms_params,
                               const int search_step, int *num00,
@@ -1467,24 +1483,22 @@ static int diamond_search_sad(FULLPEL_MV start_mv, unsigned int start_mv_sad,
           unsigned char const *block_offset[4];
           unsigned int sads[4];
 
-          for (int j = 0; j < 4; j++)
-            block_offset[j] = site[idx + j].offset + best_address;
+          block_offset[0] = site[idx + 0].offset + best_address;
+          block_offset[1] = site[idx + 1].offset + best_address;
+          block_offset[2] = site[idx + 2].offset + best_address;
+          block_offset[3] = site[idx + 3].offset + best_address;
 
           ms_params->sdx4df(src_buf, src_stride, block_offset, ref_stride,
                             sads);
-          for (int j = 0; j < 4; j++) {
-            if (sads[j] < bestsad) {
-              const FULLPEL_MV this_mv = { best_mv->row + site[idx + j].mv.row,
-                                           best_mv->col +
-                                               site[idx + j].mv.col };
-              unsigned int thissad =
-                  sads[j] + mvsad_err_cost_(&this_mv, mv_cost_params);
-              if (thissad < bestsad) {
-                bestsad = thissad;
-                best_site = idx + j;
-              }
-            }
-          }
+
+          update_best_site(sads[0], best_mv, site, idx + 0, mv_cost_params,
+                           &bestsad, &best_site);
+          update_best_site(sads[1], best_mv, site, idx + 1, mv_cost_params,
+                           &bestsad, &best_site);
+          update_best_site(sads[2], best_mv, site, idx + 2, mv_cost_params,
+                           &bestsad, &best_site);
+          update_best_site(sads[3], best_mv, site, idx + 3, mv_cost_params,
+                           &bestsad, &best_site);
         }
       } else {
         for (int idx = 1; idx <= num_searches; idx++) {
