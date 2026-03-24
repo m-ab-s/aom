@@ -237,7 +237,8 @@ TEST(EncodeAPI, InvalidUVStrides) {
     cfg.g_h = kHeight;
     cfg.g_bit_depth = high_bit_depth ? AOM_BITS_10 : AOM_BITS_8;
     // Monochrome is not allowed in profile 1.
-    for (cfg.monochrome = 0; cfg.monochrome <= (cfg.g_profile != 1);
+    const unsigned int max_monochrome = (cfg.g_profile == 1) ? 0u : 1u;
+    for (cfg.monochrome = 0; cfg.monochrome <= max_monochrome;
          ++cfg.monochrome) {
       ASSERT_EQ(
           aom_codec_enc_init(&enc, aom_codec_av1_cx(), &cfg,
