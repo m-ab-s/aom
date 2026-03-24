@@ -1464,6 +1464,12 @@ typedef struct TX_SPEED_FEATURES {
   // for speed 3, 4, 5, 6, 7 and 8 on a typical image dataset with coding
   // performance change less than 0.004%.
   bool use_rd_based_breakout_for_intra_tx_search;
+
+  // Prune RD evaluation of transform split using RD Costs of transform no-split
+  // of inter modes that are evaluated so far.
+  // Values are 0 (not used),  1 - 2 with progressively increasing
+  // aggressiveness, i.e., decreasing number of top candidates
+  int prune_inter_tx_split_rd_eval_lvl;
 } TX_SPEED_FEATURES;
 
 typedef struct RD_CALC_SPEED_FEATURES {

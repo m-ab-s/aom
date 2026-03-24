@@ -5925,6 +5925,18 @@ static inline void search_intra_modes_in_interframe(
   }
 }
 
+// Initialize the table that stores best RD Costs of transform no-split.
+static inline void init_top_tx_no_split_rd_for_inter_modes(
+    MACROBLOCK *x, int prune_inter_tx_split_rd_eval_lvl) {
+  if (!prune_inter_tx_split_rd_eval_lvl) return;
+
+  for (int i = 0; i < MAX_TX_BLOCKS_IN_MAX_SB; i++) {
+    for (int j = 0; j < TOP_INTER_TX_NO_SPLIT_COUNT; j++) {
+      x->top_inter_tx_no_split_rd[i][j] = INT64_MAX;
+    }
+  }
+}
+
 #if !CONFIG_REALTIME_ONLY
 // Prepare inter_cost and intra_cost from TPL stats, which are used as ML
 // features in intra mode pruning.
@@ -6096,6 +6108,10 @@ void av1_rd_pick_inter_mode(struct AV1_COMP *cpi, struct TileDataEnc *tile_data,
     INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES,
     INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES, INTERINTRA_MODES
   };
+
+  init_top_tx_no_split_rd_for_inter_modes(
+      x, sf->tx_sf.prune_inter_tx_split_rd_eval_lvl);
+
   HandleInterModeArgs args = { { NULL },
                                { MAX_SB_SIZE, MAX_SB_SIZE, MAX_SB_SIZE },
                                { NULL },
