@@ -1198,6 +1198,7 @@ static void set_good_speed_features_framesize_independent(
     sf->tx_sf.tx_type_search.ml_tx_split_thresh = 4000;
     sf->tx_sf.tx_type_search.prune_2d_txfm_mode = TX_TYPE_PRUNE_2;
     sf->tx_sf.tx_type_search.skip_tx_search = 1;
+    sf->tx_sf.prune_inter_tx_split_rd_eval_lvl = 1;
 
     sf->rd_sf.perform_coeff_opt = boosted ? 2 : 3;
     sf->rd_sf.tx_domain_dist_level = boosted ? 1 : 2;
@@ -1263,6 +1264,8 @@ static void set_good_speed_features_framesize_independent(
     // TODO(any): Re-evaluate this feature set to 1 in speed 2.
     sf->tpl_sf.allow_compound_pred = 0;
     sf->tpl_sf.prune_ref_frames_in_tpl = 1;
+
+    sf->tx_sf.prune_inter_tx_split_rd_eval_lvl = 2;
   }
 
   if (speed >= 3) {
@@ -2447,6 +2450,7 @@ static inline void init_tx_sf(TX_SPEED_FEATURES *tx_sf) {
   tx_sf->prune_tx_size_level = 0;
   tx_sf->prune_intra_tx_depths_using_nn = false;
   tx_sf->use_rd_based_breakout_for_intra_tx_search = false;
+  tx_sf->prune_inter_tx_split_rd_eval_lvl = 0;
 }
 
 static inline void init_rd_sf(RD_CALC_SPEED_FEATURES *rd_sf,
