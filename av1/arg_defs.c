@@ -81,7 +81,7 @@ static const struct arg_enum_list matrix_coefficients_enum[] = {
   { "fcc73", AOM_CICP_MC_FCC },
   { "bt470bg", AOM_CICP_MC_BT_470_B_G },
   { "bt601", AOM_CICP_MC_BT_601 },
-  { "smpte240", AOM_CICP_CP_SMPTE_240 },
+  { "smpte240", AOM_CICP_MC_SMPTE_240 },
   { "ycgco", AOM_CICP_MC_SMPTE_YCGCO },
   { "bt2020ncl", AOM_CICP_MC_BT_2020_NCL },
   { "bt2020cl", AOM_CICP_MC_BT_2020_CL },
@@ -107,7 +107,7 @@ static const struct arg_enum_list tune_content_enum[] = {
 };
 
 static const struct arg_enum_list transfer_characteristics_enum[] = {
-  { "unspecified", AOM_CICP_CP_UNSPECIFIED },
+  { "unspecified", AOM_CICP_TC_UNSPECIFIED },
   { "bt709", AOM_CICP_TC_BT_709 },
   { "bt470m", AOM_CICP_TC_BT_470_M },
   { "bt470bg", AOM_CICP_TC_BT_470_B_G },
