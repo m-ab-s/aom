@@ -89,6 +89,9 @@ static const struct arg_enum_list matrix_coefficients_enum[] = {
   { "chromncl", AOM_CICP_MC_CHROMAT_NCL },
   { "chromcl", AOM_CICP_MC_CHROMAT_CL },
   { "ictcp", AOM_CICP_MC_ICTCP },
+  { "ipt-c2", AOM_CICP_MC_IPT_C2 },
+  { "ycgco-re", AOM_CICP_MC_YCGCO_RE },
+  { "ycgco-ro", AOM_CICP_MC_YCGCO_RO },
   { NULL, 0 }
 };
 

@@ -132,10 +132,14 @@ typedef enum aom_matrix_coefficients {
   AOM_CICP_MC_SMPTE_2085 = 11, /**< SMPTE ST 2085 YDzDx */
   AOM_CICP_MC_CHROMAT_NCL =
       12, /**< Chromaticity-derived non-constant luminance */
-  AOM_CICP_MC_CHROMAT_CL = 13, /**< Chromaticity-derived constant luminance */
-  AOM_CICP_MC_ICTCP = 14,      /**< BT.2100 ICtCp */
-  AOM_CICP_MC_RESERVED_15 = 15 /**< For future use (values 15-255)  */
-} aom_matrix_coefficients_t;   /**< alias for enum aom_matrix_coefficients */
+  AOM_CICP_MC_CHROMAT_CL = 13,  /**< Chromaticity-derived constant luminance */
+  AOM_CICP_MC_ICTCP = 14,       /**< BT.2100 ICtCp */
+  AOM_CICP_MC_RESERVED_15 = 15, /**< For backward compatibility */
+  AOM_CICP_MC_IPT_C2 = 15,      /**< IPT-C2 */
+  AOM_CICP_MC_YCGCO_RE = 16,    /**< YCgCo-Re */
+  AOM_CICP_MC_YCGCO_RO = 17,    /**< YCgCo-Ro */
+  /**< For future use (values 18-255) */
+} aom_matrix_coefficients_t; /**< alias for enum aom_matrix_coefficients */
 
 /*!\brief List of supported color range */
 typedef enum aom_color_range {

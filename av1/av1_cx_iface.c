@@ -858,7 +858,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK(extra_cfg, transfer_characteristics, AOM_CICP_TC_BT_709,
               AOM_CICP_TC_HLG);
   RANGE_CHECK(extra_cfg, matrix_coefficients, AOM_CICP_MC_IDENTITY,
-              AOM_CICP_MC_ICTCP);
+              AOM_CICP_MC_YCGCO_RO);
   RANGE_CHECK(extra_cfg, color_range, 0, 1);
 
   /* Average corpus complexity is supported only in the case of single pass
