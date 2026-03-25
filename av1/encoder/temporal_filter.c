@@ -1061,6 +1061,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
   const GF_GROUP *gf_group = &cpi->ppi->gf_group;
   const FRAME_TYPE frame_type = gf_group->frame_type[cpi->gf_frame_index];
 
+#if CONFIG_AV1_HIGHBITDEPTH
   // Determine whether the video is with `YUV 4:2:2` format, since the avx2/sse2
   // function only supports square block size. We will use C function instead
   // for videos with `YUV 4:2:2` format.
@@ -1071,6 +1072,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
       break;
     }
   }
+#endif
 
   // Do filtering.
   FRAME_DIFF *diff = &td->tf_data.diff;
@@ -1173,8 +1175,7 @@ void av1_tf_do_filtering_row(AV1_COMP *cpi, ThreadData *td, int mb_row) {
 #endif  // CONFIG_AV1_HIGHBITDEPTH
         } else {
           // for 8-bit
-          if (!is_yuv422_format && TF_BLOCK_SIZE == BLOCK_64X64 &&
-              TF_WINDOW_LENGTH == 5) {
+          if (TF_BLOCK_SIZE == BLOCK_64X64 && TF_WINDOW_LENGTH == 5) {
             av1_apply_temporal_filter(
                 frame_to_filter, mbd, block_size, mb_row, mb_col, num_planes,
                 noise_levels, subblock_mvs, subblock_mses, q_factor,
