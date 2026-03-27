@@ -92,6 +92,8 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->skip_mode_cost[i],
                                fc->skip_mode_cdfs[i], NULL);
     }
+  } else {
+    av1_zero(mode_costs->skip_mode_cost);
   }
 
   for (i = 0; i < SKIP_CONTEXTS; ++i) {
