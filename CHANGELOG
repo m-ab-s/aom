@@ -19,6 +19,8 @@ yyyy-mm-dd next version
     * When encoding 2-layered images with AOM_TUNE_IQ vs. AOM_TUNE_SSIM:
       - Good-quality mode: up to 15% gains at similar SSIMULACRA 2 scores.
       - Realtime mode: up to 30% gains at similar SSIMULACRA 2 scores.
+    * Enable screen detection mode 2 (anti-aliased text and graphics aware) in
+      all-intra mode.
     * Some minor quantization matrix formula and delta chroma q tweaks for the
       AOM_TUNE_SSIMULACRA2 tuning mode, with up to 0.2% SSIMULACRA 2 score
       efficiency gains.
@@ -26,6 +28,8 @@ yyyy-mm-dd next version
   - Perceptual Quality Improvements
     * AOM_TUNE_IQ improves the visual quality of layered image encoding
       compared to AOM_TUNE_SSIM.
+    * Adaptive sharpness: tweak loop filter sharpness threshold to improve
+      visual quality at QPs 29 and 30.
 
   - Speedups
     * Make Adaptive CDEF more decoder friendly by limiting CDEF application to
