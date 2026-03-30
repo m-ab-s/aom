@@ -2053,11 +2053,20 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
             const int last_frame = regions[num_regions - 1].last - offset;
             // score of how much the arf helps the whole GOP
             double base_score = 0.0;
+            int count_base = 0;
+            bool static_frames = false;
+
             // Accumulate base_score in
             for (int j = cur_start + 1; j < cur_start + min_shrink_int; j++) {
               if (stats + j >= twopass->stats_buf_ctx->stats_in_end) break;
               base_score = (base_score + 1.0) * stats[j].cor_coeff;
+              count_base++;
             }
+
+            if (count_base && base_score / count_base > 0.992) {
+              static_frames = true;
+            }
+
             int met_blending = 0;   // Whether we have met blending areas before
             int last_blending = 0;  // Whether the previous frame if blending
             for (int j = cur_start + min_shrink_int; j <= cur_last; j++) {
@@ -2108,7 +2117,9 @@ static void calculate_gf_length(AV1_COMP *cpi, int max_gop_length,
                                         AOMMAX(stats[n].intra_error, 0.001)));
               }
 
-              if (this_score > best_score) {
+              // Slightly relax the condition for videos starting with frozen
+              // frames.
+              if (this_score + (static_frames ? 0.5 : 0) > best_score) {
                 best_score = this_score;
                 best_j = j;
               }
