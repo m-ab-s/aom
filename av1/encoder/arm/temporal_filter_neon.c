@@ -280,13 +280,30 @@ void av1_apply_temporal_filter_neon(
     // will be more accurate. The luma sse sum is reused in both chroma
     // planes.
     if (plane == AOM_PLANE_U) {
-      for (unsigned int i = 0; i < plane_h; i++) {
-        for (unsigned int j = 0; j < plane_w; j++) {
-          for (int ii = 0; ii < (1 << ss_y_shift); ++ii) {
-            for (int jj = 0; jj < (1 << ss_x_shift); ++jj) {
-              const int yy = (i << ss_y_shift) + ii;  // Y-coord on Y-plane.
-              const int xx = (j << ss_x_shift) + jj;  // X-coord on Y-plane.
-              luma_sse_sum[i * BW + j] += frame_sse[yy * SSE_STRIDE + xx + 2];
+      if (ss_x_shift == 1 && ss_y_shift == 1) {
+        for (unsigned int i = 0; i < plane_h; ++i) {
+          const uint16_t *src = &frame_sse[2 * i * SSE_STRIDE + 2];
+          uint32_t *dst = luma_sse_sum + i * BW;
+
+          for (unsigned int j = 0; j < plane_w; j += 4) {
+            const uint16x8_t s0 = vld1q_u16(src + j * 2);
+            const uint16x8_t s1 = vld1q_u16(src + SSE_STRIDE + j * 2);
+
+            uint32x4_t sum = vpaddlq_u16(s0);
+            sum = vpadalq_u16(sum, s1);
+
+            vst1q_u32(dst + j, sum);
+          }
+        }
+      } else {
+        for (unsigned int i = 0; i < plane_h; i++) {
+          for (unsigned int j = 0; j < plane_w; j++) {
+            for (int ii = 0; ii < (1 << ss_y_shift); ++ii) {
+              for (int jj = 0; jj < (1 << ss_x_shift); ++jj) {
+                const int yy = (i << ss_y_shift) + ii;  // Y-coord on Y-plane.
+                const int xx = (j << ss_x_shift) + jj;  // X-coord on Y-plane.
+                luma_sse_sum[i * BW + j] += frame_sse[yy * SSE_STRIDE + xx + 2];
+              }
             }
           }
         }
