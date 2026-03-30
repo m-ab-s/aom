@@ -1260,6 +1260,7 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 3) {
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
+    sf->hl_sf.weight_calc_level_in_tf = 1;
 
     sf->gm_sf.prune_ref_frame_for_gm_search = 1;
     sf->gm_sf.prune_zero_mv_with_sse = 1;
@@ -1334,8 +1335,6 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 4) {
-    sf->hl_sf.weight_calc_level_in_tf = 1;
-
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->gm_sf.prune_zero_mv_with_sse = 2;
