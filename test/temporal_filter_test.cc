@@ -325,26 +325,23 @@ INSTANTIATE_TEST_SUITE_P(SSE2, TemporalFilterTest,
                                  Values(0, 1)));
 #endif  // HAVE_SSE2
 
-// av1_apply_temporal_filter_c works on 64x64 TF block now, the SIMD function
-// needs to be updated.
-// #if HAVE_NEON
-// TemporalFilterFuncParam temporal_filter_test_neon[] = {
-// TemporalFilterFuncParam(
-//    &av1_apply_temporal_filter_c, &av1_apply_temporal_filter_neon) };
-// INSTANTIATE_TEST_SUITE_P(NEON, TemporalFilterTest,
-//                         Combine(ValuesIn(temporal_filter_test_neon),
-//                                 Values(0, 1)));
-// #endif  // HAVE_NEON
+#if HAVE_NEON
+TemporalFilterFuncParam temporal_filter_test_neon[] = { TemporalFilterFuncParam(
+    &av1_apply_temporal_filter_c, &av1_apply_temporal_filter_neon) };
+INSTANTIATE_TEST_SUITE_P(NEON, TemporalFilterTest,
+                         Combine(ValuesIn(temporal_filter_test_neon),
+                                 Values(0, 1)));
+#endif  // HAVE_NEON
 
-// #if HAVE_NEON_DOTPROD
-// TemporalFilterFuncParam temporal_filter_test_neon_dotprod[] = {
-//   TemporalFilterFuncParam(&av1_apply_temporal_filter_c,
-//                           &av1_apply_temporal_filter_neon_dotprod)
-// };
-// INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, TemporalFilterTest,
-//                          Combine(ValuesIn(temporal_filter_test_neon_dotprod),
-//                                  Values(0, 1)));
-// #endif  // HAVE_NEON_DOTPROD
+#if HAVE_NEON_DOTPROD
+TemporalFilterFuncParam temporal_filter_test_neon_dotprod[] = {
+  TemporalFilterFuncParam(&av1_apply_temporal_filter_c,
+                          &av1_apply_temporal_filter_neon_dotprod)
+};
+INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, TemporalFilterTest,
+                         Combine(ValuesIn(temporal_filter_test_neon_dotprod),
+                                 Values(0, 1)));
+#endif  // HAVE_NEON_DOTPROD
 
 #if HAVE_AVX2 || HAVE_NEON
 // Width and height for which av1_estimate_noise_from_single_plane() will be
