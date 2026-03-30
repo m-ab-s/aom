@@ -4335,16 +4335,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   size_t len = strlen(name) + strlen(value) + 4;
   char *const err_string = ctx->ppi->error.detail;
 
-#if __STDC_VERSION__ >= 201112L
-  // We use the keyword _Static_assert because clang-cl does not allow the
-  // convenience macro static_assert to be used in function scope. See
-  // https://bugs.llvm.org/show_bug.cgi?id=48904.
-  _Static_assert(sizeof(ctx->ppi->error.detail) >= ARG_ERR_MSG_MAX_LEN,
-                 "The size of the err_msg buffer for arg_match_helper must be "
-                 "at least ARG_ERR_MSG_MAX_LEN");
-#else
-  assert(sizeof(ctx->ppi->error.detail) >= ARG_ERR_MSG_MAX_LEN);
-#endif
+  static_assert(sizeof(ctx->ppi->error.detail) >= ARG_ERR_MSG_MAX_LEN,
+                "The size of the err_msg buffer for arg_match_helper must be "
+                "at least ARG_ERR_MSG_MAX_LEN");
 
   argv[0] = aom_malloc(len * sizeof(argv[1][0]));
   if (!argv[0]) return AOM_CODEC_MEM_ERROR;

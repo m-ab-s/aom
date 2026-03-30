@@ -311,7 +311,8 @@ endif()
 
 # Test compiler flags.
 if(MSVC)
-  # It isn't possible to specify C99 conformance for MSVC.
+  # C11 conformance is available starting in Visual Studio 2019 version 16.8.
+  require_c_flag("/std:c11" YES)
   add_cxx_flag_if_supported("/std:c++17")
   add_compiler_flag_if_supported("/W3")
 
@@ -324,7 +325,7 @@ if(MSVC)
   # Compile source files in parallel
   add_compiler_flag_if_supported("/MP")
 else()
-  require_c_flag("-std=c99" YES)
+  require_c_flag("-std=c11" YES)
   if(CYGWIN AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # The GNU C++ compiler in Cygwin needs the -std=gnu++* flag to make the
     # POSIX function declarations visible in the Standard C Library headers.
