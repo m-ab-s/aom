@@ -89,7 +89,13 @@ class TemporalFilterTest
       for (int ii = 0; ii < plane_h; ii++) {
         for (int jj = 0; jj < plane_w; jj++) {
           src1p[jj] = rnd_.Rand8();
-          src2p[jj] = rnd_.Rand8();
+          // Keep each pixel of `src2_` within [-7, 7] of `src1_` so the
+          // window_error stays small in apply_temporal_filter. Otherwise
+          // scaled_error clamps to 7 regardless of other factors and masks bugs
+          // in subblock_mvs and subblock_mses handling.
+          do {
+            src2p[jj] = rnd_.Rand8();
+          } while (abs(src2p[jj] - src1p[jj]) >= 8);
         }
         src1p += plane_stride;
         src2p += plane_stride2;
@@ -204,13 +210,17 @@ void TemporalFilterTest::RunTest(int isRandom, int run_times,
     std::unique_ptr<MACROBLOCKD> mbd(new (std::nothrow) MACROBLOCKD);
     ASSERT_NE(mbd, nullptr);
     mbd->bd = 8;
+    int plane_offset = 0;
     for (int plane = AOM_PLANE_Y; plane < num_planes; plane++) {
-      int plane_height = plane ? height >> subsampling_y : height;
-      int plane_stride = plane ? stride >> subsampling_x : stride;
+      int plane_height =
+          plane ? (height + subsampling_y) >> subsampling_y : height;
+      int plane_stride =
+          plane ? (stride + subsampling_x) >> subsampling_x : stride;
       frame_to_filter->buffers[plane] =
-          frame_to_filter->buffer_alloc + plane * plane_stride * plane_height;
+          frame_to_filter->buffer_alloc + plane_offset;
       mbd->plane[plane].subsampling_x = plane ? subsampling_x : 0;
       mbd->plane[plane].subsampling_y = plane ? subsampling_y : 0;
+      plane_offset += plane_height * plane_stride;
     }
 
     params_.ref_func(frame_to_filter.get(), mbd.get(), block_size, mb_row,
@@ -253,17 +263,26 @@ void TemporalFilterTest::RunTest(int isRandom, int run_times,
           height, color_fmt_str[color_fmt]);
 
     } else {
-      for (int i = 0, l = 0; i < height; i++) {
-        for (int j = 0; j < width; j++, l++) {
-          EXPECT_EQ(accumulator_ref[l], accumulator_mod[l])
-              << "Error:" << k << " SSE Sum Test [" << width << "x" << height
-              << "] " << color_fmt_str[color_fmt]
-              << " C accumulator does not match optimized accumulator.";
-          EXPECT_EQ(count_ref[l], count_mod[l])
-              << "Error:" << k << " SSE Sum Test [" << width << "x" << height
-              << "] " << color_fmt_str[color_fmt]
-              << " count does not match optimized count.";
+      plane_offset = 0;
+      for (int plane = AOM_PLANE_Y; plane < num_planes; plane++) {
+        int plane_height =
+            plane ? (height + subsampling_y) >> subsampling_y : height;
+        int plane_stride =
+            plane ? (stride + subsampling_x) >> subsampling_x : stride;
+        for (int i = 0, l = 0; i < plane_height; i++) {
+          for (int j = 0; j < plane_stride; j++, l++) {
+            EXPECT_EQ(accumulator_ref[l + plane_offset],
+                      accumulator_mod[l + plane_offset])
+                << "Error:" << k << " SSE Sum Test [" << width << "x" << height
+                << "] " << color_fmt_str[color_fmt]
+                << " C accumulator does not match optimized accumulator.";
+            EXPECT_EQ(count_ref[l + plane_offset], count_mod[l + plane_offset])
+                << "Error:" << k << " SSE Sum Test [" << width << "x" << height
+                << "] " << color_fmt_str[color_fmt]
+                << " count does not match optimized count.";
+          }
         }
+        plane_offset += plane_height * plane_stride;
       }
     }
   }
