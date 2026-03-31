@@ -2498,6 +2498,9 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
       (*this_mode != GLOBALMV || *ref_frame != LAST_FRAME))
     return true;
 
+  // Skip the mode if use reference frame mask flag is not set.
+  if (!search_state->use_ref_frame_mask[*ref_frame]) return true;
+
   *force_mv_inter_layer = 0;
   if (cpi->ppi->use_svc && svc->spatial_layer_id > 0 &&
       ((*ref_frame == LAST_FRAME && svc->skip_mvsearch_last) ||
@@ -2522,9 +2525,6 @@ static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
       return true;
     return false;
   }
-
-  // Skip the mode if use reference frame mask flag is not set.
-  if (!search_state->use_ref_frame_mask[*ref_frame]) return true;
 
   // Don't skip non_last references if LAST is not used a reference.
   if (!(cpi->ref_frame_flags & AOM_LAST_FLAG) &&
