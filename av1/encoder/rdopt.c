@@ -808,7 +808,7 @@ static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
     // rdcosts close to each other), the intra-coded candidate was subjectively
     // observed to be a bit less blurry, with a corresponding increase in
     // SSIMULACRA 2 scores.
-    // Apply an 1.125x inter block bias to increase overall perceptual
+    // Apply a 1.125x inter block bias to increase overall perceptual
     // compression efficiency, while still allowing the encoder to pick inter
     // prediction when it's beneficial.
     rd_cost->dist += rd_cost->dist >> 3;
