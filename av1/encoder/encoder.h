@@ -4233,6 +4233,11 @@ static inline int av1_frame_scaled(const AV1_COMMON *cm) {
   return av1_superres_scaled(cm) || av1_resize_scaled(cm);
 }
 
+static inline bool av1_encode_for_extrc(AOM_EXT_RATECTRL const *ext_rc) {
+  return ext_rc->ready && (ext_rc->funcs.rc_type & AOM_RC_QP) != 0 &&
+         ext_rc->funcs.get_encodeframe_decision != NULL;
+}
+
 // Don't allow a show_existing_frame to coincide with an error resilient
 // frame. An exception can be made for a forward keyframe since it has no
 // previous dependencies.
