@@ -798,16 +798,19 @@ static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
   if ((cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IQ ||
        cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIMULACRA2) &&
       is_inter_pred) {
-    // Tune IQ and SSIMULACRA2 are often used to encode layered AVIFs, where
-    // keyframes can be encoded at a lower quality (i.e. higher QP) than
-    // inter-coded frames.
+    // Tune IQ and SSIMULACRA2 can be used to encode layered images, where
+    // keyframes could be encoded at a lower or similar quality (i.e. higher
+    // QP) than inter-coded frames.
     // In this case, libaom tends to underestimate the true RD cost of inter
     // prediction candidates, causing encoded file size to increase without a
     // corresponding increase in quality.
-    // To compensate for this effect, make inter block candidates appear more
-    // expensive to the encoder to slightly bias toward intra prediction.
-    // Doing this increases overall compression efficiency, while still allowing
-    // the encoder to pick inter prediction when it's beneficial.
+    // When both intra and inter encoded block candidates are available (with
+    // rdcosts close to each other), the intra-coded candidate was subjectively
+    // observed to be a bit less blurry, with a corresponding increase in
+    // SSIMULACRA 2 scores.
+    // Apply an 1.125x inter block bias to increase overall perceptual
+    // compression efficiency, while still allowing the encoder to pick inter
+    // prediction when it's beneficial.
     rd_cost->dist += rd_cost->dist >> 3;
     rd_cost->rdcost += rd_cost->rdcost >> 3;
     return;
