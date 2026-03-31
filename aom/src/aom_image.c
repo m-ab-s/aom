@@ -293,11 +293,11 @@ int aom_img_set_rect(aom_image_t *img, unsigned int x, unsigned int y,
 }
 
 void aom_img_flip(aom_image_t *img) {
-  /* Note: In the calculation pointer adjustment calculation, we want the
-   * rhs to be promoted to a signed type. Section 6.3.1.8 of the ISO C99
-   * standard indicates that if the adjustment parameter is unsigned, the
-   * stride parameter will be promoted to unsigned, causing errors when
-   * the lhs is a larger type than the rhs.
+  /* Note: In the pointer adjustment calculations, we want the rhs to be
+   * promoted to a signed type. Section 6.3.1.8 of the ISO C99 standard
+   * indicates that if the first operand of the multiplication is unsigned, the
+   * stride will be promoted to unsigned, causing errors when the lhs is a
+   * larger type than the rhs.
    */
   img->planes[AOM_PLANE_Y] += (signed)(img->d_h - 1) * img->stride[AOM_PLANE_Y];
   img->stride[AOM_PLANE_Y] = -img->stride[AOM_PLANE_Y];
