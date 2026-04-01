@@ -1235,11 +1235,10 @@ static inline void clamp_mv2(MV *mv, const MACROBLOCKD *xd) {
 
 /* If the current mode shares the same mv with other modes with higher cost,
  * skip this mode. */
-static int skip_repeated_mv(const AV1_COMMON *const cm,
-                            const MACROBLOCK *const x,
-                            PREDICTION_MODE this_mode,
-                            const MV_REFERENCE_FRAME ref_frames[2],
-                            InterModeSearchState *search_state) {
+static AOM_FORCE_INLINE int skip_repeated_mv(
+    const AV1_COMMON *const cm, const MACROBLOCK *const x,
+    PREDICTION_MODE this_mode, const MV_REFERENCE_FRAME ref_frames[2],
+    InterModeSearchState *search_state) {
   const int is_comp_pred = ref_frames[1] > INTRA_FRAME;
   const uint8_t ref_frame_type = av1_ref_frame_type(ref_frames);
   const MB_MODE_INFO_EXT *const mbmi_ext = &x->mbmi_ext;
@@ -4571,10 +4570,9 @@ static bool mask_says_skip(const mode_skip_mask_t *mode_skip_mask,
   return mode_skip_mask->ref_combo[ref_frame[0]][ref_frame[1] + 1];
 }
 
-static int inter_mode_compatible_skip(const AV1_COMP *cpi, const MACROBLOCK *x,
-                                      BLOCK_SIZE bsize,
-                                      PREDICTION_MODE curr_mode,
-                                      const MV_REFERENCE_FRAME *ref_frames) {
+static AOM_FORCE_INLINE int inter_mode_compatible_skip(
+    const AV1_COMP *cpi, const MACROBLOCK *x, BLOCK_SIZE bsize,
+    PREDICTION_MODE curr_mode, const MV_REFERENCE_FRAME *ref_frames) {
   const int comp_pred = ref_frames[1] > INTRA_FRAME;
   if (comp_pred) {
     if (!is_comp_ref_allowed(bsize)) return 1;
@@ -4634,7 +4632,7 @@ static inline int match_ref_frame_pair(const MB_MODE_INFO *mbmi,
 // Case 1: return 0, means don't skip this mode
 // Case 2: return 1, means skip this mode completely
 // Case 3: return 2, means skip compound only, but still try single motion modes
-static int inter_mode_search_order_independent_skip(
+static AOM_FORCE_INLINE int inter_mode_search_order_independent_skip(
     const AV1_COMP *cpi, const MACROBLOCK *x, mode_skip_mask_t *mode_skip_mask,
     InterModeSearchState *search_state, int skip_ref_frame_mask,
     PREDICTION_MODE mode, const MV_REFERENCE_FRAME *ref_frame) {
@@ -4973,7 +4971,7 @@ static int compound_skip_get_candidates(
   return candidates;
 }
 
-static int compound_skip_by_single_states(
+static AOM_FORCE_INLINE int compound_skip_by_single_states(
     const AV1_COMP *cpi, const InterModeSearchState *search_state,
     const PREDICTION_MODE this_mode, const MV_REFERENCE_FRAME ref_frame,
     const MV_REFERENCE_FRAME second_ref_frame, const MACROBLOCK *x) {
@@ -5297,9 +5295,11 @@ typedef struct {
 } InterModeSFArgs;
 /*!\endcond */
 
-static int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x, const BLOCK_SIZE bsize,
-                           int64_t *ref_frame_rd, int midx,
-                           InterModeSFArgs *args, int is_low_temp_var) {
+static AOM_FORCE_INLINE int skip_inter_mode(AV1_COMP *cpi, MACROBLOCK *x,
+                                            const BLOCK_SIZE bsize,
+                                            int64_t *ref_frame_rd, int midx,
+                                            InterModeSFArgs *args,
+                                            int is_low_temp_var) {
   const SPEED_FEATURES *const sf = &cpi->sf;
   MACROBLOCKD *const xd = &x->e_mbd;
   // Get the actual prediction mode we are trying in this iteration
