@@ -36,9 +36,10 @@ yyyy-mm-dd next version
       only regions where high filter strengths are needed.
 
   - Bug Fixes
-    * Commits 4cc0867f, 74aaa1ef: fix AOM_SCALING_MODE crashes when
-      restoration filtering or compound mask prediction modes are used by the
-      encoder.
+    * Commit 4cc0867f: fix multithreading crashes when loop restoration
+      filtering is used by the encoder.
+    * Commit 74aaa1ef: fix AOM_SCALING_MODE crashes when compound mask
+      prediction modes are used by the encoder.
 
 2026-03-17 v3.13.2
   This release includes several bug fixes. This release is ABI
