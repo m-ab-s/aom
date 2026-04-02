@@ -41,6 +41,18 @@ yyyy-mm-dd next version
     * Commit 74aaa1ef: fix AOM_SCALING_MODE crashes when compound mask
       prediction modes are used by the encoder.
 
+2026-04-02 v3.13.3
+  This release includes several bug fixes. This release is ABI
+  compatible with the last release. See
+  https://aomedia.googlesource.com/aom/+log/v3.13.2..v3.13.3 for all the
+  commits in this release.
+
+  - Bug Fixes
+    * Commit 4cc0867f: fix multithreading crashes when loop restoration
+      filtering is used by the encoder.
+    * Commit 74aaa1ef: fix AOM_SCALING_MODE crashes when compound mask
+      prediction modes are used by the encoder.
+
 2026-03-17 v3.13.2
   This release includes several bug fixes. This release is ABI
   compatible with the last release. See
