@@ -1409,8 +1409,23 @@ static inline void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   xd->block_ref_scale_factors[0] = &tpl_data->sf;
   xd->block_ref_scale_factors[1] = &tpl_data->sf;
 
-  const int base_qindex =
+  int base_qindex =
       cpi->use_ducky_encode ? gf_group->q_val[frame_idx] : pframe_qindex;
+
+  // Override QP decision with RC
+  if (av1_use_tpl_for_extrc(&cpi->ext_ratectrl) &&
+      cpi->ext_ratectrl.funcs.get_encodeframe_decision != NULL) {
+    aom_rc_encodeframe_decision_t encode_frame_decision;
+    encode_frame_decision.sb_params_list = NULL;
+    // Even though delta Q is not used for TPL, this pointer still needs to be
+    // set to avoid segfault.
+    encode_frame_decision.use_delta_q = &cpi->ext_ratectrl.use_delta_q;
+    if (av1_extrc_get_encodeframe_decision(&cpi->ext_ratectrl, frame_idx,
+                                           &encode_frame_decision) ==
+        AOM_CODEC_OK) {
+      base_qindex = encode_frame_decision.q_index;
+    }
+  }
   // Get rd multiplier set up.
   rdmult = av1_compute_rd_mult(
       base_qindex, cm->seq_params->bit_depth,
