@@ -20,8 +20,8 @@
 extern "C" {
 #endif
 
-#include "./aom_integer.h"
-#include "./aom_tpl.h"
+#include "aom/aom_integer.h"
+#include "aom/aom_tpl.h"
 
 /*!\brief Current ABI version number
  *
