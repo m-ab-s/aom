@@ -1117,6 +1117,8 @@ void av1_create_workers(AV1_PRIMARY *ppi, int num_workers) {
     }
     winterface->sync(worker);
 
+    // Ensure p_mt_info->num_workers is the number of threads successfuly
+    // created. Important to av1_terminate_workers().
     ++p_mt_info->num_workers;
   }
 }
