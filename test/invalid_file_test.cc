@@ -13,6 +13,7 @@
 #include <ostream>
 #include <string>
 
+#include "config/aom_config.h"
 #include "gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/ivf_video_source.h"
