@@ -1536,8 +1536,9 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
   const int tplb_cols_in_tile =
       ROUND_POWER_OF_TWO(mi_params->mi_cols, mi_size_wide_log2[bsize]);
   const int tplb_row = ROUND_POWER_OF_TWO(mi_row, mi_size_high_log2[bsize]);
-  assert(mi_size_high[bsize] == (1 << tpl_data->tpl_stats_block_mis_log2));
-  assert(mi_size_wide[bsize] == (1 << tpl_data->tpl_stats_block_mis_log2));
+  const int block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
+  assert(mi_size_high[bsize] == (1 << block_mis_log2));
+  assert(mi_size_wide[bsize] == (1 << block_mis_log2));
 
   for (int mi_col = 0, tplb_col_in_tile = 0; mi_col < mi_params->mi_cols;
        mi_col += mi_width, tplb_col_in_tile++) {
@@ -1567,14 +1568,15 @@ void av1_mc_flow_dispenser_row(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
 
     // Motion flow dependency dispenser.
     tpl_model_store(tpl_frame->tpl_stats_ptr, mi_row, mi_col, tpl_frame->stride,
-                    &tpl_stats, tpl_data->tpl_stats_block_mis_log2);
+                    &tpl_stats, block_mis_log2);
 
     if (av1_use_tpl_for_extrc(&cpi->ext_ratectrl)) {
       AomTplFrameStats *tpl_frame_stats_before_propagation =
           &cpi->extrc_tpl_gop_stats.frame_stats_list[tpl_data->frame_idx];
+      const int block_index =
+          av1_tpl_ptr_pos(mi_row, mi_col, tpl_frame->width, block_mis_log2);
       AomTplBlockStats *block_stats =
-          &tpl_frame_stats_before_propagation
-               ->block_stats_list[mi_row * tpl_frame->mi_cols + mi_col];
+          &tpl_frame_stats_before_propagation->block_stats_list[block_index];
       tpl_store_before_propagation(cpi, block_stats, &tpl_stats, mi_row,
                                    mi_col);
     }
@@ -1994,15 +1996,15 @@ static void init_tpl_stats_before_propagation(
                  sizeof(*extrc_tpl_gop_stats->frame_stats_list)));
   extrc_tpl_gop_stats->size = tpl_gop_frames;
   for (int frame_index = 0; frame_index < tpl_gop_frames; ++frame_index) {
-    const int mi_rows = tpl_stats->tpl_frame[frame_index].mi_rows;
-    const int mi_cols = tpl_stats->tpl_frame[frame_index].mi_cols;
+    const int block_rows = tpl_stats->tpl_frame[frame_index].height;
+    const int block_cols = tpl_stats->tpl_frame[frame_index].width;
     AomTplFrameStats *this_frame_stats =
         &extrc_tpl_gop_stats->frame_stats_list[frame_index];
     AOM_CHECK_MEM_ERROR(
         error_info, this_frame_stats->block_stats_list,
-        aom_calloc(mi_rows * mi_cols,
+        aom_calloc(block_rows * block_cols,
                    sizeof(*this_frame_stats->block_stats_list)));
-    this_frame_stats->num_blocks = mi_rows * mi_cols;
+    this_frame_stats->num_blocks = block_rows * block_cols;
     this_frame_stats->frame_width = frame_width;
     this_frame_stats->frame_height = frame_height;
   }
