@@ -254,8 +254,7 @@ TEST(EncodeAPI, InvalidUVStrides) {
             (img_fmt == AOM_IMG_FMT_NV12) ? 0 : uv_stride.v_stride;
         img.monochrome = cfg.monochrome;
         // Monochrome should ignore the U and V planes and NV12 only sets one
-        // stride value, they should always succeed. The AOM* aom_img_fmt_t
-        // variants are unsupported by the encoder.
+        // stride value, they should always succeed.
         const aom_codec_err_t expected_err =
             (cfg.monochrome || img_fmt == AOM_IMG_FMT_NV12)
                 ? AOM_CODEC_OK
