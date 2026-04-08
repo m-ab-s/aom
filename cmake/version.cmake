@@ -19,7 +19,7 @@ foreach(arg ${REQUIRED_ARGS})
   endif()
 endforeach()
 
-include("${AOM_ROOT}/build/cmake/util.cmake")
+include("${AOM_ROOT}/cmake/util.cmake")
 
 # Generate the version string for this run.
 unset(aom_version)
@@ -60,8 +60,7 @@ endif()
 if(NOT "${aom_version}" STREQUAL "${last_aom_version}")
   # TODO(tomfinegan): Perl dependency is unnecessary. CMake can do everything
   # that is done by version.pl on its own (if a bit more verbosely...).
-  execute_process(COMMAND ${PERL_EXECUTABLE}
-                          "${AOM_ROOT}/build/cmake/version.pl"
+  execute_process(COMMAND ${PERL_EXECUTABLE} "${AOM_ROOT}/cmake/version.pl"
                           --version_data=${aom_version}
                           --version_filename=${version_file} VERBATIM)
 endif()

@@ -8,7 +8,7 @@
 # License 1.0 was not distributed with this source code in the PATENTS file, you
 # can obtain it at www.aomedia.org/license/patent.
 
-include("${AOM_ROOT}/build/cmake/util.cmake")
+include("${AOM_ROOT}/cmake/util.cmake")
 
 # This file sets default values for libaom configuration variables. All libaom
 # config variables are added to the CMake variable cache via the macros provided

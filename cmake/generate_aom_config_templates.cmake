@@ -62,13 +62,13 @@ endfunction()
 check_directory_var(AOM_CONFIG_DIR)
 check_directory_var(AOM_ROOT)
 
-set(AOM_DEFAULTS "${AOM_ROOT}/build/cmake/aom_config_defaults.cmake")
+set(AOM_DEFAULTS "${AOM_ROOT}/cmake/aom_config_defaults.cmake")
 if(NOT EXISTS "${AOM_DEFAULTS}")
   message(
     FATAL_ERROR "Configuration default values file (${AOM_DEFAULTS}) missing.")
 endif()
 
-include("${AOM_ROOT}/build/cmake/aom_config_defaults.cmake")
+include("${AOM_ROOT}/cmake/aom_config_defaults.cmake")
 list(APPEND aom_build_vars ${AOM_DETECT_VARS} ${AOM_CONFIG_VARS})
 list(SORT aom_build_vars)
 

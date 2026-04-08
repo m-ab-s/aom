@@ -13,7 +13,7 @@ if(AOM_BUILD_CMAKE_EXPORTS_CMAKE_)
 endif() # AOM_BUILD_CMAKE_EXPORTS_CMAKE_
 set(AOM_BUILD_CMAKE_EXPORTS_CMAKE_ 1)
 
-include("${AOM_ROOT}/build/cmake/exports_sources.cmake")
+include("${AOM_ROOT}/cmake/exports_sources.cmake")
 
 # Creates the custom target which handles generation of the symbol export lists.
 function(setup_exports_target)
@@ -43,7 +43,7 @@ function(setup_exports_target)
             -DCONFIG_INSPECTION=${CONFIG_INSPECTION}
             -DENABLE_TESTS=${ENABLE_TESTS}
             -P
-            "${AOM_ROOT}/build/cmake/generate_exports.cmake"
+            "${AOM_ROOT}/cmake/generate_exports.cmake"
     SOURCES ${AOM_EXPORTS_SOURCES}
     DEPENDS ${AOM_EXPORTS_SOURCES} BYPRODUCTS ${aom_sym_file})
 

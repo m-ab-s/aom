@@ -21,7 +21,7 @@ foreach(arg ${REQUIRED_ARGS})
   endif()
 endforeach()
 
-include("${AOM_ROOT}/build/cmake/util.cmake")
+include("${AOM_ROOT}/cmake/util.cmake")
 
 extract_version_string("${AOM_CONFIG_DIR}/config/aom_version.h" aom_version)
 

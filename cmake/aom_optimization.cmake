@@ -13,7 +13,7 @@ if(AOM_BUILD_CMAKE_AOM_OPTIMIZATION_CMAKE_)
 endif() # AOM_BUILD_CMAKE_AOM_OPTIMIZATION_CMAKE_
 set(AOM_BUILD_CMAKE_AOM_OPTIMIZATION_CMAKE_ 1)
 
-include("${AOM_ROOT}/build/cmake/util.cmake")
+include("${AOM_ROOT}/cmake/util.cmake")
 
 # Translate $flag to one which MSVC understands, and write the new flag to the
 # variable named by $translated_flag (or unset it, when MSVC needs no flag).
@@ -261,18 +261,18 @@ function(test_nasm)
   endif()
 endfunction()
 
-# Adds build command for generation of rtcd C source files using
-# build/cmake/rtcd.pl. $config is the input perl file, $output is the output C
-# include file, $source is the C source file, and $symbol is used for the symbol
-# argument passed to rtcd.pl.
+# Adds build command for generation of rtcd C source files using cmake/rtcd.pl.
+# $config is the input perl file, $output is the output C include file, $source
+# is the C source file, and $symbol is used for the symbol argument passed to
+# rtcd.pl.
 function(add_rtcd_build_step config output source symbol)
   add_custom_command(
     OUTPUT ${output}
-    COMMAND ${PERL_EXECUTABLE} ARGS "${AOM_ROOT}/build/cmake/rtcd.pl"
+    COMMAND ${PERL_EXECUTABLE} ARGS "${AOM_ROOT}/cmake/rtcd.pl"
             --arch=${AOM_TARGET_CPU}
             --sym=${symbol} ${AOM_RTCD_FLAGS}
             --config=${AOM_CONFIG_DIR}/config/aom_config.h ${config} > ${output}
-    DEPENDS "${AOM_ROOT}/build/cmake/rtcd.pl" ${config}
+    DEPENDS "${AOM_ROOT}/cmake/rtcd.pl" ${config}
     COMMENT "Generating ${output}"
     WORKING_DIRECTORY ${AOM_CONFIG_DIR}
     VERBATIM)

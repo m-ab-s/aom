@@ -55,7 +55,7 @@ macro(setup_aom_install_targets)
               -DCONFIG_SALIENCY_MAP=${CONFIG_SALIENCY_MAP}
               -DCONFIG_TFLITE=${CONFIG_TFLITE}
               -P
-              "${AOM_ROOT}/build/cmake/pkg_config.cmake"
+              "${AOM_ROOT}/cmake/pkg_config.cmake"
       COMMENT "Writing aom.pc"
       VERBATIM)
 
@@ -100,7 +100,7 @@ macro(setup_aom_install_targets)
     set(AOM_TARGETS_EXPORT_NAME "${PROJECT_NAME}Targets")
     set(AOM_CONFIG_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
     configure_package_config_file(
-      "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake/config.cmake.in"
+      "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.cmake.in"
       "${AOM_PROJECT_CONFIG}" INSTALL_DESTINATION "${AOM_CONFIG_INSTALL_DIR}"
       PATH_VARS CMAKE_INSTALL_INCLUDEDIR)
 

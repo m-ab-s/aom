@@ -15,7 +15,7 @@ set(AOM_BUILD_CMAKE_COMPILER_FLAGS_CMAKE_ 1)
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
-include("${AOM_ROOT}/build/cmake/compiler_tests.cmake")
+include("${AOM_ROOT}/cmake/compiler_tests.cmake")
 
 # Strings used to cache flags.
 set(AOM_C_FLAGS)

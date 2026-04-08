@@ -5,6 +5,11 @@ yyyy-mm-dd next version
   quality improvements for layered image encoding, in addition to bug
   fixes.
 
+  The `build` directory in the source tree was removed and the original
+  build/cmake directory was moved up one level. If you use the CMake
+  toolchain files in the original build/cmake/toolchains directory,
+  they are now in the cmake/toolchains directory.
+
   - New Features
     * Tuning modes AOM_TUNE_IQ and AOM_TUNE_SSIMULACRA2 now work with
       inter-frame encoding modes (good-quality and realtime), enabling

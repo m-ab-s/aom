@@ -16,12 +16,12 @@ set(AOM_BUILD_CMAKE_AOM_CONFIGURE_CMAKE_ 1)
 include(FindThreads)
 include(CheckSymbolExists)
 
-include("${AOM_ROOT}/build/cmake/aom_config_defaults.cmake")
-include("${AOM_ROOT}/build/cmake/aom_experiment_deps.cmake")
-include("${AOM_ROOT}/build/cmake/aom_optimization.cmake")
-include("${AOM_ROOT}/build/cmake/compiler_flags.cmake")
-include("${AOM_ROOT}/build/cmake/compiler_tests.cmake")
-include("${AOM_ROOT}/build/cmake/util.cmake")
+include("${AOM_ROOT}/cmake/aom_config_defaults.cmake")
+include("${AOM_ROOT}/cmake/aom_experiment_deps.cmake")
+include("${AOM_ROOT}/cmake/aom_optimization.cmake")
+include("${AOM_ROOT}/cmake/compiler_flags.cmake")
+include("${AOM_ROOT}/cmake/compiler_tests.cmake")
+include("${AOM_ROOT}/cmake/util.cmake")
 
 if(DEFINED CONFIG_LOWBITDEPTH)
   message(WARNING "CONFIG_LOWBITDEPTH has been removed. \
@@ -279,7 +279,7 @@ if(NOT WIN32)
   aom_pop_var(CMAKE_REQUIRED_LIBRARIES)
 endif()
 
-include("${AOM_ROOT}/build/cmake/cpu.cmake")
+include("${AOM_ROOT}/cmake/cpu.cmake")
 
 if(ENABLE_CCACHE)
   set_compiler_launcher(ENABLE_CCACHE ccache)
@@ -461,10 +461,10 @@ endforeach()
 # Generate aom_config templates.
 set(aom_config_asm_template "${AOM_CONFIG_DIR}/config/aom_config.asm.cmake")
 set(aom_config_h_template "${AOM_CONFIG_DIR}/config/aom_config.h.cmake")
-execute_process(
-  COMMAND ${CMAKE_COMMAND}
-          -DAOM_CONFIG_DIR=${AOM_CONFIG_DIR} -DAOM_ROOT=${AOM_ROOT} -P
-          "${AOM_ROOT}/build/cmake/generate_aom_config_templates.cmake")
+execute_process(COMMAND ${CMAKE_COMMAND}
+                        -DAOM_CONFIG_DIR=${AOM_CONFIG_DIR}
+                        -DAOM_ROOT=${AOM_ROOT} -P
+                        "${AOM_ROOT}/cmake/generate_aom_config_templates.cmake")
 
 # Generate aom_config.{asm,h}.
 configure_file("${aom_config_asm_template}"
@@ -479,7 +479,7 @@ if(NOT GIT_FOUND)
 endif()
 
 string(TIMESTAMP year "%Y")
-configure_file("${AOM_ROOT}/build/cmake/aom_config.c.template"
+configure_file("${AOM_ROOT}/cmake/aom_config.c.template"
                "${AOM_CONFIG_DIR}/config/aom_config.c")
 
 # Find Perl and generate the RTCD sources.
@@ -508,7 +508,7 @@ foreach(NUM RANGE ${AOM_RTCD_CUSTOM_COMMAND_COUNT})
   list(GET AOM_RTCD_SYMBOL_LIST ${NUM} AOM_RTCD_SYMBOL)
   execute_process(
     COMMAND
-      ${PERL_EXECUTABLE} "${AOM_ROOT}/build/cmake/rtcd.pl"
+      ${PERL_EXECUTABLE} "${AOM_ROOT}/cmake/rtcd.pl"
       --arch=${AOM_TARGET_CPU}
       --sym=${AOM_RTCD_SYMBOL} ${AOM_RTCD_FLAGS}
       --config=${AOM_CONFIG_DIR}/config/aom_config.h ${AOM_RTCD_CONFIG_FILE}
@@ -521,4 +521,4 @@ execute_process(COMMAND ${CMAKE_COMMAND}
                         -DAOM_ROOT=${AOM_ROOT}
                         -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
                         -DPERL_EXECUTABLE=${PERL_EXECUTABLE} -P
-                        "${AOM_ROOT}/build/cmake/version.cmake")
+                        "${AOM_ROOT}/cmake/version.cmake")

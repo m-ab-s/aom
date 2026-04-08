@@ -20,7 +20,7 @@ foreach(arg ${REQUIRED_ARGS})
   endif()
 endforeach()
 
-include("${AOM_ROOT}/build/cmake/exports_sources.cmake")
+include("${AOM_ROOT}/cmake/exports_sources.cmake")
 
 if("${AOM_TARGET_SYSTEM}" STREQUAL "Darwin")
   set(symbol_prefix "_")
