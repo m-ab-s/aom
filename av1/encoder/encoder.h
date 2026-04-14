@@ -3005,6 +3005,11 @@ typedef struct AV1_COMP {
   int skip_tpl_setup_stats;
 
   /*!
+   * Flag to indicate if RD multiplier modulation is enabled.
+   */
+  int cb_delta_rdmult_enabled;
+
+  /*!
    * Scaling factors used in the RD multiplier modulation.
    * TODO(sdeng): consider merge the following arrays.
    * tpl_rdmult_scaling_factors is a temporary buffer used to store the
