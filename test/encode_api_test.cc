@@ -2002,4 +2002,89 @@ TEST(EncodeAPI, SizeAlignOverflow) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+TEST(EncodeAPI, DynamicSvcTemporalIssue502735235) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+
+  // Init at 256x512.
+  cfg.g_w = 256;
+  cfg.g_h = 512;
+  cfg.g_timebase.num = 1;
+  cfg.g_timebase.den = 30;
+  cfg.rc_end_usage = AOM_CBR;
+  cfg.rc_target_bitrate = 1000;
+  cfg.g_lag_in_frames = 0;
+
+  aom_codec_ctx_t codec;
+  ASSERT_EQ(aom_codec_enc_init(&codec, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&codec, AOME_SET_CPUUSED, 10), AOM_CODEC_OK);
+
+  // AV1E_SET_SVC_PARAMS
+  aom_svc_params_t svc_params = {};
+  svc_params.number_spatial_layers = 1;
+  svc_params.number_temporal_layers = 2;
+  svc_params.scaling_factor_num[0] = 1;
+  svc_params.scaling_factor_den[0] = 1;
+  svc_params.framerate_factor[0] = 2;
+  svc_params.framerate_factor[1] = 1;
+  svc_params.max_quantizers[0] = 56;
+  svc_params.min_quantizers[0] = 10;
+  svc_params.max_quantizers[1] = 56;
+  svc_params.min_quantizers[1] = 10;
+  svc_params.layer_target_bitrate[0] = cfg.rc_target_bitrate * 60 / 100;
+  svc_params.layer_target_bitrate[1] = cfg.rc_target_bitrate;
+  EXPECT_EQ(aom_codec_control(&codec, AV1E_SET_SVC_PARAMS, &svc_params),
+            AOM_CODEC_OK);
+
+  // Encode at 256x512. TL0.
+  aom_svc_layer_id_t layer_id = {};
+  layer_id.spatial_layer_id = 0;
+  layer_id.spatial_layer_id = 0;
+  ASSERT_EQ(aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id),
+            AOM_CODEC_OK);
+  aom_image_t *raw = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 256, 512, 1);
+  ASSERT_NE(raw, nullptr);
+  ASSERT_EQ(aom_codec_encode(&codec, raw, /*pts=*/0, /*duration=*/1,
+                             /*flags=*/0),
+            AOM_CODEC_OK);
+  aom_img_free(raw);
+
+  // Encode at 256x64 TL1, twice, set keyframe for both.
+  cfg.g_w = 256;
+  cfg.g_h = 64;
+  ASSERT_EQ(aom_codec_enc_config_set(&codec, &cfg), AOM_CODEC_OK);
+  layer_id.spatial_layer_id = 0;
+  layer_id.temporal_layer_id = 1;
+  ASSERT_EQ(aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id),
+            AOM_CODEC_OK);
+  raw = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 256, 64, 1);
+  ASSERT_NE(raw, nullptr);
+  ASSERT_EQ(aom_codec_encode(&codec, raw, /*pts=*/1, /*duration=*/1,
+                             /*flags=*/AOM_EFLAG_FORCE_KF),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&codec, raw, /*pts=*/2, /*duration=*/1,
+                             /*flags=*/0),
+            AOM_CODEC_OK);
+  aom_img_free(raw);
+
+  // Encode TL0 back at original resolution 256x512.
+  cfg.g_w = 256;
+  cfg.g_h = 512;
+  ASSERT_EQ(aom_codec_enc_config_set(&codec, &cfg), AOM_CODEC_OK);
+  layer_id.spatial_layer_id = 0;
+  layer_id.temporal_layer_id = 0;
+  ASSERT_EQ(aom_codec_control(&codec, AV1E_SET_SVC_LAYER_ID, &layer_id),
+            AOM_CODEC_OK);
+  raw = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 256, 512, 1);
+  ASSERT_NE(raw, nullptr);
+  ASSERT_EQ(aom_codec_encode(&codec, raw, /*pts=*/3, /*duration=*/1,
+                             /*flags=*/0),
+            AOM_CODEC_OK);
+  aom_img_free(raw);
+
+  ASSERT_EQ(aom_codec_destroy(&codec), AOM_CODEC_OK);
+}
+
 }  // namespace
