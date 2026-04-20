@@ -2445,4 +2445,47 @@ TEST(EncodeAPI, Buganizer503197490) {
   ASSERT_EQ(aom_codec_destroy(&codec), AOM_CODEC_OK);
 }
 
+TEST(EncodeAPI, Buganizer504317456) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY),
+            AOM_CODEC_OK);
+
+  cfg.g_w = 640;
+  cfg.g_h = 360;
+  cfg.g_lag_in_frames = 1;
+  cfg.g_error_resilient = 0;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+
+  aom_image_t *img = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 640, 360, 1);
+  FillImage(img, 128);
+  ASSERT_NE(img, nullptr);
+
+  struct Frame {
+    int64_t pts;
+    unsigned long duration;
+    aom_enc_frame_flags_t flags;
+  } frames[] = { { 0, 2, 0 },
+                 { 1075, 9, AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF },
+                 { 2099, 6, AOM_EFLAG_FORCE_KF },
+                 { 3035, 5, AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_FORCE_KF } };
+
+  for (const auto &f : frames) {
+    ASSERT_EQ(aom_codec_encode(&enc, img, f.pts, f.duration, f.flags),
+              AOM_CODEC_OK);
+  }
+
+  // Add 10+ additional frames to extend overflow and cause crash on destruction
+  for (int i = 0; i < 15; ++i) {
+    int64_t pts = 4000 + i * 100;
+    aom_enc_frame_flags_t flags = (i % 3 == 0) ? AOM_EFLAG_FORCE_KF : 0;
+    ASSERT_EQ(aom_codec_encode(&enc, img, pts, 5, flags), AOM_CODEC_OK);
+  }
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 }  // namespace

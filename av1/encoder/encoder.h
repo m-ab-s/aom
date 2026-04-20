@@ -4194,7 +4194,10 @@ static inline int allow_postencode_drop_rtc(const AV1_COMP *cpi) {
 // Function return size of frame stats buffer
 static inline int get_stats_buf_size(int num_lap_buffer, int num_lag_buffer) {
   /* if lookahead is enabled return num_lap_buffers else num_lag_buffers */
-  return (num_lap_buffer > 0 ? num_lap_buffer + 1 : num_lag_buffer);
+  if (num_lap_buffer > 0) {
+    return AOMMAX(num_lap_buffer + 1, MAX_GF_LENGTH_LAP + 1);
+  }
+  return num_lag_buffer;
 }
 
 // TODO(zoeliu): To set up cpi->oxcf.gf_cfg.enable_auto_brf
