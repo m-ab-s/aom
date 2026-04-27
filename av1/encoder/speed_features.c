@@ -926,6 +926,7 @@ static void set_good_speed_feature_framesize_dependent(
 
     if (is_720p_or_larger) {
       sf->inter_sf.disable_interinter_wedge_var_thresh = 100;
+      sf->inter_sf.skip_interinter_wedge_search_based_on_mse = 1;
       sf->inter_sf.limit_txfm_eval_per_mode = boosted ? 0 : 1;
     } else {
       sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
@@ -2406,6 +2407,7 @@ static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->bias_warp_mode_rd_scale_pct = 0;
   inter_sf->bias_obmc_mode_rd_scale_pct = 0.0f;
   inter_sf->skip_cmp_using_top_cmp_avg_est_rd_lvl = 0;
+  inter_sf->skip_interinter_wedge_search_based_on_mse = 0;
   set_txfm_rd_gate_level(inter_sf->txfm_rd_gate_level, 0);
 }
 

@@ -1252,6 +1252,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Values are 0 (not used),1 - 3 with progressively increasing
   // aggressiveness, i.e., decreasing number of top candidates.
   int skip_cmp_using_top_cmp_avg_est_rd_lvl;
+
+  // Skip interinter wedge search based on MSE between the two predictors.
+  int skip_interinter_wedge_search_based_on_mse;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
