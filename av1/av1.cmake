@@ -483,6 +483,7 @@ list(APPEND AOM_AV1_COMMON_INTRIN_RVV
             "${AOM_ROOT}/av1/common/riscv/convolve_rvv.c"
             "${AOM_ROOT}/av1/common/riscv/highbd_compound_convolve_rvv.c"
             "${AOM_ROOT}/av1/common/riscv/highbd_convolve_rvv.c"
+            "${AOM_ROOT}/av1/common/riscv/highbd_wiener_convolve_rvv.c"
             "${AOM_ROOT}/av1/common/riscv/wiener_convolve_rvv.c")
 
 if(CONFIG_THREE_PASS)
