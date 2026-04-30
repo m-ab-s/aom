@@ -721,5 +721,10 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
       "Screen content detection mode (1: standard (default in good quality and "
       "realtime modes), 2: anti-aliased text and graphics aware (default in "
       "all intra mode))"),
+  .validate_input_hbd =
+      ARG_DEF(NULL, "validate-hbd-input", 1,
+              "Check that input samples are within the valid range "
+              "for the chosen bit depth with high bit depth encoding (0: "
+              "disabled, 1: enabled (default))"),
 #endif  // CONFIG_AV1_ENCODER
 };
