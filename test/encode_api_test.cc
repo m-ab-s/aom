@@ -2445,6 +2445,7 @@ TEST(EncodeAPI, Buganizer503197490) {
   ASSERT_EQ(aom_codec_destroy(&codec), AOM_CODEC_OK);
 }
 
+#if !CONFIG_REALTIME_ONLY
 TEST(EncodeAPI, Buganizer504317456) {
   aom_codec_iface_t *iface = aom_codec_av1_cx();
   aom_codec_enc_cfg_t cfg;
@@ -2487,5 +2488,6 @@ TEST(EncodeAPI, Buganizer504317456) {
   aom_img_free(img);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+#endif  // !CONFIG_REALTIME_ONLY
 
 }  // namespace
