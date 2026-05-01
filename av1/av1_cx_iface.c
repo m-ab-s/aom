@@ -246,7 +246,7 @@ struct av1_extracfg {
   int kf_max_pyr_height;
   int sb_qp_sweep;
   aom_screen_detection_mode screen_detection_mode;
-  unsigned int validate_input_hbd;
+  unsigned int validate_hbd_input;
 };
 
 #if !CONFIG_REALTIME_ONLY
@@ -403,7 +403,7 @@ static const struct av1_extracfg default_extra_cfg = {
   -1,              // kf_max_pyr_height
   0,               // sb_qp_sweep
   AOM_SCREEN_DETECTION_STANDARD,
-  1,  // validate_input_hbd
+  1,  // validate_hbd_input
 };
 #else
 // Some settings are changed for realtime only build.
@@ -560,7 +560,7 @@ static const struct av1_extracfg default_extra_cfg = {
   -1,              // kf_max_pyr_height
   0,               // sb_qp_sweep
   AOM_SCREEN_DETECTION_STANDARD,
-  1,  // validate_input_hbd
+  1,  // validate_hbd_input
 };
 #endif
 
@@ -1021,7 +1021,7 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
 #endif
 
 #if CONFIG_AV1_HIGHBITDEPTH
-  if (ctx->extra_cfg.validate_input_hbd &&
+  if (ctx->extra_cfg.validate_hbd_input &&
       (img->fmt & AOM_IMG_FMT_HIGHBITDEPTH)) {
     const unsigned int bit_depth = ctx->oxcf.input_cfg.input_bit_depth;
     const int max_val = 1 << bit_depth;
@@ -1915,10 +1915,10 @@ static aom_codec_err_t ctrl_set_enable_keyframe_filtering(
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
-static aom_codec_err_t ctrl_set_validate_input_hbd(aom_codec_alg_priv_t *ctx,
+static aom_codec_err_t ctrl_set_validate_hbd_input(aom_codec_alg_priv_t *ctx,
                                                    va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
-  extra_cfg.validate_input_hbd = CAST(AOME_SET_VALIDATE_INPUT_HBD, args);
+  extra_cfg.validate_hbd_input = CAST(AOME_SET_VALIDATE_HBD_INPUT, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4847,9 +4847,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.screen_detection_mode,
                               argv, err_string)) {
     extra_cfg.screen_detection_mode = arg_parse_int_helper(&arg, err_string);
-  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.validate_input_hbd,
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.validate_hbd_input,
                               argv, err_string)) {
-    extra_cfg.validate_input_hbd = arg_parse_int_helper(&arg, err_string);
+    extra_cfg.validate_hbd_input = arg_parse_int_helper(&arg, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
@@ -5074,7 +5074,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
     ctrl_set_screen_content_detection_mode },
   { AV1E_SET_ENABLE_ADAPTIVE_SHARPNESS, ctrl_set_enable_adaptive_sharpness },
   { AV1E_SET_EXTERNAL_RATE_CONTROL, ctrl_set_external_rate_control },
-  { AOME_SET_VALIDATE_INPUT_HBD, ctrl_set_validate_input_hbd },
+  { AOME_SET_VALIDATE_HBD_INPUT, ctrl_set_validate_hbd_input },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

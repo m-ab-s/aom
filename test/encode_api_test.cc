@@ -395,7 +395,7 @@ TEST(EncodeAPI, InvalidInputRange) {
           img->planes[AOM_PLANE_U] = img->planes[AOM_PLANE_V] = nullptr;
         }
 
-        EXPECT_EQ(aom_codec_control(&enc, AOME_SET_VALIDATE_INPUT_HBD,
+        EXPECT_EQ(aom_codec_control(&enc, AOME_SET_VALIDATE_HBD_INPUT,
                                     check_input_range),
                   AOM_CODEC_OK);
 
