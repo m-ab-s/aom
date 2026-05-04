@@ -768,7 +768,7 @@ typedef struct {
 typedef struct {
   // Indicates the framerate of the input video.
   double init_framerate;
-  // Indicates the bit-depth of the input video.
+  // Indicates the actual bit-depth of the input video.
   unsigned int input_bit_depth;
   // Indicates the maximum number of frames to be encoded.
   unsigned int limit;
