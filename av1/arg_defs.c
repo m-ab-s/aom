@@ -194,7 +194,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
               "Display warnings, but do not prompt user to continue"),
   .bitdeptharg =
       ARG_DEF_ENUM("b", "bit-depth", 1, "Bit depth for codec", bitdepth_enum),
-  .inbitdeptharg = ARG_DEF(NULL, "input-bit-depth", 1, "Bit depth of input"),
+  .inbitdeptharg =
+      ARG_DEF(NULL, "input-bit-depth", 1, "Actual bit depth of input source"),
 
   .input_chroma_subsampling_x = ARG_DEF(NULL, "input-chroma-subsampling-x", 1,
                                         "Chroma subsampling x value"),

@@ -802,6 +802,8 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, cq_level, 63);
   RANGE_CHECK(cfg, g_bit_depth, AOM_BITS_8, AOM_BITS_12);
   RANGE_CHECK(cfg, g_input_bit_depth, 8, 12);
+  if (cfg->g_input_bit_depth > cfg->g_bit_depth)
+    ERROR("Input bit-depth must not exceed codec bit-depth");
   RANGE_CHECK(extra_cfg, content, AOM_CONTENT_DEFAULT, AOM_CONTENT_INVALID - 1);
 
   if (cfg->g_pass >= AOM_RC_SECOND_PASS) {
@@ -841,10 +843,6 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
       cfg->g_bit_depth > AOM_BITS_10) {
     ERROR("Codec bit-depth 12 not supported in profile < 2");
-  }
-  if (cfg->g_profile <= (unsigned int)PROFILE_1 &&
-      cfg->g_input_bit_depth > 10) {
-    ERROR("Source bit-depth 12 not supported in profile < 2");
   }
 
   if (cfg->rc_end_usage == AOM_Q) {
@@ -1023,7 +1021,7 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
 #if CONFIG_AV1_HIGHBITDEPTH
   if (ctx->extra_cfg.validate_hbd_input &&
       (img->fmt & AOM_IMG_FMT_HIGHBITDEPTH)) {
-    const unsigned int bit_depth = ctx->oxcf.input_cfg.input_bit_depth;
+    const unsigned int bit_depth = ctx->cfg.g_bit_depth;
     const int max_val = 1 << bit_depth;
     // Note there is no high bitdepth version of NV12 defined. If one is
     // added, `num_planes` should be 2 in that case.
