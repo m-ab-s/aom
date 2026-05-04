@@ -343,6 +343,7 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_SSE2
             "${AOM_ROOT}/av1/encoder/x86/av1_quantize_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/encodetxb_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/error_intrin_sse2.c"
+            "${AOM_ROOT}/av1/encoder/x86/model_rd_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/reconinter_enc_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/temporal_filter_sse2.c"
             "${AOM_ROOT}/av1/encoder/x86/wedge_utils_sse2.c")
