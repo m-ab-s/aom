@@ -2113,7 +2113,6 @@ unsigned int av1_int_pro_motion_estimation(
   search_size_height_top &= ~15;
   search_size_height_bottom &= ~15;
   const int src_stride = x->plane[0].src.stride;
-  const int ref_stride = xd->plane[0].pre[0].stride;
   uint8_t const *ref_buf, *src_buf;
   int_mv *best_int_mv = &xd->mi[0]->mv[0];
   unsigned int best_sad, tmp_sad, this_sad[4];
@@ -2138,6 +2137,7 @@ unsigned int av1_int_pro_motion_estimation(
     av1_setup_pre_planes(xd, 0, scaled_ref_frame, mi_row, mi_col, NULL,
                          MAX_MB_PLANE);
   }
+  const int ref_stride = xd->plane[0].pre[0].stride;
 
   if (xd->bd != 8) {
     best_int_mv->as_fullmv = kZeroFullMv;
