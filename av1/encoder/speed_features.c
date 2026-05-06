@@ -1178,6 +1178,7 @@ static void set_good_speed_features_framesize_independent(
     // speed feature accordingly
     sf->part_sf.simple_motion_search_split = allow_screen_content_tools ? 1 : 2;
     sf->part_sf.ml_predict_breakout_level = use_hbd ? 2 : 3;
+    sf->part_sf.prune_h_or_v_4part_using_sms_info = boosted ? false : true;
 
     sf->mv_sf.exhaustive_searches_thresh <<= 1;
     sf->mv_sf.obmc_full_pixel_search_level = 1;
