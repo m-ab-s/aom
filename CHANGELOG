@@ -1,9 +1,9 @@
 2026-05-05 v3.14.0
   This release is ABI compatible with the last release.
 
-  This release includes significant compression efficiency and perceptual
-  quality improvements for layered image encoding, in addition to bug
-  fixes.
+  This release includes significant compression efficiency and
+  perceptual quality improvements for layered image encoding, in
+  addition to bug fixes.
 
   The `build` directory in the source tree was removed and the original
   build/cmake directory was moved up one level. If you use the CMake
@@ -22,23 +22,29 @@
 
   - Compression Efficiency Improvements
     * When encoding 2-layered images with AOM_TUNE_IQ vs. AOM_TUNE_SSIM:
-      - Good-quality mode: up to 15% gains at similar SSIMULACRA 2 scores.
+      - Good-quality mode: up to 15% gains at similar SSIMULACRA 2
+        scores.
       - Realtime mode: up to 30% gains at similar SSIMULACRA 2 scores.
-    * Enable screen detection mode 2 (anti-aliased text and graphics aware) in
-      all-intra mode.
-    * Some minor quantization matrix formula and delta chroma q tweaks for the
-      AOM_TUNE_SSIMULACRA2 tuning mode, with up to 0.2% SSIMULACRA 2 score
-      efficiency gains.
+    * Enable screen detection mode 2 (anti-aliased text and graphics
+      aware) in all-intra mode.
+    * Some minor quantization matrix formula and delta chroma q tweaks
+      for the AOM_TUNE_SSIMULACRA2 tuning mode, with up to 0.2%
+      SSIMULACRA 2 score efficiency gains.
 
   - Perceptual Quality Improvements
     * AOM_TUNE_IQ improves the visual quality of layered image encoding
       compared to AOM_TUNE_SSIM.
-    * Adaptive sharpness: tweak loop filter sharpness threshold to improve
-      visual quality at QPs 29 and 30.
+    * Adaptive sharpness: tweak loop filter sharpness threshold to
+      improve visual quality at QPs 29 and 30.
 
   - Speedups
-    * Make Adaptive CDEF more decoder friendly by limiting CDEF application to
-      only regions where high filter strengths are needed.
+    * Make Adaptive CDEF more decoder friendly by limiting CDEF
+      application to only regions where high filter strengths are
+      needed.
+    * Further AArch64 SIMD optimization of filtering algorithms,
+      particularly using Armv8.6 Neon I8MM.
+    * Additional tweaks to AArch64 Neon paths for quantization, SAD,
+      subpel variance and intra-predictors.
 
   - Bug Fixes
     * Commit 4cc0867f: fix multithreading crashes when loop restoration
