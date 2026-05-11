@@ -10,6 +10,18 @@
   toolchain files in the original build/cmake/toolchains directory,
   they are now in the cmake/toolchains directory.
 
+  The unsupported aom_img_fmt_t enum constants AOM_IMG_FMT_AOMYV12 and
+  AOM_IMG_FMT_AOMI420 are deprecated and will be removed in a future
+  release. Do not use them.
+
+  The new codec controls AV1E_SET_EXTERNAL_RATE_CONTROL (including the
+  new aom_rc_funcs_t struct and the new "aom/aom_ext_ratectrl.h" and
+  "aom/aom_tpl.h" headers) and AV1E_GET_GOP_INFO (including the new
+  aom_gop_info_t struct) have the experimental API status and are NOT
+  part of the stable API. Applications that need the backward
+  compatibility of the stable API must not use
+  AV1E_SET_EXTERNAL_RATE_CONTROL and AV1E_GET_GOP_INFO.
+
   - New Features
     * Tuning modes AOM_TUNE_IQ and AOM_TUNE_SSIMULACRA2 now work with
       inter-frame encoding modes (good-quality and realtime), enabling
@@ -19,6 +31,33 @@
     * New value 2 for use_fixed_qp_offsets: disallow the application of
       per-frame QP offsets, enabling full control of each frame's QP, by
       adjusting rc_cfg.cq_level between each encoded frame.
+    * New AOM_EFLAG_FREEZE_INTERNAL_STATE flag for aom_codec_encode() to
+      encode a frame without updating encoder state such as reference
+      buffers, CDF tables, and rate control state. Useful for
+      speculative encoding.
+    * New aom_matrix_coefficients_t enum constants:
+      - AOM_CICP_MC_IPT_C2 (15): IPT-C2
+      - AOM_CICP_MC_YCGCO_RE (16): YCgCo-Re
+      - AOM_CICP_MC_YCGCO_RO (17): YCgCo-Ro
+    * New aom_metadata_insert_flags_t enum constants for adding
+      layer-specific metadata OBUs:
+      - AOM_MIF_NON_KEY_FRAME_LAYER_SPECIFIC: Adds layer-specific
+        metadata if it's not a keyframe
+      - AOM_MIF_KEY_FRAME_LAYER_SPECIFIC: Adds layer-specific metadata
+        only if it's a keyframe
+      - AOM_MIF_ANY_FRAME_LAYER_SPECIFIC: Adds layer-specific metadata
+        to any type of frame
+    * Experimental: New codec control AV1E_SET_EXTERNAL_RATE_CONTROL to
+      enable an external rate control library. Not part of the stable
+      API.
+    * Experimental: New codec control AV1E_GET_GOP_INFO to get the GOP
+      structure from the encoder. Not part of the stable API.
+    * New codec control AOME_SET_VALIDATE_HBD_INPUT to validate high
+      bitdepth (HBD) input and ensure that every pixel is within the
+      valid range. The corresponding option for aom_codec_set_option()
+      is "validate-hbd-input".
+    * New codec control AOMD_SET_FRAME_SIZE_LIMIT to set the maximum
+      frame size for a decoder
 
   - Compression Efficiency Improvements
     * When encoding 2-layered images with AOM_TUNE_IQ vs. AOM_TUNE_SSIM:
