@@ -380,7 +380,7 @@ typedef long aom_enc_frame_flags_t;
 /*!\brief Calculate PSNR for this frame, requires g_lag_in_frames to be 0 */
 #define AOM_EFLAG_CALCULATE_PSNR (1 << 1)
 /*!\brief Freeze internal state, do not update reference buffers, entropy
- * tables, rate control state, etc. */
+ * tables, rate control state, etc. Requires g_lag_in_frames to be 0. */
 #define AOM_EFLAG_FREEZE_INTERNAL_STATE (1 << 2)
 
 /*!\brief Encoder configuration structure

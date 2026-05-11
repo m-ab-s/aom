@@ -3366,8 +3366,6 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
   if (ppi->use_svc && ppi->cpi->svc.use_flexible_mode == 0 && flags == 0)
     av1_set_svc_fixed_mode(ppi->cpi);
 
-  ppi->b_freeze_internal_state = flags & AOM_EFLAG_FREEZE_INTERNAL_STATE;
-
   // Note(yunqing): While applying encoding flags, always start from enabling
   // all, and then modifying according to the flags. Previous frame's flags are
   // overwritten.
@@ -3423,6 +3421,9 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
     ppi->b_calculate_psnr = (ctx->base.init_flags & AOM_CODEC_USE_PSNR) ||
                             (flags & AOM_EFLAG_CALCULATE_PSNR);
 #endif  // CONFIG_INTERNAL_STATS
+
+    ppi->b_freeze_internal_state =
+        (flags & AOM_EFLAG_FREEZE_INTERNAL_STATE) != 0;
 
     if (img != NULL) {
       if (!ctx->pts_offset_initialized) {
