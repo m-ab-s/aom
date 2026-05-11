@@ -51,8 +51,8 @@ static void *Memset16(void *dest, int val, size_t length) {
 static void FillImage(aom_image_t *img, uint8_t val) {
   for (int p = 0; p < 3; ++p) {
     uint8_t *buf = img->planes[p];
-    const int w = aom_img_plane_width(img, p);
-    const int h = aom_img_plane_height(img, p);
+    const int h = p == 0 ? (int)img->h : (int)((img->h + 1) / 2);
+    const int w = p == 0 ? (int)img->w : (int)((img->w + 1) / 2);
     for (int r = 0; r < h; ++r) {
       memset(buf, val, w);
       buf += img->stride[p];
@@ -65,8 +65,8 @@ static void FillImageRandom(aom_image_t *img) {
   rnd.Reset(::libaom_test::ACMRandom::DeterministicSeed());
   for (int p = 0; p < 3; ++p) {
     uint8_t *buf = img->planes[p];
-    const int h = p == 0 ? (int)img->d_h : (int)((img->d_h + 1) / 2);
-    const int w = p == 0 ? (int)img->d_w : (int)((img->d_w + 1) / 2);
+    const int h = p == 0 ? (int)img->h : (int)((img->h + 1) / 2);
+    const int w = p == 0 ? (int)img->w : (int)((img->w + 1) / 2);
     for (int r = 0; r < h; ++r) {
       for (int c = 0; c < w; ++c) {
         buf[c] = rnd.Rand8();
