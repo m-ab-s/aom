@@ -1633,7 +1633,7 @@ enum aome_enc_control_id {
    *
    * args: a pointer to aom_gop_info_t
    */
-  AV1E_GET_GOP_INFO,
+  AV1E_GET_GOP_INFO = 174,
 
   /*!\brief Codec control function to validate HBD input.
    *
@@ -1641,7 +1641,7 @@ enum aome_enc_control_id {
    * ensure that every pixel is within the valid range. To disable/enable,
    * set this parameter to 0/1. The default value is set to be 1.
    */
-  AOME_SET_VALIDATE_HBD_INPUT,
+  AOME_SET_VALIDATE_HBD_INPUT = 175,
 
   // Any new encoder control IDs should be added above.
   // Maximum allowed encoder control ID is 229.
