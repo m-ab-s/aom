@@ -473,13 +473,13 @@ typedef struct aom_codec_enc_cfg {
 
   /*!\brief Bit-depth of the input source
    *
-   * This value identifies the actual bit-depth of the input source in bits.
-   * Note that the frames passed as input to the encoder must match codec
-   * bit-depth. If there is a mismatch between source bit-depth and codec
-   * bit-depth, then the application is required to upshift the frame to the
-   * codec bit-depth before passing it for encoding. Additionally, this variable
-   * is used by the library to compute quality metrics at source bit-depth. So,
-   * source bit-depth must not exceed codec bit-depth.
+   * This value identifies the actual bit-depth of the input source in bits. It
+   * must not exceed codec bit-depth. Note that the frames passed as input to
+   * the encoder must match codec bit-depth. So, if there is a mismatch between
+   * source bit-depth and codec bit-depth, the application is required to
+   * upshift the frame to the codec bit-depth before passing it for encoding.
+   * This is only used for computing quality metrics relative to the actual
+   * input source and has no effect on the encoder's output.
    */
   unsigned int g_input_bit_depth;
 
