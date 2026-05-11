@@ -1146,10 +1146,13 @@ static void screen_content_tools_determination(
 #endif
 
 #if CONFIG_AV1_HIGHBITDEPTH
-  const uint32_t in_bit_depth = cpi->oxcf.input_cfg.input_bit_depth;
   const uint32_t bit_depth = cpi->td.mb.e_mbd.bd;
+  // The decision to enable screen content tools is based on PSNR evaluated only
+  // at the stream bit-depth. Hence, PSNR computation against the actual input
+  // source is skipped by passing the codec bit-depth instead of the source
+  // bit-depth in the final arg.
   aom_calc_highbd_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr[pass],
-                       bit_depth, in_bit_depth);
+                       bit_depth, bit_depth);
 #else
   aom_calc_psnr(cpi->source, &cpi->common.cur_frame->buf, &psnr[pass]);
 #endif
