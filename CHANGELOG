@@ -31,7 +31,13 @@
     * New value 2 for use_fixed_qp_offsets: disallow the application of
       per-frame QP offsets, enabling full control of each frame's QP, by
       adjusting rc_cfg.cq_level between each encoded frame.
-    * Low-complexity mode support is extended to VOD encoding.
+    * Low complexity decode mode (the encoder optimizations that produce
+      encoded bitstreams that can be decoded at low computational
+      complexity) now supports good-quality encoding (speed 1 to 3) for
+      not only vertical videos (608p to 1080p) but also horizontal
+      videos (720p to 1080p).
+    * Realtime encoding with non-zero lookahead is supported, for
+      !REALTME_ONLY_CONFIG.
     * New AOM_EFLAG_FREEZE_INTERNAL_STATE flag for aom_codec_encode() to
       encode a frame without updating encoder state such as reference
       buffers, CDF tables, and rate control state. Useful for
@@ -72,9 +78,10 @@
       SSIMULACRA 2 score efficiency gains.
     * Re-tune and re-work encoder features, achieving coding gains at
       each speed level and better coding efficiency vs complexity
-      tradeoff.
+      tradeoff (an estimated 20-30% encoder time reduction with about
+      1-5% vmaf gains).
     * RTC screen: improvements to quality and scroll detection for high
-      resolutions (>= 2K).
+      resolutions.
 
   - Perceptual Quality Improvements
     * AOM_TUNE_IQ improves the visual quality of layered image encoding
