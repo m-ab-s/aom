@@ -102,8 +102,11 @@ list(APPEND AOM_DSP_COMMON_INTRIN_AVX2
             "${AOM_ROOT}/aom_dsp/x86/bitdepth_conversion_avx2.h")
 
 if(CONFIG_HIGHWAY)
+  list(APPEND AOM_DSP_COMMON_INTRIN_AVX2
+              "${AOM_ROOT}/aom_dsp/x86/convolve_vert_hwy_avx2.cc")
   list(APPEND AOM_DSP_COMMON_INTRIN_AVX512
-              "${AOM_ROOT}/aom_dsp/x86/convolve_hwy_avx512.cc")
+              "${AOM_ROOT}/aom_dsp/x86/convolve_hwy_avx512.cc"
+              "${AOM_ROOT}/aom_dsp/x86/convolve_vert_hwy_avx512.cc")
 endif()
 
 list(APPEND AOM_DSP_COMMON_INTRIN_NEON
