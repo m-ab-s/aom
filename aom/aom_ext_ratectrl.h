@@ -12,6 +12,7 @@
 /*!\file
  * \brief Defines structs and callbacks needed for external rate control.
  *
+ * \attention Experimental. Not part of the stable API.
  */
 #ifndef AOM_AOM_AOM_EXT_RATECTRL_H_
 #define AOM_AOM_AOM_EXT_RATECTRL_H_
