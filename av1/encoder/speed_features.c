@@ -704,6 +704,8 @@ static void set_good_speed_features_lc_dec_framesize_independent(
       (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE)
           ? 1
           : 0;
+
+  if (speed == 3) sf->hl_sf.weighted_chroma_distortion = 1;
 }
 
 static void set_good_speed_feature_framesize_dependent(
@@ -2253,6 +2255,7 @@ static inline void init_hl_sf(HIGH_LEVEL_SPEED_FEATURES *hl_sf) {
   hl_sf->allow_sub_blk_me_in_tf = 0;
   hl_sf->ref_frame_mvs_lvl = 0;
   hl_sf->screen_detection_mode2_fast_detection = 0;
+  hl_sf->weighted_chroma_distortion = 0;
 }
 
 static inline void init_fp_sf(FIRST_PASS_SPEED_FEATURES *fp_sf) {

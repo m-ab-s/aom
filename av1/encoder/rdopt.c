@@ -3974,34 +3974,41 @@ static inline void refine_winner_mode_tx(
       const int comp_pred = mbmi->ref_frame[1] > INTRA_FRAME;
 
       const ModeCosts *mode_costs = &x->mode_costs;
+      int64_t this_dist = rd_stats_y.dist + rd_stats_uv.dist;
+      int64_t this_sse = rd_stats_y.sse + rd_stats_uv.sse;
+      if (cpi->sf.hl_sf.weighted_chroma_distortion) {
+        this_dist = rd_stats_y.dist + rd_stats_uv.dist * 15 / 16;
+        this_sse = rd_stats_y.sse + rd_stats_uv.sse * 15 / 16;
+      }
+
       if (is_inter_mode(mbmi->mode) &&
           (!cpi->oxcf.algo_cfg.sharpness || !comp_pred) &&
           RDCOST(x->rdmult,
                  mode_costs->skip_txfm_cost[skip_ctx][0] + rd_stats_y.rate +
                      rd_stats_uv.rate,
-                 (rd_stats_y.dist + rd_stats_uv.dist)) >
-              RDCOST(x->rdmult, mode_costs->skip_txfm_cost[skip_ctx][1],
-                     (rd_stats_y.sse + rd_stats_uv.sse))) {
+                 this_dist) > RDCOST(x->rdmult,
+                                     mode_costs->skip_txfm_cost[skip_ctx][1],
+                                     this_sse)) {
         skip_blk = 1;
         rd_stats_y.rate = mode_costs->skip_txfm_cost[skip_ctx][1];
         rd_stats_uv.rate = 0;
         rd_stats_y.dist = rd_stats_y.sse;
         rd_stats_uv.dist = rd_stats_uv.sse;
+        this_dist = this_sse;
       } else {
         skip_blk = 0;
         rd_stats_y.rate += mode_costs->skip_txfm_cost[skip_ctx][0];
       }
       int this_rate = rd_stats.rate + rd_stats_y.rate + rd_stats_uv.rate -
                       winner_rate_y - winner_rate_uv;
-      int64_t this_rd =
-          RDCOST(x->rdmult, this_rate, (rd_stats_y.dist + rd_stats_uv.dist));
+      int64_t this_rd = RDCOST(x->rdmult, this_rate, this_dist);
       if (best_rd > this_rd) {
         *best_mbmode = *mbmi;
         *best_mode_index = winner_mode_index;
         av1_copy_array(ctx->tx_type_map, xd->tx_type_map, ctx->num_4x4_blk);
         rd_cost->rate = this_rate;
-        rd_cost->dist = rd_stats_y.dist + rd_stats_uv.dist;
-        rd_cost->sse = rd_stats_y.sse + rd_stats_uv.sse;
+        rd_cost->dist = this_dist;
+        rd_cost->sse = this_sse;
         rd_cost->rdcost = this_rd;
         best_rd = this_rd;
         *best_skip2 = skip_blk;

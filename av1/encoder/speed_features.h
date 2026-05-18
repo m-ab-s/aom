@@ -504,6 +504,13 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
    *  1: Fast detection
    */
   int screen_detection_mode2_fast_detection;
+
+  /*!
+   *  Decide whether to enable weighted chroma distortion.
+   *  0: Disable
+   *  1: Enable
+   */
+  int weighted_chroma_distortion;
 } HIGH_LEVEL_SPEED_FEATURES;
 
 /*!
