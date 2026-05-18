@@ -1025,9 +1025,10 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
     const int max_val = 1 << bit_depth;
     // Note there is no high bitdepth version of NV12 defined. If one is
     // added, `num_planes` should be 2 in that case.
-    const int num_planes = img->monochrome ? 1 : 3;
+    const int num_planes = ctx->cfg.monochrome ? 1 : 3;
     for (int plane = 0; plane < num_planes; ++plane) {
       const unsigned short *src = (const unsigned short *)img->planes[plane];
+      if (!src) return AOM_CODEC_INVALID_PARAM;
       const unsigned int stride = img->stride[plane] / 2;
       const unsigned int ph = aom_img_plane_height(img, plane);
       const unsigned int pw = aom_img_plane_width(img, plane);
