@@ -478,7 +478,7 @@ if(NOT GIT_FOUND)
   message("--- Git missing, version will be read from CHANGELOG.")
 endif()
 
-string(TIMESTAMP year "%Y")
+set(year "2016")
 configure_file("${AOM_ROOT}/cmake/aom_config.c.template"
                "${AOM_CONFIG_DIR}/config/aom_config.c")
 
