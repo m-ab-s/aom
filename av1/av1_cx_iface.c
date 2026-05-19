@@ -1035,7 +1035,7 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
       for (unsigned int i = 0; i < ph; ++i) {
         for (unsigned int j = 0; j < pw; ++j) {
           if (src[j] >= max_val) {
-            return AOM_CODEC_INVALID_PARAM;
+            ERROR("Input pixel value out of range for encoder bit depth");
           }
         }
         src += stride;
