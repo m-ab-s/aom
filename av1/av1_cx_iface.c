@@ -999,7 +999,9 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
   // If matrix_coefficients is equal to MC_IDENTITY, it is a requirement of
   // bitstream conformance that subsampling_x is equal to 0 and subsampling_y
   // is equal to 0.
-  if (ctx->oxcf.color_cfg.matrix_coefficients == AOM_CICP_MC_IDENTITY &&
+  const aom_matrix_coefficients_t matrix_coefficients =
+      ctx->extra_cfg.matrix_coefficients;
+  if (matrix_coefficients == AOM_CICP_MC_IDENTITY &&
       (img->x_chroma_shift != 0 || img->y_chroma_shift != 0)) {
     ERROR("Subsampling must be 0 with AOM_CICP_MC_IDENTITY.");
   }
@@ -1009,8 +1011,10 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
     if (img->bit_depth > 8) {
       ERROR("Only 8 bit depth images supported in tune=butteraugli mode.");
     }
-    if (img->mc != 0 && img->mc != AOM_CICP_MC_BT_709 &&
-        img->mc != AOM_CICP_MC_BT_601 && img->mc != AOM_CICP_MC_BT_470_B_G) {
+    if (matrix_coefficients != AOM_CICP_MC_IDENTITY &&
+        matrix_coefficients != AOM_CICP_MC_BT_709 &&
+        matrix_coefficients != AOM_CICP_MC_BT_601 &&
+        matrix_coefficients != AOM_CICP_MC_BT_470_B_G) {
       ERROR(
           "Only BT.709 and BT.601 matrix coefficients supported in "
           "tune=butteraugli mode. Identity matrix is treated as BT.601.");
