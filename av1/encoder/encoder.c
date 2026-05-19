@@ -2977,8 +2977,8 @@ static int encode_without_recode(AV1_COMP *cpi) {
 
   const SequenceHeader *seq_params = cm->seq_params;
   if ((cpi->svc.source_last_TL0.buffer_alloc_sz == 0 ||
-       cpi->svc.source_last_TL0.y_width != cpi->oxcf.frm_dim_cfg.width ||
-       cpi->svc.source_last_TL0.y_height != cpi->oxcf.frm_dim_cfg.height ||
+       cpi->svc.source_last_TL0.y_crop_width != cpi->oxcf.frm_dim_cfg.width ||
+       cpi->svc.source_last_TL0.y_crop_height != cpi->oxcf.frm_dim_cfg.height ||
        cpi->svc.source_last_TL0.subsampling_x != seq_params->subsampling_x ||
        cpi->svc.source_last_TL0.subsampling_y != seq_params->subsampling_y ||
        cpi->svc.source_last_TL0.flags != cpi->source->flags) &&
