@@ -4114,7 +4114,13 @@ static inline void init_mode_skip_mask(mode_skip_mask_t *mask,
     for (int r_idx = 0; r_idx < num_rt_refs; r_idx++) {
       const MV_REFERENCE_FRAME ref = real_time_ref_combos[r_idx][0];
       if (ref != INTRA_FRAME) {
-        min_pred_mv_sad = AOMMIN(min_pred_mv_sad, x->pred_mv_sad[ref]);
+        const MV_REFERENCE_FRAME ref_frames[2] = { ref, NONE_FRAME };
+        const int_mv ref_mv =
+            av1_get_ref_mv_from_stack(0, ref_frames, 0, &x->mbmi_ext);
+        const FULLPEL_MV full_mv = get_fullmv_from_mv(&ref_mv.as_mv);
+        if (av1_is_fullmv_in_range(&x->mv_limits, full_mv)) {
+          min_pred_mv_sad = AOMMIN(min_pred_mv_sad, x->pred_mv_sad[ref]);
+        }
       }
     }
   } else {
