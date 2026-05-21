@@ -4127,7 +4127,7 @@ static int calc_pack_bs_mt_workers(const TileDataEnc *tile_data, int num_tiles,
 }
 
 static inline uint32_t pack_tiles_in_tg_obus(
-    AV1_COMP *const cpi, uint8_t *const dst,
+    AV1_COMP *const cpi, uint8_t *const dst, size_t dst_size,
     struct aom_write_bit_buffer *saved_wb, uint8_t obu_extension_header,
     const FrameHeaderInfo *fh_info, int *const largest_tile_id) {
   const CommonTileParams *const tiles = &cpi->common.tiles;
@@ -4144,9 +4144,10 @@ static inline uint32_t pack_tiles_in_tg_obus(
       cpi->mt_info.pack_bs_mt_enabled);
 
   if (num_workers > 1) {
-    av1_write_tile_obu_mt(cpi, dst, &total_size, saved_wb, obu_extension_header,
-                          fh_info, largest_tile_id, &max_tile_size,
-                          &obu_header_size, &tile_data_start, num_workers);
+    av1_write_tile_obu_mt(cpi, dst, dst_size, &total_size, saved_wb,
+                          obu_extension_header, fh_info, largest_tile_id,
+                          &max_tile_size, &obu_header_size, &tile_data_start,
+                          num_workers);
   } else {
     write_tile_obu(cpi, dst, &total_size, saved_wb, obu_extension_header,
                    fh_info, largest_tile_id, &max_tile_size, &obu_header_size,
@@ -4165,8 +4166,6 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
                                        uint8_t obu_extension_header,
                                        const FrameHeaderInfo *fh_info,
                                        int *const largest_tile_id) {
-  // TODO: bug 42302568 - Use dst_size.
-  (void)dst_size;
   AV1_COMMON *const cm = &cpi->common;
   const CommonTileParams *const tiles = &cm->tiles;
   *largest_tile_id = 0;
@@ -4187,8 +4186,8 @@ static uint32_t write_tiles_in_tg_obus(AV1_COMP *const cpi, uint8_t *const dst,
     return pack_large_scale_tiles_in_tg_obus(
         cpi, dst, saved_wb, obu_extension_header, largest_tile_id);
 
-  return pack_tiles_in_tg_obus(cpi, dst, saved_wb, obu_extension_header,
-                               fh_info, largest_tile_id);
+  return pack_tiles_in_tg_obus(cpi, dst, dst_size, saved_wb,
+                               obu_extension_header, fh_info, largest_tile_id);
 }
 
 // Returns the number of bytes written on success. Returns 0 on failure.

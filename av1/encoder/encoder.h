@@ -3519,11 +3519,6 @@ typedef struct AV1_COMP {
   int sb_counter;
 
   /*!
-   * Available bitstream buffer size in bytes
-   */
-  size_t available_bs_size;
-
-  /*!
    * The controller of the external partition model.
    * It is used to do partition type selection based on external models.
    */

@@ -5346,7 +5346,6 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   cpi->is_dropped_frame = false;
   cm->showable_frame = 0;
   cpi_data->frame_size = 0;
-  cpi->available_bs_size = cpi_data->cx_data_sz;
 #if CONFIG_INTERNAL_STATS
   struct aom_usec_timer cmptimer;
   aom_usec_timer_start(&cmptimer);
