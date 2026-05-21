@@ -3318,15 +3318,21 @@ static aom_codec_err_t encoder_encode(aom_codec_alg_priv_t *ctx,
       //
       // For pseudo random input, the compressed frame size is seen to exceed
       // the uncompressed frame size, but is less than 2 times the uncompressed
-      // frame size. Hence the size of the buffer is chosen as 2 times the
-      // uncompressed frame size.
-      int multiplier = 8;
+      // frame size. https://issues.oss-fuzz.com/issues/514006304 further shows
+      // that multithreaded bitstream packing may need more than 2 times the
+      // uncompressed frame size. Hence the size of the buffer is chosen as 2.5
+      // times the uncompressed frame size.
+      aom_rational_t multiplier;
+      multiplier.num = 8;
+      multiplier.den = 1;
       if (ppi->cpi->oxcf.kf_cfg.key_freq_max == 0 &&
-          !ppi->cpi->oxcf.kf_cfg.fwd_kf_enabled)
-        multiplier = 2;
-      if (uncompressed_frame_sz > SIZE_MAX / multiplier)
+          !ppi->cpi->oxcf.kf_cfg.fwd_kf_enabled) {
+        multiplier.num = 5;
+        multiplier.den = 2;
+      }
+      if (uncompressed_frame_sz > SIZE_MAX / multiplier.num)
         return AOM_CODEC_MEM_ERROR;
-      size_t data_sz = uncompressed_frame_sz * multiplier;
+      size_t data_sz = uncompressed_frame_sz * multiplier.num / multiplier.den;
       if (data_sz < kMinCompressedSize) data_sz = kMinCompressedSize;
       if (ctx->cx_data == NULL || ctx->cx_data_sz < data_sz) {
         ctx->cx_data_sz = data_sz;
