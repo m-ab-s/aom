@@ -879,9 +879,16 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x,
     const BLOCK_SIZE bs =
         get_plane_block_size(mbmi->bsize, pd->subsampling_x, pd->subsampling_y);
     unsigned int sse;
+    int bw, bh;
+    const int block_width = block_size_wide[bs];
+    const int block_height = block_size_high[bs];
 
-    cpi->ppi->fn_ptr[bs].vf(p->src.buf, p->src.stride, pd->dst.buf,
-                            pd->dst.stride, &sse);
+    get_visible_dimensions(x, plane, bs, 0, 0, block_width, block_height, &bw,
+                           &bh, cpi->do_border_pad);
+
+    sse = pixel_dist_visible_only(cpi, x, p->src.buf, p->src.stride,
+                                  pd->dst.buf, pd->dst.stride, bs, block_height,
+                                  block_width, bh, bw);
     total_sse += sse;
     if (!plane && sse_y) *sse_y = sse;
   }
@@ -1964,7 +1971,7 @@ static int64_t skip_mode_rd(RD_STATS *rd_stats, const AV1_COMP *const cpi,
     const BLOCK_SIZE plane_bsize =
         get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
 
-    av1_subtract_plane(x, plane_bsize, plane);
+    av1_subtract_plane(x, plane_bsize, plane, cpi->do_border_pad);
 
     int64_t sse =
         av1_pixel_diff_dist(x, plane, 0, 0, plane_bsize, plane_bsize, NULL);
@@ -3941,7 +3948,7 @@ static inline void refine_winner_mode_tx(
         if (mbmi->motion_mode == OBMC_CAUSAL)
           av1_build_obmc_inter_predictors_sb(cm, xd);
 
-        av1_subtract_plane(x, bsize, 0);
+        av1_subtract_plane(x, bsize, PLANE_TYPE_Y, cpi->do_border_pad);
         if (txfm_params->tx_mode_search_type == TX_MODE_SELECT &&
             !xd->lossless[mbmi->segment_id]) {
           av1_pick_recursive_tx_size_type_yrd(cpi, x, &rd_stats_y, bsize,

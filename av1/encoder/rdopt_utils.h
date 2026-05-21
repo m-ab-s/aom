@@ -339,6 +339,47 @@ static inline void get_txb_dimensions(const MACROBLOCKD *xd, int plane,
   if (width) *width = txb_width;
 }
 
+static inline int get_visible_dimensions(const MACROBLOCK *x, int plane,
+                                         BLOCK_SIZE plane_bsize, int blk_col,
+                                         int blk_row, int cols, int rows,
+                                         int *visible_cols, int *visible_rows,
+                                         bool use_crop_dim) {
+  if ((x->pix_to_bottom_edge >= 0 && x->pix_to_right_edge >= 0) ||
+      !use_crop_dim) {
+    if (visible_cols != NULL && visible_rows != NULL) {
+      *visible_rows = rows;
+      *visible_cols = cols;
+    }
+    return 0;
+  }
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const struct macroblockd_plane *const pd = &xd->plane[plane];
+  int valid_cols, valid_rows;
+
+  if (x->pix_to_bottom_edge >= 0) {
+    valid_rows = rows;
+  } else {
+    const int block_height = block_size_high[plane_bsize];
+    const int block_rows =
+        (x->pix_to_bottom_edge >> pd->subsampling_y) + block_height;
+    valid_rows = clamp(block_rows - (blk_row << MI_SIZE_LOG2), 0, rows);
+  }
+
+  if (x->pix_to_right_edge >= 0) {
+    valid_cols = cols;
+  } else {
+    const int block_width = block_size_wide[plane_bsize];
+    const int block_cols =
+        (x->pix_to_right_edge >> pd->subsampling_x) + block_width;
+    valid_cols = clamp(block_cols - (blk_col << MI_SIZE_LOG2), 0, cols);
+  }
+  if (visible_cols != NULL && visible_rows != NULL) {
+    *visible_cols = valid_cols;
+    *visible_rows = valid_rows;
+  }
+  return (valid_cols < cols || valid_rows < rows);
+}
+
 static inline int bsize_to_num_blk(BLOCK_SIZE bsize) {
   int num_blk = 1 << (num_pels_log2_lookup[bsize] - 2 * MI_SIZE_LOG2);
   return num_blk;

@@ -488,7 +488,6 @@ static int64_t estimate_yrd_for_sb(const AV1_COMP *const cpi, BLOCK_SIZE bs,
                                    RD_STATS *rd_stats) {
   MACROBLOCKD *const xd = &x->e_mbd;
   if (ref_best_rd < 0) return INT64_MAX;
-  av1_subtract_plane(x, bs, 0);
   const int64_t rd = av1_estimate_txfm_yrd(cpi, x, rd_stats, ref_best_rd, bs,
                                            max_txsize_rect_lookup[bs]);
   if (rd != INT64_MAX) {
@@ -1072,7 +1071,7 @@ static inline int prune_mode_by_skip_rd(const AV1_COMP *const cpi,
                              TX_SEARCH_COMP_TYPE_MODE, /*eval_motion_mode=*/0);
   // Check if the mode is good enough based on skip rd
   if (txfm_rd_gate_level) {
-    int64_t sse_y = compute_sse_plane(x, xd, PLANE_TYPE_Y, bsize);
+    int64_t sse_y = compute_sse_plane(cpi, x, xd, PLANE_TYPE_Y, bsize);
     int64_t skip_rd = RDCOST(x->rdmult, mode_rate, (sse_y << 4));
     eval_txfm =
         check_txfm_eval(x, bsize, ref_skip_rd, skip_rd, txfm_rd_gate_level, 1);
