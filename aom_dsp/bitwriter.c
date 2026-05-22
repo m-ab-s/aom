@@ -13,7 +13,14 @@
 #include "aom_dsp/bitwriter.h"
 
 void aom_start_encode(aom_writer *w, uint8_t *source) {
+  // TODO: bug 42302568 - During the transition period, size=0 means the
+  // buffer size is unknown.
+  aom_start_encode_with_size(w, source, /*size=*/0);
+}
+
+void aom_start_encode_with_size(aom_writer *w, uint8_t *source, size_t size) {
   w->buffer = source;
+  w->size = size;
   w->pos = 0;
   od_ec_enc_init(&w->ec, 62025);
 }
@@ -23,7 +30,9 @@ int aom_stop_encode(aom_writer *w) {
   uint32_t bytes;
   unsigned char *data;
   data = od_ec_enc_done(&w->ec, &bytes);
-  if (!data) {
+  // TODO: bug 42302568 - Remove "w->size != 0 &&" after all aom_start_encode()
+  // calls have been converted to aom_start_encode_with_size().
+  if (!data || (w->size != 0 && bytes > w->size)) {
     od_ec_enc_clear(&w->ec);
     return -1;
   }
