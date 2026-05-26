@@ -1412,20 +1412,6 @@ static inline void init_mc_flow_dispenser(AV1_COMP *cpi, int frame_idx,
   int base_qindex =
       cpi->use_ducky_encode ? gf_group->q_val[frame_idx] : pframe_qindex;
 
-  // Override QP decision with RC
-  if (av1_use_tpl_for_extrc(&cpi->ext_ratectrl) &&
-      cpi->ext_ratectrl.funcs.get_encodeframe_decision != NULL) {
-    aom_rc_encodeframe_decision_t encode_frame_decision;
-    encode_frame_decision.sb_params_list = NULL;
-    // Even though delta Q is not used for TPL, this pointer still needs to be
-    // set to avoid segfault.
-    encode_frame_decision.use_delta_q = &cpi->ext_ratectrl.use_delta_q;
-    if (av1_extrc_get_encodeframe_decision(&cpi->ext_ratectrl, frame_idx,
-                                           &encode_frame_decision) ==
-        AOM_CODEC_OK) {
-      base_qindex = encode_frame_decision.q_index;
-    }
-  }
   // Get rd multiplier set up.
   rdmult = av1_compute_rd_mult(
       base_qindex, cm->seq_params->bit_depth,
@@ -1504,19 +1490,23 @@ static void tpl_store_before_propagation(AV1_COMP *cpi,
   tpl_block_stats->intra_rate = src_stats->intra_rate;
   tpl_block_stats->cmp_recrf_rate[0] = src_stats->cmp_recrf_rate[0];
   tpl_block_stats->cmp_recrf_rate[1] = src_stats->cmp_recrf_rate[1];
-  tpl_block_stats->ref_frame_index[0] =
-      gf_group->ref_frame_list[tpl_data->frame_idx]
-                              [LAST_FRAME + src_stats->ref_frame_index[0]];
-  tpl_block_stats->ref_frame_index[1] =
-      gf_group->ref_frame_list[tpl_data->frame_idx]
-                              [LAST_FRAME + src_stats->ref_frame_index[1]];
-  for (int ref = 0; ref < AOM_RC_INTER_REFS_PER_FRAME; ++ref) {
-    tpl_block_stats->mv[ref].as_mv.col = src_stats->mv[ref].as_mv.col;
-    tpl_block_stats->mv[ref].as_mv.row = src_stats->mv[ref].as_mv.row;
-    tpl_block_stats->mv[ref].as_fullmv.col = src_stats->mv[ref].as_fullmv.col;
-    tpl_block_stats->mv[ref].as_fullmv.row = src_stats->mv[ref].as_fullmv.row;
-    tpl_block_stats->mv[ref].as_int = src_stats->mv[ref].as_int;
-    tpl_block_stats->pred_error[ref] = src_stats->pred_error[ref];
+
+  for (int ref = 0; ref < 2; ++ref) {
+    const int ref_frame_index = src_stats->ref_frame_index[ref];
+    if (ref_frame_index < 0) {
+      tpl_block_stats->ref_frame_index[ref] = -1;
+      continue;
+    }
+    tpl_block_stats->ref_frame_index[ref] =
+        gf_group
+            ->ref_frame_list[tpl_data->frame_idx][LAST_FRAME + ref_frame_index];
+
+    const FULLPEL_MV full_mv =
+        get_fullmv_from_mv(&src_stats->mv[ref_frame_index].as_mv);
+
+    tpl_block_stats->mv[ref].as_mv.row = full_mv.row;
+    tpl_block_stats->mv[ref].as_mv.col = full_mv.col;
+    tpl_block_stats->pred_error[ref] = src_stats->pred_error[ref_frame_index];
   }
 }
 

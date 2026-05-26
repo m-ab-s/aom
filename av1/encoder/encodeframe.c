@@ -321,6 +321,10 @@ static inline void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
              cpi->ext_ratectrl.funcs.get_encodeframe_decision != NULL &&
              cpi->ext_ratectrl.sb_params_list != NULL) {
     if (cpi->ext_ratectrl.use_delta_q) {
+      // Only used for per-coding-block RD mult calculation later.
+      current_qindex = av1_get_q_for_deltaq_objective(cpi, td, NULL, sb_size,
+                                                      mi_row, mi_col);
+
       const int q_index = cpi->ext_ratectrl.sb_params_list[sb_index].q_index;
       if (q_index != AOM_DEFAULT_Q) {
         current_qindex = q_index;
