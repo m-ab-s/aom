@@ -1588,9 +1588,18 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   struct estimate_block_intra_args args;
   init_estimate_block_intra_args(&args, cpi, x);
   const TxfmSearchParams *txfm_params = &x->txfm_search_params;
+  const int mi_row = xd->mi_row;
+  const int mi_col = xd->mi_col;
   mi->tx_size =
       AOMMIN(max_txsize_lookup[bsize],
              tx_mode_to_biggest_tx_size[txfm_params->tx_mode_search_type]);
+  // For flat blocks at high qp, along the top/left boundary, cap the
+  // transform size to 16x16. This is avoid chessboard artifact that
+  // can occur for flat input at high QP.
+  if (cm->quant_params.base_qindex > 150 && x->source_variance == 0 &&
+      (mi_row == 0 || mi_col == 0) && mi->tx_size > TX_16X16) {
+    mi->tx_size = TX_16X16;
+  }
   assert(IMPLIES(xd->lossless[mi->segment_id], mi->tx_size == TX_4X4));
   const BLOCK_SIZE tx_bsize = txsize_to_bsize[mi->tx_size];
 
@@ -1609,8 +1618,6 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
   const int left_ctx = intra_mode_context[L];
   const unsigned int source_variance = x->source_variance;
   bmode_costs = x->mode_costs.y_mode_costs[above_ctx][left_ctx];
-  const int mi_row = xd->mi_row;
-  const int mi_col = xd->mi_col;
   // Use this flag to signal large flat blocks that may need special
   // treatment: in the current case H/V/SMOOTH may not be skipped if
   // DC has nonzero distortion and skippable is set. This is to remove
