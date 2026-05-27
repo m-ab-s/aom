@@ -32,10 +32,11 @@ HWY_ATTR void aom_convolve8_horiz_avx512(const uint8_t *src,
                                          const int16_t *filter_x, int x_step_q4,
                                          const int16_t *filter_y, int y_step_q4,
                                          int w, int h) {
-  // Fallback to AVX2 for small block sizes (w <= 16) where the handwritten
-  // AVX2 implementation was measured to be faster than the Highway AVX512
-  // implementation in benchmarks.
-  if (w <= 16) {
+  // 16x32, 32x32 and 64x32 blocks show ~10% slow down compared with avx2 with
+  // significant speed up for all other blocks. Fall back to avx2 for wx32
+  // blocks.
+  // TODO: jianj - Investigate and optimize for wx32 blocks.
+  if (h == 32) {
     aom_convolve8_horiz_avx2(src, src_stride, dst, dst_stride, filter_x,
                              x_step_q4, filter_y, y_step_q4, w, h);
   } else {
