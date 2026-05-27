@@ -61,12 +61,7 @@ static inline void init_token_stats(TOKEN_STATS *token_stats) {
   token_stats->cost = 0;
 }
 
-// TODO: bug 42302568 - Gradually replace aom_start_encode() calls with
-// aom_start_encode_with_size(). When there are no more aom_start_encode()
-// calls, remove aom_start_encode() and rename aom_start_encode_with_size()
-// back to aom_start_encode().
-void aom_start_encode(aom_writer *w, uint8_t *buffer);
-void aom_start_encode_with_size(aom_writer *w, uint8_t *buffer, size_t size);
+void aom_start_encode(aom_writer *w, uint8_t *buffer, size_t size);
 
 // Returns a negative number on error. Caller must check the return value and
 // handle error.
