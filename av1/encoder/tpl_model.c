@@ -851,7 +851,11 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
     // Store inter cost for each ref frame. This is used to prune inter modes.
     tpl_stats->pred_error[rf_idx] = AOMMAX(1, inter_cost);
 
-    if (inter_cost < best_inter_cost) {
+    // If we have saved the previous arf frame. Only allow using it as reference
+    // for previous gop.
+    if (inter_cost < best_inter_cost &&
+        (tpl_data->prev_gop_arf_disp_order < 0 ||
+         tpl_data->src_ref_frame[rf_idx] != tpl_data->ref_frame[rf_idx])) {
       best_rf_idx = rf_idx;
 
       best_inter_cost = inter_cost;
@@ -981,7 +985,13 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
     inter_cost =
         tpl_get_satd_cost(bd_info, src_diff, bw, src_mb_buffer, src_stride,
                           predictor, bw, coeff, bw, bh, tx_size);
-    if (inter_cost < best_inter_cost) {
+
+    // If we have saved the previous arf frame. Only allow using it as reference
+    // for previous gop.
+    if (inter_cost < best_inter_cost &&
+        (tpl_data->prev_gop_arf_disp_order < 0 ||
+         (tpl_data->src_ref_frame[rf_idx0] != tpl_data->ref_frame[rf_idx0] &&
+          tpl_data->src_ref_frame[rf_idx1] != tpl_data->ref_frame[rf_idx1]))) {
       best_cmp_rf_idx = cmp_rf_idx;
       best_inter_cost = inter_cost;
       best_mv[0] = tmp_mv[0];
@@ -1648,15 +1658,23 @@ static inline int init_gop_frames_for_tpl(
       tpl_data->tpl_frame[-i - 1].rec_picture = NULL;
       tpl_data->tpl_frame[-i - 1].frame_display_index = 0;
     } else {
+      int has_prev_arf = 0;
       if (cm->ref_frame_map[i]->display_order_hint ==
           tpl_data->prev_gop_arf_disp_order) {
         tpl_data->tpl_frame[-i - 1].gf_picture = &tpl_data->prev_gop_arf_src;
+        tpl_data->tpl_frame[-i - 1].rec_picture =
+            &tpl_data->prev_gop_arf_tpl_recon;
+        has_prev_arf = 1;
       } else {
         tpl_data->tpl_frame[-i - 1].gf_picture = &cm->ref_frame_map[i]->buf;
+        tpl_data->tpl_frame[-i - 1].rec_picture = &cm->ref_frame_map[i]->buf;
       }
-      tpl_data->tpl_frame[-i - 1].rec_picture = &cm->ref_frame_map[i]->buf;
       tpl_data->tpl_frame[-i - 1].frame_display_index =
           cm->ref_frame_map[i]->display_order_hint;
+
+      if (!has_prev_arf) {
+        tpl_data->prev_gop_arf_disp_order = -1;
+      }
     }
 
     ref_picture_map[i] = -i - 1;
