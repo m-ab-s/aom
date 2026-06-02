@@ -620,6 +620,10 @@ typedef struct {
    * CBR mode.
    */
   int max_consec_drop_ms;
+  /*!
+   * Force to allow the usage of maximum q in vbr mode.
+   */
+  int force_max_q;
 } RateControlCfg;
 
 /*!\cond */

@@ -247,6 +247,7 @@ struct av1_extracfg {
   int sb_qp_sweep;
   aom_screen_detection_mode screen_detection_mode;
   unsigned int validate_hbd_input;
+  unsigned int force_max_q;
 };
 
 #if !CONFIG_REALTIME_ONLY
@@ -404,6 +405,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // sb_qp_sweep
   AOM_SCREEN_DETECTION_STANDARD,
   1,  // validate_hbd_input
+  0,  // force_max_q
 };
 #else
 // Some settings are changed for realtime only build.
@@ -561,6 +563,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // sb_qp_sweep
   AOM_SCREEN_DETECTION_STANDARD,
   1,  // validate_hbd_input
+  0,  // force_max_q
 };
 #endif
 
@@ -1270,6 +1273,7 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
   rc_cfg->vbrbias = cfg->rc_2pass_vbr_bias_pct;
   rc_cfg->vbrmin_section = cfg->rc_2pass_vbr_minsection_pct;
   rc_cfg->vbrmax_section = cfg->rc_2pass_vbr_maxsection_pct;
+  rc_cfg->force_max_q = extra_cfg->force_max_q;
 
   // Set Toolset related configuration.
   tool_cfg->bit_depth = cfg->g_bit_depth;
@@ -4871,6 +4875,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.validate_hbd_input,
                               argv, err_string)) {
     extra_cfg.validate_hbd_input = arg_parse_int_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.force_max_q, argv,
+                              err_string)) {
+    extra_cfg.force_max_q = arg_parse_uint_helper(&arg, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
