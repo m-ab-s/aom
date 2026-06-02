@@ -12,10 +12,19 @@
 #ifndef AOM_AOM_DSP_CONVOLVE_HWY_H_
 #define AOM_AOM_DSP_CONVOLVE_HWY_H_
 
+#include "config/aom_config.h"
+
 #include <cassert>
 
 #include "aom_dsp/arm/aom_filter.h"
 #include "third_party/highway/hwy/highway.h"
+
+#if HAVE_SSSE3
+extern "C" void aom_convolve8_horiz_ssse3(
+    const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
+    ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4,
+    const int16_t *filter_y, int y_step_q4, int w, int h);
+#endif
 
 HWY_BEFORE_NAMESPACE();
 
@@ -23,6 +32,107 @@ namespace {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
+
+template <typename T16_8, typename T8_16, typename V8_16, typename M,
+          typename VC>
+HWY_ATTR HWY_INLINE hn::VFromD<T16_8> ComputeHoriz8TapSum(
+    T16_8 tag16_8, T8_16 tag8_16, const V8_16 &d0, const V8_16 &d2,
+    const V8_16 &d4, const V8_16 &d6, const M &shuffle_mask, const VC &coeff01,
+    const VC &coeff23, const VC &coeff45, const VC &coeff67) {
+  (void)tag8_16;
+  return hn::Add(
+      hn::Add(hn::SatWidenMulPairwiseAdd(
+                  tag16_8, hn::TableLookupBytes(d0, shuffle_mask), coeff01),
+              hn::SatWidenMulPairwiseAdd(
+                  tag16_8, hn::TableLookupBytes(d2, shuffle_mask), coeff23)),
+      hn::Add(hn::SatWidenMulPairwiseAdd(
+                  tag16_8, hn::TableLookupBytes(d4, shuffle_mask), coeff45),
+              hn::SatWidenMulPairwiseAdd(
+                  tag16_8, hn::TableLookupBytes(d6, shuffle_mask), coeff67)));
+}
+
+template <typename T16_8, typename T8_16, typename V8_16, typename M,
+          typename VC>
+HWY_ATTR HWY_INLINE hn::VFromD<T16_8> ComputeHoriz4TapSum(
+    T16_8 tag16_8, T8_16 tag8_16, const V8_16 &d0, const V8_16 &d2,
+    const M &shuffle_mask, const VC &coeff23, const VC &coeff45) {
+  (void)tag8_16;
+  return hn::Add(hn::SatWidenMulPairwiseAdd(
+                     tag16_8, hn::TableLookupBytes(d0, shuffle_mask), coeff23),
+                 hn::SatWidenMulPairwiseAdd(
+                     tag16_8, hn::TableLookupBytes(d2, shuffle_mask), coeff45));
+}
+
+template <int chunk_size, typename T8_8, typename T8_4, typename V16_8>
+HWY_ATTR HWY_INLINE void StoreOutputChunk(T8_8 tag8_8, T8_4 tag8_4,
+                                          const V16_8 &sum,
+                                          const V16_8 &bias_val, uint8_t *dst) {
+  auto res = hn::ShiftRight<FILTER_BITS - 1>(hn::Add(sum, bias_val));
+  if (chunk_size == 4) {
+    hn::StoreU(hn::LowerHalf(tag8_4, hn::DemoteTo(tag8_8, res)), tag8_4, dst);
+  } else {
+    // chunk_size == 8
+    hn::StoreU(hn::DemoteTo(tag8_8, res), tag8_8, dst);
+  }
+}
+
+template <typename T16_8, typename T8_16, typename M, typename VC>
+HWY_ATTR HWY_INLINE hn::VFromD<T16_8> ComputeChunkSum2Tap(
+    T16_8 tag16_8, T8_16 tag8_16, const uint8_t *src, int j,
+    const M &shuffle_mask, const VC &coeff) {
+  (void)tag8_16;
+  auto d0 = hn::LoadU(tag8_16, src + j);
+  return hn::SatWidenMulPairwiseAdd(
+      tag16_8, hn::TableLookupBytes(d0, shuffle_mask), coeff);
+}
+
+template <typename T16_8, typename T8_16, typename M, typename VC>
+HWY_ATTR HWY_INLINE hn::VFromD<T16_8> ComputeChunkSum4Tap(
+    T16_8 tag16_8, T8_16 tag8_16, const uint8_t *src, int j,
+    const M &shuffle_mask, const VC &coeff0, const VC &coeff1) {
+  auto d0 = hn::LoadU(tag8_16, src + j + 0);
+  auto d2 = hn::LoadU(tag8_16, src + j + 2);
+  return ComputeHoriz4TapSum(tag16_8, tag8_16, d0, d2, shuffle_mask, coeff0,
+                             coeff1);
+}
+
+template <typename T16_8, typename T8_16, typename M, typename VC>
+HWY_ATTR HWY_INLINE hn::VFromD<T16_8> ComputeChunkSum8Tap(
+    T16_8 tag16_8, T8_16 tag8_16, const uint8_t *src, int j,
+    const M &shuffle_mask, const VC &coeff0, const VC &coeff1, const VC &coeff2,
+    const VC &coeff3) {
+  auto d0 = hn::LoadU(tag8_16, src + j + 0);
+  auto d2 = hn::LoadU(tag8_16, src + j + 2);
+  auto d4 = hn::LoadU(tag8_16, src + j + 4);
+  auto d6 = hn::LoadU(tag8_16, src + j + 6);
+  return ComputeHoriz8TapSum(tag16_8, tag8_16, d0, d2, d4, d6, shuffle_mask,
+                             coeff0, coeff1, coeff2, coeff3);
+}
+
+template <int chunk_size, typename T8_8, typename T8_4, typename V16_8,
+          typename SumComputer>
+HWY_ATTR HWY_INLINE void Process2RowsChunk(T8_8 tag8_8, T8_4 tag8_4,
+                                           const uint8_t *src,
+                                           ptrdiff_t src_stride, uint8_t *dst,
+                                           ptrdiff_t dst_stride, int j,
+                                           const V16_8 &bias_val,
+                                           SumComputer sum_computer) {
+  auto r0_sum = sum_computer(src, j);
+  auto r1_sum = sum_computer(src + src_stride, j);
+  StoreOutputChunk<chunk_size>(tag8_8, tag8_4, r0_sum, bias_val, dst + j);
+  StoreOutputChunk<chunk_size>(tag8_8, tag8_4, r1_sum, bias_val,
+                               dst + dst_stride + j);
+}
+
+template <int chunk_size, typename T8_8, typename T8_4, typename V16_8,
+          typename SumComputer>
+HWY_ATTR HWY_INLINE void Process1RowChunk(T8_8 tag8_8, T8_4 tag8_4,
+                                          const uint8_t *src, uint8_t *dst,
+                                          int j, const V16_8 &bias_val,
+                                          SumComputer sum_computer) {
+  auto r0_sum = sum_computer(src, j);
+  StoreOutputChunk<chunk_size>(tag8_8, tag8_4, r0_sum, bias_val, dst + j);
+}
 
 template <typename D>
 HWY_ATTR HWY_INLINE hn::VFromD<D> LoadUnaligned4x4(D tag16, const uint8_t *buf,
@@ -134,6 +244,107 @@ HWY_ATTR HWY_INLINE void StoreUnaligned4x8(D tag, uint8_t *buf,
 HWY_ATTR inline void ConvolveHoriz2Tap(const uint8_t *src, ptrdiff_t src_stride,
                                        uint8_t *dst, ptrdiff_t dst_stride,
                                        const int16_t *filter_x, int w, int h) {
+  const bool can_use_pareto_optimal_2tap =
+      (h == 32 && (w == 16 || w == 32 || w == 64)) && (filter_x[3] % 2 == 0) &&
+      (filter_x[4] % 2 == 0);
+
+  if (can_use_pareto_optimal_2tap) {
+    if (w == 16) {
+      constexpr hn::CappedTag<uint8_t, 16> u8_16_tag;
+      constexpr hn::CappedTag<int8_t, 16> i8_16_tag;
+      constexpr hn::CappedTag<int16_t, 8> i16_8_tag;
+
+      const auto shuf34_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8);
+
+      const int8_t c3 = static_cast<int8_t>(filter_x[3] / 2);
+      const int8_t c4 = static_cast<int8_t>(filter_x[4] / 2);
+
+      const auto coeff34_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c3, c4, c3, c4, c3, c4, c3, c4, c3,
+                                  c4, c3, c4, c3, c4, c3, c4);
+
+      const auto round_vec_16 = hn::Set(i16_8_tag, 1 << (FILTER_BITS - 2));
+
+      for (int y = 0; y < h; ++y) {
+        const uint8_t *src_row = src + y * src_stride;
+        uint8_t *dst_row = dst + y * dst_stride;
+
+        auto v0 = hn::LoadU(u8_16_tag, src_row + 0);
+        auto v8 = hn::LoadU(u8_16_tag, src_row + 8);
+
+        auto p34_0 = hn::TableLookupBytes(v0, shuf34_16);
+        auto res0 = hn::ShiftRightSame(
+            hn::Add(hn::SatWidenMulPairwiseAdd(i16_8_tag, p34_0, coeff34_16),
+                    round_vec_16),
+            FILTER_BITS - 1);
+
+        auto p34_8 = hn::TableLookupBytes(v8, shuf34_16);
+        auto res8 = hn::ShiftRightSame(
+            hn::Add(hn::SatWidenMulPairwiseAdd(i16_8_tag, p34_8, coeff34_16),
+                    round_vec_16),
+            FILTER_BITS - 1);
+
+        auto packed = hn::ReorderDemote2To(u8_16_tag, res0, res8);
+        hn::StoreU(packed, u8_16_tag, dst_row);
+      }
+    } else {
+      constexpr hn::CappedTag<uint8_t, 16> u8_16_tag;
+      constexpr hn::CappedTag<uint8_t, 32> u8_32_tag;
+      constexpr hn::CappedTag<int8_t, 16> i8_16_tag;
+      constexpr hn::CappedTag<int8_t, 32> i8_32_tag;
+      constexpr hn::CappedTag<int16_t, 16> i16_16_tag;
+
+      const auto shuf34_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8);
+      const auto shuf34_32 = hn::Combine(u8_32_tag, shuf34_16, shuf34_16);
+
+      const int8_t c3 = static_cast<int8_t>(filter_x[3] / 2);
+      const int8_t c4 = static_cast<int8_t>(filter_x[4] / 2);
+
+      const auto coeff34_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c3, c4, c3, c4, c3, c4, c3, c4, c3,
+                                  c4, c3, c4, c3, c4, c3, c4);
+      const auto coeff34_32 = hn::Combine(i8_32_tag, coeff34_16, coeff34_16);
+
+      const auto round_vec_32 = hn::Set(i16_16_tag, 1 << (FILTER_BITS - 2));
+
+      for (int y = 0; y < h; ++y) {
+        const uint8_t *src_row = src + y * src_stride;
+        uint8_t *dst_row = dst + y * dst_stride;
+
+        for (int j = 0; j < w; j += 32) {
+          auto v_curr = hn::LoadU(u8_32_tag, src_row + j + 0);
+          auto v8 = hn::LoadU(u8_32_tag, src_row + j + 8);
+
+          auto p34_0 = hn::TableLookupBytes(v_curr, shuf34_32);
+          auto res0 = hn::ShiftRightSame(
+              hn::Add(hn::SatWidenMulPairwiseAdd(i16_16_tag, p34_0, coeff34_32),
+                      round_vec_32),
+              FILTER_BITS - 1);
+
+          auto p34_8 = hn::TableLookupBytes(v8, shuf34_32);
+          auto res8 = hn::ShiftRightSame(
+              hn::Add(hn::SatWidenMulPairwiseAdd(i16_16_tag, p34_8, coeff34_32),
+                      round_vec_32),
+              FILTER_BITS - 1);
+
+          constexpr hn::CappedTag<uint8_t, 8> u8_8_tag;
+          auto demoted0 = hn::DemoteTo(u8_16_tag, res0);
+          auto demoted8 = hn::DemoteTo(u8_16_tag, res8);
+          auto p0_15 = hn::Combine(u8_16_tag, hn::LowerHalf(u8_8_tag, demoted8),
+                                   hn::LowerHalf(u8_8_tag, demoted0));
+          auto p16_31 =
+              hn::Combine(u8_16_tag, hn::UpperHalf(u8_8_tag, demoted8),
+                          hn::UpperHalf(u8_8_tag, demoted0));
+          hn::StoreU(p0_15, u8_16_tag, dst_row + j);
+          hn::StoreU(p16_31, u8_16_tag, dst_row + j + 16);
+        }
+      }
+    }
+    return;
+  }
+
   const bool can_use_optimized_path =
       (w <= 32) && (filter_x[3] % 2 == 0) && (filter_x[4] % 2 == 0);
 
@@ -154,152 +365,65 @@ HWY_ATTR inline void ConvolveHoriz2Tap(const uint8_t *src, ptrdiff_t src_stride,
     const auto coeff34 = hn::Dup128VecFromValues(
         tag_i8, c3, c4, c3, c4, c3, c4, c3, c4, c3, c4, c3, c4, c3, c4, c3, c4);
 
+    auto sum_2tap = [&](const uint8_t *s, int offset) {
+      return ComputeChunkSum2Tap(tag16_8, tag8_16, s, offset, shuffle_mask,
+                                 coeff34);
+    };
+
     if (w == 4) {
       while (h >= 2) {
-        auto r0_d0 = hn::LoadU(tag8_16, src + 0);
-        auto r1_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-
-        auto r0_sum = hn::SatWidenMulPairwiseAdd(
-            tag16_8, hn::TableLookupBytes(r0_d0, shuffle_mask), coeff34);
-        auto r1_sum = hn::SatWidenMulPairwiseAdd(
-            tag16_8, hn::TableLookupBytes(r1_d0, shuffle_mask), coeff34);
-
-        hn::StoreU(
-            hn::LowerHalf(tag8_4,
-                          hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                                   hn::Add(r0_sum, bias_val)))),
-            tag8_4, dst);
-        hn::StoreU(
-            hn::LowerHalf(tag8_4,
-                          hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                                   hn::Add(r1_sum, bias_val)))),
-            tag8_4, dst + dst_stride);
-
+        Process2RowsChunk<4>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_2tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
+      }
+      if (h & 1) {
+        Process1RowChunk<4>(tag8_8, tag8_4, src, dst, 0, bias_val, sum_2tap);
       }
     } else if (w == 8) {
       while (h >= 2) {
-        auto r0_d0 = hn::LoadU(tag8_16, src + 0);
-        auto r1_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-
-        auto r0_sum = hn::SatWidenMulPairwiseAdd(
-            tag16_8, hn::TableLookupBytes(r0_d0, shuffle_mask), coeff34);
-        auto r1_sum = hn::SatWidenMulPairwiseAdd(
-            tag16_8, hn::TableLookupBytes(r1_d0, shuffle_mask), coeff34);
-
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r0_sum, bias_val))),
-                   tag8_8, dst);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r1_sum, bias_val))),
-                   tag8_8, dst + dst_stride);
-
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_2tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
+      }
+      if (h & 1) {
+        Process1RowChunk<8>(tag8_8, tag8_4, src, dst, 0, bias_val, sum_2tap);
       }
     } else if (w == 16) {
       while (h >= 2) {
-        auto r0_j0_d0 = hn::LoadU(tag8_16, src + 0);
-        auto r0_j8_d0 = hn::LoadU(tag8_16, src + 8);
-
-        auto r1_j0_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-        auto r1_j8_d0 = hn::LoadU(tag8_16, src + src_stride + 8);
-
-        auto r0_j0_sum = hn::SatWidenMulPairwiseAdd(
-            tag16_8, hn::TableLookupBytes(r0_j0_d0, shuffle_mask), coeff34);
-        auto r0_j8_sum = hn::SatWidenMulPairwiseAdd(
-            tag16_8, hn::TableLookupBytes(r0_j8_d0, shuffle_mask), coeff34);
-
-        auto r1_j0_sum = hn::SatWidenMulPairwiseAdd(
-            tag16_8, hn::TableLookupBytes(r1_j0_d0, shuffle_mask), coeff34);
-        auto r1_j8_sum = hn::SatWidenMulPairwiseAdd(
-            tag16_8, hn::TableLookupBytes(r1_j8_d0, shuffle_mask), coeff34);
-
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r0_j0_sum, bias_val))),
-                   tag8_8, dst + 0);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r0_j8_sum, bias_val))),
-                   tag8_8, dst + 8);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r1_j0_sum, bias_val))),
-                   tag8_8, dst + dst_stride + 0);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r1_j8_sum, bias_val))),
-                   tag8_8, dst + dst_stride + 8);
-
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_2tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             8, bias_val, sum_2tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
       }
+      if (h & 1) {
+        Process1RowChunk<8>(tag8_8, tag8_4, src, dst, 0, bias_val, sum_2tap);
+        Process1RowChunk<8>(tag8_8, tag8_4, src, dst, 8, bias_val, sum_2tap);
+      }
     } else if (w == 32) {
       while (h >= 2) {
-        {
-          auto r0_j0_d0 = hn::LoadU(tag8_16, src + 0);
-          auto r0_j8_d0 = hn::LoadU(tag8_16, src + 8);
-
-          auto r1_j0_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-          auto r1_j8_d0 = hn::LoadU(tag8_16, src + src_stride + 8);
-
-          auto r0_j0_sum = hn::SatWidenMulPairwiseAdd(
-              tag16_8, hn::TableLookupBytes(r0_j0_d0, shuffle_mask), coeff34);
-          auto r0_j8_sum = hn::SatWidenMulPairwiseAdd(
-              tag16_8, hn::TableLookupBytes(r0_j8_d0, shuffle_mask), coeff34);
-
-          auto r1_j0_sum = hn::SatWidenMulPairwiseAdd(
-              tag16_8, hn::TableLookupBytes(r1_j0_d0, shuffle_mask), coeff34);
-          auto r1_j8_sum = hn::SatWidenMulPairwiseAdd(
-              tag16_8, hn::TableLookupBytes(r1_j8_d0, shuffle_mask), coeff34);
-
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j0_sum, bias_val))),
-                     tag8_8, dst + 0);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j8_sum, bias_val))),
-                     tag8_8, dst + 8);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j0_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 0);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j8_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 8);
-        }
-        {
-          auto r0_j16_d0 = hn::LoadU(tag8_16, src + 16);
-          auto r0_j24_d0 = hn::LoadU(tag8_16, src + 24);
-
-          auto r1_j16_d0 = hn::LoadU(tag8_16, src + src_stride + 16);
-          auto r1_j24_d0 = hn::LoadU(tag8_16, src + src_stride + 24);
-
-          auto r0_j16_sum = hn::SatWidenMulPairwiseAdd(
-              tag16_8, hn::TableLookupBytes(r0_j16_d0, shuffle_mask), coeff34);
-          auto r0_j24_sum = hn::SatWidenMulPairwiseAdd(
-              tag16_8, hn::TableLookupBytes(r0_j24_d0, shuffle_mask), coeff34);
-
-          auto r1_j16_sum = hn::SatWidenMulPairwiseAdd(
-              tag16_8, hn::TableLookupBytes(r1_j16_d0, shuffle_mask), coeff34);
-          auto r1_j24_sum = hn::SatWidenMulPairwiseAdd(
-              tag16_8, hn::TableLookupBytes(r1_j24_d0, shuffle_mask), coeff34);
-
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j16_sum, bias_val))),
-                     tag8_8, dst + 16);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j24_sum, bias_val))),
-                     tag8_8, dst + 24);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j16_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 16);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j24_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 24);
-        }
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_2tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             8, bias_val, sum_2tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             16, bias_val, sum_2tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             24, bias_val, sum_2tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
+      }
+      if (h & 1) {
+        for (int j = 0; j < 32; j += 8) {
+          Process1RowChunk<8>(tag8_8, tag8_4, src, dst, j, bias_val, sum_2tap);
+        }
       }
     }
   } else {
@@ -345,6 +469,134 @@ HWY_ATTR HWY_INLINE hn::VFromD<D> Convolve4_8(
 HWY_ATTR inline void ConvolveHoriz4Tap(const uint8_t *src, ptrdiff_t src_stride,
                                        uint8_t *dst, ptrdiff_t dst_stride,
                                        const int16_t *filter_x, int w, int h) {
+  const bool can_use_pareto_optimal_4tap =
+      (h == 32 && (w == 16 || w == 32 || w == 64)) && (filter_x[2] % 2 == 0) &&
+      (filter_x[3] % 2 == 0) && (filter_x[4] % 2 == 0) &&
+      (filter_x[5] % 2 == 0);
+
+  if (can_use_pareto_optimal_4tap) {
+    if (w == 16) {
+      constexpr hn::CappedTag<uint8_t, 16> u8_16_tag;
+      constexpr hn::CappedTag<int8_t, 16> i8_16_tag;
+      constexpr hn::CappedTag<int16_t, 8> i16_8_tag;
+
+      const auto shuf01_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8);
+      const auto shuf23_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10);
+
+      const int8_t c2 = static_cast<int8_t>(filter_x[2] / 2);
+      const int8_t c3 = static_cast<int8_t>(filter_x[3] / 2);
+      const int8_t c4 = static_cast<int8_t>(filter_x[4] / 2);
+      const int8_t c5 = static_cast<int8_t>(filter_x[5] / 2);
+
+      const auto coeff23_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c2, c3, c2, c3, c2, c3, c2, c3, c2,
+                                  c3, c2, c3, c2, c3, c2, c3);
+      const auto coeff45_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c4, c5, c4, c5, c4, c5, c4, c5, c4,
+                                  c5, c4, c5, c4, c5, c4, c5);
+
+      const auto round_vec_16 = hn::Set(i16_8_tag, 1 << (FILTER_BITS - 2));
+
+      for (int y = 0; y < h; ++y) {
+        const uint8_t *src_row = src + y * src_stride;
+        uint8_t *dst_row = dst + y * dst_stride;
+
+        auto v0 = hn::LoadU(u8_16_tag, src_row + 0);
+        auto v8 = hn::LoadU(u8_16_tag, src_row + 8);
+
+        auto p01_0 = hn::TableLookupBytes(v0, shuf01_16);
+        auto p23_0 = hn::TableLookupBytes(v0, shuf23_16);
+        auto sum0 =
+            hn::Add(hn::SatWidenMulPairwiseAdd(i16_8_tag, p01_0, coeff23_16),
+                    hn::SatWidenMulPairwiseAdd(i16_8_tag, p23_0, coeff45_16));
+        auto res0 =
+            hn::ShiftRightSame(hn::Add(sum0, round_vec_16), FILTER_BITS - 1);
+
+        auto p01_8 = hn::TableLookupBytes(v8, shuf01_16);
+        auto p23_8 = hn::TableLookupBytes(v8, shuf23_16);
+        auto sum0_8 =
+            hn::Add(hn::SatWidenMulPairwiseAdd(i16_8_tag, p01_8, coeff23_16),
+                    hn::SatWidenMulPairwiseAdd(i16_8_tag, p23_8, coeff45_16));
+        auto res8 =
+            hn::ShiftRightSame(hn::Add(sum0_8, round_vec_16), FILTER_BITS - 1);
+
+        auto packed = hn::ReorderDemote2To(u8_16_tag, res0, res8);
+        hn::StoreU(packed, u8_16_tag, dst_row);
+      }
+    } else {
+      constexpr hn::CappedTag<uint8_t, 16> u8_16_tag;
+      constexpr hn::CappedTag<uint8_t, 32> u8_32_tag;
+      constexpr hn::CappedTag<int8_t, 16> i8_16_tag;
+      constexpr hn::CappedTag<int8_t, 32> i8_32_tag;
+      constexpr hn::CappedTag<int16_t, 16> i16_16_tag;
+
+      const auto shuf01_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8);
+      const auto shuf23_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10);
+
+      const auto shuf01_32 = hn::Combine(u8_32_tag, shuf01_16, shuf01_16);
+      const auto shuf23_32 = hn::Combine(u8_32_tag, shuf23_16, shuf23_16);
+
+      const int8_t c2 = static_cast<int8_t>(filter_x[2] / 2);
+      const int8_t c3 = static_cast<int8_t>(filter_x[3] / 2);
+      const int8_t c4 = static_cast<int8_t>(filter_x[4] / 2);
+      const int8_t c5 = static_cast<int8_t>(filter_x[5] / 2);
+
+      const auto coeff23_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c2, c3, c2, c3, c2, c3, c2, c3, c2,
+                                  c3, c2, c3, c2, c3, c2, c3);
+      const auto coeff45_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c4, c5, c4, c5, c4, c5, c4, c5, c4,
+                                  c5, c4, c5, c4, c5, c4, c5);
+
+      const auto coeff23_32 = hn::Combine(i8_32_tag, coeff23_16, coeff23_16);
+      const auto coeff45_32 = hn::Combine(i8_32_tag, coeff45_16, coeff45_16);
+
+      const auto round_vec_32 = hn::Set(i16_16_tag, 1 << (FILTER_BITS - 2));
+
+      for (int y = 0; y < h; ++y) {
+        const uint8_t *src_row = src + y * src_stride;
+        uint8_t *dst_row = dst + y * dst_stride;
+
+        for (int j = 0; j < w; j += 32) {
+          auto v_curr = hn::LoadU(u8_32_tag, src_row + j + 0);
+          auto v8 = hn::LoadU(u8_32_tag, src_row + j + 8);
+
+          auto p01_0 = hn::TableLookupBytes(v_curr, shuf01_32);
+          auto p23_0 = hn::TableLookupBytes(v_curr, shuf23_32);
+          auto sum0 = hn::Add(
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p01_0, coeff23_32),
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p23_0, coeff45_32));
+          auto res0 =
+              hn::ShiftRightSame(hn::Add(sum0, round_vec_32), FILTER_BITS - 1);
+
+          auto p01_8 = hn::TableLookupBytes(v8, shuf01_32);
+          auto p23_8 = hn::TableLookupBytes(v8, shuf23_32);
+          auto sum0_8 = hn::Add(
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p01_8, coeff23_32),
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p23_8, coeff45_32));
+          auto res8 = hn::ShiftRightSame(hn::Add(sum0_8, round_vec_32),
+                                         FILTER_BITS - 1);
+
+          constexpr hn::CappedTag<uint8_t, 8> u8_8_tag;
+          auto demoted0 = hn::DemoteTo(u8_16_tag, res0);
+          auto demoted8 = hn::DemoteTo(u8_16_tag, res8);
+          auto p0_15 = hn::Combine(u8_16_tag, hn::LowerHalf(u8_8_tag, demoted8),
+                                   hn::LowerHalf(u8_8_tag, demoted0));
+          auto p16_31 =
+              hn::Combine(u8_16_tag, hn::UpperHalf(u8_8_tag, demoted8),
+                          hn::UpperHalf(u8_8_tag, demoted0));
+          hn::StoreU(p0_15, u8_16_tag, dst_row + j);
+          hn::StoreU(p16_31, u8_16_tag, dst_row + j + 16);
+        }
+      }
+    }
+    return;
+  }
+
   const bool can_use_optimized_path =
       (w <= 32) && (filter_x[2] % 2 == 0) && (filter_x[3] % 2 == 0) &&
       (filter_x[4] % 2 == 0) && (filter_x[5] % 2 == 0);
@@ -371,252 +623,65 @@ HWY_ATTR inline void ConvolveHoriz4Tap(const uint8_t *src, ptrdiff_t src_stride,
     const auto coeff45 = hn::Dup128VecFromValues(
         tag_i8, c4, c5, c4, c5, c4, c5, c4, c5, c4, c5, c4, c5, c4, c5, c4, c5);
 
+    auto sum_4tap = [&](const uint8_t *s, int offset) {
+      return ComputeChunkSum4Tap(tag16_8, tag8_16, s, offset, shuffle_mask,
+                                 coeff23, coeff45);
+    };
+
     if (w == 4) {
       while (h >= 2) {
-        auto r0_d0 = hn::LoadU(tag8_16, src + 0);
-        auto r0_d2 = hn::LoadU(tag8_16, src + 2);
-
-        auto r1_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-        auto r1_d2 = hn::LoadU(tag8_16, src + src_stride + 2);
-
-        auto r0_sum = hn::Add(
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r0_d0, shuffle_mask), coeff23),
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r0_d2, shuffle_mask), coeff45));
-
-        auto r1_sum = hn::Add(
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r1_d0, shuffle_mask), coeff23),
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r1_d2, shuffle_mask), coeff45));
-
-        hn::StoreU(
-            hn::LowerHalf(tag8_4,
-                          hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                                   hn::Add(r0_sum, bias_val)))),
-            tag8_4, dst);
-        hn::StoreU(
-            hn::LowerHalf(tag8_4,
-                          hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                                   hn::Add(r1_sum, bias_val)))),
-            tag8_4, dst + dst_stride);
-
+        Process2RowsChunk<4>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_4tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
+      }
+      if (h & 1) {
+        Process1RowChunk<4>(tag8_8, tag8_4, src, dst, 0, bias_val, sum_4tap);
       }
     } else if (w == 8) {
       while (h >= 2) {
-        auto r0_d0 = hn::LoadU(tag8_16, src + 0);
-        auto r0_d2 = hn::LoadU(tag8_16, src + 2);
-
-        auto r1_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-        auto r1_d2 = hn::LoadU(tag8_16, src + src_stride + 2);
-
-        auto r0_sum = hn::Add(
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r0_d0, shuffle_mask), coeff23),
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r0_d2, shuffle_mask), coeff45));
-
-        auto r1_sum = hn::Add(
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r1_d0, shuffle_mask), coeff23),
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r1_d2, shuffle_mask), coeff45));
-
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r0_sum, bias_val))),
-                   tag8_8, dst);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r1_sum, bias_val))),
-                   tag8_8, dst + dst_stride);
-
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_4tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
+      }
+      if (h & 1) {
+        Process1RowChunk<8>(tag8_8, tag8_4, src, dst, 0, bias_val, sum_4tap);
       }
     } else if (w == 16) {
       while (h >= 2) {
-        auto r0_j0_d0 = hn::LoadU(tag8_16, src + 0);
-        auto r0_j0_d2 = hn::LoadU(tag8_16, src + 2);
-
-        auto r0_j8_d0 = hn::LoadU(tag8_16, src + 8);
-        auto r0_j8_d2 = hn::LoadU(tag8_16, src + 10);
-
-        auto r1_j0_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-        auto r1_j0_d2 = hn::LoadU(tag8_16, src + src_stride + 2);
-
-        auto r1_j8_d0 = hn::LoadU(tag8_16, src + src_stride + 8);
-        auto r1_j8_d2 = hn::LoadU(tag8_16, src + src_stride + 10);
-
-        auto r0_j0_sum = hn::Add(
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r0_j0_d0, shuffle_mask), coeff23),
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r0_j0_d2, shuffle_mask),
-                coeff45));
-
-        auto r0_j8_sum = hn::Add(
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r0_j8_d0, shuffle_mask), coeff23),
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r0_j8_d2, shuffle_mask),
-                coeff45));
-
-        auto r1_j0_sum = hn::Add(
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r1_j0_d0, shuffle_mask), coeff23),
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r1_j0_d2, shuffle_mask),
-                coeff45));
-
-        auto r1_j8_sum = hn::Add(
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r1_j8_d0, shuffle_mask), coeff23),
-            hn::SatWidenMulPairwiseAdd(
-                tag16_8, hn::TableLookupBytes(r1_j8_d2, shuffle_mask),
-                coeff45));
-
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r0_j0_sum, bias_val))),
-                   tag8_8, dst + 0);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r0_j8_sum, bias_val))),
-                   tag8_8, dst + 8);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r1_j0_sum, bias_val))),
-                   tag8_8, dst + dst_stride + 0);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r1_j8_sum, bias_val))),
-                   tag8_8, dst + dst_stride + 8);
-
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_4tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             8, bias_val, sum_4tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
       }
+      if (h & 1) {
+        Process1RowChunk<8>(tag8_8, tag8_4, src, dst, 0, bias_val, sum_4tap);
+        Process1RowChunk<8>(tag8_8, tag8_4, src, dst, 8, bias_val, sum_4tap);
+      }
     } else if (w == 32) {
       while (h >= 2) {
-        {
-          auto r0_j0_d0 = hn::LoadU(tag8_16, src + 0);
-          auto r0_j0_d2 = hn::LoadU(tag8_16, src + 2);
-
-          auto r0_j8_d0 = hn::LoadU(tag8_16, src + 8);
-          auto r0_j8_d2 = hn::LoadU(tag8_16, src + 10);
-
-          auto r1_j0_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-          auto r1_j0_d2 = hn::LoadU(tag8_16, src + src_stride + 2);
-
-          auto r1_j8_d0 = hn::LoadU(tag8_16, src + src_stride + 8);
-          auto r1_j8_d2 = hn::LoadU(tag8_16, src + src_stride + 10);
-
-          auto r0_j0_sum =
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j0_d0, shuffle_mask),
-                          coeff23),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j0_d2, shuffle_mask),
-                          coeff45));
-
-          auto r0_j8_sum =
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j8_d0, shuffle_mask),
-                          coeff23),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j8_d2, shuffle_mask),
-                          coeff45));
-
-          auto r1_j0_sum =
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j0_d0, shuffle_mask),
-                          coeff23),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j0_d2, shuffle_mask),
-                          coeff45));
-
-          auto r1_j8_sum =
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j8_d0, shuffle_mask),
-                          coeff23),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j8_d2, shuffle_mask),
-                          coeff45));
-
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j0_sum, bias_val))),
-                     tag8_8, dst + 0);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j8_sum, bias_val))),
-                     tag8_8, dst + 8);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j0_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 0);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j8_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 8);
-        }
-        {
-          auto r0_j16_d0 = hn::LoadU(tag8_16, src + 16);
-          auto r0_j16_d2 = hn::LoadU(tag8_16, src + 18);
-
-          auto r0_j24_d0 = hn::LoadU(tag8_16, src + 24);
-          auto r0_j24_d2 = hn::LoadU(tag8_16, src + 26);
-
-          auto r1_j16_d0 = hn::LoadU(tag8_16, src + src_stride + 16);
-          auto r1_j16_d2 = hn::LoadU(tag8_16, src + src_stride + 18);
-
-          auto r1_j24_d0 = hn::LoadU(tag8_16, src + src_stride + 24);
-          auto r1_j24_d2 = hn::LoadU(tag8_16, src + src_stride + 26);
-
-          auto r0_j16_sum = hn::Add(
-              hn::SatWidenMulPairwiseAdd(
-                  tag16_8, hn::TableLookupBytes(r0_j16_d0, shuffle_mask),
-                  coeff23),
-              hn::SatWidenMulPairwiseAdd(
-                  tag16_8, hn::TableLookupBytes(r0_j16_d2, shuffle_mask),
-                  coeff45));
-
-          auto r0_j24_sum = hn::Add(
-              hn::SatWidenMulPairwiseAdd(
-                  tag16_8, hn::TableLookupBytes(r0_j24_d0, shuffle_mask),
-                  coeff23),
-              hn::SatWidenMulPairwiseAdd(
-                  tag16_8, hn::TableLookupBytes(r0_j24_d2, shuffle_mask),
-                  coeff45));
-
-          auto r1_j16_sum = hn::Add(
-              hn::SatWidenMulPairwiseAdd(
-                  tag16_8, hn::TableLookupBytes(r1_j16_d0, shuffle_mask),
-                  coeff23),
-              hn::SatWidenMulPairwiseAdd(
-                  tag16_8, hn::TableLookupBytes(r1_j16_d2, shuffle_mask),
-                  coeff45));
-
-          auto r1_j24_sum = hn::Add(
-              hn::SatWidenMulPairwiseAdd(
-                  tag16_8, hn::TableLookupBytes(r1_j24_d0, shuffle_mask),
-                  coeff23),
-              hn::SatWidenMulPairwiseAdd(
-                  tag16_8, hn::TableLookupBytes(r1_j24_d2, shuffle_mask),
-                  coeff45));
-
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j16_sum, bias_val))),
-                     tag8_8, dst + 16);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j24_sum, bias_val))),
-                     tag8_8, dst + 24);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j16_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 16);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j24_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 24);
-        }
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_4tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             8, bias_val, sum_4tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             16, bias_val, sum_4tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             24, bias_val, sum_4tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
+      }
+      if (h & 1) {
+        for (int j = 0; j < 32; j += 8) {
+          Process1RowChunk<8>(tag8_8, tag8_4, src, dst, j, bias_val, sum_4tap);
+        }
       }
     }
   } else {
@@ -678,6 +743,189 @@ HWY_ATTR HWY_INLINE hn::VFromD<D> Convolve8_8(
 HWY_ATTR inline void ConvolveHoriz8Tap(const uint8_t *src, ptrdiff_t src_stride,
                                        uint8_t *dst, ptrdiff_t dst_stride,
                                        const int16_t *filter_x, int w, int h) {
+  const bool can_use_pareto_optimal_8tap =
+      (h == 32 && (w == 16 || w == 32 || w == 64)) && (filter_x[0] % 2 == 0) &&
+      (filter_x[1] % 2 == 0) && (filter_x[2] % 2 == 0) &&
+      (filter_x[3] % 2 == 0) && (filter_x[4] % 2 == 0) &&
+      (filter_x[5] % 2 == 0) && (filter_x[6] % 2 == 0) &&
+      (filter_x[7] % 2 == 0);
+
+  if (can_use_pareto_optimal_8tap) {
+    if (w == 16) {
+      constexpr hn::CappedTag<uint8_t, 16> u8_16_tag;
+      constexpr hn::CappedTag<int8_t, 16> i8_16_tag;
+      constexpr hn::CappedTag<int16_t, 8> i16_8_tag;
+
+      // Construct shuffles locally (no filt_global load)
+      const auto shuf01_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8);
+      const auto shuf23_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10);
+      const auto shuf45_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12);
+      const auto shuf67_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14);
+
+      const int8_t c0 = static_cast<int8_t>(filter_x[0] / 2);
+      const int8_t c1 = static_cast<int8_t>(filter_x[1] / 2);
+      const int8_t c2 = static_cast<int8_t>(filter_x[2] / 2);
+      const int8_t c3 = static_cast<int8_t>(filter_x[3] / 2);
+      const int8_t c4 = static_cast<int8_t>(filter_x[4] / 2);
+      const int8_t c5 = static_cast<int8_t>(filter_x[5] / 2);
+      const int8_t c6 = static_cast<int8_t>(filter_x[6] / 2);
+      const int8_t c7 = static_cast<int8_t>(filter_x[7] / 2);
+
+      const auto coeff01_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c0, c1, c0, c1, c0, c1, c0, c1, c0,
+                                  c1, c0, c1, c0, c1, c0, c1);
+      const auto coeff23_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c2, c3, c2, c3, c2, c3, c2, c3, c2,
+                                  c3, c2, c3, c2, c3, c2, c3);
+      const auto coeff45_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c4, c5, c4, c5, c4, c5, c4, c5, c4,
+                                  c5, c4, c5, c4, c5, c4, c5);
+      const auto coeff67_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c6, c7, c6, c7, c6, c7, c6, c7, c6,
+                                  c7, c6, c7, c6, c7, c6, c7);
+
+      const auto round_vec_16 = hn::Set(i16_8_tag, 1 << (FILTER_BITS - 2));
+
+      for (int y = 0; y < h; ++y) {
+        const uint8_t *src_row = src + y * src_stride;
+        uint8_t *dst_row = dst + y * dst_stride;
+
+        auto v0 = hn::LoadU(u8_16_tag, src_row + 0);
+        auto v8 = hn::LoadU(u8_16_tag, src_row + 8);
+
+        auto p01_0 = hn::TableLookupBytes(v0, shuf01_16);
+        auto p23_0 = hn::TableLookupBytes(v0, shuf23_16);
+        auto p45_0 = hn::TableLookupBytes(v0, shuf45_16);
+        auto p67_0 = hn::TableLookupBytes(v0, shuf67_16);
+        auto sum0 =
+            hn::Add(hn::SatWidenMulPairwiseAdd(i16_8_tag, p01_0, coeff01_16),
+                    hn::SatWidenMulPairwiseAdd(i16_8_tag, p23_0, coeff23_16));
+        auto sum1 =
+            hn::Add(hn::SatWidenMulPairwiseAdd(i16_8_tag, p45_0, coeff45_16),
+                    hn::SatWidenMulPairwiseAdd(i16_8_tag, p67_0, coeff67_16));
+        auto res0 = hn::ShiftRightSame(
+            hn::Add(hn::Add(sum0, sum1), round_vec_16), FILTER_BITS - 1);
+
+        auto p01_8 = hn::TableLookupBytes(v8, shuf01_16);
+        auto p23_8 = hn::TableLookupBytes(v8, shuf23_16);
+        auto p45_8 = hn::TableLookupBytes(v8, shuf45_16);
+        auto p67_8 = hn::TableLookupBytes(v8, shuf67_16);
+        auto sum0_8 =
+            hn::Add(hn::SatWidenMulPairwiseAdd(i16_8_tag, p01_8, coeff01_16),
+                    hn::SatWidenMulPairwiseAdd(i16_8_tag, p23_8, coeff23_16));
+        auto sum1_8 =
+            hn::Add(hn::SatWidenMulPairwiseAdd(i16_8_tag, p45_8, coeff45_16),
+                    hn::SatWidenMulPairwiseAdd(i16_8_tag, p67_8, coeff67_16));
+        auto res8 = hn::ShiftRightSame(
+            hn::Add(hn::Add(sum0_8, sum1_8), round_vec_16), FILTER_BITS - 1);
+
+        auto packed = hn::ReorderDemote2To(u8_16_tag, res0, res8);
+        hn::StoreU(packed, u8_16_tag, dst_row);
+      }
+    } else {
+      constexpr hn::CappedTag<uint8_t, 16> u8_16_tag;
+      constexpr hn::CappedTag<uint8_t, 32> u8_32_tag;
+      constexpr hn::CappedTag<int8_t, 16> i8_16_tag;
+      constexpr hn::CappedTag<int8_t, 32> i8_32_tag;
+      constexpr hn::CappedTag<int16_t, 16> i16_16_tag;
+
+      const auto shuf01_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8);
+      const auto shuf23_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10);
+      const auto shuf45_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12);
+      const auto shuf67_16 = hn::Dup128VecFromValues(
+          u8_16_tag, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14);
+
+      const auto shuf01_32 = hn::Combine(u8_32_tag, shuf01_16, shuf01_16);
+      const auto shuf23_32 = hn::Combine(u8_32_tag, shuf23_16, shuf23_16);
+      const auto shuf45_32 = hn::Combine(u8_32_tag, shuf45_16, shuf45_16);
+      const auto shuf67_32 = hn::Combine(u8_32_tag, shuf67_16, shuf67_16);
+
+      const int8_t c0 = static_cast<int8_t>(filter_x[0] / 2);
+      const int8_t c1 = static_cast<int8_t>(filter_x[1] / 2);
+      const int8_t c2 = static_cast<int8_t>(filter_x[2] / 2);
+      const int8_t c3 = static_cast<int8_t>(filter_x[3] / 2);
+      const int8_t c4 = static_cast<int8_t>(filter_x[4] / 2);
+      const int8_t c5 = static_cast<int8_t>(filter_x[5] / 2);
+      const int8_t c6 = static_cast<int8_t>(filter_x[6] / 2);
+      const int8_t c7 = static_cast<int8_t>(filter_x[7] / 2);
+
+      const auto coeff01_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c0, c1, c0, c1, c0, c1, c0, c1, c0,
+                                  c1, c0, c1, c0, c1, c0, c1);
+      const auto coeff23_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c2, c3, c2, c3, c2, c3, c2, c3, c2,
+                                  c3, c2, c3, c2, c3, c2, c3);
+      const auto coeff45_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c4, c5, c4, c5, c4, c5, c4, c5, c4,
+                                  c5, c4, c5, c4, c5, c4, c5);
+      const auto coeff67_16 =
+          hn::Dup128VecFromValues(i8_16_tag, c6, c7, c6, c7, c6, c7, c6, c7, c6,
+                                  c7, c6, c7, c6, c7, c6, c7);
+
+      const auto coeff01_32 = hn::Combine(i8_32_tag, coeff01_16, coeff01_16);
+      const auto coeff23_32 = hn::Combine(i8_32_tag, coeff23_16, coeff23_16);
+      const auto coeff45_32 = hn::Combine(i8_32_tag, coeff45_16, coeff45_16);
+      const auto coeff67_32 = hn::Combine(i8_32_tag, coeff67_16, coeff67_16);
+
+      const auto round_vec_32 = hn::Set(i16_16_tag, 1 << (FILTER_BITS - 2));
+
+      for (int y = 0; y < h; ++y) {
+        const uint8_t *src_row = src + y * src_stride;
+        uint8_t *dst_row = dst + y * dst_stride;
+
+        for (int j = 0; j < w; j += 32) {
+          auto v_curr = hn::LoadU(u8_32_tag, src_row + j + 0);
+          auto v8 = hn::LoadU(u8_32_tag, src_row + j + 8);
+
+          auto p01_0 = hn::TableLookupBytes(v_curr, shuf01_32);
+          auto p23_0 = hn::TableLookupBytes(v_curr, shuf23_32);
+          auto p45_0 = hn::TableLookupBytes(v_curr, shuf45_32);
+          auto p67_0 = hn::TableLookupBytes(v_curr, shuf67_32);
+          auto sum0 = hn::Add(
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p01_0, coeff01_32),
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p23_0, coeff23_32));
+          auto sum1 = hn::Add(
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p45_0, coeff45_32),
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p67_0, coeff67_32));
+          auto res0 = hn::ShiftRightSame(
+              hn::Add(hn::Add(sum0, sum1), round_vec_32), FILTER_BITS - 1);
+
+          auto p01_8 = hn::TableLookupBytes(v8, shuf01_32);
+          auto p23_8 = hn::TableLookupBytes(v8, shuf23_32);
+          auto p45_8 = hn::TableLookupBytes(v8, shuf45_32);
+          auto p67_8 = hn::TableLookupBytes(v8, shuf67_32);
+          auto sum0_8 = hn::Add(
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p01_8, coeff01_32),
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p23_8, coeff23_32));
+          auto sum1_8 = hn::Add(
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p45_8, coeff45_32),
+              hn::SatWidenMulPairwiseAdd(i16_16_tag, p67_8, coeff67_32));
+          auto res8 = hn::ShiftRightSame(
+              hn::Add(hn::Add(sum0_8, sum1_8), round_vec_32), FILTER_BITS - 1);
+
+          constexpr hn::CappedTag<uint8_t, 8> u8_8_tag;
+          auto demoted0 = hn::DemoteTo(u8_16_tag, res0);
+          auto demoted8 = hn::DemoteTo(u8_16_tag, res8);
+          auto p0_15 = hn::Combine(u8_16_tag, hn::LowerHalf(u8_8_tag, demoted8),
+                                   hn::LowerHalf(u8_8_tag, demoted0));
+          auto p16_31 =
+              hn::Combine(u8_16_tag, hn::UpperHalf(u8_8_tag, demoted8),
+                          hn::UpperHalf(u8_8_tag, demoted0));
+          hn::StoreU(p0_15, u8_16_tag, dst_row + j);
+          hn::StoreU(p16_31, u8_16_tag, dst_row + j + 16);
+        }
+      }
+    }
+    return;
+  }
+
   const bool can_use_optimized_path =
       (w <= 32) && (filter_x[0] % 2 == 0) && (filter_x[1] % 2 == 0) &&
       (filter_x[2] % 2 == 0) && (filter_x[3] % 2 == 0) &&
@@ -716,400 +964,65 @@ HWY_ATTR inline void ConvolveHoriz8Tap(const uint8_t *src, ptrdiff_t src_stride,
     const auto coeff67 = hn::Dup128VecFromValues(
         tag_i8, c6, c7, c6, c7, c6, c7, c6, c7, c6, c7, c6, c7, c6, c7, c6, c7);
 
+    auto sum_8tap = [&](const uint8_t *s, int offset) {
+      return ComputeChunkSum8Tap(tag16_8, tag8_16, s, offset, shuffle_mask,
+                                 coeff01, coeff23, coeff45, coeff67);
+    };
+
     if (w == 4) {
       while (h >= 2) {
-        auto r0_d0 = hn::LoadU(tag8_16, src + 0);
-        auto r0_d2 = hn::LoadU(tag8_16, src + 2);
-        auto r0_d4 = hn::LoadU(tag8_16, src + 4);
-        auto r0_d6 = hn::LoadU(tag8_16, src + 6);
-
-        auto r1_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-        auto r1_d2 = hn::LoadU(tag8_16, src + src_stride + 2);
-        auto r1_d4 = hn::LoadU(tag8_16, src + src_stride + 4);
-        auto r1_d6 = hn::LoadU(tag8_16, src + src_stride + 6);
-
-        auto r0_sum = hn::Add(
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_d0, shuffle_mask),
-                        coeff01),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_d2, shuffle_mask),
-                        coeff23)),
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_d4, shuffle_mask),
-                        coeff45),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_d6, shuffle_mask),
-                        coeff67)));
-
-        auto r1_sum = hn::Add(
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_d0, shuffle_mask),
-                        coeff01),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_d2, shuffle_mask),
-                        coeff23)),
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_d4, shuffle_mask),
-                        coeff45),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_d6, shuffle_mask),
-                        coeff67)));
-
-        hn::StoreU(
-            hn::LowerHalf(tag8_4,
-                          hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                                   hn::Add(r0_sum, bias_val)))),
-            tag8_4, dst);
-        hn::StoreU(
-            hn::LowerHalf(tag8_4,
-                          hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                                   hn::Add(r1_sum, bias_val)))),
-            tag8_4, dst + dst_stride);
-
+        Process2RowsChunk<4>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_8tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
+      }
+      if (h & 1) {
+        Process1RowChunk<4>(tag8_8, tag8_4, src, dst, 0, bias_val, sum_8tap);
       }
     } else if (w == 8) {
       while (h >= 2) {
-        auto r0_d0 = hn::LoadU(tag8_16, src + 0);
-        auto r0_d2 = hn::LoadU(tag8_16, src + 2);
-        auto r0_d4 = hn::LoadU(tag8_16, src + 4);
-        auto r0_d6 = hn::LoadU(tag8_16, src + 6);
-
-        auto r1_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-        auto r1_d2 = hn::LoadU(tag8_16, src + src_stride + 2);
-        auto r1_d4 = hn::LoadU(tag8_16, src + src_stride + 4);
-        auto r1_d6 = hn::LoadU(tag8_16, src + src_stride + 6);
-
-        auto r0_sum = hn::Add(
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_d0, shuffle_mask),
-                        coeff01),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_d2, shuffle_mask),
-                        coeff23)),
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_d4, shuffle_mask),
-                        coeff45),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_d6, shuffle_mask),
-                        coeff67)));
-
-        auto r1_sum = hn::Add(
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_d0, shuffle_mask),
-                        coeff01),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_d2, shuffle_mask),
-                        coeff23)),
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_d4, shuffle_mask),
-                        coeff45),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_d6, shuffle_mask),
-                        coeff67)));
-
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r0_sum, bias_val))),
-                   tag8_8, dst);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r1_sum, bias_val))),
-                   tag8_8, dst + dst_stride);
-
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_8tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
+      }
+      if (h & 1) {
+        Process1RowChunk<8>(tag8_8, tag8_4, src, dst, 0, bias_val, sum_8tap);
       }
     } else if (w == 16) {
       while (h >= 2) {
-        auto r0_j0_d0 = hn::LoadU(tag8_16, src + 0);
-        auto r0_j0_d2 = hn::LoadU(tag8_16, src + 2);
-        auto r0_j0_d4 = hn::LoadU(tag8_16, src + 4);
-        auto r0_j0_d6 = hn::LoadU(tag8_16, src + 6);
-
-        auto r0_j8_d0 = hn::LoadU(tag8_16, src + 8);
-        auto r0_j8_d2 = hn::LoadU(tag8_16, src + 10);
-        auto r0_j8_d4 = hn::LoadU(tag8_16, src + 12);
-        auto r0_j8_d6 = hn::LoadU(tag8_16, src + 14);
-
-        auto r1_j0_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-        auto r1_j0_d2 = hn::LoadU(tag8_16, src + src_stride + 2);
-        auto r1_j0_d4 = hn::LoadU(tag8_16, src + src_stride + 4);
-        auto r1_j0_d6 = hn::LoadU(tag8_16, src + src_stride + 6);
-
-        auto r1_j8_d0 = hn::LoadU(tag8_16, src + src_stride + 8);
-        auto r1_j8_d2 = hn::LoadU(tag8_16, src + src_stride + 10);
-        auto r1_j8_d4 = hn::LoadU(tag8_16, src + src_stride + 12);
-        auto r1_j8_d6 = hn::LoadU(tag8_16, src + src_stride + 14);
-
-        auto r0_j0_sum = hn::Add(
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_j0_d0, shuffle_mask),
-                        coeff01),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_j0_d2, shuffle_mask),
-                        coeff23)),
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_j0_d4, shuffle_mask),
-                        coeff45),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_j0_d6, shuffle_mask),
-                        coeff67)));
-
-        auto r0_j8_sum = hn::Add(
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_j8_d0, shuffle_mask),
-                        coeff01),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_j8_d2, shuffle_mask),
-                        coeff23)),
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_j8_d4, shuffle_mask),
-                        coeff45),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r0_j8_d6, shuffle_mask),
-                        coeff67)));
-
-        auto r1_j0_sum = hn::Add(
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_j0_d0, shuffle_mask),
-                        coeff01),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_j0_d2, shuffle_mask),
-                        coeff23)),
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_j0_d4, shuffle_mask),
-                        coeff45),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_j0_d6, shuffle_mask),
-                        coeff67)));
-
-        auto r1_j8_sum = hn::Add(
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_j8_d0, shuffle_mask),
-                        coeff01),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_j8_d2, shuffle_mask),
-                        coeff23)),
-            hn::Add(hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_j8_d4, shuffle_mask),
-                        coeff45),
-                    hn::SatWidenMulPairwiseAdd(
-                        tag16_8, hn::TableLookupBytes(r1_j8_d6, shuffle_mask),
-                        coeff67)));
-
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r0_j0_sum, bias_val))),
-                   tag8_8, dst + 0);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r0_j8_sum, bias_val))),
-                   tag8_8, dst + 8);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r1_j0_sum, bias_val))),
-                   tag8_8, dst + dst_stride + 0);
-        hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                            hn::Add(r1_j8_sum, bias_val))),
-                   tag8_8, dst + dst_stride + 8);
-
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_8tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             8, bias_val, sum_8tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
       }
+      if (h & 1) {
+        Process1RowChunk<8>(tag8_8, tag8_4, src, dst, 0, bias_val, sum_8tap);
+        Process1RowChunk<8>(tag8_8, tag8_4, src, dst, 8, bias_val, sum_8tap);
+      }
     } else if (w == 32) {
       while (h >= 2) {
-        {
-          auto r0_j0_d0 = hn::LoadU(tag8_16, src + 0);
-          auto r0_j0_d2 = hn::LoadU(tag8_16, src + 2);
-          auto r0_j0_d4 = hn::LoadU(tag8_16, src + 4);
-          auto r0_j0_d6 = hn::LoadU(tag8_16, src + 6);
-
-          auto r0_j8_d0 = hn::LoadU(tag8_16, src + 8);
-          auto r0_j8_d2 = hn::LoadU(tag8_16, src + 10);
-          auto r0_j8_d4 = hn::LoadU(tag8_16, src + 12);
-          auto r0_j8_d6 = hn::LoadU(tag8_16, src + 14);
-
-          auto r1_j0_d0 = hn::LoadU(tag8_16, src + src_stride + 0);
-          auto r1_j0_d2 = hn::LoadU(tag8_16, src + src_stride + 2);
-          auto r1_j0_d4 = hn::LoadU(tag8_16, src + src_stride + 4);
-          auto r1_j0_d6 = hn::LoadU(tag8_16, src + src_stride + 6);
-
-          auto r1_j8_d0 = hn::LoadU(tag8_16, src + src_stride + 8);
-          auto r1_j8_d2 = hn::LoadU(tag8_16, src + src_stride + 10);
-          auto r1_j8_d4 = hn::LoadU(tag8_16, src + src_stride + 12);
-          auto r1_j8_d6 = hn::LoadU(tag8_16, src + src_stride + 14);
-
-          auto r0_j0_sum = hn::Add(
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j0_d0, shuffle_mask),
-                          coeff01),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j0_d2, shuffle_mask),
-                          coeff23)),
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j0_d4, shuffle_mask),
-                          coeff45),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j0_d6, shuffle_mask),
-                          coeff67)));
-
-          auto r0_j8_sum = hn::Add(
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j8_d0, shuffle_mask),
-                          coeff01),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j8_d2, shuffle_mask),
-                          coeff23)),
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j8_d4, shuffle_mask),
-                          coeff45),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r0_j8_d6, shuffle_mask),
-                          coeff67)));
-
-          auto r1_j0_sum = hn::Add(
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j0_d0, shuffle_mask),
-                          coeff01),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j0_d2, shuffle_mask),
-                          coeff23)),
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j0_d4, shuffle_mask),
-                          coeff45),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j0_d6, shuffle_mask),
-                          coeff67)));
-
-          auto r1_j8_sum = hn::Add(
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j8_d0, shuffle_mask),
-                          coeff01),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j8_d2, shuffle_mask),
-                          coeff23)),
-              hn::Add(hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j8_d4, shuffle_mask),
-                          coeff45),
-                      hn::SatWidenMulPairwiseAdd(
-                          tag16_8, hn::TableLookupBytes(r1_j8_d6, shuffle_mask),
-                          coeff67)));
-
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j0_sum, bias_val))),
-                     tag8_8, dst + 0);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j8_sum, bias_val))),
-                     tag8_8, dst + 8);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j0_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 0);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j8_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 8);
-        }
-        {
-          auto r0_j16_d0 = hn::LoadU(tag8_16, src + 16);
-          auto r0_j16_d2 = hn::LoadU(tag8_16, src + 18);
-          auto r0_j16_d4 = hn::LoadU(tag8_16, src + 20);
-          auto r0_j16_d6 = hn::LoadU(tag8_16, src + 22);
-
-          auto r0_j24_d0 = hn::LoadU(tag8_16, src + 24);
-          auto r0_j24_d2 = hn::LoadU(tag8_16, src + 26);
-          auto r0_j24_d4 = hn::LoadU(tag8_16, src + 28);
-          auto r0_j24_d6 = hn::LoadU(tag8_16, src + 30);
-
-          auto r1_j16_d0 = hn::LoadU(tag8_16, src + src_stride + 16);
-          auto r1_j16_d2 = hn::LoadU(tag8_16, src + src_stride + 18);
-          auto r1_j16_d4 = hn::LoadU(tag8_16, src + src_stride + 20);
-          auto r1_j16_d6 = hn::LoadU(tag8_16, src + src_stride + 22);
-
-          auto r1_j24_d0 = hn::LoadU(tag8_16, src + src_stride + 24);
-          auto r1_j24_d2 = hn::LoadU(tag8_16, src + src_stride + 26);
-          auto r1_j24_d4 = hn::LoadU(tag8_16, src + src_stride + 28);
-          auto r1_j24_d6 = hn::LoadU(tag8_16, src + src_stride + 30);
-
-          auto r0_j16_sum = hn::Add(
-              hn::Add(
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r0_j16_d0, shuffle_mask),
-                      coeff01),
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r0_j16_d2, shuffle_mask),
-                      coeff23)),
-              hn::Add(
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r0_j16_d4, shuffle_mask),
-                      coeff45),
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r0_j16_d6, shuffle_mask),
-                      coeff67)));
-
-          auto r0_j24_sum = hn::Add(
-              hn::Add(
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r0_j24_d0, shuffle_mask),
-                      coeff01),
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r0_j24_d2, shuffle_mask),
-                      coeff23)),
-              hn::Add(
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r0_j24_d4, shuffle_mask),
-                      coeff45),
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r0_j24_d6, shuffle_mask),
-                      coeff67)));
-
-          auto r1_j16_sum = hn::Add(
-              hn::Add(
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r1_j16_d0, shuffle_mask),
-                      coeff01),
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r1_j16_d2, shuffle_mask),
-                      coeff23)),
-              hn::Add(
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r1_j16_d4, shuffle_mask),
-                      coeff45),
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r1_j16_d6, shuffle_mask),
-                      coeff67)));
-
-          auto r1_j24_sum = hn::Add(
-              hn::Add(
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r1_j24_d0, shuffle_mask),
-                      coeff01),
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r1_j24_d2, shuffle_mask),
-                      coeff23)),
-              hn::Add(
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r1_j24_d4, shuffle_mask),
-                      coeff45),
-                  hn::SatWidenMulPairwiseAdd(
-                      tag16_8, hn::TableLookupBytes(r1_j24_d6, shuffle_mask),
-                      coeff67)));
-
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j16_sum, bias_val))),
-                     tag8_8, dst + 16);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r0_j24_sum, bias_val))),
-                     tag8_8, dst + 24);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j16_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 16);
-          hn::StoreU(hn::DemoteTo(tag8_8, hn::ShiftRight<FILTER_BITS - 1>(
-                                              hn::Add(r1_j24_sum, bias_val))),
-                     tag8_8, dst + dst_stride + 24);
-        }
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             0, bias_val, sum_8tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             8, bias_val, sum_8tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             16, bias_val, sum_8tap);
+        Process2RowsChunk<8>(tag8_8, tag8_4, src, src_stride, dst, dst_stride,
+                             24, bias_val, sum_8tap);
         src += 2 * src_stride;
         dst += 2 * dst_stride;
         h -= 2;
+      }
+      if (h & 1) {
+        for (int j = 0; j < 32; j += 8) {
+          Process1RowChunk<8>(tag8_8, tag8_4, src, dst, j, bias_val, sum_8tap);
+        }
       }
     }
   } else {
@@ -1522,6 +1435,16 @@ HWY_MAYBE_UNUSED void Convolve8Horiz(const uint8_t *src, ptrdiff_t src_stride,
                                      const int16_t *filter_x, int x_step_q4,
                                      const int16_t *filter_y, int y_step_q4,
                                      int w, int h) {
+#if HAVE_SSSE3
+  // TODO: jianj - 16x32 block is still fastest with handwritten avx2 which
+  // uses ssse3 implementation. Further optimize for this case.
+  if (w == 16 && h == 32) {
+    aom_convolve8_horiz_ssse3(src, src_stride, dst, dst_stride, filter_x,
+                              x_step_q4, filter_y, y_step_q4, w, h);
+    return;
+  }
+#endif
+
   assert((intptr_t)dst % 4 == 0);
   assert(dst_stride % 4 == 0);
 

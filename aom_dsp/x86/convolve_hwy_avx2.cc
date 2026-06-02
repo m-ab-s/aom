@@ -9,9 +9,11 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
-#define HWY_BASELINE_TARGETS HWY_AVX3_DL
+#define HWY_BASELINE_TARGETS HWY_AVX2
 #define HWY_BROKEN_32BIT 0
 
 #include "aom_dsp/convolve_hwy.h"
 
-CONVOLVE8HORIZ(avx512)
+#if CONFIG_HIGHWAY
+CONVOLVE8HORIZ(avx2)
+#endif
