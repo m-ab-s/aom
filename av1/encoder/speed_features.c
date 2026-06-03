@@ -670,6 +670,7 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
     sf->hl_sf.ref_frame_mvs_lvl = 1;
 
     sf->lpf_sf.adaptive_cdef_mode = 1;
+    sf->lpf_sf.dual_sgr_penalty_level = boosted ? 1 : 3;
     sf->lpf_sf.skip_loop_filter_using_filt_error =
         (update_type != OVERLAY_UPDATE && update_type != INTNL_OVERLAY_UPDATE &&
          cm->current_frame.pyramid_level > 1)
