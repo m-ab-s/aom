@@ -4514,6 +4514,13 @@ static inline bool is_switchable_motion_mode_allowed(bool allow_warped_motion,
   return (allow_warped_motion || enable_obmc);
 }
 
+static inline int warped_motion_update_num_proj_ref(
+    const struct AV1_COMP *const cpi, const MB_MODE_INFO *const mi) {
+  return cpi->oxcf.motion_mode_cfg.allow_warped_motion && is_inter_block(mi) &&
+         !mi->skip_mode && is_motion_variation_allowed_bsize(mi->bsize) &&
+         !has_second_ref(mi);
+}
+
 #if CONFIG_AV1_TEMPORAL_DENOISING
 static inline int denoise_svc(const struct AV1_COMP *const cpi) {
   return (!cpi->ppi->use_svc ||
