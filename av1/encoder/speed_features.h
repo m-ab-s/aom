@@ -1248,7 +1248,7 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // Percentage of scaling used to increase the rd cost of warp mode so that
   // encoder decisions are biased against local warp, favoring low complexity
   // modes.
-  int bias_warp_mode_rd_scale_pct;
+  float bias_warp_mode_rd_scale_pct;
 
   // Percentage of scaling used to increase the rd cost of obmc motion mode so
   // that encoder decisions are biased against local obmc, favoring low

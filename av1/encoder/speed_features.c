@@ -654,7 +654,7 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
             ? 1
             : 0;
 
-    sf->inter_sf.bias_warp_mode_rd_scale_pct = 4;
+    sf->inter_sf.bias_warp_mode_rd_scale_pct = 2.5f;
     sf->inter_sf.bias_obmc_mode_rd_scale_pct = 1.5f;
 
     sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 2;
@@ -678,7 +678,7 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
             ? 1
             : 0;
 
-    sf->inter_sf.bias_warp_mode_rd_scale_pct = 4;
+    sf->inter_sf.bias_warp_mode_rd_scale_pct = 2.5f;
     sf->inter_sf.bias_obmc_mode_rd_scale_pct = 1.5f;
 
     sf->part_sf.split_partition_penalty_level = is_key_frame ? 0 : 2;
@@ -2414,7 +2414,7 @@ static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->limit_inter_mode_cands = 0;
   inter_sf->limit_txfm_eval_per_mode = 0;
   inter_sf->skip_arf_compound = 0;
-  inter_sf->bias_warp_mode_rd_scale_pct = 0;
+  inter_sf->bias_warp_mode_rd_scale_pct = 0.0f;
   inter_sf->bias_obmc_mode_rd_scale_pct = 0.0f;
   inter_sf->skip_cmp_using_top_cmp_avg_est_rd_lvl = 0;
   inter_sf->skip_interinter_wedge_search_based_on_mse = 0;
