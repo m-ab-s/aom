@@ -887,6 +887,12 @@ typedef struct {
   bool skip_postproc_filtering;
 
   /*!
+   * Indicates if mode and reference frame delta should be enabled during
+   * loopfiltering.
+   */
+  int mode_ref_delta_enabled;
+
+  /*!
    * Controls screen content detection mode
    */
   aom_screen_detection_mode screen_detection_mode;

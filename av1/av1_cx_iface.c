@@ -227,6 +227,7 @@ struct av1_extracfg {
   // Indicates if the application of post-processing filters should be skipped
   // on reconstructed frame.
   unsigned int skip_postproc_filtering;
+  int mode_ref_delta_enabled;
   // the name of the second pass output file when passes > 2
   const char *two_pass_output;
   const char *second_pass_log;
@@ -397,6 +398,7 @@ static const struct av1_extracfg default_extra_cfg = {
   -1,              // fwd_kf_dist
   LOOPFILTER_ALL,  // loopfilter_control
   0,               // skip_postproc_filtering
+  1,               // mode_ref_delta_enabled
   NULL,            // two_pass_output
   NULL,            // second_pass_log
   0,               // auto_intra_tools_off
@@ -555,6 +557,7 @@ static const struct av1_extracfg default_extra_cfg = {
   -1,              // fwd_kf_dist
   LOOPFILTER_ALL,  // loopfilter_control
   0,               // skip_postproc_filtering
+  1,               // mode_ref_delta_enabled
   NULL,            // two_pass_output
   NULL,            // second_pass_log
   0,               // auto_intra_tools_off
@@ -946,6 +949,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, deltaq_strength, 1000);
   RANGE_CHECK_HI(extra_cfg, loopfilter_control, 3);
   RANGE_CHECK_BOOL(extra_cfg, skip_postproc_filtering);
+  RANGE_CHECK_BOOL(extra_cfg, mode_ref_delta_enabled);
   RANGE_CHECK_HI(extra_cfg, enable_cdef, 3);
   RANGE_CHECK_BOOL(extra_cfg, auto_intra_tools_off);
   RANGE_CHECK_BOOL(extra_cfg, strict_level_conformance);
@@ -1366,6 +1370,7 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
       resize_cfg->resize_mode ? 0 : extra_cfg->enable_tpl_model;
   algo_cfg->loopfilter_control = extra_cfg->loopfilter_control;
   algo_cfg->skip_postproc_filtering = extra_cfg->skip_postproc_filtering;
+  algo_cfg->mode_ref_delta_enabled = extra_cfg->mode_ref_delta_enabled;
   algo_cfg->screen_detection_mode = extra_cfg->screen_detection_mode;
 
   // Set two-pass stats configuration.
@@ -2835,6 +2840,14 @@ static aom_codec_err_t ctrl_set_skip_postproc_filtering(
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.skip_postproc_filtering =
       CAST(AV1E_SET_SKIP_POSTPROC_FILTERING, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_mode_ref_delta_enabled(
+    aom_codec_alg_priv_t *ctx, va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.mode_ref_delta_enabled =
+      CAST(AV1E_SET_MODE_REF_DELTA_ENABLED, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -5086,6 +5099,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_ENABLE_TX_SIZE_SEARCH, ctrl_set_enable_tx_size_search },
   { AV1E_SET_LOOPFILTER_CONTROL, ctrl_set_loopfilter_control },
   { AV1E_SET_SKIP_POSTPROC_FILTERING, ctrl_set_skip_postproc_filtering },
+  { AV1E_SET_MODE_REF_DELTA_ENABLED, ctrl_set_mode_ref_delta_enabled },
   { AV1E_SET_AUTO_INTRA_TOOLS_OFF, ctrl_set_auto_intra_tools_off },
   { AV1E_SET_RTC_EXTERNAL_RC, ctrl_set_rtc_external_rc },
   { AV1E_SET_QUANTIZER_ONE_PASS, ctrl_set_quantizer_one_pass },

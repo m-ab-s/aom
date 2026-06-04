@@ -2384,6 +2384,7 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
     memcpy(cm->lf.ref_deltas, cm->prev_frame->ref_deltas, REF_FRAMES);
     memcpy(cm->lf.mode_deltas, cm->prev_frame->mode_deltas, MAX_MODE_LF_DELTAS);
   }
+  cm->lf.mode_ref_delta_enabled = oxcf->algo_cfg.mode_ref_delta_enabled;
   memcpy(cm->cur_frame->ref_deltas, cm->lf.ref_deltas, REF_FRAMES);
   memcpy(cm->cur_frame->mode_deltas, cm->lf.mode_deltas, MAX_MODE_LF_DELTAS);
 
