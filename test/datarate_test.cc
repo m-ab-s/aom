@@ -759,6 +759,7 @@ TEST_P(DatarateTestPsnr, PerFramePsnr) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
+// Warped motion can't be enabled in realtime only build.
 #if !CONFIG_REALTIME_ONLY
 // Test to reproduce decode failure in issue: 514696186.
 TEST_P(DatarateTestRealtime, WarpedMotionEnabled) {
