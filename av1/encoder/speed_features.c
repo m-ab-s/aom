@@ -641,6 +641,7 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
         (update_type == LF_UPDATE || update_type == OVERLAY_UPDATE ||
          update_type == INTNL_OVERLAY_UPDATE);
     if (leaf_and_overlay_frames) sf->gm_sf.gm_search_type = GM_DISABLE_SEARCH;
+    sf->gm_sf.gm_erroradv_tr_level = 1;
 
     sf->hl_sf.ref_frame_mvs_lvl = 2;
 
@@ -665,7 +666,7 @@ static void set_good_speed_features_lc_dec_framesize_dependent(
 
   // Speed features for regular videos
   if (!is_vertical_video && is_between_720p_and_1080p) {
-    sf->gm_sf.gm_erroradv_tr_level = 1;
+    sf->gm_sf.gm_erroradv_tr_level = 2;
 
     sf->hl_sf.ref_frame_mvs_lvl = 1;
 

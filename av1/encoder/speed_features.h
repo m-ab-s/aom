@@ -616,7 +616,8 @@ typedef struct GLOBAL_MOTION_SPEED_FEATURES {
   int num_refinement_steps;
 
   // Error advantage threshold level used to determine whether global motion
-  // compensation should be enabled
+  // compensation should be enabled. It Can take values 0 - 2 increasing
+  // aggressiveness of skipping GM in order.
   int gm_erroradv_tr_level;
 } GLOBAL_MOTION_SPEED_FEATURES;
 
