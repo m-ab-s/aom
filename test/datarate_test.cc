@@ -759,6 +759,7 @@ TEST_P(DatarateTestPsnr, PerFramePsnr) {
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
 
+#if !CONFIG_REALTIME_ONLY
 // Test to reproduce decode failure in issue: 514696186.
 TEST_P(DatarateTestRealtime, WarpedMotionEnabled) {
   if (GET_PARAM(2) != 8) GTEST_SKIP() << "Only run for cpu-used=8";
@@ -775,6 +776,7 @@ TEST_P(DatarateTestRealtime, WarpedMotionEnabled) {
                                       144, 30, 1, 0, 30);
   ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
 }
+#endif
 
 AV1_INSTANTIATE_TEST_SUITE(DatarateTestLarge,
                            ::testing::Values(::libaom_test::kRealTime),
