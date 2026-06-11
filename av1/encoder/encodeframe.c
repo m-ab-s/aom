@@ -1807,7 +1807,7 @@ static inline void setup_prune_ref_frame_mask(AV1_COMP *cpi) {
     // Disable all compound references
     cpi->prune_ref_frame_mask = (1 << MODE_CTX_REF_FRAMES) - (1 << REF_FRAMES);
   } else if (!cpi->sf.rt_sf.use_nonrd_pick_mode &&
-             cpi->sf.inter_sf.selective_ref_frame >= 2) {
+             cpi->sf.inter_sf.selective_ref_frame >= 1) {
     AV1_COMMON *const cm = &cpi->common;
     const int cur_frame_display_order_hint =
         cm->current_frame.display_order_hint;
