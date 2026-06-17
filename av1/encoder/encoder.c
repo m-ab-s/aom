@@ -2456,8 +2456,7 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   }
 
   if (cpi->oxcf.mode == REALTIME) {
-    features->allow_screen_content_tools = features->allow_intrabc =
-        cpi->sf.rt_sf.rt_use_intrabc;
+    features->allow_screen_content_tools = features->allow_intrabc = 0;
     return;
   }
 
