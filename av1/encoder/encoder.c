@@ -4593,6 +4593,8 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
       }
     }
     if (is_last) {
+      const int alloc_y_plane_only =
+          cpi->sf.tpl_sf.use_y_only_rate_distortion ? 1 : 0;
       cpi->ppi->tpl_data.prev_gop_arf_disp_order = -1;
       const AV1EncoderConfig *const oxcf = &cpi->oxcf;
       int available = 1;
@@ -4601,7 +4603,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
           oxcf->frm_dim_cfg.height, cm->seq_params->subsampling_x,
           cm->seq_params->subsampling_y, cm->seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
-          NULL, cpi->alloc_pyramid, 0);
+          NULL, cpi->alloc_pyramid, alloc_y_plane_only);
       if (ret)
         aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                            "Failed to allocate tpl prev_gop_arf_src buf.");
@@ -4612,7 +4614,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
               cpi->ppi->tpl_data.prev_gop_arf_src.y_height) {
         // Copy the content from source to this buffer for next gop.
         aom_yv12_copy_frame(cpi->source, &cpi->ppi->tpl_data.prev_gop_arf_src,
-                            av1_num_planes(cm));
+                            alloc_y_plane_only ? 1 : av1_num_planes(cm));
       } else {
         available = 0;
       }
@@ -4622,7 +4624,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
           oxcf->frm_dim_cfg.height, cm->seq_params->subsampling_x,
           cm->seq_params->subsampling_y, cm->seq_params->use_highbitdepth,
           cpi->oxcf.border_in_pixels, cm->features.byte_alignment, NULL, NULL,
-          NULL, cpi->alloc_pyramid, 0);
+          NULL, cpi->alloc_pyramid, alloc_y_plane_only);
       if (ret)
         aom_internal_error(
             cm->error, AOM_CODEC_MEM_ERROR,
@@ -4641,7 +4643,8 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
               cpi->ppi->tpl_data.prev_gop_arf_tpl_recon.y_height) {
         // Copy the content from source to this buffer for next gop.
         aom_yv12_copy_frame(prev_gop_arf_tpl_recon_buf,
-                            &cpi->ppi->tpl_data.prev_gop_arf_tpl_recon, 1);
+                            &cpi->ppi->tpl_data.prev_gop_arf_tpl_recon,
+                            alloc_y_plane_only ? 1 : av1_num_planes(cm));
       } else {
         available = 0;
       }
