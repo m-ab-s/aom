@@ -1842,6 +1842,8 @@ typedef struct REAL_TIME_SPEED_FEATURES {
 
   // Force selective cdf update.
   int selective_cdf_update;
+  // Use IntraBC for realtime mode.
+  int rt_use_intrabc;
 
   // Force only single reference (LAST) for prediction.
   int force_only_last_ref;

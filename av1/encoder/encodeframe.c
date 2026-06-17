@@ -2232,7 +2232,7 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
 
   int hash_table_created = 0;
   if (!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi) &&
-      !cpi->sf.rt_sf.use_nonrd_pick_mode) {
+      (!cpi->sf.rt_sf.use_nonrd_pick_mode || cpi->sf.rt_sf.rt_use_intrabc)) {
     // TODO(any): move this outside of the recoding loop to avoid recalculating
     // the hash table.
     // add to hash table

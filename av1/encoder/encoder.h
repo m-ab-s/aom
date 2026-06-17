@@ -4153,7 +4153,7 @@ static inline int is_stat_consumption_stage(const AV1_COMP *const cpi) {
 
 // Decide whether 'dv_costs' need to be allocated/stored during the encoding.
 static inline bool av1_need_dv_costs(const AV1_COMP *const cpi) {
-  return !cpi->sf.rt_sf.use_nonrd_pick_mode &&
+  return (!cpi->sf.rt_sf.use_nonrd_pick_mode || cpi->sf.rt_sf.rt_use_intrabc) &&
          av1_allow_intrabc(&cpi->common) && !is_stat_generation_stage(cpi);
 }
 

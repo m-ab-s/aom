@@ -3430,7 +3430,8 @@ static int64_t rd_pick_intrabc_mode_sb(const AV1_COMP *cpi, MACROBLOCK *x,
                                        int64_t best_rd) {
   const AV1_COMMON *const cm = &cpi->common;
   if (!av1_allow_intrabc(cm) || !cpi->oxcf.kf_cfg.enable_intrabc ||
-      !cpi->sf.mv_sf.use_intrabc || cpi->sf.rt_sf.use_nonrd_pick_mode)
+      !cpi->sf.mv_sf.use_intrabc ||
+      (cpi->sf.rt_sf.use_nonrd_pick_mode && !cpi->sf.rt_sf.rt_use_intrabc))
     return INT64_MAX;
   if (cpi->sf.mv_sf.intrabc_search_level >= 1 && bsize != BLOCK_4X4 &&
       bsize != BLOCK_8X8 && bsize != BLOCK_16X16) {
