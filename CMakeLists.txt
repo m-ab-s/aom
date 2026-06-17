@@ -305,6 +305,7 @@ if(CONFIG_HIGHWAY)
               "${AOM_ROOT}/third_party/highway/hwy/contrib/math/math-inl.h")
   add_definitions(-DHWY_HEADER_ONLY)
   add_library(aom_hwy OBJECT ${AOM_HIGHWAY_SOURCES})
+  set_target_properties(aom_hwy PROPERTIES LINKER_LANGUAGE CXX)
   set(AOM_LIB_TARGETS ${AOM_LIB_TARGETS} aom_hwy)
 endif()
 
