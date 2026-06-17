@@ -1431,7 +1431,8 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
 
       // use spare buffer for following compound type try
       if (cur_type == COMPOUND_AVERAGE) restore_dst_buf(xd, *tmp_dst, 1);
-    } else if (cur_type == COMPOUND_WEDGE) {
+    } else if (!cpi->sf.inter_sf.enable_comp_wedge_search_using_model_rd &&
+               cur_type == COMPOUND_WEDGE) {
       int best_mask_index = 0;
       int best_wedge_sign = 0;
       int_mv tmp_mv[2] = { mbmi->mv[0], mbmi->mv[1] };
@@ -1669,7 +1670,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
     } else {
       // Handle masked compound types
       bool eval_masked_comp_type = true;
-      if (*rd != INT64_MAX) {
+      if (*rd != INT64_MAX && cur_type == COMPOUND_DIFFWTD) {
         // Factors to control gating of compound type selection based on best
         // approximate rd so far
         const int max_comp_type_rd_threshold_mul =
@@ -1678,8 +1679,7 @@ int av1_compound_type_rd(const AV1_COMP *const cpi, MACROBLOCK *x,
         const int max_comp_type_rd_threshold_div =
             comp_type_rd_threshold_div[cpi->sf.inter_sf
                                            .prune_comp_type_by_comp_avg];
-        // Evaluate COMPOUND_WEDGE / COMPOUND_DIFFWTD if approximated cost is
-        // within threshold
+        // Evaluate COMPOUND_DIFFWTD if approximated cost is within threshold.
         const int64_t approx_rd = ((*rd / max_comp_type_rd_threshold_div) *
                                    max_comp_type_rd_threshold_mul);
         if (approx_rd >= ref_best_rd) eval_masked_comp_type = false;

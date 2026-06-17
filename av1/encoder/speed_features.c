@@ -1201,6 +1201,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.skip_arf_compound = 1;
     sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
     sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_DISABLED;
+    sf->inter_sf.enable_comp_wedge_search_using_model_rd = 1;
 
     sf->interp_sf.use_interp_filter = 1;
     sf->interp_sf.skip_model_rd_uv = 1;
@@ -2416,6 +2417,7 @@ static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->bias_obmc_mode_rd_scale_pct = 0.0f;
   inter_sf->skip_cmp_using_top_cmp_avg_est_rd_lvl = 0;
   inter_sf->skip_interinter_wedge_search_based_on_mse = 0;
+  inter_sf->enable_comp_wedge_search_using_model_rd = 0;
   set_txfm_rd_gate_level(inter_sf->txfm_rd_gate_level, 0);
 }
 

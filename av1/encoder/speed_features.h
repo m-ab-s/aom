@@ -1256,6 +1256,9 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Skip interinter wedge search based on MSE between the two predictors.
   int skip_interinter_wedge_search_based_on_mse;
+
+  // Enable/disable model RD based fast compound wedge mask search.
+  int enable_comp_wedge_search_using_model_rd;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
