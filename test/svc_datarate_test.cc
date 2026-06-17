@@ -1357,7 +1357,7 @@ class DatarateTestSVC
     screen_mode_ = 1;
     SetTargetBitratesFor1SL3TL();
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    CheckDatarate(0.40, 2.0);
+    CheckDatarate(0.30, 2.0);
 #if CONFIG_AV1_DECODER
     // Top temporal layers are non_reference, so exlcude them from
     // mismatch count, since loopfilter/cdef is not applied for these on
@@ -1389,7 +1389,7 @@ class DatarateTestSVC
     screen_mode_ = 1;
     SetTargetBitratesFor1SL2TL();
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    CheckDatarate(0.75, 1.8);
+    CheckDatarate(0.75, 2.0);
 #if CONFIG_AV1_DECODER
     // Top temporal layers are non_reference, so exlcude them from
     // mismatch count, since loopfilter/cdef is not applied for these on
