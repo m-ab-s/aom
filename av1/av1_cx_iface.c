@@ -1411,11 +1411,14 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
 
   // Now, low complexity decode mode supports good-quality encoding (speed 1 to
   // 3) for vertical videos (608p to 1080p) and horizontal videos (720p to
-  // 1080p). This can be further modified if needed.
+  // 1080p) when sharpness is not equal to 3. This can be further modified if
+  // needed.
   const int is_low_complexity_decode_mode_supported =
       (cfg->g_usage == AOM_USAGE_GOOD_QUALITY) &&
       (oxcf->speed >= 1 && oxcf->speed <= 3) &&
-      (AOMMIN(cfg->g_w, cfg->g_h) >= 608 && AOMMIN(cfg->g_w, cfg->g_h) <= 1080);
+      (AOMMIN(cfg->g_w, cfg->g_h) >= 608 &&
+       AOMMIN(cfg->g_w, cfg->g_h) <= 1080) &&
+      (extra_cfg->sharpness != 3);
   oxcf->enable_low_complexity_decode =
       extra_cfg->enable_low_complexity_decode &&
       is_low_complexity_decode_mode_supported;
