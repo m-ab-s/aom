@@ -619,6 +619,7 @@ static int main_loop(int argc, const char **argv_) {
     fprintf(stderr,
             "Not dumping raw video to your terminal. Use '-o -' to "
             "override.\n");
+    if (framestats_file) fclose(framestats_file);
     free(argv);
     return EXIT_FAILURE;
   }
@@ -629,6 +630,7 @@ static int main_loop(int argc, const char **argv_) {
   infile = using_file ? fopen(fn, "rb") : set_binary_mode(stdin);
 
   if (!infile) {
+    if (framestats_file) fclose(framestats_file);
     fatal("Failed to open input file '%s'", using_file ? fn : "stdin");
   }
   input.aom_input_ctx->filename = fn;
