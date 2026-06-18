@@ -1766,6 +1766,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
       sf->rt_sf.rt_use_intrabc = 1;
       sf->mv_sf.intrabc_search_level = 1;
       sf->mv_sf.hash_max_8x8_intrabc_blocks = 1;
+      sf->mv_sf.prune_intrabc_candidate_block_hash_search = 1;
     }
     if (speed >= 7) {
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
