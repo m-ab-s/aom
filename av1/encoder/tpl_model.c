@@ -1669,6 +1669,7 @@ static inline int init_gop_frames_for_tpl(
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
 
   int ref_picture_map[REF_FRAMES];
+  int has_prev_arf = 0;
 
   for (int i = 0; i < REF_FRAMES; ++i) {
     if (frame_params.frame_type == KEY_FRAME) {
@@ -1676,7 +1677,6 @@ static inline int init_gop_frames_for_tpl(
       tpl_data->tpl_frame[-i - 1].rec_picture = NULL;
       tpl_data->tpl_frame[-i - 1].frame_display_index = 0;
     } else {
-      int has_prev_arf = 0;
       if (cm->ref_frame_map[i]->display_order_hint ==
           tpl_data->prev_gop_arf_disp_order) {
         tpl_data->tpl_frame[-i - 1].gf_picture = &tpl_data->prev_gop_arf_src;
@@ -1689,13 +1689,13 @@ static inline int init_gop_frames_for_tpl(
       }
       tpl_data->tpl_frame[-i - 1].frame_display_index =
           cm->ref_frame_map[i]->display_order_hint;
-
-      if (!has_prev_arf) {
-        tpl_data->prev_gop_arf_disp_order = -1;
-      }
     }
 
     ref_picture_map[i] = -i - 1;
+  }
+
+  if (frame_params.frame_type != KEY_FRAME && !has_prev_arf) {
+    tpl_data->prev_gop_arf_disp_order = -1;
   }
 
   *tpl_group_frames = 0;
