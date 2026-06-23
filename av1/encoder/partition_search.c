@@ -4069,6 +4069,8 @@ static void prune_part4_using_sms(AV1_COMP *const cpi, MACROBLOCK *x,
 
   const BLOCK_SIZE subsize_h4 = get_partition_subsize(bsize, PARTITION_HORZ_4);
   const BLOCK_SIZE subsize_v4 = get_partition_subsize(bsize, PARTITION_VERT_4);
+  assert(subsize_h4 != BLOCK_INVALID);
+  assert(subsize_v4 != BLOCK_INVALID);
 
   const int h_mi = mi_size_high[bsize];
   const int w_mi = mi_size_wide[bsize];
