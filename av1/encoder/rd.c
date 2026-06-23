@@ -450,7 +450,8 @@ int av1_compute_rd_mult(const int qindex, const aom_bit_depth_t bit_depth,
                         const FRAME_TYPE frame_type,
                         const int use_fixed_qp_offsets,
                         const int is_stat_consumption_stage,
-                        const aom_tune_metric tuning, const MODE mode) {
+                        const aom_tune_metric tuning, const MODE mode,
+                        const int cq_level_extended_qindex_offset) {
   int64_t rdmult = av1_compute_rd_mult_based_on_qindex(bit_depth, update_type,
                                                        qindex, tuning, mode);
   if (is_stat_consumption_stage && (use_fixed_qp_offsets == 0) &&
@@ -459,6 +460,10 @@ int av1_compute_rd_mult(const int qindex, const aom_bit_depth_t bit_depth,
     rdmult = (rdmult * rd_layer_depth_factor[layer_depth]) >> 7;
     // ARF boost adjustment
     rdmult += ((rdmult * rd_boost_factor[boost_index]) >> 7);
+  }
+  if (cq_level_extended_qindex_offset > 0) {
+    const int lambda_weight = 128 + cq_level_extended_qindex_offset * 28;
+    rdmult = (rdmult * lambda_weight) >> 7;
   }
   return rdmult > 0 ? (int)AOMMIN(rdmult, INT_MAX) : 1;
 }
@@ -521,7 +526,8 @@ int av1_get_adaptive_rdmult(const AV1_COMP *cpi, double beta) {
                    layer_depth, boost_index, frame_type,
                    cpi->oxcf.q_cfg.use_fixed_qp_offsets,
                    is_stat_consumption_stage(cpi), cpi->oxcf.tune_cfg.tuning,
-                   cpi->oxcf.mode) /
+                   cpi->oxcf.mode,
+                   cpi->oxcf.rc_cfg.cq_level_extended_qindex_offset) /
                beta);
 }
 #endif  // !CONFIG_REALTIME_ONLY
@@ -805,8 +811,8 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
       qindex_rdmult, cm->seq_params->bit_depth,
       cpi->ppi->gf_group.update_type[cpi->gf_frame_index], layer_depth,
       boost_index, frame_type, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
-      is_stat_consumption_stage(cpi), cpi->oxcf.tune_cfg.tuning,
-      cpi->oxcf.mode);
+      is_stat_consumption_stage(cpi), cpi->oxcf.tune_cfg.tuning, cpi->oxcf.mode,
+      cpi->oxcf.rc_cfg.cq_level_extended_qindex_offset);
 #if CONFIG_RD_COMMAND
   if (cpi->oxcf.pass == 2) {
     const RD_COMMAND *rd_command = &cpi->rd_command;

@@ -273,7 +273,8 @@ int av1_compute_rd_mult(const int qindex, const aom_bit_depth_t bit_depth,
                         const FRAME_TYPE frame_type,
                         const int use_fixed_qp_offsets,
                         const int is_stat_consumption_stage,
-                        const aom_tune_metric tuning, const MODE mode);
+                        const aom_tune_metric tuning, const MODE mode,
+                        const int cq_level_extended_qindex_offset);
 
 void av1_initialize_rd_consts(struct AV1_COMP *cpi);
 

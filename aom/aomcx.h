@@ -293,7 +293,8 @@ enum aome_enc_control_id {
   /*!\brief Codec control function to set constrained / constant quality level,
    * unsigned int parameter
    *
-   * Valid range: 0..63
+   * Valid range: 0..70. Values 64..70 are only valid in constant quality
+   * mode (#AOM_Q).
    *
    * \attention For this value to be used aom_codec_enc_cfg_t::rc_end_usage
    *            must be set to #AOM_CQ or #AOM_Q.

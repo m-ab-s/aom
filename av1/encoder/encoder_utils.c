@@ -527,7 +527,7 @@ void av1_apply_roi_map(AV1_COMP *cpi) {
           cpi->ppi->gf_group.update_type[cpi->gf_frame_index], 0, 15,
           INTER_FRAME, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
           is_stat_consumption_stage(cpi), cpi->oxcf.tune_cfg.tuning,
-          cpi->oxcf.mode);
+          cpi->oxcf.mode, cpi->oxcf.rc_cfg.cq_level_extended_qindex_offset);
     }
   } else {
     av1_disable_segmentation(seg);
@@ -667,6 +667,18 @@ static void process_tpl_stats_frame(AV1_COMP *cpi) {
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+static int adjust_qindex_for_extended_cq(const AV1_COMP *const cpi,
+                                         int qindex) {
+  const RateControlCfg *const rc_cfg = &cpi->oxcf.rc_cfg;
+  const int extended_offset = rc_cfg->cq_level_extended_qindex_offset;
+  if (rc_cfg->mode != AOM_Q || extended_offset <= 0) return qindex;
+
+  // Match SVT-AV1's extended-CQP shape: push the selected hierarchy qindex
+  // toward MAXQ by up to half of its remaining headroom at QP 70.
+  qindex += ((MAXQ - qindex) * extended_offset) / 56;
+  return clamp(qindex, MINQ, MAXQ);
+}
+
 void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
                                  int *top_index) {
   AV1_COMMON *const cm = &cpi->common;
@@ -739,6 +751,17 @@ void av1_set_size_dependent_vars(AV1_COMP *cpi, int *q, int *bottom_index,
         }
         *top_index = *bottom_index = *q = arf_q;
       }
+    }
+#endif
+  }
+
+  if (cpi->oxcf.rc_cfg.cq_level_extended_qindex_offset > 0 &&
+      cpi->oxcf.rc_cfg.mode == AOM_Q) {
+    *q = adjust_qindex_for_extended_cq(cpi, *q);
+    *top_index = *bottom_index = *q;
+#if !CONFIG_REALTIME_ONLY
+    if (is_frame_tpl_eligible(gf_group, cpi->gf_frame_index)) {
+      cpi->ppi->p_rc.arf_q = *q;
     }
 #endif
   }

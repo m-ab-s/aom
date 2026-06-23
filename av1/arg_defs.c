@@ -307,8 +307,9 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .dist_metric = ARG_DEF_ENUM(
       NULL, "dist-metric", 1,
       "Distortion metric to use for in-block optimization", dist_metric_enum),
-  .cq_level =
-      ARG_DEF(NULL, "cq-level", 1, "Constant/Constrained Quality level"),
+  .cq_level = ARG_DEF(NULL, "cq-level", 1,
+                      "Constant/Constrained Quality level (0..70, values "
+                      "64..70 require --end-usage=q)"),
   .max_intra_rate_pct =
       ARG_DEF(NULL, "max-intra-rate", 1, "Max I-frame bitrate (pct)"),
 #if CONFIG_AV1_ENCODER

@@ -542,7 +542,8 @@ control configuration data structures.
 - <b>--target-bitrate</b> (\ref RateControlCfg.target_bandwidth)
 - <b>--min-q</b> (\ref RateControlCfg.best_allowed_q)
 - <b>--max-q</b> (\ref RateControlCfg.worst_allowed_q)
-- <b>--cq-level</b> (\ref RateControlCfg.cq_level)
+- <b>--cq-level</b> (\ref RateControlCfg.cq_level; 0..70, values above 63
+  only in AOM_Q)
 - <b>--undershoot-pct</b> (\ref RateControlCfg.under_shoot_pct)
 - <b>--overshoot-pct</b> (\ref RateControlCfg.over_shoot_pct)
 

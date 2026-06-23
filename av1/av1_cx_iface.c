@@ -805,7 +805,10 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
   RANGE_CHECK_HI(extra_cfg, enable_adaptive_sharpness, 1);
   RANGE_CHECK_HI(extra_cfg, arnr_max_frames, 15);
   RANGE_CHECK_HI(extra_cfg, arnr_strength, 6);
-  RANGE_CHECK_HI(extra_cfg, cq_level, 63);
+  RANGE_CHECK_HI(extra_cfg, cq_level, 70);
+  if (extra_cfg->cq_level > 63 && cfg->rc_end_usage != AOM_Q) {
+    ERROR("--cq-level values above 63 can only be used with --end-usage=q");
+  }
   RANGE_CHECK(cfg, g_bit_depth, AOM_BITS_8, AOM_BITS_12);
   RANGE_CHECK(cfg, g_input_bit_depth, 8, 12);
   if (cfg->g_input_bit_depth > (unsigned int)cfg->g_bit_depth)
@@ -1264,7 +1267,9 @@ static void set_encoder_config(AV1EncoderConfig *oxcf,
       extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_min_quantizer);
   rc_cfg->worst_allowed_q =
       extra_cfg->lossless ? 0 : av1_quantizer_to_qindex(cfg->rc_max_quantizer);
-  rc_cfg->cq_level = av1_quantizer_to_qindex(extra_cfg->cq_level);
+  rc_cfg->cq_level = av1_quantizer_to_qindex(AOMMIN(extra_cfg->cq_level, 63));
+  rc_cfg->cq_level_extended_qindex_offset =
+      (extra_cfg->cq_level > 63) ? (int)(extra_cfg->cq_level - 63) * 4 : 0;
   rc_cfg->under_shoot_pct = cfg->rc_undershoot_pct;
   rc_cfg->over_shoot_pct = cfg->rc_overshoot_pct;
   rc_cfg->maximum_buffer_size_ms = cfg->rc_buf_sz;

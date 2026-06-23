@@ -592,6 +592,11 @@ typedef struct {
    */
   int cq_level;
   /*!
+   * Qindex-unit offset for cq-level values above the normal 0..63 QP range.
+   * Only used in AOM_Q mode; signaled qindices remain clamped to MAXQ.
+   */
+  int cq_level_extended_qindex_offset;
+  /*!
    * Indicates if the encoding mode is vbr, cbr, constrained quality or
    * constant quality.
    */
