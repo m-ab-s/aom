@@ -398,8 +398,15 @@ extern "C" void av1_lowbd_inv_txfm2d_add_neon(const int32_t *input,
                                               TX_TYPE tx_type, TX_SIZE tx_size,
                                               int eob);
 
+// TODO(bug 528050364): Enable this test after issues with
+// arm-linux-gnueabi-gcc-14+ are addressed.
+#if defined(__GNUC__) && __GNUC__ >= 14 && defined(__ARM_ARCH) && __ARM_ARCH < 7
+INSTANTIATE_TEST_SUITE_P(DISABLED_NEON, AV1LbdInvTxfm2d,
+                         ::testing::Values(av1_lowbd_inv_txfm2d_add_neon));
+#else
 INSTANTIATE_TEST_SUITE_P(NEON, AV1LbdInvTxfm2d,
                          ::testing::Values(av1_lowbd_inv_txfm2d_add_neon));
+#endif
 #endif  // HAVE_NEON
 
 }  // namespace

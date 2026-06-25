@@ -4214,10 +4214,16 @@ void av1_lowbd_inv_txfm2d_add_neon(const int32_t *input, uint8_t *output,
 }
 void av1_inv_txfm_add_neon(const tran_low_t *dqcoeff, uint8_t *dst, int stride,
                            const TxfmParam *txfm_param) {
-  const TX_TYPE tx_type = txfm_param->tx_type;
   if (!txfm_param->lossless) {
+    // TODO(bug 528050364): Remove the C fallback after issues with
+    // arm-linux-gnueabi-gcc-14+ are addressed.
+#if defined(__GNUC__) && __GNUC__ >= 14 && defined(__ARM_ARCH) && __ARM_ARCH < 7
+    av1_inv_txfm_add_c(dqcoeff, dst, stride, txfm_param);
+#else
+    const TX_TYPE tx_type = txfm_param->tx_type;
     av1_lowbd_inv_txfm2d_add_neon(dqcoeff, dst, stride, tx_type,
                                   txfm_param->tx_size, txfm_param->eob);
+#endif
   } else {
     av1_inv_txfm_add_c(dqcoeff, dst, stride, txfm_param);
   }
