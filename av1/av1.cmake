@@ -26,6 +26,7 @@ list(APPEND AOM_AV1_COMMON_SOURCES
             "${AOM_ROOT}/av1/common/av1_inv_txfm1d.h"
             "${AOM_ROOT}/av1/common/av1_inv_txfm1d_cfg.h"
             "${AOM_ROOT}/av1/common/av1_inv_txfm2d.c"
+            "${AOM_ROOT}/av1/common/av1_inv_txfm2d.h"
             "${AOM_ROOT}/av1/common/av1_loopfilter.c"
             "${AOM_ROOT}/av1/common/av1_loopfilter.h"
             "${AOM_ROOT}/av1/common/av1_txfm.c"
