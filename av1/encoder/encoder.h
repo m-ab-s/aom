@@ -4287,16 +4287,26 @@ static inline int get_mi_ext_idx(const int mi_row, const int mi_col,
   return mi_ext_row * mbmi_ext_stride + mi_ext_col;
 }
 
+// Computes the signed distances from the bottom and right edges of the current
+// prediction block to the corresponding edges of the frame.
 static inline void set_pixels_to_frame_edge(MACROBLOCK *x, int bw, int bh,
                                             int mi_col, int mi_row, int mi_cols,
                                             int mi_rows, int frame_width,
                                             int frame_height,
                                             bool do_border_pad) {
-  int total_frame_width = do_border_pad ? frame_width : (mi_cols * 4);
-  int total_frame_height = do_border_pad ? frame_height : (mi_rows * 4);
+  // For do_border_pad = 1, compute distances using the actual frame
+  // dimensions.
+  // For do_border_pad = 0, compute distances using the frame dimensions
+  // aligned to a multiple of 8 pixels to match the dimensions represented
+  // by mi_cols and mi_rows, which are rounded up to multiples of 8 pixels.
+  int boundary_frame_width =
+      do_border_pad ? frame_width : (mi_cols << MI_SIZE_LOG2);
+  int boundary_frame_height =
+      do_border_pad ? frame_height : (mi_rows << MI_SIZE_LOG2);
 
-  x->pix_to_bottom_edge = total_frame_height - ((mi_row + bh) << MI_SIZE_LOG2);
-  x->pix_to_right_edge = total_frame_width - ((mi_col + bw) << MI_SIZE_LOG2);
+  x->pix_to_bottom_edge =
+      boundary_frame_height - ((mi_row + bh) << MI_SIZE_LOG2);
+  x->pix_to_right_edge = boundary_frame_width - ((mi_col + bw) << MI_SIZE_LOG2);
 }
 
 // Lighter version of set_offsets that only sets the mode info

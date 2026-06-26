@@ -883,8 +883,8 @@ static int64_t get_sse(const AV1_COMP *cpi, const MACROBLOCK *x,
     const int block_width = block_size_wide[bs];
     const int block_height = block_size_high[bs];
 
-    get_visible_dimensions(x, plane, bs, 0, 0, block_width, block_height, &bw,
-                           &bh, cpi->do_border_pad);
+    get_visible_dimensions(x, plane, bs, 0, 0, block_width, block_height,
+                           cpi->do_border_pad, &bw, &bh);
 
     sse = pixel_dist_visible_only(cpi, x, p->src.buf, p->src.stride,
                                   pd->dst.buf, pd->dst.stride, bs, block_height,

@@ -130,19 +130,22 @@ int64_t av1_pixel_diff_dist(const MACROBLOCK *x, int plane, int blk_row,
   const int txb_cols = block_size_wide[tx_bsize];
   const int txb_rows = block_size_high[tx_bsize];
   get_visible_dimensions(x, plane, plane_bsize, blk_col, blk_row, txb_cols,
-                         txb_rows, &visible_cols, &visible_rows, true);
-  const int diff_stride = block_size_wide[plane_bsize];
-  const int16_t *diff = x->plane[plane].src_diff;
+                         txb_rows, /*clip_dims=*/true, &visible_cols,
+                         &visible_rows);
 
-  diff += ((blk_row * diff_stride + blk_col) << MI_SIZE_LOG2);
-  uint64_t sse =
-      aom_sum_squares_2d_i16(diff, diff_stride, visible_cols, visible_rows);
-  if (block_mse_q8 != NULL) {
-    if (visible_cols > 0 && visible_rows > 0)
+  uint64_t sse = 0;
+  if (visible_cols > 0 && visible_rows > 0) {
+    const int diff_stride = block_size_wide[plane_bsize];
+    const int16_t *diff = x->plane[plane].src_diff;
+
+    diff += ((blk_row * diff_stride + blk_col) << MI_SIZE_LOG2);
+    sse = aom_sum_squares_2d_i16(diff, diff_stride, visible_cols, visible_rows);
+    if (block_mse_q8 != NULL) {
       *block_mse_q8 =
           (unsigned int)((256 * sse) / (visible_cols * visible_rows));
-    else
-      *block_mse_q8 = 0;
+    }
+  } else {
+    if (block_mse_q8 != NULL) *block_mse_q8 = 0;
   }
   return sse;
 }
@@ -157,15 +160,18 @@ static inline int64_t pixel_diff_stats(
   const int txb_cols = block_size_wide[tx_bsize];
   const int txb_rows = block_size_high[tx_bsize];
   get_visible_dimensions(x, plane, plane_bsize, blk_col, blk_row, txb_cols,
-                         txb_rows, &visible_cols, &visible_rows, true);
-  const int diff_stride = block_size_wide[plane_bsize];
-  const int16_t *diff = x->plane[plane].src_diff;
+                         txb_rows, /*clip_dims=*/true, &visible_cols,
+                         &visible_rows);
 
-  diff += ((blk_row * diff_stride + blk_col) << MI_SIZE_LOG2);
   uint64_t sse = 0;
-  int sum = 0;
-  sse = aom_sum_sse_2d_i16(diff, diff_stride, visible_cols, visible_rows, &sum);
   if (visible_cols > 0 && visible_rows > 0) {
+    const int diff_stride = block_size_wide[plane_bsize];
+    const int16_t *diff = x->plane[plane].src_diff;
+
+    diff += ((blk_row * diff_stride + blk_col) << MI_SIZE_LOG2);
+    int sum = 0;
+    sse =
+        aom_sum_sse_2d_i16(diff, diff_stride, visible_cols, visible_rows, &sum);
     double norm_factor = 1.0 / (visible_cols * visible_rows);
     int sign_sum = sum > 0 ? 1 : -1;
     // Conversion to transform domain
@@ -984,7 +990,8 @@ static unsigned pixel_dist(const AV1_COMP *const cpi, const MACROBLOCK *x,
   txb_rows = block_size_high[tx_bsize];
 
   get_visible_dimensions(x, plane, plane_bsize, blk_col, blk_row, txb_cols,
-                         txb_rows, &visible_cols, &visible_rows, true);
+                         txb_rows, /*clip_dims=*/true, &visible_cols,
+                         &visible_rows);
   assert(visible_rows > 0);
   assert(visible_cols > 0);
 
@@ -2099,8 +2106,9 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   int is_border_block = 0;
   if (cpi->do_border_pad) {
-    is_border_block = get_visible_dimensions(
-        x, plane, plane_bsize, blk_col, blk_row, txw, txh, NULL, NULL, true);
+    is_border_block =
+        get_visible_dimensions(x, plane, plane_bsize, blk_col, blk_row, txw,
+                               txh, /*clip_dims=*/true, NULL, NULL);
     if (is_border_block)
       av1_subtract_txb(x, plane, plane_bsize, blk_col, blk_row, tx_size,
                        best_tx_type, cpi->do_border_pad);
