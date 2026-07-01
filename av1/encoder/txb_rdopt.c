@@ -55,11 +55,11 @@ static inline void update_coeff_general(
     int64_t dist_diff_0, dist_diff_low_0;
     if (qmatrix == NULL) {
       const int64_t tqc2 = (int64_t)tqc * 2;
-      dist_diff_0 = ((int64_t)dqc * (dqc - tqc2)) * (1 << (2 * shift));
+      dist_diff_0 = ((int64_t)dqc * (dqc - tqc2)) * (1LL << (2 * shift));
       dist_diff_low_0 =
           (abs_qc == 1)
               ? 0
-              : (((int64_t)dqc_low * (dqc_low - tqc2)) * (1 << (2 * shift)));
+              : (((int64_t)dqc_low * (dqc_low - tqc2)) * (1LL << (2 * shift)));
     } else {
       const int64_t dist0 = get_coeff_dist(tqc, 0, shift, qmatrix, ci);
       dist_diff_0 = get_coeff_dist(tqc, dqc, shift, qmatrix, ci) - dist0;
@@ -121,7 +121,7 @@ static AOM_FORCE_INLINE void update_coeff_simple(
         if (qmatrix == NULL) {
           dist_diff_0 =
               ((int64_t)abs_dqc * (abs_dqc - ((int64_t)abs_tqc * 2))) *
-              (1 << (2 * shift));
+              (1LL << (2 * shift));
         } else {
           const int64_t dist0 = get_coeff_dist(abs_tqc, 0, shift, qmatrix, ci);
           dist_diff_0 =
@@ -157,9 +157,9 @@ static AOM_FORCE_INLINE void update_coeff_simple(
         if (qmatrix == NULL) {
           const int64_t abs_tqc2 = (int64_t)abs_tqc << 1;
           dist_diff_0 =
-              ((int64_t)abs_dqc * (abs_dqc - abs_tqc2)) * (1 << (2 * shift));
+              ((int64_t)abs_dqc * (abs_dqc - abs_tqc2)) * (1LL << (2 * shift));
           dist_diff_low_0 = ((int64_t)abs_dqc_low * (abs_dqc_low - abs_tqc2)) *
-                            (1 << (2 * shift));
+                            (1LL << (2 * shift));
         } else {
           const int64_t dist0 = get_coeff_dist(abs_tqc, 0, shift, qmatrix, ci);
           dist_diff_0 =
@@ -223,11 +223,11 @@ static AOM_FORCE_INLINE void update_coeff_eob(
     int64_t dist, dist_low;
     if (qmatrix == NULL) {
       const int64_t tqc2 = (int64_t)tqc * 2;
-      dist = ((int64_t)dqc * (dqc - tqc2)) * (1 << (2 * shift));
+      dist = ((int64_t)dqc * (dqc - tqc2)) * (1LL << (2 * shift));
       dist_low =
           (abs_qc == 1)
               ? 0
-              : (((int64_t)dqc_low * (dqc_low - tqc2)) * (1 << (2 * shift)));
+              : (((int64_t)dqc_low * (dqc_low - tqc2)) * (1LL << (2 * shift)));
     } else {
       const int64_t dist0 = get_coeff_dist(tqc, 0, shift, qmatrix, ci);
       dist = get_coeff_dist(tqc, dqc, shift, qmatrix, ci) - dist0;
