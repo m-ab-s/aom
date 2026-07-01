@@ -1385,6 +1385,11 @@ INSTANTIATE_TEST_SUITE_P(RVV, AV1Convolve2DTest,
                          BuildLowbdParams(av1_convolve_2d_sr_rvv));
 #endif
 
+#if HAVE_AVX512 && CONFIG_HIGHWAY
+INSTANTIATE_TEST_SUITE_P(AVX512, AV1Convolve2DTest,
+                         BuildLowbdParams(av1_convolve_2d_sr_avx512));
+#endif
+
 /////////////////////////////////////////////////////////////////
 // Single reference convolve-2D IntraBC functions (low bit-depth)
 /////////////////////////////////////////////////////////////////

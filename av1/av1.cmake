@@ -332,7 +332,8 @@ if(CONFIG_HIGHWAY)
               "${AOM_ROOT}/av1/common/x86/warp_plane_hwy_avx2.cc")
   list(APPEND AOM_AV1_COMMON_INTRIN_AVX512
               "${AOM_ROOT}/av1/common/x86/selfguided_hwy_avx512.cc"
-              "${AOM_ROOT}/av1/common/x86/warp_plane_hwy_avx512.cc")
+              "${AOM_ROOT}/av1/common/x86/warp_plane_hwy_avx512.cc"
+              "${AOM_ROOT}/av1/common/x86/convolve_2d_sr_hwy_avx512.cc")
 endif()
 
 list(APPEND AOM_AV1_ENCODER_ASM_SSE2 "${AOM_ROOT}/av1/encoder/x86/dct_sse2.asm"
