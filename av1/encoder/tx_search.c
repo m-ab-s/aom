@@ -977,8 +977,7 @@ static inline void recon_intra(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 }
 
 // Compute the pixel domain distortion from src and dst on all visible 4x4s in
-// the
-// transform block.
+// the transform block.
 static unsigned pixel_dist(const AV1_COMP *const cpi, const MACROBLOCK *x,
                            int plane, const uint8_t *src, const int src_stride,
                            const uint8_t *dst, const int dst_stride,
