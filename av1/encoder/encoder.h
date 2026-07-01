@@ -4294,9 +4294,9 @@ static inline void set_pixels_to_frame_edge(MACROBLOCK *x, int bw, int bh,
                                             int mi_rows, int frame_width,
                                             int frame_height,
                                             bool do_border_pad) {
-  // For do_border_pad = 1, compute distances using the actual frame
+  // For do_border_pad = true, compute distances using the actual frame
   // dimensions.
-  // For do_border_pad = 0, compute distances using the frame dimensions
+  // For do_border_pad = false, compute distances using the frame dimensions
   // aligned to a multiple of 8 pixels to match the dimensions represented
   // by mi_cols and mi_rows, which are rounded up to multiples of 8 pixels.
   int boundary_frame_width =
