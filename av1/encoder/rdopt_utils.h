@@ -379,7 +379,7 @@ static inline int get_visible_dimensions(const MACROBLOCK *x, int plane,
   } else {
     const int block_height = block_size_high[plane_bsize];
     const int block_rows =
-        ROUND_POWER_OF_TWO_SIGNED(x->pix_to_bottom_edge, pd->subsampling_y) +
+        -ROUND_POWER_OF_TWO(-x->pix_to_bottom_edge, pd->subsampling_y) +
         block_height;
     valid_rows = clamp(block_rows - (blk_row << MI_SIZE_LOG2), 0, rows);
   }
@@ -389,7 +389,7 @@ static inline int get_visible_dimensions(const MACROBLOCK *x, int plane,
   } else {
     const int block_width = block_size_wide[plane_bsize];
     const int block_cols =
-        ROUND_POWER_OF_TWO_SIGNED(x->pix_to_right_edge, pd->subsampling_x) +
+        -ROUND_POWER_OF_TWO(-x->pix_to_right_edge, pd->subsampling_x) +
         block_width;
     valid_cols = clamp(block_cols - (blk_col << MI_SIZE_LOG2), 0, cols);
   }
