@@ -1456,22 +1456,24 @@ static inline void scale_rdstats(RD_STATS *rd_stats, double rd_scale_pct) {
 
 // Increase rate, distortion and SSE in RD_STATS structure of warp and obmc
 // motion modes for low complexity decoding.
-static inline void increase_motion_mode_rdstats(const MB_MODE_INFO *this_mbmi,
+static inline void increase_motion_mode_rdstats(const AV1_COMP *cpi,
+                                                const MB_MODE_INFO *this_mbmi,
                                                 RD_STATS *rd_stats,
                                                 RD_STATS *rd_stats_y,
-                                                RD_STATS *rd_stats_uv,
-                                                float rd_warp_bias_scale_pct,
-                                                float rd_obmc_bias_scale_pct) {
+                                                RD_STATS *rd_stats_uv) {
   if (rd_stats->rate == INT_MAX ||
       (rd_stats_y != NULL && rd_stats_y->rate == INT_MAX) ||
       (rd_stats_uv != NULL && rd_stats_uv->rate == INT_MAX))
     return;
-
+  const INTER_MODE_SPEED_FEATURES *const inter_sf = &cpi->sf.inter_sf;
   double rd_bias_scale = 0.0;
   if (this_mbmi->motion_mode == WARPED_CAUSAL) {
-    rd_bias_scale = rd_warp_bias_scale_pct / 100.0;
+    rd_bias_scale = inter_sf->bias_warp_mode_rd_scale_pct / 100.0;
   } else if (this_mbmi->motion_mode == OBMC_CAUSAL) {
-    rd_bias_scale = rd_obmc_bias_scale_pct / 100.0;
+    rd_bias_scale = inter_sf->bias_obmc_mode_rd_scale_pct / 100.0;
+  } else if (this_mbmi->mode == GLOBALMV ||
+             this_mbmi->mode == GLOBAL_GLOBALMV) {
+    rd_bias_scale = get_global_mv_mode_bias(cpi, this_mbmi);
   }
   if (rd_bias_scale <= 0.0) return;
 
@@ -1848,10 +1850,7 @@ static int64_t motion_mode_rd(
                               rd_stats_uv, mbmi);
       }
       mbmi->skip_txfm = 0;
-      increase_motion_mode_rdstats(
-          mbmi, rd_stats, NULL, NULL,
-          cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
-          cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
+      increase_motion_mode_rdstats(cpi, mbmi, rd_stats, NULL, NULL);
 
     } else {
       // Perform full transform search
@@ -1888,16 +1887,13 @@ static int64_t motion_mode_rd(
       }
       // Scale RD_STATS after mode stats are collected. Thus unscaled metrics
       // are used for model generation
-      increase_motion_mode_rdstats(
-          mbmi, rd_stats, rd_stats_y, rd_stats_uv,
-          cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
-          cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
+      increase_motion_mode_rdstats(cpi, mbmi, rd_stats, rd_stats_y,
+                                   rd_stats_uv);
       const int skip_rate =
           rd_stats->skip_txfm ? skip_txfm_cost_ptr[1] : skip_txfm_cost_ptr[0];
 
-      const int32_t scaled_skip_rate = increase_motion_mode_rate(
-          mbmi, skip_rate, cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
-          cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
+      const int32_t scaled_skip_rate =
+          increase_motion_mode_rate(cpi, mbmi, skip_rate);
       const int y_rate =
           scaled_skip_rate + (rd_stats->skip_txfm ? 0 : rd_stats_y->rate);
       this_yrd = RDCOST(x->rdmult, y_rate + mode_rate, rd_stats_y->dist);
@@ -4013,10 +4009,8 @@ static inline void refine_winner_mode_tx(
         skip_blk = 0;
         rd_stats_y.rate += mode_costs->skip_txfm_cost[skip_ctx][0];
       }
-      increase_motion_mode_rdstats(
-          mbmi, &rd_stats, &rd_stats_y, &rd_stats_uv,
-          cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
-          cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
+      increase_motion_mode_rdstats(cpi, mbmi, &rd_stats, &rd_stats_y,
+                                   &rd_stats_uv);
       int this_rate = rd_stats.rate + rd_stats_y.rate + rd_stats_uv.rate -
                       winner_rate_y - winner_rate_uv;
       int64_t this_rd = RDCOST(x->rdmult, this_rate, this_dist);
@@ -5209,9 +5203,8 @@ static inline void update_search_state(
     const int32_t skip_rate =
         x->mode_costs.skip_txfm_cost[skip_ctx]
                                     [new_best_rd_stats->skip_txfm || skip_txfm];
-    const int32_t scaled_skip_rate = increase_motion_mode_rate(
-        mbmi, skip_rate, cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
-        cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
+    const int32_t scaled_skip_rate =
+        increase_motion_mode_rate(cpi, mbmi, skip_rate);
     search_state->best_rate_y = new_best_rd_stats_y->rate + scaled_skip_rate;
     search_state->best_rate_uv = new_best_rd_stats_uv->rate;
   }
@@ -5634,16 +5627,13 @@ static void tx_search_best_inter_candidates(
             rd_stats_y.rate + rd_stats_uv.rate +
                 mode_costs->skip_txfm_cost[skip_ctx][mbmi->skip_txfm]);
       }
-      increase_motion_mode_rdstats(
-          mbmi, &rd_stats, &rd_stats_y, &rd_stats_uv,
-          cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
-          cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
+      increase_motion_mode_rdstats(cpi, mbmi, &rd_stats, &rd_stats_y,
+                                   &rd_stats_uv);
       const int *skip_txfm_cost_ptr = mode_costs->skip_txfm_cost[skip_ctx];
       const int skip_rate =
           rd_stats.skip_txfm ? skip_txfm_cost_ptr[1] : skip_txfm_cost_ptr[0];
-      const int32_t scaled_skip_rate = increase_motion_mode_rate(
-          mbmi, skip_rate, cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
-          cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
+      const int32_t scaled_skip_rate =
+          increase_motion_mode_rate(cpi, mbmi, skip_rate);
       const int y_rate =
           scaled_skip_rate + (rd_stats.skip_txfm ? 0 : rd_stats_y.rate);
       this_yrd = RDCOST(x->rdmult, y_rate + mode_rate, rd_stats_y.dist);

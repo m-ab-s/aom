@@ -709,15 +709,43 @@ static inline void set_mode_eval_params(const struct AV1_COMP *cpi,
   txfm_params->mode_eval_type = mode_eval_type;
 }
 
-static inline int increase_motion_mode_rate(const MB_MODE_INFO *this_mbmi,
-                                            int rate,
-                                            float rd_warp_bias_scale_pct,
-                                            float rd_obmc_bias_scale_pct) {
+// Calculate global motion weight and transformation types for RD bias.
+// Returns the weight to apply to scaled RD cost for global motion blocks.
+static inline float get_global_mv_mode_bias(const AV1_COMP *cpi,
+                                            const MB_MODE_INFO *mbmi) {
+  if (cpi->sf.inter_sf.bias_gm_mode_rd_scale_pct <= 0.0f) return 0.0f;
+  if (cpi->common.features.cur_frame_force_integer_mv) return 0.0f;
+
+  assert(mbmi->mode == GLOBALMV || mbmi->mode == GLOBAL_GLOBALMV);
+
+  TransformationType ref_trans_type =
+      cpi->common.global_motion[mbmi->ref_frame[0]].wmtype;
+  if (is_global_mv_block(mbmi, ref_trans_type)) {
+    return cpi->sf.inter_sf.bias_gm_mode_rd_scale_pct / 100.0f;
+  }
+
+  if (has_second_ref(mbmi)) {
+    ref_trans_type = cpi->common.global_motion[mbmi->ref_frame[1]].wmtype;
+    if (is_global_mv_block(mbmi, ref_trans_type)) {
+      return cpi->sf.inter_sf.bias_gm_mode_rd_scale_pct / 100.0f;
+    }
+  }
+
+  return 0.0f;
+}
+
+static inline int increase_motion_mode_rate(const AV1_COMP *cpi,
+                                            const MB_MODE_INFO *this_mbmi,
+                                            int rate) {
+  const INTER_MODE_SPEED_FEATURES *const inter_sf = &cpi->sf.inter_sf;
   double rd_bias_scale = 0.0;
   if (this_mbmi->motion_mode == WARPED_CAUSAL) {
-    rd_bias_scale = rd_warp_bias_scale_pct / 100.0;
+    rd_bias_scale = inter_sf->bias_warp_mode_rd_scale_pct / 100.0;
   } else if (this_mbmi->motion_mode == OBMC_CAUSAL) {
-    rd_bias_scale = rd_obmc_bias_scale_pct / 100.0;
+    rd_bias_scale = inter_sf->bias_obmc_mode_rd_scale_pct / 100.0;
+  } else if (this_mbmi->mode == GLOBALMV ||
+             this_mbmi->mode == GLOBAL_GLOBALMV) {
+    rd_bias_scale = get_global_mv_mode_bias(cpi, this_mbmi);
   }
   if (rd_bias_scale <= 0.0) return rate;
 
@@ -807,9 +835,8 @@ static inline void store_winner_mode_stats(
       const int skip_rate =
           x->mode_costs
               .skip_txfm_cost[skip_ctx][rd_cost->skip_txfm || skip_txfm];
-      const int scaled_skip_rate = increase_motion_mode_rate(
-          mbmi, skip_rate, cpi->sf.inter_sf.bias_warp_mode_rd_scale_pct,
-          cpi->sf.inter_sf.bias_obmc_mode_rd_scale_pct);
+      const int scaled_skip_rate =
+          increase_motion_mode_rate(cpi, mbmi, skip_rate);
       winner_mode_stats[mode_idx].rate_y = rd_cost_y->rate + scaled_skip_rate;
       winner_mode_stats[mode_idx].rate_uv = rd_cost_uv->rate;
     }

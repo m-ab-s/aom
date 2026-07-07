@@ -1255,6 +1255,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // complexity modes.
   float bias_obmc_mode_rd_scale_pct;
 
+  // Percentage of scaling used to increase the rd cost of GLOBALMV and
+  // GLOBAL_GLOBALMV modes of type ROTZOOM so that encoder decisions are biased
+  // against these modes, favoring low complexity modes.
+  float bias_gm_mode_rd_scale_pct;
+
   // Avoid further evaluation of compound modes using top estimate RD Costs of
   // compound average.
   // Values are 0 (not used),1 - 3 with progressively increasing
