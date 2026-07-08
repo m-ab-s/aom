@@ -53,7 +53,7 @@ class SumSquaresTest : public ::testing::TestWithParam<TestFuncs> {
   }
 
   void TearDown() override { aom_free(src_); }
-  void RunTest(bool is_random);
+  void RunTest(bool is_random, bool multiple_of_4);
   void RunSpeedTest();
 
   void GenRandomData(int width, int height, int stride) {
@@ -84,13 +84,15 @@ class SumSquaresTest : public ::testing::TestWithParam<TestFuncs> {
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SumSquaresTest);
 
-void SumSquaresTest::RunTest(bool is_random) {
+void SumSquaresTest::RunTest(bool is_random, bool multiple_of_4) {
   int failed = 0;
   for (int k = 0; k < kNumIterations; k++) {
-    const int width = 4 * (rnd_(31) + 1);   // Up to 128x128
-    const int height = 4 * (rnd_(31) + 1);  // Up to 128x128
-    int stride = 4 << rnd_(7);              // Up to 256 stride
-    while (stride < width) {                // Make sure it's valid
+    // Up to 128x128
+    const int width = multiple_of_4 ? 4 * (rnd_(31) + 1) : rnd_(127) + 1;
+    // Up to 128x128
+    const int height = multiple_of_4 ? 4 * (rnd_(31) + 1) : rnd_(127) + 1;
+    int stride = 4 << rnd_(7);  // Up to 256 stride
+    while (stride < width) {    // Make sure it's valid
       stride = 4 << rnd_(7);
     }
     if (is_random) {
@@ -145,11 +147,16 @@ void SumSquaresTest::RunSpeedTest() {
 }
 
 TEST_P(SumSquaresTest, OperationCheck) {
-  RunTest(true);  // GenRandomData
+  RunTest(true, true);  // GenRandomData, width and height multiple of 4
 }
 
 TEST_P(SumSquaresTest, ExtremeValues) {
-  RunTest(false);  // GenExtremeData
+  RunTest(false, true);  // GenExtremeData, width and height multiple of 4
+}
+
+TEST_P(SumSquaresTest, ArbitraryWidthAndHeight) {
+  // GenRandomData, width and height not necessarily multiple of 4
+  RunTest(true, false);
 }
 
 TEST_P(SumSquaresTest, DISABLED_Speed) { RunSpeedTest(); }
