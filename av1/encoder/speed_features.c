@@ -1766,6 +1766,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
   // Screen settings.
   if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_SCREEN) {
     sf->rt_sf.rt_use_intrabc = 1;
+    sf->rt_sf.rt_prune_intrabc_nonrd = 1;
     sf->mv_sf.intrabc_search_level = 1;
     sf->mv_sf.hash_max_8x8_intrabc_blocks = 1;
     sf->mv_sf.prune_intrabc_candidate_block_hash_search = 1;
@@ -2629,6 +2630,7 @@ static inline void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->increase_color_thresh_palette = false;
   rt_sf->selective_cdf_update = 0;
   rt_sf->rt_use_intrabc = 0;
+  rt_sf->rt_prune_intrabc_nonrd = 0;
   rt_sf->force_only_last_ref = 0;
   rt_sf->higher_thresh_scene_detection = 1;
   rt_sf->skip_newmv_flat_blocks_screen = 0;
