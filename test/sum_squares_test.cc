@@ -800,7 +800,7 @@ class Highbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
   }
 
   void TearDown() override { aom_free(src_); }
-  void RunTest(bool is_random);
+  void RunTest(bool is_random, bool multiple_of_4);
   void RunSpeedTest();
 
   void GenRandomData(int width, int height, int stride) {
@@ -831,13 +831,15 @@ class Highbd2dVarTest : public ::testing::TestWithParam<TestFuncVar2D> {
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(Highbd2dVarTest);
 
-void Highbd2dVarTest::RunTest(bool is_random) {
+void Highbd2dVarTest::RunTest(bool is_random, bool multiple_of_4) {
   int failed = 0;
   for (int k = 0; k < kNumIterations; k++) {
-    const int width = 4 * (rnd_(63) + 1);   // Up to 256x256
-    const int height = 4 * (rnd_(63) + 1);  // Up to 256x256
-    int stride = 4 << rnd_(8);              // Up to 512 stride
-    while (stride < width) {                // Make sure it's valid
+    // Up to 256x256
+    const int width = multiple_of_4 ? 4 * (rnd_(63) + 1) : rnd_(255) + 1;
+    // Up to 256x256
+    const int height = multiple_of_4 ? 4 * (rnd_(63) + 1) : rnd_(255) + 1;
+    int stride = 4 << rnd_(8);  // Up to 512 stride
+    while (stride < width) {    // Make sure it's valid
       stride = 4 << rnd_(8);
     }
     if (is_random) {
@@ -893,11 +895,16 @@ void Highbd2dVarTest::RunSpeedTest() {
 }
 
 TEST_P(Highbd2dVarTest, OperationCheck) {
-  RunTest(true);  // GenRandomData
+  RunTest(true, true);  // GenRandomData, width and height multiple of 4
 }
 
 TEST_P(Highbd2dVarTest, ExtremeValues) {
-  RunTest(false);  // GenExtremeData
+  RunTest(false, true);  // GenExtremeData, width and height multiple of 4
+}
+
+TEST_P(Highbd2dVarTest, ArbitraryWidthAndHeight) {
+  // GenRandomData, width and height not necessarily multiple of 4
+  RunTest(true, false);
 }
 
 TEST_P(Highbd2dVarTest, DISABLED_Speed) { RunSpeedTest(); }
