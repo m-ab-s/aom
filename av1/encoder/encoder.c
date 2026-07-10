@@ -4558,9 +4558,7 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
       cpi->oxcf.algo_cfg.enable_tpl_model && cpi->oxcf.q_cfg.aq_mode == NO_AQ &&
       !cpi->common.seg.enabled && !cpi->roi.enabled && !cpi->oxcf.sb_qp_sweep &&
       !cpi->use_ducky_encode && cpi->oxcf.algo_cfg.sharpness != 3) {
-    // TODO(issue 527242002, issue 527078408): set do_border_pad to true after
-    // fixing crashes in Arm builds.
-    cpi->do_border_pad = false;
+    cpi->do_border_pad = true;
   } else {
     cpi->do_border_pad = false;
   }
