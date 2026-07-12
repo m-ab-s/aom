@@ -1773,6 +1773,7 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     sf->mv_sf.hash_max_8x8_intrabc_blocks = 1;
     sf->mv_sf.prune_intrabc_candidate_block_hash_search = 1;
     if (speed >= 7) {
+      sf->rt_sf.rt_intrabc_miss_mode = 2;
       sf->rt_sf.reduce_mv_pel_precision_highmotion = 0;
       sf->mv_sf.use_bsize_dependent_search_method = 0;
       sf->rt_sf.skip_cdef_sb = 1;
@@ -2634,6 +2635,7 @@ static inline void init_rt_sf(REAL_TIME_SPEED_FEATURES *rt_sf) {
   rt_sf->selective_cdf_update = 0;
   rt_sf->rt_use_intrabc = 0;
   rt_sf->rt_prune_intrabc_nonrd = 0;
+  rt_sf->rt_intrabc_miss_mode = 0;
   rt_sf->force_only_last_ref = 0;
   rt_sf->higher_thresh_scene_detection = 1;
   rt_sf->skip_newmv_flat_blocks_screen = 0;

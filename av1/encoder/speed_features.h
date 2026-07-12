@@ -1861,6 +1861,12 @@ typedef struct REAL_TIME_SPEED_FEATURES {
   int rt_use_intrabc;
   // Prune IntraBC for nonrd pickmode.
   int rt_prune_intrabc_nonrd;
+  // Fallback search mode for IntraBC on hash misses in nonrd pickmode.
+  // 0: Full pixel search (Diamond/Hex search)
+  // 1: Block Vector Predictor (BVP) only
+  // 2: BVP + 12-point integer offset probe
+  // 3: Skip fallback search entirely (Hash-only)
+  int rt_intrabc_miss_mode;
 
   // Force only single reference (LAST) for prediction.
   int force_only_last_ref;
