@@ -981,7 +981,8 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
     int rate_mv;
     av1_joint_motion_search(cpi, x, bsize, tmp_mv, NULL, 0, &rate_mv,
                             !cpi->sf.mv_sf.disable_second_mv,
-                            NUM_JOINT_ME_REFINE_ITER);
+                            NUM_JOINT_ME_REFINE_ITER,
+                            /*use_subpel_mv_cost_none=*/true);
 
     for (int ref = 0; ref < 2; ++ref) {
       struct buf_2d ref_buf = { NULL, ref_frame_ptr[ref]->y_buffer,
