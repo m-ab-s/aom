@@ -1301,10 +1301,12 @@ class AV1Convolve2DTest : public AV1ConvolveTest<convolve_2d_func> {
     // av1_convolve_2d_sr_neon() overreads 2 bytes.
     // av1_convolve_2d_sr_neon_dotprod() overreads 7 bytes.
     const int kOverread = 8;
-    const int input_size = -fo_vert * input_stride + (im_h - 1) * input_stride +
-                           width - 1 - fo_horiz + filter_params_x->taps +
-                           kOverread;
-    ASAN_POISON_MEMORY_REGION(input + input_size, 16);
+    const int max_input_offset =
+        -fo_vert * input_stride + (im_h - 1) * input_stride + width - 1 -
+        fo_horiz + filter_params_x->taps - 1 + kOverread;
+    ASAN_POISON_MEMORY_REGION(input + max_input_offset + 1, 16);
+    const int min_input_offset = -fo_vert * input_stride - fo_horiz;
+    ASAN_POISON_MEMORY_REGION(input + min_input_offset - 16, 16);
     DECLARE_ALIGNED(32, uint8_t, reference[MAX_SB_SQUARE]);
     ConvolveParams conv_params1 =
         get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
@@ -1317,7 +1319,8 @@ class AV1Convolve2DTest : public AV1ConvolveTest<convolve_2d_func> {
     GetParam().TestFunction()(input, input_stride, test, kOutputStride, width,
                               height, filter_params_x, filter_params_y, sub_x,
                               sub_y, &conv_params2);
-    ASAN_UNPOISON_MEMORY_REGION(input + input_size, 16);
+    ASAN_UNPOISON_MEMORY_REGION(input + max_input_offset + 1, 16);
+    ASAN_UNPOISON_MEMORY_REGION(input + min_input_offset - 16, 16);
     AssertOutputBufferEq(reference, test, width, height);
   }
 
