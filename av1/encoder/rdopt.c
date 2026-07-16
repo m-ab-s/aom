@@ -718,79 +718,8 @@ static void get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
   int bw = block_size_wide[bsize];
   int bh = block_size_high[bsize];
 
-  static const int gau_filter[3][3] = {
-    { 1, 2, 1 },
-    { 2, 4, 2 },
-    { 1, 2, 1 },
-  };
-
-  DECLARE_ALIGNED(16, uint8_t, dclevel[(MAX_SB_SIZE + 2) * (MAX_SB_SIZE + 2)]);
-
-  uint8_t *pred_ptr = &dclevel[bw + 1];
-  int pred_stride = xd->plane[0].dst.stride;
-
-  for (int idy = -1; idy < bh + 1; ++idy) {
-    for (int idx = -1; idx < bw + 1; ++idx) {
-      int offset_idy = idy;
-      int offset_idx = idx;
-      if (idy == -1) offset_idy = 0;
-      if (idy == bh) offset_idy = bh - 1;
-      if (idx == -1) offset_idx = 0;
-      if (idx == bw) offset_idx = bw - 1;
-
-      int offset = offset_idy * pred_stride + offset_idx;
-      pred_ptr[idy * bw + idx] = pd->dst.buf[offset];
-    }
-  }
-
-  *rec_var = 0;
-  for (int idy = 0; idy < bh; ++idy) {
-    for (int idx = 0; idx < bw; ++idx) {
-      int sum = 0;
-      for (int iy = 0; iy < 3; ++iy)
-        for (int ix = 0; ix < 3; ++ix)
-          sum += pred_ptr[(idy + iy - 1) * bw + (idx + ix - 1)] *
-                 gau_filter[iy][ix];
-
-      sum = sum >> 4;
-
-      int64_t diff = pred_ptr[idy * bw + idx] - sum;
-      *rec_var += diff * diff;
-    }
-  }
-  *rec_var <<= 4;
-
-  int src_stride = p->src.stride;
-  for (int idy = -1; idy < bh + 1; ++idy) {
-    for (int idx = -1; idx < bw + 1; ++idx) {
-      int offset_idy = idy;
-      int offset_idx = idx;
-      if (idy == -1) offset_idy = 0;
-      if (idy == bh) offset_idy = bh - 1;
-      if (idx == -1) offset_idx = 0;
-      if (idx == bw) offset_idx = bw - 1;
-
-      int offset = offset_idy * src_stride + offset_idx;
-      pred_ptr[idy * bw + idx] = p->src.buf[offset];
-    }
-  }
-
-  *src_var = 0;
-  for (int idy = 0; idy < bh; ++idy) {
-    for (int idx = 0; idx < bw; ++idx) {
-      int sum = 0;
-      for (int iy = 0; iy < 3; ++iy)
-        for (int ix = 0; ix < 3; ++ix)
-          sum += pred_ptr[(idy + iy - 1) * bw + (idx + ix - 1)] *
-                 gau_filter[iy][ix];
-
-      sum = sum >> 4;
-
-      int64_t diff = pred_ptr[idy * bw + idx] - sum;
-      *src_var += diff * diff;
-    }
-  }
-  *src_var <<= 4;
+  *rec_var = aom_calc_variance_stat(pd->dst.buf, pd->dst.stride, bw, bh);
+  *src_var = aom_calc_variance_stat(p->src.buf, p->src.stride, bw, bh);
 }
 
 static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
