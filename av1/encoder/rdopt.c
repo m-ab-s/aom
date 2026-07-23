@@ -621,6 +621,7 @@ void av1_get_horver_correlation_full_c(const int16_t *diff, int stride,
   }
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 static void get_variance_stats_hbd(const MACROBLOCK *x, int64_t *src_var,
                                    int64_t *rec_var) {
   const MACROBLOCKD *xd = &x->e_mbd;
@@ -637,9 +638,16 @@ static void get_variance_stats_hbd(const MACROBLOCK *x, int64_t *src_var,
   *src_var = aom_highbd_calc_variance_stat(CONVERT_TO_SHORTPTR(p->src.buf),
                                            p->src.stride, bw, bh);
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 static void get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
                                int64_t *rec_var) {
+#if CONFIG_AV1_HIGHBITDEPTH
+  if (is_cur_buf_hbd(&x->e_mbd)) {
+    get_variance_stats_hbd(x, src_var, rec_var);
+    return;
+  }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
   const MACROBLOCKD *xd = &x->e_mbd;
   const MB_MODE_INFO *mbmi = xd->mi[0];
   const struct macroblockd_plane *const pd = &xd->plane[AOM_PLANE_Y];
@@ -681,12 +689,7 @@ static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
   if (frame_is_kf_gf_arf(cpi)) return;
 
   int64_t src_var, rec_var;
-
-  const bool is_hbd = is_cur_buf_hbd(&x->e_mbd);
-  if (is_hbd)
-    get_variance_stats_hbd(x, &src_var, &rec_var);
-  else
-    get_variance_stats(x, &src_var, &rec_var);
+  get_variance_stats(x, &src_var, &rec_var);
 
   if (src_var <= rec_var) return;
 
@@ -711,12 +714,7 @@ static void adjust_cost(const AV1_COMP *cpi, const MACROBLOCK *x,
   if (frame_is_kf_gf_arf(cpi)) return;
 
   int64_t src_var, rec_var;
-  const bool is_hbd = is_cur_buf_hbd(&x->e_mbd);
-
-  if (is_hbd)
-    get_variance_stats_hbd(x, &src_var, &rec_var);
-  else
-    get_variance_stats(x, &src_var, &rec_var);
+  get_variance_stats(x, &src_var, &rec_var);
 
   if (src_var <= rec_var) return;
 
