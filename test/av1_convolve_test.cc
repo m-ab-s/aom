@@ -1314,11 +1314,16 @@ class AV1Convolve2DTest : public AV1ConvolveTest<convolve_2d_func> {
                          height, filter_params_x, filter_params_y, sub_x, sub_y,
                          &conv_params1);
     DECLARE_ALIGNED(32, uint8_t, test[MAX_SB_SQUARE]);
+    const int max_dst_offset = height * kOutputStride;
+    ASAN_POISON_MEMORY_REGION(test + max_dst_offset,
+                              sizeof(test) - max_dst_offset);
     ConvolveParams conv_params2 =
         get_conv_params_no_round(0, 0, nullptr, 0, 0, 8);
     GetParam().TestFunction()(input, input_stride, test, kOutputStride, width,
                               height, filter_params_x, filter_params_y, sub_x,
                               sub_y, &conv_params2);
+    ASAN_UNPOISON_MEMORY_REGION(test + max_dst_offset,
+                                sizeof(test) - max_dst_offset);
     ASAN_UNPOISON_MEMORY_REGION(input + max_input_offset + 1, 16);
     ASAN_UNPOISON_MEMORY_REGION(input + min_input_offset - 16, 16);
     AssertOutputBufferEq(reference, test, width, height);
