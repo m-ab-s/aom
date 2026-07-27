@@ -254,6 +254,60 @@ TEST(EncodeAPI, InvalidSvcParams) {
   EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+// Bug: 538651949.
+TEST(EncodeAPI, SvcFixBypass) {
+  aom_codec_ctx_t enc;
+  aom_codec_enc_cfg_t cfg;
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_svc_layer_id_t layer_id = { 3, 0 };
+  aom_svc_params_t svc_params = {};
+
+  EXPECT_EQ(aom_codec_enc_config_default(iface, &cfg, kUsage), AOM_CODEC_OK);
+  cfg.g_w = 320;
+  cfg.g_h = 240;
+  cfg.g_threads = 1;
+  cfg.g_lag_in_frames = 0;
+
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+
+  // Set number of spatial layers to 4 via control SET_NUMBER_SPATIAL_LAYERS.
+  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_NUMBER_SPATIAL_LAYERS, 4),
+            AOM_CODEC_OK);
+
+  // Set the active spatial layer id to 3. This is expected to fail since
+  // cpi->svc.number_spatial_layers is still 1 (default).
+  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_LAYER_ID, &layer_id),
+            AOM_CODEC_INVALID_PARAM);
+
+  // Set SVC params to 2x2 layer config, via AV1E_SET_SVC_PARAMS. This sets
+  // all svc layer parameters, allocates for the layer context, and sets use_svc
+  // = 1.
+  svc_params.number_spatial_layers = 2;
+  svc_params.number_temporal_layers = 2;
+  for (int i = 0; i < AOM_MAX_LAYERS; i++) {
+    svc_params.max_quantizers[i] = 52;
+    svc_params.min_quantizers[i] = 10;
+    svc_params.layer_target_bitrate[i] = 100;
+  }
+  svc_params.scaling_factor_num[0] = 1;
+  svc_params.scaling_factor_den[0] = 2;
+  svc_params.scaling_factor_num[1] = 1;
+  svc_params.scaling_factor_den[1] = 1;
+  svc_params.framerate_factor[0] = 2;
+  svc_params.framerate_factor[1] = 1;
+
+  EXPECT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_PARAMS, &svc_params),
+            AOM_CODEC_OK);
+
+  // Now try setting number of spatial layers to 3 using the control
+  // SET_NUMBER_SPATIAL_LAYERS. This is expected to fail because SVC was
+  // configured via AV1E_SET_SVC_PARAMS, so use_svc = 1.
+  EXPECT_EQ(aom_codec_control(&enc, AOME_SET_NUMBER_SPATIAL_LAYERS, 3),
+            AOM_CODEC_INVALID_PARAM);
+
+  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 TEST(EncodeAPI, InvalidControlId) {
   aom_codec_iface_t *iface = aom_codec_av1_cx();
   aom_codec_ctx_t enc;

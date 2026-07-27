@@ -4081,10 +4081,16 @@ static aom_codec_err_t ctrl_set_number_spatial_layers(aom_codec_alg_priv_t *ctx,
   // it is false (the default) the actual limit is 3 for both spatial and
   // temporal layers. Given the order of these calls are unpredictable the
   // final check is deferred until encoder_encode() (av1_set_svc_fixed_mode()).
+  // The condition to return invalid_param when use_svc is set
+  // (set in set_svc_params) is to avoid calling this control when
+  // set_svc_params is already called (which sets the number of spatial and
+  // temporal layers).
   if (number_spatial_layers <= 0 ||
-      number_spatial_layers > MAX_NUM_SPATIAL_LAYERS)
+      number_spatial_layers > MAX_NUM_SPATIAL_LAYERS || ctx->ppi->use_svc)
     return AOM_CODEC_INVALID_PARAM;
   ctx->ppi->number_spatial_layers = number_spatial_layers;
+  ctx->ppi->cpi->common.spatial_layer_id = clamp(
+      ctx->ppi->cpi->common.spatial_layer_id, 0, number_spatial_layers - 1);
   // update_encoder_cfg() is somewhat costly and this control may be called
   // multiple times, so update_encoder_cfg() is only called to ensure frame and
   // superblock sizes are updated before they're fixed by the first encode
@@ -4100,7 +4106,10 @@ static aom_codec_err_t ctrl_set_layer_id(aom_codec_alg_priv_t *ctx,
   aom_svc_layer_id_t *const data = va_arg(args, aom_svc_layer_id_t *);
   if (data->spatial_layer_id < 0 || data->temporal_layer_id < 0 ||
       data->spatial_layer_id >= (int)ctx->ppi->number_spatial_layers ||
-      data->temporal_layer_id >= (int)ctx->ppi->number_temporal_layers) {
+      data->temporal_layer_id >= (int)ctx->ppi->number_temporal_layers ||
+      data->spatial_layer_id >= (int)ctx->ppi->cpi->svc.number_spatial_layers ||
+      data->temporal_layer_id >=
+          (int)ctx->ppi->cpi->svc.number_temporal_layers) {
     return AOM_CODEC_INVALID_PARAM;
   }
   ctx->ppi->cpi->common.spatial_layer_id = data->spatial_layer_id;
@@ -4152,20 +4161,16 @@ static aom_codec_err_t ctrl_set_svc_params(aom_codec_alg_priv_t *ctx,
     ctx->next_frame_flags |= AOM_EFLAG_FORCE_KF;
     av1_set_svc_seq_params(ppi);
     av1_free_svc_cyclic_refresh(cpi);
-    // Check for valid values for the spatial/temporal_layer_id here, since
-    // there has been a dynamic change in the number_spatial/temporal_layers,
-    // and if the ctrl_set_layer_id is not used after this call, the
-    // previous (last_encoded) values of spatial/temporal_layer_id will be used,
-    // which may be invalid.
-    cpi->svc.spatial_layer_id =
-        clamp(cpi->svc.spatial_layer_id, 0, cpi->svc.number_spatial_layers - 1);
-    cpi->svc.temporal_layer_id = clamp(cpi->svc.temporal_layer_id, 0,
-                                       cpi->svc.number_temporal_layers - 1);
-    cpi->common.spatial_layer_id = clamp(cpi->common.spatial_layer_id, 0,
-                                         cpi->svc.number_spatial_layers - 1);
-    cpi->common.temporal_layer_id = clamp(cpi->common.temporal_layer_id, 0,
-                                          cpi->svc.number_temporal_layers - 1);
   }
+
+  // Check for valid values for the spatial/temporal_layer_id here.
+  // If ctrl_set_layer_id is not used after this call, the currently configured
+  // values of spatial/temporal_layer_id will be used, which may be out of
+  // bounds.
+  cpi->common.spatial_layer_id = cpi->svc.spatial_layer_id =
+      clamp(cpi->svc.spatial_layer_id, 0, cpi->svc.number_spatial_layers - 1);
+  cpi->common.temporal_layer_id = cpi->svc.temporal_layer_id =
+      clamp(cpi->svc.temporal_layer_id, 0, cpi->svc.number_temporal_layers - 1);
 
   if (ppi->number_spatial_layers > 1 || ppi->number_temporal_layers > 1) {
     unsigned int sl, tl;
