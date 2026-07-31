@@ -442,17 +442,18 @@ file(WRITE "${AOM_GEN_SRC_DIR}/usage_exit.c"
 #
 if(ENABLE_EXAMPLES OR ENABLE_TESTS OR ENABLE_TOOLS)
   add_library(aom_common_app_util OBJECT ${AOM_COMMON_APP_UTIL_SOURCES})
+  set_property(TARGET aom_common_app_util PROPERTY FOLDER examples)
   add_library(aom_usage_exit OBJECT "${AOM_GEN_SRC_DIR}/usage_exit.c")
-  set_property(TARGET ${example} PROPERTY FOLDER examples)
+  set_property(TARGET aom_usage_exit PROPERTY FOLDER examples)
   if(CONFIG_AV1_DECODER)
     add_library(aom_decoder_app_util OBJECT ${AOM_DECODER_APP_UTIL_SOURCES})
-    set_property(TARGET ${example} PROPERTY FOLDER examples)
+    set_property(TARGET aom_decoder_app_util PROPERTY FOLDER examples)
     # obudec depends on internal headers that require *rtcd.h
     add_dependencies(aom_decoder_app_util aom_rtcd)
   endif()
   if(CONFIG_AV1_ENCODER)
     add_library(aom_encoder_app_util OBJECT ${AOM_ENCODER_APP_UTIL_SOURCES})
-    set_property(TARGET ${example} PROPERTY FOLDER examples)
+    set_property(TARGET aom_encoder_app_util PROPERTY FOLDER examples)
   endif()
 endif()
 
