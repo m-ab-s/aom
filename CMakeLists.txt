@@ -751,8 +751,8 @@ if(ENABLE_TOOLS)
     list(APPEND AOM_TOOL_TARGETS dump_obu)
     list(APPEND AOM_APP_TARGETS dump_obu)
 
-    # Maintain a separate variable listing only the examples to facilitate
-    # installation of example programs into an tools sub directory of
+    # Maintain a separate variable listing only the tools to facilitate
+    # installation of tool programs into a tools sub directory of
     # $AOM_DIST_DIR/bin when building the dist target.
     list(APPEND AOM_TOOL_TARGETS ${AOM_DECODER_TOOL_TARGETS}
                 ${AOM_ENCODER_TOOL_TARGETS})
@@ -889,7 +889,8 @@ endif()
 
 if(ENABLE_EXAMPLES AND "${CMAKE_GENERATOR}" MATCHES "Makefiles$")
 
-  # For historical purposes place the example binaries in the example directory.
+  # For historical purposes place the example binaries in the examples
+  # directory.
   file(MAKE_DIRECTORY "${AOM_CONFIG_DIR}/examples")
 
   foreach(target ${AOM_EXAMPLE_TARGETS})
