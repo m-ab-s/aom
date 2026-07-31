@@ -187,6 +187,8 @@ set_aom_config_var(CONFIG_HIGHWAY 0 "Use Highway for SIMD.")
 #
 # Variables in this section control optional features of the build system.
 #
+set_aom_option_var(ENABLE_APPS
+                   "Enables build of main applications (aomenc/aomdec)." ON)
 set_aom_option_var(ENABLE_CCACHE "Enable ccache support." OFF)
 set_aom_option_var(ENABLE_DECODE_PERF_TESTS "Enables decoder performance tests"
                    OFF)
