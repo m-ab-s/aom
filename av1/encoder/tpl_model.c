@@ -2136,6 +2136,29 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int gop_eval,
   int extended_frame_count = init_gop_frames_for_tpl(
       cpi, frame_params, gf_group, &tpl_gf_group_frames, &pframe_qindex);
 
+  if (av1_encode_for_extrc(&cpi->ext_ratectrl)) {
+    // Find the maximum QP for this GOP from ext_rc. Use it as the base qp.
+    int max_q = 0;
+    for (int frame_idx = 0; frame_idx < gf_group->size; ++frame_idx) {
+      aom_rc_encodeframe_decision_t encode_frame_decision;
+
+      int use_delta_q = 0;
+      encode_frame_decision.use_delta_q = &use_delta_q;
+      encode_frame_decision.sb_params_list = NULL;
+      if (av1_extrc_get_encodeframe_decision(&cpi->ext_ratectrl, frame_idx,
+                                             &encode_frame_decision) ==
+          AOM_CODEC_OK) {
+        if (encode_frame_decision.q_index != AOM_DEFAULT_Q &&
+            encode_frame_decision.q_index > max_q) {
+          max_q = encode_frame_decision.q_index;
+        }
+      }
+    }
+    if (max_q > 0) {
+      pframe_qindex = max_q;
+    }
+  }
+
   cpi->ppi->p_rc.base_layer_qp = pframe_qindex;
 
   av1_init_tpl_stats(tpl_data);
