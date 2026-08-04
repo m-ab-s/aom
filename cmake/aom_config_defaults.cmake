@@ -14,6 +14,13 @@ include("${AOM_ROOT}/cmake/util.cmake")
 # config variables are added to the CMake variable cache via the macros provided
 # in util.cmake.
 
+# Only run if this is the main project.
+if(CMAKE_PROJECT_NAME STREQUAL "AOM")
+  # BUILD_SHARED_LIBS is a standard CMake variable, but we declare it here to
+  # make it prominent in the GUI.
+  option(BUILD_SHARED_LIBS "Build shared libraries (DLLs)." OFF)
+endif()
+
 #
 # The variables in this section of the file are detected at configuration time,
 # but can be overridden via the use of CONFIG_* and ENABLE_* values also defined
