@@ -1725,7 +1725,14 @@ static inline int init_gop_frames_for_tpl(
       *pframe_qindex = gf_group->q_val[gf_index];
       leaf_frame_qindex = *pframe_qindex;
       if (cpi->oxcf.rc_cfg.mode == AOM_VBR) {
-        *pframe_qindex = CLIP(*pframe_qindex, MIN_TPL_Q_INDEX, MAX_TPL_Q_INDEX);
+        const int bit_depth = cm->seq_params->bit_depth;
+        const double q_val = av1_convert_qindex_to_q(*pframe_qindex, bit_depth);
+        const double qindex_ratio = (double)(*pframe_qindex) / MAXQ;
+        const double qstep_ratio = 1.0 - (qindex_ratio * qindex_ratio * 0.5);
+        const int delta_qindex =
+            av1_compute_qdelta(&cpi->rc, q_val, q_val * qstep_ratio, bit_depth);
+        *pframe_qindex = CLIP(*pframe_qindex + delta_qindex, MIN_TPL_Q_INDEX,
+                              MAX_TPL_Q_INDEX);
       }
     }
 
