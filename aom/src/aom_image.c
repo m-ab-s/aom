@@ -293,21 +293,31 @@ int aom_img_set_rect(aom_image_t *img, unsigned int x, unsigned int y,
 }
 
 void aom_img_flip(aom_image_t *img) {
+  const unsigned int chroma_height =
+      (img->d_h + img->y_chroma_shift) >> img->y_chroma_shift;
+
   /* Note: In the pointer adjustment calculations, we want the rhs to be
    * promoted to a signed type. Section 6.3.1.8 of the ISO C99 standard
    * indicates that if the first operand of the multiplication is unsigned, the
    * stride will be promoted to unsigned, causing errors when the lhs is a
    * larger type than the rhs.
    */
-  img->planes[AOM_PLANE_Y] += (signed)(img->d_h - 1) * img->stride[AOM_PLANE_Y];
+  if (img->planes[AOM_PLANE_Y]) {
+    img->planes[AOM_PLANE_Y] +=
+        (signed)(img->d_h - 1) * img->stride[AOM_PLANE_Y];
+  }
   img->stride[AOM_PLANE_Y] = -img->stride[AOM_PLANE_Y];
 
-  img->planes[AOM_PLANE_U] += (signed)((img->d_h >> img->y_chroma_shift) - 1) *
-                              img->stride[AOM_PLANE_U];
+  if (img->planes[AOM_PLANE_U]) {
+    img->planes[AOM_PLANE_U] +=
+        (signed)(chroma_height - 1) * img->stride[AOM_PLANE_U];
+  }
   img->stride[AOM_PLANE_U] = -img->stride[AOM_PLANE_U];
 
-  img->planes[AOM_PLANE_V] += (signed)((img->d_h >> img->y_chroma_shift) - 1) *
-                              img->stride[AOM_PLANE_V];
+  if (img->planes[AOM_PLANE_V]) {
+    img->planes[AOM_PLANE_V] +=
+        (signed)(chroma_height - 1) * img->stride[AOM_PLANE_V];
+  }
   img->stride[AOM_PLANE_V] = -img->stride[AOM_PLANE_V];
 }
 
