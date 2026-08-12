@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -296,27 +297,21 @@ void aom_img_flip(aom_image_t *img) {
   const unsigned int chroma_height =
       (img->d_h + img->y_chroma_shift) >> img->y_chroma_shift;
 
-  /* Note: In the pointer adjustment calculations, we want the rhs to be
-   * promoted to a signed type. Section 6.3.1.8 of the ISO C99 standard
-   * indicates that if the first operand of the multiplication is unsigned, the
-   * stride will be promoted to unsigned, causing errors when the lhs is a
-   * larger type than the rhs.
-   */
   if (img->planes[AOM_PLANE_Y]) {
     img->planes[AOM_PLANE_Y] +=
-        (signed)(img->d_h - 1) * img->stride[AOM_PLANE_Y];
+        (ptrdiff_t)(img->d_h - 1) * img->stride[AOM_PLANE_Y];
   }
   img->stride[AOM_PLANE_Y] = -img->stride[AOM_PLANE_Y];
 
   if (img->planes[AOM_PLANE_U]) {
     img->planes[AOM_PLANE_U] +=
-        (signed)(chroma_height - 1) * img->stride[AOM_PLANE_U];
+        (ptrdiff_t)(chroma_height - 1) * img->stride[AOM_PLANE_U];
   }
   img->stride[AOM_PLANE_U] = -img->stride[AOM_PLANE_U];
 
   if (img->planes[AOM_PLANE_V]) {
     img->planes[AOM_PLANE_V] +=
-        (signed)(chroma_height - 1) * img->stride[AOM_PLANE_V];
+        (ptrdiff_t)(chroma_height - 1) * img->stride[AOM_PLANE_V];
   }
   img->stride[AOM_PLANE_V] = -img->stride[AOM_PLANE_V];
 }
