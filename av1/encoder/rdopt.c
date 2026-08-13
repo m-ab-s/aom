@@ -632,11 +632,15 @@ static void get_variance_stats_hbd(const MACROBLOCK *x, int64_t *src_var,
   BLOCK_SIZE bsize = mbmi->bsize;
   int bw = block_size_wide[bsize];
   int bh = block_size_high[bsize];
+  const int shift = 2 * (xd->bd - 8);
 
   *rec_var = aom_highbd_calc_variance_stat(CONVERT_TO_SHORTPTR(pd->dst.buf),
                                            pd->dst.stride, bw, bh);
   *src_var = aom_highbd_calc_variance_stat(CONVERT_TO_SHORTPTR(p->src.buf),
                                            p->src.stride, bw, bh);
+
+  *rec_var = ROUND_POWER_OF_TWO(*rec_var, shift);
+  *src_var = ROUND_POWER_OF_TWO(*src_var, shift);
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
