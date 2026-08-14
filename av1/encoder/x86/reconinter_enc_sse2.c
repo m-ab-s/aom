@@ -111,7 +111,7 @@ void aom_upsampled_pred_sse2(MACROBLOCKD *xd, const struct AV1Common *const cm,
     uint8_t *temp_start_vert = temp + MAX_SB_SIZE * ((filter->taps >> 1) - 1);
     int intermediate_height =
         (((height - 1) * 8 + subpel_y_q3) >> 3) + filter_taps;
-    assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
+    assert(intermediate_height < (MAX_SB_SIZE + SUBPEL_TAPS));
     aom_convolve8_horiz(ref_start, ref_stride, temp_start_horiz, MAX_SB_SIZE,
                         kernel_x, 16, NULL, -1, width, intermediate_height);
     aom_convolve8_vert(temp_start_vert, MAX_SB_SIZE, comp_pred, width, NULL, -1,
@@ -175,6 +175,17 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
     aom_highbd_convolve8_vert(ref8, ref_stride, comp_pred8, width, NULL, -1,
                               kernel, 16, width, height, bd);
   } else {
+    // The src and dst parameters of 'aom_highbd_convolve8_vert()' call are the
+    // same buffer ('comp_pred8') although they start from different offsets in
+    // the buffer. For any given row 'y', the 8-tap vertical filter reads a
+    // window of input rows from 'y-3' to 'y+4' (stride = MAX_SB_SIZE) and the
+    // result is written to row 'y-3' (stride = width) of the `comp_pred8`
+    // buffer. Since 'width <= MAX_SB_SIZE', output is written only after its
+    // corresponding input has already been read, eliminating any risk of
+    // overwriting data required for future iterations. The function
+    // 'aom_highbd_convolve8_vert()' must process the rows from top to bottom in
+    // increading order of row index, otherwise it will break the in-place
+    // processing of 'comp_pred8'.
     uint16_t *temp = CONVERT_TO_SHORTPTR(comp_pred8);
     const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
     const int16_t *const kernel_x =
@@ -188,7 +199,7 @@ void aom_highbd_upsampled_pred_sse2(MACROBLOCKD *xd,
     uint16_t *temp_start_vert = temp + MAX_SB_SIZE * ((filter->taps >> 1) - 1);
     const int intermediate_height =
         (((height - 1) * 8 + subpel_y_q3) >> 3) + filter_taps;
-    assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
+    assert(intermediate_height < (MAX_SB_SIZE + SUBPEL_TAPS));
     aom_highbd_convolve8_horiz(CONVERT_TO_BYTEPTR(ref_start), ref_stride,
                                CONVERT_TO_BYTEPTR(temp_start_horiz),
                                MAX_SB_SIZE, kernel_x, 16, NULL, -1, width,

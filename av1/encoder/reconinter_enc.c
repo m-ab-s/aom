@@ -491,7 +491,7 @@ void aom_upsampled_pred_c(MACROBLOCKD *xd, const AV1_COMMON *const cm,
         av1_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
     const int intermediate_height =
         (((height - 1) * 8 + subpel_y_q3) >> 3) + filter->taps;
-    assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
+    assert(intermediate_height < (MAX_SB_SIZE + SUBPEL_TAPS));
     aom_convolve8_horiz_c(ref - ref_stride * ((filter->taps >> 1) - 1),
                           ref_stride, temp, MAX_SB_SIZE, kernel_x, 16, NULL, -1,
                           width, intermediate_height);
@@ -574,7 +574,7 @@ void aom_highbd_upsampled_pred_c(MACROBLOCKD *xd,
         av1_get_interp_filter_subpel_kernel(filter, subpel_y_q3 << 1);
     const int intermediate_height =
         (((height - 1) * 8 + subpel_y_q3) >> 3) + filter->taps;
-    assert(intermediate_height <= (MAX_SB_SIZE * 2 + 16) + 16);
+    assert(intermediate_height < (MAX_SB_SIZE + SUBPEL_TAPS));
     aom_highbd_convolve8_horiz_c(
         CONVERT_TO_BYTEPTR(ref - ref_stride * ((filter->taps >> 1) - 1)),
         ref_stride, CONVERT_TO_BYTEPTR(temp), MAX_SB_SIZE, kernel_x, 16, NULL,

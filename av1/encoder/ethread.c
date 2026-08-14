@@ -996,7 +996,7 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
 
       AOM_CHECK_MEM_ERROR(
           &ppi->error, td->upsample_pred,
-          aom_memalign(16, (1 + is_highbitdepth) * ((MAX_SB_SIZE + 16) + 16) *
+          aom_memalign(16, (1 + is_highbitdepth) * (MAX_SB_SIZE + SUBPEL_TAPS) *
                                MAX_SB_SIZE * sizeof(*td->upsample_pred)));
 
       if (!is_first_pass && i < num_enc_workers) {

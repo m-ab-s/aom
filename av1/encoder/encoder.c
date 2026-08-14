@@ -979,9 +979,13 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   }
 
   if (x->upsample_pred == NULL) {
+    // The buffer 'upsampled_pred' is used to store the output of horizontal
+    // filtering in aom_(highbd_)upsampled_pred() function. As the length of the
+    // interpolation filter used is SUBPEL_TAPS a buffer size of (MAX_SB_SIZE +
+    // SUBPEL_TAPS) * MAX_SB_SIZE is allocated.
     CHECK_MEM_ERROR(
         cm, x->upsample_pred,
-        aom_memalign(16, (1 + is_highbitdepth) * ((MAX_SB_SIZE + 16) + 16) *
+        aom_memalign(16, (1 + is_highbitdepth) * (MAX_SB_SIZE + SUBPEL_TAPS) *
                              MAX_SB_SIZE * sizeof(*x->upsample_pred)));
     x->e_mbd.tmp_upsample_pred = x->upsample_pred;
   }
