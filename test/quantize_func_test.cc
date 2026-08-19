@@ -49,10 +49,6 @@ using QuantizeFuncHbd = void (*)(QUAN_PARAM_LIST, int log_scale);
 
 #undef LP_QUANTIZE_PARAM_LIST
 
-#define LBD_QUAN_FUNC                                                      \
-  fn(coeff_ptr, n_coeffs, zbin_ptr, round_ptr, quant_ptr, quant_shift_ptr, \
-     qcoeff_ptr, dqcoeff_ptr, dequant_ptr, eob_ptr, scan, iscan)
-
 #if CONFIG_AV1_HIGHBITDEPTH
 #define HBD_QUAN_FUNC                                                      \
   fn(coeff_ptr, n_coeffs, zbin_ptr, round_ptr, quant_ptr, quant_shift_ptr, \
