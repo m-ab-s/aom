@@ -1,3 +1,20 @@
+2026-08-20 v3.15.0
+  This release is ABI compatible with the last release.
+
+  This release includes the fixes for all the security issues found by
+  AI tools recently.
+
+  Important build system change: The cmake option ENABLE_APPS was added
+  to build aomdec and aomenc without building the example programs. The
+  cmake option ENABLE_EXAMPLES was redefined to build only the example
+  programs.
+
+  - New Features
+    * Test only: New codec control AV1E_SET_MODE_REF_DELTA_ENABLED for
+      the encoder to toggle loopfilter mode_ref_delta_enabled.
+    * New key-value pair “force-max-q” for the encoder to force the use
+      of max Q in VBR mode.
+
 2026-05-22 v3.14.1
   This release is ABI compatible with the last release. See
   https://aomedia.googlesource.com/aom/+log/v3.14.0..v3.14.1 for all the
