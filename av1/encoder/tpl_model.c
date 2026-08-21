@@ -1724,7 +1724,7 @@ static inline int init_gop_frames_for_tpl(
     if (frame_update_type == LF_UPDATE) {
       *pframe_qindex = gf_group->q_val[gf_index];
       leaf_frame_qindex = *pframe_qindex;
-      if (cpi->oxcf.rc_cfg.mode == AOM_VBR) {
+      if (cpi->oxcf.rc_cfg.mode == AOM_VBR || cpi->oxcf.rc_cfg.mode == AOM_Q) {
         const int bit_depth = cm->seq_params->bit_depth;
         const double q_val = av1_convert_qindex_to_q(*pframe_qindex, bit_depth);
         const double qindex_ratio = (double)(*pframe_qindex) / MAXQ;
