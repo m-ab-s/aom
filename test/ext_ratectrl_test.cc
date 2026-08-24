@@ -259,7 +259,6 @@ class ExtRateCtrlQpTest : public ExtRateCtrlTest {
  protected:
   ExtRateCtrlQpTest() {
     rc_funcs_.get_encodeframe_decision = mock_get_encodeframe_decision_const_q;
-    rc_funcs_.send_tpl_gop_stats = nullptr;
   }
   ~ExtRateCtrlQpTest() override = default;
 
@@ -296,7 +295,6 @@ class ExtRateCtrlUpdateEncodeFrameResultTest : public ExtRateCtrlTest {
     rc_funcs_.rc_type = AOM_RC_QP;
     rc_funcs_.get_encodeframe_decision = mock_get_encodeframe_decision_const_q;
     rc_funcs_.update_encodeframe_result = mock_update_encodeframe_result;
-    rc_funcs_.send_tpl_gop_stats = nullptr;
   }
   ~ExtRateCtrlUpdateEncodeFrameResultTest() override = default;
 

@@ -3476,18 +3476,6 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
       // q.
       if (encode_frame_decision.q_index != AOM_DEFAULT_Q) {
         q = encode_frame_decision.q_index;
-#if !CONFIG_REALTIME_ONLY
-        // This pass sends tpl stats to ext_rc. Use libaom's own Q.
-        if (av1_use_tpl_for_extrc(&cpi->ext_ratectrl) &&
-            cpi->ppi->tpl_data.tpl_frame[cpi->gf_frame_index].is_valid &&
-            !is_lossless_requested(&cpi->oxcf.rc_cfg)) {
-          q = av1_tpl_get_q_index(&cpi->ppi->tpl_data, cpi->gf_frame_index,
-                                  cpi->ppi->p_rc.base_layer_qp,
-                                  cm->seq_params->bit_depth);
-          q = clamp(q, cpi->oxcf.rc_cfg.best_allowed_q,
-                    cpi->oxcf.rc_cfg.worst_allowed_q);
-        }
-#endif
       }
     }
 
