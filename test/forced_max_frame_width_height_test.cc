@@ -277,4 +277,37 @@ TEST(EncodeForcedMaxFrameWidthHeight, SecondFrameTooBig) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 
+// A regression test for bug 555350218.
+TEST(EncodeForcedMaxFrameWidthHeight, ReducedStillPictureHeader) {
+  constexpr size_t kImageDataSize = 128 * 128 + 2 * 64 * 64;
+  std::unique_ptr<unsigned char[]> img_data(new unsigned char[kImageDataSize]);
+  ASSERT_NE(img_data, nullptr);
+  memset(img_data.get(), 128, kImageDataSize);
+  aom_image_t img;
+  EXPECT_EQ(&img,
+            aom_img_wrap(&img, AOM_IMG_FMT_I420, 128, 128, 1, img_data.get()));
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  EXPECT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME));
+  cfg.g_w = 128;
+  cfg.g_h = 128;
+  cfg.g_limit = 1;
+
+  aom_codec_ctx_t enc;
+
+  cfg.g_forced_max_frame_width = 128;
+  cfg.g_forced_max_frame_height = 128;
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, &img, 0, 1, 0));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+
+  cfg.g_forced_max_frame_width = 256;
+  cfg.g_forced_max_frame_height = 256;
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
+  EXPECT_NE(AOM_CODEC_OK, aom_codec_encode(&enc, &img, 0, 1, 0));
+  EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+}
+
 }  // namespace
