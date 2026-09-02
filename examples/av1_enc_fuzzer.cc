@@ -70,8 +70,7 @@ uint8_t ReadU8(FuzzReader *reader) {
 
 uint16_t ReadU16(FuzzReader *reader) {
   if (reader->size < 2) return 0;
-  const uint16_t value = static_cast<uint16_t>(reader->data[0]) |
-                         static_cast<uint16_t>(reader->data[1] << 8);
+  const uint16_t value = reader->data[0] | (reader->data[1] << 8);
   reader->data += 2;
   reader->size -= 2;
   return value;
