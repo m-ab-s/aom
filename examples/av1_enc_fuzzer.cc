@@ -109,10 +109,13 @@ int PickCpuUsed(unsigned int usage, uint8_t raw) {
   return raw % (max_cpu_used + 1);
 }
 
-void DrainPackets(aom_codec_ctx_t *codec) {
+bool DrainPackets(aom_codec_ctx_t *codec) {
+  bool got_data = false;
   aom_codec_iter_t iter = nullptr;
   while (aom_codec_get_cx_data(codec, &iter) != nullptr) {
+    got_data = true;
   }
+  return got_data;
 }
 
 bool InitDefaultConfig(aom_codec_iface_t *iface, unsigned int usage,
@@ -214,7 +217,7 @@ bool EncodeFrame(aom_codec_ctx_t *codec, FuzzReader *reader, unsigned int width,
   const aom_codec_err_t enc_ret =
       aom_codec_encode(codec, &image, pts, 1, flags);
   if (enc_ret == AOM_CODEC_OK) {
-    DrainPackets(codec);
+    (void)DrainPackets(codec);
   }
 
   aom_img_free(&image);
@@ -316,10 +319,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   }
 
   if (!config_failed) {
-    const aom_codec_err_t flush_ret =
-        aom_codec_encode(&codec, nullptr, 0, 0, 0);
-    if (flush_ret == AOM_CODEC_OK) {
-      DrainPackets(&codec);
+    while (aom_codec_encode(&codec, nullptr, 0, 0, 0) == AOM_CODEC_OK &&
+           DrainPackets(&codec)) {
     }
   }
 
