@@ -29,6 +29,9 @@
 #include "aom/aom_image.h"
 #include "aom_mem/aom_mem.h"
 
+#include "av1/common/blockd.h"
+#include "av1/common/reconintra.h"
+#include "av1/encoder/allintra_vis.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/util.h"
@@ -2888,5 +2891,75 @@ TEST(EncodeAPI, Issue559225640) {
   TestDynamicThreadReductionWithTiles(/*tile_rows=*/0, /*tile_columns=*/1,
                                       /*init_threads=*/1, /*max_threads=*/4);
 }
+
+#if !CONFIG_REALTIME_ONLY
+TEST(EncodeAPI, Buganizer558446054) {
+#if !CONFIG_SHARED
+  av1_init_intra_predictors();
+
+  MACROBLOCKD xd = {};
+  YV12_BUFFER_CONFIG cur_buf = {};
+  xd.cur_buf = &cur_buf;
+  MB_MODE_INFO mbmi = {};
+  mbmi.bsize = BLOCK_8X8;
+  mbmi.partition = PARTITION_NONE;
+  mbmi.mode = D45_PRED;
+  MB_MODE_INFO *mbmi_ptr = &mbmi;
+  xd.mi = &mbmi_ptr;
+  xd.bd = 8;
+  xd.left_available = 1;
+  xd.up_available = 1;
+  xd.tile.mi_row_end = 100;
+  xd.tile.mi_col_end = 100;
+  // Set mb_to_bottom_edge and mb_to_right_edge such that
+  // yd + txhpx < 0 and xr < 0:
+  // yd + txhpx = (mb_to_bottom_edge >> 3) + hpx - y = -16 + 8 - 0 = -8 < 0
+  // xr = (mb_to_right_edge >> 3) + wpx - x - txwpx = -5 + 8 - 0 - 4 = -1 < 0
+  // xr + txwpx = 3 > 0 (so n_top_px = 3).
+  xd.mb_to_bottom_edge = -16 * 8;
+  xd.mb_to_right_edge = -5 * 8;
+
+  uint8_t ref_buf[64 * 64];
+  memset(ref_buf, 200, sizeof(ref_buf));
+  uint8_t dst_buf[64 * 64] = { 0 };
+  av1_predict_intra_block(&xd, BLOCK_64X64, /*enable_intra_edge_filter=*/0,
+                          /*wpx=*/8, /*hpx=*/8, TX_4X4, D45_PRED,
+                          /*angle_delta=*/0, /*use_palette=*/0,
+                          FILTER_INTRA_MODES, ref_buf + 64 * 8 + 8, 64, dst_buf,
+                          64, /*col_off=*/0, /*row_off=*/0, /*plane=*/0);
+  // In Debug builds (-UNDEBUG), reverting clamp() triggers:
+  //   Assertion `n_left_px >= 0' failed.
+  // In Release builds (-DNDEBUG), reverting clamp() causes n_topright_px < 0
+  // (-4 < 0), skipping top-right extension of above_row[3]=200 into
+  // above_row[4..7] and leaving dst_buf[3] == 127 instead of 200.
+  ASSERT_EQ(dst_buf[3], 200);
+#endif  // !CONFIG_SHARED
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_ALL_INTRA),
+            AOM_CODEC_OK);
+
+  cfg.g_w = 65;
+  cfg.g_h = 33;
+  cfg.g_threads = 0;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.rc_end_usage = AOM_Q;
+
+  aom_codec_ctx_t codec;
+  ASSERT_EQ(aom_codec_enc_init(&codec, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&codec, AOME_SET_CPUUSED, 1), AOM_CODEC_OK);
+
+  aom_image_t raw;
+  ASSERT_NE(aom_img_alloc(&raw, AOM_IMG_FMT_I420, 65, 33, 1), nullptr);
+  FillImageRandom(&raw);
+
+  ASSERT_EQ(aom_codec_encode(&codec, &raw, 0, 1, 0), AOM_CODEC_OK);
+
+  aom_img_free(&raw);
+  ASSERT_EQ(aom_codec_destroy(&codec), AOM_CODEC_OK);
+}
+#endif  // !CONFIG_REALTIME_ONLY
 
 }  // namespace
