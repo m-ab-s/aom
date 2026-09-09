@@ -365,6 +365,7 @@ static inline void dealloc_compressor_data(AV1_COMP *cpi) {
 
   aom_free(cpi->mb_weber_stats);
   cpi->mb_weber_stats = NULL;
+  cpi->mb_weber_stats_alloc_size = 0;
 
   if (cpi->oxcf.enable_rate_guide_deltaq) {
     aom_free(cpi->prep_rate_estimates);
@@ -376,6 +377,7 @@ static inline void dealloc_compressor_data(AV1_COMP *cpi) {
 
   aom_free(cpi->mb_delta_q);
   cpi->mb_delta_q = NULL;
+  cpi->mb_delta_q_alloc_size = 0;
 
 #if !CONFIG_REALTIME_ONLY
   av1_free_tpl_gop_stats(&cpi->extrc_tpl_gop_stats);

@@ -2741,6 +2741,57 @@ TEST(EncodeAPI, Buganizer558434716) {
   aom_img_free(img_large);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+
+TEST(EncodeAPI, PerceptualAIDynamicResolutionChange) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_ALL_INTRA),
+            AOM_CODEC_OK);
+
+  cfg.g_w = 17;
+  cfg.g_h = 1;
+  cfg.g_forced_max_frame_width = 320;
+  cfg.g_forced_max_frame_height = 240;
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_threads = 1;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_DELTAQ_MODE, 3), AOM_CODEC_OK);
+
+  aom_image_t *img_small = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 17, 1, 1);
+  ASSERT_NE(img_small, nullptr);
+  FillImage(img_small, 128);
+
+  aom_image_t *img_large =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 320, 240, 1);
+  ASSERT_NE(img_large, nullptr);
+  FillImage(img_large, 128);
+
+  // Frame 0 at 17x1
+  ASSERT_EQ(aom_codec_encode(&enc, img_small, 0, 1, 0), AOM_CODEC_OK);
+
+  // Switch to larger resolution
+  cfg.g_w = 320;
+  cfg.g_h = 240;
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK);
+
+  // Frame 1 at 320x240
+  ASSERT_EQ(aom_codec_encode(&enc, img_large, 1, 1, 0), AOM_CODEC_OK);
+
+  // Switch back to 17x1
+  cfg.g_w = 17;
+  cfg.g_h = 1;
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK);
+
+  // Frame 2 at 17x1
+  ASSERT_EQ(aom_codec_encode(&enc, img_small, 2, 1, 0), AOM_CODEC_OK);
+
+  aom_img_free(img_small);
+  aom_img_free(img_large);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
 #endif  // !CONFIG_REALTIME_ONLY
 
 }  // namespace

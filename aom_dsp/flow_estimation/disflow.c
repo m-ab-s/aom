@@ -447,6 +447,9 @@ void aom_compute_flow_at_point_c(const uint8_t *src, const uint8_t *ref, int x,
 
 static void fill_flow_field_borders(double *flow, int width, int height,
                                     int stride) {
+  if (width <= 2 * FLOW_BORDER_INNER || height <= 2 * FLOW_BORDER_INNER) return;
+  assert(width + 2 * FLOW_BORDER_OUTER <= stride);
+
   // Calculate the bounds of the rectangle which was filled in by
   // compute_flow_field() before calling this function.
   // These indices are inclusive on both ends.
@@ -478,7 +481,7 @@ static void fill_flow_field_borders(double *flow, int width, int height,
   for (int i = -FLOW_BORDER_OUTER; i < top_index; i++) {
     double *row = flow + i * stride - FLOW_BORDER_OUTER;
     size_t length = width + 2 * FLOW_BORDER_OUTER;
-    memcpy(row, top_row, length * sizeof(*row));
+    memmove(row, top_row, length * sizeof(*row));
   }
 
   // Bottom area
@@ -486,7 +489,7 @@ static void fill_flow_field_borders(double *flow, int width, int height,
   for (int i = bottom_index + 1; i < height + FLOW_BORDER_OUTER; i++) {
     double *row = flow + i * stride - FLOW_BORDER_OUTER;
     size_t length = width + 2 * FLOW_BORDER_OUTER;
-    memcpy(row, bottom_row, length * sizeof(*row));
+    memmove(row, bottom_row, length * sizeof(*row));
   }
 }
 
@@ -541,6 +544,10 @@ static void fill_flow_field_borders(double *flow, int width, int height,
 // vector, even though these must be interpolated using different source points.
 static void upscale_flow_component(double *flow, int cur_width, int cur_height,
                                    int stride, double *tmpbuf) {
+  assert(cur_width > 0);
+  assert(cur_height > 0);
+  assert(2 * cur_width <= stride);
+
   const int half_len = FLOW_UPSCALE_TAPS / 2;
 
   // Check that the outer border is large enough to avoid needing to clamp
@@ -571,13 +578,13 @@ static void upscale_flow_component(double *flow, int cur_width, int cur_height,
   const double *top_row = &tmpbuf[0];
   for (int i = -FLOW_BORDER_OUTER; i < 0; i++) {
     double *row = &tmpbuf[i * stride];
-    memcpy(row, top_row, 2 * cur_width * sizeof(*row));
+    memmove(row, top_row, 2 * cur_width * sizeof(*row));
   }
 
   const double *bottom_row = &tmpbuf[(cur_height - 1) * stride];
   for (int i = cur_height; i < cur_height + FLOW_BORDER_OUTER; i++) {
     double *row = &tmpbuf[i * stride];
-    memcpy(row, bottom_row, 2 * cur_width * sizeof(*row));
+    memmove(row, bottom_row, 2 * cur_width * sizeof(*row));
   }
 
   // Vertical upscale
@@ -728,12 +735,17 @@ free_tmpbuf:
 }
 
 static FlowField *alloc_flow_field(int frame_width, int frame_height) {
+  const int flow_width = frame_width >> DOWNSAMPLE_SHIFT;
+  const int flow_height = frame_height >> DOWNSAMPLE_SHIFT;
+  assert(flow_width > 0);
+  assert(flow_height > 0);
+
   FlowField *flow = (FlowField *)aom_malloc(sizeof(FlowField));
   if (flow == NULL) return NULL;
 
   // Calculate the size of the bottom (largest) layer of the flow pyramid
-  flow->width = frame_width >> DOWNSAMPLE_SHIFT;
-  flow->height = frame_height >> DOWNSAMPLE_SHIFT;
+  flow->width = flow_width;
+  flow->height = flow_height;
   flow->stride = flow->width + 2 * FLOW_BORDER_OUTER;
 
   const size_t flow_size =
@@ -792,8 +804,17 @@ bool av1_compute_global_motion_disflow(
 
   const int src_width = src_pyramid->layers[0].width;
   const int src_height = src_pyramid->layers[0].height;
-  assert(ref_pyramid->layers[0].width == src_width);
-  assert(ref_pyramid->layers[0].height == src_height);
+  if (ref_pyramid->layers[0].width != src_width ||
+      ref_pyramid->layers[0].height != src_height) {
+    return false;
+  }
+  if (src_width < (1 << DOWNSAMPLE_SHIFT) ||
+      src_height < (1 << DOWNSAMPLE_SHIFT)) {
+    return false;
+  }
+  if (src_corners->num_corners == 0) {
+    return false;
+  }
 
   if (ref_pyramid->layers[0].stride != src_pyramid->layers[0].stride) {
     return false;

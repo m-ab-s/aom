@@ -132,9 +132,8 @@ INSTANTIATE_TEST_SUITE_P(SVE, ComputeFlowTest,
 
 #if CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
 TEST(DisflowTest, NarrowDimensions) {
-  YV12_BUFFER_CONFIG src, ref;
-  memset(&src, 0, sizeof(src));
-  memset(&ref, 0, sizeof(ref));
+  YV12_BUFFER_CONFIG src = {};
+  YV12_BUFFER_CONFIG ref = {};
 
   constexpr int kWidth = 17;
   constexpr int kHeight = 1;
@@ -157,9 +156,8 @@ TEST(DisflowTest, NarrowDimensions) {
 }
 
 TEST(DisflowTest, MismatchedDimensions) {
-  YV12_BUFFER_CONFIG src, ref;
-  memset(&src, 0, sizeof(src));
-  memset(&ref, 0, sizeof(ref));
+  YV12_BUFFER_CONFIG src = {};
+  YV12_BUFFER_CONFIG ref = {};
 
   ASSERT_EQ(aom_alloc_frame_buffer(&src, 128, 96, 1, 1, 0, AOM_BORDER_IN_PIXELS,
                                    0, true, 0),
@@ -180,9 +178,8 @@ TEST(DisflowTest, MismatchedDimensions) {
 }
 
 TEST(DisflowTest, MismatchedStrides) {
-  YV12_BUFFER_CONFIG src, ref;
-  memset(&src, 0, sizeof(src));
-  memset(&ref, 0, sizeof(ref));
+  YV12_BUFFER_CONFIG src = {};
+  YV12_BUFFER_CONFIG ref = {};
 
   constexpr int kWidth = 165;
   constexpr int kHeight = 513;
