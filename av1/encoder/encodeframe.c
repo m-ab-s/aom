@@ -2446,14 +2446,19 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
   mt_info->pack_bs_mt_enabled = AOMMIN(mt_info->num_mod_workers[MOD_PACK_BS],
                                        cm->tiles.cols * cm->tiles.rows) > 1;
 
-  if (oxcf->row_mt && (mt_info->num_workers > 1)) {
+  if (oxcf->row_mt && (mt_info->num_mod_workers[MOD_ENC] > 1)) {
     mt_info->row_mt_enabled = 1;
     enc_row_mt->sync_read_ptr = av1_row_mt_sync_read;
     enc_row_mt->sync_write_ptr = av1_row_mt_sync_write;
     av1_encode_tiles_row_mt(cpi);
   } else {
-    if (AOMMIN(mt_info->num_workers, cm->tiles.cols * cm->tiles.rows) > 1) {
+    const int num_workers = AOMMIN(mt_info->num_mod_workers[MOD_ENC],
+                                   cm->tiles.cols * cm->tiles.rows);
+    if (num_workers > 1) {
+      const int saved_num_workers = mt_info->num_workers;
+      mt_info->num_workers = num_workers;
       av1_encode_tiles_mt(cpi);
+      mt_info->num_workers = saved_num_workers;
     } else {
       // Preallocate the pc_tree for realtime coding to reduce the cost of
       // memory allocation.

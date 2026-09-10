@@ -2794,4 +2794,99 @@ TEST(EncodeAPI, PerceptualAIDynamicResolutionChange) {
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+// Tests for OSS-Fuzz Issues 558463888, 559075253, 559225640:
+// When dynamically reducing threads with multiple tiles and row_mt=0, the
+// primary worker pool size (mt_info->num_workers) remains at the higher
+// capacity allocated previously while the module workers for the encode stage
+// (mt_info->num_mod_workers[MOD_ENC]) is reduced. If encode_frame_internal()
+// uses mt_info->num_workers instead of mt_info->num_mod_workers[MOD_ENC], it
+// can erroneously call av1_encode_tiles_mt() or stride with the wrong worker
+// count, causing tiles to be skipped and leading to a crash in bitstream
+// packing.
+void TestDynamicThreadReductionWithTiles(int tile_rows, int tile_columns,
+                                         int init_threads, int max_threads) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_ctx_t enc;
+  aom_codec_enc_cfg_t cfg;
+
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+
+  cfg.g_w = 256;
+  cfg.g_h = 256;
+  // Allow dynamic resolution changes up to 512x512.
+  cfg.g_forced_max_frame_width = 512;
+  cfg.g_forced_max_frame_height = 512;
+  cfg.g_threads = init_threads;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_error_resilient = 1;
+
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+
+  // Disable row-mt and configure tiling.
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ROW_MT, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 7), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_TILE_ROWS, tile_rows),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_TILE_COLUMNS, tile_columns),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_ENABLEAUTOALTREF, 0),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_AQ_MODE, 3), AOM_CODEC_OK);
+
+  aom_image_t *img_256 = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 256, 256, 1);
+  ASSERT_NE(img_256, nullptr);
+  FillImageRandom(img_256);
+
+  aom_image_t *img_512 = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 512, 512, 1);
+  ASSERT_NE(img_512, nullptr);
+  FillImageRandom(img_512);
+
+  // Frame 0: Encode at 256x256 with init_threads.
+  EncodeOne(&enc, img_256, 0);
+
+  // Frame 1: Switch to 512x512 with max_threads. This allocates max_threads
+  // workers in the primary worker pool (mt_info->num_workers = max_threads).
+  cfg.g_w = 512;
+  cfg.g_h = 512;
+  cfg.g_threads = max_threads;
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK);
+  EncodeOne(&enc, img_512, 1);
+
+  // Frame 2: Switch back to 256x256 with init_threads. The worker pool retains
+  // mt_info->num_workers = max_threads, but mt_info->num_mod_workers[MOD_ENC]
+  // is init_threads. This verifies that tile encoding properly handles the
+  // reduced worker count without skipping tiles.
+  cfg.g_w = 256;
+  cfg.g_h = 256;
+  cfg.g_threads = init_threads;
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK);
+  EncodeOne(&enc, img_256, 2);
+
+  // Flush encoder.
+  ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+  aom_codec_iter_t iter = nullptr;
+  while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+  }
+
+  aom_img_free(img_256);
+  aom_img_free(img_512);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+TEST(EncodeAPI, Issue558463888) {
+  TestDynamicThreadReductionWithTiles(/*tile_rows=*/1, /*tile_columns=*/0,
+                                      /*init_threads=*/1, /*max_threads=*/2);
+}
+
+TEST(EncodeAPI, Issue559075253) {
+  TestDynamicThreadReductionWithTiles(/*tile_rows=*/1, /*tile_columns=*/1,
+                                      /*init_threads=*/2, /*max_threads=*/4);
+}
+
+TEST(EncodeAPI, Issue559225640) {
+  TestDynamicThreadReductionWithTiles(/*tile_rows=*/0, /*tile_columns=*/1,
+                                      /*init_threads=*/1, /*max_threads=*/4);
+}
+
 }  // namespace
