@@ -1376,7 +1376,7 @@ class AV1Convolve2DTest : public AV1ConvolveTest<convolve_2d_func> {
 
  private:
   void TestConvolveVmaf() {
-    // 8-tap Gaussian blur filter used by tune=vmaf_with_preprocessing
+    // 8-tap Gaussian blur filter used by tune=vmaf
     // in av1/encoder/tune_vmaf.c.
     // The array is of size 9 to allow passing kGaussFilter + 1 to
     // _mm_loadu_si128() in prepare_coeffs_6t().

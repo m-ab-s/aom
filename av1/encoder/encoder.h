@@ -4457,8 +4457,7 @@ static inline int is_psnr_calc_enabled(const AV1_COMP *cpi) {
 
 // Check if VMAF tuning is enabled.
 static inline int is_vmaf_tuning_mode(const aom_tune_metric tuning) {
-  return tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
-         tuning == AOM_TUNE_VMAF_MAX_GAIN ||
+  return tuning == AOM_TUNE_VMAF_MAX_GAIN ||
          tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN;
 }
 
