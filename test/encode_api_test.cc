@@ -31,7 +31,9 @@
 
 #include "av1/common/blockd.h"
 #include "av1/common/reconintra.h"
+extern "C" {
 #include "av1/encoder/allintra_vis.h"
+}
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/util.h"
@@ -2999,6 +3001,109 @@ TEST(EncodeAPI, Buganizer558446054) {
 
   aom_img_free(&raw);
   ASSERT_EQ(aom_codec_destroy(&codec), AOM_CODEC_OK);
+}
+#endif  // !CONFIG_REALTIME_ONLY
+
+#if !CONFIG_REALTIME_ONLY
+TEST(EncodeAPI, Buganizer558463892_558589747) {
+#if !CONFIG_SHARED
+  std::unique_ptr<AV1_COMP> cpi_test(new AV1_COMP());
+  struct aom_internal_error_info error = {};
+  if (setjmp(error.jmp)) FAIL();
+  error.setjmp = 1;
+  cpi_test->common.error = &error;
+  cpi_test->frame_info.mi_rows = 16;
+  cpi_test->frame_info.mi_cols = 16;
+  av1_init_mb_wiener_var_buffer(cpi_test.get());
+  ASSERT_NE(cpi_test->mb_weber_stats, nullptr);
+  cpi_test->mb_weber_stats[0].satd = 12345;
+
+  // Increase dimensions to 64x64 MI units: mb_weber_stats must be reallocated.
+  cpi_test->frame_info.mi_rows = 64;
+  cpi_test->frame_info.mi_cols = 64;
+  av1_init_mb_wiener_var_buffer(cpi_test.get());
+  EXPECT_EQ(cpi_test->mb_weber_stats[0].satd, 0);
+  aom_free(cpi_test->mb_weber_stats);
+#endif  // !CONFIG_SHARED
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_ALL_INTRA),
+            AOM_CODEC_OK);
+
+  cfg.g_w = 64;
+  cfg.g_h = 64;
+  cfg.g_forced_max_frame_width = 1024;
+  cfg.g_forced_max_frame_height = 1024;
+  cfg.g_threads = 0;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.rc_end_usage = AOM_Q;
+
+  aom_codec_ctx_t codec;
+  ASSERT_EQ(aom_codec_enc_init(&codec, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&codec, AV1E_SET_DELTAQ_MODE, 3), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&codec, AOME_SET_CPUUSED, 0), AOM_CODEC_OK);
+
+  // Encode frame 0 at 64x64
+  aom_image_t raw;
+  ASSERT_NE(aom_img_alloc(&raw, AOM_IMG_FMT_I420, 64, 64, 1), nullptr);
+  FillImageRandom(&raw);
+  ASSERT_EQ(aom_codec_encode(&codec, &raw, 0, 1, 0), AOM_CODEC_OK);
+  aom_img_free(&raw);
+
+  // Change resolution to 256x256 mid-stream
+  cfg.g_w = 256;
+  cfg.g_h = 256;
+  ASSERT_EQ(aom_codec_enc_config_set(&codec, &cfg), AOM_CODEC_OK);
+
+  // Encode frame 1 at 256x256
+  ASSERT_NE(aom_img_alloc(&raw, AOM_IMG_FMT_I420, 256, 256, 1), nullptr);
+  FillImageRandom(&raw);
+  ASSERT_EQ(aom_codec_encode(&codec, &raw, 1, 1, 0), AOM_CODEC_OK);
+  aom_img_free(&raw);
+
+  ASSERT_EQ(aom_codec_destroy(&codec), AOM_CODEC_OK);
+}
+#endif  // !CONFIG_REALTIME_ONLY
+
+#if !CONFIG_REALTIME_ONLY
+TEST(EncodeAPI, Buganizer558417547) {
+#if !CONFIG_SHARED
+  std::unique_ptr<AV1_COMP> cpi_test(new AV1_COMP());
+  SequenceHeader seq_params = {};
+  seq_params.bit_depth = AOM_BITS_8;
+  seq_params.sb_size = BLOCK_64X64;
+  cpi_test->common.seq_params = &seq_params;
+  cpi_test->common.mi_params.mi_rows = 16;
+  cpi_test->common.mi_params.mi_cols = 16;
+  cpi_test->common.quant_params.base_qindex = 128;
+  cpi_test->common.delta_q_info.delta_q_res = 4;
+  cpi_test->frame_info.mi_rows = 16;
+  cpi_test->frame_info.mi_cols = 16;
+  cpi_test->norm_wiener_variance = 100;
+  struct aom_internal_error_info error = {};
+  if (setjmp(error.jmp)) FAIL();
+  error.setjmp = 1;
+  cpi_test->common.error = &error;
+  av1_init_mb_wiener_var_buffer(cpi_test.get());
+  ASSERT_NE(cpi_test->mb_weber_stats, nullptr);
+
+  // Set large SATD and distortion values exceeding INT32_MAX.
+  for (int i = 0; i < 16 * 16; ++i) {
+    cpi_test->mb_weber_stats[i].satd = 3000000000LL;
+    cpi_test->mb_weber_stats[i].distortion = 3000000000LL;
+    cpi_test->mb_weber_stats[i].rec_pix_max = 255;
+  }
+
+  // Test out-of-bounds / negative mi_row and mi_col without crashing or SIGFPE.
+  int q_neg = av1_get_sbq_perceptual_ai(cpi_test.get(), BLOCK_64X64, -16, -16);
+  EXPECT_GE(q_neg, 0);
+  int q_oob = av1_get_sbq_perceptual_ai(cpi_test.get(), BLOCK_64X64, 100, 100);
+  EXPECT_GE(q_oob, 0);
+
+  aom_free(cpi_test->mb_weber_stats);
+#endif  // !CONFIG_SHARED
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
