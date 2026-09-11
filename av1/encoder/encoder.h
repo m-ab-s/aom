@@ -4455,6 +4455,13 @@ static inline int is_psnr_calc_enabled(const AV1_COMP *cpi) {
          cm->show_frame && !cpi->is_dropped_frame;
 }
 
+// Check if VMAF tuning is enabled.
+static inline int is_vmaf_tuning_mode(const aom_tune_metric tuning) {
+  return tuning == AOM_TUNE_VMAF_WITH_PREPROCESSING ||
+         tuning == AOM_TUNE_VMAF_MAX_GAIN ||
+         tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN;
+}
+
 static inline int is_frame_resize_pending(const AV1_COMP *const cpi) {
   const ResizePendingParams *const resize_pending_params =
       &cpi->resize_pending_params;

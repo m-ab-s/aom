@@ -3399,8 +3399,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
     }
 
 #if CONFIG_TUNE_VMAF
-    if (oxcf->tune_cfg.tuning >= AOM_TUNE_VMAF_WITH_PREPROCESSING &&
-        oxcf->tune_cfg.tuning <= AOM_TUNE_VMAF_NEG_MAX_GAIN) {
+    if (is_vmaf_tuning_mode(oxcf->tune_cfg.tuning)) {
       cpi->vmaf_info.original_qindex = q;
       q = av1_get_vmaf_base_qindex(cpi, q);
     }
@@ -3604,8 +3603,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
     }
 
 #if CONFIG_TUNE_VMAF
-    if (oxcf->tune_cfg.tuning >= AOM_TUNE_VMAF_WITH_PREPROCESSING &&
-        oxcf->tune_cfg.tuning <= AOM_TUNE_VMAF_NEG_MAX_GAIN) {
+    if (is_vmaf_tuning_mode(oxcf->tune_cfg.tuning)) {
       q = cpi->vmaf_info.original_qindex;
     }
 #endif
@@ -4333,8 +4331,7 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size, uint8_t *dest,
   }
 #endif
 #if CONFIG_TUNE_VMAF
-  else if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_WITHOUT_PREPROCESSING ||
-           oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN ||
+  else if (oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_MAX_GAIN ||
            oxcf->tune_cfg.tuning == AOM_TUNE_VMAF_NEG_MAX_GAIN) {
     av1_set_mb_vmaf_rdmult_scaling(cpi);
   }

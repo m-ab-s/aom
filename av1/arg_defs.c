@@ -43,7 +43,6 @@ static const struct arg_enum_list tuning_enum[] = {
   { "psnr", AOM_TUNE_PSNR },
   { "ssim", AOM_TUNE_SSIM },
   { "vmaf_with_preprocessing", AOM_TUNE_VMAF_WITH_PREPROCESSING },
-  { "vmaf_without_preprocessing", AOM_TUNE_VMAF_WITHOUT_PREPROCESSING },
   { "vmaf", AOM_TUNE_VMAF_MAX_GAIN },
   { "vmaf_neg", AOM_TUNE_VMAF_NEG_MAX_GAIN },
   { "butteraugli", AOM_TUNE_BUTTERAUGLI },
