@@ -2795,6 +2795,46 @@ TEST(EncodeAPI, PerceptualAIDynamicResolutionChange) {
   aom_img_free(img_large);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+
+// Test for OSS-Fuzz Issue 559079132: Integer-overflow in
+// av1_caq_select_segment. When COMPLEXITY_AQ (aq_mode 2) is enabled with a high
+// target bitrate, sb64_target_rate is large, causing signed integer overflow
+// when multiplying sb64_target_rate * xmis * ymis in 32-bit arithmetic and when
+// casting target_rate to int.
+TEST(EncodeAPI, Issue559079132) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_ctx_t enc;
+  aom_codec_enc_cfg_t cfg;
+
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY),
+            AOM_CODEC_OK);
+
+  cfg.g_w = 64;
+  cfg.g_h = 64;
+  cfg.g_timebase.num = 1;
+  cfg.g_timebase.den = 1;
+  cfg.rc_target_bitrate = 2000000;
+  cfg.rc_end_usage = AOM_CBR;
+  cfg.g_lag_in_frames = 0;
+
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_AQ_MODE, 2), AOM_CODEC_OK);
+
+  aom_image_t *img = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 64, 64, 1);
+  ASSERT_NE(img, nullptr);
+  FillImageRandom(img);
+
+  EncodeOne(&enc, img, 0);
+
+  // Flush encoder.
+  ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+  aom_codec_iter_t iter = nullptr;
+  while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+  }
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
 #endif  // !CONFIG_REALTIME_ONLY
 
 // Tests for OSS-Fuzz Issues 558463888, 559075253, 559225640:
