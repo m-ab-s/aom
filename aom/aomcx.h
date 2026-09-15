@@ -1777,7 +1777,19 @@ typedef enum {
 typedef enum {
   AOM_TUNE_PSNR = 0,
   AOM_TUNE_SSIM = 1,
-  /* NOTE: enums 2, 3, 4, and 5 unused */
+  /* NOTE: enums 2, 3 unused */
+  /** Tune for Vmaf with preprocessing
+   *
+   * \deprecated This value is unsupported and will be removed in a future
+   * release.
+   */
+  AOM_TUNE_VMAF_WITH_PREPROCESSING = 4,
+  /** Tune for Vmaf without preprocessing
+   *
+   * \deprecated This value is unsupported and will be removed in a future
+   * release.
+   */
+  AOM_TUNE_VMAF_WITHOUT_PREPROCESSING = 5,
   AOM_TUNE_VMAF_MAX_GAIN = 6,
   AOM_TUNE_VMAF_NEG_MAX_GAIN = 7,
   AOM_TUNE_BUTTERAUGLI = 8,
