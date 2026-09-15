@@ -2455,10 +2455,7 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
     const int num_workers = AOMMIN(mt_info->num_mod_workers[MOD_ENC],
                                    cm->tiles.cols * cm->tiles.rows);
     if (num_workers > 1) {
-      const int saved_num_workers = mt_info->num_workers;
-      mt_info->num_workers = num_workers;
       av1_encode_tiles_mt(cpi);
-      mt_info->num_workers = saved_num_workers;
     } else {
       // Preallocate the pc_tree for realtime coding to reduce the cost of
       // memory allocation.

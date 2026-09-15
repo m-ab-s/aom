@@ -750,8 +750,9 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
   return 1;
 }
 
-static int enc_worker_hook(void *arg1, void *unused) {
+static int enc_worker_hook(void *arg1, void *arg2) {
   EncWorkerData *const thread_data = (EncWorkerData *)arg1;
+  const int num_workers = (int)(intptr_t)arg2;
   AV1_COMP *const cpi = thread_data->cpi;
   MACROBLOCKD *const xd = &thread_data->td->mb.e_mbd;
   struct aom_internal_error_info *const error_info = &thread_data->error_info;
@@ -759,8 +760,6 @@ static int enc_worker_hook(void *arg1, void *unused) {
   const int tile_cols = cm->tiles.cols;
   const int tile_rows = cm->tiles.rows;
   int t;
-
-  (void)unused;
 
   xd->error_info = error_info;
 
@@ -784,8 +783,7 @@ static int enc_worker_hook(void *arg1, void *unused) {
     thread_data->td->pc_root = NULL;
   }
 
-  for (t = thread_data->start; t < tile_rows * tile_cols;
-       t += cpi->mt_info.num_workers) {
+  for (t = thread_data->start; t < tile_rows * tile_cols; t += num_workers) {
     int tile_row = t / tile_cols;
     int tile_col = t % tile_cols;
 
@@ -1588,7 +1586,7 @@ static inline void prepare_enc_workers(AV1_COMP *cpi, AVxWorkerHook hook,
 
     worker->hook = hook;
     worker->data1 = thread_data;
-    worker->data2 = NULL;
+    worker->data2 = (void *)(intptr_t)num_workers;
 
     thread_data->thread_id = i;
     // Set the starting tile for each thread.
