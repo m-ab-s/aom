@@ -22,9 +22,10 @@
 
 namespace {
 
-using ComputeFlowAtPointFunc = void (*)(const uint8_t *src, const uint8_t *ref,
+using ComputeFlowAtPointFunc = void (*)(const uint8_t *src, int src_stride,
+                                        const uint8_t *ref, int ref_stride,
                                         int x, int y, int width, int height,
-                                        int stride, double *u, double *v);
+                                        double *u, double *v);
 
 class ComputeFlowTest
     : public ::testing::TestWithParam<ComputeFlowAtPointFunc> {
@@ -75,16 +76,17 @@ void ComputeFlowTest::RunCheckOutput(int run_times) {
 
   aom_usec_timer ref_timer, test_timer;
 
-  aom_compute_flow_at_point_c(src, ref, x, y, kWidth, kHeight, kWidth, &u_ref,
-                              &v_ref);
+  aom_compute_flow_at_point_c(src, kWidth, ref, kWidth, x, y, kWidth, kHeight,
+                              &u_ref, &v_ref);
 
-  target_func_(src, ref, x, y, kWidth, kHeight, kWidth, &u_test, &v_test);
+  target_func_(src, kWidth, ref, kWidth, x, y, kWidth, kHeight, &u_test,
+               &v_test);
 
   if (run_times > 1) {
     aom_usec_timer_start(&ref_timer);
     for (int i = 0; i < run_times; ++i) {
-      aom_compute_flow_at_point_c(src, ref, x, y, kWidth, kHeight, kWidth,
-                                  &u_ref, &v_ref);
+      aom_compute_flow_at_point_c(src, kWidth, ref, kWidth, x, y, kWidth,
+                                  kHeight, &u_ref, &v_ref);
     }
     aom_usec_timer_mark(&ref_timer);
     const double elapsed_time_c =
@@ -92,7 +94,8 @@ void ComputeFlowTest::RunCheckOutput(int run_times) {
 
     aom_usec_timer_start(&test_timer);
     for (int i = 0; i < run_times; ++i) {
-      target_func_(src, ref, x, y, kWidth, kHeight, kWidth, &u_test, &v_test);
+      target_func_(src, kWidth, ref, kWidth, x, y, kWidth, kHeight, &u_test,
+                   &v_test);
     }
     aom_usec_timer_mark(&test_timer);
     const double elapsed_time_simd =
