@@ -31,9 +31,7 @@
 
 #include "av1/common/blockd.h"
 #include "av1/common/reconintra.h"
-extern "C" {
 #include "av1/encoder/allintra_vis.h"
-}
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/util.h"
