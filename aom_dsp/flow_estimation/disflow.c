@@ -812,9 +812,6 @@ bool av1_compute_global_motion_disflow(
     return false;
   }
 
-  if (ref_pyramid->layers[0].stride != src_pyramid->layers[0].stride) {
-    return false;
-  }
   if (src_width < (1 << DOWNSAMPLE_SHIFT) ||
       src_height < (1 << DOWNSAMPLE_SHIFT)) {
     return false;

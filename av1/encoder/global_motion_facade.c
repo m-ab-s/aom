@@ -314,7 +314,6 @@ static inline void update_valid_ref_frames_for_gm(
 
     if (ref_buf[frame]->y_crop_width == cpi->source->y_crop_width &&
         ref_buf[frame]->y_crop_height == cpi->source->y_crop_height &&
-        ref_buf[frame]->y_stride == cpi->source->y_stride &&
         do_gm_search_logic(&cpi->sf, frame) && !prune_ref_frames &&
         ref_pyr_lvl <= pyr_lvl && !cur_frame_gm_disabled) {
       assert(ref_buf[frame] != NULL);
