@@ -835,14 +835,17 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
       // Right now, we are still using tf_buf_second_arf due to
       // implementation complexity.
       // TODO(angiebird): Reuse tf_info->tf_buf here.
-      av1_temporal_filter(cpi, arf_src_index, cpi->gf_frame_index, &frame_diff,
-                          tf_buf_second_arf);
-      show_existing_alt_ref =
-          av1_check_show_filtered_frame(tf_buf_second_arf, &frame_diff, q_index,
-                                        cm->seq_params->bit_depth, 1, 1);
-      if (show_existing_alt_ref) {
-        aom_extend_frame_borders(tf_buf_second_arf, av1_num_planes(cm));
-        frame_input->source = tf_buf_second_arf;
+      if (av1_lookahead_peek(cpi->ppi->lookahead, arf_src_index,
+                             cpi->compressor_stage)) {
+        av1_temporal_filter(cpi, arf_src_index, cpi->gf_frame_index,
+                            &frame_diff, tf_buf_second_arf);
+        show_existing_alt_ref = av1_check_show_filtered_frame(
+            tf_buf_second_arf, &frame_diff, q_index, cm->seq_params->bit_depth,
+            1, 1);
+        if (show_existing_alt_ref) {
+          aom_extend_frame_borders(tf_buf_second_arf, av1_num_planes(cm));
+          frame_input->source = tf_buf_second_arf;
+        }
       }
       // Currently INTNL_ARF_UPDATE only do show_existing.
       cpi->common.showable_frame |= 1;
