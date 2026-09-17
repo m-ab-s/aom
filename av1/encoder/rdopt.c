@@ -644,8 +644,8 @@ static void get_variance_stats_hbd(const MACROBLOCK *x, int64_t *src_var,
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-static void get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
-                               int64_t *rec_var) {
+void av1_get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
+                            int64_t *rec_var) {
 #if CONFIG_AV1_HIGHBITDEPTH
   if (is_cur_buf_hbd(&x->e_mbd)) {
     get_variance_stats_hbd(x, src_var, rec_var);
@@ -663,6 +663,54 @@ static void get_variance_stats(const MACROBLOCK *x, int64_t *src_var,
 
   *rec_var = aom_calc_variance_stat(pd->dst.buf, pd->dst.stride, bw, bh);
   *src_var = aom_calc_variance_stat(p->src.buf, p->src.stride, bw, bh);
+}
+
+int av1_is_skip_txfm_penalized(const AV1_COMP *cpi, const MACROBLOCK *x,
+                               BLOCK_SIZE bsize) {
+#if CONFIG_AV1_HIGHBITDEPTH
+  const MACROBLOCKD *xd = &x->e_mbd;
+  if (xd->bd > 8 && cpi->oxcf.algo_cfg.sharpness == 3 &&
+      !frame_is_kf_gf_arf(cpi)) {
+    int64_t src_var, rec_var;
+    av1_get_variance_stats(x, &src_var, &rec_var);
+    if (src_var > rec_var) {
+      const int num_pixels = block_size_wide[bsize] * block_size_high[bsize];
+      const int64_t src_var_per_px = src_var / num_pixels;
+      if (src_var_per_px >= 0) return 1;
+    }
+  }
+#else
+  (void)cpi;
+  (void)x;
+  (void)bsize;
+#endif
+  return 0;
+}
+
+void av1_get_tx_skip_dist(const AV1_COMP *cpi, const MACROBLOCK *x,
+                          BLOCK_SIZE bsize, int64_t dist, int64_t sse,
+                          int64_t *no_skip_dist, int64_t *skip_dist) {
+  *no_skip_dist = dist;
+  *skip_dist = sse;
+#if CONFIG_AV1_HIGHBITDEPTH
+  const MACROBLOCKD *xd = &x->e_mbd;
+  if (xd->bd > 8 && cpi->oxcf.algo_cfg.sharpness == 3 &&
+      !frame_is_kf_gf_arf(cpi)) {
+    int64_t src_var, rec_var;
+    av1_get_variance_stats(x, &src_var, &rec_var);
+    if (src_var > rec_var) {
+      int64_t var_offset = src_var - rec_var;
+      const int num_pixels = block_size_wide[bsize] * block_size_high[bsize];
+      const int64_t src_var_per_px = src_var / num_pixels;
+      *no_skip_dist += var_offset;
+      *skip_dist += (src_var_per_px >= 0) ? (var_offset * 4) : var_offset;
+    }
+  }
+#else
+  (void)cpi;
+  (void)x;
+  (void)bsize;
+#endif
 }
 
 static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
@@ -693,7 +741,7 @@ static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
   if (frame_is_kf_gf_arf(cpi)) return;
 
   int64_t src_var, rec_var;
-  get_variance_stats(x, &src_var, &rec_var);
+  av1_get_variance_stats(x, &src_var, &rec_var);
 
   if (src_var <= rec_var) return;
 
@@ -718,7 +766,7 @@ static void adjust_cost(const AV1_COMP *cpi, const MACROBLOCK *x,
   if (frame_is_kf_gf_arf(cpi)) return;
 
   int64_t src_var, rec_var;
-  get_variance_stats(x, &src_var, &rec_var);
+  av1_get_variance_stats(x, &src_var, &rec_var);
 
   if (src_var <= rec_var) return;
 
