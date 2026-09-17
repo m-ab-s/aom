@@ -4910,6 +4910,9 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.force_max_q, argv,
                               err_string)) {
     extra_cfg.force_max_q = arg_parse_uint_helper(&arg, err_string);
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.resize_mode, argv,
+                              err_string)) {
+    ctx->cfg.rc_resize_mode = arg_parse_uint_helper(&arg, err_string);
   } else {
     match = 0;
     snprintf(err_string, ARG_ERR_MSG_MAX_LEN, "Cannot find aom option %s",
