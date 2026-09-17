@@ -2789,13 +2789,17 @@ static void vbr_rate_correction(AV1_COMP *cpi, int *this_frame_target) {
       simulate_parallel_frame ? cpi->ppi->p_rc.temp_vbr_bits_off_target_fast
                               : p_rc->vbr_bits_off_target_fast;
 #endif
-  // Fast redistribution of bits arising from massive local undershoot.
-  // Don't do it for kf,arf,gf or overlay frames.
   if (!frame_is_kf_gf_arf(cpi) &&
 #if CONFIG_FPMT_TEST
       vbr_bits_off_target_fast &&
 #else
       p_rc->vbr_bits_off_target_fast &&
+#endif
+#if CONFIG_AV1_HIGHBITDEPTH
+      (cpi->common.seq_params->bit_depth > 8 &&
+               cpi->oxcf.algo_cfg.sharpness == 3
+           ? vbr_bits_off_target >= 0
+           : 1) &&
 #endif
       !rc->is_src_frame_alt_ref) {
     int64_t one_frame_bits = AOMMAX(rc->avg_frame_bandwidth, frame_target);
