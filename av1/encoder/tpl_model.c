@@ -854,6 +854,20 @@ static inline void mode_estimation(AV1_COMP *cpi, TplTxfmStats *tpl_txfm_stats,
           cpi, x, src_mb_buffer, ref_mb, src_stride, ref_stride, src_width,
           ref_width, bsize, center_mvs[idx].mv.as_mv, &this_mv);
 
+#if CONFIG_AV1_HIGHBITDEPTH
+      if (xd->bd > 8 && cpi->oxcf.algo_cfg.sharpness == 3) {
+        // Bias towards (0,0) / short motion vectors in stationary background.
+        // Require a noticeable SAD improvement before replacing (0,0) with a
+        // non-zero MV.
+        if (bestsme != UINT32_MAX && best_rfidx_mv.as_int == 0 &&
+            this_mv.as_int != 0) {
+          if (thissme + (thissme >> 4) >= bestsme) {
+            continue;
+          }
+        }
+      }
+#endif
+
       if (thissme < bestsme) {
         bestsme = thissme;
         best_rfidx_mv = this_mv;
