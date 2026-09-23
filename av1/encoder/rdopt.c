@@ -1847,7 +1847,7 @@ static int64_t motion_mode_rd(
       }
       mbmi->skip_txfm = 0;
       rd_stats->skip_txfm = 0;
-      if (rd_stats_y) rd_stats_y->skip_txfm = 0;
+      rd_stats_y->skip_txfm = 0;
       increase_motion_mode_rdstats(cpi, mbmi, rd_stats, NULL, NULL);
 
     } else {
