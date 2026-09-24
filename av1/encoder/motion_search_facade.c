@@ -692,9 +692,19 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     }
 
     // Do sub-pixel compound motion search on the current reference frame.
+    const struct scale_factors *orig_sf = NULL;
     if (id) {
       orig_yv12 = xd->plane[plane].pre[0];
       xd->plane[plane].pre[0] = xd->plane[plane].pre[id];
+      // Sub-pixel motion search works on raw reference frames that may not
+      // match the resolution of the current frame, so block_ref_scale_factors
+      // must be kept in sync with the frame data in order to perform the
+      // motion search correctly.
+      // Full-pixel motion search works on scaled reference frames, so it
+      // doesn't need to update block_ref_scale_factors when swapping in
+      // scaled_ref_frame.
+      orig_sf = xd->block_ref_scale_factors[0];
+      xd->block_ref_scale_factors[0] = xd->block_ref_scale_factors[id];
     }
 
     if (cpi->common.features.cur_frame_force_integer_mv) {
@@ -734,7 +744,10 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     }
 
     // Restore the pointer to the first prediction buffer.
-    if (id) xd->plane[plane].pre[0] = orig_yv12;
+    if (id) {
+      xd->plane[plane].pre[0] = orig_yv12;
+      xd->block_ref_scale_factors[0] = orig_sf;
+    }
     if (bestsme < last_besterr[id]) {
       cur_mv[id] = best_mv;
       last_besterr[id] = bestsme;
@@ -834,6 +847,12 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     }
   }
 
+  const struct scale_factors *orig_sf = NULL;
+  if (ref_idx) {
+    orig_sf = xd->block_ref_scale_factors[0];
+    xd->block_ref_scale_factors[0] = xd->block_ref_scale_factors[ref_idx];
+  }
+
   if (cpi->common.features.cur_frame_force_integer_mv) {
     convert_fullmv_to_mv(&best_mv);
   }
@@ -856,7 +875,10 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   }
 
   // Restore the pointer to the first unscaled prediction buffer.
-  if (ref_idx) pd->pre[0] = orig_yv12;
+  if (ref_idx) {
+    pd->pre[0] = orig_yv12;
+    xd->block_ref_scale_factors[0] = orig_sf;
+  }
 
   if (bestsme < INT_MAX) *this_mv = best_mv.as_mv;
 
