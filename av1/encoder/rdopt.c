@@ -1553,6 +1553,7 @@ static int64_t motion_mode_rd(
     int64_t *ref_skip_rd, int *rate_mv, const BUFFER_SET *orig_dst,
     int64_t *best_est_rd, int do_tx_search, InterModesInfo *inter_modes_info,
     int eval_motion_mode, int64_t *yrd) {
+  assert(rd_stats != NULL && rd_stats_y != NULL && rd_stats_uv != NULL);
   const AV1_COMMON *const cm = &cpi->common;
   const FeatureFlags *const features = &cm->features;
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
@@ -3084,6 +3085,7 @@ static int64_t handle_inter_mode(
     InterModesInfo *inter_modes_info, motion_mode_candidate *motion_mode_cand,
     int64_t *skip_rd, PruneInfoFromTpl *inter_cost_info_from_tpl,
     int64_t *yrd) {
+  assert(rd_stats != NULL && rd_stats_y != NULL && rd_stats_uv != NULL);
   const AV1_COMMON *cm = &cpi->common;
   const int num_planes = av1_num_planes(cm);
   MACROBLOCKD *xd = &x->e_mbd;
