@@ -2131,7 +2131,6 @@ static void set_rt_speed_features_framesize_independent(AV1_COMP *cpi,
     sf->rt_sf.use_comp_ref_nonrd = 1;
     sf->rt_sf.ref_frame_comp_nonrd[2] = 1;  // LAST_ALTREF
     sf->tx_sf.intra_tx_size_search_init_depth_sqr = 2;
-    sf->part_sf.partition_search_type = VAR_BASED_PARTITION;
     sf->part_sf.max_intra_bsize = BLOCK_32X32;
 
     sf->mv_sf.search_method = FAST_DIAMOND;
