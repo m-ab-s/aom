@@ -884,17 +884,17 @@ static inline void build_second_inter_pred(const AV1_COMP *cpi, MACROBLOCK *x,
   assert(has_second_ref(mbmi));
 
   const int plane = 0;
-  struct buf_2d ref_yv12 = xd->plane[plane].pre[!ref_idx];
+  const struct buf_2d *ref_yv12 = &xd->plane[plane].pre[!ref_idx];
 
   struct scale_factors sf;
-  av1_setup_scale_factors_for_frame(&sf, ref_yv12.width, ref_yv12.height,
+  av1_setup_scale_factors_for_frame(&sf, ref_yv12->width, ref_yv12->height,
                                     cm->width, cm->height);
 
   InterPredParams inter_pred_params;
 
   av1_init_inter_params(&inter_pred_params, pw, ph, p_row, p_col,
                         pd->subsampling_x, pd->subsampling_y, xd->bd,
-                        is_cur_buf_hbd(xd), 0, &sf, &ref_yv12,
+                        is_cur_buf_hbd(xd), 0, &sf, ref_yv12,
                         mbmi->interp_filters);
   inter_pred_params.conv_params = get_conv_params(0, plane, xd->bd);
 
