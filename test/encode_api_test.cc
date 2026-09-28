@@ -3292,6 +3292,79 @@ TEST(EncodeAPI, Buganizer558417547) {
   aom_free(cpi_test->mb_weber_stats);
 #endif  // !CONFIG_SHARED
 }
+
+// Regression test for b/565488030: Heap-buffer-overflow in
+// save_deblock_boundary_lines when Frame 0 is coded losslessly (q = 0, setting
+// cm->features.all_lossless = 1) or with large_scale_tile = 1 at a small
+// resolution and Frame 1 increases the resolution via
+// aom_codec_enc_config_set() with large_scale_tile = 0 and lossy coding (q > 0,
+// cm->features.all_lossless = 0) with loop restoration enabled.
+TEST(EncodeAPI, Buganizer565488030) {
+  for (unsigned int threads : { 1u, 4u }) {
+    for (unsigned int large_scale_tile : { 0u, 1u }) {
+      aom_codec_iface_t *const iface = aom_codec_av1_cx();
+      aom_codec_enc_cfg_t cfg;
+      ASSERT_EQ(
+          aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY),
+          AOM_CODEC_OK);
+
+      cfg.g_w = 4;
+      cfg.g_h = 4;
+      cfg.g_forced_max_frame_width = 256;
+      cfg.g_forced_max_frame_height = 256;
+      cfg.g_threads = threads;
+      cfg.g_lag_in_frames = 0;
+      cfg.large_scale_tile = large_scale_tile;
+      cfg.rc_end_usage = AOM_CBR;
+      cfg.rc_target_bitrate = 3999;
+      cfg.rc_min_quantizer = 0;
+      cfg.rc_max_quantizer = 63;
+
+      aom_codec_ctx_t enc;
+      ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+      ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 4), AOM_CODEC_OK);
+      // large_scale_tile = 1 implicitly disables global motion, so switching
+      // it to 0 below would turn global motion on mid-stream. The reference
+      // frames coded before that have no image pyramid, which trips
+      // assert(buf->buf.y_pyramid) in av1_encode_frame(). That is a separate
+      // issue, so keep global motion off to focus on loop restoration.
+      ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ENABLE_GLOBAL_MOTION, 0),
+                AOM_CODEC_OK);
+
+      aom_image_t *img_small =
+          aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 4, 4, 16);
+      ASSERT_NE(img_small, nullptr);
+      FillImage(img_small, 128);
+
+      // Frame 0: 4x4 at high CBR bitrate picks q = 0 (all_lossless = 1).
+      EncodeOne(&enc, img_small, 0);
+      aom_img_free(img_small);
+
+      // Frame 1: Reconfigure to 256x256 with large_scale_tile = 0 (picks q > 0,
+      // all_lossless = 0).
+      cfg.g_w = 256;
+      cfg.g_h = 256;
+      cfg.large_scale_tile = 0;
+      ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK);
+
+      aom_image_t *img_large =
+          aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 256, 256, 16);
+      ASSERT_NE(img_large, nullptr);
+      FillImage(img_large, 128);
+
+      EncodeOne(&enc, img_large, 1);
+      aom_img_free(img_large);
+
+      // Flush encoder.
+      ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+      aom_codec_iter_t iter = nullptr;
+      while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+      }
+
+      ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+    }
+  }
+}
 #endif  // !CONFIG_REALTIME_ONLY
 
 }  // namespace

@@ -1036,6 +1036,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
     }
   }
 
+  cm->tiles.large_scale = oxcf->tile_cfg.enable_large_scale_tile;
+  cm->tiles.single_tile_decoding = oxcf->tile_cfg.enable_single_tile_decoding;
   features->interp_filter =
       oxcf->tile_cfg.enable_large_scale_tile ? EIGHTTAP_REGULAR : SWITCHABLE;
   features->switchable_motion_mode = is_switchable_motion_mode_allowed(
@@ -1053,6 +1055,8 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   int last_height = cm->height;
   cm->width = frm_dim_cfg->width;
   cm->height = frm_dim_cfg->height;
+  cm->superres_upscaled_width = frm_dim_cfg->width;
+  cm->superres_upscaled_height = frm_dim_cfg->height;
 
   if (cm->width > cpi->data_alloc_width ||
       cm->height > cpi->data_alloc_height || is_sb_size_changed) {
@@ -2720,7 +2724,7 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   if (!is_stat_generation_stage(cpi)) av1_init_cdef_worker(cpi);
 
 #if !CONFIG_REALTIME_ONLY
-  if (is_restoration_used(cm)) {
+  if (cm->seq_params->enable_restoration) {
     for (int i = 0; i < num_planes; ++i)
       cm->rst_info[i].frame_restoration_type = RESTORE_NONE;
 
