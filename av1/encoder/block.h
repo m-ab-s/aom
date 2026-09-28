@@ -1359,6 +1359,10 @@ typedef struct macroblock {
   /**@{*/
   //! Variance of the source frame.
   unsigned int source_variance;
+  //! Sub-block local variance energy difference.
+  int sub_block_energy_diff;
+  //! Cached block size for sub-block local variance energy difference.
+  BLOCK_SIZE sub_block_energy_bsize;
   //! Flag to indicate coding block is zero sad.
   int block_is_zero_sad;
   //! Flag to indicate superblock ME in variance partition is determined to be

@@ -713,6 +713,53 @@ void av1_get_tx_skip_dist(const AV1_COMP *cpi, const MACROBLOCK *x,
 #endif
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
+static int get_sub_block_energy_diff(const AV1_COMP *cpi, const MACROBLOCK *x,
+                                     BLOCK_SIZE bsize) {
+  if (x->sub_block_energy_bsize == bsize) {
+    return x->sub_block_energy_diff;
+  }
+
+  const MACROBLOCKD *const xd = &x->e_mbd;
+  const struct macroblock_plane *const p = &x->plane[AOM_PLANE_Y];
+  const int bw = block_size_wide[bsize];
+  const int bh = block_size_high[bsize];
+
+  if (bw < 16 || bh < 16) {
+    ((MACROBLOCK *)x)->sub_block_energy_diff = 0;
+    ((MACROBLOCK *)x)->sub_block_energy_bsize = bsize;
+    return 0;
+  }
+
+  DECLARE_ALIGNED(16, static const uint16_t, av1_highbd_all_zeros[64]) = { 0 };
+  DECLARE_ALIGNED(16, static const uint8_t, av1_all_zeros[64]) = { 0 };
+  const uint8_t *all_zeros = is_cur_buf_hbd(xd)
+                                 ? CONVERT_TO_BYTEPTR(av1_highbd_all_zeros)
+                                 : av1_all_zeros;
+  aom_variance_fn_t vf = cpi->ppi->fn_ptr[BLOCK_8X8].vf;
+  unsigned int min_var = UINT_MAX;
+  unsigned int max_var = 0;
+
+  for (int r = 0; r < bh; r += 8) {
+    for (int c = 0; c < bw; c += 8) {
+      unsigned int sse;
+      const uint8_t *src_ptr = p->src.buf + r * p->src.stride + c;
+      unsigned int var = vf(src_ptr, p->src.stride, all_zeros, 0, &sse) / 64;
+      min_var = AOMMIN(min_var, var);
+      max_var = AOMMAX(max_var, var);
+    }
+  }
+
+  int min_energy = (int)round(log((double)min_var + 1.0));
+  int max_energy = (int)round(log((double)max_var + 1.0));
+  int energy_diff = AOMMAX(0, max_energy - min_energy);
+
+  ((MACROBLOCK *)x)->sub_block_energy_diff = energy_diff;
+  ((MACROBLOCK *)x)->sub_block_energy_bsize = bsize;
+  return energy_diff;
+}
+#endif
+
 static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
                           RD_STATS *rd_cost, bool is_inter_pred) {
   if ((cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IQ ||
@@ -771,11 +818,34 @@ static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
       }
     }
 
-    if (var_offset <= 0) return;
+    if (var_offset > 0) {
+      rd_cost->dist += var_offset;
+      rd_cost->rdcost = RDCOST(x->rdmult, rd_cost->rate, rd_cost->dist);
+    }
 
-    rd_cost->dist += var_offset;
+    // Sub-block local variance energy disparity adjustment
+    if (mbmi->bsize >= BLOCK_16X16) {
+      const int energy_diff = get_sub_block_energy_diff(cpi, x, mbmi->bsize);
+      if (energy_diff > 0) {
+        int64_t extra_rd = 0;
+        if (!is_inter_pred) {
+          if (mbmi->mode == DC_PRED || is_smooth_intra_mode) {
+            extra_rd = rd_cost->rdcost * energy_diff;
+          } else {
+            extra_rd = (rd_cost->rdcost * energy_diff) / 4;
+          }
+        } else if (has_second_ref(mbmi)) {
+          extra_rd = rd_cost->rdcost / 4;
+        }
+        if (extra_rd > 0) {
+          const int64_t extra_dist =
+              (extra_rd + (1 << (RDDIV_BITS - 1))) >> RDDIV_BITS;
+          rd_cost->dist += extra_dist;
+          rd_cost->rdcost = RDCOST(x->rdmult, rd_cost->rate, rd_cost->dist);
+        }
+      }
+    }
 
-    rd_cost->rdcost = RDCOST(x->rdmult, rd_cost->rate, rd_cost->dist);
     return;
   }
 #endif
@@ -840,9 +910,25 @@ static void adjust_cost(const AV1_COMP *cpi, const MACROBLOCK *x,
       }
     }
 
-    if (var_offset <= 0) return;
+    if (var_offset > 0) {
+      *rd_cost += RDCOST(x->rdmult, 0, var_offset);
+    }
 
-    *rd_cost += RDCOST(x->rdmult, 0, var_offset);
+    // Sub-block local variance energy disparity adjustment
+    if (mbmi->bsize >= BLOCK_16X16) {
+      const int energy_diff = get_sub_block_energy_diff(cpi, x, mbmi->bsize);
+      if (energy_diff > 0) {
+        if (!is_inter_pred) {
+          if (mbmi->mode == DC_PRED || is_smooth_intra_mode) {
+            *rd_cost += *rd_cost * energy_diff;
+          } else {
+            *rd_cost += (*rd_cost * energy_diff) / 4;
+          }
+        } else if (has_second_ref(mbmi)) {
+          *rd_cost += *rd_cost / 4;
+        }
+      }
+    }
     return;
   }
 #endif
