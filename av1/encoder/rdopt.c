@@ -676,7 +676,7 @@ int av1_is_skip_txfm_penalized(const AV1_COMP *cpi, const MACROBLOCK *x,
     if (src_var > rec_var) {
       const int num_pixels = block_size_wide[bsize] * block_size_high[bsize];
       const int64_t src_var_per_px = src_var / num_pixels;
-      if (src_var_per_px >= 0) return 1;
+      if (src_var_per_px < 64) return 1;
     }
   }
 #else
@@ -703,7 +703,7 @@ void av1_get_tx_skip_dist(const AV1_COMP *cpi, const MACROBLOCK *x,
       const int num_pixels = block_size_wide[bsize] * block_size_high[bsize];
       const int64_t src_var_per_px = src_var / num_pixels;
       *no_skip_dist += var_offset;
-      *skip_dist += (src_var_per_px >= 0) ? (var_offset * 4) : var_offset;
+      *skip_dist += (src_var_per_px < 64) ? (var_offset * 4) : var_offset;
     }
   }
 #else
@@ -805,7 +805,7 @@ static void adjust_rdcost(const AV1_COMP *cpi, const MACROBLOCK *x,
     const int64_t src_var_per_px = src_var / num_pixels;
 
     if (var_offset > 0 &&
-        ((is_skip_txfm && src_var_per_px >= 0) || is_smooth_intra_mode ||
+        ((is_skip_txfm && src_var_per_px < 64) || is_smooth_intra_mode ||
          is_interintra_mode(mbmi) || has_second_ref(mbmi))) {
       var_offset *= 4;
     }
@@ -897,7 +897,7 @@ static void adjust_cost(const AV1_COMP *cpi, const MACROBLOCK *x,
     const int64_t src_var_per_px = src_var / num_pixels;
 
     if (var_offset > 0 &&
-        ((is_skip_txfm && src_var_per_px >= 0) || is_smooth_intra_mode ||
+        ((is_skip_txfm && src_var_per_px < 64) || is_smooth_intra_mode ||
          is_interintra_mode(mbmi) || has_second_ref(mbmi))) {
       var_offset *= 4;
     }
