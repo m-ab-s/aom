@@ -2542,9 +2542,8 @@ static void init_motion_estimation(AV1_COMP *cpi) {
   av1_init_motion_fpf(&mv_search_params->search_site_cfg[SS_CFG_FPF][DIAMOND],
                       fpf_y_stride);
   for (SEARCH_METHODS i = NSTEP; i < NUM_DISTINCT_SEARCH_METHODS; i++) {
-    memcpy(&mv_search_params->search_site_cfg[SS_CFG_FPF][i],
-           &mv_search_params->search_site_cfg[SS_CFG_FPF][DIAMOND],
-           sizeof(search_site_config));
+    mv_search_params->search_site_cfg[SS_CFG_FPF][i] =
+        mv_search_params->search_site_cfg[SS_CFG_FPF][DIAMOND];
   }
 }
 
