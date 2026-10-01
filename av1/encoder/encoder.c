@@ -2520,7 +2520,9 @@ static void init_motion_estimation(AV1_COMP *cpi) {
       !mv_search_params->search_site_cfg[SS_CFG_SRC][DIAMOND].stride ||
       !mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD][DIAMOND].stride ||
       (y_stride !=
-       mv_search_params->search_site_cfg[SS_CFG_SRC][DIAMOND].stride);
+       mv_search_params->search_site_cfg[SS_CFG_SRC][DIAMOND].stride) ||
+      (y_stride_src !=
+       mv_search_params->search_site_cfg[SS_CFG_LOOKAHEAD][DIAMOND].stride);
 
   if (!should_update) {
     return;
