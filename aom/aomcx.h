@@ -1037,6 +1037,10 @@ enum aome_enc_control_id {
    * - 0 = disable
    * - 1 = enable (default)
    *
+   * \note Global motion can only be enabled before the first frame is passed
+   * to aom_codec_encode(). After that, it can still be disabled, but a request
+   * to enable it is ignored.
+   *
    * \note Excluded from CONFIG_REALTIME_ONLY build.
    */
   AV1E_SET_ENABLE_GLOBAL_MOTION = 95,

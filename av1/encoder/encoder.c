@@ -1128,7 +1128,17 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   assert(!oxcf->tool_cfg.enable_global_motion);
   cpi->alloc_pyramid = false;
 #else
-  cpi->alloc_pyramid = oxcf->tool_cfg.enable_global_motion;
+  // Global motion needs an image pyramid in every source and reference frame
+  // buffer, but pyramids are only allocated while global motion is enabled.
+  // Once the first frame has been received (creating the lookahead), some
+  // buffers may lack pyramids, so global motion can be disabled but not
+  // enabled. Check the primary compressor, which is always updated first, so
+  // that all compressors sharing these buffers (including any created after
+  // the first frame) agree.
+  if (cpi->ppi->lookahead != NULL && !cpi->ppi->cpi->alloc_pyramid) {
+    cpi->oxcf.tool_cfg.enable_global_motion = false;
+  }
+  cpi->alloc_pyramid = cpi->oxcf.tool_cfg.enable_global_motion;
 #endif  // CONFIG_REALTIME_ONLY
 }
 
