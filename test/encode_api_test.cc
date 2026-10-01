@@ -1534,8 +1534,14 @@ void IntraBCFrameSizeIncreaseTest(unsigned int usage, int speed) {
 
   EncodeOne(&enc, img_small, 0);
 
-  // Only the height grows, so the reconstructed frame keeps its stride while
-  // the source buffer gets a new one.
+  // Only the height grows, so the reconstructed frame keeps its stride
+  // (SS_CFG_SRC) while the current lookahead source buffer is reallocated in
+  // av1_lookahead_push() with AOM_BORDER_IN_PIXELS (160) instead of
+  // oxcf->border_in_pixels (96), changing its stride (SS_CFG_LOOKAHEAD).
+  // Furthermore, for GOOD_QUALITY and REALTIME modes (even with
+  // lag_in_frames = 0), the lookahead ring buffer has 2 slots (max_pre_frames =
+  // 1): frame 0 was placed in buf[0], so frame 1 is placed in buf[1] while
+  // buf[0] retains the old stride.
   cfg.g_h = 64;
   ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_encode(&enc, img_large, 1, 1, AOM_EFLAG_FORCE_KF),
@@ -1615,6 +1621,78 @@ TEST(EncodeAPI, IntraBCFrameSizeDecreaseRealtime) {
 }
 
 #if !CONFIG_REALTIME_ONLY
+// Tests that search_site_cfg[SS_CFG_LOOKAHEAD] in init_motion_estimation() is
+// updated using the current frame's unscaled_source->y_stride rather than
+// lookahead->buf[0].img.y_stride. In TPL's motion_estimation() (tpl_model.c),
+// when the reference buffer is an unscaled lookahead source buffer whose stride
+// differs from the reconstructed frame stride (SS_CFG_SRC), it directly selects
+// search_site_cfg[SS_CFG_LOOKAHEAD] and asserts that search_site_cfg->stride ==
+// ref_stride (without calling av1_get_search_site_config()).
+TEST(EncodeAPI, TplSubsamplingChangeGoodQuality) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY),
+            AOM_CODEC_OK);
+  cfg.g_w = 64;
+  cfg.g_h = 64;
+  cfg.g_lag_in_frames = 4;
+  cfg.g_threads = 1;
+  cfg.monochrome = 1;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 5), AOM_CODEC_OK);
+  // Disable temporal filtering so init_gop_frames_for_tpl() uses the lookahead
+  // buffers (&buf->img, y_stride = 384) directly as tpl_frame->gf_picture
+  // rather than replacing them with tf_buf (y_stride = 256 == SS_CFG_SRC).
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_ARNR_MAXFRAMES, 0), AOM_CODEC_OK);
+
+  aom_image_t *img_420 = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 64, 64, 1);
+  ASSERT_NE(img_420, nullptr);
+  FillImageRandom(img_420);
+  aom_image_t *img_444 = aom_img_alloc(nullptr, AOM_IMG_FMT_I444, 64, 64, 1);
+  ASSERT_NE(img_444, nullptr);
+  FillImageRandom(img_444);
+
+  // Frame 0 (I420) goes into lookahead->buf[0] with border_in_pixels = 96
+  // (y_stride = 256), and is then flushed.
+  ASSERT_EQ(aom_codec_encode(&enc, img_420, 0, 1, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+  {
+    aom_codec_iter_t iter = nullptr;
+    while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+    }
+  }
+
+  // Frames 1..4 (I444) go into lookahead->buf[1..4]. Because monochrome = 1,
+  // changing subsampling from I420 to I444 is valid across frames and triggers
+  // new_dimensions in av1_lookahead_push(), reallocating buf[1..4] with
+  // AOM_BORDER_IN_PIXELS = 160 (y_stride = 384) while buf[0] keeps
+  // y_stride = 256.
+  // Because av1_tpl_setup_stats() runs before av1_encode() updates
+  // cpi->unscaled_source, frame 1 is encoded first (as a 1-frame GOP) to update
+  // cpi->unscaled_source to buf[1] (y_stride = 384). Forcing a key frame on
+  // frame 2 starts a new GOP at frame 2 so init_motion_estimation() and TPL run
+  // on frames 2..4 (in slots buf[2..4]).
+  ASSERT_EQ(aom_codec_encode(&enc, img_444, 1, 1, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&enc, img_444, 2, 1, AOM_EFLAG_FORCE_KF),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&enc, img_444, 3, 1, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&enc, img_444, 4, 1, 0), AOM_CODEC_OK);
+  // Each flush (nullptr) call drains 1 frame from the lookahead buffer, so 4
+  // calls are needed for frames 1..4.
+  for (int i = 0; i < 4; ++i) {
+    ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+    aom_codec_iter_t iter = nullptr;
+    while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+    }
+  }
+
+  aom_img_free(img_420);
+  aom_img_free(img_444);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 TEST(EncodeAPI, AllIntraMode) {
   aom_codec_iface_t *iface = aom_codec_av1_cx();
   aom_codec_ctx_t enc;
