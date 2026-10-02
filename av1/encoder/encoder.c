@@ -5772,6 +5772,7 @@ int av1_init_parallel_frame_context(const AV1_COMP_DATA *const first_cpi_data,
         int src_index = gf_group->src_offset[i];
         struct lookahead_entry *prev_source = av1_lookahead_peek(
             ppi->lookahead, src_index - 1, cur_cpi->compressor_stage);
+        assert(prev_source != NULL);
         // Save timestamps of prev frame.
         cur_cpi->time_stamps.prev_ts_start = prev_source->ts_start;
         cur_cpi->time_stamps.prev_ts_end = prev_source->ts_end;
