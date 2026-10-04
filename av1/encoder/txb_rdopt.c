@@ -470,9 +470,9 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
                          ? 7
                          : (is_noise_pattern ? 6 : 5);
 
-  const int(*trellis_rd_mult)[2] = cpi->sf.tx_sf.use_chroma_trellis_rd_mult
-                                       ? plane_rd_mult_chroma
-                                       : plane_rd_mult;
+  const int (*trellis_rd_mult)[2] = cpi->sf.tx_sf.use_chroma_trellis_rd_mult
+                                        ? plane_rd_mult_chroma
+                                        : plane_rd_mult;
   const int64_t rdmult = ROUND_POWER_OF_TWO(
       (int64_t)x->rdmult * (8 - sharpness) *
           (trellis_rd_mult[is_inter][plane_type] << (2 * (xd->bd - 8))),
@@ -609,7 +609,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
 
   av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class, coeff_contexts);
 
-  const int(*lps_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
+  const int (*lps_cost)[COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1] =
       coeff_costs->lps_cost;
   int c = eob - 1;
   {
@@ -636,7 +636,7 @@ static AOM_FORCE_INLINE int warehouse_efficients_txb(
       }
     }
   }
-  const int(*base_cost)[8] = coeff_costs->base_cost;
+  const int (*base_cost)[8] = coeff_costs->base_cost;
   for (c = eob - 2; c >= 1; --c) {
     const int pos = scan[c];
     const int coeff_ctx = coeff_contexts[pos];

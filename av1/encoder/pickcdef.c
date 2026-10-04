@@ -914,7 +914,7 @@ void av1_cdef_search(AV1_COMP *cpi) {
   uint64_t best_rd = UINT64_MAX;
   CdefInfo *const cdef_info = &cm->cdef_info;
   int sb_count = cdef_search_ctx->sb_count;
-  uint64_t(*mse[2])[TOTAL_STRENGTHS];
+  uint64_t (*mse[2])[TOTAL_STRENGTHS];
   mse[0] = cdef_search_ctx->mse[0];
   mse[1] = cdef_search_ctx->mse[1];
   /* Calculate the maximum number of bits required to signal CDEF strengths at
