@@ -165,7 +165,7 @@ void av1_cyclic_reset_segment_skip(const AV1_COMP *cpi, MACROBLOCK *const x,
 
   assert(cm->seg.enabled);
 
-  if (!cr->skip_over4x4 && !cpi->roi.reference_enabled) {
+  if (!cr->skip_over4x4 && cm->seg.update_map && !cm->seg.segid_preskip) {
     mbmi->segment_id =
         av1_get_spatial_seg_pred(cm, xd, &cdf_num, cr->skip_over4x4);
     if (prev_segment_id != mbmi->segment_id) {
