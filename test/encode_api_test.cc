@@ -3594,4 +3594,50 @@ TEST(EncodeAPI, Buganizer565488030) {
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
+// Regression test for b/568565869: Undefined left-shift overflow of
+// this_rdc->rate in av1_block_yrd() when encoding a large partition in
+// realtime lossless mode.
+TEST(EncodeAPI, NonrdBlockYrdRateOverflow) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+
+  cfg.g_w = 128;
+  cfg.g_h = 128;
+  cfg.g_lag_in_frames = 0;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 10), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_LOSSLESS, 1), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SUPERBLOCK_SIZE,
+                              AOM_SUPERBLOCK_SIZE_128X128),
+            AOM_CODEC_OK);
+
+  aom_image_t *img = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 128, 128, 16);
+  ASSERT_NE(img, nullptr);
+  FillImage(img, 0);
+  EncodeOne(&enc, img, 0);
+
+  // Use a 253/255 checkerboard in Frame 1 against all-zero Frame 0:
+  // - The residual variance around the mean (254) is tiny (1), so
+  //   variance-based partitioning does not split and evaluates a large
+  //   partition.
+  // - The large DC residual (~254) combined with non-zero AC (ncoeffs > 1)
+  //   causes aom_satd_lp(low_qcoeff) in av1_block_yrd() to accumulate a rate
+  //   above INT_MAX >> 11, which would overflow 32-bit int when shifted left
+  //   by 2 + AV1_PROB_COST_SHIFT (11).
+  for (int r = 0; r < 128; ++r) {
+    for (int c = 0; c < 128; ++c) {
+      img->planes[AOM_PLANE_Y][r * img->stride[AOM_PLANE_Y] + c] =
+          ((r ^ c) & 1) ? 255 : 253;
+    }
+  }
+  EncodeOne(&enc, img, 1);
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 }  // namespace
