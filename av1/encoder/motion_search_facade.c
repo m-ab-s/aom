@@ -803,15 +803,15 @@ int av1_compound_single_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     // match the resolution of the current frame, allowing the existing
     // full-pixel motion search code to be used without additional
     // modifications.
-    for (int i = 0; i < num_planes; i++) {
-      backup_yv12[i] = xd->plane[i].pre[ref_idx];
-    }
-    const int mi_row = xd->mi_row;
-    const int mi_col = xd->mi_col;
     // The index below needs to be 0 instead of ref_idx since we assume the
     // 0th slot to be used for subsequent searches. Note that the ref_idx
     // reference buffer has been copied to the 0th slot in the code above.
     // Now we need to swap the reference frame for the 0th slot.
+    for (int i = 0; i < num_planes; i++) {
+      backup_yv12[i] = xd->plane[i].pre[0];
+    }
+    const int mi_row = xd->mi_row;
+    const int mi_col = xd->mi_col;
     av1_setup_pre_planes(xd, 0, scaled_ref_frame, mi_row, mi_col, NULL,
                          num_planes);
   }
