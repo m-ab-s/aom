@@ -3471,6 +3471,61 @@ static inline bool enable_palette(AV1_COMP *cpi, bool is_mode_intra,
   }
 }
 
+void av1_nonrd_pick_inter_mode_sb_seg_skip(const AV1_COMP *cpi, MACROBLOCK *x,
+                                           RD_STATS *rd_cost, BLOCK_SIZE bsize,
+                                           PICK_MODE_CONTEXT *ctx) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const FeatureFlags *const features = &cm->features;
+  const struct segmentation *const seg = &cm->seg;
+  MACROBLOCKD *const xd = &x->e_mbd;
+  MB_MODE_INFO *const mi = xd->mi[0];
+  const unsigned char segment_id = mi->segment_id;
+
+  assert(segfeature_active(seg, segment_id, SEG_LVL_SKIP));
+
+  // The decoder infers the mode, the reference and skip for this segment.
+  const MV_REFERENCE_FRAME ref_frame =
+      segfeature_active(seg, segment_id, SEG_LVL_REF_FRAME)
+          ? (MV_REFERENCE_FRAME)get_segdata(seg, segment_id, SEG_LVL_REF_FRAME)
+          : LAST_FRAME;
+  assert(ref_frame > INTRA_FRAME);
+
+  // av1_update_state() expects the block size of this pick.
+  mi->bsize = bsize;
+  init_mbmi_nonrd(mi, GLOBALMV, ref_frame, NONE_FRAME, cm);
+  mi->skip_mode = 0;
+  mi->mv[0].as_int =
+      gm_get_motion_vector(&cm->global_motion[ref_frame],
+                           features->allow_high_precision_mv, bsize, xd->mi_col,
+                           xd->mi_row, features->cur_frame_force_integer_mv)
+          .as_int;
+  mi->angle_delta[PLANE_TYPE_Y] = 0;
+  mi->angle_delta[PLANE_TYPE_UV] = 0;
+
+  // The decoder still reads the motion mode, so count what it counts.
+  if (features->switchable_motion_mode)
+    av1_count_overlappable_neighbors(cm, xd);
+  mi->num_proj_ref = 0;
+  if (warped_motion_update_num_proj_ref(cpi, mi)) {
+    int pts[SAMPLES_ARRAY_SIZE];
+    int pts_inref[SAMPLES_ARRAY_SIZE];
+    mi->num_proj_ref = av1_findSamples(cm, xd, pts, pts_inref);
+  }
+
+  // encode_superblock() sets the final transform size of skipped blocks.
+  mi->tx_size = max_txsize_lookup[bsize];
+  memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));
+  memset(ctx->tx_type_map, DCT_DCT, ctx->num_4x4_blk);
+  x->txfm_search_info.skip_txfm = 1;
+  av1_init_rd_stats(rd_cost);
+
+#if CONFIG_INTERNAL_STATS
+  store_coding_context_nonrd(x, ctx, mi->mode);
+#else
+  store_coding_context_nonrd(x, ctx);
+#endif  // CONFIG_INTERNAL_STATS
+}
+
 /*!\brief AV1 inter mode selection based on Non-RD optimized model.
  *
  * \ingroup nonrd_mode_search

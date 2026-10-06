@@ -466,10 +466,11 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
     }
     // Predicted sample of inter mode (for Luma plane) cannot be reused if
     // nonrd_check_partition_split speed feature is enabled, Since in such cases
-    // the buffer may not contain the predicted sample of best mode.
+    // the buffer may not contain the predicted sample of best mode. Skipped
+    // segment blocks are picked without building a prediction.
     const int start_plane =
         (x->reuse_inter_pred && (!cpi->sf.rt_sf.nonrd_check_partition_split) &&
-         cm->seq_params->bit_depth == AOM_BITS_8)
+         !seg_skip && cm->seq_params->bit_depth == AOM_BITS_8)
             ? 1
             : 0;
     av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
@@ -2333,12 +2334,10 @@ static void pick_sb_modes_nonrd(AV1_COMP *const cpi, TileDataEnc *tile_data,
     start_timing(cpi, nonrd_pick_inter_mode_sb_time);
 #endif
     if (seg_skip) {
-      x->force_zeromv_skip_for_blk = 1;
-      // TODO(marpan): Consider adding a function for nonrd:
-      // av1_nonrd_pick_inter_mode_sb_seg_skip(), instead of setting
-      // x->force_zeromv_skip flag and entering av1_nonrd_pick_inter_mode_sb().
+      av1_nonrd_pick_inter_mode_sb_seg_skip(cpi, x, rd_cost, bsize, ctx);
+    } else {
+      av1_nonrd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx);
     }
-    av1_nonrd_pick_inter_mode_sb(cpi, tile_data, x, rd_cost, bsize, ctx);
 #if CONFIG_COLLECT_COMPONENT_TIMING
     end_timing(cpi, nonrd_pick_inter_mode_sb_time);
 #endif

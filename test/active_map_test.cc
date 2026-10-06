@@ -233,10 +233,10 @@ int GetPixel(const aom_image_t &img, int plane, int x, int y) {
   return row[x];
 }
 
-// Params: test mode, speed, aq_mode and number of threads.
+// Params: test mode, speed, aq_mode, number of threads and content type.
 class InactiveAreaTest
-    : public ::libaom_test::CodecTestWith4Params<libaom_test::TestMode, int,
-                                                 int, int>,
+    : public ::libaom_test::CodecTestWith5Params<libaom_test::TestMode, int,
+                                                 int, int, int>,
       public ::libaom_test::EncoderTest {
  protected:
   InactiveAreaTest() : EncoderTest(GET_PARAM(0)) {}
@@ -247,6 +247,7 @@ class InactiveAreaTest
     cpu_used_ = GET_PARAM(2);
     aq_mode_ = GET_PARAM(3);
     cfg_.g_threads = GET_PARAM(4);
+    content_ = GET_PARAM(5);
     cfg_.g_lag_in_frames = 0;
     cfg_.rc_target_bitrate = 300;
     cfg_.rc_end_usage = AOM_CBR;
@@ -260,7 +261,7 @@ class InactiveAreaTest
     if (frame == 0) {
       encoder->Control(AOME_SET_CPUUSED, cpu_used_);
       encoder->Control(AV1E_SET_AQ_MODE, aq_mode_);
-      encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN);
+      encoder->Control(AV1E_SET_TUNE_CONTENT, content_);
       encoder->Control(AV1E_SET_ROW_MT, cfg_.g_threads > 1);
       return;
     }
@@ -284,6 +285,7 @@ class InactiveAreaTest
       roi.cols = mi_cols;
       for (int i = 0; i < AOM_MAX_SEGMENTS; ++i) roi.ref_frame[i] = -1;
       roi.skip[3] = 1;
+      if (skip_ref_golden_) roi.ref_frame[3] = 4;
       encoder->Control(AOME_SET_ROI_MAP, &roi);
     } else {
       aom_active_map_t active_map = {};
@@ -297,7 +299,7 @@ class InactiveAreaTest
   void DecompressedFrameHook(const aom_image_t &img,
                              aom_codec_pts_t pts) override {
     const int frame = static_cast<int>(pts);
-    if (frame > 0) {
+    if (frame > 0 && !skip_ref_golden_) {
       uint8_t map[kMapRows * kMapCols];
       BuildMap(frame, map);
       std::vector<uint8_t> near_active(kSrcWidth * kSrcHeight, 0);
@@ -351,8 +353,10 @@ class InactiveAreaTest
     }
   }
 
-  void DoTest(bool use_roi, bool map_once = false) {
+  void DoTest(bool use_roi, bool skip_ref_golden = false,
+              bool map_once = false) {
     use_roi_ = use_roi;
+    skip_ref_golden_ = skip_ref_golden;
     map_once_ = map_once;
     // More bits let q drop low enough while the map stays set.
     if (map_once) cfg_.rc_target_bitrate = 1000;
@@ -362,7 +366,9 @@ class InactiveAreaTest
 
   int cpu_used_;
   int aq_mode_;
+  int content_;
   bool use_roi_ = false;
+  bool skip_ref_golden_ = false;
   bool map_once_ = false;
   std::vector<uint8_t> prev_[3];
 };
@@ -371,12 +377,14 @@ TEST_P(InactiveAreaTest, ActiveMap) { DoTest(false); }
 
 TEST_P(InactiveAreaTest, RoiSkip) { DoTest(true); }
 
-// The map stays set while cyclic refresh turns off and q drops.
-TEST_P(InactiveAreaTest, ActiveMapSetOnce) { DoTest(false, true); }
+TEST_P(InactiveAreaTest, RoiSkipGoldenRef) { DoTest(true, true); }
 
-AV1_INSTANTIATE_TEST_SUITE(InactiveAreaTest,
-                           ::testing::Values(::libaom_test::kRealTime),
-                           ::testing::Range(7, 12), ::testing::Values(0, 3),
-                           ::testing::Values(1, 4));
+// The map stays set while cyclic refresh turns off and q drops.
+TEST_P(InactiveAreaTest, ActiveMapSetOnce) { DoTest(false, false, true); }
+
+AV1_INSTANTIATE_TEST_SUITE(
+    InactiveAreaTest, ::testing::Values(::libaom_test::kRealTime),
+    ::testing::Range(7, 12), ::testing::Values(0, 3), ::testing::Values(1, 4),
+    ::testing::Values(AOM_CONTENT_DEFAULT, AOM_CONTENT_SCREEN));
 
 }  // namespace
