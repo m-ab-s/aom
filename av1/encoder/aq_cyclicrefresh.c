@@ -584,6 +584,16 @@ void av1_cyclic_refresh_setup(AV1_COMP *const cpi) {
       unsigned char *const seg_map = cpi->enc_seg.map;
       memset(seg_map, 0, cm->mi_params.mi_rows * cm->mi_params.mi_cols);
       av1_disable_segmentation(&cm->seg);
+    } else if (segfeature_active(seg, CR_SEGMENT_ID_BOOST1, SEG_LVL_ALT_Q) ||
+               segfeature_active(seg, CR_SEGMENT_ID_BOOST2, SEG_LVL_ALT_Q) ||
+               (cm->prev_frame &&
+                (segfeature_active(&cm->prev_frame->seg, CR_SEGMENT_ID_BOOST1,
+                                   SEG_LVL_ALT_Q) ||
+                 segfeature_active(&cm->prev_frame->seg, CR_SEGMENT_ID_BOOST2,
+                                   SEG_LVL_ALT_Q)))) {
+      av1_disable_segfeature(seg, CR_SEGMENT_ID_BOOST1, SEG_LVL_ALT_Q);
+      av1_disable_segfeature(seg, CR_SEGMENT_ID_BOOST2, SEG_LVL_ALT_Q);
+      seg->update_data = 1;
     }
     if (frame_is_intra_only(cm) || scene_change_detected ||
         cpi->ppi->rtc_ref.bias_recovery_frame) {

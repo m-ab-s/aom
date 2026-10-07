@@ -147,9 +147,26 @@ void BuildActiveMap(int frame, uint8_t *map) {
   }
 }
 
+// Marks the top half of the window active, 32 of the 384 blocks. With this
+// share cyclic refresh starts on and turns off a few frames later.
+void BuildSmallActiveMap(uint8_t *map) {
+  memset(map, 0, kMapRows * kMapCols);
+  int win_x;
+  int win_y;
+  WindowPos(1, &win_x, &win_y);
+  for (int r = win_y / 16; r < win_y / 16 + 4; ++r) {
+    for (int c = win_x / 16; c < (win_x + kWinSize) / 16; ++c) {
+      map[r * kMapCols + c] = 1;
+    }
+  }
+}
+
+// With fixed_window the window stays where it is on frame 1 and scrolls one
+// line per frame.
 class ScrollingWindowSource : public ::libaom_test::DummyVideoSource {
  public:
-  ScrollingWindowSource() : doc_(kWinSize * kDocHeight) {
+  explicit ScrollingWindowSource(bool fixed_window)
+      : fixed_window_(fixed_window), doc_(kWinSize * kDocHeight) {
     SetSize(kSrcWidth, kSrcHeight);
     set_limit(kNumFrames);
     ::libaom_test::ACMRandom rnd(0x5eed);
@@ -164,6 +181,7 @@ class ScrollingWindowSource : public ::libaom_test::DummyVideoSource {
  protected:
   void FillFrame() override {
     const int frame = static_cast<int>(frame_);
+    const int layout_frame = fixed_window_ ? 1 : frame;
     uint8_t *const y_plane = img_->planes[AOM_PLANE_Y];
     const int y_stride = img_->stride[AOM_PLANE_Y];
     for (int y = 0; y < kSrcHeight; ++y) {
@@ -181,8 +199,9 @@ class ScrollingWindowSource : public ::libaom_test::DummyVideoSource {
 
     int win_x;
     int win_y;
-    WindowPos(frame, &win_x, &win_y);
-    const int scroll = ScrollPos(frame);
+    WindowPos(layout_frame, &win_x, &win_y);
+    const int scroll =
+        fixed_window_ ? frame % (kDocHeight - kWinSize) : ScrollPos(frame);
     for (int y = 0; y < kWinSize; ++y) {
       memcpy(y_plane + (win_y + y) * y_stride + win_x,
              &doc_[(scroll + y) * kWinSize], kWinSize);
@@ -191,7 +210,7 @@ class ScrollingWindowSource : public ::libaom_test::DummyVideoSource {
     if (frame == 0) return;
 
     uint8_t map[kMapRows * kMapCols];
-    BuildActiveMap(frame, map);
+    BuildActiveMap(layout_frame, map);
     ::libaom_test::ACMRandom rnd(frame);
     for (int y = 0; y < kSrcHeight; ++y) {
       for (int x = 0; x < kSrcWidth; ++x) {
@@ -202,6 +221,7 @@ class ScrollingWindowSource : public ::libaom_test::DummyVideoSource {
   }
 
  private:
+  bool fixed_window_;
   std::vector<uint8_t> doc_;
 };
 
@@ -244,9 +264,10 @@ class InactiveAreaTest
       encoder->Control(AV1E_SET_ROW_MT, cfg_.g_threads > 1);
       return;
     }
+    if (map_once_ && frame > 1) return;
 
     uint8_t map[kMapRows * kMapCols];
-    BuildActiveMap(frame, map);
+    BuildMap(frame, map);
     if (use_roi_) {
       const int mi_cols = kSrcWidth / 4;
       const int mi_rows = kSrcHeight / 4;
@@ -278,7 +299,7 @@ class InactiveAreaTest
     const int frame = static_cast<int>(pts);
     if (frame > 0) {
       uint8_t map[kMapRows * kMapCols];
-      BuildActiveMap(frame, map);
+      BuildMap(frame, map);
       std::vector<uint8_t> near_active(kSrcWidth * kSrcHeight, 0);
       for (int r = 0; r < kMapRows; ++r) {
         for (int c = 0; c < kMapCols; ++c) {
@@ -322,21 +343,36 @@ class InactiveAreaTest
     }
   }
 
-  void DoTest(bool use_roi) {
+  void BuildMap(int frame, uint8_t *map) const {
+    if (map_once_) {
+      BuildSmallActiveMap(map);
+    } else {
+      BuildActiveMap(frame, map);
+    }
+  }
+
+  void DoTest(bool use_roi, bool map_once = false) {
     use_roi_ = use_roi;
-    ScrollingWindowSource video;
+    map_once_ = map_once;
+    // More bits let q drop low enough while the map stays set.
+    if (map_once) cfg_.rc_target_bitrate = 1000;
+    ScrollingWindowSource video(map_once);
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
 
   int cpu_used_;
   int aq_mode_;
   bool use_roi_ = false;
+  bool map_once_ = false;
   std::vector<uint8_t> prev_[3];
 };
 
 TEST_P(InactiveAreaTest, ActiveMap) { DoTest(false); }
 
 TEST_P(InactiveAreaTest, RoiSkip) { DoTest(true); }
+
+// The map stays set while cyclic refresh turns off and q drops.
+TEST_P(InactiveAreaTest, ActiveMapSetOnce) { DoTest(false, true); }
 
 AV1_INSTANTIATE_TEST_SUITE(InactiveAreaTest,
                            ::testing::Values(::libaom_test::kRealTime),
