@@ -3610,6 +3610,7 @@ TEST(EncodeAPI, NonrdBlockYrdRateOverflow) {
   aom_codec_ctx_t enc;
   ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 10), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_AQ_MODE, 0), AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_LOSSLESS, 1), AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SUPERBLOCK_SIZE,
                               AOM_SUPERBLOCK_SIZE_128X128),
