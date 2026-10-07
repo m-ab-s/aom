@@ -2819,6 +2819,7 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
   MB_MODE_INFO **this_mi = mib;
   BLOCK_SIZE orig_bsize = this_mi[0]->bsize;
   const PARTITION_TYPE orig_partition = this_mi[0]->partition;
+  const uint8_t orig_num_proj_ref = this_mi[0]->num_proj_ref;
 
   this_mi[0]->bsize = bsize;
   this_mi[0]->partition = PARTITION_NONE;
@@ -2864,6 +2865,7 @@ static void direct_partition_merging(AV1_COMP *cpi, ThreadData *td,
                                        mi_col, this_mi[0]->bsize);
     find_predictors(cpi, x, ref_frame, frame_mv, yv12_mb, this_mi[0]->bsize,
                     force_skip_low_temp_var, skip_pred_mv, &use_scaled_ref);
+    this_mi[0]->num_proj_ref = orig_num_proj_ref;
   } else {
     struct scale_factors *sf = get_ref_scale_factors(cm, ref_frame);
     const int is_scaled = av1_is_scaled(sf);
