@@ -108,6 +108,112 @@ AV1_INSTANTIATE_TEST_SUITE(ActiveMapTest,
                            ::testing::Range(5, 12), ::testing::Values(0, 3),
                            ::testing::Values(0, 1));
 
+// Encodes with every block inactive, with and without temporal layers. All
+// frames after the key frame should then be coded as skip and stay tiny.
+// Params: test mode, speed and number of temporal layers.
+class ActiveMapSvcTest
+    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode, int,
+                                                 int>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  static const int kWidth = 208;
+  static const int kHeight = 144;
+  static const int kCols = (kWidth + 15) / 16;
+  static const int kRows = (kHeight + 15) / 16;
+  static constexpr size_t kMaxSkipFrameSize = 200;
+
+  ActiveMapSvcTest() : EncoderTest(GET_PARAM(0)) {}
+  ~ActiveMapSvcTest() override = default;
+
+  void SetUp() override {
+    InitializeConfig(GET_PARAM(1));
+    cpu_used_ = GET_PARAM(2);
+    number_temporal_layers_ = GET_PARAM(3);
+  }
+
+  void SetSvcParams(::libaom_test::Encoder *encoder) {
+    aom_svc_params_t svc_params = {};
+    svc_params.number_spatial_layers = 1;
+    svc_params.number_temporal_layers = number_temporal_layers_;
+    svc_params.scaling_factor_num[0] = 1;
+    svc_params.scaling_factor_den[0] = 1;
+    for (int i = 0; i < number_temporal_layers_; ++i) {
+      svc_params.max_quantizers[i] = 56;
+      svc_params.min_quantizers[i] = 2;
+      svc_params.layer_target_bitrate[i] =
+          cfg_.rc_target_bitrate * (i + 1) / number_temporal_layers_;
+      svc_params.framerate_factor[i] = 1 << (number_temporal_layers_ - 1 - i);
+    }
+    encoder->Control(AV1E_SET_SVC_PARAMS, &svc_params);
+  }
+
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
+    const unsigned int frame = video->frame();
+    temporal_layer_id_ = frame % number_temporal_layers_;
+    if (frame == 0) {
+      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AV1E_SET_AQ_MODE, 0);
+      if (number_temporal_layers_ > 1) SetSvcParams(encoder);
+    }
+    if (number_temporal_layers_ > 1) {
+      aom_svc_layer_id_t layer_id = {};
+      layer_id.temporal_layer_id = temporal_layer_id_;
+      encoder->Control(AV1E_SET_SVC_LAYER_ID, &layer_id);
+    }
+    if (frame > 0) {
+      uint8_t active_map[kRows * kCols] = {};
+      aom_active_map_t map = aom_active_map_t();
+      map.rows = kRows;
+      map.cols = kCols;
+      map.active_map = active_map;
+      encoder->Control(AOME_SET_ACTIVEMAP, &map);
+    }
+  }
+
+  void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {
+    if (num_frames_++ == 0) return;
+    EXPECT_LT(pkt->data.frame.sz, kMaxSkipFrameSize)
+        << "frame " << num_frames_ - 1;
+  }
+
+  // The top temporal layer isn't used as a reference, so the encoder skips
+  // loop filtering on it while the decoder doesn't.
+  void MismatchHook(const aom_image_t *img_enc,
+                    const aom_image_t *img_dec) override {
+    if (number_temporal_layers_ > 1 &&
+        temporal_layer_id_ == number_temporal_layers_ - 1) {
+      return;
+    }
+    EncoderTest::MismatchHook(img_enc, img_dec);
+  }
+
+  void DoTest() {
+    cfg_.g_lag_in_frames = 0;
+    cfg_.rc_target_bitrate = 400;
+    cfg_.rc_resize_mode = 0;
+    cfg_.g_pass = AOM_RC_ONE_PASS;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.kf_max_dist = 90000;
+    ::libaom_test::I420VideoSource video("hantro_odd.yuv", kWidth, kHeight, 30,
+                                         1, 0, 20);
+
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    EXPECT_EQ(num_frames_, 20);
+  }
+
+  int cpu_used_;
+  int number_temporal_layers_;
+  int temporal_layer_id_ = 0;
+  int num_frames_ = 0;
+};
+
+TEST_P(ActiveMapSvcTest, AllInactive) { DoTest(); }
+
+AV1_INSTANTIATE_TEST_SUITE(ActiveMapSvcTest,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Range(7, 12), ::testing::Values(1, 2));
+
 constexpr int kSrcWidth = 384;
 constexpr int kSrcHeight = 256;
 constexpr int kMapCols = kSrcWidth / 16;

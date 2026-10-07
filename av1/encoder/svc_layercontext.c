@@ -237,6 +237,7 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   const int postencode_drop = cpi->rc.postencode_drop;
   const int static_since_last_scene_change =
       cpi->rc.static_since_last_scene_change;
+  const int percent_blocks_inactive = cpi->rc.percent_blocks_inactive;
   // Restore layer rate control.
   cpi->rc = lc->rc;
   cpi->ppi->p_rc = lc->p_rc;
@@ -255,6 +256,10 @@ void av1_restore_layer_context(AV1_COMP *const cpi) {
   cpi->rc.max_consec_drop = max_consec_drop;
   cpi->rc.postencode_drop = postencode_drop;
   cpi->rc.static_since_last_scene_change = static_since_last_scene_change;
+  // The active map is set for the full resolution frame, so keep it only
+  // without spatial layers.
+  if (svc->number_spatial_layers == 1)
+    cpi->rc.percent_blocks_inactive = percent_blocks_inactive;
   // For spatial-svc, allow cyclic-refresh to be applied on the spatial layers,
   // for the base temporal layer.
   if (cpi->oxcf.q_cfg.aq_mode == CYCLIC_REFRESH_AQ &&
