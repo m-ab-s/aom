@@ -5984,14 +5984,21 @@ static void rtc_set_updates_ref_frame_config(
     ExtRefreshFrameFlagsInfo *const ext_refresh_frame_flags,
     RTC_REF *const rtc_ref) {
   ext_refresh_frame_flags->update_pending = 1;
-  ext_refresh_frame_flags->last_frame = rtc_ref->refresh[rtc_ref->ref_idx[0]];
-  ext_refresh_frame_flags->golden_frame = rtc_ref->refresh[rtc_ref->ref_idx[3]];
+  // The ref_idx[] entries of references that are not in use are don't-cares
+  // for the application, and often all point to the same slot, which may be
+  // the one being refreshed. Only classify a refresh as an update of a
+  // particular reference (which e.g. makes rate control treat the frame as a
+  // golden or altref update) if that reference is in use.
+  ext_refresh_frame_flags->last_frame =
+      rtc_ref->reference[0] && rtc_ref->refresh[rtc_ref->ref_idx[0]];
+  ext_refresh_frame_flags->golden_frame =
+      rtc_ref->reference[3] && rtc_ref->refresh[rtc_ref->ref_idx[3]];
   ext_refresh_frame_flags->bwd_ref_frame =
-      rtc_ref->refresh[rtc_ref->ref_idx[4]];
+      rtc_ref->reference[4] && rtc_ref->refresh[rtc_ref->ref_idx[4]];
   ext_refresh_frame_flags->alt2_ref_frame =
-      rtc_ref->refresh[rtc_ref->ref_idx[5]];
+      rtc_ref->reference[5] && rtc_ref->refresh[rtc_ref->ref_idx[5]];
   ext_refresh_frame_flags->alt_ref_frame =
-      rtc_ref->refresh[rtc_ref->ref_idx[6]];
+      rtc_ref->reference[6] && rtc_ref->refresh[rtc_ref->ref_idx[6]];
   rtc_ref->non_reference_frame = 1;
   for (int i = 0; i < REF_FRAMES; i++) {
     if (rtc_ref->refresh[i] == 1) {

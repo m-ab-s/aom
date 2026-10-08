@@ -307,12 +307,10 @@ void av1_svc_update_buffer_slot_refreshed(AV1_COMP *const cpi) {
       rtc_ref->buffer_spatial_layer[i] = svc->spatial_layer_id;
     }
   } else if (rtc_ref->set_ref_frame_config) {
-    for (unsigned int i = 0; i < INTER_REFS_PER_FRAME; i++) {
-      const int ref_frame_map_idx = rtc_ref->ref_idx[i];
-      if (rtc_ref->refresh[ref_frame_map_idx]) {
-        rtc_ref->buffer_time_index[ref_frame_map_idx] = current_frame;
-        rtc_ref->buffer_spatial_layer[ref_frame_map_idx] =
-            svc->spatial_layer_id;
+    for (unsigned int i = 0; i < REF_FRAMES; i++) {
+      if (rtc_ref->refresh[i]) {
+        rtc_ref->buffer_time_index[i] = current_frame;
+        rtc_ref->buffer_spatial_layer[i] = svc->spatial_layer_id;
       }
     }
   }
