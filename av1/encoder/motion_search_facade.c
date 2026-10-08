@@ -10,7 +10,7 @@
  */
 
 #include "av1/common/reconinter.h"
-
+#include "av1/common/scale.h"
 #include "av1/encoder/encodemv.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/interp_search.h"
