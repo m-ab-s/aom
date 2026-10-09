@@ -391,6 +391,17 @@ static void update_zeromv_cnt(const AV1_COMP *const cpi,
   }
 }
 
+// Returns true when the pixels of this block already match its prediction,
+// because its whole skip superblock was copied from the reference up front.
+static bool is_prediction_copied(const MACROBLOCK *x, const MB_MODE_INFO *mbmi,
+                                 int seg_skip) {
+  if (!seg_skip || x->sb_copied_ref == NONE_FRAME) return false;
+
+  return !has_second_ref(mbmi) && !is_interintra_pred(mbmi) &&
+         mbmi->ref_frame[0] == x->sb_copied_ref &&
+         mbmi->motion_mode == SIMPLE_TRANSLATION && mbmi->mv[0].as_int == 0;
+}
+
 static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
                               ThreadData *td, TokenExtra **t, RUN_TYPE dry_run,
                               BLOCK_SIZE bsize, int *rate) {
@@ -473,8 +484,10 @@ static void encode_superblock(const AV1_COMP *const cpi, TileDataEnc *tile_data,
          !seg_skip && cm->seq_params->bit_depth == AOM_BITS_8)
             ? 1
             : 0;
-    av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                  start_plane, av1_num_planes(cm) - 1);
+    if (!is_prediction_copied(x, mbmi, seg_skip)) {
+      av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                    start_plane, av1_num_planes(cm) - 1);
+    }
     if (mbmi->motion_mode == OBMC_CAUSAL) {
       assert(cpi->oxcf.motion_mode_cfg.enable_obmc);
       av1_build_obmc_inter_predictors_sb(cm, xd);
