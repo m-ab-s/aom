@@ -3635,4 +3635,105 @@ TEST(EncodeAPI, SvcCompPredDoesNotAffectSingleRefFrames) {
   ASSERT_EQ(aom_codec_destroy(&enc_no_comp), AOM_CODEC_OK);
 }
 
+// Regression test for b/567944558: Out-of-bounds read in setup_planes when
+// encoding with manual reference buffer control (AV1E_SET_SVC_REF_FRAME_CONFIG)
+// after a resolution change, when LAST_FRAME is not referenced and GOLDEN_FRAME
+// and ALTREF_FRAME have equal SADs.
+TEST(EncodeAPI, Buganizer567944558) {
+  for (int cpu_used : { 7, 9 }) {
+    aom_codec_iface_t *const iface = aom_codec_av1_cx();
+    aom_codec_enc_cfg_t cfg;
+    ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+              AOM_CODEC_OK);
+
+    cfg.g_w = 320;
+    cfg.g_h = 240;
+    cfg.g_lag_in_frames = 0;
+    cfg.rc_end_usage = AOM_VBR;
+    cfg.rc_target_bitrate = 500;
+
+    aom_codec_ctx_t enc;
+    ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, cpu_used),
+              AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ROW_MT, 1), AOM_CODEC_OK);
+
+    aom_svc_params_t svc_params = {};
+    svc_params.number_spatial_layers = 1;
+    svc_params.number_temporal_layers = 1;
+    svc_params.scaling_factor_num[0] = 1;
+    svc_params.scaling_factor_den[0] = 1;
+    svc_params.layer_target_bitrate[0] = cfg.rc_target_bitrate;
+    svc_params.max_quantizers[0] = 56;
+    svc_params.min_quantizers[0] = 10;
+    svc_params.framerate_factor[0] = 1;
+    ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_PARAMS, &svc_params),
+              AOM_CODEC_OK);
+
+    auto set_ref_config = [&](bool ref_last, bool ref_golden, bool ref_altref,
+                              int update_slot) {
+      aom_svc_ref_frame_config_t ref_frame_config = {};
+      ref_frame_config.ref_idx[0] = 0;  // LAST_FRAME -> slot 0
+      ref_frame_config.ref_idx[3] = 1;  // GOLDEN_FRAME -> slot 1
+      ref_frame_config.ref_idx[6] = 2;  // ALTREF_FRAME -> slot 2
+      if (update_slot >= 0) {
+        ref_frame_config.refresh[update_slot] = 1;
+      }
+      ref_frame_config.reference[0] = ref_last ? 1 : 0;
+      ref_frame_config.reference[3] = ref_golden ? 1 : 0;
+      ref_frame_config.reference[6] = ref_altref ? 1 : 0;
+      ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_REF_FRAME_CONFIG,
+                                  &ref_frame_config),
+                AOM_CODEC_OK);
+    };
+
+    aom_image_t *img_large =
+        aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 320, 240, 1);
+    ASSERT_NE(img_large, nullptr);
+    FillImageRandom(img_large);
+
+    // Frame 0: Keyframe at 320x240.
+    set_ref_config(/*ref_last=*/false, /*ref_golden=*/false,
+                   /*ref_altref=*/false, /*update_slot=*/0);
+    ASSERT_EQ(aom_codec_encode(&enc, img_large, 0, 1, AOM_EFLAG_FORCE_KF),
+              AOM_CODEC_OK);
+
+    // Frame 1: Delta frame at 320x240 referencing LAST and updating slot 0.
+    FillImageRandom(img_large);
+    set_ref_config(/*ref_last=*/true, /*ref_golden=*/false,
+                   /*ref_altref=*/false, /*update_slot=*/0);
+    ASSERT_EQ(aom_codec_encode(&enc, img_large, 1, 1, 0), AOM_CODEC_OK);
+
+    // Reconfigure down to 42x19.
+    cfg.g_w = 42;
+    cfg.g_h = 19;
+    ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_PARAMS, &svc_params),
+              AOM_CODEC_OK);
+
+    aom_image_t *img_small =
+        aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 42, 19, 1);
+    ASSERT_NE(img_small, nullptr);
+    FillImageRandom(img_small);
+
+    // Frame 2: Keyframe at 42x19 (refreshes all slots with the same frame,
+    // leaving INVALID_MV in mi_alloc).
+    set_ref_config(/*ref_last=*/false, /*ref_golden=*/false,
+                   /*ref_altref=*/false, /*update_slot=*/0);
+    ASSERT_EQ(aom_codec_encode(&enc, img_small, 2, 1, AOM_EFLAG_FORCE_KF),
+              AOM_CODEC_OK);
+
+    // Frame 3: Delta frame at 42x19 referencing GOLDEN and ALTREF (without
+    // LAST). GOLDEN and ALTREF hold the same frame so their SADs tie.
+    FillImageRandom(img_small);
+    set_ref_config(/*ref_last=*/false, /*ref_golden=*/true, /*ref_altref=*/true,
+                   /*update_slot=*/0);
+    ASSERT_EQ(aom_codec_encode(&enc, img_small, 3, 1, 0), AOM_CODEC_OK);
+
+    aom_img_free(img_small);
+    aom_img_free(img_large);
+    ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+  }
+}
+
 }  // namespace
