@@ -3641,4 +3641,104 @@ TEST(EncodeAPI, NonrdBlockYrdRateOverflow) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+// Regression test for webrtc:496266459: Enabling compound prediction via
+// AV1E_SET_SVC_REF_FRAME_COMP_PRED must not affect encoding of frames that do
+// not have any active compound reference pair (e.g., single-reference delta
+// frames referencing only LAST_FRAME).
+TEST(EncodeAPI, SvcCompPredDoesNotAffectSingleRefFrames) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = 320;
+  cfg.g_h = 240;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_Q;
+
+  aom_codec_ctx_t enc_no_comp;
+  aom_codec_ctx_t enc_with_comp;
+  ASSERT_EQ(aom_codec_enc_init(&enc_no_comp, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_enc_init(&enc_with_comp, iface, &cfg, 0), AOM_CODEC_OK);
+
+  for (aom_codec_ctx_t *enc : { &enc_no_comp, &enc_with_comp }) {
+    ASSERT_EQ(aom_codec_control(enc, AOME_SET_CPUUSED, 9), AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_control(enc, AOME_SET_CQ_LEVEL, 40), AOM_CODEC_OK);
+  }
+
+  // Enable compound prediction for all three compound reference pairs
+  // (GOLDEN_LAST, LAST2_LAST, ALTREF_LAST) on the second encoder.
+  aom_svc_ref_frame_comp_pred_t comp_pred = {};
+  comp_pred.use_comp_pred[0] = 1;
+  comp_pred.use_comp_pred[1] = 1;
+  comp_pred.use_comp_pred[2] = 1;
+  ASSERT_EQ(aom_codec_control(&enc_with_comp, AV1E_SET_SVC_REF_FRAME_COMP_PRED,
+                              &comp_pred),
+            AOM_CODEC_OK);
+
+  aom_image_t *img =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h, 1);
+  ASSERT_NE(img, nullptr);
+
+  constexpr int kNumFrames = 10;
+  for (int frame = 0; frame < kNumFrames; ++frame) {
+    SCOPED_TRACE(frame);
+    // Fill moving textured pattern.
+    for (unsigned int r = 0; r < img->d_h; ++r) {
+      for (unsigned int c = 0; c < img->d_w; ++c) {
+        const int texture = (((r + frame) / 8 + (c + 2 * frame) / 8) & 1) * 32;
+        img->planes[AOM_PLANE_Y][r * img->stride[AOM_PLANE_Y] + c] =
+            static_cast<uint8_t>((r + 2 * c + 3 * frame + texture) & 0xff);
+      }
+    }
+    for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; ++plane) {
+      const unsigned int h =
+          (img->d_h + img->y_chroma_shift) >> img->y_chroma_shift;
+      for (unsigned int r = 0; r < h; ++r) {
+        memset(img->planes[plane] + r * img->stride[plane], 128,
+               (img->d_w + img->x_chroma_shift) >> img->x_chroma_shift);
+      }
+    }
+
+    // Frame 0 refreshes slot 0; delta frames reference only LAST_FRAME (slot 0)
+    // with all other reference[i] = 0, and refresh slot 0.
+    aom_svc_ref_frame_config_t ref_cfg = {};
+    ref_cfg.ref_idx[0] = 0;  // LAST_FRAME -> slot 0.
+    ref_cfg.reference[0] = frame > 0;
+    ref_cfg.refresh[0] = 1;
+
+    for (aom_codec_ctx_t *enc : { &enc_no_comp, &enc_with_comp }) {
+      ASSERT_EQ(aom_codec_control(enc, AV1E_SET_SVC_REF_FRAME_CONFIG, &ref_cfg),
+                AOM_CODEC_OK);
+      ASSERT_EQ(aom_codec_encode(enc, img, frame, 1, 0), AOM_CODEC_OK);
+    }
+
+    aom_codec_iter_t iter_no_comp = nullptr;
+    aom_codec_iter_t iter_with_comp = nullptr;
+    const aom_codec_cx_pkt_t *pkt_no_comp =
+        aom_codec_get_cx_data(&enc_no_comp, &iter_no_comp);
+    const aom_codec_cx_pkt_t *pkt_with_comp =
+        aom_codec_get_cx_data(&enc_with_comp, &iter_with_comp);
+    ASSERT_NE(pkt_no_comp, nullptr);
+    ASSERT_NE(pkt_with_comp, nullptr);
+    ASSERT_EQ(pkt_no_comp->kind, AOM_CODEC_CX_FRAME_PKT);
+    ASSERT_EQ(pkt_with_comp->kind, AOM_CODEC_CX_FRAME_PKT);
+    // If use_comp_ref_nonrd is left enabled when no compound reference pair is
+    // active, single-reference frames switch reference mode
+    // (REFERENCE_MODE_SELECT) and interpolation filter (SWITCHABLE) signaling
+    // and mode search, altering both packet sizes and bitstream bytes. Verify
+    // that the output frames remain bit-exact (same size and identical bytes)
+    // as when compound prediction is disabled.
+    EXPECT_EQ(pkt_with_comp->data.frame.sz, pkt_no_comp->data.frame.sz);
+    if (pkt_with_comp->data.frame.sz == pkt_no_comp->data.frame.sz) {
+      EXPECT_EQ(memcmp(pkt_with_comp->data.frame.buf,
+                       pkt_no_comp->data.frame.buf, pkt_no_comp->data.frame.sz),
+                0);
+    }
+  }
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&enc_with_comp), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_destroy(&enc_no_comp), AOM_CODEC_OK);
+}
+
 }  // namespace

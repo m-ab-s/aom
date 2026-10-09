@@ -1738,18 +1738,18 @@ static void set_rt_speed_feature_framesize_dependent(const AV1_COMP *const cpi,
     sf->rt_sf.frame_level_mode_cost_update = false;
 
     // Compound mode enabling.
-    if (rtc_ref->ref_frame_comp[0] || rtc_ref->ref_frame_comp[1] ||
-        rtc_ref->ref_frame_comp[2]) {
-      sf->rt_sf.use_comp_ref_nonrd = 1;
-      sf->rt_sf.ref_frame_comp_nonrd[0] =
-          rtc_ref->ref_frame_comp[0] && rtc_ref->reference[GOLDEN_FRAME - 1];
-      sf->rt_sf.ref_frame_comp_nonrd[1] =
-          rtc_ref->ref_frame_comp[1] && rtc_ref->reference[LAST2_FRAME - 1];
-      sf->rt_sf.ref_frame_comp_nonrd[2] =
-          rtc_ref->ref_frame_comp[2] && rtc_ref->reference[ALTREF_FRAME - 1];
-    } else {
-      sf->rt_sf.use_comp_ref_nonrd = 0;
-    }
+    sf->rt_sf.ref_frame_comp_nonrd[0] = rtc_ref->ref_frame_comp[0] &&
+                                        rtc_ref->reference[LAST_FRAME - 1] &&
+                                        rtc_ref->reference[GOLDEN_FRAME - 1];
+    sf->rt_sf.ref_frame_comp_nonrd[1] = rtc_ref->ref_frame_comp[1] &&
+                                        rtc_ref->reference[LAST_FRAME - 1] &&
+                                        rtc_ref->reference[LAST2_FRAME - 1];
+    sf->rt_sf.ref_frame_comp_nonrd[2] = rtc_ref->ref_frame_comp[2] &&
+                                        rtc_ref->reference[LAST_FRAME - 1] &&
+                                        rtc_ref->reference[ALTREF_FRAME - 1];
+    sf->rt_sf.use_comp_ref_nonrd = sf->rt_sf.ref_frame_comp_nonrd[0] ||
+                                   sf->rt_sf.ref_frame_comp_nonrd[1] ||
+                                   sf->rt_sf.ref_frame_comp_nonrd[2];
 
     if (cpi->svc.number_spatial_layers > 1 ||
         cpi->svc.number_temporal_layers > 1)
