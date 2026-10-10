@@ -679,13 +679,9 @@ int av1_cyclic_refresh_get_rdmult(const CYCLIC_REFRESH *cr) {
   return cr->rdmult;
 }
 
-int av1_cyclic_refresh_disable_lf_cdef(AV1_COMP *const cpi) {
+int av1_cyclic_refresh_disable_lf(AV1_COMP *const cpi) {
   CYCLIC_REFRESH *const cr = cpi->cyclic_refresh;
   const int qindex = cpi->common.quant_params.base_qindex;
-  if (cpi->active_map.enabled &&
-      cpi->rc.percent_blocks_inactive >
-          cpi->sf.rt_sf.thresh_active_maps_skip_lf_cdef)
-    return 1;
   if (cpi->rc.frames_since_key > 30 && cr->percent_refresh > 0 &&
       cr->counter_encode_maxq_scene_change > 300 / cr->percent_refresh &&
       cpi->rc.frame_source_sad < 1000 &&
