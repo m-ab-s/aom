@@ -17,7 +17,6 @@
 #include "aom/aom_integer.h"
 #include "aom_scale/yv12config.h"
 #include "av1/encoder/hash.h"
-#include "third_party/vector/vector.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,9 +33,19 @@ typedef struct _block_hash {
   uint32_t hash_value2;
 } block_hash;
 
+// The table keeps its buffers from frame to frame. cpi->td.mb owns them and
+// frees them with the encoder. The encoder threads read shallow copies of the
+// table in their own MACROBLOCK, so it must not change while they run.
 typedef struct _hash_table {
-  // a dynamically allocated array of kMaxAddr elements
-  Vector **p_lookup_table;
+  // The number of entries in each bucket, and the index of its first entry in
+  // the entries of its block size. Both arrays have kMaxAddr (6 << 16)
+  // elements, one for each bucket of every block size.
+  uint16_t *bucket_count;
+  uint32_t *bucket_start;
+  // The entries of each block size from 4x4 to 128x128, stored bucket after
+  // bucket, and how many entries each array has room for.
+  block_hash *block_hashes[6];
+  uint32_t block_hashes_size[6];
 } hash_table;
 
 struct intrabc_hash_info;
@@ -58,8 +67,9 @@ void av1_hash_table_destroy(hash_table *p_hash_table);
 bool av1_hash_table_create(hash_table *p_hash_table);
 int32_t av1_hash_table_count(const hash_table *p_hash_table,
                              uint32_t hash_value);
-Iterator av1_hash_get_first_iterator(hash_table *p_hash_table,
-                                     uint32_t hash_value);
+// Returns the first of the av1_hash_table_count() entries for hash_value.
+const block_hash *av1_hash_get_first_block_hash(const hash_table *p_hash_table,
+                                                uint32_t hash_value);
 void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
                                        uint32_t *pic_block_hash);
 void av1_generate_block_hash_value(IntraBCHashInfo *intra_bc_hash_info,

@@ -1945,9 +1945,10 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
     count = AOMMIN(64, count);
   }
 
-  Iterator iterator = av1_hash_get_first_iterator(ref_frame_hash, hash_value1);
-  for (int i = 0; i < count; i++, aom_iterator_increment(&iterator)) {
-    block_hash ref_block_hash = *(block_hash *)(aom_iterator_get(&iterator));
+  const block_hash *block_hashes =
+      av1_hash_get_first_block_hash(ref_frame_hash, hash_value1);
+  for (int i = 0; i < count; i++) {
+    const block_hash ref_block_hash = block_hashes[i];
     if (hash_value2 == ref_block_hash.hash_value2) {
       // Make sure the prediction is from valid area.
       const MV dv = { GET_MV_SUBPEL(ref_block_hash.y - y_pos),

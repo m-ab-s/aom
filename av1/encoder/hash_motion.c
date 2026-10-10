@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "config/av1_rtcd.h"
 
@@ -19,10 +20,9 @@
 #include "av1/encoder/hash_motion.h"
 
 #define kSrcBits 16
-// kMaxAddr is the number of hash table buckets in p_hash_table->p_lookup_table.
-// p_hash_table->p_lookup_table consists of 6 hash tables of 1 << kSrcBits
-// buckets each. Each of the 6 supported block sizes (4, 8, 16, 32, 64, 128) has
-// its own hash table, indexed by the return value of
+// kMaxAddr is the number of hash table buckets. They form 6 hash tables of
+// 1 << kSrcBits buckets each. Each of the 6 supported block sizes (4, 8, 16,
+// 32, 64, 128) has its own hash table, indexed by the return value of
 // hash_block_size_to_index().
 #define kMaxAddr (6 << kSrcBits)
 #define kMaxCandidatesPerHashBucket 256
@@ -93,77 +93,65 @@ void av1_hash_table_init(IntraBCHashInfo *intrabc_hash_info) {
     av1_crc32c_calculator_init(&intrabc_hash_info->crc_calculator);
     intrabc_hash_info->crc_initialized = 1;
   }
-  intrabc_hash_info->intrabc_hash_table.p_lookup_table = NULL;
-}
-
-static void clear_all(hash_table *p_hash_table) {
-  if (p_hash_table->p_lookup_table == NULL) {
-    return;
-  }
-  for (int i = 0; i < kMaxAddr; i++) {
-    if (p_hash_table->p_lookup_table[i] != NULL) {
-      aom_vector_destroy(p_hash_table->p_lookup_table[i]);
-      aom_free(p_hash_table->p_lookup_table[i]);
-      p_hash_table->p_lookup_table[i] = NULL;
-    }
-  }
 }
 
 void av1_hash_table_destroy(hash_table *p_hash_table) {
-  clear_all(p_hash_table);
-  aom_free(p_hash_table->p_lookup_table);
-  p_hash_table->p_lookup_table = NULL;
-}
-
-bool av1_hash_table_create(hash_table *p_hash_table) {
-  if (p_hash_table->p_lookup_table != NULL) {
-    clear_all(p_hash_table);
-    return true;
+  aom_free(p_hash_table->bucket_count);
+  aom_free(p_hash_table->bucket_start);
+  for (int i = 0; i < NELEMENTS(p_hash_table->block_hashes); i++) {
+    aom_free(p_hash_table->block_hashes[i]);
   }
-  p_hash_table->p_lookup_table =
-      (Vector **)aom_calloc(kMaxAddr, sizeof(p_hash_table->p_lookup_table[0]));
-  if (!p_hash_table->p_lookup_table) return false;
-  return true;
+  memset(p_hash_table, 0, sizeof(*p_hash_table));
 }
 
-static bool hash_table_add_to_table(hash_table *p_hash_table,
-                                    uint32_t hash_value,
-                                    const block_hash *curr_block_hash) {
-  if (p_hash_table->p_lookup_table[hash_value] == NULL) {
-    p_hash_table->p_lookup_table[hash_value] =
-        aom_malloc(sizeof(*p_hash_table->p_lookup_table[hash_value]));
-    if (p_hash_table->p_lookup_table[hash_value] == NULL) {
+// Empties the table. The buffers are kept for the next frame.
+bool av1_hash_table_create(hash_table *p_hash_table) {
+  if (p_hash_table->bucket_count == NULL) {
+    p_hash_table->bucket_count =
+        aom_malloc(kMaxAddr * sizeof(*p_hash_table->bucket_count));
+    p_hash_table->bucket_start =
+        aom_malloc(kMaxAddr * sizeof(*p_hash_table->bucket_start));
+    if (!p_hash_table->bucket_count || !p_hash_table->bucket_start) {
+      av1_hash_table_destroy(p_hash_table);
       return false;
     }
-    if (aom_vector_setup(p_hash_table->p_lookup_table[hash_value], 10,
-                         sizeof(*curr_block_hash)) == VECTOR_ERROR)
-      return false;
   }
-  // Place an upper bound each hash table bucket to up to 256 intrabc
-  // block candidates, and ignore subsequent ones. Considering more can
-  // unnecessarily slow down encoding for virtually no efficiency gain.
-  if (aom_vector_byte_size(p_hash_table->p_lookup_table[hash_value]) <
-      kMaxCandidatesPerHashBucket * sizeof(*curr_block_hash)) {
-    if (aom_vector_push_back(p_hash_table->p_lookup_table[hash_value],
-                             (void *)curr_block_hash) == VECTOR_ERROR)
-      return false;
-  }
+  memset(p_hash_table->bucket_count, 0,
+         kMaxAddr * sizeof(*p_hash_table->bucket_count));
   return true;
+}
+
+// Makes sure block_hashes[size_index] has room for at least size entries. Its
+// old entries are lost even when the function fails.
+static bool hash_table_reserve_block_hashes(hash_table *p_hash_table,
+                                            int size_index, uint32_t size) {
+  if (size <= p_hash_table->block_hashes_size[size_index]) return true;
+  aom_free(p_hash_table->block_hashes[size_index]);
+  p_hash_table->block_hashes[size_index] =
+      aom_malloc(size * sizeof(*p_hash_table->block_hashes[size_index]));
+  if (p_hash_table->block_hashes[size_index] == NULL) {
+    p_hash_table->block_hashes_size[size_index] = 0;
+    return false;
+  }
+  p_hash_table->block_hashes_size[size_index] = size;
+  return true;
+}
+
+static inline void add_to_bucket_count(uint16_t *count, int n) {
+  *count = AOMMIN(*count + n, kMaxCandidatesPerHashBucket);
 }
 
 int32_t av1_hash_table_count(const hash_table *p_hash_table,
                              uint32_t hash_value) {
-  if (p_hash_table->p_lookup_table[hash_value] == NULL) {
-    return 0;
-  } else {
-    return (int32_t)(p_hash_table->p_lookup_table[hash_value]->size);
-  }
+  return p_hash_table->bucket_count[hash_value];
 }
 
-Iterator av1_hash_get_first_iterator(hash_table *p_hash_table,
-                                     uint32_t hash_value) {
+const block_hash *av1_hash_get_first_block_hash(const hash_table *p_hash_table,
+                                                uint32_t hash_value) {
   assert(av1_hash_table_count(p_hash_table, hash_value) > 0);
-  return aom_vector_begin(p_hash_table->p_lookup_table[hash_value]);
+  const block_hash *const block_hashes =
+      p_hash_table->block_hashes[hash_value >> kSrcBits];
+  return &block_hashes[p_hash_table->bucket_start[hash_value]];
 }
 
 void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
@@ -246,6 +234,9 @@ void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
   }
 }
 
+// Adds the blocks of one block size to the table. The counts of that block
+// size must be zero on entry, as av1_hash_table_create() leaves them. On
+// return they hold the number of entries in each bucket.
 bool av1_add_to_hash_map_by_row_with_precal_data(hash_table *p_hash_table,
                                                  const uint32_t *pic_hash,
                                                  int pic_width, int pic_height,
@@ -253,13 +244,57 @@ bool av1_add_to_hash_map_by_row_with_precal_data(hash_table *p_hash_table,
   const int x_end = pic_width - block_size + 1;
   const int y_end = pic_height - block_size + 1;
 
-  int add_value = hash_block_size_to_index(block_size);
-  assert(add_value >= 0);
-  add_value <<= kSrcBits;
+  const int size_index = hash_block_size_to_index(block_size);
+  assert(size_index >= 0);
+  const int add_value = size_index << kSrcBits;
   const int crc_mask = (1 << kSrcBits) - 1;
+  uint16_t *const bucket_count = p_hash_table->bucket_count + add_value;
+  uint32_t *const bucket_start = p_hash_table->bucket_start + add_value;
   int step = block_size;
   int x_offset = 0;
   int y_offset = 0;
+
+  // No block of this size fits in the frame.
+  if (x_end <= 0 || y_end <= 0) return true;
+
+  // The next two loops set bucket_start. The first counts the blocks of each
+  // bucket, and the second places the buckets one after another.
+  //
+  // Place an upper bound each hash table bucket to up to 256 intrabc
+  // block candidates, and ignore subsequent ones. Considering more can
+  // unnecessarily slow down encoding for virtually no efficiency gain.
+  // How many blocks each bucket keeps doesn't depend on the order they are
+  // added in, so count them first in raster order. Flat areas give long runs
+  // of the same bucket, so count a whole run at once.
+  for (int y_pos = 0; y_pos < y_end; y_pos++) {
+    const uint32_t *const row_hash = pic_hash + y_pos * pic_width;
+    int bucket = row_hash[0] & crc_mask;
+    int run = 0;
+    for (int x_pos = 0; x_pos < x_end; x_pos++) {
+      const int curr_bucket = row_hash[x_pos] & crc_mask;
+      if (curr_bucket != bucket) {
+        add_to_bucket_count(&bucket_count[bucket], run);
+        bucket = curr_bucket;
+        run = 0;
+      }
+      run++;
+    }
+    add_to_bucket_count(&bucket_count[bucket], run);
+  }
+
+  // Store the buckets one after another. The counts restart from zero and
+  // track how far each bucket is filled.
+  uint32_t num_block_hashes = 0;
+  for (int i = 0; i <= crc_mask; i++) {
+    bucket_start[i] = num_block_hashes;
+    num_block_hashes += bucket_count[i];
+    bucket_count[i] = 0;
+  }
+  if (!hash_table_reserve_block_hashes(p_hash_table, size_index,
+                                       num_block_hashes)) {
+    return false;
+  }
+  block_hash *const block_hashes = p_hash_table->block_hashes[size_index];
 
   // Explore the entire frame hierarchically to add intrabc candidate blocks to
   // the hash table, by starting with coarser steps (the block size), towards
@@ -294,18 +329,17 @@ bool av1_add_to_hash_map_by_row_with_precal_data(hash_table *p_hash_table,
     for (int x_pos = x_offset; x_pos < x_end; x_pos += step) {
       for (int y_pos = y_offset; y_pos < y_end; y_pos += step) {
         const int pos = y_pos * pic_width + x_pos;
-        block_hash curr_block_hash;
+        const int bucket = pic_hash[pos] & crc_mask;
+        const int count = bucket_count[bucket];
+        assert(count <= kMaxCandidatesPerHashBucket);
+        if (count == kMaxCandidatesPerHashBucket) continue;
 
-        curr_block_hash.x = x_pos;
-        curr_block_hash.y = y_pos;
-
-        const uint32_t hash_value1 = (pic_hash[pos] & crc_mask) + add_value;
-        curr_block_hash.hash_value2 = pic_hash[pos];
-
-        if (!hash_table_add_to_table(p_hash_table, hash_value1,
-                                     &curr_block_hash)) {
-          return false;
-        }
+        block_hash *const curr_block_hash =
+            &block_hashes[bucket_start[bucket] + count];
+        curr_block_hash->x = x_pos;
+        curr_block_hash->y = y_pos;
+        curr_block_hash->hash_value2 = pic_hash[pos];
+        bucket_count[bucket] = count + 1;
       }
     }
 

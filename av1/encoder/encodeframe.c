@@ -2335,7 +2335,6 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
       features->allow_warped_motion = 0;
   }
 
-  int hash_table_created = 0;
   if (!is_stat_generation_stage(cpi) && av1_use_hash_me(cpi) &&
       (!cpi->sf.rt_sf.use_nonrd_pick_mode || cpi->sf.rt_sf.rt_use_intrabc)) {
     // TODO(any): move this outside of the recoding loop to avoid recalculating
@@ -2362,7 +2361,6 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
       aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                          "Error allocating intrabc_hash_table and buffers");
     }
-    hash_table_created = 1;
     av1_generate_block_2x2_hash_value(cpi->source, block_hash_values[0]);
     // Hash data generated for screen contents is used for intraBC ME
     const int min_alloc_size = block_size_wide[mi_params->mi_alloc_bsize];
@@ -2833,9 +2831,6 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
         }
       }
     }
-  }
-  if (hash_table_created) {
-    av1_hash_table_destroy(&intrabc_hash_info->intrabc_hash_table);
   }
 }
 
