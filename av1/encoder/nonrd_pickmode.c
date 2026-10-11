@@ -1647,6 +1647,7 @@ static void av1_search_intrabc_nonrd(AV1_COMP *cpi, MACROBLOCK *x,
   fullms_params.mv_limits.row_min = (xd->tile.mi_row_start - mi_row) * MI_SIZE;
   fullms_params.mv_limits.row_max =
       (xd->tile.mi_row_end - mi_row) * MI_SIZE - block_size_high[bsize];
+  av1_set_mv_search_range(&fullms_params.mv_limits, &dv_ref.as_mv);
   int_mv best_mv;
   int bestsme = INT_MAX;
   if (!cpi->sf.mv_sf.hash_max_8x8_intrabc_blocks || bsize <= BLOCK_8X8) {

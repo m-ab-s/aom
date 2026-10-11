@@ -1712,6 +1712,83 @@ TEST(EncodeAPI, IntraBCMultiThreadBorderExtension) {
   ASSERT_EQ(aom_codec_destroy(&dec), AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+
+// Encodes a key frame with screen content tools in realtime mode. A 64x64 patch
+// of two color noise at (src_x, src_y) is copied to (dst_x, dst_y), so the
+// IntraBC hash search finds a match that far away. A DV of 2048 pixels or more
+// can't be coded, so the decoder must still accept the frame.
+void IntraBCFarCopyTest(int width, int height, int src_x, int src_y, int dst_x,
+                        int dst_y) {
+  constexpr int kPatchSize = 64;
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = width;
+  cfg.g_h = height;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_threads = 1;
+  cfg.rc_min_quantizer = 10;
+  cfg.rc_max_quantizer = 10;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 11), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ENABLE_INTRABC, 1), AOM_CODEC_OK);
+
+  aom_image_t *img = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, width, height, 1);
+  ASSERT_NE(img, nullptr);
+  memset(img->planes[0], 128, img->stride[0] * height);
+  memset(img->planes[1], 128, img->stride[1] * ((height + 1) / 2));
+  memset(img->planes[2], 128, img->stride[2] * ((height + 1) / 2));
+  ::libaom_test::ACMRandom rnd;
+  rnd.Reset(::libaom_test::ACMRandom::DeterministicSeed());
+  for (int r = 0; r < kPatchSize; ++r) {
+    uint8_t *src = img->planes[0] + (src_y + r) * img->stride[0] + src_x;
+    uint8_t *dst = img->planes[0] + (dst_y + r) * img->stride[0] + dst_x;
+    for (int c = 0; c < kPatchSize; ++c) {
+      src[c] = (rnd.Rand8() & 1) ? 16 : 235;
+    }
+    memcpy(dst, src, kPatchSize);
+  }
+
+  aom_codec_ctx_t dec;
+  ASSERT_EQ(aom_codec_dec_init(&dec, aom_codec_av1_dx(), nullptr, 0),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&enc, img, 0, 1, 0), AOM_CODEC_OK);
+  aom_codec_iter_t iter = nullptr;
+  while (const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter)) {
+    if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) continue;
+    EXPECT_EQ(aom_codec_decode(
+                  &dec, static_cast<const uint8_t *>(pkt->data.frame.buf),
+                  pkt->data.frame.sz, nullptr),
+              AOM_CODEC_OK)
+        << aom_codec_error_detail(&dec);
+  }
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&dec), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+// The match is 2048 pixels to the left.
+TEST(EncodeAPI, IntraBCFarCopyLeftRealtime) {
+  IntraBCFarCopyTest(2112, 64, 0, 0, 2048, 0);
+}
+
+// The match is 2048 pixels above.
+TEST(EncodeAPI, IntraBCFarCopyAboveRealtime) {
+  IntraBCFarCopyTest(64, 2112, 0, 0, 0, 2048);
+}
+
+// The match is 2056 pixels to the right and 512 pixels above. The difference
+// from the reference DV is past the end of the DV cost table, which ASan
+// reports as a heap buffer overflow.
+TEST(EncodeAPI, IntraBCFarCopyAboveRightRealtime) {
+  IntraBCFarCopyTest(2120, 576, 2056, 0, 0, 512);
+}
 #endif  // CONFIG_AV1_DECODER
 
 #if !CONFIG_REALTIME_ONLY
