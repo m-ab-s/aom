@@ -42,6 +42,9 @@ void av1_row_mt_sync_write_dummy(AV1EncRowMultiThreadSync *row_mt_sync, int r,
 void av1_encode_tiles_mt(struct AV1_COMP *cpi);
 void av1_encode_tiles_row_mt(struct AV1_COMP *cpi);
 
+// Builds the intrabc hash tables of all tiles with num_workers threads.
+void av1_build_intrabc_hash_tables_mt(struct AV1_COMP *cpi, int num_workers);
+
 #if !CONFIG_REALTIME_ONLY
 void av1_fp_encode_tiles_row_mt(AV1_COMP *cpi);
 

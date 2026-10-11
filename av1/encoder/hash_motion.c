@@ -20,11 +20,10 @@
 #include "av1/encoder/hash_motion.h"
 
 #define kSrcBits 16
-// kMaxAddr is the number of hash table buckets. They form 6 hash tables of
-// 1 << kSrcBits buckets each. Each of the 6 supported block sizes (4, 8, 16,
-// 32, 64, 128) has its own hash table, indexed by the return value of
+// Each of the 6 supported block sizes (4, 8, 16, 32, 64, 128) has its own set
+// of 1 << kSrcBits buckets, indexed by the return value of
 // hash_block_size_to_index().
-#define kMaxAddr (6 << kSrcBits)
+#define kBucketsPerBlockSize (1 << kSrcBits)
 #define kMaxCandidatesPerHashBucket 256
 
 static void get_pixels_in_1D_char_array_by_block_2x2(const uint8_t *y_src,
@@ -95,29 +94,76 @@ void av1_hash_table_init(IntraBCHashInfo *intrabc_hash_info) {
   }
 }
 
-void av1_hash_table_destroy(hash_table *p_hash_table) {
-  aom_free(p_hash_table->bucket_count);
-  aom_free(p_hash_table->bucket_start);
+static void hash_table_destroy(hash_table *p_hash_table) {
   for (int i = 0; i < NELEMENTS(p_hash_table->block_hashes); i++) {
+    aom_free(p_hash_table->bucket_count[i]);
+    aom_free(p_hash_table->bucket_start[i]);
     aom_free(p_hash_table->block_hashes[i]);
   }
   memset(p_hash_table, 0, sizeof(*p_hash_table));
 }
 
 // Empties the table. The buffers are kept for the next frame.
-bool av1_hash_table_create(hash_table *p_hash_table) {
-  if (p_hash_table->bucket_count == NULL) {
-    p_hash_table->bucket_count =
-        aom_malloc(kMaxAddr * sizeof(*p_hash_table->bucket_count));
-    p_hash_table->bucket_start =
-        aom_malloc(kMaxAddr * sizeof(*p_hash_table->bucket_start));
-    if (!p_hash_table->bucket_count || !p_hash_table->bucket_start) {
-      av1_hash_table_destroy(p_hash_table);
-      return false;
-    }
+static void hash_table_clear(hash_table *p_hash_table) {
+  for (int i = 0; i < NELEMENTS(p_hash_table->bucket_count); i++) {
+    if (p_hash_table->bucket_count[i] == NULL) continue;
+    memset(p_hash_table->bucket_count[i], 0,
+           kBucketsPerBlockSize * sizeof(*p_hash_table->bucket_count[i]));
   }
-  memset(p_hash_table->bucket_count, 0,
-         kMaxAddr * sizeof(*p_hash_table->bucket_count));
+}
+
+static void free_tile_tables(IntraBCHashInfo *intrabc_hash_info) {
+  for (int i = 0; i < intrabc_hash_info->num_tile_tables; i++) {
+    hash_table_destroy(&intrabc_hash_info->tile_tables[i]);
+  }
+  aom_free(intrabc_hash_info->tile_tables);
+  intrabc_hash_info->tile_tables = NULL;
+  intrabc_hash_info->num_tile_tables = 0;
+}
+
+bool av1_hash_tables_create(IntraBCHashInfo *intrabc_hash_info,
+                            int num_tables) {
+  if (intrabc_hash_info->num_tile_tables != num_tables) {
+    free_tile_tables(intrabc_hash_info);
+    intrabc_hash_info->tile_tables = (hash_table *)aom_calloc(
+        num_tables, sizeof(*intrabc_hash_info->tile_tables));
+    if (intrabc_hash_info->tile_tables == NULL) return false;
+    intrabc_hash_info->num_tile_tables = num_tables;
+  }
+  for (int i = 0; i < num_tables; i++) {
+    hash_table_clear(&intrabc_hash_info->tile_tables[i]);
+  }
+  return true;
+}
+
+void av1_hash_tables_destroy(IntraBCHashInfo *intrabc_hash_info) {
+  free_tile_tables(intrabc_hash_info);
+  for (int i = 0; i < 2; i++) {
+    aom_free(intrabc_hash_info->frame_hash_buffer[i]);
+    intrabc_hash_info->frame_hash_buffer[i] = NULL;
+  }
+  intrabc_hash_info->frame_hash_width = 0;
+  intrabc_hash_info->frame_hash_height = 0;
+}
+
+// Makes room for the buckets of one block size, if it has none yet. Only the
+// block sizes that get built have buckets. With hash_max_8x8_intrabc_blocks
+// that is just 8x8.
+static bool hash_table_reserve_buckets(hash_table *p_hash_table,
+                                       int size_index) {
+  if (p_hash_table->bucket_count[size_index] != NULL) return true;
+  p_hash_table->bucket_count[size_index] = (uint16_t *)aom_calloc(
+      kBucketsPerBlockSize, sizeof(*p_hash_table->bucket_count[size_index]));
+  p_hash_table->bucket_start[size_index] = (uint32_t *)aom_malloc(
+      kBucketsPerBlockSize * sizeof(*p_hash_table->bucket_start[size_index]));
+  if (p_hash_table->bucket_count[size_index] == NULL ||
+      p_hash_table->bucket_start[size_index] == NULL) {
+    aom_free(p_hash_table->bucket_count[size_index]);
+    aom_free(p_hash_table->bucket_start[size_index]);
+    p_hash_table->bucket_count[size_index] = NULL;
+    p_hash_table->bucket_start[size_index] = NULL;
+    return false;
+  }
   return true;
 }
 
@@ -143,29 +189,35 @@ static inline void add_to_bucket_count(uint16_t *count, int n) {
 
 int32_t av1_hash_table_count(const hash_table *p_hash_table,
                              uint32_t hash_value) {
-  return p_hash_table->bucket_count[hash_value];
+  const uint16_t *const bucket_count =
+      p_hash_table->bucket_count[hash_value >> kSrcBits];
+  if (bucket_count == NULL) return 0;
+  return bucket_count[hash_value % kBucketsPerBlockSize];
 }
 
 const block_hash *av1_hash_get_first_block_hash(const hash_table *p_hash_table,
                                                 uint32_t hash_value) {
   assert(av1_hash_table_count(p_hash_table, hash_value) > 0);
-  const block_hash *const block_hashes =
-      p_hash_table->block_hashes[hash_value >> kSrcBits];
-  return &block_hashes[p_hash_table->bucket_start[hash_value]];
+  const int size_index = hash_value >> kSrcBits;
+  const uint32_t bucket = hash_value % kBucketsPerBlockSize;
+  const block_hash *const block_hashes = p_hash_table->block_hashes[size_index];
+  return &block_hashes[p_hash_table->bucket_start[size_index][bucket]];
 }
 
 void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
+                                       const IntraBCHashRegion *region,
                                        uint32_t *pic_block_hash) {
   const int width = 2;
   const int height = 2;
-  const int x_end = picture->y_crop_width - width + 1;
-  const int y_end = picture->y_crop_height - height + 1;
+  const int pic_width = picture->y_crop_width;
+  const int x_end = region->x_end - width + 1;
+  const int y_end = region->y_end - height + 1;
 
   if (picture->flags & YV12_FLAG_HIGHBITDEPTH) {
     uint16_t p[4];
-    int pos = 0;
-    for (int y_pos = 0; y_pos < y_end; y_pos++) {
-      for (int x_pos = 0; x_pos < x_end; x_pos++) {
+    for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
+      uint32_t *const row_hash = pic_block_hash + y_pos * pic_width;
+      for (int x_pos = region->x_start; x_pos < x_end; x_pos++) {
         get_pixels_in_1D_short_array_by_block_2x2(
             CONVERT_TO_SHORTPTR(picture->y_buffer) + y_pos * picture->y_stride +
                 x_pos,
@@ -173,16 +225,14 @@ void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
         // For HBD, we either have 40 or 48 bits of input data that the xor hash
         // reduce to 32 bits. We intentionally don't want to "discard" bits to
         // avoid any kind of biasing.
-        pic_block_hash[pos] = get_xor_hash_value_hbd(p[0], p[1], p[2], p[3]);
-        pos++;
+        row_hash[x_pos] = get_xor_hash_value_hbd(p[0], p[1], p[2], p[3]);
       }
-      pos += width - 1;
     }
   } else {
     uint8_t p[4];
-    int pos = 0;
-    for (int y_pos = 0; y_pos < y_end; y_pos++) {
-      for (int x_pos = 0; x_pos < x_end; x_pos++) {
+    for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
+      uint32_t *const row_hash = pic_block_hash + y_pos * pic_width;
+      for (int x_pos = region->x_start; x_pos < x_end; x_pos++) {
         get_pixels_in_1D_char_array_by_block_2x2(
             picture->y_buffer + y_pos * picture->y_stride + x_pos,
             picture->y_stride, p);
@@ -190,32 +240,31 @@ void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
         // we can afford to just copy the 4 8-bit pixel values as a single
         // 32-bit value directly. (i.e. there are no concerns of a lack of
         // uniform distribution)
-        pic_block_hash[pos] = get_identity_hash_value(p[0], p[1], p[2], p[3]);
-        pos++;
+        row_hash[x_pos] = get_identity_hash_value(p[0], p[1], p[2], p[3]);
       }
-      pos += width - 1;
     }
   }
 }
 
 void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
                                    const YV12_BUFFER_CONFIG *picture,
+                                   const IntraBCHashRegion *region,
                                    int block_size,
                                    const uint32_t *src_pic_block_hash,
                                    uint32_t *dst_pic_block_hash) {
   CRC32C *calc = &intrabc_hash_info->crc_calculator;
 
   const int pic_width = picture->y_crop_width;
-  const int x_end = picture->y_crop_width - block_size + 1;
-  const int y_end = picture->y_crop_height - block_size + 1;
+  const int x_end = region->x_end - block_size + 1;
+  const int y_end = region->y_end - block_size + 1;
   const int src_size = block_size >> 1;
 
   uint32_t p[4];
   const int length = sizeof(p);
 
-  int pos = 0;
-  for (int y_pos = 0; y_pos < y_end; y_pos++) {
-    for (int x_pos = 0; x_pos < x_end; x_pos++) {
+  for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
+    int pos = y_pos * pic_width + region->x_start;
+    for (int x_pos = region->x_start; x_pos < x_end; x_pos++) {
       // Build up a bigger block from 4 smaller, non-overlapping source block
       // hashes, and compute its hash. Note: source blocks at the right and
       // bottom borders cannot be part of larger blocks, therefore they won't be
@@ -230,32 +279,32 @@ void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
           av1_get_crc32c_value(calc, (uint8_t *)p, length);
       pos++;
     }
-    pos += block_size - 1;
   }
 }
 
-// Adds the blocks of one block size to the table. The counts of that block
-// size must be zero on entry, as av1_hash_table_create() leaves them. On
-// return they hold the number of entries in each bucket.
-bool av1_add_to_hash_map_by_row_with_precal_data(hash_table *p_hash_table,
-                                                 const uint32_t *pic_hash,
-                                                 int pic_width, int pic_height,
-                                                 int block_size) {
-  const int x_end = pic_width - block_size + 1;
-  const int y_end = pic_height - block_size + 1;
+// Adds the blocks of one block size that lie inside region to the table. The
+// counts of that block size must be zero on entry, as av1_hash_tables_create()
+// leaves them. On return they hold the number of entries in each bucket.
+bool av1_add_to_hash_map_by_row_with_precal_data(
+    hash_table *p_hash_table, const uint32_t *pic_hash, int pic_width,
+    const IntraBCHashRegion *region, int block_size) {
+  const int x_start = region->x_start;
+  const int y_start = region->y_start;
+  const int x_end = region->x_end - block_size + 1;
+  const int y_end = region->y_end - block_size + 1;
 
   const int size_index = hash_block_size_to_index(block_size);
   assert(size_index >= 0);
-  const int add_value = size_index << kSrcBits;
-  const int crc_mask = (1 << kSrcBits) - 1;
-  uint16_t *const bucket_count = p_hash_table->bucket_count + add_value;
-  uint32_t *const bucket_start = p_hash_table->bucket_start + add_value;
+  const int crc_mask = kBucketsPerBlockSize - 1;
   int step = block_size;
   int x_offset = 0;
   int y_offset = 0;
 
-  // No block of this size fits in the frame.
-  if (x_end <= 0 || y_end <= 0) return true;
+  // No block of this size fits in the region.
+  if (x_end <= x_start || y_end <= y_start) return true;
+  if (!hash_table_reserve_buckets(p_hash_table, size_index)) return false;
+  uint16_t *const bucket_count = p_hash_table->bucket_count[size_index];
+  uint32_t *const bucket_start = p_hash_table->bucket_start[size_index];
 
   // The next two loops set bucket_start. The first counts the blocks of each
   // bucket, and the second places the buckets one after another.
@@ -266,11 +315,11 @@ bool av1_add_to_hash_map_by_row_with_precal_data(hash_table *p_hash_table,
   // How many blocks each bucket keeps doesn't depend on the order they are
   // added in, so count them first in raster order. Flat areas give long runs
   // of the same bucket, so count a whole run at once.
-  for (int y_pos = 0; y_pos < y_end; y_pos++) {
+  for (int y_pos = y_start; y_pos < y_end; y_pos++) {
     const uint32_t *const row_hash = pic_hash + y_pos * pic_width;
-    int bucket = row_hash[0] & crc_mask;
+    int bucket = row_hash[x_start] & crc_mask;
     int run = 0;
-    for (int x_pos = 0; x_pos < x_end; x_pos++) {
+    for (int x_pos = x_start; x_pos < x_end; x_pos++) {
       const int curr_bucket = row_hash[x_pos] & crc_mask;
       if (curr_bucket != bucket) {
         add_to_bucket_count(&bucket_count[bucket], run);
@@ -296,10 +345,10 @@ bool av1_add_to_hash_map_by_row_with_precal_data(hash_table *p_hash_table,
   }
   block_hash *const block_hashes = p_hash_table->block_hashes[size_index];
 
-  // Explore the entire frame hierarchically to add intrabc candidate blocks to
+  // Explore the entire region hierarchically to add intrabc candidate blocks to
   // the hash table, by starting with coarser steps (the block size), towards
   // finer-grained steps until every candidate block has been considered.
-  // The nested for loop goes through the pic_hash array column by column.
+  // The nested for loop goes through the region column by column.
 
   // Doing a hierarchical block exploration helps maximize spatial dispersion
   // of the first and foremost candidate blocks while minimizing overlap between
@@ -326,8 +375,8 @@ bool av1_add_to_hash_map_by_row_with_precal_data(hash_table *p_hash_table,
   // used is 2 (i.e. no two adjacent blocks will be explored consecutively).
   // Also, the exploration is designed to visit each block candidate only once.
   while (step > 1) {
-    for (int x_pos = x_offset; x_pos < x_end; x_pos += step) {
-      for (int y_pos = y_offset; y_pos < y_end; y_pos += step) {
+    for (int x_pos = x_start + x_offset; x_pos < x_end; x_pos += step) {
+      for (int y_pos = y_start + y_offset; y_pos < y_end; y_pos += step) {
         const int pos = y_pos * pic_width + x_pos;
         const int bucket = pic_hash[pos] & crc_mask;
         const int count = bucket_count[bucket];

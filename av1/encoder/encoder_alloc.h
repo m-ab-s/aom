@@ -356,7 +356,7 @@ static inline void dealloc_compressor_data(AV1_COMP *cpi) {
     cpi->td.mb.intrabc_hash_info.hash_value_buffer[i] = NULL;
   }
 
-  av1_hash_table_destroy(&cpi->td.mb.intrabc_hash_info.intrabc_hash_table);
+  av1_hash_tables_destroy(&cpi->td.mb.intrabc_hash_info);
 
   aom_free(cm->tpl_mvs);
   cm->tpl_mvs = NULL;

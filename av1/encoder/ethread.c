@@ -2000,6 +2000,53 @@ void av1_encode_tiles_row_mt(AV1_COMP *cpi) {
   accumulate_counters_enc_workers(cpi, num_workers);
 }
 
+// Builds the intrabc hash tables with index start, start + num_workers, ...
+static int intrabc_hash_worker_hook(void *arg1, void *arg2) {
+  EncWorkerData *const thread_data = (EncWorkerData *)arg1;
+  const int num_workers = (int)(intptr_t)arg2;
+  AV1_COMP *const cpi = thread_data->cpi;
+  struct aom_internal_error_info *const error_info = &thread_data->error_info;
+  const int num_tables = cpi->td.mb.intrabc_hash_info.num_tile_tables;
+
+  // The jmp_buf is valid only for the duration of the function that calls
+  // setjmp(). Therefore, this function must reset the 'setjmp' field to 0
+  // before it returns.
+  if (setjmp(error_info->jmp)) {
+    error_info->setjmp = 0;
+    return 0;
+  }
+  error_info->setjmp = 1;
+
+  for (int i = thread_data->start; i < num_tables; i += num_workers) {
+    if (!av1_build_intrabc_hash_table(cpi, i)) {
+      aom_internal_error(error_info, AOM_CODEC_MEM_ERROR,
+                         "Error adding data to intrabc_hash_table");
+    }
+  }
+  error_info->setjmp = 0;
+  return 1;
+}
+
+void av1_build_intrabc_hash_tables_mt(AV1_COMP *cpi, int num_workers) {
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  for (int i = num_workers - 1; i >= 0; i--) {
+    AVxWorker *const worker = &mt_info->workers[i];
+    EncWorkerData *const thread_data = &mt_info->tile_thr_data[i];
+
+    worker->hook = intrabc_hash_worker_hook;
+    worker->data1 = thread_data;
+    worker->data2 = (void *)(intptr_t)num_workers;
+
+    thread_data->thread_id = i;
+    thread_data->start = i;
+    thread_data->cpi = cpi;
+    // sync_enc_workers() needs the td of the main thread.
+    if (i == 0) thread_data->td = &cpi->td;
+  }
+  launch_workers(mt_info, num_workers);
+  sync_enc_workers(mt_info, &cpi->common, num_workers);
+}
+
 #if !CONFIG_REALTIME_ONLY
 static void dealloc_thread_data_src_diff_buf(AV1_COMP *cpi, int num_workers) {
   for (int i = num_workers - 1; i >= 0; --i) {

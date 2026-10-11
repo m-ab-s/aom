@@ -18,6 +18,7 @@
 #include <cstring>
 #include <initializer_list>
 #include <memory>
+#include <ostream>
 #include <tuple>
 #include <vector>
 
@@ -4692,5 +4693,124 @@ TEST(EncodeAPI, Avg16x16IntegerOverflow) {
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
+
+// A key frame whose luma is a block of noise repeated over the frame. IntraBC
+// can copy every block from the one above it. The chroma is flat.
+class RepeatedNoiseVideoSource : public ::libaom_test::DummyVideoSource {
+ public:
+  RepeatedNoiseVideoSource(int width, int height) {
+    SetSize(width, height);
+    set_limit(1);
+  }
+
+ protected:
+  void FillFrame() override {
+    constexpr int kBlockSize = 64;
+    ::libaom_test::ACMRandom rnd(::libaom_test::ACMRandom::DeterministicSeed());
+    uint8_t noise[kBlockSize * kBlockSize];
+    for (uint8_t &value : noise) value = rnd.Rand8();
+    for (unsigned int row = 0; row < height_; ++row) {
+      uint8_t *line = img_->planes[0] + row * img_->stride[0];
+      for (unsigned int col = 0; col < width_; ++col) {
+        line[col] = noise[(row % kBlockSize) * kBlockSize + col % kBlockSize];
+      }
+    }
+    for (int plane = 1; plane < 3; ++plane) {
+      memset(img_->planes[plane], 128,
+             img_->stride[plane] * ((height_ + 1) / 2));
+    }
+  }
+};
+
+struct IntraBCTilesParams {
+  int tile_cols_log2;
+  int tile_rows_log2;
+  int threads;
+  int row_mt;
+};
+
+std::ostream &operator<<(std::ostream &os, const IntraBCTilesParams &params) {
+  return os << params.tile_cols_log2 << "x" << params.tile_rows_log2
+            << " log2 tiles, " << params.threads << " threads, row_mt "
+            << params.row_mt;
+}
+
+// Encodes a realtime key frame of repeated noise with IntraBC on and off. The
+// frame has 256x256 pixels per tile. The encoder and the decoder must agree on
+// the frame.
+class IntraBCTilesTest : public ::libaom_test::EncoderTest,
+                         public ::testing::TestWithParam<IntraBCTilesParams> {
+ protected:
+  IntraBCTilesTest() : EncoderTest(&::libaom_test::kAV1) {}
+  ~IntraBCTilesTest() override = default;
+
+  void SetUp() override {
+    InitializeConfig(::libaom_test::kRealTime);
+    cfg_.g_threads = GetParam().threads;
+    cfg_.rc_min_quantizer = 10;
+    cfg_.rc_max_quantizer = 10;
+  }
+
+  void PreEncodeFrameHook(::libaom_test::VideoSource * /*video*/,
+                          ::libaom_test::Encoder *encoder) override {
+    encoder->Control(AOME_SET_CPUUSED, 11);
+    encoder->Control(AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN);
+    encoder->Control(AV1E_SET_ENABLE_INTRABC, enable_intrabc_);
+    encoder->Control(AV1E_SET_TILE_COLUMNS, GetParam().tile_cols_log2);
+    encoder->Control(AV1E_SET_TILE_ROWS, GetParam().tile_rows_log2);
+    encoder->Control(AV1E_SET_ROW_MT, GetParam().row_mt);
+  }
+
+  void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {
+    frame_size_ = pkt->data.frame.sz;
+  }
+
+  // Returns the size of the encoded key frame.
+  size_t EncodeKeyFrame(int enable_intrabc) {
+    RepeatedNoiseVideoSource video(256 << GetParam().tile_cols_log2,
+                                   256 << GetParam().tile_rows_log2);
+    enable_intrabc_ = enable_intrabc;
+    frame_size_ = 0;
+    EXPECT_NO_FATAL_FAILURE(RunLoop(&video));
+    return frame_size_;
+  }
+
+  int enable_intrabc_ = 0;
+  size_t frame_size_ = 0;
+};
+
+// A block can only copy from its own tile, so every tile has to find the
+// copies of its own blocks. Most of each tile is a copy of the blocks above.
+TEST_P(IntraBCTilesTest, CopiesInsideTiles) {
+  const size_t size_without_intrabc = EncodeKeyFrame(0);
+  const size_t size_with_intrabc = EncodeKeyFrame(1);
+  ASSERT_GT(size_without_intrabc, 0u);
+  EXPECT_LT(size_with_intrabc * 2, size_without_intrabc);
+}
+
+const IntraBCTilesParams kIntraBCTilesParams[] = {
+  { 0, 0, 1, 0 },  // One tile.
+  { 1, 1, 1, 0 },  // Four tiles on one thread.
+  { 1, 0, 2, 1 },  // Two tiles on two threads.
+  { 1, 1, 4, 1 },  // Four tiles on four threads, as in a typical RTC setup.
+  { 1, 1, 4, 0 },  // Tile threads without row mt.
+  { 2, 1, 2, 1 },  // Eight tiles on two threads.
+};
+
+INSTANTIATE_TEST_SUITE_P(AV1, IntraBCTilesTest,
+                         ::testing::ValuesIn(kIntraBCTilesParams));
+
+// With more tiles than the encoder keeps hash tables for, one table covers the
+// frame. The copies are not expected to be found, but the frame must decode.
+class IntraBCManyTilesTest : public IntraBCTilesTest {};
+
+TEST_P(IntraBCManyTilesTest, Decodes) { EXPECT_GT(EncodeKeyFrame(1), 0u); }
+
+const IntraBCTilesParams kIntraBCManyTilesParams[] = {
+  { 3, 2, 4, 1 },  // 32 tiles.
+};
+
+INSTANTIATE_TEST_SUITE_P(AV1, IntraBCManyTilesTest,
+                         ::testing::ValuesIn(kIntraBCManyTilesParams));
 
 }  // namespace

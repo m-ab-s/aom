@@ -2064,9 +2064,130 @@ static void populate_thresh_to_force_zeromv_skip(AV1_COMP *cpi) {
   }
 }
 
-static void free_block_hash_buffers(uint32_t *block_hash_values[2]) {
+static void free_block_hash_buffers(IntraBCHashInfo *intrabc_hash_info) {
   for (int j = 0; j < 2; ++j) {
-    aom_free(block_hash_values[j]);
+    aom_free(intrabc_hash_info->frame_hash_buffer[j]);
+    intrabc_hash_info->frame_hash_buffer[j] = NULL;
+  }
+  intrabc_hash_info->frame_hash_width = 0;
+  intrabc_hash_info->frame_hash_height = 0;
+}
+
+// Gets the region covered by the hash table with the given index. That is the
+// region of the tile with this index, or the whole frame if there is one table.
+static void get_intrabc_hash_region(const YV12_BUFFER_CONFIG *source,
+                                    const AV1_COMMON *cm, int num_tables,
+                                    int table_idx, IntraBCHashRegion *region) {
+  region->x_start = 0;
+  region->y_start = 0;
+  region->x_end = source->y_crop_width;
+  region->y_end = source->y_crop_height;
+  if (num_tables > 1) {
+    TileInfo tile;
+    av1_tile_init(&tile, cm, table_idx / cm->tiles.cols,
+                  table_idx % cm->tiles.cols);
+    region->x_start = tile.mi_col_start * MI_SIZE;
+    region->y_start = tile.mi_row_start * MI_SIZE;
+    region->x_end = AOMMIN(tile.mi_col_end * MI_SIZE, region->x_end);
+    region->y_end = AOMMIN(tile.mi_row_end * MI_SIZE, region->y_end);
+  }
+}
+
+bool av1_build_intrabc_hash_table(AV1_COMP *cpi, int table_idx) {
+  const AV1_COMMON *const cm = &cpi->common;
+  IntraBCHashInfo *const intrabc_hash_info = &cpi->td.mb.intrabc_hash_info;
+  // The frame hash buffers are only used with cpi->source, which must have the
+  // frame size they were allocated for.
+  uint32_t **const block_hash_values = intrabc_hash_info->frame_hash_buffer;
+  const int pic_width = cpi->source->y_crop_width;
+  const int pic_height = cpi->source->y_crop_height;
+  if (pic_width != intrabc_hash_info->frame_hash_width ||
+      pic_height != intrabc_hash_info->frame_hash_height) {
+    return false;
+  }
+  IntraBCHashRegion region;
+  get_intrabc_hash_region(cpi->source, cm, intrabc_hash_info->num_tile_tables,
+                          table_idx, &region);
+
+  av1_generate_block_2x2_hash_value(cpi->source, &region, block_hash_values[0]);
+  // Hash data generated for screen contents is used for intraBC ME
+  const int min_alloc_size = block_size_wide[cm->mi_params.mi_alloc_bsize];
+  int max_sb_size = 1 << (cm->seq_params->mib_size_log2 + MI_SIZE_LOG2);
+
+  if (cpi->sf.mv_sf.hash_max_8x8_intrabc_blocks) {
+    max_sb_size = AOMMIN(8, max_sb_size);
+  }
+
+  int src_idx = 0;
+  for (int size = 4; size <= max_sb_size; size *= 2, src_idx = !src_idx) {
+    const int dst_idx = !src_idx;
+    av1_generate_block_hash_value(intrabc_hash_info, cpi->source, &region, size,
+                                  block_hash_values[src_idx],
+                                  block_hash_values[dst_idx]);
+    if (size >= min_alloc_size &&
+        !av1_add_to_hash_map_by_row_with_precal_data(
+            &intrabc_hash_info->tile_tables[table_idx],
+            block_hash_values[dst_idx], pic_width, &region, size)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Builds the hash tables for intrabc. A block can only copy from its own tile,
+// so each tile gets its own table with only the blocks that lie inside it. The
+// encoder threads build the tables before the tiles are encoded, one table per
+// job, and av1_intrabc_hash_search() uses the table of the current tile. A
+// frame with more than MAX_INTRABC_HASH_TABLES tiles keeps a single table for
+// the whole frame, which bounds the memory.
+static void build_intrabc_hash_tables(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  MultiThreadInfo *const mt_info = &cpi->mt_info;
+  IntraBCHashInfo *const intrabc_hash_info = &cpi->td.mb.intrabc_hash_info;
+  const int pic_width = cpi->source->y_crop_width;
+  const int pic_height = cpi->source->y_crop_height;
+  const int num_tiles = cm->tiles.cols * cm->tiles.rows;
+  const int num_tables = num_tiles <= MAX_INTRABC_HASH_TABLES ? num_tiles : 1;
+  bool error = false;
+
+  free_block_hash_buffers(intrabc_hash_info);
+  for (int j = 0; j < 2; ++j) {
+    intrabc_hash_info->frame_hash_buffer[j] = (uint32_t *)aom_malloc(
+        sizeof(*intrabc_hash_info->frame_hash_buffer[j]) * pic_width *
+        pic_height);
+    if (!intrabc_hash_info->frame_hash_buffer[j]) {
+      error = true;
+      break;
+    }
+  }
+  if (!error) {
+    intrabc_hash_info->frame_hash_width = pic_width;
+    intrabc_hash_info->frame_hash_height = pic_height;
+  }
+
+  av1_hash_table_init(intrabc_hash_info);
+  if (error || !av1_hash_tables_create(intrabc_hash_info, num_tables)) {
+    free_block_hash_buffers(intrabc_hash_info);
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                       "Error allocating intrabc_hash_table and buffers");
+  }
+
+  const int num_workers =
+      AOMMIN(AOMMIN(mt_info->num_mod_workers[MOD_ENC], mt_info->num_workers),
+             num_tables);
+  if (num_workers > 1) {
+    av1_build_intrabc_hash_tables_mt(cpi, num_workers);
+  } else {
+    for (int i = 0; i < num_tables && !error; i++) {
+      error = !av1_build_intrabc_hash_table(cpi, i);
+    }
+  }
+
+  free_block_hash_buffers(intrabc_hash_info);
+
+  if (error) {
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                       "Error adding data to intrabc_hash_table");
   }
 }
 
@@ -2307,7 +2428,6 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
       &cpi->ppi->temp_frame_probs_simulation;
 #endif
   FrameProbInfo *const frame_probs = &cpi->ppi->frame_probs;
-  IntraBCHashInfo *const intrabc_hash_info = &x->intrabc_hash_info;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
   AV1EncRowMultiThreadInfo *const enc_row_mt = &mt_info->enc_row_mt;
   const AV1EncoderConfig *const oxcf = &cpi->oxcf;
@@ -2354,58 +2474,7 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
       (!cpi->sf.rt_sf.use_nonrd_pick_mode || cpi->sf.rt_sf.rt_use_intrabc)) {
     // TODO(any): move this outside of the recoding loop to avoid recalculating
     // the hash table.
-    // add to hash table
-    const int pic_width = cpi->source->y_crop_width;
-    const int pic_height = cpi->source->y_crop_height;
-    uint32_t *block_hash_values[2] = { NULL };  // two buffers used ping-pong
-    bool error = false;
-
-    for (int j = 0; j < 2; ++j) {
-      block_hash_values[j] = (uint32_t *)aom_malloc(
-          sizeof(*block_hash_values[j]) * pic_width * pic_height);
-      if (!block_hash_values[j]) {
-        error = true;
-        break;
-      }
-    }
-
-    av1_hash_table_init(intrabc_hash_info);
-    if (error ||
-        !av1_hash_table_create(&intrabc_hash_info->intrabc_hash_table)) {
-      free_block_hash_buffers(block_hash_values);
-      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
-                         "Error allocating intrabc_hash_table and buffers");
-    }
-    av1_generate_block_2x2_hash_value(cpi->source, block_hash_values[0]);
-    // Hash data generated for screen contents is used for intraBC ME
-    const int min_alloc_size = block_size_wide[mi_params->mi_alloc_bsize];
-    int max_sb_size = (1 << (cm->seq_params->mib_size_log2 + MI_SIZE_LOG2));
-
-    if (cpi->sf.mv_sf.hash_max_8x8_intrabc_blocks) {
-      max_sb_size = AOMMIN(8, max_sb_size);
-    }
-
-    int src_idx = 0;
-    for (int size = 4; size <= max_sb_size; size *= 2, src_idx = !src_idx) {
-      const int dst_idx = !src_idx;
-      av1_generate_block_hash_value(intrabc_hash_info, cpi->source, size,
-                                    block_hash_values[src_idx],
-                                    block_hash_values[dst_idx]);
-      if (size >= min_alloc_size &&
-          !av1_add_to_hash_map_by_row_with_precal_data(
-              &intrabc_hash_info->intrabc_hash_table,
-              block_hash_values[dst_idx], pic_width, pic_height, size)) {
-        error = true;
-        break;
-      }
-    }
-
-    free_block_hash_buffers(block_hash_values);
-
-    if (error) {
-      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
-                         "Error adding data to intrabc_hash_table");
-    }
+    build_intrabc_hash_tables(cpi);
   }
 
   const CommonQuantParams *quant_params = &cm->quant_params;
