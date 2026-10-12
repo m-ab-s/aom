@@ -2800,7 +2800,8 @@ static inline int extend_borders_mt(const AV1_COMP *cpi,
     // of the current and above superblock row is complete.
     case MOD_LPF: return 0;
     case MOD_CDEF:
-      return is_cdef_used(cm) && !cpi->ppi->rtc_ref.non_reference_frame &&
+      return is_cdef_used(cm) && !cm->features.allow_intrabc &&
+             !cpi->ppi->rtc_ref.non_reference_frame &&
              !is_restoration_used(cm) && !av1_superres_scaled(cm);
     case MOD_LR:
       return is_restoration_used(cm) &&
