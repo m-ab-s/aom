@@ -23,10 +23,12 @@ extern "C" {
 // TODO(any): rename this struct to something else. There is already another
 // struct called inter_modes_info, which makes this terribly confusing.
 typedef struct {
+  int64_t model_rd;
   int drl_cost;
   int_mv full_search_mv;
   int full_mv_rate;
   int full_mv_bestsme;
+  unsigned int pred_sse;
   int skip;
 } inter_mode_info;
 

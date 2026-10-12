@@ -3280,6 +3280,8 @@ static int64_t handle_inter_mode(
 
     mode_info[ref_mv_idx].full_search_mv.as_int = INVALID_MV;
     mode_info[ref_mv_idx].full_mv_bestsme = INT_MAX;
+    mode_info[ref_mv_idx].pred_sse = UINT_MAX;
+    mode_info[ref_mv_idx].model_rd = INT64_MAX;
     const int drl_cost = get_drl_cost(
         mbmi, mbmi_ext, mode_costs->drl_mode_cost0, ref_frame_type);
     mode_info[ref_mv_idx].drl_cost = drl_cost;

@@ -1053,18 +1053,20 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   //   current frame in both past and future direction.
   int prune_comp_ref_frames;
 
-  // Skip the current ref_mv in NEW_MV mode based on mv, rate cost, etc.
-  // This speed feature equaling 0 means no skipping.
-  // If the speed feature equals 1 or 2, skip the current ref_mv in NEW_MV mode
-  // if we have already encountered ref_mv in the drl such that:
-  //  1. The other drl has the same mv during the SIMPLE_TRANSLATION search
-  //     process as the current mv.
-  //  2. The rate needed to encode the current mv is larger than that for the
-  //     other ref_mv.
-  // The speed feature equaling 1 means using subpel mv in the comparison.
-  // The speed feature equaling 2 means using fullpel mv in the comparison.
-  // If the speed feature >= 3, skip the current ref_mv in NEW_MV mode based on
-  // known full_mv bestsme and drl cost.
+  // Skip the evaluation of the current ref_mv in NEW_MV mode based on motion
+  // vectors, rate cost, modeled RD cost, and search error:
+  // 0: Disabled.
+  // 1: After subpel search, skip if subpel MV is identical to an earlier DRL
+  //    candidate and rate cost is worse/equal.
+  // 2, 3: In addition to 1, prune based on modeled RD cost when rate is worse
+  // (level 2: relaxed threshold for ref_mv_idx < 2 and resolution < 720p, level
+  // 3: strict threshold). 4: In addition to post-subpel pruning, skip before
+  // subpel search if the
+  //    full-pel search MV is identical to an earlier DRL candidate and full-pel
+  //    rate cost is worse/equal.
+  // 5, 6: In addition to 4, skip before subpel search if full-pel search error
+  //    and drl_cost are worse (level 5: relaxed threshold with 25% margin,
+  //    level 6: strict threshold).
   int skip_newmv_in_drl;
 
   // This speed feature checks duplicate ref MVs among NEARESTMV, NEARMV,
