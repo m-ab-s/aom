@@ -336,6 +336,7 @@ constexpr int kWinSize = 128;
 constexpr int kDocHeight = 1024;
 constexpr int kNumFrames = 60;
 constexpr int kEdgeMargin = 8;
+constexpr int kResizeFrame = 20;
 
 void WindowPos(int frame, int *x, int *y) {
   static const int kPos[4][2] = {
@@ -485,6 +486,10 @@ class InactiveAreaTest
       encoder->Control(AV1E_SET_ROW_MT, cfg_.g_threads > 1);
       return;
     }
+    if (resize_ && frame == kResizeFrame) {
+      aom_scaling_mode_t mode = { AOME_ONETWO, AOME_ONETWO };
+      encoder->Control(AOME_SET_SCALEMODE, &mode);
+    }
     if (map_once_ && frame > 1) return;
 
     uint8_t map[kMapRows * kMapCols];
@@ -518,6 +523,8 @@ class InactiveAreaTest
 
   void DecompressedFrameHook(const aom_image_t &img,
                              aom_codec_pts_t pts) override {
+    // Only check that the encoder and decoder match.
+    if (resize_) return;
     const int frame = static_cast<int>(pts);
     if (frame > 0 && !skip_ref_golden_) {
       uint8_t map[kMapRows * kMapCols];
@@ -573,11 +580,12 @@ class InactiveAreaTest
     }
   }
 
-  void DoTest(bool use_roi, bool skip_ref_golden = false,
-              bool map_once = false) {
+  void DoTest(bool use_roi, bool skip_ref_golden = false, bool map_once = false,
+              bool resize = false) {
     use_roi_ = use_roi;
     skip_ref_golden_ = skip_ref_golden;
     map_once_ = map_once;
+    resize_ = resize;
     // More bits let q drop low enough while the map stays set.
     if (map_once) cfg_.rc_target_bitrate = 1000;
     ScrollingWindowSource video(map_once);
@@ -590,6 +598,7 @@ class InactiveAreaTest
   bool use_roi_ = false;
   bool skip_ref_golden_ = false;
   bool map_once_ = false;
+  bool resize_ = false;
   std::vector<uint8_t> prev_[3];
 };
 
@@ -601,6 +610,12 @@ TEST_P(InactiveAreaTest, RoiSkipGoldenRef) { DoTest(true, true); }
 
 // The map stays set while cyclic refresh turns off and q drops.
 TEST_P(InactiveAreaTest, ActiveMapSetOnce) { DoTest(false, false, true); }
+
+// One frame has another size, so the frames around it can't use the segment
+// map of the frame before them.
+TEST_P(InactiveAreaTest, ActiveMapSetOnceResize) {
+  DoTest(false, false, true, true);
+}
 
 AV1_INSTANTIATE_TEST_SUITE(
     InactiveAreaTest, ::testing::Values(::libaom_test::kRealTime),

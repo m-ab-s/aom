@@ -4498,11 +4498,15 @@ static int encode_frame_to_data_rate(AV1_COMP *cpi, size_t *size, uint8_t *dest,
   av1_dump_filtered_recon_frames(cpi);
 #endif  // DUMP_RECON_FRAMES
 
-  if (cm->seg.enabled) {
-    if (cm->seg.update_map == 0 && cm->last_frame_seg_map) {
-      memcpy(cm->cur_frame->seg_map, cm->last_frame_seg_map,
-             cm->cur_frame->mi_cols * cm->cur_frame->mi_rows *
-                 sizeof(*cm->cur_frame->seg_map));
+  if (cm->seg.enabled && cm->seg.update_map == 0) {
+    const size_t seg_map_size = cm->cur_frame->mi_cols *
+                                cm->cur_frame->mi_rows *
+                                sizeof(*cm->cur_frame->seg_map);
+    // Without a previous map the decoder uses segment 0 everywhere.
+    if (cm->last_frame_seg_map) {
+      memcpy(cm->cur_frame->seg_map, cm->last_frame_seg_map, seg_map_size);
+    } else {
+      memset(cm->cur_frame->seg_map, 0, seg_map_size);
     }
   }
 

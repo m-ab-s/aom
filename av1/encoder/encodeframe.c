@@ -2474,8 +2474,12 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
   init_encode_frame_mb_context(cpi);
   set_default_interp_skip_flags(cm, &cpi->interp_search_flags);
 
+  // Like the decoder, only use the previous segment map if it has the size of
+  // this frame.
   if (cm->prev_frame && cm->prev_frame->seg.enabled &&
-      cpi->svc.number_spatial_layers == 1)
+      cpi->svc.number_spatial_layers == 1 &&
+      cm->prev_frame->mi_rows == cm->mi_params.mi_rows &&
+      cm->prev_frame->mi_cols == cm->mi_params.mi_cols)
     cm->last_frame_seg_map = cm->prev_frame->seg_map;
   else
     cm->last_frame_seg_map = NULL;
