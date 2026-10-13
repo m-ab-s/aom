@@ -214,6 +214,120 @@ AV1_INSTANTIATE_TEST_SUITE(ActiveMapSvcTest,
                            ::testing::Values(::libaom_test::kRealTime),
                            ::testing::Range(7, 12), ::testing::Values(1, 2));
 
+class MovingGradientSource : public ::libaom_test::DummyVideoSource {
+ protected:
+  void FillFrame() override {
+    memset(img_->img_data, 128, raw_sz_);
+    for (unsigned int y = 0; y < img_->d_h; ++y) {
+      for (unsigned int x = 0; x < img_->d_w; ++x) {
+        img_->planes[AOM_PLANE_Y][y * img_->stride[AOM_PLANE_Y] + x] =
+            static_cast<uint8_t>(x * 3 + y + frame_ * 7);
+      }
+    }
+  }
+};
+
+// Params: test mode, speed and aq_mode.
+class GetActiveMapTest
+    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode, int,
+                                                 int>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  // The last 16x16 column and row only cover 8 pixels.
+  static const int kWidth = 200;
+  static const int kHeight = 136;
+  static const int kCols = 13;
+  static const int kRows = 9;
+
+  GetActiveMapTest() : EncoderTest(GET_PARAM(0)) {}
+  ~GetActiveMapTest() override = default;
+
+  void SetUp() override {
+    InitializeConfig(GET_PARAM(1));
+    cpu_used_ = GET_PARAM(2);
+    aq_mode_ = GET_PARAM(3);
+  }
+
+  // Mirrors the pattern on odd frames so a stale map does not match.
+  void BuildMap(int frame, uint8_t *map) const {
+    /* clang-format off */
+    static const uint8_t kMap[kRows * kCols] = {
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0,
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0,
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0,
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0,
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+      0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    };
+    /* clang-format on */
+    for (int r = 0; r < kRows; ++r) {
+      for (int c = 0; c < kCols; ++c) {
+        const int src_c = (frame & 1) ? kCols - 1 - c : c;
+        map[r * kCols + c] = kMap[r * kCols + src_c];
+      }
+    }
+  }
+
+  void ExpectMap(::libaom_test::Encoder *encoder, const uint8_t *expected,
+                 int frame) {
+    uint8_t map_out[kRows * kCols];
+    memset(map_out, 2, sizeof(map_out));
+    aom_active_map_t map = aom_active_map_t();
+    map.rows = kRows;
+    map.cols = kCols;
+    map.active_map = map_out;
+    encoder->Control(AV1E_GET_ACTIVEMAP, &map);
+    for (int i = 0; i < kRows * kCols; ++i) {
+      ASSERT_EQ(map_out[i], expected[i])
+          << "frame " << frame << " row " << i / kCols << " col " << i % kCols;
+    }
+  }
+
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
+    const int frame = static_cast<int>(video->frame());
+    if (frame == 0) {
+      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AV1E_SET_AQ_MODE, aq_mode_);
+    }
+    uint8_t map_in[kRows * kCols];
+    // The key frame turns the map off, so check from the second inter frame.
+    if (frame >= 2) {
+      BuildMap(frame - 1, map_in);
+      ASSERT_NO_FATAL_FAILURE(ExpectMap(encoder, map_in, frame));
+    }
+    BuildMap(frame, map_in);
+    aom_active_map_t map = aom_active_map_t();
+    map.rows = kRows;
+    map.cols = kCols;
+    map.active_map = map_in;
+    encoder->Control(AOME_SET_ACTIVEMAP, &map);
+    ASSERT_NO_FATAL_FAILURE(ExpectMap(encoder, map_in, frame));
+  }
+
+  int cpu_used_;
+  int aq_mode_;
+};
+
+TEST_P(GetActiveMapTest, GetMatchesSet) {
+  cfg_.g_lag_in_frames = 0;
+  cfg_.rc_target_bitrate = 400;
+  cfg_.rc_end_usage = AOM_CBR;
+  cfg_.g_pass = AOM_RC_ONE_PASS;
+  cfg_.kf_max_dist = 90000;
+  MovingGradientSource video;
+  video.SetSize(kWidth, kHeight);
+  video.set_limit(10);
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
+AV1_INSTANTIATE_TEST_SUITE(GetActiveMapTest,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Range(7, 12), ::testing::Values(0, 3));
+
 constexpr int kSrcWidth = 384;
 constexpr int kSrcHeight = 256;
 constexpr int kMapCols = kSrcWidth / 16;
