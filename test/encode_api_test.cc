@@ -1677,8 +1677,12 @@ TEST(EncodeAPI, IntraBCMultiThreadBorderExtension) {
             AOM_CODEC_OK);
   ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ENABLE_INTRABC, 1), AOM_CODEC_OK);
 
+  // Decode to 8-bit buffers like the encoder reconstruction, even when
+  // FORCE_HIGHBITDEPTH_DECODING is on.
+  aom_codec_dec_cfg_t dec_cfg = {};
+  dec_cfg.allow_lowbitdepth = 1;
   aom_codec_ctx_t dec;
-  ASSERT_EQ(aom_codec_dec_init(&dec, aom_codec_av1_dx(), nullptr, 0),
+  ASSERT_EQ(aom_codec_dec_init(&dec, aom_codec_av1_dx(), &dec_cfg, 0),
             AOM_CODEC_OK);
 
   aom_image_t *img =
