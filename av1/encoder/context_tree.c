@@ -235,7 +235,10 @@ int av1_setup_sms_tree(AV1_COMP *const cpi, ThreadData *td) {
   // The structure 'sms_tree' is used to store the simple motion search data for
   // partition pruning in inter frames. Hence, the memory allocations and
   // initializations related to it are avoided for allintra encoding mode.
-  if (cpi->oxcf.kf_cfg.key_freq_max == 0) return 0;
+  if (cpi->oxcf.kf_cfg.key_freq_max == 0) {
+    av1_free_sms_tree(td);
+    return 0;
+  }
 
   AV1_COMMON *const cm = &cpi->common;
   const int stat_generation_stage = is_stat_generation_stage(cpi);
@@ -291,4 +294,5 @@ int av1_setup_sms_tree(AV1_COMP *const cpi, ThreadData *td) {
 void av1_free_sms_tree(ThreadData *td) {
   aom_free(td->sms_tree);
   td->sms_tree = NULL;
+  td->sms_root = NULL;
 }

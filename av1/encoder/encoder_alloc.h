@@ -73,8 +73,9 @@ static inline void alloc_compressor_data(AV1_COMP *cpi) {
   if (cpi->oxcf.kf_cfg.key_freq_max != 0) {
     CHECK_MEM_ERROR(cm, cpi->td.mv_costs_alloc,
                     (MvCosts *)aom_calloc(1, sizeof(*cpi->td.mv_costs_alloc)));
-    cpi->td.mb.mv_costs = cpi->td.mv_costs_alloc;
   }
+  // mb.mv_costs must not keep pointing to the buffer freed above.
+  cpi->td.mb.mv_costs = cpi->td.mv_costs_alloc;
 
   av1_setup_shared_coeff_buffer(cm->seq_params, &cpi->td.shared_coeff_buf,
                                 cm->error);
@@ -338,8 +339,10 @@ static inline void dealloc_compressor_data(AV1_COMP *cpi) {
 
   aom_free(cpi->td.mv_costs_alloc);
   cpi->td.mv_costs_alloc = NULL;
+  cpi->td.mb.mv_costs = NULL;
   aom_free(cpi->td.dv_costs_alloc);
   cpi->td.dv_costs_alloc = NULL;
+  cpi->td.mb.dv_costs = NULL;
 
   aom_free(cpi->td.mb.sb_stats_cache);
   cpi->td.mb.sb_stats_cache = NULL;
@@ -601,8 +604,10 @@ static inline void free_thread_data(AV1_PRIMARY *ppi) {
     }
     aom_free(td->mv_costs_alloc);
     td->mv_costs_alloc = NULL;
+    td->mb.mv_costs = NULL;
     aom_free(td->dv_costs_alloc);
     td->dv_costs_alloc = NULL;
+    td->mb.dv_costs = NULL;
     aom_free(td->counts);
     av1_free_pmc(td->firstpass_ctx, num_planes);
     td->firstpass_ctx = NULL;
