@@ -1051,7 +1051,7 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
     for (int plane = 0; plane < num_planes; ++plane) {
       const unsigned short *src = (const unsigned short *)img->planes[plane];
       if (!src) return AOM_CODEC_INVALID_PARAM;
-      const unsigned int stride = img->stride[plane] / 2;
+      const int stride = img->stride[plane] / 2;
       const unsigned int ph = aom_img_plane_height(img, plane);
       const unsigned int pw = aom_img_plane_width(img, plane);
       for (unsigned int i = 0; i < ph; ++i) {

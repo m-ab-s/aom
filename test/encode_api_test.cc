@@ -499,6 +499,56 @@ TEST(EncodeAPI, InvalidInputRange) {
     }
   }
 }
+
+// A high bitdepth image with a negative stride (for example after
+// aom_img_flip()) must pass the input range check row by row.
+TEST(EncodeAPI, ValidateHbdInputFlippedImage) {
+  constexpr int kWidth = 64;
+  constexpr int kHeight = 48;
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(aom_codec_av1_cx(), &cfg,
+                                         AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_bit_depth = AOM_BITS_10;
+  cfg.g_input_bit_depth = 10;
+
+  std::unique_ptr<aom_image_t, decltype(&aom_img_free)> image(
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, kWidth, kHeight, 0),
+      &aom_img_free);
+  aom_image_t *img = image.get();
+  ASSERT_NE(img, nullptr);
+  for (const int plane : { AOM_PLANE_Y, AOM_PLANE_U, AOM_PLANE_V }) {
+    uint8_t *p = img->planes[plane];
+    for (int y = 0; y < aom_img_plane_height(img, plane); ++y) {
+      aom_memset16(p, 512, aom_img_plane_width(img, plane));
+      p += img->stride[plane];
+    }
+  }
+  img->bit_depth = 10;
+  aom_img_flip(img);
+  ASSERT_LT(img->stride[AOM_PLANE_Y], 0);
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, aom_codec_av1_cx(), &cfg,
+                               AOM_CODEC_USE_HIGHBITDEPTH),
+            AOM_CODEC_OK);
+  EXPECT_EQ(aom_codec_encode(&enc, img, /*pts=*/0, /*duration=*/1,
+                             /*flags=*/0),
+            AOM_CODEC_OK)
+      << aom_codec_error_detail(&enc);
+
+  // An out of range value in the last row of the flipped image is found.
+  uint16_t *last_row = reinterpret_cast<uint16_t *>(
+      img->planes[AOM_PLANE_Y] +
+      static_cast<ptrdiff_t>(kHeight - 1) * img->stride[AOM_PLANE_Y]);
+  last_row[kWidth - 1] = 1 << 10;
+  EXPECT_EQ(aom_codec_encode(&enc, img, /*pts=*/1, /*duration=*/1,
+                             /*flags=*/0),
+            AOM_CODEC_INVALID_PARAM);
+  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 void EncodeSetSFrameOnFirstFrame(aom_img_fmt fmt, aom_codec_flags_t flag) {
