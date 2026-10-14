@@ -209,6 +209,54 @@ TEST_F(FilmGrainTableIOTest, ReadTruncatedFile) {
   EXPECT_EQ(0, remove(grain_file.c_str()));
 }
 
+// Counts read from the file must be checked against the sizes of the arrays
+// they index, and a table that fails to read must be left empty.
+TEST_F(FilmGrainTableIOTest, ReadCountLimits) {
+  const auto repeat = [](const char *s, int n) {
+    std::string out;
+    for (int i = 0; i < n; ++i) out += s;
+    return out;
+  };
+  const auto make_entry = [&](int lag, int num_y, int num_cb, int num_cr) {
+    const int num_pos = 2 * lag * (lag + 1);
+    return "E 0 1000 1 7391 1\np " + std::to_string(lag) +
+           " 7 0 11 0 1 128 192 256 128 192 256\n\tsY " +
+           std::to_string(num_y) + repeat(" 64 64", num_y) + "\n\tsCb " +
+           std::to_string(num_cb) + repeat(" 64 64", num_cb) + "\n\tsCr " +
+           std::to_string(num_cr) + repeat(" 64 64", num_cr) + "\n\tcY" +
+           repeat(" 0", num_pos) + "\n\tcCb" + repeat(" 0", num_pos + 1) +
+           "\n\tcCr" + repeat(" 0", num_pos + 1) + "\n";
+  };
+  const struct {
+    int lag, num_y, num_cb, num_cr;
+    bool valid;
+  } kCases[] = {
+    { 3, 14, 10, 10, true }, { 4, 0, 0, 0, false },   { 20, 0, 0, 0, false },
+    { -1, 0, 0, 0, false },  { 0, 15, 0, 0, false },  { 0, 200, 0, 0, false },
+    { 0, 0, 11, 0, false },  { 0, 0, 200, 0, false }, { 0, 0, 0, 11, false },
+    { 0, 0, 0, 200, false },
+  };
+  for (const auto &c : kCases) {
+    aom_film_grain_table_t table;
+    memset(&table, 0, sizeof(table));
+    libaom_test::TempOutFile grain_file;
+    ASSERT_NE(grain_file.file(), nullptr);
+    const std::string contents =
+        "filmgrn1\n" + make_entry(c.lag, c.num_y, c.num_cb, c.num_cr);
+    fwrite(contents.data(), contents.size(), 1, grain_file.file());
+    fflush(grain_file.file());
+    EXPECT_EQ(c.valid ? AOM_CODEC_OK : AOM_CODEC_ERROR,
+              aom_film_grain_table_read(&table, grain_file.file_name().c_str(),
+                                        &error_))
+        << "lag " << c.lag << " points " << c.num_y << " " << c.num_cb << " "
+        << c.num_cr;
+    if (!c.valid) {
+      EXPECT_EQ(table.head, nullptr);
+    }
+    aom_film_grain_table_free(&table);
+  }
+}
+
 TEST_F(FilmGrainTableIOTest, RoundTripReadWrite) {
   aom_film_grain_table_t table;
   memset(&table, 0, sizeof(table));

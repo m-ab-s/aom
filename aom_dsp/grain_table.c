@@ -64,9 +64,18 @@ static void grain_table_entry_read(FILE *file,
                          "Unable to read entry params. Read %d != 12",
                          num_read);
     }
+    if (pars->ar_coeff_lag < 0 || pars->ar_coeff_lag > 3) {
+      aom_internal_error(error_info, AOM_CODEC_ERROR, "Invalid ar_coeff_lag %d",
+                         pars->ar_coeff_lag);
+    }
     if (1 != fscanf(file, "\tsY %d ", &pars->num_y_points)) {
       aom_internal_error(error_info, AOM_CODEC_ERROR,
                          "Unable to read num y points");
+    }
+    if (pars->num_y_points < 0 ||
+        pars->num_y_points > NELEMENTS(pars->scaling_points_y)) {
+      aom_internal_error(error_info, AOM_CODEC_ERROR,
+                         "Invalid number of y points %d", pars->num_y_points);
     }
     for (int i = 0; i < pars->num_y_points; ++i) {
       if (2 != fscanf(file, "%d %d", &pars->scaling_points_y[i][0],
@@ -79,6 +88,11 @@ static void grain_table_entry_read(FILE *file,
       aom_internal_error(error_info, AOM_CODEC_ERROR,
                          "Unable to read num cb points");
     }
+    if (pars->num_cb_points < 0 ||
+        pars->num_cb_points > NELEMENTS(pars->scaling_points_cb)) {
+      aom_internal_error(error_info, AOM_CODEC_ERROR,
+                         "Invalid number of cb points %d", pars->num_cb_points);
+    }
     for (int i = 0; i < pars->num_cb_points; ++i) {
       if (2 != fscanf(file, "%d %d", &pars->scaling_points_cb[i][0],
                       &pars->scaling_points_cb[i][1])) {
@@ -89,6 +103,11 @@ static void grain_table_entry_read(FILE *file,
     if (1 != fscanf(file, "\n\tsCr %d", &pars->num_cr_points)) {
       aom_internal_error(error_info, AOM_CODEC_ERROR,
                          "Unable to read num cr points");
+    }
+    if (pars->num_cr_points < 0 ||
+        pars->num_cr_points > NELEMENTS(pars->scaling_points_cr)) {
+      aom_internal_error(error_info, AOM_CODEC_ERROR,
+                         "Invalid number of cr points %d", pars->num_cr_points);
     }
     for (int i = 0; i < pars->num_cr_points; ++i) {
       if (2 != fscanf(file, "%d %d", &pars->scaling_points_cr[i][0],
@@ -305,6 +324,9 @@ aom_codec_err_t aom_film_grain_table_read(
 
       grain_table_entry_read(file, error_info, entry);
     }
+  } else {
+    // Do not leave a partially read entry in the table.
+    aom_film_grain_table_free(t);
   }
 
   fclose(file);
