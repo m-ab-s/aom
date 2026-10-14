@@ -795,6 +795,11 @@ typedef struct aom_codec_enc_cfg {
    * a keyframe if one has not been coded in the last kf_max_dist frames.
    * A value of 0 implies all frames will be keyframes. Set kf_min_dist
    * equal to kf_max_dist for a fixed interval.
+   *
+   * With a value of 0 the encoder does not allocate the buffers that only
+   * inter frames use, so once kf_max_dist is 0 (at initialization or after
+   * aom_codec_enc_config_set()), aom_codec_enc_config_set() rejects a
+   * nonzero kf_max_dist with #AOM_CODEC_INVALID_PARAM.
    */
   unsigned int kf_max_dist;
 

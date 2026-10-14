@@ -6039,4 +6039,83 @@ const IntraBCTilesParams kIntraBCTilesParams[] = {
 INSTANTIATE_TEST_SUITE_P(AV1, IntraBCTilesTest,
                          ::testing::ValuesIn(kIntraBCTilesParams));
 
+// With kf_max_dist 0 every frame is a key frame, and the encoder does not
+// allocate what only inter frames use, so aom_codec_enc_config_set() must
+// reject a nonzero kf_max_dist, whether kf_max_dist was 0 at init or was set
+// to 0 later. Otherwise the first inter frame reads the missing motion vector
+// costs (real-time), simple motion search tree (good quality) or past source
+// frame (good quality with lag_in_frames > 0), or copies the missing motion
+// vector costs to the worker threads (g_threads > 1).
+void ConfigSetKeyFrameDistanceFromZeroTest(unsigned int usage, int speed,
+                                           unsigned int threads,
+                                           unsigned int lag_in_frames) {
+  for (const unsigned int initial_kf_max_dist : { 0u, 30u }) {
+    SCOPED_TRACE(initial_kf_max_dist);
+    aom_codec_iface_t *iface = aom_codec_av1_cx();
+    aom_codec_enc_cfg_t cfg;
+    ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, usage), AOM_CODEC_OK);
+    cfg.g_w = 176;
+    cfg.g_h = 144;
+    cfg.g_threads = threads;
+    cfg.g_lag_in_frames = lag_in_frames;
+    cfg.kf_max_dist = initial_kf_max_dist;
+    aom_codec_ctx_t enc;
+    ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, speed), AOM_CODEC_OK);
+
+    aom_image_t *img =
+        aom_img_alloc(nullptr, AOM_IMG_FMT_I420, cfg.g_w, cfg.g_h, 1);
+    ASSERT_NE(img, nullptr);
+    int pts = 0;
+    for (; pts < 2; ++pts) {
+      FillImageRandom(img);
+      ASSERT_EQ(aom_codec_encode(&enc, img, pts, 1, 0), AOM_CODEC_OK);
+    }
+    if (cfg.kf_max_dist != 0) {
+      cfg.kf_max_dist = 0;
+      ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK);
+      FillImageRandom(img);
+      ASSERT_EQ(aom_codec_encode(&enc, img, pts++, 1, 0), AOM_CODEC_OK);
+    }
+
+    cfg.kf_max_dist = 30;
+    EXPECT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_INVALID_PARAM);
+    for (const int end = pts + 4; pts < end; ++pts) {
+      FillImageRandom(img);
+      ASSERT_EQ(aom_codec_encode(&enc, img, pts, 1, 0), AOM_CODEC_OK);
+    }
+    ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 1, 0), AOM_CODEC_OK);
+    aom_img_free(img);
+    ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+  }
+}
+
+TEST(EncodeAPI, ConfigSetKeyFrameDistanceFromZeroRealtime) {
+  for (const int speed : { 7, 10 }) {
+    SCOPED_TRACE(speed);
+    ConfigSetKeyFrameDistanceFromZeroTest(AOM_USAGE_REALTIME, speed,
+                                          /*threads=*/1, /*lag_in_frames=*/0);
+  }
+}
+
+TEST(EncodeAPI, ConfigSetKeyFrameDistanceFromZeroRealtimeMultiThread) {
+  ConfigSetKeyFrameDistanceFromZeroTest(AOM_USAGE_REALTIME, /*speed=*/7,
+                                        /*threads=*/4, /*lag_in_frames=*/0);
+}
+
+#if !CONFIG_REALTIME_ONLY
+TEST(EncodeAPI, ConfigSetKeyFrameDistanceFromZeroGoodQuality) {
+  for (const unsigned int lag_in_frames : { 0u, 10u }) {
+    SCOPED_TRACE(lag_in_frames);
+    ConfigSetKeyFrameDistanceFromZeroTest(AOM_USAGE_GOOD_QUALITY, /*speed=*/6,
+                                          /*threads=*/1, lag_in_frames);
+  }
+}
+
+TEST(EncodeAPI, ConfigSetKeyFrameDistanceFromZeroGoodQualityMultiThread) {
+  ConfigSetKeyFrameDistanceFromZeroTest(AOM_USAGE_GOOD_QUALITY, /*speed=*/6,
+                                        /*threads=*/4, /*lag_in_frames=*/0);
+}
+#endif  // !CONFIG_REALTIME_ONLY
+
 }  // namespace
