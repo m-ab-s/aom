@@ -408,13 +408,13 @@ void av1_superres_post_encode(AV1_COMP *cpi) {
 
   // If regular resizing is occurring the source will need to be downscaled to
   // match the upscaled superres resolution. Otherwise the original source is
-  // used.
-  if (!av1_resize_scaled(cm)) {
+  // used. Compare with the source size rather than the render size, which the
+  // application may set to any value.
+  if (cpi->unscaled_source->y_crop_width == cm->superres_upscaled_width &&
+      cpi->unscaled_source->y_crop_height == cm->superres_upscaled_height) {
     cpi->source = cpi->unscaled_source;
     if (cpi->last_source != NULL) cpi->last_source = cpi->unscaled_last_source;
   } else {
-    assert(cpi->unscaled_source->y_crop_width != cm->superres_upscaled_width);
-    assert(cpi->unscaled_source->y_crop_height != cm->superres_upscaled_height);
     // Do downscale. cm->(width|height) has been updated by
     // av1_superres_upscale
     cpi->source = realloc_and_scale_source(cpi, cm->superres_upscaled_width,

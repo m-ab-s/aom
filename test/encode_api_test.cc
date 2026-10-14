@@ -1726,6 +1726,67 @@ TEST(EncodeAPI, IntraBCFrameSizeIncreaseGoodQuality) {
 TEST(EncodeAPI, IntraBCFrameSizeIncreaseAllIntra) {
   IntraBCFrameSizeIncreaseTest(AOM_USAGE_ALL_INTRA, 5);
 }
+
+// With resize and superres, a render size equal to the resized frame size
+// must not make the encoder compare the full size source with the smaller
+// upscaled frame.
+TEST(EncodeAPI, SuperresResizeWithRenderSize) {
+  constexpr int kWidth = 224;
+  constexpr int kHeight = 224;
+  // 224 * 8 / 14 = 128.
+  constexpr int kResizedSize = 128;
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(aom_codec_av1_cx(), &cfg,
+                                         AOM_USAGE_GOOD_QUALITY),
+            AOM_CODEC_OK);
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_Q;
+  cfg.rc_resize_mode = 1;  // RESIZE_FIXED
+  cfg.rc_resize_denominator = 14;
+  cfg.rc_resize_kf_denominator = 14;
+  cfg.rc_superres_mode = AOM_SUPERRES_FIXED;
+  cfg.rc_superres_denominator = 9;
+  cfg.rc_superres_kf_denominator = 9;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(
+      aom_codec_enc_init(&enc, aom_codec_av1_cx(), &cfg, AOM_CODEC_USE_PSNR),
+      AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 6), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CQ_LEVEL, 40), AOM_CODEC_OK);
+  int render_size[2] = { kResizedSize, kResizedSize };
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_RENDER_SIZE, render_size),
+            AOM_CODEC_OK);
+
+  std::unique_ptr<aom_image_t, decltype(&aom_img_free)> image(
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kWidth, kHeight, 32),
+      &aom_img_free);
+  aom_image_t *img = image.get();
+  ASSERT_NE(img, nullptr);
+  for (int frame = 0; frame < 2; ++frame) {
+    for (int y = 0; y < kHeight; ++y) {
+      for (int x = 0; x < kWidth; ++x) {
+        img->planes[AOM_PLANE_Y][y * img->stride[AOM_PLANE_Y] + x] =
+            static_cast<uint8_t>((x * 7 + y * 3 + frame * 5) ^ (x * y));
+      }
+    }
+    for (const int plane : { AOM_PLANE_U, AOM_PLANE_V }) {
+      for (int y = 0; y < aom_img_plane_height(img, plane); ++y) {
+        memset(img->planes[plane] + y * img->stride[plane], 128 + frame,
+               aom_img_plane_width(img, plane));
+      }
+    }
+    ASSERT_EQ(aom_codec_encode(&enc, img, frame, /*duration=*/1, /*flags=*/0),
+              AOM_CODEC_OK)
+        << aom_codec_error_detail(&enc);
+    aom_codec_iter_t iter = nullptr;
+    while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+    }
+  }
+  EXPECT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
 #endif  // !CONFIG_REALTIME_ONLY
 
 TEST(EncodeAPI, IntraBCFrameSizeIncreaseRealtime) {
