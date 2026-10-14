@@ -83,14 +83,15 @@ static void subblock_motion_search(
   int distortion;
   int cost_list[5];
 
+  // Keep the search within the border of the frame searched: a realtime
+  // lookahead frame may have a smaller border than the encoder's.
+  const int border = AOMMIN(cpi->oxcf.border_in_pixels, ref_frame->border);
   av1_set_mv_row_limits(&cpi->common.mi_params, &mb->mv_limits,
                         (mb_row << mi_h) + (subblock_ofst_i >> MI_SIZE_LOG2),
-                        (subblock_height >> MI_SIZE_LOG2),
-                        cpi->oxcf.border_in_pixels);
+                        (subblock_height >> MI_SIZE_LOG2), border);
   av1_set_mv_col_limits(&cpi->common.mi_params, &mb->mv_limits,
                         (mb_col << mi_w) + (subblock_ofst_j >> MI_SIZE_LOG2),
-                        (subblock_width >> MI_SIZE_LOG2),
-                        cpi->oxcf.border_in_pixels);
+                        (subblock_width >> MI_SIZE_LOG2), border);
   const int boffset = subblock_ofst_i * y_stride + subblock_ofst_j;
   mb->plane[0].src.buf = frame_to_filter->y_buffer + y_offset + boffset;
   mbd->plane[0].pre[0].buf = ref_frame->y_buffer + y_offset + boffset;
@@ -321,13 +322,15 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
   // 32x32 block motion search results.
   int midblock_mses[4] = { INT_MAX, INT_MAX, INT_MAX, INT_MAX };
   MV midblock_mvs[4] = { kZeroMv, kZeroMv, kZeroMv, kZeroMv };
+  // Keep the search within the border of the frame searched: a realtime
+  // lookahead frame may have a smaller border than the encoder's.
+  const int border = AOMMIN(cpi->oxcf.border_in_pixels, ref_frame->border);
   av1_set_mv_row_limits(&cpi->common.mi_params, &mb->mv_limits,
                         (mb_row << mi_size_high_log2[block_size]),
-                        (mb_height >> MI_SIZE_LOG2),
-                        cpi->oxcf.border_in_pixels);
+                        (mb_height >> MI_SIZE_LOG2), border);
   av1_set_mv_col_limits(&cpi->common.mi_params, &mb->mv_limits,
                         (mb_col << mi_size_wide_log2[block_size]),
-                        (mb_width >> MI_SIZE_LOG2), cpi->oxcf.border_in_pixels);
+                        (mb_width >> MI_SIZE_LOG2), border);
 
   const int q = get_q(cpi);
 

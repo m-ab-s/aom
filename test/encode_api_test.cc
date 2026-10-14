@@ -4200,6 +4200,60 @@ TEST(EncodeAPI, NonrdBlockYrdRateOverflow) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+// Realtime with lag_in_frames > 0 runs the temporal filter on the lookahead
+// frames, whose border is smaller than the encoder's: its motion search must
+// stay within it.
+TEST(EncodeAPI, RealtimeLagTemporalFilterBorder) {
+  constexpr int kWidth = 320;
+  constexpr int kHeight = 240;
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 48;
+  cfg.rc_end_usage = AOM_VBR;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 7), AOM_CODEC_OK);
+  // Use internal ARFs, which are temporally filtered.
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_GF_MIN_PYRAMID_HEIGHT, 3),
+            AOM_CODEC_OK);
+
+  aom_image_t *img =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kWidth, kHeight, 32);
+  ASSERT_NE(img, nullptr);
+  // A static textured picture, so that the ARFs are kept.
+  for (int plane = 0; plane < 3; ++plane) {
+    const int w = plane ? (kWidth + 1) >> 1 : kWidth;
+    const int h = plane ? (kHeight + 1) >> 1 : kHeight;
+    for (int r = 0; r < h; ++r) {
+      for (int c = 0; c < w; ++c) {
+        const uint64_t v =
+            static_cast<uint64_t>((c * 7) ^ (r * 13)) * 2654435761u;
+        img->planes[plane][r * img->stride[plane] + c] =
+            static_cast<unsigned char>(v >> 24);
+      }
+    }
+  }
+  for (int i = 0; i < 70; ++i) {
+    ASSERT_EQ(aom_codec_encode(&enc, img, i, 1, 0), AOM_CODEC_OK);
+  }
+  // Flush.
+  bool got_data;
+  do {
+    ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+    got_data = false;
+    aom_codec_iter_t iter = nullptr;
+    while (aom_codec_get_cx_data(&enc, &iter) != nullptr) got_data = true;
+  } while (got_data);
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 // Regression test for webrtc:496266459: Enabling compound prediction via
 // AV1E_SET_SVC_REF_FRAME_COMP_PRED must not affect encoding of frames that do
 // not have any active compound reference pair (e.g., single-reference delta
