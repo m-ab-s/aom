@@ -221,7 +221,7 @@ class AVxEncoderThreadTest
       : EncoderTest(GET_PARAM(0)), encoder_initialized_(false),
         encoding_mode_(GET_PARAM(1)), set_cpu_used_(GET_PARAM(2)),
         tile_cols_(GET_PARAM(3)), tile_rows_(GET_PARAM(4)),
-        row_mt_(GET_PARAM(5)) {
+        row_mt_(GET_PARAM(5)), frame_limit_(26) {
     init_flags_ = AOM_CODEC_USE_PSNR;
     aom_codec_dec_cfg_t cfg = aom_codec_dec_cfg_t();
     cfg.w = 1280;
@@ -324,8 +324,9 @@ class AVxEncoderThreadTest
   }
 
   void DoTest() {
-    ::libaom_test::YUVVideoSource video(
-        "niklas_640_480_30.yuv", AOM_IMG_FMT_I420, 640, 480, 30, 1, 15, 26);
+    ::libaom_test::YUVVideoSource video("niklas_640_480_30.yuv",
+                                        AOM_IMG_FMT_I420, 640, 480, 30, 1, 15,
+                                        frame_limit_);
     cfg_.rc_target_bitrate = 1000;
 
     if (row_mt_ == 0) {
@@ -445,6 +446,7 @@ class AVxEncoderThreadTest
   int tile_cols_;
   int tile_rows_;
   int row_mt_;
+  int frame_limit_;
   ::libaom_test::Decoder *decoder_;
   std::vector<size_t> size_enc_;
   std::vector<std::string> md5_enc_;
@@ -566,6 +568,35 @@ AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTSegTest,
                            ::testing::Values(::libaom_test::kRealTime),
                            ::testing::Values(7, 9), ::testing::Values(1),
                            ::testing::Values(1), ::testing::Values(0, 1));
+
+// Per superblock cost updates must give the same output for any thread count.
+class AVxEncoderThreadRTCostUpdTest : public AVxEncoderThreadTest {
+ protected:
+  AVxEncoderThreadRTCostUpdTest() { frame_limit_ = 60; }
+
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
+    const bool first_frame = !encoder_initialized_;
+    AVxEncoderThreadTest::PreEncodeFrameHook(video, encoder);
+    if (first_frame) {
+      encoder->Control(AV1E_SET_COEFF_COST_UPD_FREQ, 0);
+      encoder->Control(AV1E_SET_MODE_COST_UPD_FREQ, 0);
+      encoder->Control(AV1E_SET_MV_COST_UPD_FREQ, 0);
+      encoder->Control(AV1E_SET_CDF_UPDATE_MODE, 2);
+    }
+  }
+};
+
+TEST_P(AVxEncoderThreadRTCostUpdTest, EncoderResultTest) {
+  cfg_.large_scale_tile = 0;
+  decoder_->Control(AV1_SET_TILE_MODE, 0);
+  DoTest();
+}
+
+AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTCostUpdTest,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Values(7, 10), ::testing::Values(0, 1),
+                           ::testing::Values(0, 1), ::testing::Values(1));
 
 #if !CONFIG_REALTIME_ONLY
 

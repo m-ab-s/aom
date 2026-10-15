@@ -754,7 +754,10 @@ static inline int is_frame_level_cost_upd_freq_set(
       frame_is_intra_only(cm) ||
       (use_nonrd_pick_mode ? frames_since_key < 2
                            : (cm->current_frame.frame_number & 0x07) == 1);
-  return ((!use_nonrd_pick_mode && cost_upd_level != INTERNAL_COST_UPD_OFF) ||
+  // Nonrd frames without CDF updates get no per superblock cost update.
+  const int update_per_frame =
+      !use_nonrd_pick_mode || cm->features.disable_cdf_update;
+  return ((update_per_frame && cost_upd_level != INTERNAL_COST_UPD_OFF) ||
           cost_upd_level == INTERNAL_COST_UPD_TILE || fill_costs);
 }
 
