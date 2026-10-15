@@ -879,6 +879,9 @@ typedef struct SetOffsetsLoc {
 //! Maximum number of estimated RD Cost records for compound average.
 #define TOP_COMP_AVG_EST_RD_COUNT 5
 
+//! Maximum number of estimated RD Cost records for smooth interintra.
+#define TOP_SMOOTH_INTERINTRA_RD_COUNT 2
+
 /*! \brief Encoder's parameters related to the current coding block.
  *
  * This struct contains most of the information the encoder needs to encode the
@@ -1438,6 +1441,9 @@ typedef struct macroblock {
 
   /*!\brief Array of best estimated RD Costs of compound average. */
   int64_t top_comp_avg_est_rd[TOP_COMP_AVG_EST_RD_COUNT];
+
+  /*!\brief Array of best estimated RD Costs of smooth interintra. */
+  int64_t top_smooth_interintra_rd[TOP_SMOOTH_INTERINTRA_RD_COUNT];
 
 #if CONFIG_PARTITION_SEARCH_ORDER
   /*!\brief Pointer to RD_STATS structure to be used in

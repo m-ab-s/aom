@@ -1206,6 +1206,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_comp_using_best_single_mode_ref = 2;
     sf->inter_sf.use_dist_wtd_comp_flag = DIST_WTD_COMP_DISABLED;
     sf->inter_sf.enable_comp_wedge_search_using_model_rd = 1;
+    sf->inter_sf.skip_interintra_using_top_smooth_rd_lvl = 1;
 
     sf->interp_sf.use_interp_filter = 1;
     sf->interp_sf.skip_model_rd_uv = 1;
@@ -1266,6 +1267,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.inter_mode_txfm_breakout = boosted ? 0 : 1;
     sf->inter_sf.alt_ref_search_fp = 1;
     sf->inter_sf.prune_single_ref = boosted ? 1 : 2;
+    sf->inter_sf.skip_interintra_using_top_smooth_rd_lvl = 2;
 
     sf->interp_sf.adaptive_interp_filter_search = 1;
 
@@ -2422,6 +2424,7 @@ static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->skip_cmp_using_top_cmp_avg_est_rd_lvl = 0;
   inter_sf->skip_interinter_wedge_search_based_on_mse = 0;
   inter_sf->enable_comp_wedge_search_using_model_rd = 0;
+  inter_sf->skip_interintra_using_top_smooth_rd_lvl = 0;
   set_txfm_rd_gate_level(inter_sf->txfm_rd_gate_level, 0);
 }
 

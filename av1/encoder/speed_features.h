@@ -1270,6 +1270,11 @@ typedef struct INTER_MODE_SPEED_FEATURES {
 
   // Enable/disable model RD based fast compound wedge mask search.
   int enable_comp_wedge_search_using_model_rd;
+
+  // Avoid further evaluation of interintra modes using top estimate RD Costs of
+  // smooth interintra. Values are 0 (not used),1 - 2 with progressively
+  // increasing aggressiveness, i.e., decreasing number of top candidates.
+  int skip_interintra_using_top_smooth_rd_lvl;
 } INTER_MODE_SPEED_FEATURES;
 
 typedef struct INTERP_FILTER_SPEED_FEATURES {
