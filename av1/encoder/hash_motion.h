@@ -101,19 +101,20 @@ int32_t av1_hash_table_count(const hash_table *p_hash_table,
 // Returns the first of the av1_hash_table_count() entries for hash_value.
 const block_hash *av1_hash_get_first_block_hash(const hash_table *p_hash_table,
                                                 uint32_t hash_value);
-// These fill the hash values of the blocks that lie inside region. The buffers
-// use the width of the picture as stride.
+// These fill the hash values of the blocks that lie inside region. The stride
+// parameters give the distance in values between rows of the hash buffers.
 void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
                                        const IntraBCHashRegion *region,
-                                       uint32_t *pic_block_hash);
+                                       uint32_t *pic_block_hash,
+                                       int pic_block_hash_stride);
 void av1_generate_block_hash_value(IntraBCHashInfo *intra_bc_hash_info,
-                                   const YV12_BUFFER_CONFIG *picture,
                                    const IntraBCHashRegion *region,
                                    int block_size,
                                    const uint32_t *src_pic_block_hash,
-                                   uint32_t *dst_pic_block_hash);
+                                   uint32_t *dst_pic_block_hash,
+                                   int pic_block_hash_stride);
 bool av1_add_to_hash_map_by_row_with_precal_data(
-    hash_table *p_hash_table, const uint32_t *pic_hash, int pic_width,
+    hash_table *p_hash_table, const uint32_t *pic_hash, int pic_hash_stride,
     const IntraBCHashRegion *region, int block_size);
 
 // check whether the block starts from (x_start, y_start) with the size of

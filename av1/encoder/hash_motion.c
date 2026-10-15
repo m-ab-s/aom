@@ -206,17 +206,17 @@ const block_hash *av1_hash_get_first_block_hash(const hash_table *p_hash_table,
 
 void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
                                        const IntraBCHashRegion *region,
-                                       uint32_t *pic_block_hash) {
+                                       uint32_t *pic_block_hash,
+                                       int pic_block_hash_stride) {
   const int width = 2;
   const int height = 2;
-  const int pic_width = picture->y_crop_width;
   const int x_end = region->x_end - width + 1;
   const int y_end = region->y_end - height + 1;
 
   if (picture->flags & YV12_FLAG_HIGHBITDEPTH) {
     uint16_t p[4];
     for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
-      uint32_t *const row_hash = pic_block_hash + y_pos * pic_width;
+      uint32_t *const row_hash = pic_block_hash + y_pos * pic_block_hash_stride;
       for (int x_pos = region->x_start; x_pos < x_end; x_pos++) {
         get_pixels_in_1D_short_array_by_block_2x2(
             CONVERT_TO_SHORTPTR(picture->y_buffer) + y_pos * picture->y_stride +
@@ -231,7 +231,7 @@ void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
   } else {
     uint8_t p[4];
     for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
-      uint32_t *const row_hash = pic_block_hash + y_pos * pic_width;
+      uint32_t *const row_hash = pic_block_hash + y_pos * pic_block_hash_stride;
       for (int x_pos = region->x_start; x_pos < x_end; x_pos++) {
         get_pixels_in_1D_char_array_by_block_2x2(
             picture->y_buffer + y_pos * picture->y_stride + x_pos,
@@ -247,14 +247,13 @@ void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
 }
 
 void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
-                                   const YV12_BUFFER_CONFIG *picture,
                                    const IntraBCHashRegion *region,
                                    int block_size,
                                    const uint32_t *src_pic_block_hash,
-                                   uint32_t *dst_pic_block_hash) {
+                                   uint32_t *dst_pic_block_hash,
+                                   int pic_block_hash_stride) {
   CRC32C *calc = &intrabc_hash_info->crc_calculator;
 
-  const int pic_width = picture->y_crop_width;
   const int x_end = region->x_end - block_size + 1;
   const int y_end = region->y_end - block_size + 1;
   const int src_size = block_size >> 1;
@@ -263,7 +262,7 @@ void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
   const int length = sizeof(p);
 
   for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
-    int pos = y_pos * pic_width + region->x_start;
+    int pos = y_pos * pic_block_hash_stride + region->x_start;
     for (int x_pos = region->x_start; x_pos < x_end; x_pos++) {
       // Build up a bigger block from 4 smaller, non-overlapping source block
       // hashes, and compute its hash. Note: source blocks at the right and
@@ -271,8 +270,9 @@ void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
       // considered into the block hash value generation process.
       p[0] = src_pic_block_hash[pos];
       p[1] = src_pic_block_hash[pos + src_size];
-      p[2] = src_pic_block_hash[pos + src_size * pic_width];
-      p[3] = src_pic_block_hash[pos + src_size * pic_width + src_size];
+      p[2] = src_pic_block_hash[pos + src_size * pic_block_hash_stride];
+      p[3] =
+          src_pic_block_hash[pos + src_size * pic_block_hash_stride + src_size];
       // TODO: bug aomedia:433531610 - serialize input values in a way that's
       // independent of the computer architecture's endianness
       dst_pic_block_hash[pos] =
@@ -286,7 +286,7 @@ void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
 // counts of that block size must be zero on entry, as av1_hash_tables_create()
 // leaves them. On return they hold the number of entries in each bucket.
 bool av1_add_to_hash_map_by_row_with_precal_data(
-    hash_table *p_hash_table, const uint32_t *pic_hash, int pic_width,
+    hash_table *p_hash_table, const uint32_t *pic_hash, int pic_hash_stride,
     const IntraBCHashRegion *region, int block_size) {
   const int x_start = region->x_start;
   const int y_start = region->y_start;
@@ -316,7 +316,7 @@ bool av1_add_to_hash_map_by_row_with_precal_data(
   // added in, so count them first in raster order. Flat areas give long runs
   // of the same bucket, so count a whole run at once.
   for (int y_pos = y_start; y_pos < y_end; y_pos++) {
-    const uint32_t *const row_hash = pic_hash + y_pos * pic_width;
+    const uint32_t *const row_hash = pic_hash + y_pos * pic_hash_stride;
     int bucket = row_hash[x_start] & crc_mask;
     int run = 0;
     for (int x_pos = x_start; x_pos < x_end; x_pos++) {
@@ -377,7 +377,7 @@ bool av1_add_to_hash_map_by_row_with_precal_data(
   while (step > 1) {
     for (int x_pos = x_start + x_offset; x_pos < x_end; x_pos += step) {
       for (int y_pos = y_start + y_offset; y_pos < y_end; y_pos += step) {
-        const int pos = y_pos * pic_width + x_pos;
+        const int pos = y_pos * pic_hash_stride + x_pos;
         const int bucket = pic_hash[pos] & crc_mask;
         const int count = bucket_count[bucket];
         assert(count <= kMaxCandidatesPerHashBucket);

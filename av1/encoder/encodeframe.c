@@ -2073,6 +2073,17 @@ static void free_block_hash_buffers(IntraBCHashInfo *intrabc_hash_info) {
   intrabc_hash_info->frame_hash_height = 0;
 }
 
+// Returns the distance in values between rows of the frame hash buffers. The
+// table fill reads the buffers column by column, 2 or more rows at a time.
+// When the width has a large power of 2 factor, the reads of a column share
+// their low address bits and map to only a few cache sets. The lines a column
+// loads are then evicted before the next column reads them again. With an odd
+// multiple of 8 values, a step of 2 rows is an odd number of 64 byte cache
+// lines, so a column spreads over all the cache sets.
+static int get_intrabc_hash_stride(int width) {
+  return ALIGN_POWER_OF_TWO(width, 3) | 8;
+}
+
 // Gets the region covered by the hash table with the given index. That is the
 // region of the tile with this index, or the whole frame if there is one table.
 static void get_intrabc_hash_region(const YV12_BUFFER_CONFIG *source,
@@ -2105,11 +2116,13 @@ bool av1_build_intrabc_hash_table(AV1_COMP *cpi, int table_idx) {
       pic_height != intrabc_hash_info->frame_hash_height) {
     return false;
   }
+  const int hash_stride = get_intrabc_hash_stride(pic_width);
   IntraBCHashRegion region;
   get_intrabc_hash_region(cpi->source, cm, intrabc_hash_info->num_tile_tables,
                           table_idx, &region);
 
-  av1_generate_block_2x2_hash_value(cpi->source, &region, block_hash_values[0]);
+  av1_generate_block_2x2_hash_value(cpi->source, &region, block_hash_values[0],
+                                    hash_stride);
   // Hash data generated for screen contents is used for intraBC ME
   const int min_alloc_size = block_size_wide[cm->mi_params.mi_alloc_bsize];
   int max_sb_size = 1 << (cm->seq_params->mib_size_log2 + MI_SIZE_LOG2);
@@ -2121,13 +2134,13 @@ bool av1_build_intrabc_hash_table(AV1_COMP *cpi, int table_idx) {
   int src_idx = 0;
   for (int size = 4; size <= max_sb_size; size *= 2, src_idx = !src_idx) {
     const int dst_idx = !src_idx;
-    av1_generate_block_hash_value(intrabc_hash_info, cpi->source, &region, size,
+    av1_generate_block_hash_value(intrabc_hash_info, &region, size,
                                   block_hash_values[src_idx],
-                                  block_hash_values[dst_idx]);
+                                  block_hash_values[dst_idx], hash_stride);
     if (size >= min_alloc_size &&
         !av1_add_to_hash_map_by_row_with_precal_data(
             &intrabc_hash_info->tile_tables[table_idx],
-            block_hash_values[dst_idx], pic_width, &region, size)) {
+            block_hash_values[dst_idx], hash_stride, &region, size)) {
       return false;
     }
   }
@@ -2146,6 +2159,7 @@ static void build_intrabc_hash_tables(AV1_COMP *cpi) {
   IntraBCHashInfo *const intrabc_hash_info = &cpi->td.mb.intrabc_hash_info;
   const int pic_width = cpi->source->y_crop_width;
   const int pic_height = cpi->source->y_crop_height;
+  const int hash_stride = get_intrabc_hash_stride(pic_width);
   const int num_tiles = cm->tiles.cols * cm->tiles.rows;
   const int num_tables = num_tiles <= MAX_INTRABC_HASH_TABLES ? num_tiles : 1;
   bool error = false;
@@ -2153,7 +2167,7 @@ static void build_intrabc_hash_tables(AV1_COMP *cpi) {
   free_block_hash_buffers(intrabc_hash_info);
   for (int j = 0; j < 2; ++j) {
     intrabc_hash_info->frame_hash_buffer[j] = (uint32_t *)aom_malloc(
-        sizeof(*intrabc_hash_info->frame_hash_buffer[j]) * pic_width *
+        sizeof(*intrabc_hash_info->frame_hash_buffer[j]) * hash_stride *
         pic_height);
     if (!intrabc_hash_info->frame_hash_buffer[j]) {
       error = true;
