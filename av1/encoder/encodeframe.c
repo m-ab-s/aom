@@ -1276,11 +1276,23 @@ static void copy_sb_span(const AV1_COMMON *cm, MV_REFERENCE_FRAME ref,
                                 y1 >> ss_y);
 }
 
+// Gets the segment id of each superblock of a tile row. The map of a
+// superblock only changes while it is coded, so the ids hold for the row.
+static void get_sb_segment_ids_of_row(const AV1_COMP *cpi,
+                                      const TileInfo *tile_info, int mi_row,
+                                      uint8_t *segment_ids) {
+  const int mib_size = cpi->common.seq_params->mib_size;
+  for (int mi_col = tile_info->mi_col_start; mi_col < tile_info->mi_col_end;
+       mi_col += mib_size) {
+    *segment_ids++ = get_sb_segment_id(cpi, mi_row, mi_col);
+  }
+}
+
 // Fills the skip segment superblocks of a row from their reference before the
 // row is coded. Wide row copies are much faster than copying every 64x64 block
 // plane by plane, so encode_superblock() then skips their prediction.
 static void copy_skip_sbs_of_row(const AV1_COMP *cpi, const TileInfo *tile_info,
-                                 int mi_row) {
+                                 int mi_row, const uint8_t *segment_ids) {
   if (!can_copy_skip_sbs(cpi)) return;
 
   const AV1_COMMON *const cm = &cpi->common;
@@ -1288,12 +1300,11 @@ static void copy_skip_sbs_of_row(const AV1_COMP *cpi, const TileInfo *tile_info,
   int span_start = -1;
   MV_REFERENCE_FRAME span_ref = NONE_FRAME;
 
-  for (int mi_col = tile_info->mi_col_start;; mi_col += mib_size) {
+  for (int mi_col = tile_info->mi_col_start, sb_col = 0;;
+       mi_col += mib_size, ++sb_col) {
     const int in_tile = mi_col < tile_info->mi_col_end;
     const MV_REFERENCE_FRAME ref =
-        in_tile
-            ? get_skip_sb_copy_ref(cm, get_sb_segment_id(cpi, mi_row, mi_col))
-            : NONE_FRAME;
+        in_tile ? get_skip_sb_copy_ref(cm, segment_ids[sb_col]) : NONE_FRAME;
     if (span_start >= 0 && ref != span_ref) {
       copy_sb_span(cm, span_ref, mi_row, span_start, mi_col);
       span_start = -1;
@@ -1349,7 +1360,14 @@ static inline void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
   }
 
   reset_thresh_freq_fact(x);
-  copy_skip_sbs_of_row(cpi, tile_info, mi_row);
+
+  const struct segmentation *const seg = &cm->seg;
+  uint8_t sb_segment_ids[MAX_TILE_WIDTH >> MIN_SB_SIZE_LOG2] = { 0 };
+  assert(sb_cols_in_tile <= (int)sizeof(sb_segment_ids));
+  if (seg->enabled) {
+    get_sb_segment_ids_of_row(cpi, tile_info, mi_row, sb_segment_ids);
+    copy_skip_sbs_of_row(cpi, tile_info, mi_row, sb_segment_ids);
+  }
 
   // Code each SB in the row
   for (int mi_col = tile_info->mi_col_start, sb_col_in_tile = 0;
@@ -1422,11 +1440,10 @@ static inline void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     td->mb.cb_coef_buff = av1_get_cb_coeff_buffer(cpi, mi_row, mi_col);
 
     // Get segment id and skip flag
-    const struct segmentation *const seg = &cm->seg;
     int seg_skip = 0;
     x->sb_copied_ref = NONE_FRAME;
     if (seg->enabled) {
-      const uint8_t segment_id = get_sb_segment_id(cpi, mi_row, mi_col);
+      const uint8_t segment_id = sb_segment_ids[sb_col_in_tile];
       seg_skip = segfeature_active(seg, segment_id, SEG_LVL_SKIP);
       if (seg_skip && !frame_is_intra_only(cm) && use_nonrd_mode)
         x->sb_copied_ref = get_skip_sb_copy_ref(cm, segment_id);
