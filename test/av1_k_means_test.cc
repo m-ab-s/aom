@@ -389,6 +389,8 @@ INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1KmeansTest2,
     ::testing::Combine(::testing::Values(&av1_calc_indices_dim2_sse2),
                        ::testing::ValuesIn(kValidBlockSize)));
+INSTANTIATE_TEST_SUITE_P(SSE2, AV1KmeansCentroidsTest1,
+                         ::testing::Values(&av1_calc_centroids_dim1_sse2));
 #endif
 
 #if HAVE_AVX2
@@ -400,6 +402,8 @@ INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1KmeansTest2,
     ::testing::Combine(::testing::Values(&av1_calc_indices_dim2_avx2),
                        ::testing::ValuesIn(kValidBlockSize)));
+INSTANTIATE_TEST_SUITE_P(AVX2, AV1KmeansCentroidsTest1,
+                         ::testing::Values(&av1_calc_centroids_dim1_avx2));
 #endif
 
 #if HAVE_NEON

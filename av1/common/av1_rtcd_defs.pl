@@ -410,7 +410,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/av1_calc_indices_dim2 sse2 avx2 neon/;
 
   add_proto qw/void av1_calc_centroids_dim1/, "const int16_t *data, int16_t *centroids, const uint8_t *indices, int n, int k";
-  specialize qw/av1_calc_centroids_dim1 neon/;
+  specialize qw/av1_calc_centroids_dim1 sse2 avx2 neon/;
 
   add_proto qw/void av1_calc_centroids_dim2/, "const int16_t *data, int16_t *centroids, const uint8_t *indices, int n, int k";
 
