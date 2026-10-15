@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <smmintrin.h>
 
+#include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
 // Byte-boundary alignment issues
@@ -50,4 +51,33 @@ uint32_t av1_get_crc32c_value_sse4_2(void *crc_calculator, const uint8_t *p,
   CALC_CRC(_mm_crc32_u16, crc, uint16_t, buf, len)
   CALC_CRC(_mm_crc32_u8, crc, uint8_t, buf, len)
   return (crc ^ 0xFFFFFFFF);
+}
+
+void av1_combine_block_hashes_sse4_2(void *crc_calculator, const uint32_t *src,
+                                     uint32_t *dst, int stride, int width,
+                                     int height, int sub_size) {
+  (void)crc_calculator;
+  for (int y = 0; y < height; y++) {
+    const uint32_t *top = src + y * stride;
+    const uint32_t *bottom = top + sub_size * stride;
+    uint32_t *out = dst + y * stride;
+    for (int x = 0; x < width; x++) {
+      // Hash the 4 values from registers, in the same byte order as the C
+      // version reads them from memory.
+#if AOM_ARCH_X86_64
+      uint64_t crc = 0xFFFFFFFF;
+      crc = _mm_crc32_u64(crc, top[x] | (uint64_t)top[x + sub_size] << 32);
+      crc =
+          _mm_crc32_u64(crc, bottom[x] | (uint64_t)bottom[x + sub_size] << 32);
+      out[x] = (uint32_t)crc ^ 0xFFFFFFFF;
+#else
+      uint32_t crc = 0xFFFFFFFF;
+      crc = _mm_crc32_u32(crc, top[x]);
+      crc = _mm_crc32_u32(crc, top[x + sub_size]);
+      crc = _mm_crc32_u32(crc, bottom[x]);
+      crc = _mm_crc32_u32(crc, bottom[x + sub_size]);
+      out[x] = crc ^ 0xFFFFFFFF;
+#endif
+    }
+  }
 }

@@ -252,34 +252,19 @@ void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
                                    const uint32_t *src_pic_block_hash,
                                    uint32_t *dst_pic_block_hash,
                                    int pic_block_hash_stride) {
-  CRC32C *calc = &intrabc_hash_info->crc_calculator;
-
   const int x_end = region->x_end - block_size + 1;
   const int y_end = region->y_end - block_size + 1;
-  const int src_size = block_size >> 1;
+  if (x_end <= region->x_start || y_end <= region->y_start) return;
+  const int offset = region->y_start * pic_block_hash_stride + region->x_start;
 
-  uint32_t p[4];
-  const int length = sizeof(p);
-
-  for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
-    int pos = y_pos * pic_block_hash_stride + region->x_start;
-    for (int x_pos = region->x_start; x_pos < x_end; x_pos++) {
-      // Build up a bigger block from 4 smaller, non-overlapping source block
-      // hashes, and compute its hash. Note: source blocks at the right and
-      // bottom borders cannot be part of larger blocks, therefore they won't be
-      // considered into the block hash value generation process.
-      p[0] = src_pic_block_hash[pos];
-      p[1] = src_pic_block_hash[pos + src_size];
-      p[2] = src_pic_block_hash[pos + src_size * pic_block_hash_stride];
-      p[3] =
-          src_pic_block_hash[pos + src_size * pic_block_hash_stride + src_size];
-      // TODO: bug aomedia:433531610 - serialize input values in a way that's
-      // independent of the computer architecture's endianness
-      dst_pic_block_hash[pos] =
-          av1_get_crc32c_value(calc, (uint8_t *)p, length);
-      pos++;
-    }
-  }
+  // Build up a bigger block from 4 smaller, non-overlapping source block
+  // hashes, and compute its hash. Note: source blocks at the right and
+  // bottom borders cannot be part of larger blocks, therefore they won't be
+  // considered into the block hash value generation process.
+  av1_combine_block_hashes(
+      &intrabc_hash_info->crc_calculator, src_pic_block_hash + offset,
+      dst_pic_block_hash + offset, pic_block_hash_stride,
+      x_end - region->x_start, y_end - region->y_start, block_size >> 1);
 }
 
 // Adds the blocks of one block size that lie inside region to the table. The

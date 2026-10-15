@@ -12,6 +12,7 @@
 #include "av1/encoder/hash.h"
 
 #include <stddef.h>
+#include <string.h>
 
 #include "config/av1_rtcd.h"
 
@@ -69,4 +70,27 @@ uint32_t av1_get_crc32c_value_c(void *c, const uint8_t *buf, size_t len) {
     len--;
   }
   return (uint32_t)crc ^ 0xffffffff;
+}
+
+// For each of the width x height positions, hashes the 4 sub-block hashes at
+// that position and at the offsets sub_size right, sub_size down and both.
+// src and dst use the same stride.
+void av1_combine_block_hashes_c(void *crc_calculator, const uint32_t *src,
+                                uint32_t *dst, int stride, int width,
+                                int height, int sub_size) {
+  for (int y = 0; y < height; y++) {
+    const uint32_t *top = src + y * stride;
+    const uint32_t *bottom = top + sub_size * stride;
+    uint32_t *out = dst + y * stride;
+    for (int x = 0; x < width; x++) {
+      const uint32_t v[4] = { top[x], top[x + sub_size], bottom[x],
+                              bottom[x + sub_size] };
+      // Hash a byte copy so the static analyzer can follow the byte reads.
+      // TODO: bug aomedia:433531610 - serialize input values in a way that's
+      // independent of the computer architecture's endianness
+      uint8_t p[sizeof(v)];
+      memcpy(p, v, sizeof(v));
+      out[x] = av1_get_crc32c_value_c(crc_calculator, p, sizeof(p));
+    }
+  }
 }

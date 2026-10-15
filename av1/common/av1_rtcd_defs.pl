@@ -464,6 +464,8 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # hash
   add_proto qw/uint32_t av1_get_crc32c_value/, "void *crc_calculator, const uint8_t *p, size_t length";
   specialize qw/av1_get_crc32c_value sse4_2 arm_crc32/;
+  add_proto qw/void av1_combine_block_hashes/, "void *crc_calculator, const uint32_t *src, uint32_t *dst, int stride, int width, int height, int sub_size";
+  specialize qw/av1_combine_block_hashes sse4_2 arm_crc32/;
 
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
     add_proto qw/void av1_compute_stats/,  "int wiener_win, const uint8_t *dgd8, const uint8_t *src8, int16_t *dgd_avg, int16_t *src_avg, int h_start, int h_end, int v_start, int v_end, int dgd_stride, int src_stride, int64_t *M, int64_t *H, int use_downsampled_wiener_stats";

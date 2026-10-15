@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <new>
 #include <tuple>
+#include <vector>
 
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
@@ -136,6 +137,102 @@ INSTANTIATE_TEST_SUITE_P(
     ARM_CRC32, AV1Crc32cHashTest,
     ::testing::Combine(::testing::Values(&av1_get_crc32c_value_arm_crc32),
                        ::testing::ValuesIn(kValidBlockSize)));
+#endif
+
+using combine_block_hashes_func = void (*)(void *crc_calculator,
+                                           const uint32_t *src, uint32_t *dst,
+                                           int stride, int width, int height,
+                                           int sub_size);
+
+class AV1CombineBlockHashesTest
+    : public ::testing::TestWithParam<combine_block_hashes_func> {
+ protected:
+  void SetUp() override {
+    rnd_.Reset(libaom_test::ACMRandom::DeterministicSeed());
+    av1_crc32c_calculator_init(&calc_);
+  }
+
+  uint32_t Rand32() {
+    return static_cast<uint32_t>(rnd_.Rand16()) << 16 | rnd_.Rand16();
+  }
+
+  // Compares the whole output buffer with the C version, so writes outside
+  // the width x height area show up too. flat fills src with few values, like
+  // a screen with large flat areas.
+  void RunCheckOutput(int width, int height, int sub_size, bool flat) {
+    const int stride = width + 2 * sub_size + 3;
+    const int rows = height + 2 * sub_size;
+    std::vector<uint32_t> src(stride * rows);
+    for (uint32_t &v : src) {
+      v = flat ? rnd_.Rand8() % 2 : Rand32();
+    }
+    std::vector<uint32_t> ref(stride * rows, 0xDEADBEEF);
+    std::vector<uint32_t> out(stride * rows, 0xDEADBEEF);
+    av1_combine_block_hashes_c(&calc_, src.data(), ref.data(), stride, width,
+                               height, sub_size);
+    GetParam()(&calc_, src.data(), out.data(), stride, width, height, sub_size);
+    ASSERT_EQ(ref, out) << "width " << width << " height " << height
+                        << " sub_size " << sub_size << " flat " << flat;
+  }
+
+  libaom_test::ACMRandom rnd_;
+  CRC32C calc_;
+};
+
+TEST_P(AV1CombineBlockHashesTest, CheckOutput) {
+  const int kSubSizes[] = { 2, 4, 8, 16, 32, 64 };
+  const int kWidths[] = { 0, 1, 7, 64, 129 };
+  const int kHeights[] = { 1, 5, 33 };
+  for (int sub_size : kSubSizes) {
+    for (int width : kWidths) {
+      for (int height : kHeights) {
+        RunCheckOutput(width, height, sub_size, false);
+        RunCheckOutput(width, height, sub_size, true);
+      }
+    }
+  }
+}
+
+TEST_P(AV1CombineBlockHashesTest, DISABLED_Speed) {
+  // One 4x4 pass over a 2560x1440 frame.
+  const int stride = 2560;
+  const int height = 1440;
+  const int sub_size = 2;
+  std::vector<uint32_t> src(stride * height);
+  for (uint32_t &v : src) v = Rand32();
+  std::vector<uint32_t> dst(stride * height);
+  const combine_block_hashes_func impls[] = { av1_combine_block_hashes_c,
+                                              GetParam() };
+  const int width = stride - 2 * sub_size + 1;
+  const int rows = height - 2 * sub_size + 1;
+  const int repeat = 20;
+
+  double time[2];
+  for (int i = 0; i < 2; ++i) {
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int j = 0; j < repeat; ++j) {
+      impls[i](&calc_, src.data(), dst.data(), stride, width, rows, sub_size);
+    }
+    aom_usec_timer_mark(&timer);
+    time[i] = static_cast<double>(aom_usec_timer_elapsed(&timer));
+  }
+  printf("combine 2560x1440: %8.2f/%8.2fus (%3.2f)\n", time[0], time[1],
+         time[0] / time[1]);
+}
+
+INSTANTIATE_TEST_SUITE_P(C, AV1CombineBlockHashesTest,
+                         ::testing::Values(&av1_combine_block_hashes_c));
+
+#if HAVE_SSE4_2
+INSTANTIATE_TEST_SUITE_P(SSE4_2, AV1CombineBlockHashesTest,
+                         ::testing::Values(&av1_combine_block_hashes_sse4_2));
+#endif
+
+#if HAVE_ARM_CRC32
+INSTANTIATE_TEST_SUITE_P(
+    ARM_CRC32, AV1CombineBlockHashesTest,
+    ::testing::Values(&av1_combine_block_hashes_arm_crc32));
 #endif
 
 }  // namespace
