@@ -4376,4 +4376,99 @@ TEST(EncodeAPI, SvcRefFrameConfigUnusedRefIdxWithResolutionChange) {
 }
 #endif  // CONFIG_AV1_DECODER
 
+// Verify that when handle_inter_mode_nonrd() reuses the superblock motion
+// vector (x->sb_me_mv, searched relative to zero) for NEWMV on screen content,
+// the vector is clamped to the valid subpel range relative to the block's
+// reference MV predictor (ref_mv) so that |mv - ref_mv| does not exceed MV_MAX.
+TEST(EncodeAPI, NonrdSbMeForcedNewmvRange) {
+  // At >= 4K resolution (width * height >= 3840 * 2160),
+  // do_int_pro_motion_estimation() doubles the screen-content search window
+  // from 512 to 1024 full-pel pixels ([-1024, +1023] relative to (0, 0)).
+  // Use a portrait 2160x3840 frame so +/-1023 pixel vertical displacements
+  // stay well within the frame height.
+  constexpr int kWidth = 2160;
+  constexpr int kHeight = 3840;
+  constexpr int kActiveW = 128;
+  constexpr int kActiveH = 2312;
+
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_threads = 1;
+  cfg.rc_min_quantizer = 1;
+  cfg.rc_max_quantizer = 1;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 7), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_QUANTIZER_ONE_PASS, 1),
+            AOM_CODEC_OK);
+
+  aom_image_t *img0 =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kWidth, kHeight, 1);
+  aom_image_t *img1 =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kWidth, kHeight, 1);
+  ASSERT_NE(img0, nullptr);
+  ASSERT_NE(img1, nullptr);
+  FillImage(img0, 128);
+  FillImage(img1, 128);
+
+  // Fill a 128-px wide strip (one superblock column) of the keyframe (img0)
+  // with random luma values so that displaced copies in img1 have a unique
+  // zero-SAD match and a large zero-MV SAD.
+  ::libaom_test::ACMRandom rnd(::libaom_test::ACMRandom::DeterministicSeed());
+  for (int y = 0; y < kActiveH; ++y) {
+    uint8_t *const row0 = img0->planes[AOM_PLANE_Y] + y * img0->stride[0];
+    for (int x = 0; x < kActiveW; ++x) {
+      row0[x] = rnd.Rand8();
+    }
+  }
+
+  // Construct three vertically adjacent superblock regions in img1 (delta
+  // frame) to produce an unrepresentable MV difference if x->sb_me_mv is not
+  // clamped relative to ref_mv:
+  //
+  // 1. y in [0, 1152): copied from img0 at y + 1023 (dy = +1023 px).
+  //    do_int_pro_motion_estimation() searches [-1024, +1023] relative to
+  //    (0, 0), finds the exact match, and sets x->sb_me_mv = (+8184, 0)
+  //    (+1023 px in 1/8-pel units).
+  //
+  // 2. y in [1152, 1280): copied from img0 at y + 1031 (dy = +1031 px).
+  //    Because +1031 px is outside int_pro's [-1024, +1023] window around
+  //    (0, 0), x->sb_me_block is not set. Instead, normal NEWMV motion search
+  //    (search_new_mv()) starts from the top neighbor's predictor
+  //    ref_mv = (+8184, 0) (+1023 px) and steps +8 px to find the exact match
+  //    at mv = (+8248, 0) (+1031 px).
+  //
+  // 3. y in [1280, 1408): copied from img0 at y - 1023 (dy = -1023 px).
+  //    At y >= 1280, -1023 px upward is inside img0, so int_pro ME finds the
+  //    exact match relative to (0, 0) and sets x->sb_me_block = 1 with
+  //    x->sb_me_mv = (-8184, 0) (-1023 px). However, this superblock's coding
+  //    predictor from its top neighbor (region 2) is ref_mv = (+8248, 0)
+  //    (+1031 px). Without clamping x->sb_me_mv relative to ref_mv in
+  //    handle_inter_mode_nonrd(), NEWMV encodes the difference:
+  //      mv_diff.row = -8184 - 8248 = -16432 (-2054 px)
+  //    which exceeds MV_MAX (16383, +/-2047.875 px) and triggers
+  //    Assertion `c <= MV_CLASS_10' failed in av1_get_mv_class().
+  for (int y = 0; y < 1408; ++y) {
+    const int dy = (y < 1152) ? 1023 : (y < 1280) ? 1031 : -1023;
+    memcpy(img1->planes[AOM_PLANE_Y] + y * img1->stride[0],
+           img0->planes[AOM_PLANE_Y] + (y + dy) * img0->stride[0], kActiveW);
+  }
+
+  ASSERT_EQ(aom_codec_encode(&enc, img0, 0, 1, AOM_EFLAG_FORCE_KF),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&enc, img1, 1, 1, 0), AOM_CODEC_OK);
+
+  aom_img_free(img1);
+  aom_img_free(img0);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 }  // namespace
