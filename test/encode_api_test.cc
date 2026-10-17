@@ -1776,6 +1776,44 @@ TEST(EncodeAPI, IntraBCFrameSizeDecreaseRealtime) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+// Sets the scale mode before the first frame and again before the second one
+// in realtime screen mode. The first frame is coded with the frame border of
+// an encoder that doesn't resize, and the second call makes the encoder use
+// the larger resize border. The screen motion search in variance based
+// partitioning reads up to that border around the reference, so the
+// reference must get the larger border too.
+TEST(EncodeAPI, ScaleModeBeforeFirstFrameScreen) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = 640;
+  cfg.g_h = 360;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_threads = 1;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 10), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN),
+            AOM_CODEC_OK);
+
+  aom_image_t *img = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 640, 360, 1);
+  ASSERT_NE(img, nullptr);
+  aom_scaling_mode_t mode = { AOME_ONETWO, AOME_ONETWO };
+
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_SCALEMODE, &mode), AOM_CODEC_OK);
+  FillImage(img, 128);
+  EncodeOne(&enc, img, 0);
+
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_SCALEMODE, &mode), AOM_CODEC_OK);
+  FillImageRandom(img);
+  EncodeOne(&enc, img, 1);
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
 #if CONFIG_AV1_DECODER
 // Draws a text like screen texture moved left by offset_x pixels.
 void FillPannedScreen(aom_image_t *img, int offset_x) {

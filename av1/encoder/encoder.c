@@ -2738,6 +2738,16 @@ void av1_set_frame_size(AV1_COMP *cpi, int width, int height) {
   for (ref_frame = LAST_FRAME; ref_frame <= ALTREF_FRAME; ++ref_frame) {
     RefCntBuffer *const buf = get_ref_frame_buf(cm, ref_frame);
     if (buf != NULL) {
+      // Motion search may read up to border_in_pixels outside a reference.
+      // The border grows when resizing is turned on, so give references
+      // coded before that the same border.
+      if (buf->buf.border < cpi->oxcf.border_in_pixels &&
+          aom_yv12_realloc_with_new_border(
+              &buf->buf, cpi->oxcf.border_in_pixels,
+              cm->features.byte_alignment, cpi->alloc_pyramid, num_planes)) {
+        aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate frame buffer");
+      }
       struct scale_factors *sf = get_ref_scale_factors(cm, ref_frame);
       av1_setup_scale_factors_for_frame(sf, buf->buf.y_crop_width,
                                         buf->buf.y_crop_height, cm->width,
