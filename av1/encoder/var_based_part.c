@@ -1701,8 +1701,6 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   // Index for force_split: 0 for 64x64, 1-4 for 32x32 blocks,
   // 5-20 for the 16x16 blocks.
   force_split[0] = PART_EVAL_ALL;
-  memset(x->part_search_info.variance_low, 0,
-         sizeof(x->part_search_info.variance_low));
 
   // Check if LAST frame is NULL, and if so, treat this frame
   // as a key frame, for the purpose of the superblock partitioning.

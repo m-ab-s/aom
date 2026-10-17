@@ -1405,6 +1405,9 @@ static inline void encode_sb_row(AV1_COMP *cpi, ThreadData *td,
     x->sb_me_partition = 0;
     x->sb_me_mv.as_int = 0;
     x->sb_force_fixed_part = 1;
+    // Superblocks coded without the variance partitioning must not use the
+    // low variance flags of an earlier superblock.
+    av1_zero(x->part_search_info.variance_low);
     x->color_palette_thresh = 64;
     x->force_color_check_block_level = 0;
     x->nonrd_prune_ref_frame_search =
