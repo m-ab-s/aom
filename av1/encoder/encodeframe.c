@@ -1692,8 +1692,6 @@ static inline void encode_tiles(AV1_COMP *cpi) {
       cpi->td.intrabc_used = 0;
       cpi->td.deltaq_used = 0;
       cpi->td.abs_sum_level = 0;
-      cpi->td.rd_counts.seg_tmp_pred_cost[0] = 0;
-      cpi->td.rd_counts.seg_tmp_pred_cost[1] = 0;
       cpi->td.mb.e_mbd.tile_ctx = &this_tile->tctx;
       cpi->td.mb.tile_pb_ctx = &this_tile->tctx;
       av1_init_rtc_counters(&cpi->td.mb);

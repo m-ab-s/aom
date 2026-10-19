@@ -532,6 +532,41 @@ TEST_P(AVxEncoderThreadRTIntraBCTest, SameOutput) {
 AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTIntraBCTest,
                            ::testing::Range(7, 12));
 
+// Without error resilience the segment map may be coded with temporal
+// prediction, which is chosen from costs gathered over all tiles.
+class AVxEncoderThreadRTSegTest : public AVxEncoderThreadTest {
+ protected:
+  void SetUp() override {
+    AVxEncoderThreadTest::SetUp();
+    cfg_.g_error_resilient = 0;
+  }
+};
+
+TEST_P(AVxEncoderThreadRTSegTest, SameOutputForAnyThreadCount) {
+  ::libaom_test::YUVVideoSource video("niklas_640_480_30.yuv", AOM_IMG_FMT_I420,
+                                      640, 480, 30, 1, 0, 30);
+  cfg_.rc_target_bitrate = 1000;
+
+  std::vector<std::string> ref_md5_enc;
+  for (const unsigned int threads : { 1, 2, 4 }) {
+    cfg_.g_threads = threads;
+    size_enc_.clear();
+    md5_enc_.clear();
+    md5_dec_.clear();
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+    if (threads == 1) {
+      ref_md5_enc = md5_enc_;
+    } else {
+      ASSERT_EQ(ref_md5_enc, md5_enc_) << "threads " << threads;
+    }
+  }
+}
+
+AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadRTSegTest,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Values(7, 9), ::testing::Values(1),
+                           ::testing::Values(1), ::testing::Values(0, 1));
+
 #if !CONFIG_REALTIME_ONLY
 
 // The AVxEncoderThreadTestLarge takes up ~14% of total run-time of the
