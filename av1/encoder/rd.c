@@ -825,9 +825,16 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   const INTER_MODE_SPEED_FEATURES *const inter_sf = &cpi->sf.inter_sf;
   // Frame level mv cost update
   if (is_frame_level_cost_upd_freq_set(cm, inter_sf->mv_cost_upd_level,
-                                       use_nonrd_pick_mode, frames_since_key))
+                                       use_nonrd_pick_mode, frames_since_key)) {
+    // Also build the table for the other precision. A later frame that skips
+    // this update can switch to it in av1_pick_and_set_high_precision_mv().
+    if (!cm->features.cur_frame_force_integer_mv) {
+      av1_fill_mv_costs(&cm->fc->nmvc, 0, !cm->features.allow_high_precision_mv,
+                        x->mv_costs);
+    }
     av1_fill_mv_costs(&cm->fc->nmvc, cm->features.cur_frame_force_integer_mv,
                       cm->features.allow_high_precision_mv, x->mv_costs);
+  }
 
   // Frame level coefficient cost update
   if (is_frame_level_cost_upd_freq_set(cm, inter_sf->coeff_cost_upd_level,
