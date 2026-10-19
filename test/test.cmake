@@ -491,6 +491,19 @@ function(setup_aom_test_targets)
   set_property(TARGET test_libaom PROPERTY FOLDER ${AOM_IDE_TEST_FOLDER})
   list(APPEND AOM_APP_TARGETS test_libaom)
 
+  if(EMSCRIPTEN)
+    # Some tests need more than Emscripten's default stack (64 KiB since 3.1.27)
+    # and a fixed-size heap. TOTAL_STACK was renamed to STACK_SIZE in 3.1.27;
+    # the old name was kept for compatibility, but prefer the new one in case it
+    # is removed in the future.
+    if(EMSCRIPTEN_VERSION VERSION_GREATER_EQUAL "3.1.27")
+      append_link_flag_to_target("test_libaom" "-sSTACK_SIZE=5MB")
+    else()
+      append_link_flag_to_target("test_libaom" "-sTOTAL_STACK=5MB")
+    endif()
+    append_link_flag_to_target("test_libaom" "-sALLOW_MEMORY_GROWTH=1")
+  endif()
+
   if(CONFIG_AV1_DECODER)
     target_sources(test_libaom PRIVATE $<TARGET_OBJECTS:aom_decoder_app_util>
                    $<TARGET_OBJECTS:test_aom_decoder>)

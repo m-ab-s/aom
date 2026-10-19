@@ -398,6 +398,39 @@ EOF
   common_bottom;
 }
 
+sub wasm() {
+  determine_indirection("c", @ALL_ARCHS);
+
+  # Assign the helper variable for each enabled extension
+  foreach my $opt (@ALL_ARCHS) {
+    my $opt_uc = uc $opt;
+    eval "\$have_${opt}=\"flags & HAS_${opt_uc}\"";
+  }
+
+  common_top;
+  print <<EOF;
+#include "config/aom_config.h"
+
+#ifdef RTCD_C
+#define HAS_SIMD128 0x01
+static void setup_rtcd_internal(void)
+{
+    // SIMD128 support is fixed when the module is compiled.
+    int flags = HAVE_SIMD128 ? HAS_SIMD128 : 0;
+
+    (void)flags;
+
+EOF
+
+  set_function_pointers("c", @ALL_ARCHS);
+
+  print <<EOF;
+}
+#endif
+EOF
+  common_bottom;
+}
+
 sub unoptimized() {
   determine_indirection "c";
   common_top;
@@ -424,6 +457,7 @@ my @PRIORITY_ARCH = qw/
   mmx sse sse2 sse3 ssse3 sse4_1 sse4_2 avx avx2
   arm_crc32 neon neon_dotprod neon_i8mm sve sve2
   rvv
+  simd128
   vsx
   dspr2 msa
 /;
@@ -465,6 +499,15 @@ if ($opts{arch} eq 'x86') {
 } elsif ($opts{arch} eq 'riscv') {
   @ALL_ARCHS = filter(qw/rvv/);
   riscv;
+} elsif ($opts{arch} eq 'wasm32') {
+  @ALL_ARCHS = filter(qw/simd128/);
+  # SIMD128 is a compile-time property of a Wasm module, so when enabled it is
+  # always available: resolve dispatch statically, as for neon on arm64.
+  if (keys %required == 0) {
+    @REQUIRES = filter(qw/simd128/);
+    &require(@REQUIRES);
+  }
+  wasm;
 } else {
   unoptimized;
 }

@@ -56,7 +56,11 @@ string(STRIP "${AOM_CMAKE_CONFIG}" AOM_CMAKE_CONFIG)
 # Detect target CPU.
 if(NOT AOM_TARGET_CPU)
   string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" cpu_lowercase)
-  if(cpu_lowercase STREQUAL "amd64" OR cpu_lowercase STREQUAL "x86_64")
+  if(EMSCRIPTEN)
+    # Emscripten's toolchain reports a host-like processor; the target is always
+    # wasm32.
+    set(AOM_TARGET_CPU "wasm32")
+  elseif(cpu_lowercase STREQUAL "amd64" OR cpu_lowercase STREQUAL "x86_64")
     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
       set(AOM_TARGET_CPU "x86")
     elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
