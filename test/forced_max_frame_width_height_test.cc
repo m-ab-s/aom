@@ -631,6 +631,55 @@ TEST(EncodeForcedMaxFrameWidthHeight, RaiseForcedMaxRealtime) {
 TEST(EncodeForcedMaxFrameWidthHeight, RaiseForcedMaxGoodQuality) {
   RunRaiseForcedMaxTest(AOM_USAGE_GOOD_QUALITY);
 }
+
+// Without a forced maximum frame size, growing the frame size with
+// aom_codec_enc_config_set() before the first frame is encoded (while the
+// sequence header can still change) must also grow the SSIM/TPL rdmult
+// scaling factor buffers.
+void RunUpscaleWithoutForcedMaxTest(unsigned int usage, const char *tune) {
+  constexpr unsigned int kWidth = 64;
+  constexpr unsigned int kHeight = 64;
+  constexpr unsigned int kNewWidth = 640;
+  constexpr unsigned int kNewHeight = 480;
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_enc_config_default(iface, &cfg, usage));
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 0;
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 6));
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_set_option(&enc, "tune", tune));
+
+  cfg.g_w = kNewWidth;
+  cfg.g_h = kNewHeight;
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_enc_config_set(&enc, &cfg));
+
+  aom_image_t *image =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kNewWidth, kNewHeight, 1);
+  ASSERT_NE(image, nullptr);
+  FillImagePattern(image, 0);
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, image, 0, 1, 0));
+  FillImagePattern(image, 1);
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, image, 1, 1, 0));
+
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 0, 0));
+  aom_img_free(image);
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+}
+
+TEST(EncodeForcedMaxFrameWidthHeight, UpscaleWithoutForcedMaxAllIntraSSIM) {
+  RunUpscaleWithoutForcedMaxTest(AOM_USAGE_ALL_INTRA, "ssim");
+}
+
+TEST(EncodeForcedMaxFrameWidthHeight, UpscaleWithoutForcedMaxAllIntraIQ) {
+  RunUpscaleWithoutForcedMaxTest(AOM_USAGE_ALL_INTRA, "iq");
+}
+
+TEST(EncodeForcedMaxFrameWidthHeight, UpscaleWithoutForcedMaxGoodSSIM) {
+  RunUpscaleWithoutForcedMaxTest(AOM_USAGE_GOOD_QUALITY, "ssim");
+}
 #endif  // !CONFIG_REALTIME_ONLY
 
 }  // namespace

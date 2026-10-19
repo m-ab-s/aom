@@ -131,6 +131,98 @@ static inline void realloc_segmentation_maps(AV1_COMP *cpi) {
                   aom_calloc(max_mi_rows * max_mi_cols, 1));
 }
 
+// Allocates the per-block RD multiplier scaling factors (and, with
+// CONFIG_SALIENCY_MAP, the saliency map they are derived from) for the same
+// maximum frame size as the other frame size dependent buffers. They are
+// written for every block of the current frame, so they must be reallocated
+// whenever that maximum grows.
+static inline void alloc_rdmult_scaling_factors(AV1_COMP *cpi) {
+  AV1_COMMON *const cm = &cpi->common;
+  const CommonModeInfoParams *const mi_params = &cm->mi_params;
+  int max_mi_cols = mi_params->mi_cols;
+  int max_mi_rows = mi_params->mi_rows;
+  if (cpi->oxcf.frm_dim_cfg.forced_max_frame_width) {
+    max_mi_cols = size_in_mi(cpi->oxcf.frm_dim_cfg.forced_max_frame_width);
+  }
+  if (cpi->oxcf.frm_dim_cfg.forced_max_frame_height) {
+    max_mi_rows = size_in_mi(cpi->oxcf.frm_dim_cfg.forced_max_frame_height);
+  }
+  const BLOCK_SIZE bsize = BLOCK_16X16;
+  const int w = mi_size_wide[bsize];
+  const int h = mi_size_high[bsize];
+  const int num_cols = (max_mi_cols + w - 1) / w;
+  const int num_rows = (max_mi_rows + h - 1) / h;
+
+  aom_free(cpi->ssim_rdmult_scaling_factors);
+  cpi->ssim_rdmult_scaling_factors = NULL;
+  aom_free(cpi->tpl_rdmult_scaling_factors);
+  cpi->tpl_rdmult_scaling_factors = NULL;
+  CHECK_MEM_ERROR(cm, cpi->ssim_rdmult_scaling_factors,
+                  aom_calloc(num_rows * num_cols,
+                             sizeof(*cpi->ssim_rdmult_scaling_factors)));
+  CHECK_MEM_ERROR(cm, cpi->tpl_rdmult_scaling_factors,
+                  aom_calloc(num_rows * num_cols,
+                             sizeof(*cpi->tpl_rdmult_scaling_factors)));
+
+#if CONFIG_TUNE_VMAF
+  {
+    const BLOCK_SIZE vmaf_bsize = BLOCK_64X64;
+    const int vmaf_w = mi_size_wide[vmaf_bsize];
+    const int vmaf_h = mi_size_high[vmaf_bsize];
+    const int vmaf_num_cols = (max_mi_cols + vmaf_w - 1) / vmaf_w;
+    const int vmaf_num_rows = (max_mi_rows + vmaf_h - 1) / vmaf_h;
+    aom_free(cpi->vmaf_info.rdmult_scaling_factors);
+    cpi->vmaf_info.rdmult_scaling_factors = NULL;
+    CHECK_MEM_ERROR(cm, cpi->vmaf_info.rdmult_scaling_factors,
+                    aom_calloc(vmaf_num_rows * vmaf_num_cols,
+                               sizeof(*cpi->vmaf_info.rdmult_scaling_factors)));
+  }
+#endif  // CONFIG_TUNE_VMAF
+
+#if CONFIG_TUNE_BUTTERAUGLI
+  {
+    const int ba_w = mi_size_wide[butteraugli_rdo_bsize];
+    const int ba_h = mi_size_high[butteraugli_rdo_bsize];
+    const int ba_num_cols = (max_mi_cols + ba_w - 1) / ba_w;
+    const int ba_num_rows = (max_mi_rows + ba_h - 1) / ba_h;
+    aom_free(cpi->butteraugli_info.rdmult_scaling_factors);
+    cpi->butteraugli_info.rdmult_scaling_factors = NULL;
+    CHECK_MEM_ERROR(
+        cm, cpi->butteraugli_info.rdmult_scaling_factors,
+        aom_malloc(ba_num_rows * ba_num_cols *
+                   sizeof(*cpi->butteraugli_info.rdmult_scaling_factors)));
+  }
+#endif  // CONFIG_TUNE_BUTTERAUGLI
+
+#if CONFIG_SALIENCY_MAP
+  {
+    const int max_width = cpi->oxcf.frm_dim_cfg.forced_max_frame_width
+                              ? cpi->oxcf.frm_dim_cfg.forced_max_frame_width
+                              : cm->width;
+    const int max_height = cpi->oxcf.frm_dim_cfg.forced_max_frame_height
+                               ? cpi->oxcf.frm_dim_cfg.forced_max_frame_height
+                               : cm->height;
+    aom_free(cpi->saliency_map);
+    cpi->saliency_map = NULL;
+    CHECK_MEM_ERROR(cm, cpi->saliency_map,
+                    (uint8_t *)aom_calloc(max_height * max_width,
+                                          sizeof(*cpi->saliency_map)));
+    // Buffer initialization based on MIN_MIB_SIZE_LOG2 to ensure that
+    // cpi->sm_scaling_factor buffer is allocated big enough, since we have no
+    // idea of the actual superblock size we are going to use yet.
+    const int min_mi_w_sb = (1 << MIN_MIB_SIZE_LOG2);
+    const int min_mi_h_sb = (1 << MIN_MIB_SIZE_LOG2);
+    const int max_sb_cols = (max_mi_cols + min_mi_w_sb - 1) / min_mi_w_sb;
+    const int max_sb_rows = (max_mi_rows + min_mi_h_sb - 1) / min_mi_h_sb;
+    aom_free(cpi->sm_scaling_factor);
+    cpi->sm_scaling_factor = NULL;
+    CHECK_MEM_ERROR(cm, cpi->sm_scaling_factor,
+                    (double *)aom_calloc(max_sb_rows * max_sb_cols,
+                                         sizeof(*cpi->sm_scaling_factor)));
+  }
+#endif  // CONFIG_SALIENCY_MAP
+}
+
 static inline void alloc_obmc_buffers(OBMCBuffer *obmc_buffer,
                                       struct aom_internal_error_info *error) {
   AOM_CHECK_MEM_ERROR(

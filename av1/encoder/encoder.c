@@ -1056,6 +1056,7 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
     cpi->td.firstpass_ctx = NULL;
     alloc_compressor_data(cpi);
     realloc_segmentation_maps(cpi);
+    alloc_rdmult_scaling_factors(cpi);
     cpi->data_alloc_width = oxcf->frm_dim_cfg.forced_max_frame_width
                                 ? oxcf->frm_dim_cfg.forced_max_frame_width
                                 : cm->width;
@@ -1644,30 +1645,10 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
   cpi->palette_pixel_num = 0;
   cpi->scaled_last_source_available = 0;
 
-  {
-    const BLOCK_SIZE bsize = BLOCK_16X16;
-    const int w = mi_size_wide[bsize];
-    const int h = mi_size_high[bsize];
-    const int num_cols = (max_mi_cols + w - 1) / w;
-    const int num_rows = (max_mi_rows + h - 1) / h;
-    CHECK_MEM_ERROR(cm, cpi->ssim_rdmult_scaling_factors,
-                    aom_calloc(num_rows * num_cols,
-                               sizeof(*cpi->ssim_rdmult_scaling_factors)));
-    CHECK_MEM_ERROR(cm, cpi->tpl_rdmult_scaling_factors,
-                    aom_calloc(num_rows * num_cols,
-                               sizeof(*cpi->tpl_rdmult_scaling_factors)));
-  }
+  alloc_rdmult_scaling_factors(cpi);
 
 #if CONFIG_TUNE_VMAF
   {
-    const BLOCK_SIZE bsize = BLOCK_64X64;
-    const int w = mi_size_wide[bsize];
-    const int h = mi_size_high[bsize];
-    const int num_cols = (mi_params->mi_cols + w - 1) / w;
-    const int num_rows = (mi_params->mi_rows + h - 1) / h;
-    CHECK_MEM_ERROR(cm, cpi->vmaf_info.rdmult_scaling_factors,
-                    aom_calloc(num_rows * num_cols,
-                               sizeof(*cpi->vmaf_info.rdmult_scaling_factors)));
     for (int i = 0; i < MAX_ARF_LAYERS; i++) {
       cpi->vmaf_info.last_frame_unsharp_amount[i] = -1.0;
       cpi->vmaf_info.last_frame_ysse[i] = -1.0;
@@ -1679,41 +1660,11 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
 #endif
 
 #if CONFIG_TUNE_BUTTERAUGLI
-  {
-    const int w = mi_size_wide[butteraugli_rdo_bsize];
-    const int h = mi_size_high[butteraugli_rdo_bsize];
-    const int num_cols = (mi_params->mi_cols + w - 1) / w;
-    const int num_rows = (mi_params->mi_rows + h - 1) / h;
-    CHECK_MEM_ERROR(
-        cm, cpi->butteraugli_info.rdmult_scaling_factors,
-        aom_malloc(num_rows * num_cols *
-                   sizeof(*cpi->butteraugli_info.rdmult_scaling_factors)));
-    memset(&cpi->butteraugli_info.source, 0,
-           sizeof(cpi->butteraugli_info.source));
-    memset(&cpi->butteraugli_info.resized_source, 0,
-           sizeof(cpi->butteraugli_info.resized_source));
-    cpi->butteraugli_info.recon_set = false;
-  }
-#endif
-
-#if CONFIG_SALIENCY_MAP
-  {
-    CHECK_MEM_ERROR(cm, cpi->saliency_map,
-                    (uint8_t *)aom_calloc(cm->height * cm->width,
-                                          sizeof(*cpi->saliency_map)));
-    // Buffer initialization based on MIN_MIB_SIZE_LOG2 to ensure that
-    // cpi->sm_scaling_factor buffer is allocated big enough, since we have no
-    // idea of the actual superblock size we are going to use yet.
-    const int min_mi_w_sb = (1 << MIN_MIB_SIZE_LOG2);
-    const int min_mi_h_sb = (1 << MIN_MIB_SIZE_LOG2);
-    const int max_sb_cols =
-        (cm->mi_params.mi_cols + min_mi_w_sb - 1) / min_mi_w_sb;
-    const int max_sb_rows =
-        (cm->mi_params.mi_rows + min_mi_h_sb - 1) / min_mi_h_sb;
-    CHECK_MEM_ERROR(cm, cpi->sm_scaling_factor,
-                    (double *)aom_calloc(max_sb_rows * max_sb_cols,
-                                         sizeof(*cpi->sm_scaling_factor)));
-  }
+  memset(&cpi->butteraugli_info.source, 0,
+         sizeof(cpi->butteraugli_info.source));
+  memset(&cpi->butteraugli_info.resized_source, 0,
+         sizeof(cpi->butteraugli_info.resized_source));
+  cpi->butteraugli_info.recon_set = false;
 #endif
 
 #if CONFIG_COLLECT_PARTITION_STATS
@@ -2660,6 +2611,7 @@ static int set_size_literal(AV1_COMP *cpi, int width, int height) {
     cpi->td.firstpass_ctx = NULL;
     alloc_compressor_data(cpi);
     realloc_segmentation_maps(cpi);
+    alloc_rdmult_scaling_factors(cpi);
     cpi->data_alloc_width = cpi->oxcf.frm_dim_cfg.forced_max_frame_width
                                 ? cpi->oxcf.frm_dim_cfg.forced_max_frame_width
                                 : cm->width;
