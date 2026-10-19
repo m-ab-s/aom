@@ -243,4 +243,72 @@ TEST_P(ROIMapThreadTest, SameOutput) {
 
 AV1_INSTANTIATE_TEST_SUITE(ROIMapThreadTest, ::testing::Values(9));
 
+// The ROI map is sized for the frame size at the time AOME_SET_ROI_MAP is
+// called. A later frame size increase through aom_codec_enc_config_set() must
+// not read past the end of the map. With a forced maximum frame size the
+// increase happens after a frame has been encoded; without one it has to
+// happen before the first frame, while the sequence header can still change.
+void RunROIMapUpscaleTest(bool forced_max) {
+  constexpr unsigned int kWidth = 320;
+  constexpr unsigned int kHeight = 180;
+  constexpr unsigned int kNewWidth = 1280;
+  constexpr unsigned int kNewHeight = 720;
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(AOM_CODEC_OK,
+            aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME));
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 0;
+  if (forced_max) {
+    cfg.g_forced_max_frame_width = kNewWidth;
+    cfg.g_forced_max_frame_height = kNewHeight;
+  }
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_enc_init(&enc, iface, &cfg, 0));
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_CPUUSED, 9));
+
+  aom_image_t *image =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kNewWidth, kNewHeight, 1);
+  ASSERT_NE(image, nullptr);
+  memset(image->img_data, 128, image->sz);
+  ASSERT_EQ(aom_img_set_rect(image, 0, 0, kWidth, kHeight, 0), 0);
+  aom_codec_pts_t pts = 0;
+  if (forced_max) {
+    ASSERT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, image, pts++, 1, 0));
+  }
+
+  // The map dimensions must match the frame size in 4x4 units, with the frame
+  // height and width aligned to a multiple of 8.
+  aom_roi_map_t roi = aom_roi_map_t();
+  roi.rows = ((kHeight + 7) & ~7u) / 4;
+  roi.cols = ((kWidth + 7) & ~7u) / 4;
+  std::vector<uint8_t> map(roi.rows * roi.cols, 1);
+  roi.enabled = 1;
+  roi.roi_map = map.data();
+  roi.delta_q[1] = -20;
+  memset(roi.ref_frame, -1, sizeof(roi.ref_frame));
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AOME_SET_ROI_MAP, &roi));
+  if (forced_max) {
+    ASSERT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, image, pts++, 1, 0));
+  }
+
+  cfg.g_w = kNewWidth;
+  cfg.g_h = kNewHeight;
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_enc_config_set(&enc, &cfg));
+  ASSERT_EQ(aom_img_set_rect(image, 0, 0, kNewWidth, kNewHeight, 0), 0);
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, image, pts++, 1, 0));
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, image, pts++, 1, 0));
+
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_encode(&enc, nullptr, 0, 0, 0));
+  aom_img_free(image);
+  ASSERT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
+}
+
+TEST(ROIMapUpscaleTest, WithForcedMaxFrameSize) { RunROIMapUpscaleTest(true); }
+
+TEST(ROIMapUpscaleTest, WithoutForcedMaxFrameSize) {
+  RunROIMapUpscaleTest(false);
+}
+
 }  // namespace

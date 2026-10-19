@@ -448,6 +448,19 @@ void av1_apply_roi_map(AV1_COMP *cpi) {
     return;
   }
 
+  // The ROI map is sized for the frame dimensions at the time it was set
+  // (av1_set_roi_map() requires an exact match). If this frame has a different
+  // size (e.g. after a resize or for another spatial layer), the map does not
+  // describe it, so disable ROI.
+  if ((int)roi->rows != cm->mi_params.mi_rows ||
+      (int)roi->cols != cm->mi_params.mi_cols) {
+    av1_disable_segmentation(seg);
+    roi->enabled = 0;
+    roi->delta_qp_enabled = 0;
+    roi->reference_enabled = 0;
+    return;
+  }
+
   memcpy(&ref_frame, roi->ref_frame, sizeof(ref_frame));
   roi->reference_enabled = 0;
   roi->delta_qp_enabled = 0;
