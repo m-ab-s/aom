@@ -613,9 +613,9 @@ static uint32_t aom_highbd_var_filter_block2d_bil_avx2(
   *sse = (uint32_t)ROUND_POWER_OF_TWO(sse_long, 4);
   int sum = (int)ROUND_POWER_OF_TWO(sum_long, 2);
 
-  int32_t var = *sse - (uint32_t)(((int64_t)sum * sum) >> rshift);
+  const int64_t var = (int64_t)*sse - (((int64_t)sum * sum) >> rshift);
 
-  return (var > 0) ? var : 0;
+  return (var > 0) ? (uint32_t)var : 0;
 }
 
 static void highbd_calc8x8var_avx2(const uint16_t *src, int src_stride,

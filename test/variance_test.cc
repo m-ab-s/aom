@@ -86,6 +86,14 @@ static void RoundHighBitDepth(int bit_depth, int64_t *se, uint64_t *sse) {
   }
 }
 
+// Returns the variance of 2^log2_count errors, given the sum of their squares
+// and their sum. The rounding of high bit depth sums can make the variance
+// negative, in which case 0 is returned.
+static uint32_t VarianceFromSums(uint64_t sse, int64_t se, int log2_count) {
+  const int64_t var = static_cast<int64_t>(sse) - ((se * se) >> log2_count);
+  return var > 0 ? static_cast<uint32_t>(var) : 0;
+}
+
 /* Note:
  *  Our codebase calculates the "diff" value in the variance algorithm by
  *  (src - ref).
@@ -115,7 +123,7 @@ static uint32_t variance_ref(const uint8_t *src, const uint8_t *ref, int l2w,
   }
   RoundHighBitDepth(bit_depth, &se, &sse);
   *sse_ptr = static_cast<uint32_t>(sse);
-  return static_cast<uint32_t>(sse - ((se * se) >> (l2w + l2h)));
+  return VarianceFromSums(sse, se, l2w + l2h);
 }
 
 /* The subpel reference functions differ from the codec version in one aspect:
@@ -167,7 +175,7 @@ static uint32_t subpel_variance_ref(const uint8_t *ref, const uint8_t *src,
   }
   RoundHighBitDepth(bit_depth, &se, &sse);
   *sse_ptr = static_cast<uint32_t>(sse);
-  return static_cast<uint32_t>(sse - ((se * se) >> (l2w + l2h)));
+  return VarianceFromSums(sse, se, l2w + l2h);
 }
 
 static uint32_t subpel_avg_variance_ref(const uint8_t *ref, const uint8_t *src,
@@ -218,7 +226,7 @@ static uint32_t subpel_avg_variance_ref(const uint8_t *ref, const uint8_t *src,
   }
   RoundHighBitDepth(bit_depth, &se, &sse);
   *sse_ptr = static_cast<uint32_t>(sse);
-  return static_cast<uint32_t>(sse - ((se * se) >> (l2w + l2h)));
+  return VarianceFromSums(sse, se, l2w + l2h);
 }
 
 #if !CONFIG_REALTIME_ONLY
@@ -269,7 +277,7 @@ static uint32_t obmc_subpel_variance_ref(const uint8_t *pre, int l2w, int l2h,
   }
   RoundHighBitDepth(bit_depth, &se, &sse);
   *sse_ptr = static_cast<uint32_t>(sse);
-  return static_cast<uint32_t>(sse - ((se * se) >> (l2w + l2h)));
+  return VarianceFromSums(sse, se, l2w + l2h);
 }
 #endif
 
@@ -1264,6 +1272,7 @@ class SubpelVarianceTest
  protected:
   void RefTest();
   void ExtremeRefTest();
+  void NearlyConstantDiffTest();
   void SpeedTest();
 
   ACMRandom rnd_;
@@ -1333,6 +1342,38 @@ void SubpelVarianceTest<SubpelVarianceFunctionType>::ExtremeRefTest() {
         aom_memset16(CONVERT_TO_SHORTPTR(ref_), 0, half);
         aom_memset16(CONVERT_TO_SHORTPTR(ref_) + half, mask(),
                      half + width() + height() + 1);
+      }
+      unsigned int sse1, sse2;
+      unsigned int var1;
+      API_REGISTER_STATE_CHECK(
+          var1 = params_.func(ref_, width() + 1, x, y, src_, width(), &sse1));
+      const unsigned int var2 = subpel_variance_ref(
+          ref_, src_, params_.log2width, params_.log2height, x, y, &sse2,
+          use_high_bit_depth(), params_.bit_depth);
+      EXPECT_EQ(sse1, sse2) << "for xoffset " << x << " and yoffset " << y;
+      EXPECT_EQ(var1, var2) << "for xoffset " << x << " and yoffset " << y;
+    }
+  }
+}
+
+template <typename SubpelVarianceFunctionType>
+void SubpelVarianceTest<SubpelVarianceFunctionType>::NearlyConstantDiffTest() {
+  // Compare against reference.
+  // Ref: Set all values to half the maximum, so that filtering keeps them.
+  // Src: Set all values to 0, except the first one, which is set to 1.
+  // The variance is close to 0, so rounding the sum and the sse of the high
+  // bitdepth differences can make it negative.
+  for (int x = 0; x < 8; ++x) {
+    for (int y = 0; y < 8; ++y) {
+      const int ref_size = block_size() + width() + height() + 1;
+      if (!use_high_bit_depth()) {
+        memset(src_, 0, block_size());
+        src_[0] = 1;
+        memset(ref_, 128, ref_size);
+      } else {
+        aom_memset16(CONVERT_TO_SHORTPTR(src_), 0, block_size());
+        CONVERT_TO_SHORTPTR(src_)[0] = 1;
+        aom_memset16(CONVERT_TO_SHORTPTR(ref_), mask() >> 1, ref_size);
       }
       unsigned int sse1, sse2;
       unsigned int var1;
@@ -1933,6 +1974,9 @@ TEST_P(AvxHBDVarianceTest, OneQuarter) { OneQuarterTest(); }
 TEST_P(AvxHBDVarianceTest, DISABLED_Speed) { SpeedTest(); }
 TEST_P(AvxHBDSubpelVarianceTest, Ref) { RefTest(); }
 TEST_P(AvxHBDSubpelVarianceTest, ExtremeRef) { ExtremeRefTest(); }
+TEST_P(AvxHBDSubpelVarianceTest, NearlyConstantDiff) {
+  NearlyConstantDiffTest();
+}
 TEST_P(AvxHBDSubpelVarianceTest, DISABLED_Speed) { SpeedTest(); }
 TEST_P(AvxHBDSubpelAvgVarianceTest, Ref) { RefTest(); }
 #if !CONFIG_REALTIME_ONLY
