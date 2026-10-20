@@ -697,6 +697,87 @@ TEST(EncodeAPI, LowBDEncoderHighBDImage) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+// Encodes three frames with the realtime encoder. The first frame is random
+// binary noise of 0 and the maximum value, and each following frame is the
+// inverse of the previous one, so the variance of the inter prediction residue
+// of large blocks is close to its maximum.
+void EncodeInvertedBinaryNoise(aom_bit_depth_t bit_depth, unsigned int size,
+                               aom_superblock_size_t sb_size) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = size;
+  cfg.g_h = size;
+  cfg.g_bit_depth = bit_depth;
+  cfg.g_input_bit_depth = bit_depth;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_CBR;
+
+  const bool high_bit_depth = bit_depth > AOM_BITS_8;
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg,
+                               high_bit_depth ? AOM_CODEC_USE_HIGHBITDEPTH : 0),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 9), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SUPERBLOCK_SIZE, sb_size),
+            AOM_CODEC_OK);
+
+  aom_image_t *image = aom_img_alloc(
+      nullptr, high_bit_depth ? AOM_IMG_FMT_I42016 : AOM_IMG_FMT_I420, size,
+      size, 1);
+  ASSERT_NE(image, nullptr);
+  const int max_value = (1 << bit_depth) - 1;
+  const unsigned int uv_size = (size + 1) / 2;
+  for (int plane = 1; plane < 3; ++plane) {
+    for (unsigned int i = 0; i < uv_size; ++i) {
+      uint8_t *row = image->planes[plane] + i * image->stride[plane];
+      if (high_bit_depth) {
+        Memset16(row, (max_value + 1) / 2, uv_size);
+      } else {
+        memset(row, (max_value + 1) / 2, uv_size);
+      }
+    }
+  }
+
+  ::libaom_test::ACMRandom rnd;
+  rnd.Reset(::libaom_test::ACMRandom::DeterministicSeed());
+  for (int frame = 0; frame < 3; ++frame) {
+    for (unsigned int i = 0; i < size; ++i) {
+      uint8_t *row = image->planes[0] + i * image->stride[0];
+      for (unsigned int j = 0; j < size; ++j) {
+        if (high_bit_depth) {
+          uint16_t *row16 = reinterpret_cast<uint16_t *>(row);
+          row16[j] =
+              frame == 0 ? (rnd.Rand8() & 1) * max_value : max_value - row16[j];
+        } else {
+          row[j] =
+              frame == 0 ? (rnd.Rand8() & 1) * max_value : max_value - row[j];
+        }
+      }
+    }
+    ASSERT_EQ(aom_codec_encode(&enc, image, frame, 1, 0), AOM_CODEC_OK);
+  }
+  ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+
+  aom_img_free(image);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+// The 64x64 full pixel motion search variance in combined_motion_search() used
+// to overflow when multiplied by 40.
+TEST(EncodeAPI, NonrdPickModeLargeFullPixelVariance) {
+  EncodeInvertedBinaryNoise(AOM_BITS_8, 64, AOM_SUPERBLOCK_SIZE_64X64);
+}
+
+#if CONFIG_AV1_HIGHBITDEPTH
+// The 128x128 variance in calculate_tx_size() used to overflow when multiplied
+// by the transform size multiplier.
+TEST(EncodeAPI, NonrdPickModeLargeTxSizeVariance) {
+  EncodeInvertedBinaryNoise(AOM_BITS_10, 128, AOM_SUPERBLOCK_SIZE_128X128);
+}
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
 aom_image_t *CreateGrayImage(aom_img_fmt_t fmt, unsigned int w,
                              unsigned int h) {
   aom_image_t *const image = aom_img_alloc(nullptr, fmt, w, h, 1);
