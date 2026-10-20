@@ -60,6 +60,14 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
       lp_rc->last_q[INTER_FRAME] = lrc->worst_quality;
       lp_rc->avg_frame_qindex[INTER_FRAME] = lrc->worst_quality;
       lp_rc->avg_frame_qindex[KEY_FRAME] = lrc->worst_quality;
+      if (oxcf->rc_cfg.mode == AOM_VBR) {
+        // Initialize avg_frame_qindex to the midpoint of worst and best
+        // quality for VBR mode, matching av1_primary_rc_init().
+        lp_rc->avg_frame_qindex[INTER_FRAME] =
+            (lrc->worst_quality + lrc->best_quality) / 2;
+        lp_rc->avg_frame_qindex[KEY_FRAME] =
+            (lrc->worst_quality + lrc->best_quality) / 2;
+      }
       lp_rc->buffer_level =
           oxcf->rc_cfg.starting_buffer_level_ms * lc->target_bandwidth / 1000;
       lp_rc->bits_off_target = lp_rc->buffer_level;
