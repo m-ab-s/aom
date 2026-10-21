@@ -10,8 +10,10 @@
  */
 
 #include <assert.h>
+#include <string.h>
 #include <string>
 #include <vector>
+#include "aom/aom_integer.h"
 #include "gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
@@ -31,6 +33,7 @@ const int kImgWidth = 704;
 const int kImgHeight = 576;
 const int kInvalidTileImgSize = 256;
 const int kOutOfRangeTileCol = 2;
+const int kPartialTileImgSize = 130;
 
 // This test tests large scale tile coding case. Non-large-scale tile coding
 // is tested by the tile_independence test.
@@ -61,6 +64,7 @@ class AV1ExtTileTest
   }
 
   ~AV1ExtTileTest() override {
+    if (ext_ref_allocated_) aom_img_free(&ext_ref_img_);
     aom_img_free(&tile_img_);
     delete decoder_;
   }
@@ -80,8 +84,9 @@ class AV1ExtTileTest
                           ::libaom_test::Encoder *encoder) override {
     if (video->frame() == 0) {
       // Encode setting
-      encoder->Control(AOME_SET_CPUUSED,
-                       test_invalid_tile_ ? 8 : set_cpu_used_);
+      encoder->Control(
+          AOME_SET_CPUUSED,
+          (test_invalid_tile_ || test_partial_tile_list_) ? 8 : set_cpu_used_);
       encoder->Control(AOME_SET_ENABLEAUTOALTREF, 0);
       encoder->Control(AV1E_SET_FRAME_PARALLEL_DECODING, 1);
 
@@ -91,8 +96,10 @@ class AV1ExtTileTest
       encoder->Control(AV1E_SET_SUPERBLOCK_SIZE, AOM_SUPERBLOCK_SIZE_64X64);
       // Set tile_columns and tile_rows to MAX values, which guarantees the tile
       // size of 64 x 64 pixels(i.e. 1 SB) for <= 4k resolution.
-      encoder->Control(AV1E_SET_TILE_COLUMNS, test_invalid_tile_ ? 1 : 6);
-      encoder->Control(AV1E_SET_TILE_ROWS, test_invalid_tile_ ? 1 : 6);
+      encoder->Control(AV1E_SET_TILE_COLUMNS,
+                       (test_invalid_tile_ || test_partial_tile_list_) ? 1 : 6);
+      encoder->Control(AV1E_SET_TILE_ROWS,
+                       (test_invalid_tile_ || test_partial_tile_list_) ? 1 : 6);
     } else if (video->frame() == 1) {
       frame_flags_ =
           AOM_EFLAG_NO_UPD_LAST | AOM_EFLAG_NO_UPD_GF | AOM_EFLAG_NO_UPD_ARF;
@@ -119,6 +126,107 @@ class AV1ExtTileTest
                 decoder_->DecodeFrame(
                     reinterpret_cast<uint8_t *>(pkt->data.frame.buf),
                     pkt->data.frame.sz));
+      return;
+    }
+
+    if (test_partial_tile_list_) {
+      const uint8_t *const frame =
+          reinterpret_cast<const uint8_t *>(pkt->data.frame.buf);
+      const size_t frame_sz = pkt->data.frame.sz;
+      if (pkt->data.frame.pts == 0) {
+        decoder_->Control(AV1_SET_DECODE_TILE_ROW, -1);
+        decoder_->Control(AV1_SET_DECODE_TILE_COL, -1);
+        ASSERT_EQ(AOM_CODEC_OK, decoder_->DecodeFrame(frame, frame_sz));
+        ASSERT_NE(nullptr,
+                  aom_img_alloc_with_border(&ext_ref_img_, AOM_IMG_FMT_I420,
+                                            kPartialTileImgSize,
+                                            kPartialTileImgSize, 32, 8, 64));
+        ext_ref_allocated_ = true;
+        decoder_->Control(AV1_COPY_NEW_FRAME_IMAGE, &ext_ref_img_);
+        return;
+      }
+
+      // Decode the full frame once (to ensure an additional frame buffer slot
+      // in the buffer pool is allocated) and then decode the bottom-right
+      // partial tile (row=1, col=1) to extract the camera frame header and
+      // tile data.
+      decoder_->Control(AV1_SET_DECODE_TILE_ROW, -1);
+      decoder_->Control(AV1_SET_DECODE_TILE_COL, -1);
+      ASSERT_EQ(AOM_CODEC_OK, decoder_->DecodeFrame(frame, frame_sz));
+
+      decoder_->Control(AV1_SET_DECODE_TILE_ROW, 1);
+      decoder_->Control(AV1_SET_DECODE_TILE_COL, 1);
+      ASSERT_EQ(AOM_CODEC_OK, decoder_->DecodeFrame(frame, frame_sz));
+      const aom_image_t *single_tile_img = decoder_->GetDxData().Next();
+      ASSERT_NE(nullptr, single_tile_img);
+      ASSERT_GE(single_tile_img->d_w, 2u);
+      ASSERT_GE(single_tile_img->d_h, 2u);
+      const uint8_t expected_y[2][2] = {
+        { single_tile_img->planes[0][0], single_tile_img->planes[0][1] },
+        { single_tile_img->planes[0][single_tile_img->stride[0]],
+          single_tile_img->planes[0][single_tile_img->stride[0] + 1] },
+      };
+      const uint8_t expected_u = single_tile_img->planes[1][0];
+      const uint8_t expected_v = single_tile_img->planes[2][0];
+
+      aom_tile_data frame_header_info = { 0, nullptr, 0 };
+      decoder_->Control(AV1D_GET_FRAME_HEADER_INFO, &frame_header_info);
+      const size_t obu_size_offset =
+          static_cast<const uint8_t *>(frame_header_info.coded_tile_data) -
+          frame;
+      const size_t length_field_size = frame_header_info.coded_tile_data_size;
+      const uint32_t frame_header_size =
+          static_cast<uint32_t>(frame_header_info.extra_size) - 1;
+      const size_t bytes_to_copy =
+          obu_size_offset + length_field_size + frame_header_size;
+      std::vector<uint8_t> frame_hdr_buf(frame, frame + bytes_to_copy);
+      size_t bytes_written = 0;
+      ASSERT_EQ(0, aom_uleb_encode_fixed_size(
+                       frame_header_size, length_field_size, length_field_size,
+                       frame_hdr_buf.data() + obu_size_offset, &bytes_written));
+
+      aom_tile_data tile_data = { 0, nullptr, 0 };
+      decoder_->Control(AV1D_GET_TILE_DATA, &tile_data);
+      ASSERT_GT(tile_data.coded_tile_data_size, 0u);
+      const uint32_t tile_list_payload_size =
+          4 + 5 + static_cast<uint32_t>(tile_data.coded_tile_data_size);
+      std::vector<uint8_t> tile_list_buf(5 + tile_list_payload_size, 0);
+      tile_list_buf[0] = (OBU_TILE_LIST << 3) | (1 << 1);
+      ASSERT_EQ(0, aom_uleb_encode_fixed_size(tile_list_payload_size, 4, 4,
+                                              tile_list_buf.data() + 1,
+                                              &bytes_written));
+      uint8_t *const tl = tile_list_buf.data() + 9;
+      tl[0] = 0;  // anchor_frame_idx
+      tl[1] = 1;  // dec_tile_row (partial bottom edge tile)
+      tl[2] = 1;  // dec_tile_col (partial right edge tile)
+      const uint16_t coded_size_minus_1 =
+          static_cast<uint16_t>(tile_data.coded_tile_data_size - 1);
+      tl[3] = (coded_size_minus_1 >> 8) & 0xff;
+      tl[4] = coded_size_minus_1 & 0xff;
+      memcpy(tl + 5, tile_data.coded_tile_data, tile_data.coded_tile_data_size);
+
+      av1_ext_ref_frame_t ext_ref = { &ext_ref_img_, 1 };
+      decoder_->Control(AV1D_EXT_TILE_DEBUG, 0);
+      decoder_->Control(AV1_SET_TILE_MODE, 1);
+      decoder_->Control(AV1D_SET_EXT_REF_PTR, &ext_ref);
+      ASSERT_EQ(AOM_CODEC_OK, decoder_->DecodeFrame(frame_hdr_buf.data(),
+                                                    frame_hdr_buf.size()));
+      ASSERT_EQ(AOM_CODEC_OK, decoder_->DecodeFrame(tile_list_buf.data(),
+                                                    tile_list_buf.size()));
+      const aom_image_t *img = decoder_->GetDxData().Next();
+      ASSERT_NE(nullptr, img);
+      EXPECT_EQ(expected_y[0][0], img->planes[0][0]);
+      EXPECT_EQ(expected_y[0][1], img->planes[0][1]);
+      EXPECT_EQ(expected_y[1][0], img->planes[0][img->stride[0]]);
+      EXPECT_EQ(expected_y[1][1], img->planes[0][img->stride[0] + 1]);
+      EXPECT_EQ(0u, img->planes[0][2]);
+      EXPECT_EQ(0u, img->planes[0][2 * img->stride[0]]);
+      EXPECT_EQ(expected_u, img->planes[1][0]);
+      EXPECT_EQ(0u, img->planes[1][1]);
+      EXPECT_EQ(0u, img->planes[1][img->stride[1]]);
+      EXPECT_EQ(expected_v, img->planes[2][0]);
+      EXPECT_EQ(0u, img->planes[2][1]);
+      EXPECT_EQ(0u, img->planes[2][img->stride[2]]);
       return;
     }
 
@@ -214,13 +322,31 @@ class AV1ExtTileTest
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
 
+  void TestPartialTileList() {
+    ::libaom_test::DummyVideoSource video;
+    video.SetSize(kPartialTileImgSize, kPartialTileImgSize);
+    video.set_limit(2);
+    cfg_.rc_target_bitrate = 500;
+    cfg_.g_error_resilient = AOM_ERROR_RESILIENT_DEFAULT;
+    cfg_.large_scale_tile = 1;
+    cfg_.g_lag_in_frames = 0;
+    cfg_.g_threads = 1;
+    test_partial_tile_list_ = true;
+
+    init_flags_ = AOM_CODEC_USE_PSNR;
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  }
+
   ::libaom_test::TestMode encoding_mode_;
   int set_cpu_used_;
   ::libaom_test::Decoder *decoder_;
   aom_image_t tile_img_;
+  aom_image_t ext_ref_img_;
+  bool ext_ref_allocated_ = false;
   std::vector<std::string> md5_;
   std::vector<std::string> tile_md5_;
   bool test_invalid_tile_ = false;
+  bool test_partial_tile_list_ = false;
 };
 
 TEST_P(AV1ExtTileTest, DecoderResultTest) { TestRoundTrip(); }
@@ -235,6 +361,8 @@ class AV1ExtTileTestLarge : public AV1ExtTileTest {};
 TEST_P(AV1ExtTileTestLarge, DecoderResultTest) { TestRoundTrip(); }
 
 TEST_P(AV1ExtTileTestLarge, RejectsInvalidDecodeTile) { TestInvalidTile(); }
+
+TEST_P(AV1ExtTileTestLarge, PartialTileList) { TestPartialTileList(); }
 
 AV1_INSTANTIATE_TEST_SUITE(
     // Now only test 2-pass mode.
