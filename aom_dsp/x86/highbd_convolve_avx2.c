@@ -11,6 +11,7 @@
 #include <immintrin.h>
 #include <string.h>
 
+#include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
 #include "aom_dsp/x86/convolve.h"
@@ -20,6 +21,7 @@
 // -----------------------------------------------------------------------------
 // Copy and average
 
+#if HAVE_X86_ASM
 static const uint8_t ip_shuffle_f2f3[32] = { 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6,
                                              7, 6, 7, 8, 9, 0, 1, 2, 3, 2, 3,
                                              4, 5, 4, 5, 6, 7, 6, 7, 8, 9 };
@@ -27,6 +29,7 @@ static const uint8_t ip_shuffle_f4f5[32] = { 4, 5, 6,  7,  6,  7,  8,  9,
                                              8, 9, 10, 11, 10, 11, 12, 13,
                                              4, 5, 6,  7,  6,  7,  8,  9,
                                              8, 9, 10, 11, 10, 11, 12, 13 };
+#endif  // HAVE_X86_ASM
 
 void av1_highbd_convolve_x_sr_ssse3(const uint16_t *src, int src_stride,
                                     uint16_t *dst, int dst_stride, int w, int h,
@@ -288,6 +291,9 @@ void av1_highbd_convolve_x_sr_avx2(const uint16_t *src, int src_stride,
 // -----------------------------------------------------------------------------
 // Horizontal and vertical filtering
 
+#if HAVE_X86_ASM
+// The aom_highbd_convolve8_{horiz,vert}_avx2 functions below also call SSE2
+// assembly.
 static const uint8_t signal_pattern_0[32] = { 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6,
                                               7, 6, 7, 8, 9, 0, 1, 2, 3, 2, 3,
                                               4, 5, 4, 5, 6, 7, 6, 7, 8, 9 };
@@ -1246,3 +1252,4 @@ HIGH_FUN_CONV_1D(horiz, x_step_q4, filter_x, h, src, , avx2)
 HIGH_FUN_CONV_1D(vert, y_step_q4, filter_y, v, src - src_stride * 3, , avx2)
 
 #undef HIGHBD_FUNC
+#endif  // HAVE_X86_ASM

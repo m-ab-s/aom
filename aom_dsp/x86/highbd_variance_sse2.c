@@ -21,6 +21,7 @@
 #include "av1/common/filter.h"
 #include "av1/common/reconinter.h"
 
+#if HAVE_X86_ASM
 typedef uint32_t (*high_variance_fn_t)(const uint16_t *src, int src_stride,
                                        const uint16_t *ref, int ref_stride,
                                        uint32_t *sse, int *sum);
@@ -607,6 +608,7 @@ FNS(sse2)
 
 #undef FNS
 #undef FN
+#endif  // HAVE_X86_ASM
 
 static uint64_t mse_4xh_16bit_highbd_sse2(uint16_t *dst, int dstride,
                                           uint16_t *src, int sstride, int h) {

@@ -399,6 +399,14 @@ static const char *const kSignatures[TX_SIZES_ALL][kNumAv1IntraFuncs] = {
 // Defines a test case for |arch| (e.g., C, SSE2, ...) passing the predictors
 // to TestIntraPred. The test name is 'arch.TestIntraPred_tx_size', e.g.,
 // C.TestIntraPred.0
+// Kernels that are only implemented in x86 assembly, which is not available
+// when the x86 intrinsics are built for other targets.
+#if HAVE_X86_ASM
+#define ASM_ONLY(fn) fn
+#else
+#define ASM_ONLY(fn) nullptr
+#endif
+
 #define INTRA_PRED_TEST(arch, tx_size, dc, dc_left, dc_top, dc_128, v, h,  \
                         paeth, smooth, smooth_v, smooth_h)                 \
   TEST(arch, DISABLED_##TestIntraPred_##tx_size) {                         \
@@ -430,10 +438,13 @@ INTRA_PRED_TEST(C, TX_4X16, aom_dc_predictor_4x16_c,
                 aom_smooth_h_predictor_4x16_c)
 #endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 #if HAVE_SSE2
-INTRA_PRED_TEST(SSE2, TX_4X4, aom_dc_predictor_4x4_sse2,
-                aom_dc_left_predictor_4x4_sse2, aom_dc_top_predictor_4x4_sse2,
-                aom_dc_128_predictor_4x4_sse2, aom_v_predictor_4x4_sse2,
-                aom_h_predictor_4x4_sse2, nullptr, nullptr, nullptr, nullptr)
+INTRA_PRED_TEST(SSE2, TX_4X4, ASM_ONLY(aom_dc_predictor_4x4_sse2),
+                ASM_ONLY(aom_dc_left_predictor_4x4_sse2),
+                ASM_ONLY(aom_dc_top_predictor_4x4_sse2),
+                ASM_ONLY(aom_dc_128_predictor_4x4_sse2),
+                ASM_ONLY(aom_v_predictor_4x4_sse2),
+                ASM_ONLY(aom_h_predictor_4x4_sse2), nullptr, nullptr, nullptr,
+                nullptr)
 INTRA_PRED_TEST(SSE2, TX_4X8, aom_dc_predictor_4x8_sse2,
                 aom_dc_left_predictor_4x8_sse2, aom_dc_top_predictor_4x8_sse2,
                 aom_dc_128_predictor_4x8_sse2, aom_v_predictor_4x8_sse2,
@@ -520,10 +531,13 @@ INTRA_PRED_TEST(C, TX_8X32, aom_dc_predictor_8x32_c,
 #endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #if HAVE_SSE2
-INTRA_PRED_TEST(SSE2, TX_8X8, aom_dc_predictor_8x8_sse2,
-                aom_dc_left_predictor_8x8_sse2, aom_dc_top_predictor_8x8_sse2,
-                aom_dc_128_predictor_8x8_sse2, aom_v_predictor_8x8_sse2,
-                aom_h_predictor_8x8_sse2, nullptr, nullptr, nullptr, nullptr)
+INTRA_PRED_TEST(SSE2, TX_8X8, ASM_ONLY(aom_dc_predictor_8x8_sse2),
+                ASM_ONLY(aom_dc_left_predictor_8x8_sse2),
+                ASM_ONLY(aom_dc_top_predictor_8x8_sse2),
+                ASM_ONLY(aom_dc_128_predictor_8x8_sse2),
+                ASM_ONLY(aom_v_predictor_8x8_sse2),
+                ASM_ONLY(aom_h_predictor_8x8_sse2), nullptr, nullptr, nullptr,
+                nullptr)
 INTRA_PRED_TEST(SSE2, TX_8X4, aom_dc_predictor_8x4_sse2,
                 aom_dc_left_predictor_8x4_sse2, aom_dc_top_predictor_8x4_sse2,
                 aom_dc_128_predictor_8x4_sse2, aom_v_predictor_8x4_sse2,
@@ -633,11 +647,13 @@ INTRA_PRED_TEST(C, TX_16X64, aom_dc_predictor_16x64_c,
 #endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #if HAVE_SSE2
-INTRA_PRED_TEST(SSE2, TX_16X16, aom_dc_predictor_16x16_sse2,
-                aom_dc_left_predictor_16x16_sse2,
-                aom_dc_top_predictor_16x16_sse2,
-                aom_dc_128_predictor_16x16_sse2, aom_v_predictor_16x16_sse2,
-                aom_h_predictor_16x16_sse2, nullptr, nullptr, nullptr, nullptr)
+INTRA_PRED_TEST(SSE2, TX_16X16, ASM_ONLY(aom_dc_predictor_16x16_sse2),
+                ASM_ONLY(aom_dc_left_predictor_16x16_sse2),
+                ASM_ONLY(aom_dc_top_predictor_16x16_sse2),
+                ASM_ONLY(aom_dc_128_predictor_16x16_sse2),
+                ASM_ONLY(aom_v_predictor_16x16_sse2),
+                ASM_ONLY(aom_h_predictor_16x16_sse2), nullptr, nullptr, nullptr,
+                nullptr)
 INTRA_PRED_TEST(SSE2, TX_16X8, aom_dc_predictor_16x8_sse2,
                 aom_dc_left_predictor_16x8_sse2, aom_dc_top_predictor_16x8_sse2,
                 aom_dc_128_predictor_16x8_sse2, aom_v_predictor_16x8_sse2,
@@ -781,11 +797,13 @@ INTRA_PRED_TEST(C, TX_32X8, aom_dc_predictor_32x8_c,
 #endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #if HAVE_SSE2
-INTRA_PRED_TEST(SSE2, TX_32X32, aom_dc_predictor_32x32_sse2,
-                aom_dc_left_predictor_32x32_sse2,
-                aom_dc_top_predictor_32x32_sse2,
-                aom_dc_128_predictor_32x32_sse2, aom_v_predictor_32x32_sse2,
-                aom_h_predictor_32x32_sse2, nullptr, nullptr, nullptr, nullptr)
+INTRA_PRED_TEST(SSE2, TX_32X32, ASM_ONLY(aom_dc_predictor_32x32_sse2),
+                ASM_ONLY(aom_dc_left_predictor_32x32_sse2),
+                ASM_ONLY(aom_dc_top_predictor_32x32_sse2),
+                ASM_ONLY(aom_dc_128_predictor_32x32_sse2),
+                ASM_ONLY(aom_v_predictor_32x32_sse2),
+                ASM_ONLY(aom_h_predictor_32x32_sse2), nullptr, nullptr, nullptr,
+                nullptr)
 INTRA_PRED_TEST(SSE2, TX_32X16, aom_dc_predictor_32x16_sse2,
                 aom_dc_left_predictor_32x16_sse2,
                 aom_dc_top_predictor_32x16_sse2,
@@ -1335,11 +1353,11 @@ HIGHBD_INTRA_PRED_TEST(
 #endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #if HAVE_SSE2
-HIGHBD_INTRA_PRED_TEST(SSE2, TX_4X4, aom_highbd_dc_predictor_4x4_sse2,
+HIGHBD_INTRA_PRED_TEST(SSE2, TX_4X4, ASM_ONLY(aom_highbd_dc_predictor_4x4_sse2),
                        aom_highbd_dc_left_predictor_4x4_sse2,
                        aom_highbd_dc_top_predictor_4x4_sse2,
                        aom_highbd_dc_128_predictor_4x4_sse2,
-                       aom_highbd_v_predictor_4x4_sse2,
+                       ASM_ONLY(aom_highbd_v_predictor_4x4_sse2),
                        aom_highbd_h_predictor_4x4_sse2, nullptr, nullptr,
                        nullptr, nullptr)
 
@@ -1422,11 +1440,11 @@ HIGHBD_INTRA_PRED_TEST(
 #endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #if HAVE_SSE2
-HIGHBD_INTRA_PRED_TEST(SSE2, TX_8X8, aom_highbd_dc_predictor_8x8_sse2,
+HIGHBD_INTRA_PRED_TEST(SSE2, TX_8X8, ASM_ONLY(aom_highbd_dc_predictor_8x8_sse2),
                        aom_highbd_dc_left_predictor_8x8_sse2,
                        aom_highbd_dc_top_predictor_8x8_sse2,
                        aom_highbd_dc_128_predictor_8x8_sse2,
-                       aom_highbd_v_predictor_8x8_sse2,
+                       ASM_ONLY(aom_highbd_v_predictor_8x8_sse2),
                        aom_highbd_h_predictor_8x8_sse2, nullptr, nullptr,
                        nullptr, nullptr)
 HIGHBD_INTRA_PRED_TEST(SSE2, TX_8X4, aom_highbd_dc_predictor_8x4_sse2,
@@ -1537,11 +1555,12 @@ HIGHBD_INTRA_PRED_TEST(
 #endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #if HAVE_SSE2
-HIGHBD_INTRA_PRED_TEST(SSE2, TX_16X16, aom_highbd_dc_predictor_16x16_sse2,
+HIGHBD_INTRA_PRED_TEST(SSE2, TX_16X16,
+                       ASM_ONLY(aom_highbd_dc_predictor_16x16_sse2),
                        aom_highbd_dc_left_predictor_16x16_sse2,
                        aom_highbd_dc_top_predictor_16x16_sse2,
                        aom_highbd_dc_128_predictor_16x16_sse2,
-                       aom_highbd_v_predictor_16x16_sse2,
+                       ASM_ONLY(aom_highbd_v_predictor_16x16_sse2),
                        aom_highbd_h_predictor_16x16_sse2, nullptr, nullptr,
                        nullptr, nullptr)
 HIGHBD_INTRA_PRED_TEST(SSE2, TX_16X8, aom_highbd_dc_predictor_16x8_sse2,
@@ -1666,11 +1685,12 @@ HIGHBD_INTRA_PRED_TEST(
 #endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #if HAVE_SSE2
-HIGHBD_INTRA_PRED_TEST(SSE2, TX_32X32, aom_highbd_dc_predictor_32x32_sse2,
+HIGHBD_INTRA_PRED_TEST(SSE2, TX_32X32,
+                       ASM_ONLY(aom_highbd_dc_predictor_32x32_sse2),
                        aom_highbd_dc_left_predictor_32x32_sse2,
                        aom_highbd_dc_top_predictor_32x32_sse2,
                        aom_highbd_dc_128_predictor_32x32_sse2,
-                       aom_highbd_v_predictor_32x32_sse2,
+                       ASM_ONLY(aom_highbd_v_predictor_32x32_sse2),
                        aom_highbd_h_predictor_32x32_sse2, nullptr, nullptr,
                        nullptr, nullptr)
 HIGHBD_INTRA_PRED_TEST(SSE2, TX_32X16, aom_highbd_dc_predictor_32x16_sse2,

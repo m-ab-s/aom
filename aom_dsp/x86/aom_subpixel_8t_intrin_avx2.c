@@ -42,7 +42,7 @@
 #define MM256_BROADCASTSI128_SI256(x) _mm256_broadcastsi128_si256(x)
 #endif  // __clang__
 
-#if !CONFIG_HIGHWAY
+#if !CONFIG_HIGHWAY && HAVE_X86_ASM
 static inline void xx_storeu2_epi32(const uint8_t *output_ptr,
                                     const ptrdiff_t stride, const __m256i *a) {
   *((int *)(output_ptr)) = _mm_cvtsi128_si32(_mm256_castsi256_si128(*a));
@@ -1401,9 +1401,9 @@ static void aom_filter_block1d4_v4_avx2(
     srcReg4x = srcReg6x;
   }
 }
-#endif  // !CONFIG_HIGHWAY
+#endif  // !CONFIG_HIGHWAY && HAVE_X86_ASM
 
-#if HAVE_AVX2 && HAVE_SSSE3
+#if HAVE_AVX2 && HAVE_SSSE3 && HAVE_X86_ASM
 #if !CONFIG_HIGHWAY
 filter8_1dfunction aom_filter_block1d16_h2_ssse3;
 filter8_1dfunction aom_filter_block1d8_h2_ssse3;
@@ -1436,4 +1436,4 @@ filter8_1dfunction aom_filter_block1d4_v2_ssse3;
 FUN_CONV_1D(vert, y_step_q4, filter_y, v, src - src_stride * 3, , avx2)
 #endif  // !CONFIG_HIGHWAY
 
-#endif  // HAVE_AVX2 && HAVE_SSSE3
+#endif  // HAVE_AVX2 && HAVE_SSSE3 && HAVE_X86_ASM

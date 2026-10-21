@@ -97,6 +97,16 @@ if ($opts{arch} eq "x86_64") {
   $avx2_x86_64 = 'avx2';
 }
 
+# Flavors of functions that require x86 assembly (nasm/yasm), either directly
+# or through helpers. They are unavailable when the assembly is disabled
+# (ENABLE_X86_ASM=0) or the x86 intrinsics are built for other targets, e.g.
+# wasm32 with Emscripten.
+$sse2_asm = $ssse3_asm = '';
+if (aom_config("HAVE_X86_ASM") eq "yes") {
+  $sse2_asm = 'sse2';
+  $ssse3_asm = 'ssse3';
+}
+
 add_proto qw/void av1_convolve_horiz_rs/, "const uint8_t *src, int src_stride, uint8_t *dst, int dst_stride, int w, int h, const int16_t *x_filters, int x0_qn, int x_step_qn";
 specialize qw/av1_convolve_horiz_rs sse4_1 neon/;
 
@@ -285,7 +295,7 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # the transform coefficients are held in 32-bit
   # values, so the assembler code for  av1_block_error can no longer be used.
   add_proto qw/int64_t av1_block_error/, "const tran_low_t *coeff, const tran_low_t *dqcoeff, intptr_t block_size, int64_t *ssz";
-  specialize qw/av1_block_error sse2 avx2 neon sve/;
+  specialize qw/av1_block_error avx2 neon sve/, "$sse2_asm";
 
   add_proto qw/int64_t av1_block_error_lp/, "const int16_t *coeff, const int16_t *dqcoeff, intptr_t block_size";
   specialize qw/av1_block_error_lp sse2 avx2 neon sve/;

@@ -11,6 +11,7 @@
 
 #include <tmmintrin.h>
 
+#include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
 #include "aom_dsp/aom_filter.h"
@@ -23,6 +24,7 @@
 #include "aom_ports/mem.h"
 #include "aom_ports/emmintrin_compat.h"
 
+#if HAVE_X86_ASM
 DECLARE_ALIGNED(32, static const uint8_t, filt_h4[]) = {
   0,  1,  1,  2,  2, 3,  3,  4,  4,  5,  5,  6,  6,  7,  7,  8,  0,  1,  1,
   2,  2,  3,  3,  4, 4,  5,  5,  6,  6,  7,  7,  8,  2,  3,  3,  4,  4,  5,
@@ -484,6 +486,7 @@ static void aom_filter_block1d16_v4_ssse3(
     srcReg4 = srcReg6;
   }
 }
+#endif  // HAVE_X86_ASM
 
 static inline __m128i shuffle_filter_convolve8_8_ssse3(
     const __m128i *const s, const int16_t *const filter) {
@@ -819,6 +822,7 @@ void aom_scaled_2d_ssse3(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst,
   }
 }
 
+#if HAVE_X86_ASM
 filter8_1dfunction aom_filter_block1d16_v8_ssse3;
 filter8_1dfunction aom_filter_block1d16_h8_ssse3;
 filter8_1dfunction aom_filter_block1d8_v8_ssse3;
@@ -845,3 +849,4 @@ filter8_1dfunction aom_filter_block1d4_h2_ssse3;
 //                               int w, int h);
 FUN_CONV_1D(horiz, x_step_q4, filter_x, h, src, , ssse3)
 FUN_CONV_1D(vert, y_step_q4, filter_y, v, src - src_stride * 3, , ssse3)
+#endif  // HAVE_X86_ASM

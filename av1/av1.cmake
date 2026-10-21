@@ -740,7 +740,7 @@ function(setup_av1_targets)
     add_intrinsics_object_library("-msse2" "sse2" "aom_av1_common"
                                   "AOM_AV1_COMMON_INTRIN_SSE2")
     if(CONFIG_AV1_DECODER)
-      if(AOM_AV1_DECODER_ASM_SSE2)
+      if(AOM_AV1_DECODER_ASM_SSE2 AND HAVE_X86_ASM)
         add_asm_library("aom_av1_decoder_sse2" "AOM_AV1_DECODER_ASM_SSE2")
       endif()
 
@@ -751,7 +751,9 @@ function(setup_av1_targets)
     endif()
 
     if(CONFIG_AV1_ENCODER)
-      add_asm_library("aom_av1_encoder_sse2" "AOM_AV1_ENCODER_ASM_SSE2")
+      if(HAVE_X86_ASM)
+        add_asm_library("aom_av1_encoder_sse2" "AOM_AV1_ENCODER_ASM_SSE2")
+      endif()
       add_intrinsics_object_library("-msse2" "sse2" "aom_av1_encoder"
                                     "AOM_AV1_ENCODER_INTRIN_SSE2")
     endif()
@@ -788,7 +790,7 @@ function(setup_av1_targets)
                                   "AOM_AV1_COMMON_INTRIN_SSE4_1")
 
     if(CONFIG_AV1_ENCODER)
-      if("${AOM_TARGET_CPU}" STREQUAL "x86_64")
+      if("${AOM_TARGET_CPU}" STREQUAL "x86_64" AND HAVE_X86_ASM)
         add_asm_library("aom_av1_encoder_ssse3"
                         "AOM_AV1_ENCODER_ASM_SSSE3_X86_64")
       endif()

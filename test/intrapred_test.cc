@@ -352,10 +352,39 @@ TEST_P(LowbdIntraPredTest, DISABLED_Speed) {
 #endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 
 #if HAVE_SSE2
+#if !HAVE_X86_ASM
+// The SSE2 4x4, 8x8, 16x16 and 32x32 predictors below are written in x86
+// assembly, so only the other sizes are available without it.
+#if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
+#define lowbd_intrapred_sse2_no_asm(type)                               \
+  lowbd_entry(type, 4, 8, sse2), lowbd_entry(type, 4, 16, sse2),        \
+      lowbd_entry(type, 8, 4, sse2), lowbd_entry(type, 8, 16, sse2),    \
+      lowbd_entry(type, 8, 32, sse2), lowbd_entry(type, 16, 4, sse2),   \
+      lowbd_entry(type, 16, 8, sse2), lowbd_entry(type, 16, 32, sse2),  \
+      lowbd_entry(type, 16, 64, sse2), lowbd_entry(type, 32, 8, sse2),  \
+      lowbd_entry(type, 32, 16, sse2), lowbd_entry(type, 32, 64, sse2), \
+      lowbd_entry(type, 64, 16, sse2), lowbd_entry(type, 64, 32, sse2), \
+      lowbd_entry(type, 64, 64, sse2)
+#else
+#define lowbd_intrapred_sse2_no_asm(type)                               \
+  lowbd_entry(type, 4, 8, sse2), lowbd_entry(type, 8, 4, sse2),         \
+      lowbd_entry(type, 8, 16, sse2), lowbd_entry(type, 16, 8, sse2),   \
+      lowbd_entry(type, 16, 32, sse2), lowbd_entry(type, 32, 16, sse2), \
+      lowbd_entry(type, 32, 64, sse2), lowbd_entry(type, 64, 32, sse2), \
+      lowbd_entry(type, 64, 64, sse2)
+#endif  // !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
+#endif  // !HAVE_X86_ASM
+
 const IntraPredFunc<IntraPred> LowbdIntraPredTestVector[] = {
+#if HAVE_X86_ASM
   lowbd_intrapred(dc, sse2),      lowbd_intrapred(dc_top, sse2),
   lowbd_intrapred(dc_left, sse2), lowbd_intrapred(dc_128, sse2),
   lowbd_intrapred(v, sse2),       lowbd_intrapred(h, sse2),
+#else
+  lowbd_intrapred_sse2_no_asm(dc),      lowbd_intrapred_sse2_no_asm(dc_top),
+  lowbd_intrapred_sse2_no_asm(dc_left), lowbd_intrapred_sse2_no_asm(dc_128),
+  lowbd_intrapred_sse2_no_asm(v),       lowbd_intrapred_sse2_no_asm(h),
+#endif  // HAVE_X86_ASM
 };
 
 INSTANTIATE_TEST_SUITE_P(SSE2, LowbdIntraPredTest,
@@ -466,16 +495,24 @@ INSTANTIATE_TEST_SUITE_P(NEON, HighbdIntraPredTest,
 
 #if HAVE_SSE2
 const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorSse2[] = {
+#if HAVE_X86_ASM
   highbd_entry(dc, 4, 4, sse2, 12),
+#endif  // HAVE_X86_ASM
   highbd_entry(dc, 4, 8, sse2, 12),
   highbd_entry(dc, 8, 4, sse2, 12),
+#if HAVE_X86_ASM
   highbd_entry(dc, 8, 8, sse2, 12),
+#endif  // HAVE_X86_ASM
   highbd_entry(dc, 8, 16, sse2, 12),
   highbd_entry(dc, 16, 8, sse2, 12),
+#if HAVE_X86_ASM
   highbd_entry(dc, 16, 16, sse2, 12),
+#endif  // HAVE_X86_ASM
   highbd_entry(dc, 16, 32, sse2, 12),
   highbd_entry(dc, 32, 16, sse2, 12),
+#if HAVE_X86_ASM
   highbd_entry(dc, 32, 32, sse2, 12),
+#endif  // HAVE_X86_ASM
 
   highbd_entry(dc_top, 4, 4, sse2, 12),
   highbd_entry(dc_top, 4, 8, sse2, 12),
@@ -510,16 +547,24 @@ const IntraPredFunc<HighbdIntraPred> HighbdIntraPredTestVectorSse2[] = {
   highbd_entry(dc_128, 32, 16, sse2, 12),
   highbd_entry(dc_128, 32, 32, sse2, 12),
 
+#if HAVE_X86_ASM
   highbd_entry(v, 4, 4, sse2, 12),
+#endif  // HAVE_X86_ASM
   highbd_entry(v, 4, 8, sse2, 12),
   highbd_entry(v, 8, 4, sse2, 12),
+#if HAVE_X86_ASM
   highbd_entry(v, 8, 8, sse2, 12),
+#endif  // HAVE_X86_ASM
   highbd_entry(v, 8, 16, sse2, 12),
   highbd_entry(v, 16, 8, sse2, 12),
+#if HAVE_X86_ASM
   highbd_entry(v, 16, 16, sse2, 12),
+#endif  // HAVE_X86_ASM
   highbd_entry(v, 16, 32, sse2, 12),
   highbd_entry(v, 32, 16, sse2, 12),
+#if HAVE_X86_ASM
   highbd_entry(v, 32, 32, sse2, 12),
+#endif  // HAVE_X86_ASM
 
   highbd_entry(h, 4, 4, sse2, 12),
   highbd_entry(h, 4, 8, sse2, 12),

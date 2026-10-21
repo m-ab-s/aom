@@ -10,11 +10,13 @@
  */
 #include <emmintrin.h>
 
+#include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 #include "aom_dsp/x86/convolve.h"
 
 // -----------------------------------------------------------------------------
 
+#if HAVE_X86_ASM
 static void aom_highbd_filter_block1d4_v4_sse2(
     const uint16_t *src_ptr, ptrdiff_t src_pitch, uint16_t *dst_ptr,
     ptrdiff_t dst_pitch, uint32_t height, const int16_t *filter, int bd) {
@@ -380,3 +382,4 @@ highbd_filter8_1dfunction aom_highbd_filter_block1d4_h2_sse2;
 //                                     int w, int h, int bd);
 HIGH_FUN_CONV_1D(horiz, x_step_q4, filter_x, h, src, , sse2)
 HIGH_FUN_CONV_1D(vert, y_step_q4, filter_y, v, src - src_stride * 3, , sse2)
+#endif  // HAVE_X86_ASM

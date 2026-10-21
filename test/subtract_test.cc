@@ -226,7 +226,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(&aom_subtract_block_c),
                        ::testing::Values(&aom_subtract_block_c)));
 
-#if HAVE_SSE2
+#if HAVE_SSE2 && HAVE_X86_ASM
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AV1SubtractBlockTest,
     ::testing::Combine(::testing::ValuesIn(kValidBlockSize),

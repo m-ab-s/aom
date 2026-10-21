@@ -2506,6 +2506,7 @@ INSTANTIATE_TEST_SUITE_P(
                       MseHBDWxHParams(2, 2, &aom_mse_wxh_16bit_highbd_sse2,
                                       10)));
 
+#if HAVE_X86_ASM
 INSTANTIATE_TEST_SUITE_P(
     SSE2, AvxHBDMseTest,
     ::testing::Values(MseParams(4, 4, &aom_highbd_12_mse16x16_sse2, 12),
@@ -2514,6 +2515,7 @@ INSTANTIATE_TEST_SUITE_P(
                       MseParams(3, 3, &aom_highbd_10_mse8x8_sse2, 10),
                       MseParams(4, 4, &aom_highbd_8_mse16x16_sse2, 8),
                       MseParams(3, 3, &aom_highbd_8_mse8x8_sse2, 8)));
+#endif  // HAVE_X86_ASM
 #endif  // HAVE_SSE2
 #if HAVE_SSE4_1
 INSTANTIATE_TEST_SUITE_P(
@@ -2546,6 +2548,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(MseParams(4, 4, &aom_highbd_10_mse16x16_avx2, 10)));
 #endif  // HAVE_AVX2
 
+#if HAVE_X86_ASM
 const VarianceParams kArrayHBDVariance_sse2[] = {
   VarianceParams(7, 7, &aom_highbd_12_variance128x128_sse2, 12),
   VarianceParams(7, 6, &aom_highbd_12_variance128x64_sse2, 12),
@@ -2609,6 +2612,7 @@ const VarianceParams kArrayHBDVariance_sse2[] = {
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, AvxHBDVarianceTest,
                          ::testing::ValuesIn(kArrayHBDVariance_sse2));
+#endif  // HAVE_X86_ASM
 
 #if HAVE_AVX2
 
@@ -2665,6 +2669,7 @@ INSTANTIATE_TEST_SUITE_P(AVX2, AvxHBDSubpelVarianceTest,
                          ::testing::ValuesIn(kArrayHBDSubpelVariance_avx2));
 #endif  // HAVE_AVX2
 
+#if HAVE_X86_ASM
 const SubpelVarianceParams kArrayHBDSubpelVariance_sse2[] = {
   SubpelVarianceParams(7, 7, &aom_highbd_12_sub_pixel_variance128x128_sse2, 12),
   SubpelVarianceParams(7, 6, &aom_highbd_12_sub_pixel_variance128x64_sse2, 12),
@@ -2731,7 +2736,9 @@ const SubpelVarianceParams kArrayHBDSubpelVariance_sse2[] = {
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, AvxHBDSubpelVarianceTest,
                          ::testing::ValuesIn(kArrayHBDSubpelVariance_sse2));
+#endif  // HAVE_X86_ASM
 
+#if HAVE_X86_ASM
 const SubpelAvgVarianceParams kArrayHBDSubpelAvgVariance_sse2[] = {
   SubpelAvgVarianceParams(6, 6, &aom_highbd_12_sub_pixel_avg_variance64x64_sse2,
                           12),
@@ -2842,10 +2849,12 @@ const SubpelAvgVarianceParams kArrayHBDSubpelAvgVariance_sse2[] = {
 
 INSTANTIATE_TEST_SUITE_P(SSE2, AvxHBDSubpelAvgVarianceTest,
                          ::testing::ValuesIn(kArrayHBDSubpelAvgVariance_sse2));
+#endif  // HAVE_X86_ASM
 #endif  // HAVE_SSE2
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #if HAVE_SSSE3
+#if HAVE_X86_ASM
 const SubpelVarianceParams kArraySubpelVariance_ssse3[] = {
   SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_ssse3, 0),
   SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_ssse3, 0),
@@ -2874,7 +2883,9 @@ const SubpelVarianceParams kArraySubpelVariance_ssse3[] = {
 };
 INSTANTIATE_TEST_SUITE_P(SSSE3, AvxSubpelVarianceTest,
                          ::testing::ValuesIn(kArraySubpelVariance_ssse3));
+#endif  // HAVE_X86_ASM
 
+#if HAVE_X86_ASM
 const SubpelAvgVarianceParams kArraySubpelAvgVariance_ssse3[] = {
   SubpelAvgVarianceParams(7, 7, &aom_sub_pixel_avg_variance128x128_ssse3, 0),
   SubpelAvgVarianceParams(7, 6, &aom_sub_pixel_avg_variance128x64_ssse3, 0),
@@ -2903,6 +2914,7 @@ const SubpelAvgVarianceParams kArraySubpelAvgVariance_ssse3[] = {
 };
 INSTANTIATE_TEST_SUITE_P(SSSE3, AvxSubpelAvgVarianceTest,
                          ::testing::ValuesIn(kArraySubpelAvgVariance_ssse3));
+#endif  // HAVE_X86_ASM
 #endif  // HAVE_SSSE3
 
 #if HAVE_SSE4_1

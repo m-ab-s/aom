@@ -734,14 +734,14 @@ using std::make_tuple;
     aom_highbd_##func(src, src_stride, dst, dst_stride, filter_x,            \
                       filter_x_stride, filter_y, filter_y_stride, w, h, bd); \
   }
-#if HAVE_SSE2 && AOM_ARCH_X86_64
+#if HAVE_SSE2 && AOM_ARCH_X86_64 && HAVE_X86_ASM
 WRAP(convolve8_horiz_sse2, 8)
 WRAP(convolve8_vert_sse2, 8)
 WRAP(convolve8_horiz_sse2, 10)
 WRAP(convolve8_vert_sse2, 10)
 WRAP(convolve8_horiz_sse2, 12)
 WRAP(convolve8_vert_sse2, 12)
-#endif  // HAVE_SSE2 && AOM_ARCH_X86_64
+#endif  // HAVE_SSE2 && AOM_ARCH_X86_64 && HAVE_X86_ASM
 
 WRAP(convolve8_horiz_c, 8)
 WRAP(convolve8_vert_c, 8)
@@ -750,7 +750,7 @@ WRAP(convolve8_vert_c, 10)
 WRAP(convolve8_horiz_c, 12)
 WRAP(convolve8_vert_c, 12)
 
-#if HAVE_AVX2
+#if HAVE_AVX2 && HAVE_X86_ASM
 WRAP(convolve8_horiz_avx2, 8)
 WRAP(convolve8_vert_avx2, 8)
 
@@ -759,7 +759,7 @@ WRAP(convolve8_vert_avx2, 10)
 
 WRAP(convolve8_horiz_avx2, 12)
 WRAP(convolve8_vert_avx2, 12)
-#endif  // HAVE_AVX2
+#endif  // HAVE_AVX2 && HAVE_X86_ASM
 
 #if HAVE_NEON
 WRAP(convolve8_horiz_neon, 8)
@@ -825,7 +825,7 @@ const ConvolveParam kArrayConvolve_c[] = { ALL_SIZES(convolve8_c) };
 INSTANTIATE_TEST_SUITE_P(C, LowbdConvolveTest,
                          ::testing::ValuesIn(kArrayConvolve_c));
 
-#if HAVE_SSE2 && AOM_ARCH_X86_64
+#if HAVE_SSE2 && AOM_ARCH_X86_64 && HAVE_X86_ASM
 #if CONFIG_AV1_HIGHBITDEPTH
 const ConvolveFunctions wrap_convolve8_sse2(wrap_convolve8_horiz_sse2_8,
                                             wrap_convolve8_vert_sse2_8, 8);
@@ -843,7 +843,7 @@ INSTANTIATE_TEST_SUITE_P(SSE2, HighbdConvolveTest,
 #endif
 #endif
 
-#if HAVE_SSSE3
+#if HAVE_SSSE3 && HAVE_X86_ASM
 const ConvolveFunctions convolve8_ssse3(aom_convolve8_horiz_ssse3,
                                         aom_convolve8_vert_ssse3, 0);
 
@@ -853,7 +853,7 @@ INSTANTIATE_TEST_SUITE_P(SSSE3, LowbdConvolveTest,
                          ::testing::ValuesIn(kArrayConvolve8_ssse3));
 #endif
 
-#if HAVE_AVX2
+#if HAVE_AVX2 && HAVE_X86_ASM
 #if CONFIG_AV1_HIGHBITDEPTH
 const ConvolveFunctions wrap_convolve8_avx2(wrap_convolve8_horiz_avx2_8,
                                             wrap_convolve8_vert_avx2_8, 8);
@@ -876,7 +876,7 @@ const ConvolveParam kArray_Convolve8_avx2[] = { ALL_SIZES(convolve8_avx2) };
 INSTANTIATE_TEST_SUITE_P(AVX2, LowbdConvolveTest,
                          ::testing::ValuesIn(kArray_Convolve8_avx2));
 
-#endif  // HAVE_AVX2
+#endif  // HAVE_AVX2 && HAVE_X86_ASM
 
 #if HAVE_AVX512 && CONFIG_HIGHWAY
 extern "C" void aom_convolve8_horiz_avx512(

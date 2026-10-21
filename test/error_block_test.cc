@@ -255,8 +255,10 @@ const ErrorBlockParam kErrorBlockTestParamsSse2[] = {
   make_tuple(&av1_highbd_block_error_sse2, &av1_highbd_block_error_c,
              AOM_BITS_8),
 #endif
+#if HAVE_X86_ASM
   make_tuple(&BlockError8BitWrapper<av1_block_error_sse2>,
              &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8),
+#endif  // HAVE_X86_ASM
   make_tuple(&BlockErrorLpWrapper<av1_block_error_lp_sse2>,
              &BlockErrorLpWrapper<av1_block_error_lp_c>, AOM_BITS_8)
 };

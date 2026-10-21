@@ -17,6 +17,7 @@
 
 #include "aom_dsp/aom_dsp_common.h"
 
+#if HAVE_X86_ASM
 // The 2 unused parameters are place holders for PIC enabled build.
 // These definitions are for functions defined in subpel_variance.asm
 #define DECL(w, opt)                                                           \
@@ -206,3 +207,4 @@ FNS(ssse3)
 
 #undef FNS
 #undef FN
+#endif  // HAVE_X86_ASM

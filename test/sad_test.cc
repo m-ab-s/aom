@@ -2129,6 +2129,7 @@ INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, SADSkipx4Test,
 //------------------------------------------------------------------------------
 // x86 functions
 #if HAVE_SSE2
+#if HAVE_X86_ASM
 const SadMxNParam sse2_tests[] = {
   make_tuple(128, 128, &aom_sad128x128_sse2, -1),
   make_tuple(128, 64, &aom_sad128x64_sse2, -1),
@@ -2221,7 +2222,9 @@ const SadMxNParam sse2_tests[] = {
 #endif  // !CONFIG_REALTIME_ONLY
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, SADTest, ::testing::ValuesIn(sse2_tests));
+#endif  // HAVE_X86_ASM
 
+#if HAVE_X86_ASM
 const SadSkipMxNParam skip_sse2_tests[] = {
   make_tuple(128, 128, &aom_sad_skip_128x128_sse2, -1),
   make_tuple(128, 64, &aom_sad_skip_128x64_sse2, -1),
@@ -2289,7 +2292,9 @@ const SadSkipMxNParam skip_sse2_tests[] = {
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, SADSkipTest,
                          ::testing::ValuesIn(skip_sse2_tests));
+#endif  // HAVE_X86_ASM
 
+#if HAVE_X86_ASM
 const SadMxNAvgParam avg_sse2_tests[] = {
   make_tuple(128, 128, &aom_sad128x128_avg_sse2, -1),
   make_tuple(128, 64, &aom_sad128x64_avg_sse2, -1),
@@ -2360,7 +2365,9 @@ const SadMxNAvgParam avg_sse2_tests[] = {
 #endif  // !CONFIG_REALTIME_ONLY
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, SADavgTest, ::testing::ValuesIn(avg_sse2_tests));
+#endif  // HAVE_X86_ASM
 
+#if HAVE_X86_ASM
 const SadMxNx4Param x4d_sse2_tests[] = {
   make_tuple(128, 128, &aom_sad128x128x4d_sse2, -1),
   make_tuple(128, 64, &aom_sad128x64x4d_sse2, -1),
@@ -2453,7 +2460,9 @@ const SadMxNx4Param x4d_sse2_tests[] = {
 #endif
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, SADx4Test, ::testing::ValuesIn(x4d_sse2_tests));
+#endif  // HAVE_X86_ASM
 
+#if HAVE_X86_ASM
 const SadSkipMxNx4Param skip_x4d_sse2_tests[] = {
   make_tuple(128, 128, &aom_sad_skip_128x128x4d_sse2, -1),
   make_tuple(128, 64, &aom_sad_skip_128x64x4d_sse2, -1),
@@ -2519,6 +2528,7 @@ const SadSkipMxNx4Param skip_x4d_sse2_tests[] = {
 };
 INSTANTIATE_TEST_SUITE_P(SSE2, SADSkipx4Test,
                          ::testing::ValuesIn(skip_x4d_sse2_tests));
+#endif  // HAVE_X86_ASM
 #endif  // HAVE_SSE2
 
 #if HAVE_SSE3
