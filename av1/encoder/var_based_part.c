@@ -1468,6 +1468,7 @@ static void setup_planes(AV1_COMP *cpi, MACROBLOCK *x, unsigned int *y_sad,
   mi->bsize = cm->seq_params->sb_size;
   mi->mv[0].as_int = 0;
   mi->interp_filters = av1_broadcast_interp_filter(BILINEAR);
+  mi->use_intrabc = 0;
 
   if (use_last_ref) {
     av1_setup_pre_planes(
