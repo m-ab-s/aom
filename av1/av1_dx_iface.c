@@ -1351,18 +1351,19 @@ static aom_codec_err_t ctrl_get_tile_data(aom_codec_alg_priv_t *ctx,
 
 static aom_codec_err_t ctrl_set_ext_ref_ptr(aom_codec_alg_priv_t *ctx,
                                             va_list args) {
-  av1_ext_ref_frame_t *const data = va_arg(args, av1_ext_ref_frame_t *);
+  const av1_ext_ref_frame_t *const ext_frames =
+      va_arg(args, av1_ext_ref_frame_t *);
 
-  if (data) {
-    av1_ext_ref_frame_t *const ext_frames = data;
-    ctx->ext_refs.num = ext_frames->num;
-    for (int i = 0; i < ctx->ext_refs.num; i++) {
-      image2yuvconfig(ext_frames->img++, &ctx->ext_refs.refs[i]);
-    }
-    return AOM_CODEC_OK;
-  } else {
+  if (ext_frames == NULL || ext_frames->img == NULL || ext_frames->num <= 0 ||
+      ext_frames->num > MAX_EXTERNAL_REFERENCES) {
     return AOM_CODEC_INVALID_PARAM;
   }
+
+  ctx->ext_refs.num = ext_frames->num;
+  for (int i = 0; i < ctx->ext_refs.num; i++) {
+    image2yuvconfig(&ext_frames->img[i], &ctx->ext_refs.refs[i]);
+  }
+  return AOM_CODEC_OK;
 }
 
 static aom_codec_err_t ctrl_get_render_size(aom_codec_alg_priv_t *ctx,

@@ -179,7 +179,7 @@ typedef struct aom_screen_content_tools_info {
 typedef struct av1_ext_ref_frame {
   /*! Start pointer of external references. */
   aom_image_t *img;
-  /*! Number of available external references. */
+  /*! Number of available external references. Valid range: 1..128. */
   int num;
 } av1_ext_ref_frame_t;
 
