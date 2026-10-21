@@ -1517,9 +1517,10 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
       // only one operating point supported now
       const int64_t pts64 =
           ticks_to_timebase_units(timestamp_ratio, *time_stamp);
-      if (pts64 < 0 || pts64 > UINT32_MAX) return AOM_CODEC_ERROR;
-
-      cm->frame_presentation_time = (uint32_t)pts64;
+      const int frame_presentation_time_length =
+          cm->seq_params->decoder_model_info.frame_presentation_time_length;
+      const int64_t modulus = 1LL << frame_presentation_time_length;
+      cm->frame_presentation_time = (uint32_t)(pts64 % modulus);
     }
   }
 
