@@ -4471,6 +4471,7 @@ TEST(EncodeAPI, NonrdSbMeForcedNewmvRange) {
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
 // A test that reproduces issues.oss-fuzz.com/issues/572842743: signed integer
 // overflow in fill_variance_tree_leaves().
 TEST(EncodeAPI, Avg16x16IntegerOverflow) {
@@ -4597,7 +4598,7 @@ TEST(EncodeAPI, Avg16x16IntegerOverflow) {
   cfg.rc_min_quantizer = 57;
   cfg.rc_max_quantizer = 63;
   aom_codec_ctx_t enc;
-  EXPECT_EQ(AOM_CODEC_OK,
+  ASSERT_EQ(AOM_CODEC_OK,
             aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AV1E_SET_TILE_ROWS, 5));
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_control(&enc, AV1E_SET_TILE_COLUMNS, 2));
@@ -4690,5 +4691,6 @@ TEST(EncodeAPI, Avg16x16IntegerOverflow) {
 
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 }  // namespace
