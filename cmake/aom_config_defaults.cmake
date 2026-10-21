@@ -274,3 +274,6 @@ set_aom_option_var(ENABLE_RVV "Enables RVV optimizations on RISC-V targets." ON)
 # WebAssembly SIMD128 intrinsics flags.
 set_aom_option_var(ENABLE_SIMD128
                    "Enables SIMD128 optimizations on wasm32 targets." ON)
+set_aom_option_var(
+  ENABLE_WASM_X86_INTRINSICS
+  "Builds the x86 SSE intrinsics kernels for wasm32 (requires SIMD128)." OFF)

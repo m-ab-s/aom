@@ -33,7 +33,10 @@
 #define WARP_ERROR_BLOCK_LOG 5
 #define WARP_ERROR_BLOCK (1 << WARP_ERROR_BLOCK_LOG)
 
-#if AOM_ARCH_ARM || AOM_ARCH_AARCH64 || AOM_ARCH_X86 || AOM_ARCH_X86_64
+// The x86 SSE4.1 kernels, which can also be built for wasm32, read the table as
+// int16_t.
+#if AOM_ARCH_ARM || AOM_ARCH_AARCH64 || AOM_ARCH_X86 || AOM_ARCH_X86_64 || \
+    HAVE_SSE4_1
 typedef int16_t WarpedFilterCoeff;
 #else
 typedef int8_t WarpedFilterCoeff;

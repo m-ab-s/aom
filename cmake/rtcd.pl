@@ -500,11 +500,13 @@ if ($opts{arch} eq 'x86') {
   @ALL_ARCHS = filter(qw/rvv/);
   riscv;
 } elsif ($opts{arch} eq 'wasm32') {
-  @ALL_ARCHS = filter(qw/simd128/);
+  # The x86 flavors are Emscripten translations of x86 intrinsics to SIMD128;
+  # native SIMD128 kernels are preferred over them.
+  @ALL_ARCHS = filter(qw/sse sse2 sse3 ssse3 sse4_1 simd128/);
   # SIMD128 is a compile-time property of a Wasm module, so when enabled it is
   # always available: resolve dispatch statically, as for neon on arm64.
   if (keys %required == 0) {
-    @REQUIRES = filter(qw/simd128/);
+    @REQUIRES = @ALL_ARCHS;
     &require(@REQUIRES);
   }
   wasm;

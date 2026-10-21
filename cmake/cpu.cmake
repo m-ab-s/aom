@@ -145,6 +145,31 @@ elseif("${AOM_TARGET_CPU}" STREQUAL "wasm32")
     set(HAVE_SIMD128 0)
     set(AOM_RTCD_FLAGS ${AOM_RTCD_FLAGS} --disable-simd128)
   endif()
+
+  # Emscripten translates x86 SSE intrinsics to SIMD128, so the x86 intrinsics
+  # kernels can be built for wasm32; x86 assembly cannot. SSE4.2 is excluded:
+  # libaom only uses it for CRC32, which has no SIMD128 equivalent.
+  if(ENABLE_WASM_X86_INTRINSICS AND HAVE_SIMD128)
+    # Emscripten only accepts the -msse* flags along with -msimd128, so it is
+    # added to the base flags of all targets (this also lets the compiler flag
+    # checks see it).
+    string(APPEND CMAKE_C_FLAGS " ${AOM_SIMD128_FLAG}")
+    string(APPEND CMAKE_CXX_FLAGS " ${AOM_SIMD128_FLAG}")
+  endif()
+  set(WASM_X86_FLAVORS "SSE;SSE2;SSE3;SSSE3;SSE4_1")
+  foreach(flavor ${WASM_X86_FLAVORS})
+    if(ENABLE_WASM_X86_INTRINSICS
+       AND HAVE_SIMD128
+       AND ENABLE_${flavor}
+       AND NOT disable_remaining_flavors)
+      set(HAVE_${flavor} 1)
+    else()
+      set(disable_remaining_flavors 1)
+      set(HAVE_${flavor} 0)
+      string(TOLOWER ${flavor} flavor)
+      set(AOM_RTCD_FLAGS ${AOM_RTCD_FLAGS} --disable-${flavor})
+    endif()
+  endforeach()
 elseif("${AOM_TARGET_CPU}" MATCHES "riscv")
   set(AOM_ARCH_RISCV64 1)
 
