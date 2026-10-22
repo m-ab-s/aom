@@ -436,7 +436,10 @@ void av1_apply_roi_map(AV1_COMP *cpi) {
   int ref_frame[8];
   int internal_delta_q[MAX_SEGMENTS];
   int skip_enabled = 0;
-  int qindex = cm->quant_params.base_qindex;
+  const int base_qindex = cm->quant_params.base_qindex;
+  // Qindex of the last segment with a requested delta q, used for the ROI
+  // rdmult.
+  int roi_qindex = base_qindex;
 
   // Force disable of ROI if active_map is enabled. ROI for now
   // only supported/tested for realtime mode with speed >= 7.
@@ -485,17 +488,16 @@ void av1_apply_roi_map(AV1_COMP *cpi) {
     if (delta_q[i] < 0) internal_delta_q[i] = -internal_delta_q[i];
     // Clamp to allowed best/worst quality. For best quality clamp to 1
     // to avoid qindex = 0 case (lossless segment) which can happen for
-    // best_quality = 0.
-    if (qindex + internal_delta_q[i] <= cpi->rc.best_quality)
-      internal_delta_q[i] = AOMMAX(1, cpi->rc.best_quality) - qindex;
-    if (qindex + internal_delta_q[i] > cpi->rc.worst_quality)
-      internal_delta_q[i] =
-          cpi->rc.worst_quality - cm->quant_params.base_qindex;
+    // best_quality = 0. The segment qindex is base_qindex plus its delta.
+    if (base_qindex + internal_delta_q[i] <= cpi->rc.best_quality)
+      internal_delta_q[i] = AOMMAX(1, cpi->rc.best_quality) - base_qindex;
+    if (base_qindex + internal_delta_q[i] > cpi->rc.worst_quality)
+      internal_delta_q[i] = cpi->rc.worst_quality - base_qindex;
     if (internal_delta_q[i] != 0) {
       av1_enable_segfeature(seg, i, SEG_LVL_ALT_Q);
       av1_set_segdata(seg, i, SEG_LVL_ALT_Q, internal_delta_q[i]);
       roi->delta_qp_enabled = 1;
-      qindex = cm->quant_params.base_qindex + internal_delta_q[i];
+      if (delta_q[i] != 0) roi_qindex = base_qindex + internal_delta_q[i];
     }
     if (delta_lf[i] != 0) {
       // Disable loopfilter delta from ROI, as it requires
@@ -536,7 +538,7 @@ void av1_apply_roi_map(AV1_COMP *cpi) {
     roi->enabled = 1;
     if (roi->delta_qp_enabled) {
       roi->rdmult_delta_qp = av1_compute_rd_mult(
-          qindex, cm->seq_params->bit_depth,
+          roi_qindex, cm->seq_params->bit_depth,
           cpi->ppi->gf_group.update_type[cpi->gf_frame_index], 0, 15,
           INTER_FRAME, cpi->oxcf.q_cfg.use_fixed_qp_offsets,
           is_stat_consumption_stage(cpi), cpi->oxcf.tune_cfg.tuning,

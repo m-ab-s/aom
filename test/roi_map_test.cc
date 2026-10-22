@@ -27,7 +27,7 @@
 
 namespace {
 
-enum { kSkip = 0, kDeltaQ = 1, kDeltaLF = 2, kReference = 3 };
+enum { kSkip = 0, kDeltaQ = 1, kDeltaLF = 2, kReference = 3, kDeltaQMixed = 4 };
 
 // Params: test mode, speed, aq_mode and screen_content mode.
 class ROIMapTest
@@ -80,6 +80,8 @@ class ROIMapTest
           if (i > roi.rows / 4 && i < (3 * roi.rows) / 4 && j > roi.cols / 4 &&
               j < (3 * roi.cols) / 4)
             roi.roi_map[idx] = 1;
+          else if (roi_feature_ == kDeltaQMixed && i < roi.rows / 4)
+            roi.roi_map[idx] = 2;
           else
             roi.roi_map[idx] = 0;
         }
@@ -91,6 +93,11 @@ class ROIMapTest
         roi.delta_q[1] = -40;
       else if (roi_feature_ == kReference)
         roi.ref_frame[1] = 4;  // GOLDEN_FRAME;
+      else if (roi_feature_ == kDeltaQMixed) {
+        // Segment 2 must not end up lossless after segment 1 raised the q.
+        roi.delta_q[1] = 10;
+        roi.delta_q[2] = -63;
+      }
       encoder->Control(AOME_SET_ROI_MAP, &roi);
       free(roi.roi_map);
     }
@@ -128,6 +135,22 @@ class ROIMapTest
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
 
+  void ROIDeltaQMixedTest() {
+    cfg_.g_lag_in_frames = 0;
+    cfg_.rc_target_bitrate = 400;
+    cfg_.rc_resize_mode = 0;
+    cfg_.g_pass = AOM_RC_ONE_PASS;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.kf_max_dist = 90000;
+    cfg_.rc_min_quantizer = 0;
+    cfg_.rc_max_quantizer = 40;
+    roi_feature_ = kDeltaQMixed;
+    ::libaom_test::I420VideoSource video("niklas_640_480_30.yuv", 640, 480, 30,
+                                         1, 0, 30);
+
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  }
+
   void ROIReferenceTest() {
     cfg_.g_lag_in_frames = 0;
     cfg_.rc_target_bitrate = 400;
@@ -157,6 +180,8 @@ TEST_P(ROIMapTest, ROISkip) { ROISkipTest(); }
 TEST_P(ROIMapTest, ROIDeltaQ) { ROIDeltaQTest(); }
 
 TEST_P(ROIMapTest, ROIReference) { ROIReferenceTest(); }
+
+TEST_P(ROIMapTest, ROIDeltaQMixed) { ROIDeltaQMixedTest(); }
 
 AV1_INSTANTIATE_TEST_SUITE(ROIMapTest,
                            ::testing::Values(::libaom_test::kRealTime),
