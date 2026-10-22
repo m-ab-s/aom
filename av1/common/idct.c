@@ -21,12 +21,6 @@
 #include "av1/common/enums.h"
 #include "av1/common/idct.h"
 
-int av1_get_tx_scale(const TX_SIZE tx_size) {
-  const int pels = tx_size_2d[tx_size];
-  // Largest possible pels is 4096 (64x64).
-  return (pels > 256) + (pels > 1024);
-}
-
 // NOTE: The implementation of all inverses need to be aware of the fact
 // that input and output could be the same buffer.
 

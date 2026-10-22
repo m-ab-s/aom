@@ -1094,21 +1094,48 @@ static const uint16_t av1_ext_tx_used_flag[EXT_TX_SET_TYPES] = {
   0xFFFF,  // 1111 1111 1111 1111
 };
 
-static const TxSetType av1_ext_tx_set_lookup[2][2] = {
-  { EXT_TX_SET_DTT4_IDTX_1DDCT, EXT_TX_SET_DTT4_IDTX },
-  { EXT_TX_SET_ALL16, EXT_TX_SET_DTT9_IDTX_1DDCT },
+// av1_ext_tx_set_lookup[use_reduced_set][is_inter][tx_size] (EXT_TX_SET_
+// prefix omitted):
+//
+// use_reduced_set = 0
+// TX_SIZE                         | is_inter = 0    | is_inter = 1
+// 4X4, 8X8, 4X8, 8X4, 8X16, 16X8, | DTT4_IDTX_1DDCT | ALL16
+// 4X16, 16X4                      |                 |
+// 16X16                           | DTT4_IDTX       | DTT9_IDTX_1DDCT
+// 32X32, 16X32, 32X16, 8X32, 32X8 | DCTONLY         | DCT_IDTX
+// 64X64, 32X64, 64X32, 16X64,     | DCTONLY         | DCTONLY
+// 64X16                           |                 |
+//
+// use_reduced_set = 1
+// TX_SIZE                         | is_inter = 0    | is_inter = 1
+// 4X4, 8X8, 4X8, 8X4, 8X16, 16X8, | DTT4_IDTX       | DCT_IDTX
+// 4X16, 16X4, 16X16               |                 |
+// 32X32, 16X32, 32X16, 8X32, 32X8 | DCTONLY         | DCT_IDTX
+// 64X64, 32X64, 64X32, 16X64,     | DCTONLY         | DCTONLY
+// 64X16                           |                 |
+//
+// EXT_TX_SET_LIST() expands one row of the table above to all TX_SIZES_ALL
+// entries. Its arguments are the sets for the four groups of sizes, in the
+// order of the rows above: s4, s16 (16X16), s32 and s64.
+#define EXT_TX_SET_LIST(s4, s16, s32, s64)           \
+  { s4,  s4,  s16, s32, s64, s4,  s4,  s4,  s4, s32, \
+    s32, s64, s64, s4,  s4,  s32, s32, s64, s64 }
+static const TxSetType av1_ext_tx_set_lookup[2][2][TX_SIZES_ALL] = {
+  { EXT_TX_SET_LIST(EXT_TX_SET_DTT4_IDTX_1DDCT, EXT_TX_SET_DTT4_IDTX,
+                    EXT_TX_SET_DCTONLY, EXT_TX_SET_DCTONLY),
+    EXT_TX_SET_LIST(EXT_TX_SET_ALL16, EXT_TX_SET_DTT9_IDTX_1DDCT,
+                    EXT_TX_SET_DCT_IDTX, EXT_TX_SET_DCTONLY) },
+  { EXT_TX_SET_LIST(EXT_TX_SET_DTT4_IDTX, EXT_TX_SET_DTT4_IDTX,
+                    EXT_TX_SET_DCTONLY, EXT_TX_SET_DCTONLY),
+    EXT_TX_SET_LIST(EXT_TX_SET_DCT_IDTX, EXT_TX_SET_DCT_IDTX,
+                    EXT_TX_SET_DCT_IDTX, EXT_TX_SET_DCTONLY) },
 };
+#undef EXT_TX_SET_LIST
 
 static inline TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
                                                 int use_reduced_set) {
-  const TX_SIZE tx_size_sqr_up = txsize_sqr_up_map[tx_size];
-  if (tx_size_sqr_up > TX_32X32) return EXT_TX_SET_DCTONLY;
-  if (tx_size_sqr_up == TX_32X32)
-    return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DCTONLY;
-  if (use_reduced_set)
-    return is_inter ? EXT_TX_SET_DCT_IDTX : EXT_TX_SET_DTT4_IDTX;
-  const TX_SIZE tx_size_sqr = txsize_sqr_map[tx_size];
-  return av1_ext_tx_set_lookup[is_inter][tx_size_sqr == TX_16X16];
+  assert(tx_size < TX_SIZES_ALL);
+  return av1_ext_tx_set_lookup[use_reduced_set != 0][is_inter != 0][tx_size];
 }
 
 // Maps tx set types to the indices.
@@ -1364,14 +1391,13 @@ static inline TX_SIZE depth_to_tx_size(int depth, BLOCK_SIZE bsize) {
 }
 
 static inline TX_SIZE av1_get_adjusted_tx_size(TX_SIZE tx_size) {
-  switch (tx_size) {
-    case TX_64X64:
-    case TX_64X32:
-    case TX_32X64: return TX_32X32;
-    case TX_64X16: return TX_32X16;
-    case TX_16X64: return TX_16X32;
-    default: return tx_size;
-  }
+  static const TX_SIZE adjusted_tx_size[TX_SIZES_ALL] = {
+    TX_4X4,  TX_8X8,  TX_16X16, TX_32X32, TX_32X32, TX_4X8,   TX_8X4,
+    TX_8X16, TX_16X8, TX_16X32, TX_32X16, TX_32X32, TX_32X32, TX_4X16,
+    TX_16X4, TX_8X32, TX_32X8,  TX_16X32, TX_32X16,
+  };
+  assert(tx_size < TX_SIZES_ALL);
+  return adjusted_tx_size[tx_size];
 }
 
 static inline TX_SIZE av1_get_max_uv_txsize(BLOCK_SIZE bsize, int subsampling_x,

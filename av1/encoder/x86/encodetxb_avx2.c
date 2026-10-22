@@ -26,14 +26,16 @@ void av1_txb_init_levels_avx2(const tran_low_t *const coeff, const int width,
   const int stride = height + TX_PAD_HOR;
   const __m256i y_zeros = _mm256_setzero_si256();
 
+  // Zero bottom padding using up to five unrolled stores.
   const int32_t bottom_len = sizeof(*levels) * (TX_PAD_BOTTOM * stride);
-  uint8_t *bottom_buf_end = levels + (width + TX_PAD_BOTTOM) * stride;
-  uint8_t *bottom_buf = bottom_buf_end - ((bottom_len + 31) & (~31));
-
-  do {
-    yy_storeu_256(bottom_buf, y_zeros);
-    bottom_buf += 32;
-  } while (bottom_buf < bottom_buf_end);
+  uint8_t *const bottom_buf_end = levels + (width + TX_PAD_BOTTOM) * stride;
+  const int num_stores = (bottom_len + 31) >> 5;
+  assert(num_stores >= 1 && num_stores <= 5);
+  yy_storeu_256(bottom_buf_end - 32, y_zeros);
+  if (num_stores > 1) yy_storeu_256(bottom_buf_end - 64, y_zeros);
+  if (num_stores > 2) yy_storeu_256(bottom_buf_end - 96, y_zeros);
+  if (num_stores > 3) yy_storeu_256(bottom_buf_end - 128, y_zeros);
+  if (num_stores > 4) yy_storeu_256(bottom_buf_end - 160, y_zeros);
 
   int i = 0;
   uint8_t *ls = levels;

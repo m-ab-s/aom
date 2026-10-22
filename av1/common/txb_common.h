@@ -19,6 +19,10 @@ extern const int16_t av1_eob_offset_bits[12];
 
 extern const int8_t *const av1_nz_map_ctx_offset[TX_SIZES_ALL];
 
+// Indexed by [bhl - MIN_TX_SIZE_LOG2][coeff_idx].
+extern const int16_t *const
+    av1_txb_padded_idx[MAX_TX_SIZE_LOG2 - MIN_TX_SIZE_LOG2];
+
 typedef struct txb_ctx {
   int txb_skip_ctx;
   int dc_sign_ctx;
@@ -67,7 +71,7 @@ static inline uint8_t *set_levels(uint8_t *const levels_buf, const int height) {
 }
 
 static inline int get_padded_idx(const int idx, const int bhl) {
-  return idx + ((idx >> bhl) << TX_PAD_HOR_LOG2);
+  return av1_txb_padded_idx[bhl - MIN_TX_SIZE_LOG2][idx];
 }
 
 static inline int get_br_ctx_2d(const uint8_t *const levels,
@@ -253,8 +257,24 @@ static AOM_FORCE_INLINE int get_lower_levels_ctx(const uint8_t *levels,
                                                  int coeff_idx, int bhl,
                                                  TX_SIZE tx_size,
                                                  TX_CLASS tx_class) {
-  const int stats =
-      get_nz_mag(levels + get_padded_idx(coeff_idx, bhl), bhl, tx_class);
+  assert(bhl >= MIN_TX_SIZE_LOG2 && bhl <= MAX_TX_SIZE_LOG2 - 1);
+  const uint8_t *const nb = levels + get_padded_idx(coeff_idx, bhl);
+  const int stride = (1 << bhl) + TX_PAD_HOR;
+  // When all the neighbors read by get_nz_mag() are zero, stats is 0 and the
+  // context is the offset alone.
+  if (tx_class == TX_CLASS_2D) {
+    if (coeff_idx == 0) return 0;
+    if ((nb[1] | nb[2] | nb[stride] | nb[stride + 1] | nb[2 * stride]) == 0)
+      return av1_nz_map_ctx_offset[tx_size][coeff_idx];
+  } else if (tx_class == TX_CLASS_VERT) {
+    if ((nb[stride] | nb[1] | nb[2] | nb[3] | nb[4]) == 0)
+      return nz_map_ctx_offset_1d[coeff_idx & ((1 << bhl) - 1)];
+  } else {
+    if ((nb[stride] | nb[1] | nb[2 * stride] | nb[3 * stride] |
+         nb[4 * stride]) == 0)
+      return nz_map_ctx_offset_1d[coeff_idx >> bhl];
+  }
+  const int stats = get_nz_mag(nb, bhl, tx_class);
   return get_nz_map_ctx_from_stats(stats, coeff_idx, bhl, tx_size, tx_class);
 }
 

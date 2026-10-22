@@ -32,7 +32,13 @@ typedef struct {
 } transform_2d;
 
 #define MAX_TX_SCALE 1
-int av1_get_tx_scale(const TX_SIZE tx_size);
+static inline int av1_get_tx_scale(const TX_SIZE tx_size) {
+  // (pels > 256) + (pels > 1024), where pels = tx_size_2d[tx_size].
+  static const uint8_t tx_scale[TX_SIZES_ALL] = { 0, 0, 0, 1, 2, 0, 0, 0, 0, 1,
+                                                  1, 2, 2, 0, 0, 0, 0, 1, 1 };
+  assert(tx_size < TX_SIZES_ALL);
+  return tx_scale[tx_size];
+}
 
 void av1_inverse_transform_block(const MACROBLOCKD *xd,
                                  const tran_low_t *dqcoeff, int plane,
