@@ -554,21 +554,25 @@ void av1_apply_active_map(AV1_COMP *cpi) {
   struct segmentation *const seg = &cpi->common.seg;
   unsigned char *const seg_map = cpi->enc_seg.map;
   const unsigned char *const active_map = cpi->active_map.map;
+  const CommonModeInfoParams *const mi_params = &cpi->common.mi_params;
 
   assert(AM_SEGMENT_ID_ACTIVE == CR_SEGMENT_ID_BASE);
 
-  // Disable the active_maps on intra_only frames or if the
-  // input map for the current frame has no inactive blocks.
+  // Disable the active_maps on intra_only frames, if the input map for the
+  // current frame has no inactive blocks, or if the map was set for another
+  // frame size.
   if (frame_is_intra_only(&cpi->common) ||
-      cpi->rc.percent_blocks_inactive == 0) {
+      cpi->rc.percent_blocks_inactive == 0 ||
+      (cpi->active_map.enabled &&
+       (cpi->active_map.mi_rows != mi_params->mi_rows ||
+        cpi->active_map.mi_cols != mi_params->mi_cols))) {
     cpi->active_map.enabled = 0;
     cpi->active_map.update = 1;
   }
 
   if (cpi->active_map.update) {
     if (cpi->active_map.enabled) {
-      const int num_mis =
-          cpi->common.mi_params.mi_rows * cpi->common.mi_params.mi_cols;
+      const int num_mis = mi_params->mi_rows * mi_params->mi_cols;
       memcpy(seg_map, active_map, sizeof(active_map[0]) * num_mis);
       av1_enable_segmentation(seg);
       av1_enable_segfeature(seg, AM_SEGMENT_ID_INACTIVE, SEG_LVL_SKIP);

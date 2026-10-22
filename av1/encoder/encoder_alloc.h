@@ -127,10 +127,11 @@ static inline void realloc_segmentation_maps(AV1_COMP *cpi) {
   CHECK_MEM_ERROR(cm, cpi->cyclic_refresh,
                   av1_cyclic_refresh_alloc(max_mi_rows, max_mi_cols));
 
-  // Create a map used to mark inactive areas.
+  // Create a map used to mark inactive areas. The app has to set it again.
   aom_free(cpi->active_map.map);
   CHECK_MEM_ERROR(cm, cpi->active_map.map,
                   aom_calloc(max_mi_rows * max_mi_cols, 1));
+  cpi->active_map.enabled = 0;
 }
 
 // Allocates the per-block RD multiplier scaling factors (and, with

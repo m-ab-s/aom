@@ -1867,6 +1867,9 @@ typedef struct MultiThreadInfo {
 typedef struct ActiveMap {
   int enabled;
   int update;
+  // Size of the frame the map was set for, in mi units.
+  int mi_rows;
+  int mi_cols;
   unsigned char *map;
 } ActiveMap;
 

@@ -254,6 +254,8 @@ int av1_set_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
       }
       cpi->active_map.enabled = 1;
       cpi->active_map.update = 1;
+      cpi->active_map.mi_rows = mi_rows;
+      cpi->active_map.mi_cols = mi_cols;
       assert(num_samples);
       cpi->rc.percent_blocks_inactive =
           (num_blocks_inactive * 100) / num_samples;
@@ -1123,6 +1125,14 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
       }
     }
   }
+
+  // av1_reset_segment_features() turned segmentation off, so set the active
+  // map up again if it was set for this frame size.
+  if (cpi->active_map.mi_rows != cm->mi_params.mi_rows ||
+      cpi->active_map.mi_cols != cm->mi_params.mi_cols) {
+    cpi->active_map.enabled = 0;
+  }
+  cpi->active_map.update = cpi->active_map.enabled;
 
   rc->is_src_frame_alt_ref = 0;
 

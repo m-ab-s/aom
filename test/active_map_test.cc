@@ -366,6 +366,7 @@ constexpr int kDocHeight = 1024;
 constexpr int kNumFrames = 60;
 constexpr int kEdgeMargin = 8;
 constexpr int kResizeFrame = 20;
+constexpr int kConfigFrame = 30;
 
 void WindowPos(int frame, int *x, int *y) {
   static const int kPos[4][2] = {
@@ -519,6 +520,12 @@ class InactiveAreaTest
       aom_scaling_mode_t mode = { AOME_ONETWO, AOME_ONETWO };
       encoder->Control(AOME_SET_SCALEMODE, &mode);
     }
+    if (config_change_ && frame == kConfigFrame) {
+      cfg_.g_w = kSrcWidth;
+      cfg_.g_h = kSrcHeight;
+      cfg_.rc_target_bitrate = 2000;
+      encoder->Config(&cfg_);
+    }
     if (map_once_ && frame > 1) return;
 
     uint8_t map[kMapRows * kMapCols];
@@ -610,11 +617,12 @@ class InactiveAreaTest
   }
 
   void DoTest(bool use_roi, bool skip_ref_golden = false, bool map_once = false,
-              bool resize = false) {
+              bool resize = false, bool config_change = false) {
     use_roi_ = use_roi;
     skip_ref_golden_ = skip_ref_golden;
     map_once_ = map_once;
     resize_ = resize;
+    config_change_ = config_change;
     // More bits let q drop low enough while the map stays set.
     if (map_once) cfg_.rc_target_bitrate = 1000;
     ScrollingWindowSource video(map_once);
@@ -628,6 +636,7 @@ class InactiveAreaTest
   bool skip_ref_golden_ = false;
   bool map_once_ = false;
   bool resize_ = false;
+  bool config_change_ = false;
   std::vector<uint8_t> prev_[3];
 };
 
@@ -646,9 +655,133 @@ TEST_P(InactiveAreaTest, ActiveMapSetOnceResize) {
   DoTest(false, false, true, true);
 }
 
+// A new bitrate set with aom_codec_enc_config_set() keeps the map.
+TEST_P(InactiveAreaTest, ActiveMapSetOnceConfigChange) {
+  DoTest(false, false, true, false, true);
+}
+
 AV1_INSTANTIATE_TEST_SUITE(
     InactiveAreaTest, ::testing::Values(::libaom_test::kRealTime),
     ::testing::Range(7, 12), ::testing::Values(0, 3), ::testing::Values(1, 4),
     ::testing::Values(AOM_CONTENT_DEFAULT, AOM_CONTENT_SCREEN));
+
+constexpr int kSmallFrame = 10;
+
+// Puts new noise in every luma pixel of every frame. From frame kSmallFrame on
+// the frames have half the width and height.
+class HalvingNoiseSource : public ::libaom_test::DummyVideoSource {
+ public:
+  HalvingNoiseSource() {
+    SetSize(kSrcWidth, kSrcHeight);
+    set_limit(kSmallFrame + 10);
+  }
+
+ protected:
+  void Next() override {
+    ++frame_;
+    if (frame_ == kSmallFrame) SetSize(kSrcWidth / 2, kSrcHeight / 2);
+    FillFrame();
+  }
+
+  void FillFrame() override {
+    memset(img_->img_data, 128, raw_sz_);
+    ::libaom_test::ACMRandom rnd(static_cast<int>(frame_) + 1);
+    for (unsigned int y = 0; y < img_->d_h; ++y) {
+      uint8_t *const row =
+          img_->planes[AOM_PLANE_Y] + y * img_->stride[AOM_PLANE_Y];
+      for (unsigned int x = 0; x < img_->d_w; ++x) row[x] = rnd.Rand8();
+    }
+  }
+};
+
+// Sets the map once for the full size, codes one frame at half size with
+// AOME_SET_SCALEMODE and then sets g_w and g_h to that half size. The map
+// doesn't fit the new size, so no block may be skipped.
+// Params: test mode, speed and aq_mode.
+class ActiveMapScaledConfigTest
+    : public ::libaom_test::CodecTestWith3Params<libaom_test::TestMode, int,
+                                                 int>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  ActiveMapScaledConfigTest() : EncoderTest(GET_PARAM(0)) {}
+  ~ActiveMapScaledConfigTest() override = default;
+
+  void SetUp() override {
+    InitializeConfig(GET_PARAM(1));
+    cpu_used_ = GET_PARAM(2);
+    aq_mode_ = GET_PARAM(3);
+    cfg_.g_lag_in_frames = 0;
+    cfg_.rc_target_bitrate = 1000;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_pass = AOM_RC_ONE_PASS;
+    cfg_.kf_max_dist = 90000;
+  }
+
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
+    const int frame = static_cast<int>(video->frame());
+    if (frame == 0) {
+      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AV1E_SET_AQ_MODE, aq_mode_);
+    } else if (frame == 1) {
+      uint8_t map[kMapRows * kMapCols];
+      for (int r = 0; r < kMapRows; ++r) {
+        memset(&map[r * kMapCols], r >= kMapRows / 2, kMapCols);
+      }
+      aom_active_map_t active_map = {};
+      active_map.rows = kMapRows;
+      active_map.cols = kMapCols;
+      active_map.active_map = map;
+      encoder->Control(AOME_SET_ACTIVEMAP, &active_map);
+    } else if (frame == kSmallFrame - 1) {
+      aom_scaling_mode_t mode = { AOME_ONETWO, AOME_ONETWO };
+      encoder->Control(AOME_SET_SCALEMODE, &mode);
+    } else if (frame == kSmallFrame) {
+      cfg_.g_w = kSrcWidth / 2;
+      cfg_.g_h = kSrcHeight / 2;
+      encoder->Config(&cfg_);
+    }
+  }
+
+  void DecompressedFrameHook(const aom_image_t &img,
+                             aom_codec_pts_t pts) override {
+    const int frame = static_cast<int>(pts);
+    const int width = static_cast<int>(img.d_w);
+    const int height = static_cast<int>(img.d_h);
+    if (frame >= kSmallFrame) {
+      ASSERT_EQ(width, kSrcWidth / 2);
+      int unchanged = 0;
+      for (int y0 = 0; y0 + 16 <= height; y0 += 16) {
+        for (int x0 = 0; x0 + 16 <= width; x0 += 16) {
+          bool same = true;
+          for (int y = y0; y < y0 + 16 && same; ++y) {
+            same = !memcmp(img.planes[AOM_PLANE_Y] + y * img.stride[0] + x0,
+                           &prev_[y * width + x0], 16);
+          }
+          unchanged += same;
+        }
+      }
+      EXPECT_EQ(unchanged, 0) << "frame " << frame;
+    }
+    prev_.resize(width * height);
+    for (int y = 0; y < height; ++y) {
+      memcpy(&prev_[y * width], img.planes[AOM_PLANE_Y] + y * img.stride[0],
+             width);
+    }
+  }
+
+  int cpu_used_;
+  int aq_mode_;
+  std::vector<uint8_t> prev_;
+};
+
+TEST_P(ActiveMapScaledConfigTest, MapSetForFullSize) {
+  HalvingNoiseSource video;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
+AV1_INSTANTIATE_TEST_SUITE(ActiveMapScaledConfigTest,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Range(7, 12), ::testing::Values(0, 3));
 
 }  // namespace
