@@ -31,6 +31,10 @@ void av1_choose_segmap_coding_method(AV1_COMMON *cm, MACROBLOCKD *xd);
 
 void av1_reset_segment_features(AV1_COMMON *cm);
 
+// Clears update_data when the primary reference frame has the same segment
+// features, so the frame header doesn't send them again.
+void av1_reuse_ref_segment_features(AV1_COMMON *cm);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -1253,6 +1253,7 @@ void av1_determine_sc_tools_with_encoding(AV1_COMP *cpi, const int q_orig) {
   av1_setup_frame(cpi);
 
   if (cm->seg.enabled) {
+    av1_reuse_ref_segment_features(cm);
     if (!cm->seg.update_data && cm->prev_frame) {
       segfeatures_copy(&cm->seg, &cm->prev_frame->seg);
       cm->seg.enabled = cm->prev_frame->seg.enabled;

@@ -33,6 +33,26 @@ void av1_disable_segmentation(struct segmentation *seg) {
   seg->temporal_update = 0;
 }
 
+void av1_reuse_ref_segment_features(AV1_COMMON *cm) {
+  struct segmentation *const seg = &cm->seg;
+  const RefCntBuffer *const ref = cm->prev_frame;
+  // Frames without a primary reference frame always send the features.
+  if (!seg->update_data || cm->features.primary_ref_frame == PRIMARY_REF_NONE ||
+      ref == NULL || !ref->seg.enabled) {
+    return;
+  }
+  for (int i = 0; i < MAX_SEGMENTS; i++) {
+    if (seg->feature_mask[i] != ref->seg.feature_mask[i]) return;
+    for (int j = 0; j < SEG_LVL_MAX; j++) {
+      if (segfeature_active(seg, i, j) &&
+          get_segdata(seg, i, j) != get_segdata(&ref->seg, i, j)) {
+        return;
+      }
+    }
+  }
+  seg->update_data = 0;
+}
+
 void av1_disable_segfeature(struct segmentation *seg, int segment_id,
                             SEG_LVL_FEATURES feature_id) {
   seg->feature_mask[segment_id] &= ~(1u << feature_id);

@@ -3142,6 +3142,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
     av1_cyclic_refresh_setup(cpi);
   }
   if (cm->seg.enabled) {
+    av1_reuse_ref_segment_features(cm);
     if (!cm->seg.update_data && cm->prev_frame) {
       segfeatures_copy(&cm->seg, &cm->prev_frame->seg);
       cm->seg.enabled = cm->prev_frame->seg.enabled;
@@ -3495,6 +3496,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
     }
 
     if (cm->seg.enabled) {
+      av1_reuse_ref_segment_features(cm);
       if (!cm->seg.update_data && cm->prev_frame) {
         segfeatures_copy(&cm->seg, &cm->prev_frame->seg);
         cm->seg.enabled = cm->prev_frame->seg.enabled;
