@@ -1711,6 +1711,13 @@ static aom_codec_err_t encoder_set_config(aom_codec_alg_priv_t *ctx,
            ((int)cfg->g_h > ctx->ppi->cpi->last_coded_height))))) {
       force_key = 1;
     }
+    // Only a key frame can carry a sequence header with a larger maximum
+    // frame size.
+    if (ctx->ppi->seq_params_locked &&
+        ((int)cfg->g_w > ctx->ppi->seq_params.max_frame_width ||
+         (int)cfg->g_h > ctx->ppi->seq_params.max_frame_height)) {
+      force_key = 1;
+    }
   }
 
   if (ctx->monochrome_on_init && cfg->monochrome == 0) {

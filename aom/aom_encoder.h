@@ -452,14 +452,18 @@ typedef struct aom_codec_enc_cfg {
   /*!\brief Forced maximum width of the frame
    *
    * If this value is non-zero then it is used to force the maximum frame
-   * width written in write_sequence_header().
+   * width written in write_sequence_header(). If it is zero, the maximum
+   * starts at g_w. A larger g_w set later with aom_codec_enc_config_set()
+   * forces a key frame whose sequence header raises the maximum.
    */
   unsigned int g_forced_max_frame_width;
 
   /*!\brief Forced maximum height of the frame
    *
    * If this value is non-zero then it is used to force the maximum frame
-   * height written in write_sequence_header().
+   * height written in write_sequence_header(). If it is zero, the maximum
+   * starts at g_h. A larger g_h set later with aom_codec_enc_config_set()
+   * forces a key frame whose sequence header raises the maximum.
    */
   unsigned int g_forced_max_frame_height;
 

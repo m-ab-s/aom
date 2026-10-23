@@ -9,9 +9,17 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <algorithm>
 #include <array>
+#include <cstring>
 #include <memory>
+#include <vector>
 
+#include "config/aom_config.h"
+#if CONFIG_AV1_DECODER
+#include "aom/aom_decoder.h"
+#include "aom/aomdx.h"
+#endif
 #include "gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/video_source.h"
@@ -241,6 +249,147 @@ TEST_P(AV1ResolutionChange, RandomInput) {
   }
 
   EXPECT_EQ(frame_count, kNumFramesPerResolution * kFrameSizes.size());
+}
+
+#if CONFIG_AV1_DECODER
+bool ImagesEqual(const aom_image_t &a, const aom_image_t &b) {
+  if (a.d_w != b.d_w || a.d_h != b.d_h ||
+      (a.fmt & AOM_IMG_FMT_HIGHBITDEPTH) !=
+          (b.fmt & AOM_IMG_FMT_HIGHBITDEPTH)) {
+    return false;
+  }
+  const int bytes_per_sample = (a.fmt & AOM_IMG_FMT_HIGHBITDEPTH) ? 2 : 1;
+  for (int plane = 0; plane < 3; ++plane) {
+    const int row_bytes = aom_img_plane_width(&a, plane) * bytes_per_sample;
+    for (int y = 0; y < aom_img_plane_height(&a, plane); ++y) {
+      if (memcmp(a.planes[plane] + y * a.stride[plane],
+                 b.planes[plane] + y * b.stride[plane], row_bytes)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+#endif  // CONFIG_AV1_DECODER
+
+struct UpscaleFrameSize {
+  unsigned int width;
+  unsigned int height;
+};
+
+// Encodes two frames at each size in |sizes|. If |forced_max| is non-zero, it
+// is set as the forced maximum frame width and height together with the
+// second size. Each frame larger than the maximum frame size of the sequence
+// header so far must be a key frame, and the stream must decode and match the
+// encoder's reconstruction.
+void RunUpscalePastMaxFrameSize(int usage, aom_rc_mode rc_mode, int cpu_used,
+                                const std::vector<UpscaleFrameSize> &sizes,
+                                unsigned int forced_max) {
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, usage), AOM_CODEC_OK);
+
+  // Resolution changes are only permitted with one pass encoding with no lag.
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = rc_mode;
+  cfg.g_w = sizes[0].width;
+  cfg.g_h = sizes[0].height;
+
+  aom_codec_ctx_t ctx;
+  ASSERT_EQ(aom_codec_enc_init(&ctx, iface, &cfg, 0), AOM_CODEC_OK);
+  std::unique_ptr<aom_codec_ctx_t, decltype(&aom_codec_destroy)> enc(
+      &ctx, &aom_codec_destroy);
+  ASSERT_EQ(aom_codec_control(enc.get(), AOME_SET_CPUUSED, cpu_used),
+            AOM_CODEC_OK);
+
+#if CONFIG_AV1_DECODER
+  // Decode to 8 bit buffers like the encoder reconstruction, even when
+  // FORCE_HIGHBITDEPTH_DECODING is on.
+  aom_codec_dec_cfg_t dec_cfg = {};
+  dec_cfg.allow_lowbitdepth = 1;
+  aom_codec_ctx_t dec_ctx;
+  ASSERT_EQ(aom_codec_dec_init(&dec_ctx, aom_codec_av1_dx(), &dec_cfg, 0),
+            AOM_CODEC_OK);
+  std::unique_ptr<aom_codec_ctx_t, decltype(&aom_codec_destroy)> dec(
+      &dec_ctx, &aom_codec_destroy);
+#endif
+
+  size_t frame_count = 0;
+  unsigned int max_width = 0;
+  unsigned int max_height = 0;
+  ::libaom_test::RandomVideoSource video;
+  video.Begin();
+  constexpr int kNumFramesPerResolution = 2;
+  for (size_t s = 0; s < sizes.size(); ++s) {
+    cfg.g_w = sizes[s].width;
+    cfg.g_h = sizes[s].height;
+    if (s == 1 && forced_max != 0) {
+      cfg.g_forced_max_frame_width = forced_max;
+      cfg.g_forced_max_frame_height = forced_max;
+    }
+    ASSERT_EQ(aom_codec_enc_config_set(enc.get(), &cfg), AOM_CODEC_OK);
+    video.SetSize(cfg.g_w, cfg.g_h);
+    const bool larger = cfg.g_w > max_width || cfg.g_h > max_height;
+    max_width = std::max(max_width, cfg.g_w);
+    max_height = std::max(max_height, cfg.g_h);
+
+    for (int i = 0; i < kNumFramesPerResolution; ++i) {
+      video.Next();  // SetSize() does not call FillFrame().
+      ASSERT_EQ(aom_codec_encode(enc.get(), video.img(), video.pts(),
+                                 video.duration(), /*flags=*/0),
+                AOM_CODEC_OK)
+          << aom_codec_error_detail(enc.get());
+
+      aom_codec_iter_t iter = nullptr;
+      const aom_codec_cx_pkt_t *pkt;
+      while ((pkt = aom_codec_get_cx_data(enc.get(), &iter)) != nullptr) {
+        ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+        if (i == 0 && larger) {
+          EXPECT_NE(pkt->data.frame.flags & AOM_FRAME_IS_KEY, 0u)
+              << "frame " << frame_count;
+        }
+#if CONFIG_AV1_DECODER
+        ASSERT_EQ(
+            aom_codec_decode(dec.get(),
+                             static_cast<const uint8_t *>(pkt->data.frame.buf),
+                             pkt->data.frame.sz, nullptr),
+            AOM_CODEC_OK)
+            << "frame " << frame_count << ": "
+            << aom_codec_error_detail(dec.get());
+        aom_codec_iter_t dec_iter = nullptr;
+        const aom_image_t *dec_img = aom_codec_get_frame(dec.get(), &dec_iter);
+        ASSERT_NE(dec_img, nullptr) << "frame " << frame_count;
+        EXPECT_EQ(dec_img->d_w, cfg.g_w) << "frame " << frame_count;
+        EXPECT_EQ(dec_img->d_h, cfg.g_h) << "frame " << frame_count;
+        aom_image_t recon;
+        ASSERT_EQ(aom_codec_control(enc.get(), AV1_GET_NEW_FRAME_IMAGE, &recon),
+                  AOM_CODEC_OK);
+        EXPECT_TRUE(ImagesEqual(recon, *dec_img)) << "frame " << frame_count;
+#endif
+        frame_count++;
+      }
+    }
+  }
+
+  EXPECT_EQ(frame_count, kNumFramesPerResolution * sizes.size());
+}
+
+// Without g_forced_max_frame_width/height, the maximum frame size of the
+// sequence header follows the largest frame size so far.
+TEST_P(AV1ResolutionChange, UpscalePastMaxFrameSize) {
+  RunUpscalePastMaxFrameSize(
+      usage_, rc_mode_, cpu_used_,
+      { { 64, 64 }, { 128, 64 }, { 128, 128 }, { 96, 96 }, { 200, 150 } },
+      /*forced_max=*/0);
+}
+
+// A forced maximum set after the first frame reaches the sequence header with
+// the next key frame.
+TEST_P(AV1ResolutionChange, UpscalePastMaxFrameSizeLateForcedMax) {
+  RunUpscalePastMaxFrameSize(usage_, rc_mode_, cpu_used_,
+                             { { 64, 64 }, { 128, 128 } },
+                             /*forced_max=*/256);
 }
 
 TEST_P(AV1ResolutionChange, InvalidInputSize) {
