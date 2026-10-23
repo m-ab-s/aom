@@ -1519,8 +1519,8 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
           ticks_to_timebase_units(timestamp_ratio, *time_stamp);
       const int frame_presentation_time_length =
           cm->seq_params->decoder_model_info.frame_presentation_time_length;
-      const int64_t modulus = 1LL << frame_presentation_time_length;
-      cm->frame_presentation_time = (uint32_t)(pts64 % modulus);
+      const int64_t pts_mask = (1LL << frame_presentation_time_length) - 1LL;
+      cm->frame_presentation_time = (uint32_t)(pts64 & pts_mask);
     }
   }
 
