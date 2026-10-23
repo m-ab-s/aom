@@ -533,6 +533,60 @@ TEST(EncodeAPI, SetSFrameOnFirstFrameHighbd) {
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
+// A frame that fails to encode must not block the frames after it. An S-frame
+// as the first frame fails since there are no reference frames yet. A forced
+// key frame after it, and the frames after that, must encode. The encoder only
+// drops a failed frame in one pass mode without lag, so lag is 0 here.
+void EncodeAfterFailedFrame(unsigned int usage) {
+  constexpr int kWidth = 64;
+  constexpr int kHeight = 64;
+  aom_image_t *img =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kWidth, kHeight, 1);
+  ASSERT_NE(img, nullptr);
+  memset(img->img_data, 128, img->sz);
+
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, usage), AOM_CODEC_OK);
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 0;
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED,
+                              usage == AOM_USAGE_REALTIME ? 9 : 6),
+            AOM_CODEC_OK);
+
+  EXPECT_NE(aom_codec_encode(&enc, img, 0, 1, AOM_EFLAG_SET_S_FRAME),
+            AOM_CODEC_OK);
+  for (int i = 1; i < 4; ++i) {
+    const aom_enc_frame_flags_t flags = i == 1 ? AOM_EFLAG_FORCE_KF : 0;
+    ASSERT_EQ(aom_codec_encode(&enc, img, i, 1, flags), AOM_CODEC_OK)
+        << "frame " << i << ": " << aom_codec_error_detail(&enc);
+    aom_codec_iter_t iter = nullptr;
+    const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter);
+    ASSERT_NE(pkt, nullptr);
+    ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+    if (i == 1) {
+      EXPECT_NE(pkt->data.frame.flags & AOM_FRAME_IS_KEY, 0u);
+    }
+  }
+
+  ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+TEST(EncodeAPI, EncodeAfterFailedFrameRealtime) {
+  EncodeAfterFailedFrame(AOM_USAGE_REALTIME);
+}
+
+#if !CONFIG_REALTIME_ONLY
+TEST(EncodeAPI, EncodeAfterFailedFrameGoodQuality) {
+  EncodeAfterFailedFrame(AOM_USAGE_GOOD_QUALITY);
+}
+#endif  // !CONFIG_REALTIME_ONLY
+
 TEST(EncodeAPI, MonochromeInProfiles) {
   aom_codec_iface_t *iface = aom_codec_av1_cx();
   aom_codec_enc_cfg_t cfg;
