@@ -1047,8 +1047,18 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
   cm->superres_upscaled_width = frm_dim_cfg->width;
   cm->superres_upscaled_height = frm_dim_cfg->height;
 
-  if (cm->width > cpi->data_alloc_width ||
-      cm->height > cpi->data_alloc_height || is_sb_size_changed) {
+  // Before the first frame, size the buffers for the forced maximum like
+  // init_config() does, so a later upscale keeps the reference frames.
+  int alloc_width = cm->width;
+  int alloc_height = cm->height;
+  if (!cpi->ppi->seq_params_locked) {
+    if (frm_dim_cfg->forced_max_frame_width)
+      alloc_width = frm_dim_cfg->forced_max_frame_width;
+    if (frm_dim_cfg->forced_max_frame_height)
+      alloc_height = frm_dim_cfg->forced_max_frame_height;
+  }
+  if (alloc_width > cpi->data_alloc_width ||
+      alloc_height > cpi->data_alloc_height || is_sb_size_changed) {
     av1_free_context_buffers(cm);
     av1_free_shared_coeff_buffer(&cpi->td.shared_coeff_buf);
     av1_free_sms_tree(&cpi->td);
