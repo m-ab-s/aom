@@ -950,7 +950,12 @@ static void set_good_speed_feature_framesize_dependent(
   }
 
   if (speed >= 4) {
-    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning = 2;
+    const int is_top_pyr =
+        boosted || (cpi->ppi->gf_group.max_layer_depth >= 6 &&
+                    cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index] <= 2);
+    const int high_q = cpi->oxcf.rc_cfg.cq_level > 145;
+    sf->tx_sf.tx_type_search.winner_mode_tx_type_pruning =
+        (speed >= 5 || !boosted || !high_q) ? 2 : 1;
     sf->winner_mode_sf.enable_winner_mode_for_tx_size_srch = 1;
     if (is_720p_or_larger) {
       sf->part_sf.partition_search_breakout_dist_thr = (1 << 26);
@@ -960,7 +965,8 @@ static void set_good_speed_feature_framesize_dependent(
     sf->part_sf.early_term_after_none_split = 1;
 
     if (is_480p_or_larger) {
-      sf->tx_sf.tx_type_search.prune_tx_type_using_stats = 2;
+      sf->tx_sf.tx_type_search.prune_tx_type_using_stats =
+          (speed >= 5 || !boosted || !high_q) ? 2 : 1;
     } else {
       sf->mv_sf.skip_fullpel_search_using_startmv_refmv = boosted ? 0 : 1;
     }
@@ -970,10 +976,22 @@ static void set_good_speed_feature_framesize_dependent(
     sf->inter_sf.limit_txfm_eval_per_mode = boosted ? 0 : 2;
     if (is_480p_or_lesser) sf->inter_sf.skip_newmv_in_drl = 3;
 
-    if (is_720p_or_larger) {
-      sf->inter_sf.prune_comp_ref_frames = 2;
-    } else if (is_480p_or_larger) {
-      sf->inter_sf.prune_comp_ref_frames = is_boosted_arf2_bwd_type ? 0 : 2;
+    if (speed >= 5) {
+      if (is_720p_or_larger) {
+        sf->inter_sf.prune_comp_ref_frames = 2;
+      } else if (is_480p_or_larger) {
+        sf->inter_sf.prune_comp_ref_frames = is_boosted_arf2_bwd_type ? 0 : 2;
+      }
+      sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
+    } else {
+      const int is_deep_pyr =
+          !boosted &&
+          (!high_q || cpi->ppi->gf_group.layer_depth[cpi->gf_frame_index] >=
+                          cpi->ppi->gf_group.max_layer_depth - 2);
+      sf->inter_sf.prune_comp_ref_frames =
+          (is_480p_or_lesser || is_top_pyr) ? 0 : (is_deep_pyr ? 2 : 1);
+      sf->lpf_sf.cdef_pick_method =
+          is_top_pyr ? CDEF_FAST_SEARCH_LVL1 : CDEF_FAST_SEARCH_LVL3;
     }
 
     if (is_720p_or_larger)
@@ -982,8 +1000,6 @@ static void set_good_speed_feature_framesize_dependent(
       sf->hl_sf.recode_tolerance = 55;
 
     sf->intra_sf.skip_intra_in_interframe = 4;
-
-    sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL3;
   }
 
   if (speed >= 5) {
@@ -1368,6 +1384,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 4) {
+    sf->hl_sf.disable_extra_sc_testing = 1;
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->gm_sf.prune_zero_mv_with_sse = 2;
@@ -1382,20 +1399,13 @@ static void set_good_speed_features_framesize_independent(
         (allow_screen_content_tools || frame_is_intra_only(&cpi->common)) ? 0
                                                                           : 1;
 
-    sf->inter_sf.alt_ref_search_fp = 2;
-    sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_DEFAULT] = boosted ? 0 : 3;
-    sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_MOTION_MODE] = boosted ? 0 : 5;
-    sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_COMP_TYPE_MODE] = boosted ? 0 : 3;
+    sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
+    sf->mv_sf.prune_mesh_search = PRUNE_MESH_SEARCH_LVL_2;
 
-    sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 1 : 3;
+    sf->inter_sf.alt_ref_search_fp = 2;
     sf->inter_sf.prune_ext_comp_using_neighbors = 2;
     sf->inter_sf.prune_obmc_prob_thresh = INT_MAX;
     sf->inter_sf.disable_interinter_wedge_var_thresh = UINT_MAX;
-
-    sf->interp_sf.cb_pred_filter_search = 1;
-    sf->interp_sf.skip_sharp_interp_filter_search = 1;
-    sf->interp_sf.use_interp_filter = 2;
-    sf->interp_sf.use_more_sharp_interp = 0;
 
     sf->intra_sf.intra_uv_mode_mask[TX_16X16] = UV_INTRA_DC_H_V_CFL;
     sf->intra_sf.intra_uv_mode_mask[TX_32X32] = UV_INTRA_DC_H_V_CFL;
@@ -1406,14 +1416,9 @@ static void set_good_speed_features_framesize_independent(
     // sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC_H_V;
     sf->intra_sf.skip_intra_in_interframe = 4;
 
-    sf->mv_sf.simple_motion_subpel_force_stop = HALF_PEL;
-    sf->mv_sf.prune_mesh_search = PRUNE_MESH_SEARCH_LVL_2;
-
-    sf->tpl_sf.subpel_force_stop = HALF_PEL;
-    sf->tpl_sf.search_method = FAST_BIGDIA;
-    sf->tpl_sf.use_sad_for_mode_decision = 1;
-
-    sf->tx_sf.tx_type_search.fast_intra_tx_type_search = 1;
+    const int high_q = cpi->oxcf.rc_cfg.cq_level > 145;
+    sf->tx_sf.tx_type_search.fast_intra_tx_type_search =
+        (speed >= 5 || !boosted || !high_q) ? 1 : 0;
 
     sf->rd_sf.perform_coeff_opt = is_boosted_arf2_bwd_type ? 5 : 7;
 
@@ -1422,11 +1427,68 @@ static void set_good_speed_features_framesize_independent(
         frame_is_intra_only(&cpi->common) ? MULTI_WINNER_MODE_DEFAULT
                                           : MULTI_WINNER_MODE_OFF;
     sf->winner_mode_sf.dc_blk_pred_level = boosted ? 0 : 2;
+    sf->lpf_sf.lpf_pick = (speed >= 5 || !boosted || !high_q)
+                              ? LPF_PICK_FROM_FULL_IMAGE_NON_DUAL
+                              : LPF_PICK_FROM_FULL_IMAGE;
 
-    sf->lpf_sf.lpf_pick = LPF_PICK_FROM_FULL_IMAGE_NON_DUAL;
+    if (speed >= 5) {
+      sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_DEFAULT] = boosted ? 0 : 3;
+      sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_MOTION_MODE] = boosted ? 0 : 5;
+      sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_COMP_TYPE_MODE] =
+          boosted ? 0 : 3;
+
+      sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 1 : 3;
+
+      sf->interp_sf.cb_pred_filter_search = 1;
+      sf->interp_sf.skip_sharp_interp_filter_search = 1;
+      sf->interp_sf.use_interp_filter = 2;
+      sf->interp_sf.use_more_sharp_interp = 0;
+
+      sf->tpl_sf.subpel_force_stop = HALF_PEL;
+      sf->tpl_sf.search_method = FAST_BIGDIA;
+      sf->tpl_sf.use_sad_for_mode_decision = 1;
+    } else {
+      // At speed 4, relax transform/loop-filter/interpolation pruning on top
+      // pyramid layers and low-QP frames while pruning deeper leaf layers
+      // more aggressively.
+      const int is_top_pyr =
+          boosted || (gf_group->max_layer_depth >= 6 &&
+                      gf_group->layer_depth[cpi->gf_frame_index] <= 2);
+      const int is_deep_pyr =
+          !boosted && (!high_q || gf_group->layer_depth[cpi->gf_frame_index] >=
+                                      gf_group->max_layer_depth - 2);
+      const int is_top_interp = high_q ? is_top_pyr : boosted;
+      sf->hl_sf.weight_calc_level_in_tf = 0;
+
+      sf->tpl_sf.subpel_force_stop = HALF_PEL;
+      sf->tpl_sf.prune_starting_mv = 2;
+      sf->tpl_sf.skip_alike_starting_mv = 1;
+      sf->tpl_sf.reduce_first_step_size = 4;
+      sf->tpl_sf.use_sad_for_mode_decision = 1;
+
+      sf->lpf_sf.enable_sgr_ep_pruning = boosted ? 1 : 4;
+      sf->lpf_sf.disable_wiener_coeff_refine_search = !boosted;
+
+      sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_DEFAULT] = is_top_pyr ? 0 : 3;
+      sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_MOTION_MODE] =
+          is_top_pyr ? 0 : 5;
+      sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_COMP_TYPE_MODE] =
+          is_top_pyr ? 0 : 3;
+      sf->inter_sf.prune_inter_modes_based_on_tpl =
+          is_top_pyr ? 1 : (is_deep_pyr ? 3 : 2);
+
+      sf->interp_sf.cb_pred_filter_search = is_top_interp ? 0 : 1;
+      sf->interp_sf.skip_sharp_interp_filter_search = is_top_interp ? 0 : 1;
+      sf->interp_sf.use_interp_filter = is_top_interp ? 1 : 2;
+      sf->interp_sf.use_more_sharp_interp = 0;
+
+      sf->rd_sf.perform_coeff_opt =
+          boosted ? 3 : (is_boosted_arf2_bwd_type ? 5 : 7);
+    }
   }
 
   if (speed >= 5) {
+    sf->hl_sf.weight_calc_level_in_tf = 1;
     sf->hl_sf.adjust_num_frames_for_arf_filtering =
         allow_screen_content_tools ? 0 : 2;
 
@@ -1473,7 +1535,7 @@ static void set_good_speed_features_framesize_independent(
   }
 
   if (speed >= 6) {
-    sf->hl_sf.disable_extra_sc_testing = 1;
+    sf->hl_sf.disable_extra_sc_testing = 2;
     sf->hl_sf.second_alt_ref_filtering = 0;
 
     sf->gm_sf.downsample_level = 2;
@@ -3065,6 +3127,15 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
         sf->lpf_sf.disable_wiener_coeff_refine_search = true;
       }
     }
+    if (speed == 4) {
+      // Prune loop restoration filters on boosted frames at low/medium QP
+      // based on Wiener filter and source variance.
+      const int qthresh_lr = frame_is_intra_only(cm) ? 90 : 115;
+      if (boosted && cm->quant_params.base_qindex <= qthresh_lr) {
+        sf->lpf_sf.prune_sgr_based_on_wiener = 1;
+        sf->lpf_sf.prune_wiener_based_on_src_var = 1;
+      }
+    }
     sf->part_sf.less_rectangular_check_level = 2;
   }
 
@@ -3130,6 +3201,25 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
   set_subpel_search_method(&cpi->mv_search_params,
                            cpi->oxcf.unit_test_cfg.motion_vector_unit_test,
                            sf->mv_sf.subpel_search_method);
+
+  // Apply faster motion search and downsampled SAD for GOOD mode at speed > 2.
+  const int is_lf_frame =
+      cpi->ppi->gf_group.update_type[cpi->gf_frame_index] == LF_UPDATE;
+  if (cpi->oxcf.mode == GOOD && speed > 2 && !frame_is_intra_only(cm)) {
+    if (is_lf_frame) {
+      sf->mv_sf.search_method = DIAMOND;
+    }
+
+    sf->mv_sf.prune_mesh_search = PRUNE_MESH_SEARCH_LVL_2;
+
+    if (!boosted && sf->mv_sf.skip_fullpel_search_using_startmv_refmv == 0) {
+      sf->mv_sf.skip_fullpel_search_using_startmv_refmv = 2;
+    }
+
+    if (sf->mv_sf.use_downsampled_sad == 0) {
+      sf->mv_sf.use_downsampled_sad = 2;
+    }
+  }
 
   if (cpi->oxcf.enable_low_complexity_decode && cpi->oxcf.mode == GOOD)
     set_good_speed_features_lc_dec_qindex_dependent(cpi, sf, speed);

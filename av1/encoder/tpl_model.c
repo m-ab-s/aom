@@ -162,6 +162,7 @@ void av1_setup_tpl_buffers(AV1_PRIMARY *const ppi,
 
   const int alloc_y_plane_only =
       ppi->cpi->sf.tpl_sf.use_y_only_rate_distortion ? 1 : 0;
+  tpl_data->tpl_stats_buffer[0].use_pred_sad = 1;
   for (int frame = 0; frame < MAX_LENGTH_TPL_FRAME_STATS; ++frame) {
     const int mi_cols =
         ALIGN_POWER_OF_TWO(mi_params->mi_cols, MAX_MIB_SIZE_LOG2);
@@ -1940,7 +1941,7 @@ static inline int eval_gop_length(double *beta,
       // Allow larger GOP size if the base layer ARF has higher dependency
       // factor than the intermediate ARF and both ARFs have reasonably high
       // dependency factors.
-      if ((beta[0] < beta[1] + 0.1) || beta[0] <= 1.4)
+      if ((beta[0] < beta[1] + 0.09) || beta[0] <= 1.40)
         return 0;  // Shorten the gf interval
       else
         return 1;  // Don't shorten the gf interval
@@ -2176,6 +2177,27 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int approx_gop_eval,
   av1_fill_mv_costs(&cm->fc->nmvc, cm->features.cur_frame_force_integer_mv,
                     cm->features.allow_high_precision_mv, cpi->td.mb.mv_costs);
 
+  const TPL_SPEED_FEATURES saved_tpl_sf = cpi->sf.tpl_sf;
+  if (cpi->oxcf.speed == 4) {
+    if (approx_gop_eval) {
+      // Use faster half-pel diamond search during approximate GOP length
+      // evaluation, and restrict RD to luma unless keyframe stats indicate
+      // high motion (use_pred_sad).
+      cpi->sf.tpl_sf.subpel_force_stop = HALF_PEL;
+      cpi->sf.tpl_sf.search_method = FAST_BIGDIA;
+      cpi->sf.tpl_sf.prune_starting_mv = 2;
+      cpi->sf.tpl_sf.skip_alike_starting_mv = 2;
+      cpi->sf.tpl_sf.reduce_first_step_size = 6;
+      cpi->sf.tpl_sf.use_sad_for_mode_decision = 1;
+      if (frame_params->frame_type != KEY_FRAME &&
+          !tpl_data->tpl_stats_buffer[0].use_pred_sad) {
+        cpi->sf.tpl_sf.use_y_only_rate_distortion = 1;
+      }
+    } else if (!tpl_data->tpl_stats_buffer[0].use_pred_sad) {
+      cpi->sf.tpl_sf.use_y_only_rate_distortion = 1;
+    }
+  }
+
   const int num_planes =
       cpi->sf.tpl_sf.use_y_only_rate_distortion ? 1 : av1_num_planes(cm);
   // As tpl module is called before the setting of speed features at frame
@@ -2259,6 +2281,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int approx_gop_eval,
     end_timing(cpi, av1_tpl_setup_stats_time);
 #endif
 
+  cpi->sf.tpl_sf = saved_tpl_sf;
   tpl_dealloc_temp_buffers(tpl_tmp_buffers);
 
   if (!approx_gop_eval) {
@@ -2275,6 +2298,15 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int approx_gop_eval,
       AOMMIN(tpl_gf_group_frames - 1, gf_group->arf_index + 1);
   beta[0] = get_frame_importance(tpl_data, frame_idx_0);
   beta[1] = get_frame_importance(tpl_data, frame_idx_1);
+  if (approx_gop_eval && cpi->oxcf.speed == 4) {
+    if (frame_params->frame_type == KEY_FRAME) {
+      tpl_data->tpl_stats_buffer[0].use_pred_sad =
+          (cpi->ppi->p_rc.baseline_gf_interval >= 32 && beta[0] <= 1.48);
+    }
+    if (!tpl_data->tpl_stats_buffer[0].use_pred_sad && beta[0] <= 1.42) {
+      beta[0] = 1.40;
+    }
+  }
 #if CONFIG_COLLECT_COMPONENT_TIMING
   end_timing(cpi, av1_tpl_setup_stats_time);
 #endif
