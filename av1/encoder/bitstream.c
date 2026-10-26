@@ -357,13 +357,15 @@ static inline void pack_map_tokens(aom_writer *w, const TokenExtra **tp, int n,
   write_uniform(w, n, p->token);  // The first color index.
   ++p;
   --num;
+  od_ec_enc_state st = od_ec_enc_get_state(&w->ec);
   for (int i = 0; i < num; ++i) {
     assert((p->color_ctx >= 0) &&
            (p->color_ctx < PALETTE_COLOR_INDEX_CONTEXTS));
     aom_cdf_prob *color_map_cdf = map_pb_cdf[palette_size_idx][p->color_ctx];
-    aom_write_symbol(w, p->token, color_map_cdf, n);
+    aom_write_symbol_state(w, &st, p->token, color_map_cdf, n);
     ++p;
   }
+  od_ec_enc_set_state(&w->ec, &st);
   *tp = p;
 }
 

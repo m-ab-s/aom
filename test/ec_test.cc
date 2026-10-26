@@ -12,6 +12,7 @@
 #include "gtest/gtest.h"
 
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <new>
 
@@ -142,4 +143,64 @@ TEST(EC_TEST, random_ec_test) {
   EXPECT_EQ(ptr[0], 63);
   od_ec_enc_clear(&enc);
   EXPECT_EQ(ret, 0);
+}
+
+// The od_ec_encode_*_state() functions keep the coder state in a local copy.
+// They must write the same bytes as the plain functions, also when the output
+// buffer has to grow.
+TEST(EC_TEST, state_functions_match) {
+  const unsigned int seed = 0xdaa1b;
+  srand(seed);
+  od_ec_enc enc_a;
+  od_ec_enc enc_b;
+  od_ec_enc_init(&enc_a, 1);
+  od_ec_enc_init(&enc_b, 1);
+  for (int i = 0; i < 400; i++) {
+    od_ec_enc_reset(&enc_a);
+    od_ec_enc_reset(&enc_b);
+    od_ec_enc_state st = od_ec_enc_get_state(&enc_b);
+    const int sz = rand() % 4000;
+    for (int j = 0; j < sz; j++) {
+      if (rand() % 3 == 0) {
+        const int val = rand() & 1;
+        const unsigned f = 1 + rand() % 32767;
+        od_ec_encode_bool_q15(&enc_a, val, f);
+        od_ec_encode_bool_q15_state(&enc_b, &st, val, f);
+      } else {
+        // A random CDF of 2 to 16 symbols. Sometimes the first symbols have
+        // a zero probability, so icdf[s - 1] can be CDF_PROB_TOP.
+        const int nsyms = 2 + rand() % 15;
+        const int zeros = rand() % 8 == 0 ? rand() % nsyms : 0;
+        uint16_t icdf[16];
+        int prev = 0;
+        for (int k = 0; k < nsyms - 1; k++) {
+          if (k >= zeros) {
+            prev += 1 + rand() % (CDF_PROB_TOP - prev - (nsyms - 1 - k));
+          }
+          icdf[k] = OD_ICDF(prev);
+        }
+        icdf[nsyms - 1] = OD_ICDF(CDF_PROB_TOP);
+        const int s = zeros + rand() % (nsyms - zeros);
+        od_ec_encode_cdf_q15(&enc_a, s, icdf, nsyms);
+        od_ec_encode_cdf_q15_state(&enc_b, &st, s, icdf, nsyms);
+      }
+      if (rand() % 64 == 0) {
+        od_ec_enc_set_state(&enc_b, &st);
+        ASSERT_EQ(od_ec_enc_tell_frac(&enc_a), od_ec_enc_tell_frac(&enc_b))
+            << "symbol " << j << " (Random seed: " << seed << ")";
+        st = od_ec_enc_get_state(&enc_b);
+      }
+    }
+    od_ec_enc_set_state(&enc_b, &st);
+    uint32_t sz_a;
+    uint32_t sz_b;
+    unsigned char *ptr_a = od_ec_enc_done(&enc_a, &sz_a);
+    unsigned char *ptr_b = od_ec_enc_done(&enc_b, &sz_b);
+    ASSERT_NE(ptr_a, nullptr);
+    ASSERT_NE(ptr_b, nullptr);
+    ASSERT_EQ(sz_a, sz_b) << "(Random seed: " << seed << ")";
+    EXPECT_EQ(memcmp(ptr_a, ptr_b, sz_a), 0) << "(Random seed: " << seed << ")";
+  }
+  od_ec_enc_clear(&enc_a);
+  od_ec_enc_clear(&enc_b);
 }

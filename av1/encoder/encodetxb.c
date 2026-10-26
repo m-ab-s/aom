@@ -115,7 +115,8 @@ void av1_free_txb_buf(AV1_COMP *cpi) {
   coeff_buf_pool->entropy_ctx = NULL;
 }
 
-static void write_golomb(aom_writer *w, int level) {
+static AOM_FORCE_INLINE void write_golomb(aom_writer *w, od_ec_enc_state *s,
+                                          int level) {
   int x = level + 1;
   int i = x;
   int length = 0;
@@ -126,9 +127,20 @@ static void write_golomb(aom_writer *w, int level) {
   }
   assert(length > 0);
 
-  for (i = 0; i < length - 1; ++i) aom_write_bit(w, 0);
+  for (i = 0; i < length - 1; ++i) aom_write_bit_state(w, s, 0);
 
-  for (i = length - 1; i >= 0; --i) aom_write_bit(w, (x >> i) & 0x01);
+  for (i = length - 1; i >= 0; --i) aom_write_bit_state(w, s, (x >> i) & 0x01);
+}
+
+// Writes the base range symbols of a level above NUM_BASE_LEVELS.
+static AOM_FORCE_INLINE void write_coeff_br(aom_writer *w, od_ec_enc_state *s,
+                                            aom_cdf_prob *cdf, int level) {
+  const int base_range = level - 1 - NUM_BASE_LEVELS;
+  for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
+    const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
+    aom_write_symbol_state(w, s, k, cdf, BR_CDF_SIZE);
+    if (k < BR_CDF_SIZE - 1) break;
+  }
 }
 
 int av1_get_eob_pos_token(const int eob, int *const extra) {
@@ -306,50 +318,6 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   const TX_CLASS tx_class = tx_type_to_class[tx_type];
   const int eob_multi_ctx = (tx_class == TX_CLASS_2D) ? 0 : 1;
-  switch (eob_multi_size) {
-    case 0:
-      aom_write_symbol(w, eob_pt - 1,
-                       ec_ctx->eob_flag_cdf16[plane_type][eob_multi_ctx], 5);
-      break;
-    case 1:
-      aom_write_symbol(w, eob_pt - 1,
-                       ec_ctx->eob_flag_cdf32[plane_type][eob_multi_ctx], 6);
-      break;
-    case 2:
-      aom_write_symbol(w, eob_pt - 1,
-                       ec_ctx->eob_flag_cdf64[plane_type][eob_multi_ctx], 7);
-      break;
-    case 3:
-      aom_write_symbol(w, eob_pt - 1,
-                       ec_ctx->eob_flag_cdf128[plane_type][eob_multi_ctx], 8);
-      break;
-    case 4:
-      aom_write_symbol(w, eob_pt - 1,
-                       ec_ctx->eob_flag_cdf256[plane_type][eob_multi_ctx], 9);
-      break;
-    case 5:
-      aom_write_symbol(w, eob_pt - 1,
-                       ec_ctx->eob_flag_cdf512[plane_type][eob_multi_ctx], 10);
-      break;
-    default:
-      aom_write_symbol(w, eob_pt - 1,
-                       ec_ctx->eob_flag_cdf1024[plane_type][eob_multi_ctx], 11);
-      break;
-  }
-
-  const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
-  if (eob_offset_bits > 0) {
-    const int eob_ctx = eob_pt - 3;
-    int eob_shift = eob_offset_bits - 1;
-    int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
-    aom_write_symbol(w, bit,
-                     ec_ctx->eob_extra_cdf[txs_ctx][plane_type][eob_ctx], 2);
-    for (int i = 1; i < eob_offset_bits; i++) {
-      eob_shift = eob_offset_bits - 1 - i;
-      bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
-      aom_write_bit(w, bit);
-    }
-  }
 
   const int width = get_txb_wide(tx_size);
   const int height = get_txb_high(tx_size);
@@ -369,55 +337,116 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     coeff_contexts[0] = 0;
   }
 
+  // The rest of the block only writes symbols, so keep the range coder state
+  // in registers.
+  od_ec_enc_state st = od_ec_enc_get_state(&w->ec);
+  aom_cdf_prob *eob_cdf;
+  int eob_nsymbs;
+  switch (eob_multi_size) {
+    case 0:
+      eob_cdf = ec_ctx->eob_flag_cdf16[plane_type][eob_multi_ctx];
+      eob_nsymbs = 5;
+      break;
+    case 1:
+      eob_cdf = ec_ctx->eob_flag_cdf32[plane_type][eob_multi_ctx];
+      eob_nsymbs = 6;
+      break;
+    case 2:
+      eob_cdf = ec_ctx->eob_flag_cdf64[plane_type][eob_multi_ctx];
+      eob_nsymbs = 7;
+      break;
+    case 3:
+      eob_cdf = ec_ctx->eob_flag_cdf128[plane_type][eob_multi_ctx];
+      eob_nsymbs = 8;
+      break;
+    case 4:
+      eob_cdf = ec_ctx->eob_flag_cdf256[plane_type][eob_multi_ctx];
+      eob_nsymbs = 9;
+      break;
+    case 5:
+      eob_cdf = ec_ctx->eob_flag_cdf512[plane_type][eob_multi_ctx];
+      eob_nsymbs = 10;
+      break;
+    default:
+      eob_cdf = ec_ctx->eob_flag_cdf1024[plane_type][eob_multi_ctx];
+      eob_nsymbs = 11;
+      break;
+  }
+  aom_write_symbol_state(w, &st, eob_pt - 1, eob_cdf, eob_nsymbs);
+
+  const int eob_offset_bits = av1_eob_offset_bits[eob_pt];
+  if (eob_offset_bits > 0) {
+    const int eob_ctx = eob_pt - 3;
+    int eob_shift = eob_offset_bits - 1;
+    int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
+    aom_write_symbol_state(
+        w, &st, bit, ec_ctx->eob_extra_cdf[txs_ctx][plane_type][eob_ctx], 2);
+    for (int i = 1; i < eob_offset_bits; i++) {
+      eob_shift = eob_offset_bits - 1 - i;
+      bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
+      aom_write_bit_state(w, &st, bit);
+    }
+  }
+
   const int bhl = get_txb_bhl(tx_size);
-  for (int c = eob - 1; c >= 0; --c) {
-    const int pos = scan[c];
-    const int coeff_ctx = coeff_contexts[pos];
+  aom_cdf_prob(*const base_cdf)[CDF_SIZE(4)] =
+      ec_ctx->coeff_base_cdf[txs_ctx][plane_type];
+  aom_cdf_prob(*const br_cdf)[CDF_SIZE(BR_CDF_SIZE)] =
+      ec_ctx->coeff_br_cdf[AOMMIN(txs_ctx, TX_32X32)][plane_type];
+  // The nonzero coefficients from c = eob - 1 down, for the sign loop.
+  tran_low_t nz_coeffs[32 * 32];
+  assert(eob <= av1_get_max_eob(tx_size));
+
+  int num_nz = 0;
+  {
+    // The last coefficient is never 0 and has its own cdf.
+    const int pos = scan[eob - 1];
     const tran_low_t v = tcoeff[pos];
     const tran_low_t level = abs(v);
-
-    if (c == eob - 1) {
-      aom_write_symbol(
-          w, AOMMIN(level, 3) - 1,
-          ec_ctx->coeff_base_eob_cdf[txs_ctx][plane_type][coeff_ctx], 3);
-    } else {
-      aom_write_symbol(w, AOMMIN(level, 3),
-                       ec_ctx->coeff_base_cdf[txs_ctx][plane_type][coeff_ctx],
-                       4);
-    }
+    nz_coeffs[num_nz++] = v;
+    aom_write_symbol_state(
+        w, &st, AOMMIN(level, 3) - 1,
+        ec_ctx->coeff_base_eob_cdf[txs_ctx][plane_type][coeff_contexts[pos]],
+        3);
     if (level > NUM_BASE_LEVELS) {
-      // level is above 1.
-      const int base_range = level - 1 - NUM_BASE_LEVELS;
-      const int br_ctx = (eob > 1) ? get_br_ctx(levels, pos, bhl, tx_class) : 0;
-      aom_cdf_prob *cdf =
-          ec_ctx->coeff_br_cdf[AOMMIN(txs_ctx, TX_32X32)][plane_type][br_ctx];
-      for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
-        const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
-        aom_write_symbol(w, k, cdf, BR_CDF_SIZE);
-        if (k < BR_CDF_SIZE - 1) break;
-      }
+      write_coeff_br(w, &st, br_cdf[get_br_ctx_eob(pos, bhl, tx_class)], level);
+    }
+  }
+  for (int c = eob - 2; c >= 0; --c) {
+    const int pos = scan[c];
+    const tran_low_t v = tcoeff[pos];
+    const tran_low_t level = abs(v);
+    nz_coeffs[num_nz] = v;
+    num_nz += (v != 0);
+    aom_write_symbol_state(w, &st, AOMMIN(level, 3),
+                           base_cdf[coeff_contexts[pos]], 4);
+    if (level > NUM_BASE_LEVELS) {
+      write_coeff_br(w, &st, br_cdf[get_br_ctx(levels, pos, bhl, tx_class)],
+                     level);
     }
   }
 
-  // Loop to code all signs in the transform block,
-  // starting with the sign of DC (if applicable)
-  for (int c = 0; c < eob; ++c) {
-    const tran_low_t v = tcoeff[scan[c]];
+  // Code all signs in the transform block, starting with the sign of DC (if
+  // applicable). nz_coeffs holds them in the reverse order.
+  int i = num_nz - 1;
+  if (tcoeff[scan[0]] != 0) {
+    const tran_low_t v = nz_coeffs[i--];
     const tran_low_t level = abs(v);
-    const int sign = (v < 0) ? 1 : 0;
-    if (level) {
-      if (c == 0) {
-        const int dc_sign_ctx =
-            (entropy_ctx[block] >> DC_SIGN_CTX_SHIFT) & DC_SIGN_CTX_MASK;
-        aom_write_symbol(w, sign, ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx],
-                         2);
-      } else {
-        aom_write_bit(w, sign);
-      }
-      if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS)
-        write_golomb(w, level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS);
-    }
+    const int dc_sign_ctx =
+        (entropy_ctx[block] >> DC_SIGN_CTX_SHIFT) & DC_SIGN_CTX_MASK;
+    aom_write_symbol_state(w, &st, v < 0,
+                           ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx], 2);
+    if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS)
+      write_golomb(w, &st, level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS);
   }
+  for (; i >= 0; --i) {
+    const tran_low_t v = nz_coeffs[i];
+    const tran_low_t level = abs(v);
+    aom_write_bit_state(w, &st, v < 0);
+    if (level > COEFF_BASE_RANGE + NUM_BASE_LEVELS)
+      write_golomb(w, &st, level - COEFF_BASE_RANGE - 1 - NUM_BASE_LEVELS);
+  }
+  od_ec_enc_set_state(&w->ec, &st);
 }
 
 void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,

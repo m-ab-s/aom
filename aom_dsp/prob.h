@@ -128,11 +128,10 @@ static inline void update_cdf(aom_cdf_prob *cdf, int8_t val, int nsymbs) {
 
   int i = 0;
   do {
-    if (i < val) {
-      cdf[i] += (CDF_PROB_TOP - cdf[i]) >> rate;
-    } else {
-      cdf[i] -= cdf[i] >> rate;
-    }
+    // Compute both and select, a branch on val is hard to predict.
+    const int up = cdf[i] + ((CDF_PROB_TOP - cdf[i]) >> rate);
+    const int down = cdf[i] - (cdf[i] >> rate);
+    cdf[i] = (aom_cdf_prob)(i < val ? up : down);
   } while (++i < nsymbs - 1);
   cdf[nsymbs] += (count < 32);
 }

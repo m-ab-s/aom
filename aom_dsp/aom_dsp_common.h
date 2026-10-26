@@ -25,8 +25,10 @@ extern "C" {
 
 #if defined(_MSC_VER)
 #define AOM_FORCE_INLINE __forceinline
+#define AOM_NOINLINE __declspec(noinline)
 #else
 #define AOM_FORCE_INLINE __inline__ __attribute__((always_inline))
+#define AOM_NOINLINE __attribute__((noinline))
 #endif
 
 #define PI 3.141592653589793238462643383279502884

@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <vector>
+
 #include "gtest/gtest.h"
 
 #include "test/acm_random.h"
@@ -169,5 +171,102 @@ TEST(AV1, TestHasOverflowed) {
       aom_read(&br, p, nullptr);
     }
     ASSERT_TRUE(aom_reader_has_overflowed(&br));
+  }
+}
+
+// Fills cdf with a random CDF of nsymbs symbols and a zero counter.
+static void RandomCdf(ACMRandom *rnd, int nsymbs, aom_cdf_prob *cdf) {
+  int prev = 0;
+  for (int i = 0; i < nsymbs - 1; ++i) {
+    // Room for the symbols left, each with at least one unit.
+    const int left = nsymbs - 1 - i;
+    const int span = CDF_PROB_TOP - prev - left;
+    prev += 1 + (*rnd)(span);
+    cdf[i] = AOM_ICDF(prev);
+  }
+  cdf[nsymbs - 1] = AOM_ICDF(CDF_PROB_TOP);
+  cdf[nsymbs] = 0;
+}
+
+// aom_write_symbol_state() and aom_write_bit_state() keep the range coder
+// state in a local copy. They must write the same bytes as
+// aom_write_symbol() and aom_write_bit() and adapt the CDFs the same way.
+TEST(AV1, TestWriteSymbolState) {
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  const int kSymbols = 20000;
+  const int kMaxSymbs = 16;
+  const int kNumCdfs = kMaxSymbs - 1;
+  const int kBufferSize = 3 * kSymbols;
+  for (int n = 0; n < num_tests; ++n) {
+    aom_cdf_prob cdf_a[kNumCdfs][CDF_SIZE(kMaxSymbs)];
+    aom_cdf_prob cdf_b[kNumCdfs][CDF_SIZE(kMaxSymbs)];
+    aom_cdf_prob cdf_r[kNumCdfs][CDF_SIZE(kMaxSymbs)];
+    for (int k = 0; k < kNumCdfs; ++k) RandomCdf(&rnd, k + 2, cdf_a[k]);
+    memcpy(cdf_b, cdf_a, sizeof(cdf_a));
+    memcpy(cdf_r, cdf_a, sizeof(cdf_a));
+    const uint8_t allow_update_cdf = n & 1;
+    std::vector<int> kinds(kSymbols);
+    std::vector<int> values(kSymbols);
+    std::vector<uint8_t> buf_a(kBufferSize);
+    std::vector<uint8_t> buf_b(kBufferSize);
+    aom_writer wa;
+    aom_writer wb;
+    aom_start_encode(&wa, buf_a.data(), kBufferSize);
+    aom_start_encode(&wb, buf_b.data(), kBufferSize);
+    wa.allow_update_cdf = allow_update_cdf;
+    wb.allow_update_cdf = allow_update_cdf;
+    od_ec_enc_state st = od_ec_enc_get_state(&wb.ec);
+    for (int i = 0; i < kSymbols; ++i) {
+      // kind 0 is a bit, kind k > 0 a symbol coded with cdf_*[k - 1].
+      const int kind = rnd(kNumCdfs + 5) - 4;
+      kinds[i] = kind > 0 ? kind : 0;
+      // Mix in a write through the plain path now and then. It works on the
+      // state stored in the writer.
+      const bool plain = rnd(100) == 0;
+      if (plain) od_ec_enc_set_state(&wb.ec, &st);
+      if (kinds[i] == 0) {
+        values[i] = rnd(2);
+        aom_write_bit(&wa, values[i]);
+        if (plain) {
+          aom_write_bit(&wb, values[i]);
+        } else {
+          aom_write_bit_state(&wb, &st, values[i]);
+        }
+      } else {
+        const int k = kinds[i] - 1;
+        values[i] = rnd(k + 2);
+        aom_write_symbol(&wa, values[i], cdf_a[k], k + 2);
+        if (plain) {
+          aom_write_symbol(&wb, values[i], cdf_b[k], k + 2);
+        } else {
+          aom_write_symbol_state(&wb, &st, values[i], cdf_b[k], k + 2);
+        }
+      }
+      if (plain) {
+        ASSERT_EQ(aom_tell_size(&wa), aom_tell_size(&wb)) << "symbol " << i;
+        st = od_ec_enc_get_state(&wb.ec);
+      }
+    }
+    od_ec_enc_set_state(&wb.ec, &st);
+    GTEST_ASSERT_GE(aom_stop_encode(&wa), 0);
+    GTEST_ASSERT_GE(aom_stop_encode(&wb), 0);
+    ASSERT_EQ(wa.pos, wb.pos);
+    EXPECT_EQ(memcmp(buf_a.data(), buf_b.data(), wa.pos), 0);
+    EXPECT_EQ(memcmp(cdf_a, cdf_b, sizeof(cdf_a)), 0);
+
+    aom_reader br;
+    aom_reader_init(&br, buf_b.data(), wb.pos);
+    br.allow_update_cdf = allow_update_cdf;
+    for (int i = 0; i < kSymbols; ++i) {
+      if (kinds[i] == 0) {
+        GTEST_ASSERT_EQ(aom_read_bit(&br, nullptr), values[i]) << "pos " << i;
+      } else {
+        const int k = kinds[i] - 1;
+        GTEST_ASSERT_EQ(aom_read_symbol(&br, cdf_r[k], k + 2, nullptr),
+                        values[i])
+            << "pos " << i;
+      }
+    }
+    EXPECT_EQ(memcmp(cdf_a, cdf_r, sizeof(cdf_a)), 0);
   }
 }

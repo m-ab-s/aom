@@ -104,6 +104,29 @@ static inline void aom_write_symbol(aom_writer *w, int symb, aom_cdf_prob *cdf,
   if (w->allow_update_cdf) update_cdf(cdf, symb, nsymbs);
 }
 
+// Same as aom_write_symbol() and aom_write_bit(), but use the coder state in
+// *s. See od_ec_enc_state.
+static AOM_FORCE_INLINE void aom_write_symbol_state(aom_writer *w,
+                                                    od_ec_enc_state *s,
+                                                    int symb, aom_cdf_prob *cdf,
+                                                    int nsymbs) {
+#if CONFIG_BITSTREAM_DEBUG
+  bitstream_queue_push(symb, cdf, nsymbs);
+#endif
+  od_ec_encode_cdf_q15_state(&w->ec, s, symb, cdf, nsymbs);
+  if (w->allow_update_cdf) update_cdf(cdf, symb, nsymbs);
+}
+
+static AOM_FORCE_INLINE void aom_write_bit_state(aom_writer *w,
+                                                 od_ec_enc_state *s, int bit) {
+  const int p = CDF_PROB_TOP / 2;
+#if CONFIG_BITSTREAM_DEBUG
+  aom_cdf_prob cdf[2] = { (aom_cdf_prob)p, 32767 };
+  bitstream_queue_push(bit, cdf, 2);
+#endif
+  od_ec_encode_bool_q15_state(&w->ec, s, bit, p);
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -11,17 +11,9 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <assert.h>
 #include "aom_dsp/entenc.h"
 #include "aom_dsp/prob.h"
-
-#if OD_MEASURE_EC_OVERHEAD
-#if !defined(M_LOG2E)
-#define M_LOG2E (1.4426950408889634073599246810019)
-#endif
-#define OD_LOG2(x) (M_LOG2E * log(x))
-#endif  // OD_MEASURE_EC_OVERHEAD
 
 /*A range encoder.
   See entdec.c and the references for implementation details \cite{Mar79,MNW98}.
@@ -48,78 +40,65 @@
    URL="http://researchcommons.waikato.ac.nz/bitstream/handle/10289/78/content.pdf"
   }*/
 
-/*Takes updated low and range values, renormalizes them so that
-   32768 <= rng < 65536 (flushing bytes from low to the output buffer if
-   necessary), and stores them back in the encoder context.
-  low: The new value of low.
-  rng: The new value of the range.*/
-static void od_ec_enc_normalize(od_ec_enc *enc, od_ec_enc_window low,
-                                unsigned rng) {
-  int d;
-  int c;
-  int s;
-  if (enc->error) return;
-  c = enc->cnt;
-  assert(rng <= 65535U);
-  /*The number of leading zeros in the 16-bit binary representation of rng.*/
-  d = 16 - OD_ILOG_NZ(rng);
-  s = c + d;
-
-  /* We flush every time "low" cannot safely and efficiently accommodate any
-     more data. Overall, c must not exceed 63 at the time of byte flush out. To
-     facilitate this, "s" cannot exceed 56-bits because we have to keep 1 byte
-     for carry. Also, we need to subtract 16 because we want to keep room for
-     the next symbol worth "d"-bits (max 15). An alternate condition would be if
-     (e < d), where e = number of leading zeros in "low", indicating there is
-     not enough rooom to accommodate "rng" worth of "d"-bits in "low". However,
-     this approach needs additional computations: (i) compute "e", (ii) push
-     the leading 0x00's as a special case.
-  */
-  if (s >= 40) {  // 56 - 16
-    unsigned char *out = enc->buf;
-    uint32_t storage = enc->storage;
-    uint32_t offs = enc->offs;
-    if (offs + 8 > storage) {
-      storage = 2 * storage + 8;
-      out = (unsigned char *)realloc(out, sizeof(*out) * storage);
-      if (out == NULL) {
-        enc->error = -1;
-        return;
-      }
-      enc->buf = out;
-      enc->storage = storage;
+/*Writes the bytes of low that are ready to the output buffer.
+  od_ec_enc_normalize_state() calls this when s, the number of bits of data
+   in low after the normalization shift, reaches 40.
+  We flush every time "low" cannot safely and efficiently accommodate any
+   more data. Overall, c must not exceed 63 at the time of byte flush out. To
+   facilitate this, "s" cannot exceed 56-bits because we have to keep 1 byte
+   for carry. Also, we need to subtract 16 because we want to keep room for
+   the next symbol worth "d"-bits (max 15). An alternate condition would be if
+   (e < d), where e = number of leading zeros in "low", indicating there is
+   not enough rooom to accommodate "rng" worth of "d"-bits in "low". However,
+   this approach needs additional computations: (i) compute "e", (ii) push
+   the leading 0x00's as a special case.
+  It is kept out of line, so the common path of the callers stays small.
+  low: The new value of low, before the normalization shift.
+  c: The number of bits of data in low before the symbol.
+  s: c plus the normalization shift.
+  Return: low without the bits that were written out.*/
+AOM_NOINLINE od_ec_enc_window od_ec_enc_flush(od_ec_enc *enc,
+                                              od_ec_enc_window low, int c,
+                                              int s) {
+  /*After an error the buffer may be too small, so write nothing more.*/
+  if (enc->error) return low;
+  unsigned char *out = enc->buf;
+  uint32_t storage = enc->storage;
+  uint32_t offs = enc->offs;
+  if (offs + 8 > storage) {
+    storage = 2 * storage + 8;
+    out = (unsigned char *)realloc(out, sizeof(*out) * storage);
+    if (out == NULL) {
+      enc->error = -1;
+      return low;
     }
-    // Need to add 1 byte here since enc->cnt always counts 1 byte less
-    // (enc->cnt = -9) to ensure correct operation
-    uint8_t num_bytes_ready = (s >> 3) + 1;
-
-    // Update "c" to contain the number of non-ready bits in "low". Since "low"
-    // has 64-bit capacity, we need to add the (64 - 40) cushion bits and take
-    // off the number of ready bits.
-    c += 24 - (num_bytes_ready << 3);
-
-    // Prepare "output" and update "low"
-    uint64_t output = low >> c;
-    low = low & (((uint64_t)1 << c) - 1);
-
-    // Prepare data and carry mask
-    uint64_t mask = (uint64_t)1 << (num_bytes_ready << 3);
-    uint64_t carry = output & mask;
-
-    mask = mask - 0x01;
-    output = output & mask;
-
-    // Write data in a single operation
-    write_enc_data_to_out_buf(out, offs, output, carry, &enc->offs,
-                              num_bytes_ready);
-
-    // Update state of the encoder: enc->cnt to contain the number of residual
-    // bits
-    s = c + d - 24;
+    enc->buf = out;
+    enc->storage = storage;
   }
-  enc->low = low << d;
-  enc->rng = rng << d;
-  enc->cnt = s;
+  // Need to add 1 byte here since enc->cnt always counts 1 byte less
+  // (enc->cnt = -9) to ensure correct operation
+  uint8_t num_bytes_ready = (s >> 3) + 1;
+
+  // Update "c" to contain the number of non-ready bits in "low". Since "low"
+  // has 64-bit capacity, we need to add the (64 - 40) cushion bits and take
+  // off the number of ready bits.
+  c += 24 - (num_bytes_ready << 3);
+
+  // Prepare "output" and update "low"
+  uint64_t output = low >> c;
+  low = low & (((uint64_t)1 << c) - 1);
+
+  // Prepare data and carry mask
+  uint64_t mask = (uint64_t)1 << (num_bytes_ready << 3);
+  uint64_t carry = output & mask;
+
+  mask = mask - 0x01;
+  output = output & mask;
+
+  // Write data in a single operation
+  write_enc_data_to_out_buf(out, offs, output, carry, &enc->offs,
+                            num_bytes_ready);
+  return low;
 }
 
 /*Initializes the encoder.
@@ -152,63 +131,13 @@ void od_ec_enc_reset(od_ec_enc *enc) {
 /*Frees the buffers used by the encoder.*/
 void od_ec_enc_clear(od_ec_enc *enc) { free(enc->buf); }
 
-/*Encodes a symbol given its frequency in Q15.
-  fl: CDF_PROB_TOP minus the cumulative frequency of all symbols that come
-  before the one to be encoded.
-  fh: CDF_PROB_TOP minus the cumulative frequency of all symbols up to and
-  including the one to be encoded.*/
-static void od_ec_encode_q15(od_ec_enc *enc, unsigned fl, unsigned fh, int s,
-                             int nsyms) {
-  od_ec_enc_window l;
-  unsigned r;
-  unsigned u;
-  unsigned v;
-  l = enc->low;
-  r = enc->rng;
-  assert(32768U <= r);
-  assert(fh <= fl);
-  assert(fl <= 32768U);
-  assert(7 - EC_PROB_SHIFT >= 0);
-  const int N = nsyms - 1;
-  if (fl < CDF_PROB_TOP) {
-    u = ((r >> 8) * (uint32_t)(fl >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT)) +
-        EC_MIN_PROB * (N - (s - 1));
-    v = ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT)) +
-        EC_MIN_PROB * (N - (s + 0));
-    l += r - u;
-    r = u - v;
-  } else {
-    r -= ((r >> 8) * (uint32_t)(fh >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT)) +
-         EC_MIN_PROB * (N - (s + 0));
-  }
-  od_ec_enc_normalize(enc, l, r);
-#if OD_MEASURE_EC_OVERHEAD
-  enc->entropy -= OD_LOG2((double)(OD_ICDF(fh) - OD_ICDF(fl)) / CDF_PROB_TOP.);
-  enc->nb_symbols++;
-#endif
-}
-
 /*Encode a single binary value.
   val: The value to encode (0 or 1).
   f: The probability that the val is one, scaled by 32768.*/
 void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned f) {
-  od_ec_enc_window l;
-  unsigned r;
-  unsigned v;
-  assert(0 < f);
-  assert(f < 32768U);
-  l = enc->low;
-  r = enc->rng;
-  assert(32768U <= r);
-  v = ((r >> 8) * (uint32_t)(f >> EC_PROB_SHIFT) >> (7 - EC_PROB_SHIFT));
-  v += EC_MIN_PROB;
-  if (val) l += r - v;
-  r = val ? v : r - v;
-  od_ec_enc_normalize(enc, l, r);
-#if OD_MEASURE_EC_OVERHEAD
-  enc->entropy -= OD_LOG2((double)(val ? f : (32768 - f)) / 32768.);
-  enc->nb_symbols++;
-#endif
+  od_ec_enc_state st = od_ec_enc_get_state(enc);
+  od_ec_encode_bool_q15_state(enc, &st, val, f);
+  od_ec_enc_set_state(enc, &st);
 }
 
 /*Encodes a symbol given a cumulative distribution function (CDF) table in Q15.
@@ -221,11 +150,9 @@ void od_ec_encode_bool_q15(od_ec_enc *enc, int val, unsigned f) {
          This should be at most 16.*/
 void od_ec_encode_cdf_q15(od_ec_enc *enc, int s, const uint16_t *icdf,
                           int nsyms) {
-  (void)nsyms;
-  assert(s >= 0);
-  assert(s < nsyms);
-  assert(icdf[nsyms - 1] == OD_ICDF(CDF_PROB_TOP));
-  od_ec_encode_q15(enc, s > 0 ? icdf[s - 1] : OD_ICDF(0), icdf[s], s, nsyms);
+  od_ec_enc_state st = od_ec_enc_get_state(enc);
+  od_ec_encode_cdf_q15_state(enc, &st, s, icdf, nsyms);
+  od_ec_enc_set_state(enc, &st);
 }
 
 #if OD_MEASURE_EC_OVERHEAD
