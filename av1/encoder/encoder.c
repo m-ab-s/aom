@@ -2083,6 +2083,9 @@ static void estimate_screen_content(AV1_COMP *cpi, FeatureFlags *features) {
   cpi->is_screen_content_type =
       features->allow_intrabc || (counts_1 * kBlockArea * 10 > area * 4 &&
                                   counts_2 * kBlockArea * 30 > area);
+  cpi->sc_high_var_blocks = !features->allow_screen_content_tools &&
+                            counts_1 * kBlockArea * 15 > area &&
+                            counts_2 * kBlockArea * 15 > area;
 }
 
 // Macro that helps debug the screen content mode 2 mechanism
@@ -2424,6 +2427,7 @@ static void estimate_screen_content_antialiasing_aware(AV1_COMP *cpi,
 
 void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   const AV1_COMMON *const cm = &cpi->common;
+  cpi->sc_high_var_blocks = 0;
 
   if (cm->seq_params->force_screen_content_tools != 2) {
     features->allow_screen_content_tools = features->allow_intrabc =
@@ -3317,8 +3321,18 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest,
 
 #if !CONFIG_RD_COMMAND
   // Determine whether to use screen content tools using two fast encoding.
-  if (!cpi->sf.hl_sf.disable_extra_sc_testing && !cpi->use_ducky_encode)
+  if (!cpi->sf.hl_sf.disable_extra_sc_testing && !cpi->use_ducky_encode) {
     av1_determine_sc_tools_with_encoding(cpi, q);
+  } else if (cpi->sf.hl_sf.disable_extra_sc_testing == 1 &&
+             !cpi->use_ducky_encode &&
+             cm->current_frame.frame_type == KEY_FRAME &&
+             !cpi->use_screen_content_tools && cpi->sc_high_var_blocks) {
+    // Fallback for keyframes when two-pass encoding test is skipped: enable
+    // screen content tools if block histogram detected high-variance blocks.
+    cm->features.allow_screen_content_tools = 1;
+    cpi->use_screen_content_tools = 1;
+    cpi->is_screen_content_type = 1;
+  }
 #endif  // !CONFIG_RD_COMMAND
 
 #if CONFIG_TUNE_VMAF

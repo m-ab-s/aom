@@ -3407,6 +3407,12 @@ typedef struct AV1_COMP {
    */
   int is_screen_content_type;
 
+  /*!
+   * A flag to indicate moderate screen content blocks with high variance when
+   * allow_screen_content_tools is not directly enabled by the strict threshold.
+   */
+  int sc_high_var_blocks;
+
 #if CONFIG_COLLECT_PARTITION_STATS
   /*!
    * Accumulates the partition timing stat over the whole frame.
