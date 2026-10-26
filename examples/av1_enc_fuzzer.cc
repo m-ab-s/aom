@@ -42,18 +42,38 @@ enum ModeFlag {
 // fuzzer's execution time budget (libFuzzer defaults to one second per
 // input). This can be refined based on measured fuzzer performance.
 constexpr unsigned int kNumFramesForCpuUsed[12] = {
-  50,  // cpu_used 0
-  50,  // cpu_used 1
-  50,  // cpu_used 2
-  60,  // cpu_used 3
-  60,  // cpu_used 4
-  70,  // cpu_used 5
-  70,  // cpu_used 6
-  80,  // cpu_used 7
-  80,  // cpu_used 8
-  90,  // cpu_used 9
-  90,  // cpu_used 10
-  100  // cpu_used 11
+  4,  // cpu_used 0
+  4,  // cpu_used 1
+  4,  // cpu_used 2
+  5,  // cpu_used 3
+  5,  // cpu_used 4
+  6,  // cpu_used 5
+  6,  // cpu_used 6
+  7,  // cpu_used 7
+  8,  // cpu_used 8
+  9,  // cpu_used 9
+  9,  // cpu_used 10
+  10  // cpu_used 11
+};
+
+// Maximum number of 64x64 superblocks to encode across all frames for a
+// given cpu_used value (one 1024x1024 frame is 256 superblocks). This caps
+// worst-case execution time on large frames at slow speed presets while
+// still allowing full 1024x1024 resolution and at least 3 frames (initial,
+// switch_frame, and restore_frame) at every cpu_used.
+constexpr unsigned int kMaxSuperblocksForCpuUsed[12] = {
+  768,   // cpu_used 0
+  768,   // cpu_used 1
+  768,   // cpu_used 2
+  1024,  // cpu_used 3
+  1024,  // cpu_used 4
+  1280,  // cpu_used 5
+  1280,  // cpu_used 6
+  1536,  // cpu_used 7
+  1792,  // cpu_used 8
+  2048,  // cpu_used 9
+  2048,  // cpu_used 10
+  2304   // cpu_used 11
 };
 
 struct FuzzReader {
@@ -143,10 +163,34 @@ uint32_t Rand(uint32_t *state) {
 
 void FillPlane(uint8_t *plane, int stride, unsigned int width,
                unsigned int height, uint32_t *state) {
+  uint8_t background = 0;
   for (unsigned int row = 0; row < height; ++row) {
-    for (unsigned int col = 0; col < width; ++col) {
-      plane[static_cast<size_t>(row) * stride + col] =
-          static_cast<uint8_t>(Rand(state) >> 24);
+    if ((row & 15u) == 0) {
+      background = static_cast<uint8_t>(Rand(state) >> 24);
+    }
+    memset(plane + static_cast<size_t>(row) * stride, background, width);
+  }
+  // Stamp two small 16x16 textured patches (one random noise, one gradient)
+  // at pseudo-random locations so that both flat/skip and high-variance RD
+  // paths are exercised without filling large frames entirely with white
+  // noise.
+  constexpr unsigned int kPatchSize = 16;
+  for (unsigned int pass = 0; pass < 2; ++pass) {
+    const unsigned int patch_x = (Rand(state) >> 16) % width;
+    const unsigned int patch_y = (Rand(state) >> 16) % height;
+    const unsigned int patch_width =
+        (width - patch_x < kPatchSize) ? (width - patch_x) : kPatchSize;
+    const unsigned int patch_height =
+        (height - patch_y < kPatchSize) ? (height - patch_y) : kPatchSize;
+    for (unsigned int row = 0; row < patch_height; ++row) {
+      uint8_t *dst_row =
+          plane + static_cast<size_t>(patch_y + row) * stride + patch_x;
+      for (unsigned int col = 0; col < patch_width; ++col) {
+        dst_row[col] =
+            (pass == 0)
+                ? static_cast<uint8_t>(Rand(state) >> 24)
+                : static_cast<uint8_t>(background + row * 8u + col * 8u);
+      }
     }
   }
 }
@@ -269,7 +313,24 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   const int cpu_used = PickCpuUsed(usage, cpu_used_raw);
   ApplyControls(&codec, usage, mode_flags, cpu_used_raw, ctl0, ctl1);
 
-  const unsigned int num_frames = kNumFramesForCpuUsed[cpu_used];
+  const unsigned int superblocks0 =
+      ((width0 + 63u) / 64u) * ((height0 + 63u) / 64u);
+  const unsigned int superblocks1 =
+      (mode_flags & kUseSecondResolution)
+          ? (((width1 + 63u) / 64u) * ((height1 + 63u) / 64u))
+          : superblocks0;
+  const unsigned int max_frame_superblocks =
+      (superblocks0 > superblocks1) ? superblocks0 : superblocks1;
+  const unsigned int max_frames_by_superblocks =
+      kMaxSuperblocksForCpuUsed[cpu_used] / max_frame_superblocks;
+  unsigned int num_frames = kNumFramesForCpuUsed[cpu_used];
+  if (num_frames > max_frames_by_superblocks) {
+    num_frames =
+        (max_frames_by_superblocks < 3u) ? 3u : max_frames_by_superblocks;
+  }
+
+  unsigned int width = width0;
+  unsigned int height = height0;
   bool config_failed = false;
   for (unsigned int frame = 0; frame < num_frames; ++frame) {
     aom_enc_frame_flags_t flags = 0;
@@ -277,16 +338,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       flags |= AOM_EFLAG_FORCE_KF;
     }
 
-    unsigned int width = width0;
-    unsigned int height = height0;
     if (mode_flags & kUseSecondResolution) {
       // Vary the switch frame based on the input so different encodings
       // exercise the resolution change at different points in the stream.
-      // num_frames >= 50 for every cpu_used, so switch_frame and
-      // restore_frame stay within [1, num_frames - 1].
-      const unsigned int switch_frame = 1u + (ctl0 % (num_frames / 4u));
-      const unsigned int restore_frame =
-          switch_frame + 1u + (ctl1 % (num_frames / 4u));
+      // num_frames >= 3 for every input, so switch_frame and restore_frame
+      // stay within [1, num_frames - 1].
+      const unsigned int window =
+          (num_frames > 4u) ? ((num_frames - 2u) / 2u) : 1u;
+      const unsigned int switch_frame = 1u + (ctl0 % window);
+      const unsigned int restore_frame = switch_frame + 1u + (ctl1 % window);
       if (frame == switch_frame) {
         cfg.g_w = width1;
         cfg.g_h = height1;
