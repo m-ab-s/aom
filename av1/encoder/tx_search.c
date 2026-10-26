@@ -2116,7 +2116,8 @@ static int skip_trellis_opt_based_on_satd(MACROBLOCK *x,
                                           int block, TX_SIZE tx_size,
                                           int quant_b_adapt, int qstep,
                                           unsigned int coeff_opt_satd_threshold,
-                                          int skip_trellis, int dc_only_blk) {
+                                          int skip_trellis, int dc_only_blk,
+                                          int *precalc_satd) {
   if (skip_trellis || (coeff_opt_satd_threshold == UINT_MAX))
     return skip_trellis;
 
@@ -2125,7 +2126,13 @@ static int skip_trellis_opt_based_on_satd(MACROBLOCK *x,
   tran_low_t *const coeff_ptr = p->coeff + block_offset;
   const int n_coeffs = av1_get_max_eob(tx_size);
   const int shift = (MAX_TX_SCALE - av1_get_tx_scale(tx_size));
-  int satd = (dc_only_blk) ? abs(coeff_ptr[0]) : aom_satd(coeff_ptr, n_coeffs);
+  int satd;
+  if (precalc_satd != NULL && *precalc_satd >= 0) {
+    satd = *precalc_satd;
+  } else {
+    satd = (dc_only_blk) ? abs(coeff_ptr[0]) : aom_satd(coeff_ptr, n_coeffs);
+    if (precalc_satd != NULL) *precalc_satd = satd;
+  }
   satd = RIGHT_SIGNED_SHIFT(satd, shift);
   satd >>= (x->e_mbd.bd - 8);
 
@@ -2329,6 +2336,16 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     calc_pixel_domain_distortion_final = use_transform_domain_distortion = 0;
 
   const uint16_t *eobs_ptr = x->plane[plane].eobs;
+  const int block_offset = BLOCK_OFFSET(block);
+  const tran_low_t *const coeff_ptr = p->coeff + block_offset;
+  const int n_coeffs = av1_get_max_eob(tx_size);
+  const int is_inter = is_inter_block(mbmi);
+  // Skip transform candidates whose transform-domain SATD exceeds the best
+  // candidate by more than 10% (inter) or 15% (intra) for speed > 0.
+  const int satd_early_exit_th = is_inter ? 10 : 15;
+  const int has_multi_tx =
+      (cpi->oxcf.speed > 0) && ((allowed_tx_mask & (allowed_tx_mask - 1)) != 0);
+  int best_satd = INT_MAX;
 
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
@@ -2367,9 +2384,23 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     else
       av1_xform_dc_only(x, plane, block, &txfm_param, per_px_mean);
 
+    int cur_satd = -1;
+    if (has_multi_tx) {
+      cur_satd =
+          dc_only_blk ? abs(coeff_ptr[0]) : aom_satd(coeff_ptr, n_coeffs);
+      if (best_satd == INT_MAX || cur_satd < best_satd) {
+        best_satd = cur_satd;
+      } else if (best_satd > 0 && ((int64_t)(cur_satd - best_satd) * 100 >
+                                   (int64_t)best_satd * satd_early_exit_th)) {
+        // skip unpromising transform candidate
+        continue;
+      }
+    }
+
     skip_trellis_based_on_satd[tx_type] = skip_trellis_opt_based_on_satd(
         x, &quant_param, plane, block, tx_size, cpi->oxcf.q_cfg.quant_b_adapt,
-        qstep, txfm_params->coeff_opt_thresholds[1], skip_trellis, dc_only_blk);
+        qstep, txfm_params->coeff_opt_thresholds[1], skip_trellis, dc_only_blk,
+        &cur_satd);
 
     av1_quant(x, plane, block, &txfm_param, &quant_param);
 
