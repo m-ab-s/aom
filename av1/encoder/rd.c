@@ -1460,23 +1460,32 @@ void av1_set_rd_speed_thresholds(AV1_COMP *cpi) {
   rd->thresh_mult[THR_D45_PRED] = 2500;
 }
 
+#if HAVE_AVX2 && (defined(__GNUC__) || defined(__clang__))
+__attribute__((target("avx2")))
+#endif
 static inline void update_thr_fact(int (*factor_buf)[MAX_MODES],
                                    THR_MODES best_mode_index,
                                    THR_MODES mode_start, THR_MODES mode_end,
                                    BLOCK_SIZE min_size, BLOCK_SIZE max_size,
                                    int max_rd_thresh_factor) {
-  for (THR_MODES mode = mode_start; mode < mode_end; ++mode) {
-    for (BLOCK_SIZE bs = min_size; bs <= max_size; ++bs) {
-      int *const fact = &factor_buf[bs][mode];
-      if (mode == best_mode_index) {
-        *fact -= (*fact >> RD_THRESH_LOG_DEC_FACTOR);
-      } else {
-        *fact = AOMMIN(*fact + RD_THRESH_INC, max_rd_thresh_factor);
-      }
+  if (mode_start >= mode_end) return;
+  const int best_in_range =
+      (best_mode_index >= mode_start && best_mode_index < mode_end);
+  for (BLOCK_SIZE bs = min_size; bs <= max_size; ++bs) {
+    int *__restrict const row = factor_buf[bs];
+    const int best_val = best_in_range ? row[best_mode_index] : 0;
+    for (THR_MODES mode = mode_start; mode < mode_end; ++mode) {
+      row[mode] = AOMMIN(row[mode] + RD_THRESH_INC, max_rd_thresh_factor);
+    }
+    if (best_in_range) {
+      row[best_mode_index] = best_val - (best_val >> RD_THRESH_LOG_DEC_FACTOR);
     }
   }
 }
 
+#if HAVE_AVX2 && (defined(__GNUC__) || defined(__clang__))
+__attribute__((target("avx2")))
+#endif
 void av1_update_rd_thresh_fact(
     const AV1_COMMON *const cm, int (*factor_buf)[MAX_MODES],
     int use_adaptive_rd_thresh, BLOCK_SIZE bsize, THR_MODES best_mode_index,
@@ -1497,10 +1506,16 @@ void av1_update_rd_thresh_fact(
     max_size = AOMMIN(bsize + 2, (int)cm->seq_params->sb_size);
   }
 
-  update_thr_fact(factor_buf, best_mode_index, inter_mode_start, inter_mode_end,
-                  min_size, max_size, max_rd_thresh_factor);
-  update_thr_fact(factor_buf, best_mode_index, intra_mode_start, intra_mode_end,
-                  min_size, max_size, max_rd_thresh_factor);
+  if (inter_mode_start <= inter_mode_end &&
+      inter_mode_end == intra_mode_start) {
+    update_thr_fact(factor_buf, best_mode_index, inter_mode_start,
+                    intra_mode_end, min_size, max_size, max_rd_thresh_factor);
+  } else {
+    update_thr_fact(factor_buf, best_mode_index, inter_mode_start,
+                    inter_mode_end, min_size, max_size, max_rd_thresh_factor);
+    update_thr_fact(factor_buf, best_mode_index, intra_mode_start,
+                    intra_mode_end, min_size, max_size, max_rd_thresh_factor);
+  }
 }
 
 int av1_get_intra_cost_penalty(int qindex, int qdelta,

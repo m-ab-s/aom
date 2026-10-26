@@ -316,6 +316,37 @@ static inline __m256 approx_exp_avx2(__m256 y) {
 #undef C
 }
 
+// Bit-exact AVX2 double-precision implementation of exp(-x) for x in [0, 7]
+static inline __m256d exact_exp_neg_pd_avx2(__m256d x) {
+  x = _mm256_min_pd(x, _mm256_set1_pd(7.0));
+  const __m256d inv_ln2 = _mm256_set1_pd(1.44269504088896340736);
+  const __m256d ln2_hi = _mm256_set1_pd(0.6931471805596629565116);
+  const __m256d ln2_lo = _mm256_set1_pd(0.2823529056303157712259e-12);
+  const __m256d k = _mm256_round_pd(
+      _mm256_mul_pd(x, inv_ln2), _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+  const __m256d r = _mm256_add_pd(_mm256_sub_pd(_mm256_mul_pd(k, ln2_hi), x),
+                                  _mm256_mul_pd(k, ln2_lo));
+  const __m256d c1 = _mm256_set1_pd(1.0);
+  const __m256d c2 = _mm256_set1_pd(0.5);
+  const __m256d c3 = _mm256_set1_pd(1.0 / 6.0);
+  const __m256d c4 = _mm256_set1_pd(1.0 / 24.0);
+  const __m256d c5 = _mm256_set1_pd(1.0 / 120.0);
+  const __m256d c6 = _mm256_set1_pd(1.0 / 720.0);
+  const __m256d c7 = _mm256_set1_pd(1.0 / 5040.0);
+  __m256d p = _mm256_add_pd(_mm256_mul_pd(c7, r), c6);
+  p = _mm256_add_pd(_mm256_mul_pd(p, r), c5);
+  p = _mm256_add_pd(_mm256_mul_pd(p, r), c4);
+  p = _mm256_add_pd(_mm256_mul_pd(p, r), c3);
+  p = _mm256_add_pd(_mm256_mul_pd(p, r), c2);
+  p = _mm256_add_pd(_mm256_mul_pd(p, r), c1);
+  p = _mm256_add_pd(_mm256_mul_pd(p, r), c1);
+  const __m128i ki = _mm256_cvtpd_epi32(k);
+  const __m256i ki64 =
+      _mm256_cvtepi32_epi64(_mm_sub_epi32(_mm_set1_epi32(1023), ki));
+  const __m256d pow2 = _mm256_castsi256_pd(_mm256_slli_epi64(ki64, 52));
+  return _mm256_mul_pd(p, pow2);
+}
+
 static void apply_temporal_filter(
     const uint8_t *frame1, const unsigned int stride, const uint8_t *frame2,
     const unsigned int stride2, const int block_width, const int block_height,
@@ -383,101 +414,75 @@ static void apply_temporal_filter(
     subblock_mses_scaled[idx] = subblock_mses[idx] * inv_factor;
     d_factor_decayed[idx] = d_factor[idx] * decay_factor;
   }
-  if (tf_wgt_calc_lvl == 0) {
-    for (int i = 0, k = 0; i < block_height; i++) {
-      const int y32_blk_raster_offset = (i >= (block_height >> 1)) << 1;
-      const int y16_blk_raster_offset =
-          ((i % (block_height >> 1)) >= (block_height >> 2)) << 1;
-      for (int j = 0; j < block_width; j++, k++) {
-        const int pixel_value = frame2[i * stride2 + j];
-        uint32_t diff_sse = acc_5x5_sse[i][j] + luma_sse_sum[i * BW + j];
+  __m256d subblock_mses_reg[NUM_16X16];
+  __m256d d_factor_mul_n_decay_qr_invs[NUM_16X16];
+  const __m256 zero = _mm256_set1_ps(0.0f);
+  const __m256 point_five = _mm256_set1_ps(0.5f);
+  const __m256 seven = _mm256_set1_ps(7.0f);
+  const __m256d inv_num_ref_pixel_256bit = _mm256_set1_pd(inv_num_ref_pixels);
+  const __m256d weight_factor_256bit = _mm256_set1_pd(weight_factor);
+  const __m256 tf_weight_scale = _mm256_set1_ps((float)TF_WEIGHT_SCALE);
+  const __m256d tf_weight_scale_pd = _mm256_set1_pd((double)TF_WEIGHT_SCALE);
+  // Maintain registers to hold mse and d_factor at subblock level.
+  for (int i = 0; i < NUM_16X16; i++) {
+    subblock_mses_reg[i] = _mm256_set1_pd(subblock_mses_scaled[i]);
+    d_factor_mul_n_decay_qr_invs[i] = _mm256_set1_pd(d_factor_decayed[i]);
+  }
 
-        const double window_error = diff_sse * inv_num_ref_pixels;
-        const int x32_blk_raster_offset = (j >= (block_width >> 1));
-        const int x16_blk_raster_offset =
-            ((j % (block_width >> 1)) >= (block_width >> 2));
-        const int subblock_idx =
-            ((y32_blk_raster_offset + x32_blk_raster_offset) << 2) +
-            (y16_blk_raster_offset + x16_blk_raster_offset);
-        const double combined_error =
-            weight_factor * window_error + subblock_mses_scaled[subblock_idx];
+  for (int i = 0; i < block_height; i++) {
+    const int y32_blk_raster_offset = (i >= (block_height >> 1)) << 1;
+    const int y16_blk_raster_offset =
+        ((i % (block_height >> 1)) >= (block_height >> 2)) << 1;
+    uint32_t *luma_sse_sum_temp = luma_sse_sum + i * BW;
+    for (int j = 0; j < block_width; j += 8) {
+      const __m256i acc_sse =
+          _mm256_lddqu_si256((__m256i *)(acc_5x5_sse[i] + j));
+      const __m256i luma_sse =
+          _mm256_lddqu_si256((__m256i *)((luma_sse_sum_temp + j)));
 
-        double scaled_error = combined_error * d_factor_decayed[subblock_idx];
-        scaled_error = AOMMIN(scaled_error, 7);
-        const int weight = (int)(exp(-scaled_error) * TF_WEIGHT_SCALE);
+      const __m256i diff_sse = _mm256_add_epi32(acc_sse, luma_sse);
 
-        count[k] += weight;
-        accumulator[k] += weight * pixel_value;
-      }
-    }
-  } else {
-    __m256d subblock_mses_reg[NUM_16X16];
-    __m256d d_factor_mul_n_decay_qr_invs[NUM_16X16];
-    const __m256 zero = _mm256_set1_ps(0.0f);
-    const __m256 point_five = _mm256_set1_ps(0.5f);
-    const __m256 seven = _mm256_set1_ps(7.0f);
-    const __m256d inv_num_ref_pixel_256bit = _mm256_set1_pd(inv_num_ref_pixels);
-    const __m256d weight_factor_256bit = _mm256_set1_pd(weight_factor);
-    const __m256 tf_weight_scale = _mm256_set1_ps((float)TF_WEIGHT_SCALE);
-    // Maintain registers to hold mse and d_factor at subblock level.
-    for (int i = 0; i < NUM_16X16; i++) {
-      subblock_mses_reg[i] = _mm256_set1_pd(subblock_mses_scaled[i]);
-      d_factor_mul_n_decay_qr_invs[i] = _mm256_set1_pd(d_factor_decayed[i]);
-    }
+      const __m256d diff_sse_pd_1 =
+          _mm256_cvtepi32_pd(_mm256_castsi256_si128(diff_sse));
+      const __m256d diff_sse_pd_2 =
+          _mm256_cvtepi32_pd(_mm256_extracti128_si256(diff_sse, 1));
 
-    for (int i = 0; i < block_height; i++) {
-      const int y32_blk_raster_offset = (i >= (block_height >> 1)) << 1;
-      const int y16_blk_raster_offset =
-          ((i % (block_height >> 1)) >= (block_height >> 2)) << 1;
-      uint32_t *luma_sse_sum_temp = luma_sse_sum + i * BW;
-      for (int j = 0; j < block_width; j += 8) {
-        const __m256i acc_sse =
-            _mm256_lddqu_si256((__m256i *)(acc_5x5_sse[i] + j));
-        const __m256i luma_sse =
-            _mm256_lddqu_si256((__m256i *)((luma_sse_sum_temp + j)));
+      const __m256d window_error_1 =
+          _mm256_mul_pd(diff_sse_pd_1, inv_num_ref_pixel_256bit);
+      const __m256d window_error_2 =
+          _mm256_mul_pd(diff_sse_pd_2, inv_num_ref_pixel_256bit);
 
-        // uint32_t diff_sse = acc_5x5_sse[i][j] + luma_sse_sum[i * BW + j];
-        const __m256i diff_sse = _mm256_add_epi32(acc_sse, luma_sse);
+      const int x32_blk_raster_offset = (j >= (block_width >> 1));
+      const int x16_blk_raster_offset =
+          ((j % (block_width >> 1)) >= (block_width >> 2));
+      const int subblock_idx =
+          ((y32_blk_raster_offset + x32_blk_raster_offset) << 2) +
+          (y16_blk_raster_offset + x16_blk_raster_offset);
+      const __m256d blk_error = subblock_mses_reg[subblock_idx];
 
-        const __m256d diff_sse_pd_1 =
-            _mm256_cvtepi32_pd(_mm256_castsi256_si128(diff_sse));
-        const __m256d diff_sse_pd_2 =
-            _mm256_cvtepi32_pd(_mm256_extracti128_si256(diff_sse, 1));
+      const __m256d combined_error_1 = _mm256_add_pd(
+          _mm256_mul_pd(window_error_1, weight_factor_256bit), blk_error);
 
-        // const double window_error = diff_sse * inv_num_ref_pixels;
-        const __m256d window_error_1 =
-            _mm256_mul_pd(diff_sse_pd_1, inv_num_ref_pixel_256bit);
-        const __m256d window_error_2 =
-            _mm256_mul_pd(diff_sse_pd_2, inv_num_ref_pixel_256bit);
+      const __m256d combined_error_2 = _mm256_add_pd(
+          _mm256_mul_pd(window_error_2, weight_factor_256bit), blk_error);
 
-        // const int subblock_idx = (y32 * 2 + x32) * 4 + (y16 * 2 + x16);
-        const int x32_blk_raster_offset = (j >= (block_width >> 1));
-        const int x16_blk_raster_offset =
-            ((j % (block_width >> 1)) >= (block_width >> 2));
-        const int subblock_idx =
-            ((y32_blk_raster_offset + x32_blk_raster_offset) << 2) +
-            (y16_blk_raster_offset + x16_blk_raster_offset);
-        const __m256d blk_error = subblock_mses_reg[subblock_idx];
+      const __m256d d_fact_mul_n_decay =
+          d_factor_mul_n_decay_qr_invs[subblock_idx];
 
-        // const double combined_error =
-        // weight_factor *window_error + subblock_mses_scaled[subblock_idx];
-        const __m256d combined_error_1 = _mm256_add_pd(
-            _mm256_mul_pd(window_error_1, weight_factor_256bit), blk_error);
+      const __m256d scaled_error_1 =
+          _mm256_mul_pd(combined_error_1, d_fact_mul_n_decay);
+      const __m256d scaled_error_2 =
+          _mm256_mul_pd(combined_error_2, d_fact_mul_n_decay);
 
-        const __m256d combined_error_2 = _mm256_add_pd(
-            _mm256_mul_pd(window_error_2, weight_factor_256bit), blk_error);
-
-        // d_factor_decayed[subblock_idx]
-        const __m256d d_fact_mul_n_decay =
-            d_factor_mul_n_decay_qr_invs[subblock_idx];
-
-        // double scaled_error = combined_error *
-        // d_factor_decayed[subblock_idx];
-        const __m256d scaled_error_1 =
-            _mm256_mul_pd(combined_error_1, d_fact_mul_n_decay);
-        const __m256d scaled_error_2 =
-            _mm256_mul_pd(combined_error_2, d_fact_mul_n_decay);
-
+      __m256i weights_in_32bit;
+      if (tf_wgt_calc_lvl == 0) {
+        const __m128i w1 = _mm256_cvttpd_epi32(_mm256_mul_pd(
+            exact_exp_neg_pd_avx2(scaled_error_1), tf_weight_scale_pd));
+        const __m128i w2 = _mm256_cvttpd_epi32(_mm256_mul_pd(
+            exact_exp_neg_pd_avx2(scaled_error_2), tf_weight_scale_pd));
+        weights_in_32bit =
+            _mm256_inserti128_si256(_mm256_castsi128_si256(w1), w2, 0x1);
+      } else {
         const __m128 scaled_error_ps_1 = _mm256_cvtpd_ps(scaled_error_1);
         const __m128 scaled_error_ps_2 = _mm256_cvtpd_ps(scaled_error_2);
 
@@ -494,32 +499,32 @@ static void apply_temporal_filter(
             _mm256_mul_ps(exp_result, tf_weight_scale);
         const __m256 round_result =
             _mm256_add_ps(scale_weight_exp_result, point_five);
-        __m256i weights_in_32bit = _mm256_cvttps_epi32(round_result);
-
-        __m128i weights_in_16bit =
-            _mm_packus_epi32(_mm256_castsi256_si128(weights_in_32bit),
-                             _mm256_extractf128_si256(weights_in_32bit, 0x1));
-
-        // count[k] += weight;
-        // accumulator[k] += weight * pixel_value;
-        const int stride_idx = i * stride2 + j;
-        const __m128i count_array =
-            _mm_loadu_si128((__m128i *)(count + stride_idx));
-        _mm_storeu_si128((__m128i *)(count + stride_idx),
-                         _mm_add_epi16(count_array, weights_in_16bit));
-
-        const __m256i accumulator_array =
-            _mm256_loadu_si256((__m256i *)(accumulator + stride_idx));
-        const __m128i pred_values =
-            _mm_loadl_epi64((__m128i *)(frame2 + stride_idx));
-
-        const __m256i pred_values_u32 = _mm256_cvtepu8_epi32(pred_values);
-        const __m256i mull_frame2_weight_u32 =
-            _mm256_mullo_epi32(pred_values_u32, weights_in_32bit);
-        _mm256_storeu_si256(
-            (__m256i *)(accumulator + stride_idx),
-            _mm256_add_epi32(accumulator_array, mull_frame2_weight_u32));
+        weights_in_32bit = _mm256_cvttps_epi32(round_result);
       }
+
+      __m128i weights_in_16bit =
+          _mm_packus_epi32(_mm256_castsi256_si128(weights_in_32bit),
+                           _mm256_extractf128_si256(weights_in_32bit, 0x1));
+
+      // count[k] += weight;
+      // accumulator[k] += weight * pixel_value;
+      const int stride_idx = i * stride2 + j;
+      const __m128i count_array =
+          _mm_loadu_si128((__m128i *)(count + stride_idx));
+      _mm_storeu_si128((__m128i *)(count + stride_idx),
+                       _mm_add_epi16(count_array, weights_in_16bit));
+
+      const __m256i accumulator_array =
+          _mm256_loadu_si256((__m256i *)(accumulator + stride_idx));
+      const __m128i pred_values =
+          _mm_loadl_epi64((__m128i *)(frame2 + stride_idx));
+
+      const __m256i pred_values_u32 = _mm256_cvtepu8_epi32(pred_values);
+      const __m256i mull_frame2_weight_u32 =
+          _mm256_mullo_epi32(pred_values_u32, weights_in_32bit);
+      _mm256_storeu_si256(
+          (__m256i *)(accumulator + stride_idx),
+          _mm256_add_epi32(accumulator_array, mull_frame2_weight_u32));
     }
   }
 }

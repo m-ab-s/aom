@@ -54,12 +54,41 @@ static AOM_FORCE_INLINE void aom_sadMxNx4d_avx2(
   ref1 = ref[1];
   ref2 = ref[2];
   ref3 = ref[3];
-  sum_ref0 = _mm256_setzero_si256();
-  sum_ref2 = _mm256_setzero_si256();
-  sum_ref1 = _mm256_setzero_si256();
-  sum_ref3 = _mm256_setzero_si256();
 
-  for (i = 0; i < N; i++) {
+  src_reg = _mm256_loadu_si256((const __m256i *)src);
+  sum_ref0 =
+      _mm256_sad_epu8(_mm256_loadu_si256((const __m256i *)ref0), src_reg);
+  sum_ref1 =
+      _mm256_sad_epu8(_mm256_loadu_si256((const __m256i *)ref1), src_reg);
+  sum_ref2 =
+      _mm256_sad_epu8(_mm256_loadu_si256((const __m256i *)ref2), src_reg);
+  sum_ref3 =
+      _mm256_sad_epu8(_mm256_loadu_si256((const __m256i *)ref3), src_reg);
+  for (j = 32; j < M; j += 32) {
+    src_reg = _mm256_loadu_si256((const __m256i *)(src + j));
+    ref0_reg = _mm256_sad_epu8(_mm256_loadu_si256((const __m256i *)(ref0 + j)),
+                               src_reg);
+    ref1_reg = _mm256_sad_epu8(_mm256_loadu_si256((const __m256i *)(ref1 + j)),
+                               src_reg);
+    ref2_reg = _mm256_sad_epu8(_mm256_loadu_si256((const __m256i *)(ref2 + j)),
+                               src_reg);
+    ref3_reg = _mm256_sad_epu8(_mm256_loadu_si256((const __m256i *)(ref3 + j)),
+                               src_reg);
+    sum_ref0 = _mm256_add_epi32(sum_ref0, ref0_reg);
+    sum_ref1 = _mm256_add_epi32(sum_ref1, ref1_reg);
+    sum_ref2 = _mm256_add_epi32(sum_ref2, ref2_reg);
+    sum_ref3 = _mm256_add_epi32(sum_ref3, ref3_reg);
+  }
+  src += src_stride;
+  ref0 += ref_stride;
+  ref1 += ref_stride;
+  ref2 += ref_stride;
+  ref3 += ref_stride;
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC unroll 2
+#endif
+  for (i = 1; i < N; i++) {
     for (j = 0; j < M; j += 32) {
       // load src and all refs
       src_reg = _mm256_loadu_si256((const __m256i *)(src + j));
@@ -203,11 +232,20 @@ static AOM_FORCE_INLINE void aom_sad16xNx3d_avx2(int N, const uint8_t *src,
   ref0 = ref[0];
   ref1 = ref[1];
   ref2 = ref[2];
-  sum_ref0 = _mm256_setzero_si256();
-  sum_ref2 = _mm256_setzero_si256();
-  sum_ref1 = _mm256_setzero_si256();
 
-  for (int i = 0; i < N; i += 2) {
+  src_reg = yy_loadu2_128(src + src_stride, src);
+  sum_ref0 = _mm256_sad_epu8(yy_loadu2_128(ref0 + ref_stride, ref0), src_reg);
+  sum_ref1 = _mm256_sad_epu8(yy_loadu2_128(ref1 + ref_stride, ref1), src_reg);
+  sum_ref2 = _mm256_sad_epu8(yy_loadu2_128(ref2 + ref_stride, ref2), src_reg);
+  src += 2 * src_stride;
+  ref0 += 2 * ref_stride;
+  ref1 += 2 * ref_stride;
+  ref2 += 2 * ref_stride;
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC unroll 2
+#endif
+  for (int i = 2; i < N; i += 2) {
     // load src and all refs
     src_reg = yy_loadu2_128(src + src_stride, src);
     ref0_reg = yy_loadu2_128(ref0 + ref_stride, ref0);
@@ -248,12 +286,23 @@ static AOM_FORCE_INLINE void aom_sad16xNx4d_avx2(int N, const uint8_t *src,
   ref2 = ref[2];
   ref3 = ref[3];
 
-  sum_ref0 = _mm256_setzero_si256();
-  sum_ref2 = _mm256_setzero_si256();
-  sum_ref1 = _mm256_setzero_si256();
-  sum_ref3 = _mm256_setzero_si256();
-
-  for (int i = 0; i < N; i += 2) {
+  src_reg = yy_loadu2_128(src + src_stride, src);
+  sum_ref0 = _mm256_sad_epu8(yy_loadu2_128(ref0 + ref_stride, ref0), src_reg);
+  sum_ref1 = _mm256_sad_epu8(yy_loadu2_128(ref1 + ref_stride, ref1), src_reg);
+  sum_ref2 = _mm256_sad_epu8(yy_loadu2_128(ref2 + ref_stride, ref2), src_reg);
+  sum_ref3 = _mm256_sad_epu8(yy_loadu2_128(ref3 + ref_stride, ref3), src_reg);
+  src += 2 * src_stride;
+  ref0 += 2 * ref_stride;
+  ref1 += 2 * ref_stride;
+  ref2 += 2 * ref_stride;
+  ref3 += 2 * ref_stride;
+#if defined(__GNUC__) && !defined(__clang__)
+  __asm__(""
+          : "+r"(src), "+r"(ref0), "+r"(ref1), "+r"(ref2), "+r"(ref3),
+            "+x"(sum_ref0), "+x"(sum_ref1), "+x"(sum_ref2), "+x"(sum_ref3));
+#pragma GCC unroll 2
+#endif
+  for (int i = 2; i < N; i += 2) {
     // load src and all refs
     src_reg = yy_loadu2_128(src + src_stride, src);
     ref0_reg = yy_loadu2_128(ref0 + ref_stride, ref0);
@@ -278,6 +327,11 @@ static AOM_FORCE_INLINE void aom_sad16xNx4d_avx2(int N, const uint8_t *src,
     ref1 += 2 * ref_stride;
     ref2 += 2 * ref_stride;
     ref3 += 2 * ref_stride;
+#if defined(__GNUC__) && !defined(__clang__)
+    __asm__(""
+            : "+r"(src), "+r"(ref0), "+r"(ref1), "+r"(ref2), "+r"(ref3),
+              "+x"(sum_ref0), "+x"(sum_ref1), "+x"(sum_ref2), "+x"(sum_ref3));
+#endif
   }
 
   aggregate_and_store_sum(res, &sum_ref0, &sum_ref1, &sum_ref2, &sum_ref3);

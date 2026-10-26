@@ -23,6 +23,9 @@
 #include "av1/encoder/tx_prune_model_weights.h"
 #include "av1/encoder/tx_search.h"
 #include "av1/encoder/txb_rdopt.h"
+#if HAVE_AVX2 && (defined(__x86_64__) || defined(_M_X64))
+#include <immintrin.h>
+#endif
 
 #define PROB_THRESH_OFFSET_TX_TYPE 100
 
@@ -1454,41 +1457,186 @@ static inline float get_adaptive_thresholds(
   return prune_2D_adaptive_thresholds[tx_size][pruning_aggressiveness];
 }
 
+#if HAVE_AVX2 && defined(__x86_64__) && \
+    (defined(__GNUC__) || defined(__clang__))
+__attribute__((target("avx2")))
+#endif
 static inline void get_energy_distribution_finer(const int16_t *diff,
                                                  int stride, int bw, int bh,
                                                  float *hordist,
                                                  float *verdist) {
-  // First compute downscaled block energy values (esq); downscale factors
-  // are defined by w_shift and h_shift.
-  unsigned int esq[256];
   const int w_shift = bw <= 8 ? 0 : 1;
   const int h_shift = bh <= 8 ? 0 : 1;
   const int esq_w = bw >> w_shift;
   const int esq_h = bh >> h_shift;
-  const int esq_sz = esq_w * esq_h;
-  int i, j;
-  memset(esq, 0, esq_sz * sizeof(esq[0]));
-  if (w_shift) {
-    for (i = 0; i < bh; i++) {
-      unsigned int *cur_esq_row = esq + (i >> h_shift) * esq_w;
-      const int16_t *cur_diff_row = diff + i * stride;
-      for (j = 0; j < bw; j += 2) {
-        cur_esq_row[j >> 1] += (cur_diff_row[j] * cur_diff_row[j] +
-                                cur_diff_row[j + 1] * cur_diff_row[j + 1]);
-      }
-    }
-  } else {
-    for (i = 0; i < bh; i++) {
-      unsigned int *cur_esq_row = esq + (i >> h_shift) * esq_w;
-      const int16_t *cur_diff_row = diff + i * stride;
-      for (j = 0; j < bw; j++) {
-        cur_esq_row[j] += cur_diff_row[j] * cur_diff_row[j];
-      }
-    }
-  }
-
+  uint32_t col_sum[16] = { 0 };
+  uint32_t row_sum[16] = { 0 };
   uint64_t total = 0;
-  for (i = 0; i < esq_sz; i++) total += esq[i];
+  int i, j;
+
+#if HAVE_AVX2 && defined(__x86_64__) && \
+    (defined(__GNUC__) || defined(__clang__))
+  if (bw == 4) {
+    __m128i v_col = _mm_setzero_si128();
+    if (h_shift == 0) {
+      for (i = 0; i < esq_h; i++) {
+        const __m128i d = _mm_cvtepi16_epi32(
+            _mm_loadl_epi64((const __m128i *)(diff + i * stride)));
+        const __m128i sq = _mm_mullo_epi32(d, d);
+        v_col = _mm_add_epi32(v_col, sq);
+        const __m128i s1 = _mm_hadd_epi32(sq, sq);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    } else {
+      for (i = 0; i < esq_h; i++) {
+        const __m128i d0 =
+            _mm_loadl_epi64((const __m128i *)(diff + (2 * i) * stride));
+        const __m128i d1 =
+            _mm_loadl_epi64((const __m128i *)(diff + (2 * i + 1) * stride));
+        const __m128i d01 = _mm_unpacklo_epi16(d0, d1);
+        const __m128i sq = _mm_madd_epi16(d01, d01);
+        v_col = _mm_add_epi32(v_col, sq);
+        const __m128i s1 = _mm_hadd_epi32(sq, sq);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    }
+    _mm_storeu_si128((__m128i *)col_sum, v_col);
+    const __m128i t1 = _mm_hadd_epi32(v_col, v_col);
+    const __m128i t2 = _mm_hadd_epi32(t1, t1);
+    total = (uint32_t)_mm_cvtsi128_si32(t2);
+  } else if (bw == 8) {
+    __m256i v_col = _mm256_setzero_si256();
+    if (h_shift == 0) {
+      for (i = 0; i < esq_h; i++) {
+        const __m256i d = _mm256_cvtepi16_epi32(
+            _mm_loadu_si128((const __m128i *)(diff + i * stride)));
+        const __m256i sq = _mm256_mullo_epi32(d, d);
+        v_col = _mm256_add_epi32(v_col, sq);
+        const __m128i sq128 = _mm_add_epi32(_mm256_castsi256_si128(sq),
+                                            _mm256_extracti128_si256(sq, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    } else {
+      for (i = 0; i < esq_h; i++) {
+        const __m128i d0 =
+            _mm_loadu_si128((const __m128i *)(diff + (2 * i) * stride));
+        const __m128i d1 =
+            _mm_loadu_si128((const __m128i *)(diff + (2 * i + 1) * stride));
+        const __m256i d0_256 = _mm256_cvtepi16_epi32(d0);
+        const __m256i d1_256 = _mm256_cvtepi16_epi32(d1);
+        const __m256i sq = _mm256_add_epi32(_mm256_mullo_epi32(d0_256, d0_256),
+                                            _mm256_mullo_epi32(d1_256, d1_256));
+        v_col = _mm256_add_epi32(v_col, sq);
+        const __m128i sq128 = _mm_add_epi32(_mm256_castsi256_si128(sq),
+                                            _mm256_extracti128_si256(sq, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    }
+    _mm256_storeu_si256((__m256i *)col_sum, v_col);
+    const __m128i c128 = _mm_add_epi32(_mm256_castsi256_si128(v_col),
+                                       _mm256_extracti128_si256(v_col, 1));
+    const __m128i t1 = _mm_hadd_epi32(c128, c128);
+    const __m128i t2 = _mm_hadd_epi32(t1, t1);
+    total = (uint32_t)_mm_cvtsi128_si32(t2);
+  } else if (bw == 16) {
+    __m256i v_col = _mm256_setzero_si256();
+    if (h_shift == 0) {
+      for (i = 0; i < esq_h; i++) {
+        const __m256i d =
+            _mm256_loadu_si256((const __m256i *)(diff + i * stride));
+        const __m256i sq = _mm256_madd_epi16(d, d);
+        v_col = _mm256_add_epi32(v_col, sq);
+        const __m128i sq128 = _mm_add_epi32(_mm256_castsi256_si128(sq),
+                                            _mm256_extracti128_si256(sq, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    } else {
+      for (i = 0; i < esq_h; i++) {
+        const __m256i d0 =
+            _mm256_loadu_si256((const __m256i *)(diff + (2 * i) * stride));
+        const __m256i d1 =
+            _mm256_loadu_si256((const __m256i *)(diff + (2 * i + 1) * stride));
+        const __m256i sq = _mm256_add_epi32(_mm256_madd_epi16(d0, d0),
+                                            _mm256_madd_epi16(d1, d1));
+        v_col = _mm256_add_epi32(v_col, sq);
+        const __m128i sq128 = _mm_add_epi32(_mm256_castsi256_si128(sq),
+                                            _mm256_extracti128_si256(sq, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    }
+    _mm256_storeu_si256((__m256i *)col_sum, v_col);
+    const __m128i c128 = _mm_add_epi32(_mm256_castsi256_si128(v_col),
+                                       _mm256_extracti128_si256(v_col, 1));
+    const __m128i t1 = _mm_hadd_epi32(c128, c128);
+    const __m128i t2 = _mm_hadd_epi32(t1, t1);
+    total = (uint32_t)_mm_cvtsi128_si32(t2);
+  } else {
+    __m256i v_col_lo = _mm256_setzero_si256();
+    __m256i v_col_hi = _mm256_setzero_si256();
+    for (i = 0; i < esq_h; i++) {
+      const int16_t *r0 = diff + (2 * i) * stride;
+      const int16_t *r1 = diff + (2 * i + 1) * stride;
+      const __m256i d0_lo = _mm256_loadu_si256((const __m256i *)r0);
+      const __m256i d0_hi = _mm256_loadu_si256((const __m256i *)(r0 + 16));
+      const __m256i d1_lo = _mm256_loadu_si256((const __m256i *)r1);
+      const __m256i d1_hi = _mm256_loadu_si256((const __m256i *)(r1 + 16));
+      const __m256i sq_lo = _mm256_add_epi32(_mm256_madd_epi16(d0_lo, d0_lo),
+                                             _mm256_madd_epi16(d1_lo, d1_lo));
+      const __m256i sq_hi = _mm256_add_epi32(_mm256_madd_epi16(d0_hi, d0_hi),
+                                             _mm256_madd_epi16(d1_hi, d1_hi));
+      v_col_lo = _mm256_add_epi32(v_col_lo, sq_lo);
+      v_col_hi = _mm256_add_epi32(v_col_hi, sq_hi);
+      const __m256i sq_sum = _mm256_add_epi32(sq_lo, sq_hi);
+      const __m128i sq128 = _mm_add_epi32(_mm256_castsi256_si128(sq_sum),
+                                          _mm256_extracti128_si256(sq_sum, 1));
+      const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+      const __m128i s2 = _mm_hadd_epi32(s1, s1);
+      row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+    }
+    _mm256_storeu_si256((__m256i *)col_sum, v_col_lo);
+    _mm256_storeu_si256((__m256i *)(col_sum + 8), v_col_hi);
+    const __m256i v_col_all = _mm256_add_epi32(v_col_lo, v_col_hi);
+    const __m128i c128 = _mm_add_epi32(_mm256_castsi256_si128(v_col_all),
+                                       _mm256_extracti128_si256(v_col_all, 1));
+    const __m128i t1 = _mm_hadd_epi32(c128, c128);
+    const __m128i t2 = _mm_hadd_epi32(t1, t1);
+    total = (uint32_t)_mm_cvtsi128_si32(t2);
+  }
+#else
+  memset(col_sum, 0, esq_w * sizeof(col_sum[0]));
+  memset(row_sum, 0, esq_h * sizeof(row_sum[0]));
+  for (i = 0; i < bh; i++) {
+    const int16_t *cur_diff_row = diff + i * stride;
+    uint32_t r_sum = 0;
+    if (w_shift) {
+      for (j = 0; j < bw; j += 2) {
+        const uint32_t sq =
+            (uint32_t)(cur_diff_row[j] * cur_diff_row[j] +
+                       cur_diff_row[j + 1] * cur_diff_row[j + 1]);
+        col_sum[j >> 1] += sq;
+        r_sum += sq;
+      }
+    } else {
+      for (j = 0; j < bw; j++) {
+        const uint32_t sq = (uint32_t)(cur_diff_row[j] * cur_diff_row[j]);
+        col_sum[j] += sq;
+        r_sum += sq;
+      }
+    }
+    row_sum[i >> h_shift] += r_sum;
+    total += r_sum;
+  }
+#endif
 
   // Output hordist and verdist arrays are normalized 1D projections of esq
   if (total == 0) {
@@ -1500,22 +1648,8 @@ static inline void get_energy_distribution_finer(const int16_t *diff,
   }
 
   const float e_recip = 1.0f / (float)total;
-  memset(hordist, 0, (esq_w - 1) * sizeof(hordist[0]));
-  memset(verdist, 0, (esq_h - 1) * sizeof(verdist[0]));
-  const unsigned int *cur_esq_row;
-  for (i = 0; i < esq_h - 1; i++) {
-    cur_esq_row = esq + i * esq_w;
-    for (j = 0; j < esq_w - 1; j++) {
-      hordist[j] += (float)cur_esq_row[j];
-      verdist[i] += (float)cur_esq_row[j];
-    }
-    verdist[i] += (float)cur_esq_row[j];
-  }
-  cur_esq_row = esq + i * esq_w;
-  for (j = 0; j < esq_w - 1; j++) hordist[j] += (float)cur_esq_row[j];
-
-  for (j = 0; j < esq_w - 1; j++) hordist[j] *= e_recip;
-  for (i = 0; i < esq_h - 1; i++) verdist[i] *= e_recip;
+  for (j = 0; j < esq_w - 1; j++) hordist[j] = (float)col_sum[j] * e_recip;
+  for (i = 0; i < esq_h - 1; i++) verdist[i] = (float)row_sum[i] * e_recip;
 }
 
 static inline bool check_bit_mask(uint16_t mask, int val) {
@@ -1530,6 +1664,10 @@ static inline void unset_bit_mask(uint16_t *mask, int val) {
   *mask &= ~(1 << val);
 }
 
+#if HAVE_AVX2 && defined(__x86_64__) && \
+    (defined(__GNUC__) || defined(__clang__))
+__attribute__((target("avx2")))
+#endif
 static void prune_tx_2D(MACROBLOCK *x, BLOCK_SIZE bsize, TX_SIZE tx_size,
                         int blk_row, int blk_col, TxSetType tx_set_type,
                         TX_TYPE_PRUNE_MODE prune_2d_txfm_mode, int *txk_map,
@@ -1895,9 +2033,13 @@ static inline uint16_t get_tx_mask(
       if ((prune >> max_idx) & 0x01) prune &= ~(1 << max_idx);
       allowed_tx_mask &= (~prune);
     }
-    for (i = 0; i < TX_TYPES; i++) {
-      if (allowed_tx_mask & (1 << i)) num_allowed++;
+#if defined(__GNUC__) || defined(__clang__)
+    num_allowed = __builtin_popcount(allowed_tx_mask);
+#else
+    for (uint16_t mask = allowed_tx_mask; mask != 0; mask &= mask - 1) {
+      num_allowed++;
     }
+#endif
     assert(num_allowed > 0);
 
     if (num_allowed > 2 && cpi->sf.tx_sf.tx_type_search.prune_tx_type_est_rd) {
@@ -2198,13 +2340,17 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                                : AV1_XFORM_QUANT_FP,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
 
+  const int use_qmatrix =
+      av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id);
+  uint16_t rem_tx_mask = allowed_tx_mask;
   // Iterate through all transform type candidates.
-  for (int idx = 0; idx < TX_TYPES; ++idx) {
+  for (int idx = 0; idx < TX_TYPES && rem_tx_mask != 0; ++idx) {
     const TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
-    if (tx_type == TX_TYPE_INVALID || !check_bit_mask(allowed_tx_mask, tx_type))
+    if (tx_type == TX_TYPE_INVALID || !check_bit_mask(rem_tx_mask, tx_type))
       continue;
+    rem_tx_mask &= ~(uint16_t)(1 << tx_type);
     txfm_param.tx_type = tx_type;
-    if (av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id)) {
+    if (use_qmatrix) {
       av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
                         &quant_param);
     }

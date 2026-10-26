@@ -560,7 +560,7 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   const int_mv init_mv[2] = { cur_mv[0], cur_mv[1] };
   const int refs[2] = { mbmi->ref_frame[0], mbmi->ref_frame[1] };
   const MvCosts *mv_costs = x->mv_costs;
-  int_mv ref_mv[2];
+  const int_mv ref_mv[2] = { av1_get_ref_mv(x, 0), av1_get_ref_mv(x, 1) };
   int ite, ref;
 
   // Get the prediction block from the 'other' reference frame.
@@ -606,8 +606,8 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
         }
       }
     }
+    const FULLPEL_MV start_fullmv = get_fullmv_from_mv(&cur_mv[id].as_mv);
     for (ref = 0; ref < 2; ++ref) {
-      ref_mv[ref] = av1_get_ref_mv(x, ref);
       // Swap out the reference frame for a version that's been scaled to
       // match the resolution of the current frame, allowing the existing
       // motion search code to be used without additional modifications.
@@ -654,7 +654,6 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
     const search_site_config *src_search_sites =
         av1_get_search_site_config(cpi, x, search_method);
     // Use the mv result from the single mode as mv predictor.
-    const FULLPEL_MV start_fullmv = get_fullmv_from_mv(&cur_mv[id].as_mv);
     av1_make_default_fullpel_ms_params(&full_ms_params, cpi, x, bsize,
                                        &ref_mv[id].as_mv, start_fullmv,
                                        src_search_sites, search_method,
@@ -759,8 +758,7 @@ int av1_joint_motion_search(const AV1_COMP *cpi, MACROBLOCK *x,
   *rate_mv = 0;
 
   for (ref = 0; ref < 2; ++ref) {
-    const int_mv curr_ref_mv = av1_get_ref_mv(x, ref);
-    *rate_mv += av1_mv_bit_cost(&cur_mv[ref].as_mv, &curr_ref_mv.as_mv,
+    *rate_mv += av1_mv_bit_cost(&cur_mv[ref].as_mv, &ref_mv[ref].as_mv,
                                 mv_costs->nmv_joint_cost,
                                 mv_costs->mv_cost_stack, MV_COST_WEIGHT);
   }

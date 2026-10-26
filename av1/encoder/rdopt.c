@@ -1817,6 +1817,7 @@ static int64_t motion_mode_rd(
                                mbmi->mv[0].as_mv.row, mbmi->mv[0].as_mv.col,
                                &mbmi->wm_params, mi_row, mi_col)) {
         assert(!is_comp_pred);
+        unsigned int dst_y_valid = 0;
         if (have_newmv_in_inter_mode(this_mode)) {
           // Refine MV for NEWMV mode
           const int_mv mv0 = mbmi->mv[0];
@@ -1829,9 +1830,10 @@ static int64_t motion_mode_rd(
                                             &ref_mv.as_mv, NULL);
 
           // Refine MV in a small range.
-          av1_refine_warped_mv(xd, cm, &ms_params, bsize, pts0, pts_inref0,
-                               total_samples, cpi->sf.mv_sf.warp_search_method,
-                               cpi->sf.mv_sf.warp_search_iters);
+          dst_y_valid = av1_refine_warped_mv(xd, cm, &ms_params, bsize, pts0,
+                                             pts_inref0, total_samples,
+                                             cpi->sf.mv_sf.warp_search_method,
+                                             cpi->sf.mv_sf.warp_search_iters);
 
           if (mv0.as_int != mbmi->mv[0].as_int) {
             // Keep the refined MV and WM parameters.
@@ -1848,7 +1850,8 @@ static int64_t motion_mode_rd(
         }
 
         // Build the warped predictor
-        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize, 0,
+        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
+                                      dst_y_valid ? AOM_PLANE_U : AOM_PLANE_Y,
                                       av1_num_planes(cm) - 1);
       } else {
         continue;

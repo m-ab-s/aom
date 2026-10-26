@@ -484,20 +484,26 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
 
 uint8_t av1_get_txb_entropy_context(const tran_low_t *qcoeff,
                                     const SCAN_ORDER *scan_order, int eob) {
-  const int16_t *const scan = scan_order->scan;
-  int cul_level = 0;
-  int c;
-
   if (eob == 0) return 0;
-  for (c = 0; c < eob; ++c) {
-    const int32_t v = qcoeff[scan[c]];
-    if (!v) continue;
-    cul_level += abs(v);
-    if (cul_level > COEFF_CONTEXT_MASK) break;
+  const int32_t dc_val = qcoeff[0];
+  int cul_level = abs(dc_val);
+  if (cul_level < COEFF_CONTEXT_MASK && eob > 1) {
+    const int16_t *const __restrict scan = scan_order->scan;
+    int c = 1;
+    for (; c + 3 < eob; c += 4) {
+      cul_level += abs(qcoeff[scan[c]]) + abs(qcoeff[scan[c + 1]]) +
+                   abs(qcoeff[scan[c + 2]]) + abs(qcoeff[scan[c + 3]]);
+      if (cul_level >= COEFF_CONTEXT_MASK) break;
+    }
+    if (cul_level < COEFF_CONTEXT_MASK) {
+      for (; c < eob; ++c) {
+        cul_level += abs(qcoeff[scan[c]]);
+      }
+    }
   }
 
   cul_level = AOMMIN(COEFF_CONTEXT_MASK, cul_level);
-  set_dc_sign(&cul_level, qcoeff[0]);
+  set_dc_sign(&cul_level, dc_val);
 
   return (uint8_t)cul_level;
 }

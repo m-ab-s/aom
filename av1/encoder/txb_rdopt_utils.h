@@ -85,6 +85,7 @@ static int get_eob_cost(int eob, const LV_MAP_EOB_COST *txb_eob_costs,
 static inline int get_golomb_cost(int abs_qc) {
   if (abs_qc >= 1 + NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
     const int r = abs_qc - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
+    if (r < 32) return golomb_bits_cost[r];
     const int length = get_msb(r) + 1;
     return av1_cost_literal(2 * length - 1);
   }
