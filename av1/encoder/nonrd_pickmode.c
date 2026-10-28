@@ -1754,7 +1754,11 @@ static void av1_search_intrabc_nonrd(AV1_COMP *cpi, MACROBLOCK *x,
       if (num_planes > 1) {
         RD_STATS rdc_uv;
         av1_invalid_rd_stats(&rdc_uv);
-        av1_model_rd_for_sb_uv(cpi, bsize, x, xd, &rdc_uv, 1, 2);
+        const BLOCK_SIZE uv_bsize =
+            get_plane_block_size(bsize, xd->plane[AOM_PLANE_U].subsampling_x,
+                                 xd->plane[AOM_PLANE_U].subsampling_y);
+        av1_model_rd_for_sb_uv(cpi, uv_bsize, x, xd, &rdc_uv, AOM_PLANE_U,
+                               AOM_PLANE_V);
         this_rdc->rate += rdc_uv.rate;
         this_rdc->dist += rdc_uv.dist;
       }
