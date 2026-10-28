@@ -1,0 +1,97 @@
+# Copyright (c) 2026, Alliance for Open Media. All rights reserved.
+#
+# This source code is subject to the terms of the BSD 2 Clause License and
+# the Alliance for Open Media Patent License 1.0. If the BSD 2 Clause License
+# was not distributed with this source code in the LICENSE file, you can
+# obtain it at www.aomedia.org/license/software. If the Alliance for Open
+# Media Patent License 1.0 was not distributed with this source code in the
+# PATENTS file, you can obtain it at www.aomedia.org/license/patent.
+
+agentic_review {
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "(?:.*/)?[^/]*_neon\\.[^/]*"
+    path_expression: "(?:.*/)?arm/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|hpp|mm)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/general/arm-neon-guard-msvc-32bit-xn-intrinsics.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression_exclusion: "apps/.*"
+    path_expression_exclusion: "examples/.*"
+    path_expression_exclusion: "test/.*"
+    path_expression_exclusion: "third_party/.*"
+    path_expression_exclusion: "tools/.*"
+    rules: "knowledge_base/rules/general/avoid-fatal-exit-in-library-code.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    rules: "knowledge_base/rules/general/avoid-log-on-zero-valued-metrics-use-log1p.md"
+    rules: "knowledge_base/rules/general/cast-subwords-to-unsigned-before-bitwise-packing.md"
+    rules: "knowledge_base/rules/general/initialize-all-output-parameters-in-stubs.md"
+    rules: "knowledge_base/rules/general/scale-allocation-by-element-sizeof.md"
+    rules: "knowledge_base/rules/general/update-buffer-alloc-size-only-on-realloc.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|inc)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/general/avoid-raw-compiler-attributes.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    rules: "knowledge_base/rules/general/check-memory-allocation-failure.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|hpp)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/general/clamp-floating-point-conversions-to-integer-limits.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "aom_dsp/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|hpp|mm)"
+    path_expression: "aom_scale/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|hpp|mm)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|hpp|mm)"
+    rules: "knowledge_base/rules/general/document-reference-c-implementation-fallbacks.md"
+  }
+  capability_groups {
+    path_expression: "av1/decoder/.*"
+    path_expression: "av1/encoder/.*"
+    rules: "knowledge_base/rules/general/no-assert-for-untrusted-bitstream.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/general/no-top-level-const-on-function-params.md"
+    rules: "knowledge_base/rules/general/omit-redundant-narrowing-casts-on-wider-integers.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression_exclusion: "aom_dsp/aom_dsp_common\\.h"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/general/prefer-clamp-over-nested-min-max-macros.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "aom/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    rules: "knowledge_base/rules/general/record-error-details-with-aom-set-error.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|hpp)"
+    rules: "knowledge_base/rules/general/trailing-comment-on-endif-directives.md"
+    rules: "knowledge_base/rules/general/use-bool-for-boolean-flags-and-arrays.md"
+    rules: "knowledge_base/rules/general/use-sizeof-pointer-dereference-in-allocations.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "(?:.*/)?[^/]*_neon\\.[^/]*"
+    path_expression: "(?:.*/)?[^/]*arm[^/]*/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression: "(?:.*/)?[^/]*arm[^/]*/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|mm)"
+    path_expression: "(?:.*/)?[^/]*neon[^/]*/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression: "(?:.*/)?[^/]*neon[^/]*/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|mm)"
+    path_expression: "(?:.*/)?arm/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|hpp|mm)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/general/use-neon-lane-intrinsics-not-vector-subscript.md"
+  }
+}

@@ -1,0 +1,85 @@
+# Copyright (c) 2026, Alliance for Open Media. All rights reserved.
+#
+# This source code is subject to the terms of the BSD 2 Clause License and
+# the Alliance for Open Media Patent License 1.0. If the BSD 2 Clause License
+# was not distributed with this source code in the LICENSE file, you can
+# obtain it at www.aomedia.org/license/software. If the Alliance for Open
+# Media Patent License 1.0 was not distributed with this source code in the
+# PATENTS file, you can obtain it at www.aomedia.org/license/patent.
+
+agentic_review {
+  capability_groups {
+    path_expression: "aom_dsp/.*"
+    path_expression: "av1/.*"
+    path_expression: "common/.*"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/aom_dsp/factor-repetitive-simd-arithmetic-into-inline-helpers.md"
+  }
+  capability_groups {
+    path_expression: "aom_dsp/simd/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "aom_dsp/x86/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "av1/(?:.*/)?x86/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "common/x86/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "test/x86/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/aom_dsp/load-only-four-bytes-for-four-wide-simd-blocks.md"
+  }
+  capability_groups {
+    path_expression: "aom_dsp/.*"
+    path_expression: "av1/.*"
+    rules: "knowledge_base/rules/aom_dsp/name-dsp-functions-by-metrics-and-block-layout.md"
+  }
+  capability_groups {
+    path_expression: "aom_dsp/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "common/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/aom_dsp/omit-simd-chunking-loops-when-accumulators-cannot-overflow.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*_hwy[^/]*\\.cc"
+    path_expression: "(?:.*/)?[^/]*_hwy_avx512\\.cc"
+    path_expression: "aom_dsp/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "common/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/aom_dsp/override-hwy-broken-32bit-for-highway-targets.md"
+  }
+  capability_groups {
+    path_expression: "aom_dsp/(?:.*/)?x86/.*"
+    path_expression: "av1/(?:.*/)?x86/.*"
+    path_expression: "common/x86/.*"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/aom_dsp/pack-pairs-of-simd-rows-before-storing.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "aom_dsp/(?:.*/)?x86/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression: "av1/(?:.*/)?x86/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression: "test/(?:.*/)?x86/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/aom_dsp/pass-all-x86-vectors-as-pointers-over-three-args.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*arm[^/]*/.*"
+    path_expression: "(?:.*/)?[^/]*avx[^/]*/.*"
+    path_expression: "(?:.*/)?[^/]*neon[^/]*/.*"
+    path_expression: "(?:.*/)?[^/]*sse[^/]*/.*"
+    path_expression: "(?:.*/)?[^/]*sve[^/]*/.*"
+    path_expression: "(?:.*/)?[^/]*x86[^/]*/.*"
+    path_expression: "aom_dsp/.*"
+    path_expression: "av1/.*"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/aom_dsp/unroll-short-fixed-loops-in-simd-dsp-kernels.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*_neon\\.[^/]*"
+    path_expression: "(?:.*/)?arm/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|mm)"
+    path_expression: "aom_dsp/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "common/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "test/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression_exclusion: "third_party/.*"
+    rules: "knowledge_base/rules/aom_dsp/use-aligned-simd-loads-for-aligned-buffers.md"
+  }
+}

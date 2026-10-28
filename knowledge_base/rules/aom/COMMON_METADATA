@@ -1,0 +1,35 @@
+# Copyright (c) 2026, Alliance for Open Media. All rights reserved.
+#
+# This source code is subject to the terms of the BSD 2 Clause License and
+# the Alliance for Open Media Patent License 1.0. If the BSD 2 Clause License
+# was not distributed with this source code in the LICENSE file, you can
+# obtain it at www.aomedia.org/license/software. If the Alliance for Open
+# Media Patent License 1.0 was not distributed with this source code in the
+# PATENTS file, you can obtain it at www.aomedia.org/license/patent.
+
+agentic_review {
+  capability_groups {
+    path_expression: "aom/(?:.*/)?[^/]*\\.(?:h|hpp)"
+    rules: "knowledge_base/rules/aom/append-new-public-enum-values-at-end.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|hpp)"
+    path_expression: "aom/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    rules: "knowledge_base/rules/aom/document-mechanism-and-purpose-for-codec-controls.md"
+  }
+  capability_groups {
+    path_expression: "aom/.*"
+    path_expression: "apps/.*"
+    path_expression: "av1/.*"
+    path_expression_exclusion: "examples/.*"
+    path_expression_exclusion: "test/.*"
+    rules: "knowledge_base/rules/aom/omit-tuning-overrides-from-codec-control-defaults.md"
+  }
+  capability_groups {
+    path_expression: "aom/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression: "apps/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    rules: "knowledge_base/rules/aom/sync-cli-arg-descriptions-with-codec-control-docs.md"
+  }
+}

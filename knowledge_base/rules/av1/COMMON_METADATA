@@ -1,0 +1,83 @@
+# Copyright (c) 2026, Alliance for Open Media. All rights reserved.
+#
+# This source code is subject to the terms of the BSD 2 Clause License and
+# the Alliance for Open Media Patent License 1.0. If the BSD 2 Clause License
+# was not distributed with this source code in the LICENSE file, you can
+# obtain it at www.aomedia.org/license/software. If the Alliance for Open
+# Media Patent License 1.0 was not distributed with this source code in the
+# PATENTS file, you can obtain it at www.aomedia.org/license/patent.
+
+agentic_review {
+  capability_groups {
+    path_expression: "aom_dsp/.*"
+    path_expression: "aom_scale/.*"
+    path_expression: "av1/.*"
+    path_expression_exclusion: "test/.*"
+    rules: "knowledge_base/rules/av1/avoid-direct-calls-to-c-rtcd-functions.md"
+  }
+  capability_groups {
+    path_expression: "aom_dsp/.*"
+    path_expression: "av1/.*"
+    rules: "knowledge_base/rules/av1/delegate-composite-dsp-to-standalone-primitives.md"
+    rules: "knowledge_base/rules/av1/hoist-scratch-buffer-allocations.md"
+  }
+  capability_groups {
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:c|h)"
+    rules: "knowledge_base/rules/av1/derive-and-validate-shear-params-on-warped-motion.md"
+  }
+  capability_groups {
+    path_expression: "aom_dsp/.*"
+    path_expression: "aom_scale/(?:.*/)?[^/]*\\.(?:c|h)"
+    path_expression: "av1/.*"
+    rules: "knowledge_base/rules/av1/dispatch-8bit-simd-by-runtime-bit-depth.md"
+  }
+  capability_groups {
+    path_expression: "av1/encoder/.*"
+    rules: "knowledge_base/rules/av1/document-shared-codec-structs-for-encoder-and-decoder.md"
+    rules: "knowledge_base/rules/av1/preserve-default-rate-control-tuning.md"
+    rules: "knowledge_base/rules/av1/split-independent-speed-features.md"
+    rules: "knowledge_base/rules/av1/sync-frame-resize-realloc-paths.md"
+  }
+  capability_groups {
+    path_expression: "av1/encoder/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    rules: "knowledge_base/rules/av1/document-speed-feature-levels-and-validation-checks.md"
+    rules: "knowledge_base/rules/av1/separate-stage-multithreading-state.md"
+  }
+  capability_groups {
+    path_expression: "(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "aom_dsp/.*"
+    path_expression: "av1/.*"
+    rules: "knowledge_base/rules/av1/explicit-block-size-checks-over-bitmasks.md"
+    rules: "knowledge_base/rules/av1/size-scratch-buffers-tightly.md"
+  }
+  capability_groups {
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h|hpp|mm)"
+    rules: "knowledge_base/rules/av1/keep-encoder-only-code-in-encoder-directory.md"
+  }
+  capability_groups {
+    path_expression: "aom_dsp/.*"
+    path_expression: "av1/.*"
+    path_expression: "common/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    rules: "knowledge_base/rules/av1/maintain-highbd-and-lowbd-counterpart-parity.md"
+  }
+  capability_groups {
+    path_expression: "aom_util/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:cc|cpp|h|hpp|mm)"
+    rules: "knowledge_base/rules/av1/terminate-workers-before-freeing-worker-arrays.md"
+  }
+  capability_groups {
+    path_expression: "aom_dsp/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "aom_scale/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    rules: "knowledge_base/rules/av1/use-capability-helper-or-flag-for-optimized-scaler-dispatch.md"
+  }
+  capability_groups {
+    path_expression: "av1/.*"
+    rules: "knowledge_base/rules/av1/use-exact-resolution-bounds-for-speed-features.md"
+  }
+  capability_groups {
+    path_expression: "aom/(?:.*/)?[^/]*\\.(?:c|h)"
+    path_expression: "av1/(?:.*/)?[^/]*\\.(?:c|cc|cpp|h)"
+    rules: "knowledge_base/rules/av1/use-ppi-number-spatial-layers-for-sequence-config.md"
+  }
+}
