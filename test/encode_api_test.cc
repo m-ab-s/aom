@@ -4773,6 +4773,81 @@ TEST(EncodeAPI, Avg16x16IntegerOverflow) {
 
   EXPECT_EQ(AOM_CODEC_OK, aom_codec_destroy(&enc));
 }
+
+// Verifies that validate_img() rejects high bit-depth images whose plane
+// pointers or byte strides are not 2-byte aligned.
+// Bug: 578678096
+TEST(EncodeAPI, HighbdMisalignedPlanesAndStrides) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_ctx_t enc;
+  aom_codec_enc_cfg_t cfg;
+
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+
+  const unsigned int kWidth = 64;
+  const unsigned int kHeight = 64;
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_bit_depth = AOM_BITS_10;
+  cfg.g_input_bit_depth = 10;
+  cfg.g_lag_in_frames = 0;
+
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 6), AOM_CODEC_OK);
+
+  std::vector<uint16_t> buf(kWidth * kHeight * 3, 0);
+  uint8_t *const base = reinterpret_cast<uint8_t *>(buf.data());
+
+  aom_image_t img;
+  memset(&img, 0, sizeof(img));
+  ASSERT_EQ(aom_img_wrap(&img, AOM_IMG_FMT_I42016, kWidth, kHeight, 2, base),
+            &img);
+  uint8_t *const orig_planes[3] = { img.planes[AOM_PLANE_Y],
+                                    img.planes[AOM_PLANE_U],
+                                    img.planes[AOM_PLANE_V] };
+  const int orig_strides[3] = { img.stride[AOM_PLANE_Y],
+                                img.stride[AOM_PLANE_U],
+                                img.stride[AOM_PLANE_V] };
+  auto reset_valid_img = [&]() {
+    for (int plane = 0; plane < 3; ++plane) {
+      img.planes[plane] = orig_planes[plane];
+      img.stride[plane] = orig_strides[plane];
+    }
+  };
+
+  // 1. Odd plane pointers on Y, U, or V must be rejected.
+  for (int plane = 0; plane < 3; ++plane) {
+    reset_valid_img();
+    img.planes[plane] += 1;
+    EXPECT_EQ(
+        aom_codec_encode(&enc, &img, /*pts=*/0, /*duration=*/1, /*flags=*/0),
+        AOM_CODEC_INVALID_PARAM);
+  }
+
+  // 2. Odd byte strides on Y or U/V must be rejected.
+  reset_valid_img();
+  img.stride[AOM_PLANE_Y] += 1;
+  EXPECT_EQ(
+      aom_codec_encode(&enc, &img, /*pts=*/0, /*duration=*/1, /*flags=*/0),
+      AOM_CODEC_INVALID_PARAM);
+
+  reset_valid_img();
+  img.stride[AOM_PLANE_U] += 1;
+  img.stride[AOM_PLANE_V] += 1;
+  EXPECT_EQ(
+      aom_codec_encode(&enc, &img, /*pts=*/0, /*duration=*/1, /*flags=*/0),
+      AOM_CODEC_INVALID_PARAM);
+
+  // 3. Valid 2-byte aligned planes and strides succeed.
+  reset_valid_img();
+  EXPECT_EQ(
+      aom_codec_encode(&enc, &img, /*pts=*/0, /*duration=*/1, /*flags=*/0),
+      AOM_CODEC_OK);
+
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // A key frame whose luma is a block of noise repeated over the frame. IntraBC

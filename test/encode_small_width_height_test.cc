@@ -200,13 +200,13 @@ void Encode1x1(aom_img_fmt fmt, int bitdepth, aom_codec_flags_t flags) {
   img.x_chroma_shift = 1;
   img.y_chroma_shift = 1;
   img.bps = 12;
-  const int y_stride = kWidth;
-  const int uv_stride = (kWidth + 1) >> 1;
-  int y_height = kHeight;
-  int uv_height = (kHeight + 1) >> 1;
+  int y_stride = kWidth;
+  int uv_stride = (kWidth + 1) >> 1;
+  const int y_height = kHeight;
+  const int uv_height = (kHeight + 1) >> 1;
   if (bitdepth > 8) {
-    y_height <<= 1;
-    uv_height <<= 1;
+    y_stride <<= 1;
+    uv_stride <<= 1;
   }
   img.stride[AOM_PLANE_Y] = y_stride;
   img.stride[AOM_PLANE_U] = img.stride[AOM_PLANE_V] = uv_stride;

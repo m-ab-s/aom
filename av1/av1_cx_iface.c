@@ -1029,6 +1029,18 @@ static aom_codec_err_t validate_img(aom_codec_alg_priv_t *ctx,
 #endif
 
 #if CONFIG_AV1_HIGHBITDEPTH
+  if (img->fmt & AOM_IMG_FMT_HIGHBITDEPTH) {
+    // Note there is no high bitdepth version of NV12 defined. If one is
+    // added, `num_planes` should be 2 in that case.
+    const int num_planes = ctx->cfg.monochrome ? 1 : 3;
+    // Validate that it is safe to cast each row pointer to `unsigned short *`.
+    for (int plane = 0; plane < num_planes; ++plane) {
+      if ((((uintptr_t)img->planes[plane]) & 1) || (img->stride[plane] & 1)) {
+        ERROR("High bit-depth image planes and strides must be 2-byte aligned");
+      }
+    }
+  }
+
   if (ctx->extra_cfg.validate_hbd_input &&
       (img->fmt & AOM_IMG_FMT_HIGHBITDEPTH)) {
     const unsigned int bit_depth = ctx->cfg.g_bit_depth;
