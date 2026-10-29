@@ -42,32 +42,33 @@ enum ModeFlag {
 // fuzzer's execution time budget (libFuzzer defaults to one second per
 // input). This can be refined based on measured fuzzer performance.
 constexpr unsigned int kNumFramesForCpuUsed[12] = {
-  4,  // cpu_used 0
-  4,  // cpu_used 1
-  4,  // cpu_used 2
-  5,  // cpu_used 3
-  5,  // cpu_used 4
-  6,  // cpu_used 5
-  6,  // cpu_used 6
-  7,  // cpu_used 7
-  8,  // cpu_used 8
-  9,  // cpu_used 9
-  9,  // cpu_used 10
-  10  // cpu_used 11
+  12,  // cpu_used 0
+  12,  // cpu_used 1
+  12,  // cpu_used 2
+  15,  // cpu_used 3
+  15,  // cpu_used 4
+  17,  // cpu_used 5
+  17,  // cpu_used 6
+  20,  // cpu_used 7
+  20,  // cpu_used 8
+  22,  // cpu_used 9
+  22,  // cpu_used 10
+  25   // cpu_used 11
 };
 
 // Maximum number of 64x64 superblocks to encode across all frames for a
 // given cpu_used value (one 1024x1024 frame is 256 superblocks). This caps
-// worst-case execution time on large frames at slow speed presets while
-// still allowing full 1024x1024 resolution and at least 3 frames (initial,
+// worst-case execution time on medium and large frames at slow speed presets
+// while letting small frames run the full kNumFramesForCpuUsed count and still
+// allowing full 1024x1024 resolution with at least 3 frames (initial,
 // switch_frame, and restore_frame) at every cpu_used.
 constexpr unsigned int kMaxSuperblocksForCpuUsed[12] = {
-  768,   // cpu_used 0
-  768,   // cpu_used 1
-  768,   // cpu_used 2
-  1024,  // cpu_used 3
-  1024,  // cpu_used 4
-  1280,  // cpu_used 5
+  96,    // cpu_used 0
+  256,   // cpu_used 1
+  384,   // cpu_used 2
+  512,   // cpu_used 3
+  640,   // cpu_used 4
+  1024,  // cpu_used 5
   1280,  // cpu_used 6
   1536,  // cpu_used 7
   1792,  // cpu_used 8
