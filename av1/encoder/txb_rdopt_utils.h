@@ -45,22 +45,21 @@ static inline int get_dqv(const int16_t *dequant, int coeff_idx,
   return dqv;
 }
 
+static inline int64_t get_coeff_dist_qm(tran_low_t tcoeff, tran_low_t dqcoeff,
+                                        int shift, int64_t qm_val) {
+  const int64_t diff = (int64_t)(tcoeff - dqcoeff) * (1 << shift) * qm_val;
+  return (diff * diff + (1 << (2 * AOM_QM_BITS - 1))) >> (2 * AOM_QM_BITS);
+}
+
 static inline int64_t get_coeff_dist(tran_low_t tcoeff, tran_low_t dqcoeff,
                                      int shift, const qm_val_t *qmatrix,
                                      int coeff_idx) {
-  int64_t diff = (tcoeff - dqcoeff) * (1 << shift);
+  const int64_t diff = (int64_t)(tcoeff - dqcoeff) * (1 << shift);
   if (qmatrix == NULL) {
     return diff * diff;
   }
-  // When AOM_DIST_METRIC_QM_PSNR is enabled, this mirrors the rate-distortion
-  // computation done in av1_block_error_qm, improving visual quality.
-  // The maximum value of `shift` is 2, `tcoeff` and `dqcoeff` are at most 22
-  // bits, and AOM_QM_BITS is 5, so `diff` should fit in 29-bits. The
-  // multiplication `diff * diff` then does not risk overflowing.
-  diff *= qmatrix[coeff_idx];
-  const int64_t error =
-      (diff * diff + (1 << (2 * AOM_QM_BITS - 1))) >> (2 * AOM_QM_BITS);
-  return error;
+  const int64_t wdiff = diff * qmatrix[coeff_idx];
+  return (wdiff * wdiff + (1 << (2 * AOM_QM_BITS - 1))) >> (2 * AOM_QM_BITS);
 }
 
 static inline int get_eob_cost(int eob, const LV_MAP_EOB_COST *txb_eob_costs,
@@ -91,29 +90,34 @@ static inline int get_golomb_cost(int abs_qc) {
 }
 
 static inline int get_br_cost(tran_low_t level, const int *coeff_lps) {
-  const int base_range = AOMMIN(level - 1 - NUM_BASE_LEVELS, COEFF_BASE_RANGE);
-  return coeff_lps[base_range] + get_golomb_cost(level);
+  if (level < 1 + NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
+    return coeff_lps[level - 1 - NUM_BASE_LEVELS];
+  }
+  const int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
+  return coeff_lps[COEFF_BASE_RANGE] + av1_cost_literal((get_msb(r) << 1) + 1);
 }
 
 static inline int get_br_cost_with_diff(tran_low_t level, const int *coeff_lps,
                                         int *diff) {
-  const int base_range = AOMMIN(level - 1 - NUM_BASE_LEVELS, COEFF_BASE_RANGE);
-  int golomb_bits = 0;
-  if (level <= COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS)
+  if (level < 1 + NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
+    const int base_range = level - 1 - NUM_BASE_LEVELS;
     *diff += coeff_lps[base_range + COEFF_BASE_RANGE + 1];
+    return coeff_lps[base_range];
+  }
+  int golomb_bits = 0;
+  if (level == COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS)
+    *diff += coeff_lps[COEFF_BASE_RANGE + COEFF_BASE_RANGE + 1];
 
-  if (level >= COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS) {
-    int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
-    if (r < 32) {
-      golomb_bits = golomb_bits_cost[r];
-      *diff += golomb_cost_diff[r];
-    } else {
-      golomb_bits = get_golomb_cost(level);
-      *diff += (r & (r - 1)) == 0 ? 1024 : 0;
-    }
+  const int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
+  if (r < 32) {
+    golomb_bits = golomb_bits_cost[r];
+    *diff += golomb_cost_diff[r];
+  } else {
+    golomb_bits = av1_cost_literal((get_msb(r) << 1) + 1);
+    *diff += (r & (r - 1)) == 0 ? 1024 : 0;
   }
 
-  return coeff_lps[base_range] + golomb_bits;
+  return coeff_lps[COEFF_BASE_RANGE] + golomb_bits;
 }
 
 static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
@@ -129,7 +133,7 @@ static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
   if (abs_qc) {
     cost += av1_cost_literal(1);
     if (abs_qc > NUM_BASE_LEVELS) {
-      const int br_ctx = get_br_ctx(levels, ci, bhl, tx_class);
+      const int br_ctx = get_br_ctx_simple(levels, ci, bhl, tx_class);
       int brcost_diff = 0;
       cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost[br_ctx],
                                     &brcost_diff);

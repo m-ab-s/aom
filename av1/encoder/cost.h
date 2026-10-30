@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-extern const uint16_t av1_prob_cost[128];
+extern const uint16_t av1_prob_cost[129];
 
 // The factor to scale from cost in bits to cost in av1_prob_cost units.
 #define AV1_PROB_COST_SHIFT 9
@@ -28,18 +28,23 @@ extern const uint16_t av1_prob_cost[128];
 // for each bit.
 #define av1_cost_literal(n) ((n) * (1 << AV1_PROB_COST_SHIFT))
 
+static inline int av1_cost_symbol_clamped(int p15) {
+  assert(0 < p15 && p15 < CDF_PROB_TOP);
+  const int shift = CDF_PROB_BITS - 1 - get_msb(p15);
+  // Since CDF_PROB_TOP == 32768 and av1_prob_cost has 129 entries (including a
+  // duplicate 128th entry for prob_idx == 128), get_prob(p15 << shift, 32768) -
+  // 128 simplifies to ((p15 << shift) - 16320) >> 7.
+  const int prob_idx = ((p15 << shift) - 16320) >> 7;
+  return av1_prob_cost[prob_idx] + av1_cost_literal(shift);
+}
+
 // Calculate the cost of a symbol with probability p15 / 2^15
 static inline int av1_cost_symbol(aom_cdf_prob p15) {
   // p15 can be out of range [1, CDF_PROB_TOP - 1]. Clamping it, so that the
   // following cost calculation works correctly. Otherwise, if p15 =
   // CDF_PROB_TOP, shift would be -1, and "p15 << shift" would be wrong.
-  p15 = (aom_cdf_prob)clamp(p15, 1, CDF_PROB_TOP - 1);
-  assert(0 < p15 && p15 < CDF_PROB_TOP);
-  const int shift = CDF_PROB_BITS - 1 - get_msb(p15);
-  // Since CDF_PROB_TOP == 32768, get_prob(p15 << shift, 32768) - 128 simplifies
-  // to min(((p15 << shift) - 16320) >> 7, 127).
-  const int prob_idx = AOMMIN(((p15 << shift) - 16320) >> 7, 127);
-  return av1_prob_cost[prob_idx] + av1_cost_literal(shift);
+  const int clamped = clamp((int)p15, 1, CDF_PROB_TOP - 1);
+  return av1_cost_symbol_clamped(clamped);
 }
 
 void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,

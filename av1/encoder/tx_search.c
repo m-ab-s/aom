@@ -285,14 +285,10 @@ static inline void set_skip_txfm(MACROBLOCK *x, RD_STATS *rd_stats,
   // size possible) in the current block. Eg: For 128*128 block, rate would be
   // 4 * zero_blk_rate where zero_blk_rate corresponds to coding of one 64x64 tx
   // block as 'all zeros'
-  ENTROPY_CONTEXT ctxa[MAX_MIB_SIZE];
-  ENTROPY_CONTEXT ctxl[MAX_MIB_SIZE];
-  av1_get_entropy_contexts(bsize, &xd->plane[0], ctxa, ctxl);
-  ENTROPY_CONTEXT *ta = ctxa;
-  ENTROPY_CONTEXT *tl = ctxl;
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   TXB_CTX txb_ctx;
-  get_txb_ctx(bsize, tx_size, 0, ta, tl, &txb_ctx);
+  get_txb_ctx(bsize, tx_size, 0, xd->plane[0].above_entropy_context,
+              xd->plane[0].left_entropy_context, &txb_ctx);
   const int zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][PLANE_TYPE_Y]
                                 .txb_skip_cost[txb_ctx.txb_skip_ctx][1];
   rd_stats->rate = zero_blk_rate *
@@ -2030,15 +2026,12 @@ static inline void predict_dc_only_block(
     best_rd_stats->dist = (*block_sse) << 4;
     best_rd_stats->sse = best_rd_stats->dist;
 
-    ENTROPY_CONTEXT ctxa[MAX_MIB_SIZE];
-    ENTROPY_CONTEXT ctxl[MAX_MIB_SIZE];
-    av1_get_entropy_contexts(plane_bsize, &xd->plane[plane], ctxa, ctxl);
-    ENTROPY_CONTEXT *ta = ctxa;
-    ENTROPY_CONTEXT *tl = ctxl;
     const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
     TXB_CTX txb_ctx_tmp;
     const PLANE_TYPE plane_type = get_plane_type(plane);
-    get_txb_ctx(plane_bsize, tx_size, plane, ta, tl, &txb_ctx_tmp);
+    get_txb_ctx(plane_bsize, tx_size, plane,
+                xd->plane[plane].above_entropy_context,
+                xd->plane[plane].left_entropy_context, &txb_ctx_tmp);
     const int zero_blk_rate = x->coeff_costs.coeff_costs[txs_ctx][plane_type]
                                   .txb_skip_cost[txb_ctx_tmp.txb_skip_ctx][1];
     best_rd_stats->rate = zero_blk_rate;

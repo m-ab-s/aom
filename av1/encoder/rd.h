@@ -312,10 +312,28 @@ void av1_init_me_luts(void);
 
 void av1_set_mvcost(MACROBLOCK *x, int ref, int ref_mv_idx);
 
-void av1_get_entropy_contexts(BLOCK_SIZE plane_bsize,
-                              const struct macroblockd_plane *pd,
-                              ENTROPY_CONTEXT t_above[MAX_MIB_SIZE],
-                              ENTROPY_CONTEXT t_left[MAX_MIB_SIZE]);
+static inline void copy_entropy_ctx(ENTROPY_CONTEXT *dst,
+                                    const ENTROPY_CONTEXT *src, int n) {
+  switch (n) {
+    case 1: *dst = *src; break;
+    case 2: memcpy(dst, src, 2); break;
+    case 4: memcpy(dst, src, 4); break;
+    case 8: memcpy(dst, src, 8); break;
+    case 16: memcpy(dst, src, 16); break;
+    case 32: memcpy(dst, src, 32); break;
+    default: memcpy(dst, src, (size_t)n); break;
+  }
+}
+
+static inline void av1_get_entropy_contexts(
+    BLOCK_SIZE plane_bsize, const struct macroblockd_plane *pd,
+    ENTROPY_CONTEXT t_above[MAX_MIB_SIZE],
+    ENTROPY_CONTEXT t_left[MAX_MIB_SIZE]) {
+  assert(plane_bsize < BLOCK_SIZES_ALL);
+  copy_entropy_ctx(t_above, pd->above_entropy_context,
+                   mi_size_wide[plane_bsize]);
+  copy_entropy_ctx(t_left, pd->left_entropy_context, mi_size_high[plane_bsize]);
+}
 
 void av1_set_rd_speed_thresholds(struct AV1_COMP *cpi);
 

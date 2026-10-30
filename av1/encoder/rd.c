@@ -1097,27 +1097,6 @@ void av1_model_rd_curvfit(BLOCK_SIZE bsize, double sse_norm, double xqr,
   av1_interp_cubic_rate_dist(prate, pdist, xo, rate_dist_f);
 }
 
-static void get_entropy_contexts_plane(BLOCK_SIZE plane_bsize,
-                                       const struct macroblockd_plane *pd,
-                                       ENTROPY_CONTEXT t_above[MAX_MIB_SIZE],
-                                       ENTROPY_CONTEXT t_left[MAX_MIB_SIZE]) {
-  const int num_4x4_w = mi_size_wide[plane_bsize];
-  const int num_4x4_h = mi_size_high[plane_bsize];
-  const ENTROPY_CONTEXT *const above = pd->above_entropy_context;
-  const ENTROPY_CONTEXT *const left = pd->left_entropy_context;
-
-  memcpy(t_above, above, sizeof(ENTROPY_CONTEXT) * num_4x4_w);
-  memcpy(t_left, left, sizeof(ENTROPY_CONTEXT) * num_4x4_h);
-}
-
-void av1_get_entropy_contexts(BLOCK_SIZE plane_bsize,
-                              const struct macroblockd_plane *pd,
-                              ENTROPY_CONTEXT t_above[MAX_MIB_SIZE],
-                              ENTROPY_CONTEXT t_left[MAX_MIB_SIZE]) {
-  assert(plane_bsize < BLOCK_SIZES_ALL);
-  get_entropy_contexts_plane(plane_bsize, pd, t_above, t_left);
-}
-
 // Special clamping used in the encoder when calculating a prediction
 //
 // Logically, all pixel fetches used for prediction are clamped against the

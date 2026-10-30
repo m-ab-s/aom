@@ -14,8 +14,9 @@
 #include "av1/encoder/cost.h"
 #include "av1/common/entropy.h"
 
-// round(-log2(i/256.) * (1 << AV1_PROB_COST_SHIFT)); i = 128~255.
-const uint16_t av1_prob_cost[128] = {
+// round(-log2(i/256.) * (1 << AV1_PROB_COST_SHIFT)); i = 128~255 (plus 128th
+// duplicate for 256).
+const uint16_t av1_prob_cost[129] = {
   512, 506, 501, 495, 489, 484, 478, 473, 467, 462, 456, 451, 446, 441, 435,
   430, 425, 420, 415, 410, 405, 400, 395, 390, 385, 380, 375, 371, 366, 361,
   356, 352, 347, 343, 338, 333, 329, 324, 320, 316, 311, 307, 302, 298, 294,
@@ -24,24 +25,29 @@ const uint16_t av1_prob_cost[128] = {
   171, 168, 164, 161, 157, 153, 150, 146, 143, 139, 136, 132, 129, 125, 122,
   119, 115, 112, 109, 105, 102, 99,  95,  92,  89,  86,  82,  79,  76,  73,
   70,  66,  63,  60,  57,  54,  51,  48,  45,  42,  38,  35,  32,  29,  26,
-  23,  20,  18,  15,  12,  9,   6,   3,
+  23,  20,  18,  15,  12,  9,   6,   3,   3,
 };
 
 void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
                               const int *inv_map) {
-  int i;
-  aom_cdf_prob prev_cdf = 0;
-  for (i = 0;; ++i) {
-    aom_cdf_prob p15 = AOM_ICDF(cdf[i]) - prev_cdf;
-    p15 = (p15 < EC_MIN_PROB) ? EC_MIN_PROB : p15;
-    prev_cdf = AOM_ICDF(cdf[i]);
-
-    if (inv_map)
-      costs[inv_map[i]] = av1_cost_symbol(p15);
-    else
-      costs[i] = av1_cost_symbol(p15);
-
-    // Stop once we reach the end of the CDF
-    if (cdf[i] == AOM_ICDF(CDF_PROB_TOP)) break;
+  int prev_icdf = CDF_PROB_TOP;
+  if (inv_map) {
+    for (int i = 0;; ++i) {
+      const int cur_icdf = cdf[i];
+      const int p15 =
+          clamp(prev_icdf - cur_icdf, EC_MIN_PROB, CDF_PROB_TOP - 1);
+      prev_icdf = cur_icdf;
+      costs[inv_map[i]] = av1_cost_symbol_clamped(p15);
+      if (cur_icdf == 0) break;
+    }
+  } else {
+    for (int i = 0;; ++i) {
+      const int cur_icdf = cdf[i];
+      const int p15 =
+          clamp(prev_icdf - cur_icdf, EC_MIN_PROB, CDF_PROB_TOP - 1);
+      prev_icdf = cur_icdf;
+      costs[i] = av1_cost_symbol_clamped(p15);
+      if (cur_icdf == 0) break;
+    }
   }
 }

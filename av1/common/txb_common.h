@@ -84,11 +84,9 @@ static inline int get_br_ctx_2d(const uint8_t *const levels,
   assert(c > 0);
   const int col = c >> bhl;
   const int row = c - (col << bhl);
-  const int stride = (1 << bhl) + TX_PAD_HOR;
-  const int pos = c + (col << TX_PAD_HOR_LOG2);
-  int mag = AOMMIN(levels[pos + 1], MAX_BASE_BR_RANGE) +
-            AOMMIN(levels[pos + stride], MAX_BASE_BR_RANGE) +
-            AOMMIN(levels[pos + 1 + stride], MAX_BASE_BR_RANGE);
+  const intptr_t stride = (1 << bhl) + TX_PAD_HOR;
+  const uint8_t *const lv = levels + c + (col << TX_PAD_HOR_LOG2);
+  int mag = lv[1] + lv[stride] + lv[stride + 1];
   mag = AOMMIN((mag + 1) >> 1, 6);
   //((row | col) < 2) is equivalent to ((row < 2) && (col < 2))
   if ((row | col) < 2) return mag + 7;
@@ -98,10 +96,10 @@ static inline int get_br_ctx_2d(const uint8_t *const levels,
 static AOM_FORCE_INLINE int get_br_ctx_eob(const int c,  // raster order
                                            const int bhl,
                                            const TX_CLASS tx_class) {
+  if (c == 0) return 0;
   const int col = c >> bhl;
   const int row = c - (col << bhl);
-  if (c == 0) return 0;
-  if ((tx_class == TX_CLASS_2D && row < 2 && col < 2) ||
+  if ((tx_class == TX_CLASS_2D && ((row | col) < 2)) ||
       (tx_class == TX_CLASS_HORIZ && col == 0) ||
       (tx_class == TX_CLASS_VERT && row == 0))
     return 7;
@@ -113,25 +111,24 @@ static AOM_FORCE_INLINE int get_br_ctx(const uint8_t *const levels,
                                        const int bhl, const TX_CLASS tx_class) {
   const int col = c >> bhl;
   const int row = c - (col << bhl);
-  const int stride = (1 << bhl) + TX_PAD_HOR;
-  const int pos = c + (col << TX_PAD_HOR_LOG2);
-  int mag = levels[pos + 1];
-  mag += levels[pos + stride];
+  const intptr_t stride = (1 << bhl) + TX_PAD_HOR;
+  const uint8_t *const lv = levels + c + (col << TX_PAD_HOR_LOG2);
+  int mag = lv[1] + lv[stride];
   switch (tx_class) {
     case TX_CLASS_2D:
-      mag += levels[pos + stride + 1];
+      mag += lv[stride + 1];
       mag = AOMMIN((mag + 1) >> 1, 6);
       if (c == 0) return mag;
-      if ((row < 2) && (col < 2)) return mag + 7;
+      if ((row | col) < 2) return mag + 7;
       break;
     case TX_CLASS_HORIZ:
-      mag += levels[pos + (stride << 1)];
+      mag += lv[stride << 1];
       mag = AOMMIN((mag + 1) >> 1, 6);
       if (c == 0) return mag;
       if (col == 0) return mag + 7;
       break;
     case TX_CLASS_VERT:
-      mag += levels[pos + 2];
+      mag += lv[2];
       mag = AOMMIN((mag + 1) >> 1, 6);
       if (c == 0) return mag;
       if (row == 0) return mag + 7;
@@ -140,6 +137,33 @@ static AOM_FORCE_INLINE int get_br_ctx(const uint8_t *const levels,
   }
 
   return mag + 14;
+}
+
+static AOM_FORCE_INLINE int get_br_ctx_simple(const uint8_t *const levels,
+                                              const int c,  // raster order > 0
+                                              const int bhl,
+                                              const TX_CLASS tx_class) {
+  assert(c > 0);
+  const int col = c >> bhl;
+  const int row = c - (col << bhl);
+  const intptr_t stride = (1 << bhl) + TX_PAD_HOR;
+  const uint8_t *const lv = levels + c + (col << TX_PAD_HOR_LOG2);
+  int mag = lv[1] + lv[stride];
+  switch (tx_class) {
+    case TX_CLASS_2D:
+      mag += lv[stride + 1];
+      mag = AOMMIN((mag + 1) >> 1, 6);
+      return mag + (((row | col) < 2) ? 7 : 14);
+    case TX_CLASS_HORIZ:
+      mag += lv[stride << 1];
+      mag = AOMMIN((mag + 1) >> 1, 6);
+      return mag + ((col == 0) ? 7 : 14);
+    case TX_CLASS_VERT:
+      mag += lv[2];
+      mag = AOMMIN((mag + 1) >> 1, 6);
+      return mag + ((row == 0) ? 7 : 14);
+    default: return mag + 14;
+  }
 }
 
 static const uint8_t clip_max3[256] = {
