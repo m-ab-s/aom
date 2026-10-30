@@ -2085,23 +2085,50 @@ static int get_intrabc_hash_stride(int width) {
 }
 
 // Gets the region covered by the hash table with the given index. That is the
-// region of the tile with this index, or the whole frame if there is one table.
+// bounding rectangle of the tiles that share the table.
 static void get_intrabc_hash_region(const YV12_BUFFER_CONFIG *source,
-                                    const AV1_COMMON *cm, int num_tables,
+                                    const AV1_COMMON *cm,
+                                    const IntraBCHashInfo *intrabc_hash_info,
                                     int table_idx, IntraBCHashRegion *region) {
-  region->x_start = 0;
-  region->y_start = 0;
-  region->x_end = source->y_crop_width;
-  region->y_end = source->y_crop_height;
-  if (num_tables > 1) {
-    TileInfo tile;
-    av1_tile_init(&tile, cm, table_idx / cm->tiles.cols,
-                  table_idx % cm->tiles.cols);
-    region->x_start = tile.mi_col_start * MI_SIZE;
-    region->y_start = tile.mi_row_start * MI_SIZE;
-    region->x_end = AOMMIN(tile.mi_col_end * MI_SIZE, region->x_end);
-    region->y_end = AOMMIN(tile.mi_row_end * MI_SIZE, region->y_end);
+  const int tile_cols = intrabc_hash_info->tile_cols_per_table;
+  const int tile_rows = intrabc_hash_info->tile_rows_per_table;
+  const int first_row = table_idx / intrabc_hash_info->table_cols * tile_rows;
+  const int first_col = table_idx % intrabc_hash_info->table_cols * tile_cols;
+  const int last_row = AOMMIN(first_row + tile_rows, cm->tiles.rows) - 1;
+  const int last_col = AOMMIN(first_col + tile_cols, cm->tiles.cols) - 1;
+  TileInfo first_tile;
+  TileInfo last_tile;
+  av1_tile_init(&first_tile, cm, first_row, first_col);
+  av1_tile_init(&last_tile, cm, last_row, last_col);
+  region->x_start = first_tile.mi_col_start * MI_SIZE;
+  region->y_start = first_tile.mi_row_start * MI_SIZE;
+  region->x_end = AOMMIN(last_tile.mi_col_end * MI_SIZE, source->y_crop_width);
+  region->y_end = AOMMIN(last_tile.mi_row_end * MI_SIZE, source->y_crop_height);
+}
+
+// Splits the tiles into at most MAX_INTRABC_HASH_TABLES rectangles of
+// neighboring tiles, one for each table. The side with more tables is halved
+// until they fit.
+static void set_intrabc_hash_table_grid(const CommonTileParams *tiles,
+                                        IntraBCHashInfo *intrabc_hash_info) {
+  int table_cols = tiles->cols;
+  int table_rows = tiles->rows;
+  while (table_cols * table_rows > MAX_INTRABC_HASH_TABLES) {
+    if (table_cols >= table_rows) {
+      table_cols = (table_cols + 1) / 2;
+    } else {
+      table_rows = (table_rows + 1) / 2;
+    }
   }
+  const int tile_cols_per_table = (tiles->cols + table_cols - 1) / table_cols;
+  const int tile_rows_per_table = (tiles->rows + table_rows - 1) / table_rows;
+  // Rounding up may leave fewer tables than the halving gave.
+  intrabc_hash_info->tile_cols_per_table = tile_cols_per_table;
+  intrabc_hash_info->tile_rows_per_table = tile_rows_per_table;
+  intrabc_hash_info->table_cols =
+      (tiles->cols + tile_cols_per_table - 1) / tile_cols_per_table;
+  intrabc_hash_info->table_rows =
+      (tiles->rows + tile_rows_per_table - 1) / tile_rows_per_table;
 }
 
 bool av1_build_intrabc_hash_table(AV1_COMP *cpi, int table_idx) {
@@ -2118,8 +2145,8 @@ bool av1_build_intrabc_hash_table(AV1_COMP *cpi, int table_idx) {
   }
   const int hash_stride = get_intrabc_hash_stride(pic_width);
   IntraBCHashRegion region;
-  get_intrabc_hash_region(cpi->source, cm, intrabc_hash_info->num_tile_tables,
-                          table_idx, &region);
+  get_intrabc_hash_region(cpi->source, cm, intrabc_hash_info, table_idx,
+                          &region);
 
   av1_generate_block_2x2_hash_value(cpi->source, &region, block_hash_values[0],
                                     hash_stride);
@@ -2148,11 +2175,11 @@ bool av1_build_intrabc_hash_table(AV1_COMP *cpi, int table_idx) {
 }
 
 // Builds the hash tables for intrabc. A block can only copy from its own tile,
-// so each tile gets its own table with only the blocks that lie inside it. The
-// encoder threads build the tables before the tiles are encoded, one table per
-// job, and av1_intrabc_hash_search() uses the table of the current tile. A
-// frame with more than MAX_INTRABC_HASH_TABLES tiles keeps a single table for
-// the whole frame, which bounds the memory.
+// so up to MAX_INTRABC_HASH_TABLES tiles each tile gets its own table with only
+// the blocks that lie inside it. With more tiles, neighboring tiles share a
+// table, which bounds the memory. The encoder threads build the tables before
+// the tiles are encoded, one table per job, and av1_intrabc_hash_search() uses
+// the table of the current tile.
 static void build_intrabc_hash_tables(AV1_COMP *cpi) {
   AV1_COMMON *const cm = &cpi->common;
   MultiThreadInfo *const mt_info = &cpi->mt_info;
@@ -2160,8 +2187,9 @@ static void build_intrabc_hash_tables(AV1_COMP *cpi) {
   const int pic_width = cpi->source->y_crop_width;
   const int pic_height = cpi->source->y_crop_height;
   const int hash_stride = get_intrabc_hash_stride(pic_width);
-  const int num_tiles = cm->tiles.cols * cm->tiles.rows;
-  const int num_tables = num_tiles <= MAX_INTRABC_HASH_TABLES ? num_tiles : 1;
+  set_intrabc_hash_table_grid(&cm->tiles, intrabc_hash_info);
+  const int num_tables =
+      intrabc_hash_info->table_cols * intrabc_hash_info->table_rows;
   bool error = false;
 
   free_block_hash_buffers(intrabc_hash_info);

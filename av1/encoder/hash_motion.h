@@ -42,10 +42,8 @@ typedef struct {
   int y_end;
 } IntraBCHashRegion;
 
-// Frames with more tiles than this use one table for the whole frame, to keep
-// the memory down.
-// TODO: bug 576320193 - Let neighboring tiles share a table when there are
-// more tiles than this, instead of going back to one table.
+// The most tables built for a frame, to keep the memory down. Frames with more
+// tiles than this let neighboring tiles share a table.
 #define MAX_INTRABC_HASH_TABLES 16
 
 // A table keeps its buffers from frame to frame. cpi->td.mb owns it and frees
@@ -73,10 +71,16 @@ typedef struct intrabc_hash_info {
   // [two buffers used ping-pong]
   // buffers are AOM_BUFFER_SIZE_FOR_BLOCK_HASH elements long
   uint32_t *hash_value_buffer[2];
-  // One table per tile, indexed by tile_row * tile_cols + tile_col. A single
-  // table covers the whole frame when there is one tile, or too many.
+  // The tables in raster order, table_cols x table_rows of them. Each one
+  // covers a rectangle of tile_cols_per_table x tile_rows_per_table tiles.
+  // Every tile has its own table unless the frame has more than
+  // MAX_INTRABC_HASH_TABLES tiles.
   hash_table *tile_tables;
   int num_tile_tables;
+  int table_cols;
+  int table_rows;
+  int tile_cols_per_table;
+  int tile_rows_per_table;
   // Hash values of every position of the frame, only needed while the tables
   // are built (two buffers, used alternately). Each buffer has
   // frame_hash_width * frame_hash_height elements, the luma size of the source
@@ -88,6 +92,14 @@ typedef struct intrabc_hash_info {
   CRC32C crc_calculator;
   int crc_initialized;
 } IntraBCHashInfo;
+
+// Returns the index of the table that covers the given tile.
+static inline int av1_intrabc_hash_table_idx(
+    const IntraBCHashInfo *intra_bc_hash_info, int tile_row, int tile_col) {
+  return tile_row / intra_bc_hash_info->tile_rows_per_table *
+             intra_bc_hash_info->table_cols +
+         tile_col / intra_bc_hash_info->tile_cols_per_table;
+}
 
 void av1_hash_table_init(IntraBCHashInfo *intra_bc_hash_info);
 // Makes num_tables empty tables. Their buffers are kept for the next frame

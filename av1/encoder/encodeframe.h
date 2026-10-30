@@ -52,9 +52,9 @@ void av1_encode_sb_row(struct AV1_COMP *cpi, struct ThreadData *td,
                        int tile_row, int tile_col, int mi_row);
 
 // Builds the intrabc hash table with the given index. It holds the blocks of
-// the tile with the same index, or of the whole frame when there is a single
-// table. Returns false if it runs out of memory, or if the frame hash buffers
-// were not allocated for the size of cpi->source.
+// the tiles that share it, see av1_intrabc_hash_table_idx(). Returns false if
+// it runs out of memory, or if the frame hash buffers were not allocated for
+// the size of cpi->source.
 bool av1_build_intrabc_hash_table(struct AV1_COMP *cpi, int table_idx);
 
 #ifdef __cplusplus

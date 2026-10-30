@@ -4915,6 +4915,9 @@ class IntraBCTilesTest : public ::libaom_test::EncoderTest,
     encoder->Control(AV1E_SET_TILE_COLUMNS, GetParam().tile_cols_log2);
     encoder->Control(AV1E_SET_TILE_ROWS, GetParam().tile_rows_log2);
     encoder->Control(AV1E_SET_ROW_MT, GetParam().row_mt);
+    // Realtime mode uses 128x128 superblocks when both sides of the frame are
+    // over 720, and with those IntraBC finds far fewer copies in 256x256 tiles.
+    encoder->Control(AV1E_SET_SUPERBLOCK_SIZE, AOM_SUPERBLOCK_SIZE_64X64);
   }
 
   void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {
@@ -4951,22 +4954,11 @@ const IntraBCTilesParams kIntraBCTilesParams[] = {
   { 1, 1, 4, 1 },  // Four tiles on four threads, as in a typical RTC setup.
   { 1, 1, 4, 0 },  // Tile threads without row mt.
   { 2, 1, 2, 1 },  // Eight tiles on two threads.
+  { 3, 2, 4, 1 },  // 32 tiles, two per table.
+  { 3, 3, 4, 1 },  // 64 tiles, four per table.
 };
 
 INSTANTIATE_TEST_SUITE_P(AV1, IntraBCTilesTest,
                          ::testing::ValuesIn(kIntraBCTilesParams));
-
-// With more tiles than the encoder keeps hash tables for, one table covers the
-// frame. The copies are not expected to be found, but the frame must decode.
-class IntraBCManyTilesTest : public IntraBCTilesTest {};
-
-TEST_P(IntraBCManyTilesTest, Decodes) { EXPECT_GT(EncodeKeyFrame(1), 0u); }
-
-const IntraBCTilesParams kIntraBCManyTilesParams[] = {
-  { 3, 2, 4, 1 },  // 32 tiles.
-};
-
-INSTANTIATE_TEST_SUITE_P(AV1, IntraBCManyTilesTest,
-                         ::testing::ValuesIn(kIntraBCManyTilesParams));
 
 }  // namespace

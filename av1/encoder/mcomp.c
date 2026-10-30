@@ -1944,12 +1944,11 @@ int av1_intrabc_hash_search(const AV1_COMP *cpi, const MACROBLOCKD *xd,
   uint32_t hash_value1, hash_value2;
   int best_hash_cost = INT_MAX;
 
-  // Every tile has its own table, as a block can only copy from its own tile.
-  assert(intrabc_hash_info->num_tile_tables > 0);
-  const int table_idx =
-      intrabc_hash_info->num_tile_tables > 1
-          ? xd->tile.tile_row * cpi->common.tiles.cols + xd->tile.tile_col
-          : 0;
+  // A shared table also holds the blocks of other tiles. av1_is_dv_valid()
+  // skips them, as a block can only copy from its own tile.
+  const int table_idx = av1_intrabc_hash_table_idx(
+      intrabc_hash_info, xd->tile.tile_row, xd->tile.tile_col);
+  assert(table_idx < intrabc_hash_info->num_tile_tables);
   const hash_table *ref_frame_hash = &intrabc_hash_info->tile_tables[table_idx];
 
   av1_get_block_hash_value(intrabc_hash_info, src, src_stride, block_width,
