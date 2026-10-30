@@ -60,25 +60,23 @@ class AV1SubtractBlockTestBase : public ::testing::Test {
   void SetUp() override {
     rnd_.Reset(ACMRandom::DeterministicSeed());
 
-    const size_t max_width = 128;
-    const size_t max_block_size = max_width * max_width;
     if (hbd_) {
       src_ = CONVERT_TO_BYTEPTR(reinterpret_cast<uint16_t *>(
-          aom_memalign(16, max_block_size * sizeof(uint16_t))));
+          aom_memalign(32, kMaxBufElems * sizeof(uint16_t))));
       ASSERT_NE(src_, nullptr);
       pred_ = CONVERT_TO_BYTEPTR(reinterpret_cast<uint16_t *>(
-          aom_memalign(16, max_block_size * sizeof(uint16_t))));
+          aom_memalign(32, kMaxBufElems * sizeof(uint16_t))));
       ASSERT_NE(pred_, nullptr);
     } else {
       src_ = reinterpret_cast<uint8_t *>(
-          aom_memalign(16, max_block_size * sizeof(uint8_t)));
+          aom_memalign(32, kMaxBufElems * sizeof(uint8_t)));
       ASSERT_NE(src_, nullptr);
       pred_ = reinterpret_cast<uint8_t *>(
-          aom_memalign(16, max_block_size * sizeof(uint8_t)));
+          aom_memalign(32, kMaxBufElems * sizeof(uint8_t)));
       ASSERT_NE(pred_, nullptr);
     }
     diff_ = reinterpret_cast<int16_t *>(
-        aom_memalign(32, max_block_size * sizeof(int16_t)));
+        aom_memalign(32, kMaxBufElems * sizeof(int16_t)));
     ASSERT_NE(diff_, nullptr);
   }
 
@@ -94,11 +92,17 @@ class AV1SubtractBlockTestBase : public ::testing::Test {
   }
 
  protected:
+  static constexpr int kMaxHeight = 128;
+  static constexpr int kMaxStride = 256;
+  static constexpr int kMaxOffset = 64;
+  static constexpr size_t kMaxBufElems =
+      static_cast<size_t>(kMaxHeight * kMaxStride + kMaxOffset);
+
   void CheckResult();
   void RunForSpeed();
 
  private:
-  void FillInputs();
+  void FillInputs(size_t count);
 
   ACMRandom rnd_;
   int block_height_;
@@ -112,20 +116,17 @@ class AV1SubtractBlockTestBase : public ::testing::Test {
   int16_t *diff_;
 };
 
-void AV1SubtractBlockTestBase::FillInputs() {
-  const size_t max_width = 128;
-  const int max_block_size = max_width * max_width;
+void AV1SubtractBlockTestBase::FillInputs(size_t count) {
   if (hbd_) {
     const int mask = (1 << bit_depth_) - 1;
-    for (int i = 0; i < max_block_size; ++i) {
-      CONVERT_TO_SHORTPTR(src_)[i] = rnd_.Rand16() & mask;
-      CONVERT_TO_SHORTPTR(pred_)[i] = rnd_.Rand16() & mask;
+    uint16_t *const src16 = CONVERT_TO_SHORTPTR(src_);
+    uint16_t *const pred16 = CONVERT_TO_SHORTPTR(pred_);
+    for (size_t i = 0; i < count; ++i) {
+      src16[i] = rnd_.Rand16() & mask;
+      pred16[i] = rnd_.Rand16() & mask;
     }
   } else {
-    if (src_ == nullptr) {
-      std::cerr << "gadfg" << std::endl;
-    }
-    for (int i = 0; i < max_block_size; ++i) {
+    for (size_t i = 0; i < count; ++i) {
       src_[i] = rnd_.Rand8();
       pred_[i] = rnd_.Rand8();
     }
@@ -134,29 +135,96 @@ void AV1SubtractBlockTestBase::FillInputs() {
 
 void AV1SubtractBlockTestBase::CheckResult() {
   const int test_num = 100;
-  int i;
+  // Encoder residual sub-blocks keep diff_ptr and diff_stride aligned to
+  // min(cols, 16) int16_t elements (8B for cols==4, 16B for cols==8, 32B for
+  // cols>=16).
+  const int diff_align = (block_width_ < 16) ? block_width_ : 16;
+  bool sse2_aligned_src = false;
+#if HAVE_SSE2 && HAVE_X86_ASM
+  if (!hbd_ && func_ == &aom_subtract_block_sse2 && block_width_ >= 16) {
+    sse2_aligned_src = true;
+  }
+#endif
 
-  for (i = 0; i < test_num; ++i) {
-    FillInputs();
+  for (int i = 0; i < test_num; ++i) {
+    ptrdiff_t src_stride = block_width_;
+    ptrdiff_t pred_stride = block_width_;
+    ptrdiff_t diff_stride = block_width_;
+    int src_off = 0;
+    int pred_off = 0;
+    int diff_off = 0;
+    if (i > 0) {
+      if (sse2_aligned_src) {
+        src_stride = block_width_ + (rnd_(5) * 16);
+        src_off = rnd_(4) * 16;
+      } else {
+        src_stride = block_width_ + rnd_(65);
+        src_off = rnd_(33);
+      }
+      pred_stride = block_width_ + rnd_(65);
+      pred_off = rnd_(33);
+      // Ensure diff_stride >= diff_align so cols<16 sub-block strides can also
+      // be wider (e.g. diff_stride == 16..192 for cols == 4 or 8).
+      diff_stride = ((block_width_ + diff_align - 1) & ~(diff_align - 1)) +
+                    rnd_(5) * diff_align;
+      diff_off = rnd_(4) * diff_align;
+    }
 
-    func_(block_height_, block_width_, diff_, block_width_, src_, block_width_,
-          pred_, block_width_);
+    const size_t src_elems =
+        static_cast<size_t>(src_off + block_height_ * src_stride);
+    const size_t pred_elems =
+        static_cast<size_t>(pred_off + block_height_ * pred_stride);
+    const size_t diff_elems =
+        static_cast<size_t>(diff_off + block_height_ * diff_stride);
+    ASSERT_LE(src_elems, kMaxBufElems);
+    ASSERT_LE(pred_elems, kMaxBufElems);
+    ASSERT_LE(diff_elems, kMaxBufElems);
 
-    if (hbd_)
+    FillInputs(src_elems > pred_elems ? src_elems : pred_elems);
+    static constexpr int16_t kDiffCanary = 0x7abc;
+    for (size_t k = 0; k < diff_elems; ++k) diff_[k] = kDiffCanary;
+
+    const uint8_t *const src_ptr =
+        hbd_ ? CONVERT_TO_BYTEPTR(CONVERT_TO_SHORTPTR(src_) + src_off)
+             : (src_ + src_off);
+    const uint8_t *const pred_ptr =
+        hbd_ ? CONVERT_TO_BYTEPTR(CONVERT_TO_SHORTPTR(pred_) + pred_off)
+             : (pred_ + pred_off);
+    int16_t *const diff_ptr = diff_ + diff_off;
+
+    API_REGISTER_STATE_CHECK(func_(block_height_, block_width_, diff_ptr,
+                                   diff_stride, src_ptr, src_stride, pred_ptr,
+                                   pred_stride));
+
+    for (int k = 0; k < diff_off; ++k) {
+      ASSERT_EQ(diff_[k], kDiffCanary)
+          << "clobbered before diff_ptr, test " << i;
+    }
+    if (hbd_) {
+      const uint16_t *const s16 = CONVERT_TO_SHORTPTR(src_ptr);
+      const uint16_t *const p16 = CONVERT_TO_SHORTPTR(pred_ptr);
       for (int r = 0; r < block_height_; ++r) {
         for (int c = 0; c < block_width_; ++c) {
-          EXPECT_EQ(diff_[r * block_width_ + c],
-                    (CONVERT_TO_SHORTPTR(src_)[r * block_width_ + c] -
-                     CONVERT_TO_SHORTPTR(pred_)[r * block_width_ + c]))
+          ASSERT_EQ(diff_ptr[r * diff_stride + c],
+                    static_cast<int16_t>(s16[r * src_stride + c] -
+                                         p16[r * pred_stride + c]))
               << "r = " << r << ", c = " << c << ", test: " << i;
         }
+        for (ptrdiff_t c = block_width_; c < diff_stride; ++c) {
+          ASSERT_EQ(diff_ptr[r * diff_stride + c], kDiffCanary)
+              << "padding clobbered r = " << r << ", c = " << c;
+        }
       }
-    else {
+    } else {
       for (int r = 0; r < block_height_; ++r) {
         for (int c = 0; c < block_width_; ++c) {
-          EXPECT_EQ(diff_[r * block_width_ + c],
-                    src_[r * block_width_ + c] - pred_[r * block_width_ + c])
+          ASSERT_EQ(diff_ptr[r * diff_stride + c],
+                    src_ptr[r * src_stride + c] - pred_ptr[r * pred_stride + c])
               << "r = " << r << ", c = " << c << ", test: " << i;
+        }
+        for (ptrdiff_t c = block_width_; c < diff_stride; ++c) {
+          ASSERT_EQ(diff_ptr[r * diff_stride + c], kDiffCanary)
+              << "padding clobbered r = " << r << ", c = " << c;
         }
       }
     }
@@ -169,7 +237,8 @@ void AV1SubtractBlockTestBase::RunForSpeed() {
 
   if (ref_func_ == func_) GTEST_SKIP();
 
-  FillInputs();
+  const size_t block_elems = static_cast<size_t>(block_width_ * block_height_);
+  FillInputs(block_elems);
 
   aom_usec_timer ref_timer;
   aom_usec_timer_start(&ref_timer);
@@ -180,7 +249,7 @@ void AV1SubtractBlockTestBase::RunForSpeed() {
   aom_usec_timer_mark(&ref_timer);
   const int64_t ref_elapsed_time = aom_usec_timer_elapsed(&ref_timer);
 
-  FillInputs();
+  FillInputs(block_elems);
 
   aom_usec_timer timer;
   aom_usec_timer_start(&timer);
@@ -213,12 +282,13 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AV1SubtractBlockTest);
 TEST_P(AV1SubtractBlockTest, CheckResult) { CheckResult(); }
 TEST_P(AV1SubtractBlockTest, DISABLED_Speed) { RunForSpeed(); }
 
-const BLOCK_SIZE kValidBlockSize[] = { BLOCK_4X4,    BLOCK_4X8,    BLOCK_8X4,
-                                       BLOCK_8X8,    BLOCK_8X16,   BLOCK_16X8,
-                                       BLOCK_16X16,  BLOCK_16X32,  BLOCK_32X16,
-                                       BLOCK_32X32,  BLOCK_32X64,  BLOCK_64X32,
-                                       BLOCK_64X64,  BLOCK_64X128, BLOCK_128X64,
-                                       BLOCK_128X128 };
+const BLOCK_SIZE kValidBlockSize[] = {
+  BLOCK_4X4,     BLOCK_4X8,   BLOCK_8X4,   BLOCK_8X8,    BLOCK_8X16,
+  BLOCK_16X8,    BLOCK_16X16, BLOCK_16X32, BLOCK_32X16,  BLOCK_32X32,
+  BLOCK_32X64,   BLOCK_64X32, BLOCK_64X64, BLOCK_64X128, BLOCK_128X64,
+  BLOCK_128X128, BLOCK_4X16,  BLOCK_16X4,  BLOCK_8X32,   BLOCK_32X8,
+  BLOCK_16X64,   BLOCK_64X16
+};
 
 INSTANTIATE_TEST_SUITE_P(
     C, AV1SubtractBlockTest,

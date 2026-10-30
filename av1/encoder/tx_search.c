@@ -2191,6 +2191,13 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   const int use_qmatrix =
       av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id);
+  const qm_val_t *const seg_qmatrix =
+      use_qmatrix ? xd->plane[plane].seg_qmatrix[mbmi->segment_id][tx_size]
+                  : NULL;
+  const qm_val_t *const seg_iqmatrix =
+      use_qmatrix ? xd->plane[plane].seg_iqmatrix[mbmi->segment_id][tx_size]
+                  : NULL;
+
   int num_tx_candidates = TX_TYPES;
   if (allowed_tx_mask != 0 && (allowed_tx_mask & (allowed_tx_mask - 1)) == 0) {
     txk_map[0] = get_msb(allowed_tx_mask);
@@ -2205,8 +2212,13 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
     rem_tx_mask &= ~(uint16_t)(1 << tx_type);
     txfm_param.tx_type = tx_type;
     if (use_qmatrix) {
-      av1_setup_qmatrix(&cm->quant_params, xd, plane, tx_size, tx_type,
-                        &quant_param);
+      if (tx_type < IDTX) {
+        quant_param.qmatrix = seg_qmatrix;
+        quant_param.iqmatrix = seg_iqmatrix;
+      } else {
+        quant_param.qmatrix = NULL;
+        quant_param.iqmatrix = NULL;
+      }
     }
     if (plane == 0) xd->tx_type_map[tx_type_map_idx] = tx_type;
     RD_STATS this_rd_stats;

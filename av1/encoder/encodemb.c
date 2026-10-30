@@ -376,7 +376,7 @@ enum {
 } UENUM1BYTE(QUANT_FUNC);
 
 #if CONFIG_AV1_HIGHBITDEPTH
-static AV1_QUANT_FACADE
+static const AV1_QUANT_FACADE
     quant_func_list[AV1_XFORM_QUANT_TYPES][QUANT_FUNC_TYPES] = {
       { av1_quantize_fp_facade, av1_highbd_quantize_fp_facade },
       { av1_quantize_b_facade, av1_highbd_quantize_b_facade },
@@ -384,7 +384,7 @@ static AV1_QUANT_FACADE
       { NULL, NULL }
     };
 #else
-static AV1_QUANT_FACADE quant_func_list[AV1_XFORM_QUANT_TYPES] = {
+static const AV1_QUANT_FACADE quant_func_list[AV1_XFORM_QUANT_TYPES] = {
   av1_quantize_fp_facade, av1_quantize_b_facade, av1_quantize_dc_facade, NULL
 };
 #endif
@@ -437,11 +437,22 @@ void av1_quant(MACROBLOCK *x, int plane, int block, TxfmParam *txfm_param,
     const int n_coeffs = av1_get_max_eob(txfm_param->tx_size);
     if (LIKELY(!x->seg_skip_block)) {
 #if CONFIG_AV1_HIGHBITDEPTH
-      quant_func_list[qparam->xform_quant_idx][txfm_param->is_hbd](
-          coeff, n_coeffs, p, qcoeff, dqcoeff, eob, scan_order, qparam);
+      if (LIKELY(!txfm_param->is_hbd &&
+                 qparam->xform_quant_idx == AV1_XFORM_QUANT_FP)) {
+        av1_quantize_fp_facade(coeff, n_coeffs, p, qcoeff, dqcoeff, eob,
+                               scan_order, qparam);
+      } else {
+        quant_func_list[qparam->xform_quant_idx][txfm_param->is_hbd](
+            coeff, n_coeffs, p, qcoeff, dqcoeff, eob, scan_order, qparam);
+      }
 #else
-      quant_func_list[qparam->xform_quant_idx](
-          coeff, n_coeffs, p, qcoeff, dqcoeff, eob, scan_order, qparam);
+      if (LIKELY(qparam->xform_quant_idx == AV1_XFORM_QUANT_FP)) {
+        av1_quantize_fp_facade(coeff, n_coeffs, p, qcoeff, dqcoeff, eob,
+                               scan_order, qparam);
+      } else {
+        quant_func_list[qparam->xform_quant_idx](
+            coeff, n_coeffs, p, qcoeff, dqcoeff, eob, scan_order, qparam);
+      }
 #endif
     } else {
       av1_quantize_skip(n_coeffs, qcoeff, dqcoeff, eob);

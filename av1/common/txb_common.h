@@ -182,10 +182,10 @@ static const uint8_t clip_max3[256] = {
   3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3
 };
 
-static AOM_FORCE_INLINE int get_nz_mag(const uint8_t *const levels,
-                                       const int bhl, const TX_CLASS tx_class) {
+static AOM_FORCE_INLINE int get_nz_mag_stride(const uint8_t *const levels,
+                                              const intptr_t stride,
+                                              const TX_CLASS tx_class) {
   int mag;
-  const ptrdiff_t stride = (1 << bhl) + TX_PAD_HOR;
   const uint8_t *const lvs = levels + stride;
 
   // Note: AOMMIN(level, 3) is useless for decoder since level < 3.
@@ -208,6 +208,12 @@ static AOM_FORCE_INLINE int get_nz_mag(const uint8_t *const levels,
   }
 
   return mag;
+}
+
+static AOM_FORCE_INLINE int get_nz_mag(const uint8_t *const levels,
+                                       const int bhl, const TX_CLASS tx_class) {
+  const intptr_t stride = (1 << bhl) + TX_PAD_HOR;
+  return get_nz_mag_stride(levels, stride, tx_class);
 }
 
 #define NZ_MAP_CTX_0 SIG_COEF_CONTEXTS_2D
@@ -311,41 +317,83 @@ static AOM_FORCE_INLINE int get_lower_levels_ctx(const uint8_t *levels,
   return get_nz_map_ctx_from_stats(stats, coeff_idx, bhl, tx_size, tx_class);
 }
 
+static AOM_FORCE_INLINE int get_lower_levels_ctx_fast(
+    const uint8_t *levels, int coeff_idx, int bhl, intptr_t stride,
+    const int8_t *nz_map_ctx_offset, TX_CLASS tx_class) {
+  assert(bhl >= MIN_TX_SIZE_LOG2 && bhl <= MAX_TX_SIZE_LOG2 - 1);
+  assert(stride == ((intptr_t)1 << bhl) + TX_PAD_HOR);
+  const uint8_t *const nb = levels + get_padded_idx(coeff_idx, bhl);
+  const uint8_t *const lvs = nb + stride;
+  if (tx_class == TX_CLASS_2D) {
+    if (coeff_idx == 0) return 0;
+    const int offset = nz_map_ctx_offset[coeff_idx];
+    if ((nb[1] | nb[2] | lvs[0] | lvs[1] | lvs[stride]) == 0) return offset;
+    const int mag = clip_max3[lvs[0]] + clip_max3[nb[1]] + clip_max3[lvs[1]] +
+                    clip_max3[lvs[stride]] + clip_max3[nb[2]];
+    return offset + AOMMIN((mag + 1) >> 1, 4);
+  } else if (tx_class == TX_CLASS_VERT) {
+    const int offset =
+        nz_map_ctx_offset_1d[coeff_idx & ((int)stride - (TX_PAD_HOR + 1))];
+    if ((lvs[0] | nb[1] | nb[2] | nb[3] | nb[4]) == 0) return offset;
+    const int mag = clip_max3[lvs[0]] + clip_max3[nb[1]] + clip_max3[nb[2]] +
+                    clip_max3[nb[3]] + clip_max3[nb[4]];
+    return offset + AOMMIN((mag + 1) >> 1, 4);
+  } else {
+    assert(tx_class == TX_CLASS_HORIZ);
+    const uint8_t *const lvs2 = lvs + stride;
+    const int offset = nz_map_ctx_offset_1d[coeff_idx >> bhl];
+    if ((lvs[0] | nb[1] | lvs2[0] | lvs2[stride] | lvs2[stride * 2]) == 0)
+      return offset;
+    const int mag = clip_max3[lvs[0]] + clip_max3[nb[1]] + clip_max3[lvs2[0]] +
+                    clip_max3[lvs2[stride]] + clip_max3[lvs2[stride * 2]];
+    return offset + AOMMIN((mag + 1) >> 1, 4);
+  }
+}
+
 // Specialized variant for AC coefficients (coeff_idx > 0), skipping the
 // redundant coeff_idx == 0 checks and dispatching on tx_class once.
+static AOM_FORCE_INLINE int get_lower_levels_ctx_simple_fast(
+    const uint8_t *levels, int coeff_idx, int bhl, intptr_t stride,
+    const int8_t *nz_map_ctx_offset, TX_CLASS tx_class) {
+  assert(coeff_idx > 0);
+  assert(bhl >= MIN_TX_SIZE_LOG2 && bhl <= MAX_TX_SIZE_LOG2 - 1);
+  assert(stride == ((intptr_t)1 << bhl) + TX_PAD_HOR);
+  const uint8_t *const nb = levels + get_padded_idx(coeff_idx, bhl);
+  const uint8_t *const lvs = nb + stride;
+  if (tx_class == TX_CLASS_2D) {
+    const int offset = nz_map_ctx_offset[coeff_idx];
+    if ((nb[1] | nb[2] | lvs[0] | lvs[1] | lvs[stride]) == 0) return offset;
+    const int mag = clip_max3[lvs[0]] + clip_max3[nb[1]] + clip_max3[lvs[1]] +
+                    clip_max3[lvs[stride]] + clip_max3[nb[2]];
+    return offset + AOMMIN((mag + 1) >> 1, 4);
+  } else if (tx_class == TX_CLASS_VERT) {
+    const int offset =
+        nz_map_ctx_offset_1d[coeff_idx & ((int)stride - (TX_PAD_HOR + 1))];
+    if ((lvs[0] | nb[1] | nb[2] | nb[3] | nb[4]) == 0) return offset;
+    const int mag = clip_max3[lvs[0]] + clip_max3[nb[1]] + clip_max3[nb[2]] +
+                    clip_max3[nb[3]] + clip_max3[nb[4]];
+    return offset + AOMMIN((mag + 1) >> 1, 4);
+  } else {
+    assert(tx_class == TX_CLASS_HORIZ);
+    const uint8_t *const lvs2 = lvs + stride;
+    const int offset = nz_map_ctx_offset_1d[coeff_idx >> bhl];
+    if ((lvs[0] | nb[1] | lvs2[0] | lvs2[stride] | lvs2[stride * 2]) == 0)
+      return offset;
+    const int mag = clip_max3[lvs[0]] + clip_max3[nb[1]] + clip_max3[lvs2[0]] +
+                    clip_max3[lvs2[stride]] + clip_max3[lvs2[stride * 2]];
+    return offset + AOMMIN((mag + 1) >> 1, 4);
+  }
+}
+
 static AOM_FORCE_INLINE int get_lower_levels_ctx_simple(const uint8_t *levels,
                                                         int coeff_idx, int bhl,
                                                         TX_SIZE tx_size,
                                                         TX_CLASS tx_class) {
-  assert(coeff_idx > 0);
-  assert(bhl >= MIN_TX_SIZE_LOG2 && bhl <= MAX_TX_SIZE_LOG2 - 1);
-  const uint8_t *const nb = levels + get_padded_idx(coeff_idx, bhl);
-  const ptrdiff_t stride = (1 << bhl) + TX_PAD_HOR;
-  if (tx_class == TX_CLASS_2D) {
-    const int offset = av1_nz_map_ctx_offset[tx_size][coeff_idx];
-    if ((nb[1] | nb[2] | nb[stride] | nb[stride + 1] | nb[2 * stride]) == 0)
-      return offset;
-    const int mag = clip_max3[nb[stride]] + clip_max3[nb[1]] +
-                    clip_max3[nb[stride + 1]] + clip_max3[nb[2 * stride]] +
-                    clip_max3[nb[2]];
-    return offset + AOMMIN((mag + 1) >> 1, 4);
-  } else if (tx_class == TX_CLASS_VERT) {
-    const int offset = nz_map_ctx_offset_1d[coeff_idx & ((1 << bhl) - 1)];
-    if ((nb[stride] | nb[1] | nb[2] | nb[3] | nb[4]) == 0) return offset;
-    const int mag = clip_max3[nb[stride]] + clip_max3[nb[1]] +
-                    clip_max3[nb[2]] + clip_max3[nb[3]] + clip_max3[nb[4]];
-    return offset + AOMMIN((mag + 1) >> 1, 4);
-  } else {
-    assert(tx_class == TX_CLASS_HORIZ);
-    const int offset = nz_map_ctx_offset_1d[coeff_idx >> bhl];
-    if ((nb[stride] | nb[1] | nb[2 * stride] | nb[3 * stride] |
-         nb[4 * stride]) == 0)
-      return offset;
-    const int mag = clip_max3[nb[stride]] + clip_max3[nb[1]] +
-                    clip_max3[nb[2 * stride]] + clip_max3[nb[3 * stride]] +
-                    clip_max3[nb[4 * stride]];
-    return offset + AOMMIN((mag + 1) >> 1, 4);
-  }
+  const intptr_t stride = (1 << bhl) + TX_PAD_HOR;
+  const int8_t *const nz_map_ctx =
+      (tx_class == TX_CLASS_2D) ? av1_nz_map_ctx_offset[tx_size] : NULL;
+  return get_lower_levels_ctx_simple_fast(levels, coeff_idx, bhl, stride,
+                                          nz_map_ctx, tx_class);
 }
 
 static inline int get_lower_levels_ctx_general(int is_last, int scan_idx,
