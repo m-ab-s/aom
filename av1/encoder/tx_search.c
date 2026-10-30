@@ -1091,9 +1091,9 @@ static inline void sort_rd(int64_t rds[], int txk[], int len) {
   }
 }
 
-static inline int64_t av1_block_error_qm(
-    const tran_low_t *coeff, const tran_low_t *dqcoeff, intptr_t block_size,
-    const qm_val_t *qmatrix, const int16_t *scan, int64_t *ssz, int bd) {
+int64_t av1_block_error_qm_c(const tran_low_t *coeff, const tran_low_t *dqcoeff,
+                             intptr_t block_size, const qm_val_t *qmatrix,
+                             const int16_t *scan, int64_t *ssz, int bd) {
   int i;
   int64_t error = 0, sqcoeff = 0;
   int shift = 2 * (bd - 8);

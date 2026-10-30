@@ -14,6 +14,7 @@
 #include "config/av1_rtcd.h"
 
 #include "aom/aom_integer.h"
+#include "aom_dsp/aom_dsp_common.h"
 
 static inline void read_coeff(const tran_low_t *coeff, intptr_t offset,
                               __m256i *c) {
@@ -206,5 +207,99 @@ int64_t av1_block_error_avx2(const tran_low_t *coeff, const tran_low_t *dqcoeff,
 
   _mm_storel_epi64((__m128i *)(ssz), ssz_reg128);
   _mm256_zeroupper();
+  return sse;
+}
+
+int64_t av1_block_error_qm_avx2(const tran_low_t *coeff,
+                                const tran_low_t *dqcoeff, intptr_t block_size,
+                                const qm_val_t *qmatrix, const int16_t *scan,
+                                int64_t *ssz, int bd) {
+  assert(block_size % 8 == 0);
+  assert(bd == 8 || bd == 10 || bd == 12);
+  __m256i sse_reg = _mm256_setzero_si256();
+  __m256i ssz_reg = _mm256_setzero_si256();
+  const __m256i round_qm = _mm256_set1_epi64x(1 << (2 * AOM_QM_BITS - 1));
+
+  for (intptr_t i = 0; i < block_size; i += 8) {
+    // Load 8 transform coefficients and dequantized coefficients.
+    const __m256i coeff_reg = _mm256_loadu_si256((const __m256i *)(coeff + i));
+    const __m256i dqcoeff_reg =
+        _mm256_loadu_si256((const __m256i *)(dqcoeff + i));
+
+    // When all 8 dequantized coefficients are zero, sse and ssz accumulate the
+    // same weighted squared coefficient energy.
+    if (_mm256_testz_si256(dqcoeff_reg, dqcoeff_reg)) {
+      if (_mm256_testz_si256(coeff_reg, coeff_reg)) continue;
+
+      const __m256i wt_reg = _mm256_setr_epi32(
+          qmatrix[scan[i + 0]], qmatrix[scan[i + 1]], qmatrix[scan[i + 2]],
+          qmatrix[scan[i + 3]], qmatrix[scan[i + 4]], qmatrix[scan[i + 5]],
+          qmatrix[scan[i + 6]], qmatrix[scan[i + 7]]);
+      const __m256i cc = _mm256_mullo_epi32(coeff_reg, wt_reg);
+      const __m256i cc_hi = _mm256_srli_epi64(cc, 32);
+      const __m256i cc_lo_sq = _mm256_mul_epi32(cc, cc);
+      const __m256i cc_hi_sq = _mm256_mul_epi32(cc_hi, cc_hi);
+
+      const __m256i sq_lo = _mm256_srli_epi64(
+          _mm256_add_epi64(cc_lo_sq, round_qm), 2 * AOM_QM_BITS);
+      const __m256i sq_hi = _mm256_srli_epi64(
+          _mm256_add_epi64(cc_hi_sq, round_qm), 2 * AOM_QM_BITS);
+      const __m256i sq = _mm256_add_epi64(sq_lo, sq_hi);
+
+      sse_reg = _mm256_add_epi64(sse_reg, sq);
+      ssz_reg = _mm256_add_epi64(ssz_reg, sq);
+    } else {
+      const __m256i wt_reg = _mm256_setr_epi32(
+          qmatrix[scan[i + 0]], qmatrix[scan[i + 1]], qmatrix[scan[i + 2]],
+          qmatrix[scan[i + 3]], qmatrix[scan[i + 4]], qmatrix[scan[i + 5]],
+          qmatrix[scan[i + 6]], qmatrix[scan[i + 7]]);
+      const __m256i diff = _mm256_sub_epi32(coeff_reg, dqcoeff_reg);
+      const __m256i dd = _mm256_mullo_epi32(diff, wt_reg);
+      const __m256i cc = _mm256_mullo_epi32(coeff_reg, wt_reg);
+
+      // Compute weighted squared error (coeff - dqcoeff)^2 in 64-bit lanes.
+      const __m256i dd_hi = _mm256_srli_epi64(dd, 32);
+      const __m256i dd_lo_sq = _mm256_mul_epi32(dd, dd);
+      const __m256i dd_hi_sq = _mm256_mul_epi32(dd_hi, dd_hi);
+      const __m256i err_lo = _mm256_srli_epi64(
+          _mm256_add_epi64(dd_lo_sq, round_qm), 2 * AOM_QM_BITS);
+      const __m256i err_hi = _mm256_srli_epi64(
+          _mm256_add_epi64(dd_hi_sq, round_qm), 2 * AOM_QM_BITS);
+      sse_reg = _mm256_add_epi64(sse_reg, _mm256_add_epi64(err_lo, err_hi));
+
+      // Compute weighted squared coefficient energy coeff^2 in 64-bit lanes.
+      const __m256i cc_hi = _mm256_srli_epi64(cc, 32);
+      const __m256i cc_lo_sq = _mm256_mul_epi32(cc, cc);
+      const __m256i cc_hi_sq = _mm256_mul_epi32(cc_hi, cc_hi);
+      const __m256i sq_lo = _mm256_srli_epi64(
+          _mm256_add_epi64(cc_lo_sq, round_qm), 2 * AOM_QM_BITS);
+      const __m256i sq_hi = _mm256_srli_epi64(
+          _mm256_add_epi64(cc_hi_sq, round_qm), 2 * AOM_QM_BITS);
+      ssz_reg = _mm256_add_epi64(ssz_reg, _mm256_add_epi64(sq_lo, sq_hi));
+    }
+  }
+
+  // Save the higher 64 bit of each 128 bit lane and add to the low 64 bit.
+  const __m256i sse_reg_64hi = _mm256_srli_si256(sse_reg, 8);
+  const __m256i ssz_reg_64hi = _mm256_srli_si256(ssz_reg, 8);
+  sse_reg = _mm256_add_epi64(sse_reg, sse_reg_64hi);
+  ssz_reg = _mm256_add_epi64(ssz_reg, ssz_reg_64hi);
+
+  // Add each 64 bit from each of the 128 bit lanes of the 256 bit register.
+  const __m128i sse_reg128 = _mm_add_epi64(
+      _mm256_castsi256_si128(sse_reg), _mm256_extracti128_si256(sse_reg, 1));
+  const __m128i ssz_reg128 = _mm_add_epi64(
+      _mm256_castsi256_si128(ssz_reg), _mm256_extracti128_si256(ssz_reg, 1));
+
+  // Scale down for high bit-depth and store the results.
+  int64_t sse, sqcoeff;
+  _mm_storel_epi64((__m128i *)&sse, sse_reg128);
+  _mm_storel_epi64((__m128i *)&sqcoeff, ssz_reg128);
+  const int shift = 2 * (bd - 8);
+  const int rounding = (1 << shift) >> 1;
+  sse = (sse + rounding) >> shift;
+  sqcoeff = (sqcoeff + rounding) >> shift;
+
+  *ssz = sqcoeff;
   return sse;
 }
