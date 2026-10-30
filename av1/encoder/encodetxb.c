@@ -358,11 +358,16 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const tran_low_t *tcoeff_txb =
       cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane_type];
   const tran_low_t *tcoeff = tcoeff_txb + BLOCK_OFFSET(block);
-  av1_txb_init_levels(tcoeff, width, height, levels);
   const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
   const int16_t *const scan = scan_order->scan;
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
-  av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class, coeff_contexts);
+  if (eob > 1) {
+    av1_txb_init_levels(tcoeff, width, height, levels);
+    av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class,
+                            coeff_contexts);
+  } else {
+    coeff_contexts[0] = 0;
+  }
 
   const int bhl = get_txb_bhl(tx_size);
   for (int c = eob - 1; c >= 0; --c) {
@@ -383,7 +388,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     if (level > NUM_BASE_LEVELS) {
       // level is above 1.
       const int base_range = level - 1 - NUM_BASE_LEVELS;
-      const int br_ctx = get_br_ctx(levels, pos, bhl, tx_class);
+      const int br_ctx = (eob > 1) ? get_br_ctx(levels, pos, bhl, tx_class) : 0;
       aom_cdf_prob *cdf =
           ec_ctx->coeff_br_cdf[AOMMIN(txs_ctx, TX_32X32)][plane_type][br_ctx];
       for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
@@ -456,32 +461,6 @@ void av1_write_intra_coeffs_mb(const AV1_COMMON *const cm, MACROBLOCK *x,
       }
     }
   }
-}
-
-uint8_t av1_get_txb_entropy_context(const tran_low_t *qcoeff,
-                                    const SCAN_ORDER *scan_order, int eob) {
-  if (eob == 0) return 0;
-  const int32_t dc_val = qcoeff[0];
-  int cul_level = abs(dc_val);
-  if (cul_level < COEFF_CONTEXT_MASK && eob > 1) {
-    const int16_t *const __restrict scan = scan_order->scan;
-    int c = 1;
-    for (; c + 3 < eob; c += 4) {
-      cul_level += abs(qcoeff[scan[c]]) + abs(qcoeff[scan[c + 1]]) +
-                   abs(qcoeff[scan[c + 2]]) + abs(qcoeff[scan[c + 3]]);
-      if (cul_level >= COEFF_CONTEXT_MASK) break;
-    }
-    if (cul_level < COEFF_CONTEXT_MASK) {
-      for (; c < eob; ++c) {
-        cul_level += abs(qcoeff[scan[c]]);
-      }
-    }
-  }
-
-  cul_level = AOMMIN(COEFF_CONTEXT_MASK, cul_level);
-  set_dc_sign(&cul_level, dc_val);
-
-  return (uint8_t)cul_level;
 }
 
 static void update_tx_type_count(const AV1_COMP *cpi, const AV1_COMMON *cm,
@@ -620,11 +599,14 @@ static void update_and_record_txb_context_output(
   tran_low_t *tcoeff_txb =
       cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane_type];
   tran_low_t *tcoeff = tcoeff_txb + block_offset;
-  memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
+  if (eob == 1) {
+    tcoeff[0] = qcoeff[0];
+  } else {
+    memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
+  }
 
   uint8_t levels_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, height);
-  av1_txb_init_levels(tcoeff, width, height, levels);
   update_tx_type_count(cpi, cm, xd, blk_row, blk_col, plane, tx_size,
                        td->counts, allow_update_cdf);
 
@@ -643,7 +625,13 @@ static void update_and_record_txb_context_output(
 #endif
 
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
-  av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class, coeff_contexts);
+  if (eob > 1) {
+    av1_txb_init_levels(tcoeff, width, height, levels);
+    av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class,
+                            coeff_contexts);
+  } else {
+    coeff_contexts[0] = 0;
+  }
 
   for (int c = eob - 1; c >= 0; --c) {
     const int pos = scan[c];
@@ -678,7 +666,7 @@ static void update_and_record_txb_context_output(
     }
     if (level > NUM_BASE_LEVELS) {
       const int base_range = level - 1 - NUM_BASE_LEVELS;
-      const int br_ctx = get_br_ctx(levels, pos, bhl, tx_class);
+      const int br_ctx = (eob > 1) ? get_br_ctx(levels, pos, bhl, tx_class) : 0;
       for (int idx = 0; idx < COEFF_BASE_RANGE; idx += BR_CDF_SIZE - 1) {
         const int k = AOMMIN(base_range - idx, BR_CDF_SIZE - 1);
         if (allow_update_cdf) {
@@ -771,7 +759,15 @@ static void record_txb_context_output(int plane, int block, int blk_row,
   tran_low_t *tcoeff_txb =
       cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane_type];
   tran_low_t *tcoeff = tcoeff_txb + block_offset;
+#if !CONFIG_ENTROPY_STATS
+  if (eob == 1) {
+    tcoeff[0] = qcoeff[0];
+  } else {
+    memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
+  }
+#else
   memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
+#endif
 
 #if CONFIG_ENTROPY_STATS
   uint8_t levels_buf[TX_PAD_2D];

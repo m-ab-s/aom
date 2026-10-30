@@ -2181,7 +2181,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   TxfmParam txfm_param;
   QUANT_PARAM quant_param;
-  int skip_trellis_based_on_satd[TX_TYPES] = { 0 };
+  int best_skip_trellis = 0;
   av1_setup_xform(cm, x, tx_size, DCT_DCT, &txfm_param);
   av1_setup_quant(tx_size, !skip_trellis,
                   skip_trellis ? (USE_B_QUANT_NO_TRELLIS ? AV1_XFORM_QUANT_B
@@ -2191,9 +2191,14 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   const int use_qmatrix =
       av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id);
+  int num_tx_candidates = TX_TYPES;
+  if (allowed_tx_mask != 0 && (allowed_tx_mask & (allowed_tx_mask - 1)) == 0) {
+    txk_map[0] = get_msb(allowed_tx_mask);
+    num_tx_candidates = 1;
+  }
   uint16_t rem_tx_mask = allowed_tx_mask;
   // Iterate through all transform type candidates.
-  for (int idx = 0; idx < TX_TYPES && rem_tx_mask != 0; ++idx) {
+  for (int idx = 0; idx < num_tx_candidates && rem_tx_mask != 0; ++idx) {
     const TX_TYPE tx_type = (TX_TYPE)txk_map[idx];
     if (tx_type == TX_TYPE_INVALID || !check_bit_mask(rem_tx_mask, tx_type))
       continue;
@@ -2229,7 +2234,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       }
     }
 
-    skip_trellis_based_on_satd[tx_type] = skip_trellis_opt_based_on_satd(
+    const int this_skip_trellis = skip_trellis_opt_based_on_satd(
         x, &quant_param, plane, block, tx_size, cpi->oxcf.q_cfg.quant_b_adapt,
         qstep, txfm_params->coeff_opt_thresholds[1], skip_trellis, dc_only_blk,
         &cur_satd);
@@ -2316,6 +2321,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
       best_tx_type = tx_type;
       best_txb_ctx = x->plane[plane].txb_entropy_ctx[block];
       best_eob = x->plane[plane].eobs[block];
+      best_skip_trellis = this_skip_trellis;
       // Swap dqcoeff buffers
       tran_low_t *const tmp_dqcoeff = best_dqcoeff;
       best_dqcoeff = p->dqcoeff;
@@ -2384,7 +2390,7 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
   if (plane == 0) update_txk_array(xd, blk_row, blk_col, tx_size, best_tx_type);
   x->plane[plane].txb_entropy_ctx[block] = best_txb_ctx;
   x->plane[plane].eobs[block] = best_eob;
-  skip_trellis = skip_trellis_based_on_satd[best_tx_type];
+  skip_trellis = best_skip_trellis;
 
   // Point dqcoeff to the quantized coefficients corresponding to the best
   // transform type, then we can skip transform and quantization, e.g. in the
