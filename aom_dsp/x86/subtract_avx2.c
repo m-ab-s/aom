@@ -9,8 +9,119 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 #include <immintrin.h>
+#include <string.h>
 
 #include "config/aom_dsp_rtcd.h"
+
+static inline void subtract_block_4xn_avx2(
+    int rows, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr,
+    ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride) {
+  int32_t j = rows;
+  // Process 4 rows of 4 pixels at a time in a 256-bit register.
+  for (; j >= 4; j -= 4) {
+    int32_t s0, s1, s2, s3, p0, p1, p2, p3;
+    memcpy(&s0, src_ptr, 4);
+    memcpy(&s1, src_ptr + src_stride, 4);
+    memcpy(&s2, src_ptr + 2 * src_stride, 4);
+    memcpy(&s3, src_ptr + 3 * src_stride, 4);
+    memcpy(&p0, pred_ptr, 4);
+    memcpy(&p1, pred_ptr + pred_stride, 4);
+    memcpy(&p2, pred_ptr + 2 * pred_stride, 4);
+    memcpy(&p3, pred_ptr + 3 * pred_stride, 4);
+
+    const __m128i s = _mm_set_epi32(s3, s2, s1, s0);
+    const __m128i p = _mm_set_epi32(p3, p2, p1, p0);
+    const __m256i d =
+        _mm256_sub_epi16(_mm256_cvtepu8_epi16(s), _mm256_cvtepu8_epi16(p));
+
+    const __m128i d_lo = _mm256_castsi256_si128(d);
+    const __m128i d_hi = _mm256_extracti128_si256(d, 1);
+    _mm_storel_epi64((__m128i *)diff_ptr, d_lo);
+    _mm_storeh_pi((__m64 *)(diff_ptr + diff_stride), _mm_castsi128_ps(d_lo));
+    _mm_storel_epi64((__m128i *)(diff_ptr + 2 * diff_stride), d_hi);
+    _mm_storeh_pi((__m64 *)(diff_ptr + 3 * diff_stride),
+                  _mm_castsi128_ps(d_hi));
+
+    src_ptr += 4 * src_stride;
+    pred_ptr += 4 * pred_stride;
+    diff_ptr += 4 * diff_stride;
+  }
+
+  for (; j > 0; j -= 2) {
+    int32_t s0, s1, p0, p1;
+    memcpy(&s0, src_ptr, 4);
+    memcpy(&s1, src_ptr + src_stride, 4);
+    memcpy(&p0, pred_ptr, 4);
+    memcpy(&p1, pred_ptr + pred_stride, 4);
+
+    const __m128i s = _mm_set_epi32(0, 0, s1, s0);
+    const __m128i p = _mm_set_epi32(0, 0, p1, p0);
+    const __m128i d = _mm_sub_epi16(_mm_cvtepu8_epi16(s), _mm_cvtepu8_epi16(p));
+
+    _mm_storel_epi64((__m128i *)diff_ptr, d);
+    _mm_storeh_pi((__m64 *)(diff_ptr + diff_stride), _mm_castsi128_ps(d));
+    src_ptr += 2 * src_stride;
+    pred_ptr += 2 * pred_stride;
+    diff_ptr += 2 * diff_stride;
+  }
+}
+
+static inline void subtract_block_8xn_avx2(
+    int rows, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr,
+    ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride) {
+  int32_t j = rows;
+  // Process 4 rows of 8 pixels at a time across two 256-bit registers.
+  for (; j >= 4; j -= 4) {
+    const __m128i s01 = _mm_unpacklo_epi64(
+        _mm_loadl_epi64((const __m128i *)src_ptr),
+        _mm_loadl_epi64((const __m128i *)(src_ptr + src_stride)));
+    const __m128i p01 = _mm_unpacklo_epi64(
+        _mm_loadl_epi64((const __m128i *)pred_ptr),
+        _mm_loadl_epi64((const __m128i *)(pred_ptr + pred_stride)));
+    const __m128i s23 = _mm_unpacklo_epi64(
+        _mm_loadl_epi64((const __m128i *)(src_ptr + 2 * src_stride)),
+        _mm_loadl_epi64((const __m128i *)(src_ptr + 3 * src_stride)));
+    const __m128i p23 = _mm_unpacklo_epi64(
+        _mm_loadl_epi64((const __m128i *)(pred_ptr + 2 * pred_stride)),
+        _mm_loadl_epi64((const __m128i *)(pred_ptr + 3 * pred_stride)));
+
+    const __m256i d01 =
+        _mm256_sub_epi16(_mm256_cvtepu8_epi16(s01), _mm256_cvtepu8_epi16(p01));
+    const __m256i d23 =
+        _mm256_sub_epi16(_mm256_cvtepu8_epi16(s23), _mm256_cvtepu8_epi16(p23));
+
+    _mm_storeu_si128((__m128i *)diff_ptr, _mm256_castsi256_si128(d01));
+    _mm_storeu_si128((__m128i *)(diff_ptr + diff_stride),
+                     _mm256_extracti128_si256(d01, 1));
+    _mm_storeu_si128((__m128i *)(diff_ptr + 2 * diff_stride),
+                     _mm256_castsi256_si128(d23));
+    _mm_storeu_si128((__m128i *)(diff_ptr + 3 * diff_stride),
+                     _mm256_extracti128_si256(d23, 1));
+
+    src_ptr += 4 * src_stride;
+    pred_ptr += 4 * pred_stride;
+    diff_ptr += 4 * diff_stride;
+  }
+
+  for (; j > 0; j -= 2) {
+    const __m128i s01 = _mm_unpacklo_epi64(
+        _mm_loadl_epi64((const __m128i *)src_ptr),
+        _mm_loadl_epi64((const __m128i *)(src_ptr + src_stride)));
+    const __m128i p01 = _mm_unpacklo_epi64(
+        _mm_loadl_epi64((const __m128i *)pred_ptr),
+        _mm_loadl_epi64((const __m128i *)(pred_ptr + pred_stride)));
+
+    const __m256i d01 =
+        _mm256_sub_epi16(_mm256_cvtepu8_epi16(s01), _mm256_cvtepu8_epi16(p01));
+
+    _mm_storeu_si128((__m128i *)diff_ptr, _mm256_castsi256_si128(d01));
+    _mm_storeu_si128((__m128i *)(diff_ptr + diff_stride),
+                     _mm256_extracti128_si256(d01, 1));
+    src_ptr += 2 * src_stride;
+    pred_ptr += 2 * pred_stride;
+    diff_ptr += 2 * diff_stride;
+  }
+}
 
 static inline void subtract32_avx2(int16_t *diff_ptr, const uint8_t *src_ptr,
                                    const uint8_t *pred_ptr) {
@@ -27,76 +138,13 @@ static inline void subtract32_avx2(int16_t *diff_ptr, const uint8_t *src_ptr,
                      _mm256_permute2x128_si256(diff0, diff1, 0x31));
 }
 
-static inline void subtract_block_4xn_avx2(
-    int rows, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr,
-    ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride) {
-  int32_t j = 0;
-  for (; j + 3 < rows; j += 4) {
-    const __m128i s = _mm_setr_epi32(
-        *(const int32_t *)(src_ptr), *(const int32_t *)(src_ptr + src_stride),
-        *(const int32_t *)(src_ptr + src_stride * 2),
-        *(const int32_t *)(src_ptr + src_stride * 3));
-    const __m128i p =
-        _mm_setr_epi32(*(const int32_t *)(pred_ptr),
-                       *(const int32_t *)(pred_ptr + pred_stride),
-                       *(const int32_t *)(pred_ptr + pred_stride * 2),
-                       *(const int32_t *)(pred_ptr + pred_stride * 3));
-    const __m256i d =
-        _mm256_sub_epi16(_mm256_cvtepu8_epi16(s), _mm256_cvtepu8_epi16(p));
-    const __m128i d_lo = _mm256_castsi256_si128(d);
-    const __m128i d_hi = _mm256_extracti128_si256(d, 1);
-    _mm_storel_epi64((__m128i *)(diff_ptr), d_lo);
-    _mm_storeh_pi((__m64 *)(diff_ptr + diff_stride), _mm_castsi128_ps(d_lo));
-    _mm_storel_epi64((__m128i *)(diff_ptr + diff_stride * 2), d_hi);
-    _mm_storeh_pi((__m64 *)(diff_ptr + diff_stride * 3),
-                  _mm_castsi128_ps(d_hi));
-    src_ptr += src_stride * 4;
-    pred_ptr += pred_stride * 4;
-    diff_ptr += diff_stride * 4;
-  }
-  for (; j < rows; j += 2) {
-    const __m128i s =
-        _mm_setr_epi32(*(const int32_t *)(src_ptr),
-                       *(const int32_t *)(src_ptr + src_stride), 0, 0);
-    const __m128i p =
-        _mm_setr_epi32(*(const int32_t *)(pred_ptr),
-                       *(const int32_t *)(pred_ptr + pred_stride), 0, 0);
-    const __m128i d = _mm_sub_epi16(_mm_cvtepu8_epi16(s), _mm_cvtepu8_epi16(p));
-    _mm_storel_epi64((__m128i *)(diff_ptr), d);
-    _mm_storeh_pi((__m64 *)(diff_ptr + diff_stride), _mm_castsi128_ps(d));
-    src_ptr += src_stride * 2;
-    pred_ptr += pred_stride * 2;
-    diff_ptr += diff_stride * 2;
-  }
-}
-
-static inline void subtract_block_8xn_avx2(
-    int rows, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr,
-    ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride) {
-  for (int32_t j = 0; j < rows; j += 2) {
-    const __m128i s = _mm_unpacklo_epi64(
-        _mm_loadl_epi64((const __m128i *)(src_ptr)),
-        _mm_loadl_epi64((const __m128i *)(src_ptr + src_stride)));
-    const __m128i p = _mm_unpacklo_epi64(
-        _mm_loadl_epi64((const __m128i *)(pred_ptr)),
-        _mm_loadl_epi64((const __m128i *)(pred_ptr + pred_stride)));
-    const __m256i d =
-        _mm256_sub_epi16(_mm256_cvtepu8_epi16(s), _mm256_cvtepu8_epi16(p));
-    _mm_store_si128((__m128i *)(diff_ptr), _mm256_castsi256_si128(d));
-    _mm_store_si128((__m128i *)(diff_ptr + diff_stride),
-                    _mm256_extracti128_si256(d, 1));
-    src_ptr += src_stride * 2;
-    pred_ptr += pred_stride * 2;
-    diff_ptr += diff_stride * 2;
-  }
-}
-
 static inline void subtract_block_16xn_avx2(
     int rows, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr,
     ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride) {
-  for (int32_t j = 0; j < rows; j += 2) {
-    const __m128i s0 = _mm_lddqu_si128((const __m128i *)(src_ptr));
-    const __m128i p0 = _mm_lddqu_si128((const __m128i *)(pred_ptr));
+  int32_t j = rows;
+  for (; j >= 2; j -= 2) {
+    const __m128i s0 = _mm_lddqu_si128((const __m128i *)src_ptr);
+    const __m128i p0 = _mm_lddqu_si128((const __m128i *)pred_ptr);
     const __m128i s1 = _mm_lddqu_si128((const __m128i *)(src_ptr + src_stride));
     const __m128i p1 =
         _mm_lddqu_si128((const __m128i *)(pred_ptr + pred_stride));
@@ -104,11 +152,21 @@ static inline void subtract_block_16xn_avx2(
         _mm256_sub_epi16(_mm256_cvtepu8_epi16(s0), _mm256_cvtepu8_epi16(p0));
     const __m256i d1 =
         _mm256_sub_epi16(_mm256_cvtepu8_epi16(s1), _mm256_cvtepu8_epi16(p1));
-    _mm256_store_si256((__m256i *)(diff_ptr), d0);
+    _mm256_store_si256((__m256i *)diff_ptr, d0);
     _mm256_store_si256((__m256i *)(diff_ptr + diff_stride), d1);
-    src_ptr += src_stride * 2;
-    pred_ptr += pred_stride * 2;
-    diff_ptr += diff_stride * 2;
+    src_ptr += 2 * src_stride;
+    pred_ptr += 2 * pred_stride;
+    diff_ptr += 2 * diff_stride;
+  }
+  for (; j > 0; --j) {
+    const __m128i s = _mm_lddqu_si128((const __m128i *)src_ptr);
+    const __m128i p = _mm_lddqu_si128((const __m128i *)pred_ptr);
+    const __m256i d =
+        _mm256_sub_epi16(_mm256_cvtepu8_epi16(s), _mm256_cvtepu8_epi16(p));
+    _mm256_store_si256((__m256i *)diff_ptr, d);
+    src_ptr += src_stride;
+    pred_ptr += pred_stride;
+    diff_ptr += diff_stride;
   }
 }
 
