@@ -237,8 +237,8 @@ typedef aom_cdf_prob (*br_cdf_arr)[CDF_SIZE(BR_CDF_SIZE)];
 
 static inline int get_lower_levels_ctx_eob(int bhl, int width, int scan_idx) {
   if (scan_idx == 0) return 0;
-  if (scan_idx <= (width << bhl) / 8) return 1;
-  if (scan_idx <= (width << bhl) / 4) return 2;
+  if (scan_idx <= ((width << bhl) >> 3)) return 1;
+  if (scan_idx <= ((width << bhl) >> 2)) return 2;
   return 3;
 }
 

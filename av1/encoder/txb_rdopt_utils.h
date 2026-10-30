@@ -63,23 +63,21 @@ static inline int64_t get_coeff_dist(tran_low_t tcoeff, tran_low_t dqcoeff,
   return error;
 }
 
-static int get_eob_cost(int eob, const LV_MAP_EOB_COST *txb_eob_costs,
-                        const LV_MAP_COEFF_COST *txb_costs, TX_CLASS tx_class) {
-  int eob_extra;
-  const int eob_pt = av1_get_eob_pos_token(eob, &eob_extra);
-  int eob_cost = 0;
+static inline int get_eob_cost(int eob, const LV_MAP_EOB_COST *txb_eob_costs,
+                               const LV_MAP_COEFF_COST *txb_costs,
+                               TX_CLASS tx_class) {
   const int eob_multi_ctx = (tx_class == TX_CLASS_2D) ? 0 : 1;
-  eob_cost = txb_eob_costs->eob_cost[eob_multi_ctx][eob_pt - 1];
-
-  if (av1_eob_offset_bits[eob_pt] > 0) {
-    const int eob_ctx = eob_pt - 3;
-    const int eob_shift = av1_eob_offset_bits[eob_pt] - 1;
-    const int bit = (eob_extra & (1 << eob_shift)) ? 1 : 0;
-    eob_cost += txb_costs->eob_extra_cost[eob_ctx][bit];
-    const int offset_bits = av1_eob_offset_bits[eob_pt];
-    if (offset_bits > 1) eob_cost += av1_cost_literal(offset_bits - 1);
+  if (eob < 3) {
+    return txb_eob_costs->eob_cost[eob_multi_ctx][eob - 1];
   }
-  return eob_cost;
+  // For eob >= 3, eob_pt = k + 2 where k = get_msb(eob - 1), and offset_bits =
+  // k. The top offset bit uses context-coded eob_extra_cost[k - 1][bit], and
+  // the remaining (k - 1) offset bits are coded as literals.
+  const int d = eob - 1;
+  const int k = get_msb(d);
+  const int bit = (d >> (k - 1)) & 1;
+  return txb_eob_costs->eob_cost[eob_multi_ctx][k + 1] +
+         txb_costs->eob_extra_cost[k - 1][bit] + av1_cost_literal(k - 1);
 }
 
 static inline int get_golomb_cost(int abs_qc) {

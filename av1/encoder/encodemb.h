@@ -76,9 +76,21 @@ void av1_setup_xform(const AV1_COMMON *cm, MACROBLOCK *x, TX_SIZE tx_size,
                      TX_TYPE tx_type, TxfmParam *txfm_param);
 void av1_setup_quant(TX_SIZE tx_size, int use_optimize_b, int xform_quant_idx,
                      int use_quant_b_adapt, QUANT_PARAM *qparam);
-void av1_setup_qmatrix(const CommonQuantParams *quant_params,
-                       const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
-                       TX_TYPE tx_type, QUANT_PARAM *qparam);
+static inline void av1_setup_qmatrix(const CommonQuantParams *quant_params,
+                                     const MACROBLOCKD *xd, int plane,
+                                     TX_SIZE tx_size, TX_TYPE tx_type,
+                                     QUANT_PARAM *qparam) {
+  (void)quant_params;
+  if (tx_type < IDTX) {
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    const int seg_id = xd->mi[0]->segment_id;
+    qparam->qmatrix = pd->seg_qmatrix[seg_id][tx_size];
+    qparam->iqmatrix = pd->seg_iqmatrix[seg_id][tx_size];
+  } else {
+    qparam->qmatrix = NULL;
+    qparam->iqmatrix = NULL;
+  }
+}
 
 void av1_xform_dc_only(MACROBLOCK *x, int plane, int block,
                        TxfmParam *txfm_param, int64_t per_px_mean);

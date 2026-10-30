@@ -420,11 +420,13 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   int eob = p->eobs[block];
   const int16_t *dequant = p->dequant_QTX;
   const qm_val_t *iqmatrix =
-      av1_get_iqmatrix(&cpi->common.quant_params, xd, plane, tx_size, tx_type);
+      tx_type < IDTX
+          ? xd->plane[plane].seg_iqmatrix[xd->mi[0]->segment_id][tx_size]
+          : NULL;
   const qm_val_t *qmatrix =
-      cpi->oxcf.tune_cfg.dist_metric == AOM_DIST_METRIC_QM_PSNR
-          ? av1_get_qmatrix(&cpi->common.quant_params, xd, plane, tx_size,
-                            tx_type)
+      (cpi->oxcf.tune_cfg.dist_metric == AOM_DIST_METRIC_QM_PSNR &&
+       tx_type < IDTX)
+          ? xd->plane[plane].seg_qmatrix[xd->mi[0]->segment_id][tx_size]
           : NULL;
   const int block_offset = BLOCK_OFFSET(block);
   tran_low_t *qcoeff = p->qcoeff + block_offset;

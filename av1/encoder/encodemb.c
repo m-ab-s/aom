@@ -488,13 +488,6 @@ void av1_setup_quant(TX_SIZE tx_size, int use_optimize_b, int xform_quant_idx,
   qparam->qmatrix = NULL;
   qparam->iqmatrix = NULL;
 }
-void av1_setup_qmatrix(const CommonQuantParams *quant_params,
-                       const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
-                       TX_TYPE tx_type, QUANT_PARAM *qparam) {
-  qparam->qmatrix = av1_get_qmatrix(quant_params, xd, plane, tx_size, tx_type);
-  qparam->iqmatrix =
-      av1_get_iqmatrix(quant_params, xd, plane, tx_size, tx_type);
-}
 
 static void encode_block(int plane, int block, int blk_row, int blk_col,
                          BLOCK_SIZE plane_bsize, TX_SIZE tx_size, void *arg,
