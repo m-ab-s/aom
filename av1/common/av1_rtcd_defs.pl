@@ -498,6 +498,20 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void av1_interp_cubic_rate_dist/, "const double *p1, const double *p2, double x, double rate_dist_f[2]";
   specialize qw/av1_interp_cubic_rate_dist sse2/;
 
+  add_proto qw/void av1_lowbd_generate_hog/, "const uint8_t *src, int stride, int rows, int cols, float *hist";
+  specialize qw/av1_lowbd_generate_hog sse2/;
+
+  add_proto qw/void av1_lowbd_compute_gradient_info_sb/, "struct macroblock *const x, BLOCK_SIZE sb_size, PLANE_TYPE plane";
+  specialize qw/av1_lowbd_compute_gradient_info_sb sse2/;
+
+  if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
+    add_proto qw/void av1_highbd_generate_hog/, "const uint8_t *src8, int stride, int rows, int cols, float *hist";
+    specialize qw/av1_highbd_generate_hog sse2/;
+
+    add_proto qw/void av1_highbd_compute_gradient_info_sb/, "struct macroblock *const x, BLOCK_SIZE sb_size, PLANE_TYPE plane";
+    specialize qw/av1_highbd_compute_gradient_info_sb sse2/;
+  }
+
   add_proto qw/void av1_nn_predict/, "const float *input_nodes, const NN_CONFIG *const nn_config, int reduce_prec, float *const output";
 
   add_proto qw/void av1_nn_fast_softmax_16/, "const float *input_nodes, float *output";

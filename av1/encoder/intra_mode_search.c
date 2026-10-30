@@ -1754,3 +1754,27 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   av1_copy_array(xd->tx_type_map, ctx->tx_type_map, ctx->num_4x4_blk);
   return best_rd;
 }
+
+void av1_lowbd_generate_hog_c(const uint8_t *src, int stride, int rows,
+                              int cols, float *hist) {
+  lowbd_generate_hog(src, stride, rows, cols, hist, get_hist_bin_idx);
+}
+
+void av1_lowbd_compute_gradient_info_sb_c(MACROBLOCK *const x,
+                                          BLOCK_SIZE sb_size,
+                                          PLANE_TYPE plane) {
+  lowbd_compute_gradient_info_sb(x, sb_size, plane, get_hist_bin_idx);
+}
+
+#if CONFIG_AV1_HIGHBITDEPTH
+void av1_highbd_generate_hog_c(const uint8_t *src8, int stride, int rows,
+                               int cols, float *hist) {
+  highbd_generate_hog(src8, stride, rows, cols, hist, get_hist_bin_idx);
+}
+
+void av1_highbd_compute_gradient_info_sb_c(MACROBLOCK *const x,
+                                           BLOCK_SIZE sb_size,
+                                           PLANE_TYPE plane) {
+  highbd_compute_gradient_info_sb(x, sb_size, plane, get_hist_bin_idx);
+}
+#endif  // CONFIG_AV1_HIGHBITDEPTH
