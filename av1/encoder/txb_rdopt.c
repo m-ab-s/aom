@@ -151,7 +151,12 @@ static AOM_FORCE_INLINE int update_coeff_simple(
       int rate_low = 0;
       const int rate = get_two_coeff_cost_simple(
           ci, abs_qc, coeff_ctx, txb_costs, bhl, tx_class, levels, &rate_low);
-      const int dqv = get_dqv(dequant, ci, iqmatrix);
+      // update_coeff_simple is only invoked for AC coefficients (si > 0), so
+      // dequant[1] can be used directly without a (ci > 0) branch.
+      int dqv = dequant[1];
+      if (iqmatrix != NULL) {
+        dqv = ((iqmatrix[ci] * dqv) + (1 << (AOM_QM_BITS - 1))) >> AOM_QM_BITS;
+      }
       const tran_low_t abs_qc_low = abs_qc - 1;
       const tran_low_t abs_dqc_low = (abs_qc_low * dqv) >> shift;
       int64_t dist_diff_0, dist_diff_low_0;

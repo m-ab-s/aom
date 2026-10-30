@@ -11,6 +11,7 @@
 
 #include "aom/aom_codec.h"
 #include "aom/internal/aom_codec_internal.h"
+#include <stdlib.h>
 
 #include "av1/common/common_data.h"
 #include "av1/common/quant_common.h"
@@ -1072,9 +1073,13 @@ void av1_update_picked_ref_frames_mask(MACROBLOCK *const x, int ref_type,
   }
 }
 
-static void avg_cdf_symbol(aom_cdf_prob *cdf_ptr_left, aom_cdf_prob *cdf_ptr_tr,
-                           int num_cdfs, int cdf_stride, int nsymbs,
-                           int wt_left, int wt_tr) {
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+static void avg_cdf_symbol_general(aom_cdf_prob *cdf_ptr_left,
+                                   const aom_cdf_prob *cdf_ptr_tr, int num_cdfs,
+                                   int cdf_stride, int nsymbs, int wt_left,
+                                   int wt_tr) {
   for (int i = 0; i < num_cdfs; i++) {
     for (int j = 0; j <= nsymbs; j++) {
       cdf_ptr_left[i * cdf_stride + j] =
@@ -1085,6 +1090,38 @@ static void avg_cdf_symbol(aom_cdf_prob *cdf_ptr_left, aom_cdf_prob *cdf_ptr_tr,
       assert(cdf_ptr_left[i * cdf_stride + j] >= 0 &&
              cdf_ptr_left[i * cdf_stride + j] < CDF_PROB_TOP);
     }
+  }
+}
+
+static inline void avg_cdf_symbol(aom_cdf_prob *restrict cdf_ptr_left,
+                                  const aom_cdf_prob *restrict cdf_ptr_tr,
+                                  int num_cdfs, int cdf_stride, int nsymbs,
+                                  int wt_left, int wt_tr) {
+  // Fast path for the common 3:1 row-mt CDF weighting:
+  // (3 * a + b + 2) >> 2 == (a + ((a + b) >> 1) + 1) >> 1, which compilers
+  // auto-vectorize using unsigned 16-bit average instructions.
+  if (wt_left == 3 && wt_tr == 1) {
+    if (cdf_stride == nsymbs + 1) {
+      const int total = num_cdfs * cdf_stride;
+      for (int idx = 0; idx < total; idx++) {
+        const uint16_t a = cdf_ptr_left[idx];
+        const uint16_t b = cdf_ptr_tr[idx];
+        cdf_ptr_left[idx] =
+            (aom_cdf_prob)((a + ((uint16_t)(a + b) >> 1) + 1) >> 1);
+      }
+    } else {
+      for (int i = 0; i < num_cdfs; i++) {
+        for (int j = 0; j <= nsymbs; j++) {
+          const uint16_t a = cdf_ptr_left[i * cdf_stride + j];
+          const uint16_t b = cdf_ptr_tr[i * cdf_stride + j];
+          cdf_ptr_left[i * cdf_stride + j] =
+              (aom_cdf_prob)((a + ((uint16_t)(a + b) >> 1) + 1) >> 1);
+        }
+      }
+    }
+  } else {
+    avg_cdf_symbol_general(cdf_ptr_left, cdf_ptr_tr, num_cdfs, cdf_stride,
+                           nsymbs, wt_left, wt_tr);
   }
 }
 
