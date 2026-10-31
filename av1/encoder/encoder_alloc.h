@@ -82,11 +82,13 @@ static inline void alloc_compressor_data(AV1_COMP *cpi) {
     aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
                        "Failed to allocate SMS tree");
   }
-  cpi->td.firstpass_ctx =
-      av1_alloc_pmc(cpi, BLOCK_16X16, &cpi->td.shared_coeff_buf);
-  if (!cpi->td.firstpass_ctx)
-    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
-                       "Failed to allocate PICK_MODE_CONTEXT");
+  if (is_stat_generation_stage(cpi) || cpi->ppi->lap_enabled) {
+    cpi->td.firstpass_ctx =
+        av1_alloc_pmc(cpi, BLOCK_16X16, &cpi->td.shared_coeff_buf);
+    if (!cpi->td.firstpass_ctx)
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                         "Failed to allocate PICK_MODE_CONTEXT");
+  }
 }
 
 // Allocate mbmi buffers which are used to store mode information at block
@@ -155,14 +157,16 @@ static inline void alloc_rdmult_scaling_factors(AV1_COMP *cpi) {
 
   aom_free(cpi->ssim_rdmult_scaling_factors);
   cpi->ssim_rdmult_scaling_factors = NULL;
+  CHECK_MEM_ERROR(cm, cpi->ssim_rdmult_scaling_factors,
+                  aom_malloc(num_rows * num_cols *
+                             sizeof(*cpi->ssim_rdmult_scaling_factors)));
   aom_free(cpi->tpl_rdmult_scaling_factors);
   cpi->tpl_rdmult_scaling_factors = NULL;
-  CHECK_MEM_ERROR(cm, cpi->ssim_rdmult_scaling_factors,
-                  aom_calloc(num_rows * num_cols,
-                             sizeof(*cpi->ssim_rdmult_scaling_factors)));
-  CHECK_MEM_ERROR(cm, cpi->tpl_rdmult_scaling_factors,
-                  aom_calloc(num_rows * num_cols,
-                             sizeof(*cpi->tpl_rdmult_scaling_factors)));
+  if (cpi->oxcf.mode != ALLINTRA) {
+    CHECK_MEM_ERROR(cm, cpi->tpl_rdmult_scaling_factors,
+                    aom_calloc(num_rows * num_cols,
+                               sizeof(*cpi->tpl_rdmult_scaling_factors)));
+  }
 
 #if CONFIG_TUNE_VMAF
   {

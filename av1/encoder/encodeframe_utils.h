@@ -483,9 +483,11 @@ static inline void av1_alloc_mb_data(const AV1_COMP *cpi,
 
   av1_alloc_src_diff_buf(cm, mb);
 
-  CHECK_MEM_ERROR(cm, mb->e_mbd.seg_mask,
-                  (uint8_t *)aom_memalign(
-                      16, 2 * MAX_SB_SQUARE * sizeof(mb->e_mbd.seg_mask[0])));
+  if (!frame_is_intra_only(cm)) {
+    CHECK_MEM_ERROR(cm, mb->e_mbd.seg_mask,
+                    (uint8_t *)aom_memalign(
+                        16, 2 * MAX_SB_SQUARE * sizeof(mb->e_mbd.seg_mask[0])));
+  }
 
   allocate_winner_mode_stats(cpi, mb);
 

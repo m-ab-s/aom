@@ -812,10 +812,26 @@ static inline void store_winner_mode_stats(
       // No mode has higher rd cost than this_rd
       return;
     } else if (mode_idx < max_winner_mode_count - 1) {
-      // Create a slot for current mode and move others to the next slot
-      memmove(
-          &winner_mode_stats[mode_idx + 1], &winner_mode_stats[mode_idx],
-          (max_winner_mode_count - mode_idx - 1) * sizeof(*winner_mode_stats));
+      // Create a slot for current mode and move others to the next slot.
+      // Only copy the active fields up to color_index_map, and copy the active
+      // portion of color_index_map only when palette mode is used.
+      const int move_end =
+          AOMMIN(x->winner_mode_count, max_winner_mode_count - 1);
+      for (int j = move_end; j > mode_idx; --j) {
+        memcpy(&winner_mode_stats[j], &winner_mode_stats[j - 1],
+               offsetof(WinnerModeStats, color_index_map));
+        if (winner_mode_stats[j - 1]
+                .mbmi.palette_mode_info.palette_size[PLANE_TYPE_Y] > 0) {
+          const MACROBLOCKD *const xd = &x->e_mbd;
+          int block_width, block_height;
+          av1_get_block_dimensions(bsize, AOM_PLANE_Y, xd, &block_width,
+                                   &block_height, NULL, NULL);
+          memcpy(winner_mode_stats[j].color_index_map,
+                 winner_mode_stats[j - 1].color_index_map,
+                 block_width * block_height *
+                     sizeof(winner_mode_stats[0].color_index_map[0]));
+        }
+      }
     }
   }
   // Add a mode stat for winner mode processing

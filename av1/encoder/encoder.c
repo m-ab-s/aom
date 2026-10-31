@@ -964,12 +964,27 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
                     aom_memalign(16, sizeof(*x->palette_buffer)));
   }
 
-  if (x->tmp_conv_dst == NULL) {
-    CHECK_MEM_ERROR(
-        cm, x->tmp_conv_dst,
-        aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE * sizeof(*x->tmp_conv_dst)));
-    x->e_mbd.tmp_conv_dst = x->tmp_conv_dst;
+  if (cpi->oxcf.mode != ALLINTRA) {
+    if (x->tmp_conv_dst == NULL) {
+      CHECK_MEM_ERROR(cm, x->tmp_conv_dst,
+                      aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE *
+                                           sizeof(*x->tmp_conv_dst)));
+      x->e_mbd.tmp_conv_dst = x->tmp_conv_dst;
+    }
+
+    if (x->upsample_pred == NULL) {
+      // The buffer 'upsampled_pred' is used to store the output of horizontal
+      // filtering in aom_(highbd_)upsampled_pred() function. As the length of
+      // the interpolation filter used is SUBPEL_TAPS a buffer size of
+      // (MAX_SB_SIZE + SUBPEL_TAPS) * MAX_SB_SIZE is allocated.
+      CHECK_MEM_ERROR(
+          cm, x->upsample_pred,
+          aom_memalign(16, (1 + is_highbitdepth) * (MAX_SB_SIZE + SUBPEL_TAPS) *
+                               MAX_SB_SIZE * sizeof(*x->upsample_pred)));
+      x->e_mbd.tmp_upsample_pred = x->upsample_pred;
+    }
   }
+
   // The buffers 'tmp_pred_bufs[]' and 'comp_rd_buffer' are used in inter frames
   // to store intermediate inter mode prediction results and are not required
   // for allintra encoding mode. Hence, the memory allocations for these buffers
@@ -986,18 +1001,6 @@ void av1_change_config(struct AV1_COMP *cpi, const AV1EncoderConfig *oxcf,
         x->e_mbd.tmp_obmc_bufs[i] = x->tmp_pred_bufs[i];
       }
     }
-  }
-
-  if (x->upsample_pred == NULL) {
-    // The buffer 'upsampled_pred' is used to store the output of horizontal
-    // filtering in aom_(highbd_)upsampled_pred() function. As the length of the
-    // interpolation filter used is SUBPEL_TAPS a buffer size of (MAX_SB_SIZE +
-    // SUBPEL_TAPS) * MAX_SB_SIZE is allocated.
-    CHECK_MEM_ERROR(
-        cm, x->upsample_pred,
-        aom_memalign(16, (1 + is_highbitdepth) * (MAX_SB_SIZE + SUBPEL_TAPS) *
-                             MAX_SB_SIZE * sizeof(*x->upsample_pred)));
-    x->e_mbd.tmp_upsample_pred = x->upsample_pred;
   }
 
   av1_reset_segment_features(cm);
@@ -1434,15 +1437,17 @@ AV1_PRIMARY *av1_create_primary_compressor(
     enc_set_mb_mi(&mi_params, oxcf->frm_dim_cfg.width, oxcf->frm_dim_cfg.height,
                   BLOCK_4X4);
 
-    const BLOCK_SIZE bsize = BLOCK_16X16;
-    const int w = mi_size_wide[bsize];
-    const int h = mi_size_high[bsize];
-    const int num_cols = (mi_params.mi_cols + w - 1) / w;
-    const int num_rows = (mi_params.mi_rows + h - 1) / h;
-    AOM_CHECK_MEM_ERROR(
-        &ppi->error, ppi->tpl_sb_rdmult_scaling_factors,
-        aom_calloc(num_rows * num_cols,
-                   sizeof(*ppi->tpl_sb_rdmult_scaling_factors)));
+    if (oxcf->mode != ALLINTRA) {
+      const BLOCK_SIZE bsize = BLOCK_16X16;
+      const int w = mi_size_wide[bsize];
+      const int h = mi_size_high[bsize];
+      const int num_cols = (mi_params.mi_cols + w - 1) / w;
+      const int num_rows = (mi_params.mi_rows + h - 1) / h;
+      AOM_CHECK_MEM_ERROR(
+          &ppi->error, ppi->tpl_sb_rdmult_scaling_factors,
+          aom_calloc(num_rows * num_cols,
+                     sizeof(*ppi->tpl_sb_rdmult_scaling_factors)));
+    }
 
 #if CONFIG_INTERNAL_STATS
     ppi->b_calculate_blockiness = 1;
@@ -1642,11 +1647,13 @@ AV1_COMP *av1_create_compressor(AV1_PRIMARY *ppi, const AV1EncoderConfig *oxcf,
     max_mi_rows = size_in_mi(oxcf->frm_dim_cfg.forced_max_frame_height);
   }
 
-  const int consec_zero_mv_alloc_size = (max_mi_rows * max_mi_cols) >> 2;
-  CHECK_MEM_ERROR(
-      cm, cpi->consec_zero_mv,
-      aom_calloc(consec_zero_mv_alloc_size, sizeof(*cpi->consec_zero_mv)));
-  cpi->consec_zero_mv_alloc_size = consec_zero_mv_alloc_size;
+  if (cpi->oxcf.mode != ALLINTRA) {
+    const int consec_zero_mv_alloc_size = (max_mi_rows * max_mi_cols) >> 2;
+    CHECK_MEM_ERROR(
+        cm, cpi->consec_zero_mv,
+        aom_calloc(consec_zero_mv_alloc_size, sizeof(*cpi->consec_zero_mv)));
+    cpi->consec_zero_mv_alloc_size = consec_zero_mv_alloc_size;
+  }
 
   cpi->mb_weber_stats = NULL;
   cpi->mb_weber_stats_alloc_size = 0;
@@ -3046,11 +3053,13 @@ static int encode_without_recode(AV1_COMP *cpi) {
   cpi->source = av1_realloc_and_scale_if_required(
       cm, unscaled, &cpi->scaled_source, filter_scaler, phase_scaler, true,
       false, cpi->oxcf.border_in_pixels, cpi->alloc_pyramid);
-  if (frame_is_intra_only(cm) || resize_pending != 0) {
+  if (cpi->oxcf.mode != ALLINTRA &&
+      (frame_is_intra_only(cm) || resize_pending != 0 ||
+       cpi->consec_zero_mv == NULL)) {
     const int current_size =
         (cm->mi_params.mi_rows * cm->mi_params.mi_cols) >> 2;
-    if (cpi->consec_zero_mv &&
-        (cpi->consec_zero_mv_alloc_size < current_size)) {
+    if (cpi->consec_zero_mv == NULL ||
+        cpi->consec_zero_mv_alloc_size < current_size) {
       aom_free(cpi->consec_zero_mv);
       cpi->consec_zero_mv_alloc_size = 0;
       CHECK_MEM_ERROR(cm, cpi->consec_zero_mv,

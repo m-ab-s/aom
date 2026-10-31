@@ -119,10 +119,10 @@ typedef struct {
   int rate_y;
   //! Chroma rate of the winner mode.
   int rate_uv;
-  //! The color map needed to reconstruct palette mode.
-  uint8_t color_index_map[MAX_SB_SQUARE];
   //! The current winner mode.
   THR_MODES mode_index;
+  //! The color map needed to reconstruct palette mode.
+  uint8_t color_index_map[MAX_SB_SQUARE];
 } WinnerModeStats;
 
 /*! \brief Each source plane of the current macroblock
@@ -1478,21 +1478,12 @@ static inline void zero_winner_mode_stats(BLOCK_SIZE bsize, int n_stats,
                                           WinnerModeStats *stats) {
   // When winner mode stats are not required, the memory allocation is avoided
   // for x->winner_mode_stats. The stats pointer will be NULL in such cases.
+  (void)bsize;
   if (stats == NULL) return;
 
-  const int block_height = block_size_high[bsize];
-  const int block_width = block_size_wide[bsize];
   for (int i = 0; i < n_stats; ++i) {
     WinnerModeStats *const stat = &stats[i];
-    memset(&stat->mbmi, 0, sizeof(stat->mbmi));
-    memset(&stat->rd_cost, 0, sizeof(stat->rd_cost));
-    memset(&stat->rd, 0, sizeof(stat->rd));
-    memset(&stat->rate_y, 0, sizeof(stat->rate_y));
-    memset(&stat->rate_uv, 0, sizeof(stat->rate_uv));
-    // Do not reset the whole array as it is CPU intensive.
-    memset(&stat->color_index_map, 0,
-           block_width * block_height * sizeof(stat->color_index_map[0]));
-    memset(&stat->mode_index, 0, sizeof(stat->mode_index));
+    memset(stat, 0, offsetof(WinnerModeStats, color_index_map));
   }
 }
 

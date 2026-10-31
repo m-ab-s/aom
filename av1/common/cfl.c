@@ -46,18 +46,110 @@ void cfl_store_dc_pred(MACROBLOCKD *const xd, const uint8_t *input,
 
 static void cfl_load_dc_pred_lbd(const int16_t *dc_pred_cache, uint8_t *dst,
                                  int dst_stride, int width, int height) {
-  for (int j = 0; j < height; j++) {
-    memcpy(dst, dc_pred_cache, width);
-    dst += dst_stride;
+  // Load the cached 1D row into scalar registers once and broadcast across all
+  // height rows to avoid repeated memory reads per row.
+  switch (width) {
+    case 4: {
+      uint32_t v;
+      memcpy(&v, dc_pred_cache, 4);
+      for (int j = 0; j < height; j++) {
+        memcpy(dst, &v, 4);
+        dst += dst_stride;
+      }
+      return;
+    }
+    case 8: {
+      uint64_t v;
+      memcpy(&v, dc_pred_cache, 8);
+      for (int j = 0; j < height; j++) {
+        memcpy(dst, &v, 8);
+        dst += dst_stride;
+      }
+      return;
+    }
+    case 16: {
+      uint64_t v0, v1;
+      memcpy(&v0, (const uint8_t *)dc_pred_cache, 8);
+      memcpy(&v1, (const uint8_t *)dc_pred_cache + 8, 8);
+      for (int j = 0; j < height; j++) {
+        memcpy(dst, &v0, 8);
+        memcpy(dst + 8, &v1, 8);
+        dst += dst_stride;
+      }
+      return;
+    }
+    case 32: {
+      uint64_t v0, v1, v2, v3;
+      memcpy(&v0, (const uint8_t *)dc_pred_cache, 8);
+      memcpy(&v1, (const uint8_t *)dc_pred_cache + 8, 8);
+      memcpy(&v2, (const uint8_t *)dc_pred_cache + 16, 8);
+      memcpy(&v3, (const uint8_t *)dc_pred_cache + 24, 8);
+      for (int j = 0; j < height; j++) {
+        memcpy(dst, &v0, 8);
+        memcpy(dst + 8, &v1, 8);
+        memcpy(dst + 16, &v2, 8);
+        memcpy(dst + 24, &v3, 8);
+        dst += dst_stride;
+      }
+      return;
+    }
+    default:
+      for (int j = 0; j < height; j++) {
+        memcpy(dst, dc_pred_cache, width);
+        dst += dst_stride;
+      }
+      return;
   }
 }
 
 static void cfl_load_dc_pred_hbd(const int16_t *dc_pred_cache, uint16_t *dst,
                                  int dst_stride, int width, int height) {
-  const size_t num_bytes = width << 1;
-  for (int j = 0; j < height; j++) {
-    memcpy(dst, dc_pred_cache, num_bytes);
-    dst += dst_stride;
+  // Load the cached 1D row into scalar registers once and broadcast across all
+  // height rows to avoid repeated memory reads per row.
+  switch (width) {
+    case 4: {
+      uint64_t v;
+      memcpy(&v, dc_pred_cache, 8);
+      for (int j = 0; j < height; j++) {
+        memcpy(dst, &v, 8);
+        dst += dst_stride;
+      }
+      return;
+    }
+    case 8: {
+      uint64_t v0, v1;
+      memcpy(&v0, dc_pred_cache, 8);
+      memcpy(&v1, dc_pred_cache + 4, 8);
+      for (int j = 0; j < height; j++) {
+        memcpy(dst, &v0, 8);
+        memcpy(dst + 4, &v1, 8);
+        dst += dst_stride;
+      }
+      return;
+    }
+    case 16: {
+      uint64_t v0, v1, v2, v3;
+      memcpy(&v0, dc_pred_cache, 8);
+      memcpy(&v1, dc_pred_cache + 4, 8);
+      memcpy(&v2, dc_pred_cache + 8, 8);
+      memcpy(&v3, dc_pred_cache + 12, 8);
+      for (int j = 0; j < height; j++) {
+        memcpy(dst, &v0, 8);
+        memcpy(dst + 4, &v1, 8);
+        memcpy(dst + 8, &v2, 8);
+        memcpy(dst + 12, &v3, 8);
+        dst += dst_stride;
+      }
+      return;
+    }
+    default: {
+      const size_t num_bytes = width << 1;
+      for (int j = 0; j < height; j++) {
+        memcpy(dst, dc_pred_cache, num_bytes);
+        dst += dst_stride;
+      }
+      return;
+    }
   }
 }
 void cfl_load_dc_pred(MACROBLOCKD *const xd, uint8_t *dst, int dst_stride,

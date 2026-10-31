@@ -25,15 +25,6 @@
 // the rd threshold check to prune -3 and 3 delta angles.
 #define SIZE_OF_ANGLE_DELTA_RD_COST_ARRAY (2 * MAX_ANGLE_DELTA + 3)
 
-// The order for evaluating delta angles while processing the luma directional
-// intra modes. Currently, this order of evaluation is applicable only when
-// speed feature prune_luma_odd_delta_angles_in_intra is enabled. In this case,
-// even angles are evaluated first in order to facilitate the pruning of odd
-// delta angles based on the rd costs of the neighboring delta angles.
-static const int8_t luma_delta_angles_order[2 * MAX_ANGLE_DELTA] = {
-  -2, 2, -3, -1, 1, 3,
-};
-
 /*!\cond */
 static const PREDICTION_MODE intra_rd_search_mode_order[INTRA_MODES] = {
   DC_PRED,       H_PRED,        V_PRED,    SMOOTH_PRED, PAETH_PRED,
@@ -406,17 +397,34 @@ void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi,
     mbmi->mode = intra_rd_search_mode_order[mode_idx];
     mbmi->angle_delta[PLANE_TYPE_Y] = 0;
   } else {
-    mbmi->mode = (mode_idx - INTRA_MODE_END) / (MAX_ANGLE_DELTA * 2) + V_PRED;
-    int delta_angle_eval_idx =
-        (mode_idx - INTRA_MODE_END) % (MAX_ANGLE_DELTA * 2);
-    if (reorder_delta_angle_eval) {
-      mbmi->angle_delta[PLANE_TYPE_Y] =
-          luma_delta_angles_order[delta_angle_eval_idx];
-    } else {
-      mbmi->angle_delta[PLANE_TYPE_Y] =
-          (delta_angle_eval_idx < 3 ? (delta_angle_eval_idx - 3)
-                                    : (delta_angle_eval_idx - 2));
-    }
+    // Precomputed lookup tables for directional mode and delta angle indexed by
+    // (mode_idx - INTRA_MODE_END) to avoid division/modulo by 6.
+    static const uint8_t mode_div6[48] = {
+      V_PRED,    V_PRED,    V_PRED,    V_PRED,    V_PRED,    V_PRED,
+      H_PRED,    H_PRED,    H_PRED,    H_PRED,    H_PRED,    H_PRED,
+      D45_PRED,  D45_PRED,  D45_PRED,  D45_PRED,  D45_PRED,  D45_PRED,
+      D135_PRED, D135_PRED, D135_PRED, D135_PRED, D135_PRED, D135_PRED,
+      D113_PRED, D113_PRED, D113_PRED, D113_PRED, D113_PRED, D113_PRED,
+      D157_PRED, D157_PRED, D157_PRED, D157_PRED, D157_PRED, D157_PRED,
+      D203_PRED, D203_PRED, D203_PRED, D203_PRED, D203_PRED, D203_PRED,
+      D67_PRED,  D67_PRED,  D67_PRED,  D67_PRED,  D67_PRED,  D67_PRED,
+    };
+    static const int8_t angle_mod6[2][48] = {
+      {
+          -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,
+          2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2,
+          -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,
+      },
+      {
+          -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1,
+          1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,
+          -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,
+      },
+    };
+    const int offset = mode_idx - INTRA_MODE_END;
+    mbmi->mode = (PREDICTION_MODE)mode_div6[offset];
+    mbmi->angle_delta[PLANE_TYPE_Y] =
+        angle_mod6[reorder_delta_angle_eval != 0][offset];
   }
 }
 
@@ -1488,7 +1496,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   MB_MODE_INFO *const mbmi = xd->mi[0];
   assert(!is_inter_block(mbmi));
   int64_t best_model_rd = INT64_MAX;
-  int is_directional_mode;
   uint8_t directional_mode_skip_mask[INTRA_MODES] = { 0 };
   // Flag to check rd of any intra mode is better than best_rd passed to this
   // function
@@ -1529,9 +1536,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
   set_mode_eval_params(cpi, x, MODE_EVAL);
 
   MB_MODE_INFO best_mbmi = *mbmi;
-  const int max_winner_mode_count =
-      winner_mode_count_allowed[cpi->sf.winner_mode_sf.multi_winner_mode_type];
-  zero_winner_mode_stats(bsize, max_winner_mode_count, x->winner_mode_stats);
   x->winner_mode_count = 0;
 
   // Searches the intra-modes except for intrabc, palette, and filter_intra.
@@ -1540,74 +1544,64 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
     top_intra_model_rd[i] = INT64_MAX;
   }
 
-  // Initialize the rdcost corresponding to all the directional and
-  // non-directional intra modes.
-  // 1. For directional modes, it stores the rdcost values for delta angles -4,
-  // -3, ..., 3, 4.
-  // 2. The rdcost value for luma_delta_angle is stored at index
-  // luma_delta_angle + MAX_ANGLE_DELTA + 1.
-  // 3. The rdcost values for fictitious/nonexistent luma_delta_angle -4 and 4
-  // (array indices 0 and 8) are always set to INT64_MAX (the initial value).
-  int64_t intra_modes_rd_cost[INTRA_MODE_END]
-                             [SIZE_OF_ANGLE_DELTA_RD_COST_ARRAY];
-  for (int i = 0; i < INTRA_MODE_END; i++) {
-    for (int j = 0; j < SIZE_OF_ANGLE_DELTA_RD_COST_ARRAY; j++) {
-      intra_modes_rd_cost[i][j] = INT64_MAX;
+  const int use_angle_delta =
+      av1_use_angle_delta(bsize) && intra_mode_cfg->enable_angle_delta;
+  const int max_mode_idx =
+      (use_angle_delta && intra_mode_cfg->enable_directional_intra)
+          ? LUMA_MODE_COUNT
+          : INTRA_MODE_END;
+
+  uint16_t allowed_mode_mask =
+      intra_sf->intra_y_mode_mask[max_txsize_lookup[bsize]];
+  if (!intra_mode_cfg->enable_diagonal_intra)
+    allowed_mode_mask &=
+        ~((1 << D45_PRED) | (1 << D135_PRED) | (1 << D113_PRED) |
+          (1 << D157_PRED) | (1 << D203_PRED) | (1 << D67_PRED));
+  if (!intra_mode_cfg->enable_directional_intra)
+    allowed_mode_mask &=
+        ~((1 << V_PRED) | (1 << H_PRED) | (1 << D45_PRED) | (1 << D135_PRED) |
+          (1 << D113_PRED) | (1 << D157_PRED) | (1 << D203_PRED) |
+          (1 << D67_PRED));
+  if (!intra_mode_cfg->enable_smooth_intra || intra_sf->disable_smooth_intra) {
+    allowed_mode_mask &= ~((1 << SMOOTH_H_PRED) | (1 << SMOOTH_V_PRED));
+    if (!intra_mode_cfg->enable_smooth_intra ||
+        intra_sf->prune_filter_intra_level == 0)
+      allowed_mode_mask &= ~(1 << SMOOTH_PRED);
+  }
+  if (!intra_mode_cfg->enable_paeth_intra)
+    allowed_mode_mask &= ~(1 << PAETH_PRED);
+  if (x->use_mb_mode_cache)
+    allowed_mode_mask &= (uint16_t)(1u << x->mb_mode_cache->mode);
+  if (intra_sf->intra_pruning_with_hog) {
+    for (int m = V_PRED; m <= D67_PRED; ++m) {
+      if (directional_mode_skip_mask[m]) allowed_mode_mask &= ~(1 << m);
     }
   }
 
-  for (int mode_idx = INTRA_MODE_START; mode_idx < LUMA_MODE_COUNT;
-       ++mode_idx) {
+  // Initialize the rdcost corresponding to directional intra modes when odd
+  // delta angle pruning is active.
+  int64_t intra_modes_rd_cost[INTRA_MODE_END]
+                             [SIZE_OF_ANGLE_DELTA_RD_COST_ARRAY];
+  if (use_angle_delta && intra_sf->prune_luma_odd_delta_angles_in_intra) {
+    for (int i = V_PRED; i <= D67_PRED; i++) {
+      for (int j = 0; j < SIZE_OF_ANGLE_DELTA_RD_COST_ARRAY; j++) {
+        intra_modes_rd_cost[i][j] = INT64_MAX;
+      }
+    }
+  }
+
+  for (int mode_idx = INTRA_MODE_START; mode_idx < max_mode_idx; ++mode_idx) {
     set_y_mode_and_delta_angle(mode_idx, mbmi,
                                intra_sf->prune_luma_odd_delta_angles_in_intra);
+    if (!(allowed_mode_mask & (1 << mbmi->mode))) continue;
+
     RD_STATS this_rd_stats;
     int this_rate, this_rate_tokenonly, s;
-    int is_diagonal_mode;
     int64_t this_distortion, this_rd;
     const int luma_delta_angle = mbmi->angle_delta[PLANE_TYPE_Y];
 
-    is_diagonal_mode = av1_is_diagonal_mode(mbmi->mode);
-    if (is_diagonal_mode && !intra_mode_cfg->enable_diagonal_intra) continue;
-    if (av1_is_directional_mode(mbmi->mode) &&
-        !intra_mode_cfg->enable_directional_intra)
-      continue;
-
-    // The smooth prediction mode appears to be more frequently picked
-    // than horizontal / vertical smooth prediction modes. Hence treat
-    // them differently in speed features.
-    if ((!intra_mode_cfg->enable_smooth_intra ||
-         intra_sf->disable_smooth_intra) &&
-        (mbmi->mode == SMOOTH_H_PRED || mbmi->mode == SMOOTH_V_PRED))
-      continue;
-    if (!intra_mode_cfg->enable_smooth_intra && mbmi->mode == SMOOTH_PRED)
-      continue;
-
-    // The functionality of filter intra modes and smooth prediction
-    // overlap. Hence smooth prediction is pruned only if all the
-    // filter intra modes are enabled.
-    if (intra_sf->disable_smooth_intra &&
-        intra_sf->prune_filter_intra_level == 0 && mbmi->mode == SMOOTH_PRED)
-      continue;
-    if (!intra_mode_cfg->enable_paeth_intra && mbmi->mode == PAETH_PRED)
-      continue;
-
-    // Skip the evaluation of modes that do not match with the winner mode in
-    // x->mb_mode_cache.
-    if (x->use_mb_mode_cache && mbmi->mode != x->mb_mode_cache->mode) continue;
-
-    is_directional_mode = av1_is_directional_mode(mbmi->mode);
-    if (is_directional_mode && directional_mode_skip_mask[mbmi->mode]) continue;
-    if (is_directional_mode &&
-        !(av1_use_angle_delta(bsize) && intra_mode_cfg->enable_angle_delta) &&
-        luma_delta_angle != 0)
-      continue;
-
-    // Use intra_y_mode_mask speed feature to skip intra mode evaluation.
-    if (!(intra_sf->intra_y_mode_mask[max_txsize_lookup[bsize]] &
-          (1 << mbmi->mode)))
-      continue;
-
-    if (prune_luma_odd_delta_angles_using_rd_cost(
+    if ((luma_delta_angle & 1) &&
+        prune_luma_odd_delta_angles_using_rd_cost(
             mbmi, intra_modes_rd_cost[mbmi->mode], best_rd,
             intra_sf->prune_luma_odd_delta_angles_in_intra))
       continue;

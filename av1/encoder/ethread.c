@@ -979,11 +979,14 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
       // Set up shared coeff buffers.
       av1_setup_shared_coeff_buffer(&ppi->seq_params, &td->shared_coeff_buf,
                                     &ppi->error);
-      AOM_CHECK_MEM_ERROR(&ppi->error, td->tmp_conv_dst,
-                          aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE *
-                                               sizeof(*td->tmp_conv_dst)));
+      if (ppi->cpi->oxcf.mode != ALLINTRA) {
+        AOM_CHECK_MEM_ERROR(&ppi->error, td->tmp_conv_dst,
+                            aom_memalign(32, MAX_SB_SIZE * MAX_SB_SIZE *
+                                                 sizeof(*td->tmp_conv_dst)));
+      }
 
-      if (i < p_mt_info->num_mod_workers[MOD_FP]) {
+      if ((is_first_pass || ppi->lap_enabled) &&
+          i < p_mt_info->num_mod_workers[MOD_FP]) {
         // Set up firstpass PICK_MODE_CONTEXT.
         td->firstpass_ctx =
             av1_alloc_pmc(ppi->cpi, BLOCK_16X16, &td->shared_coeff_buf);
@@ -992,10 +995,13 @@ void av1_init_tile_thread_data(AV1_PRIMARY *ppi, int is_first_pass) {
                              "Failed to allocate PICK_MODE_CONTEXT");
       }
 
-      AOM_CHECK_MEM_ERROR(
-          &ppi->error, td->upsample_pred,
-          aom_memalign(16, (1 + is_highbitdepth) * (MAX_SB_SIZE + SUBPEL_TAPS) *
-                               MAX_SB_SIZE * sizeof(*td->upsample_pred)));
+      if (ppi->cpi->oxcf.mode != ALLINTRA) {
+        AOM_CHECK_MEM_ERROR(
+            &ppi->error, td->upsample_pred,
+            aom_memalign(16, (1 + is_highbitdepth) *
+                                 (MAX_SB_SIZE + SUBPEL_TAPS) * MAX_SB_SIZE *
+                                 sizeof(*td->upsample_pred)));
+      }
 
       if (!is_first_pass && i < num_enc_workers) {
         // Set up sms_tree.
