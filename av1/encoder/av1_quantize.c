@@ -277,6 +277,19 @@ void av1_quantize_fp_qm_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                        iscan, qm_ptr, iqm_ptr, log_scale);
 }
 
+void av1_quantize_b_qm_c(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+                         const int16_t *zbin_ptr, const int16_t *round_ptr,
+                         const int16_t *quant_ptr,
+                         const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+                         tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr,
+                         uint16_t *eob_ptr, const int16_t *scan,
+                         const int16_t *iscan, const qm_val_t *qm_ptr,
+                         const qm_val_t *iqm_ptr, int log_scale) {
+  aom_quantize_b_helper_c(coeff_ptr, n_coeffs, zbin_ptr, round_ptr, quant_ptr,
+                          quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr, dequant_ptr,
+                          eob_ptr, scan, iscan, qm_ptr, iqm_ptr, log_scale);
+}
+
 void av1_quantize_fp_facade(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                             const MACROBLOCK_PLANE *p, tran_low_t *qcoeff_ptr,
                             tran_low_t *dqcoeff_ptr, uint16_t *eob_ptr,
@@ -355,10 +368,10 @@ void av1_quantize_b_facade(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
 #endif  // !CONFIG_REALTIME_ONLY
 
   if (qm_ptr != NULL && iqm_ptr != NULL) {
-    aom_quantize_b_helper_c(coeff_ptr, n_coeffs, p->zbin_QTX, p->round_QTX,
-                            p->quant_QTX, p->quant_shift_QTX, qcoeff_ptr,
-                            dqcoeff_ptr, p->dequant_QTX, eob_ptr, sc->scan,
-                            sc->iscan, qm_ptr, iqm_ptr, qparam->log_scale);
+    av1_quantize_b_qm(coeff_ptr, n_coeffs, p->zbin_QTX, p->round_QTX,
+                      p->quant_QTX, p->quant_shift_QTX, qcoeff_ptr, dqcoeff_ptr,
+                      p->dequant_QTX, eob_ptr, sc->scan, sc->iscan, qm_ptr,
+                      iqm_ptr, qparam->log_scale);
   } else {
     switch (qparam->log_scale) {
       case 0:
@@ -497,10 +510,10 @@ void av1_highbd_quantize_b_facade(const tran_low_t *coeff_ptr,
 #endif  // !CONFIG_REALTIME_ONLY
 
   if (qm_ptr != NULL && iqm_ptr != NULL) {
-    aom_highbd_quantize_b_helper_c(
-        coeff_ptr, n_coeffs, p->zbin_QTX, p->round_QTX, p->quant_QTX,
-        p->quant_shift_QTX, qcoeff_ptr, dqcoeff_ptr, p->dequant_QTX, eob_ptr,
-        sc->scan, sc->iscan, qm_ptr, iqm_ptr, qparam->log_scale);
+    av1_highbd_quantize_b_qm(coeff_ptr, n_coeffs, p->zbin_QTX, p->round_QTX,
+                             p->quant_QTX, p->quant_shift_QTX, qcoeff_ptr,
+                             dqcoeff_ptr, p->dequant_QTX, eob_ptr, sc->scan,
+                             sc->iscan, qm_ptr, iqm_ptr, qparam->log_scale);
   } else {
     switch (qparam->log_scale) {
       case 0:
@@ -598,6 +611,19 @@ void av1_highbd_quantize_fp_qm_c(
   highbd_quantize_fp_helper_c(coeff_ptr, n_coeffs, NULL, round_ptr, quant_ptr,
                               NULL, qcoeff_ptr, dqcoeff_ptr, dequant_ptr,
                               eob_ptr, scan, iscan, qm_ptr, iqm_ptr, log_scale);
+}
+
+void av1_highbd_quantize_b_qm_c(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
+    const int16_t *round_ptr, const int16_t *quant_ptr,
+    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan, const int16_t *iscan, const qm_val_t *qm_ptr,
+    const qm_val_t *iqm_ptr, int log_scale) {
+  aom_highbd_quantize_b_helper_c(coeff_ptr, n_coeffs, zbin_ptr, round_ptr,
+                                 quant_ptr, quant_shift_ptr, qcoeff_ptr,
+                                 dqcoeff_ptr, dequant_ptr, eob_ptr, scan, iscan,
+                                 qm_ptr, iqm_ptr, log_scale);
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 

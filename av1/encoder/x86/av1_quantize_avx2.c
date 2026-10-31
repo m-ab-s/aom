@@ -589,3 +589,196 @@ void av1_highbd_quantize_fp_qm_avx2(
                              iscan_ptr, qm_ptr, iqm_ptr, log_scale, 1);
 }
 #endif
+
+static inline void init_qp_b_qm(const int16_t *zbin_ptr,
+                                const int16_t *round_ptr,
+                                const int16_t *quant_ptr,
+                                const int16_t *dequant_ptr,
+                                const int16_t *quant_shift_ptr, int log_scale,
+                                __m256i *zbin, __m256i *qp) {
+  const __m128i zbin_128 = _mm_loadu_si128((const __m128i *)zbin_ptr);
+  const __m128i round = _mm_loadu_si128((const __m128i *)round_ptr);
+  const __m128i quant = _mm_loadu_si128((const __m128i *)quant_ptr);
+  const __m128i dequant = _mm_loadu_si128((const __m128i *)dequant_ptr);
+  const __m128i quant_shift = _mm_loadu_si128((const __m128i *)quant_shift_ptr);
+
+  // Sign-extend 16-bit quantizer parameters (lane 0: DC, lanes 1..7: AC) to
+  // 32-bit lanes.
+  *zbin = _mm256_cvtepi16_epi32(zbin_128);
+  qp[0] = _mm256_cvtepi16_epi32(round);
+  qp[1] = _mm256_cvtepi16_epi32(quant);
+  qp[2] = _mm256_cvtepi16_epi32(dequant);
+  qp[3] = _mm256_cvtepi16_epi32(quant_shift);
+
+  if (log_scale > 0) {
+    const __m256i rnd = _mm256_set1_epi32(1 << (log_scale - 1));
+    *zbin = _mm256_add_epi32(*zbin, rnd);
+    *zbin = _mm256_srai_epi32(*zbin, log_scale);
+
+    qp[0] = _mm256_add_epi32(qp[0], rnd);
+    qp[0] = _mm256_srai_epi32(qp[0], log_scale);
+  }
+
+  *zbin = _mm256_slli_epi32(*zbin, AOM_QM_BITS);
+  // Subtracting 1 here eliminates a _mm256_cmpeq_epi32() instruction when
+  // calculating the zbin mask.
+  *zbin = _mm256_sub_epi32(*zbin, _mm256_set1_epi32(1));
+}
+
+static inline void update_qp_b_qm(__m256i *zbin, __m256i *qp) {
+  update_qp(zbin, qp);
+  qp[3] = _mm256_permute2x128_si256(qp[3], qp[3], 0x11);
+}
+
+static AOM_FORCE_INLINE void quantize_b_qm_8(
+    const __m256i *zbin, const __m256i *qp, const tran_low_t *coeff_ptr,
+    const int16_t *iscan_ptr, const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr,
+    tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, __m128i shift,
+    __m128i log_scale_vec, int is_highbd, __m256i *eob) {
+  // Load 8 coefficients and 8 quantization matrix weights, then check if any
+  // weighted coefficient exceeds the zero-bin threshold.
+  const __m256i coeff = _mm256_loadu_si256((const __m256i *)coeff_ptr);
+  const __m256i abs_coeff = _mm256_abs_epi32(coeff);
+  const __m256i wt =
+      _mm256_cvtepu8_epi32(_mm_loadl_epi64((const __m128i *)qm_ptr));
+  const __m256i abs_wt =
+      is_highbd
+          ? _mm256_mullo_epi32(abs_coeff, wt)
+          : _mm256_madd_epi16(
+                _mm256_min_epi32(abs_coeff, _mm256_set1_epi32(INT16_MAX)), wt);
+  const __m256i mask = _mm256_cmpgt_epi32(abs_wt, *zbin);
+  const int nzflag = _mm256_movemask_epi8(mask);
+
+  if (nzflag) {
+    // Round and apply forward quantization matrix weights. For low bit-depth,
+    // clamp the rounded coefficient to INT16_MAX to match the C reference.
+    __m256i tmp_rnd = _mm256_add_epi32(abs_coeff, qp[0]);
+    if (!is_highbd) {
+      tmp_rnd = _mm256_min_epi32(tmp_rnd, _mm256_set1_epi32(INT16_MAX));
+    }
+    const __m256i tmp_wt = is_highbd ? _mm256_mullo_epi32(tmp_rnd, wt)
+                                     : _mm256_madd_epi16(tmp_rnd, wt);
+
+    // First stage of exact division: tmp2 = ((tmp_wt * quant) >> 16) + tmp_wt.
+    const __m256i q_lo = _mm256_mul_epi32(tmp_wt, qp[1]);
+    const __m256i sh_lo = _mm256_srli_epi64(q_lo, 16);
+    const __m256i q_hi = _mm256_mul_epi32(_mm256_srli_epi64(tmp_wt, 32),
+                                          _mm256_srli_epi64(qp[1], 32));
+    const __m256i sh_hi = _mm256_slli_epi64(q_hi, 16);
+    const __m256i tmp2 =
+        _mm256_add_epi32(_mm256_blend_epi32(sh_lo, sh_hi, 0xAA), tmp_wt);
+
+    // Second stage of exact division:
+    // abs_q = (tmp2 * quant_shift) >> (16 - log_scale + AOM_QM_BITS).
+    const __m256i s_lo = _mm256_mul_epu32(tmp2, qp[3]);
+    const __m256i r_lo = _mm256_srl_epi64(s_lo, shift);
+    const __m256i s_hi = _mm256_mul_epu32(_mm256_srli_epi64(tmp2, 32),
+                                          _mm256_srli_epi64(qp[3], 32));
+    const __m256i r_hi = _mm256_slli_epi64(_mm256_srl_epi64(s_hi, shift), 32);
+    const __m256i abs_q = _mm256_and_si256(_mm256_or_si256(r_lo, r_hi), mask);
+
+    // Dequantize using the inverse quantization matrix weights (iqm_ptr).
+    const __m256i iwt =
+        _mm256_cvtepu8_epi32(_mm_loadl_epi64((const __m128i *)iqm_ptr));
+    const __m256i dequant = _mm256_srai_epi32(
+        _mm256_add_epi32(_mm256_madd_epi16(qp[2], iwt),
+                         _mm256_set1_epi32(1 << (AOM_QM_BITS - 1))),
+        AOM_QM_BITS);
+    const __m256i abs_dq =
+        _mm256_sra_epi32(_mm256_mullo_epi32(abs_q, dequant), log_scale_vec);
+
+    // Restore original signs and store quantized and dequantized coefficients.
+    const __m256i q = _mm256_sign_epi32(abs_q, coeff);
+    const __m256i dq = _mm256_sign_epi32(abs_dq, coeff);
+    const __m256i nz_mask = _mm256_cmpgt_epi32(abs_q, _mm256_setzero_si256());
+
+    _mm256_storeu_si256((__m256i *)qcoeff_ptr, q);
+    _mm256_storeu_si256((__m256i *)dqcoeff_ptr, dq);
+
+    *eob = get_max_lane_eob_qm(iscan_ptr, *eob, nz_mask);
+  } else {
+    const __m256i zero = _mm256_setzero_si256();
+    _mm256_storeu_si256((__m256i *)qcoeff_ptr, zero);
+    _mm256_storeu_si256((__m256i *)dqcoeff_ptr, zero);
+  }
+}
+
+static AOM_FORCE_INLINE void quantize_b_qm_helper_avx2(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
+    const int16_t *round_ptr, const int16_t *quant_ptr,
+    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *iscan_ptr, const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr,
+    int log_scale, int is_highbd) {
+  const int step = 8;
+  const __m128i shift = _mm_cvtsi32_si128(16 - log_scale + AOM_QM_BITS);
+  const __m128i log_scale_vec = _mm_cvtsi32_si128(log_scale);
+  __m256i qp[4], zbin;
+  __m256i eob = _mm256_setzero_si256();
+
+  init_qp_b_qm(zbin_ptr, round_ptr, quant_ptr, dequant_ptr, quant_shift_ptr,
+               log_scale, &zbin, qp);
+
+  // Process DC and the first 7 AC coeffs.
+  quantize_b_qm_8(&zbin, qp, coeff_ptr, iscan_ptr, qm_ptr, iqm_ptr, qcoeff_ptr,
+                  dqcoeff_ptr, shift, log_scale_vec, is_highbd, &eob);
+
+  coeff_ptr += step;
+  qcoeff_ptr += step;
+  dqcoeff_ptr += step;
+  iscan_ptr += step;
+  qm_ptr += step;
+  iqm_ptr += step;
+  n_coeffs -= step;
+
+  // Overwrite the DC constants with AC constants.
+  update_qp_b_qm(&zbin, qp);
+
+  // AC only loop.
+  while (n_coeffs > 0) {
+    quantize_b_qm_8(&zbin, qp, coeff_ptr, iscan_ptr, qm_ptr, iqm_ptr,
+                    qcoeff_ptr, dqcoeff_ptr, shift, log_scale_vec, is_highbd,
+                    &eob);
+
+    coeff_ptr += step;
+    qcoeff_ptr += step;
+    dqcoeff_ptr += step;
+    iscan_ptr += step;
+    qm_ptr += step;
+    iqm_ptr += step;
+    n_coeffs -= step;
+  }
+  *eob_ptr = quant_gather_eob(eob);
+}
+
+void av1_quantize_b_qm_avx2(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+                            const int16_t *zbin_ptr, const int16_t *round_ptr,
+                            const int16_t *quant_ptr,
+                            const int16_t *quant_shift_ptr,
+                            tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
+                            const int16_t *dequant_ptr, uint16_t *eob_ptr,
+                            const int16_t *scan_ptr, const int16_t *iscan_ptr,
+                            const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr,
+                            int log_scale) {
+  (void)scan_ptr;
+  quantize_b_qm_helper_avx2(coeff_ptr, n_coeffs, zbin_ptr, round_ptr, quant_ptr,
+                            quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr,
+                            dequant_ptr, eob_ptr, iscan_ptr, qm_ptr, iqm_ptr,
+                            log_scale, 0);
+}
+
+#if CONFIG_AV1_HIGHBITDEPTH
+void av1_highbd_quantize_b_qm_avx2(
+    const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr,
+    const int16_t *round_ptr, const int16_t *quant_ptr,
+    const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr,
+    const int16_t *scan_ptr, const int16_t *iscan_ptr, const qm_val_t *qm_ptr,
+    const qm_val_t *iqm_ptr, int log_scale) {
+  (void)scan_ptr;
+  quantize_b_qm_helper_avx2(coeff_ptr, n_coeffs, zbin_ptr, round_ptr, quant_ptr,
+                            quant_shift_ptr, qcoeff_ptr, dqcoeff_ptr,
+                            dequant_ptr, eob_ptr, iscan_ptr, qm_ptr, iqm_ptr,
+                            log_scale, 1);
+}
+#endif
