@@ -317,52 +317,6 @@ void av1_fwd_txfm2d_64x16_c(const int16_t *input, int32_t *output, int stride,
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
-static const int8_t fwd_shift_4x4[3] = { 2, 0, 0 };
-static const int8_t fwd_shift_8x8[3] = { 2, -1, 0 };
-static const int8_t fwd_shift_16x16[3] = { 2, -2, 0 };
-static const int8_t fwd_shift_32x32[3] = { 2, -4, 0 };
-static const int8_t fwd_shift_64x64[3] = { 0, -2, -2 };
-static const int8_t fwd_shift_4x8[3] = { 2, -1, 0 };
-static const int8_t fwd_shift_8x4[3] = { 2, -1, 0 };
-static const int8_t fwd_shift_8x16[3] = { 2, -2, 0 };
-static const int8_t fwd_shift_16x8[3] = { 2, -2, 0 };
-static const int8_t fwd_shift_16x32[3] = { 2, -4, 0 };
-static const int8_t fwd_shift_32x16[3] = { 2, -4, 0 };
-static const int8_t fwd_shift_32x64[3] = { 0, -2, -2 };
-static const int8_t fwd_shift_64x32[3] = { 2, -4, -2 };
-static const int8_t fwd_shift_4x16[3] = { 2, -1, 0 };
-static const int8_t fwd_shift_16x4[3] = { 2, -1, 0 };
-static const int8_t fwd_shift_8x32[3] = { 2, -2, 0 };
-static const int8_t fwd_shift_32x8[3] = { 2, -2, 0 };
-static const int8_t fwd_shift_16x64[3] = { 0, -2, 0 };
-static const int8_t fwd_shift_64x16[3] = { 2, -4, 0 };
-
-const int8_t *av1_fwd_txfm_shift_ls[TX_SIZES_ALL] = {
-  fwd_shift_4x4,   fwd_shift_8x8,   fwd_shift_16x16, fwd_shift_32x32,
-  fwd_shift_64x64, fwd_shift_4x8,   fwd_shift_8x4,   fwd_shift_8x16,
-  fwd_shift_16x8,  fwd_shift_16x32, fwd_shift_32x16, fwd_shift_32x64,
-  fwd_shift_64x32, fwd_shift_4x16,  fwd_shift_16x4,  fwd_shift_8x32,
-  fwd_shift_32x8,  fwd_shift_16x64, fwd_shift_64x16,
-};
-
-const int8_t av1_fwd_cos_bit_col[MAX_TXWH_IDX /*txw_idx*/]
-                                [MAX_TXWH_IDX /*txh_idx*/] = {
-                                  { 13, 13, 13, 0, 0 },
-                                  { 13, 13, 13, 12, 0 },
-                                  { 13, 13, 13, 12, 13 },
-                                  { 0, 13, 13, 12, 13 },
-                                  { 0, 0, 13, 12, 13 }
-                                };
-
-const int8_t av1_fwd_cos_bit_row[MAX_TXWH_IDX /*txw_idx*/]
-                                [MAX_TXWH_IDX /*txh_idx*/] = {
-                                  { 13, 13, 12, 0, 0 },
-                                  { 13, 13, 13, 12, 0 },
-                                  { 13, 13, 12, 13, 12 },
-                                  { 0, 12, 13, 12, 11 },
-                                  { 0, 0, 12, 11, 10 }
-                                };
-
 static const int8_t fdct4_range_mult2[4] = { 0, 2, 3, 3 };
 static const int8_t fdct8_range_mult2[6] = { 0, 2, 4, 5, 5, 5 };
 static const int8_t fdct16_range_mult2[8] = { 0, 2, 4, 6, 7, 7, 7, 7 };

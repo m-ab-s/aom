@@ -17,12 +17,14 @@
 
 static void fdct4x4_new_sse2(const __m128i *input, __m128i *output,
                              int8_t cos_bit) {
-  const int32_t *cospi = cospi_arr(cos_bit);
+  (void)cos_bit;
+  const int8_t cb = 13;
+  const int32_t *cospi = cospi_arr(cb);
   const __m128i cospi_p32_p32 = pair_set_epi16(cospi[32], cospi[32]);
   const __m128i cospi_p32_m32 = pair_set_epi16(cospi[32], -cospi[32]);
   const __m128i cospi_p16_p48 = pair_set_epi16(cospi[16], cospi[48]);
   const __m128i cospi_p48_m16 = pair_set_epi16(cospi[48], -cospi[16]);
-  const __m128i __rounding = _mm_set1_epi32(1 << (cos_bit - 1));
+  const __m128i __rounding = _mm_set1_epi32(1 << (cb - 1));
   __m128i u[4], v[4];
 
   u[0] = _mm_unpacklo_epi16(input[0], input[1]);
@@ -40,10 +42,10 @@ static void fdct4x4_new_sse2(const __m128i *input, __m128i *output,
   v[1] = _mm_add_epi32(u[1], __rounding);
   v[2] = _mm_add_epi32(u[2], __rounding);
   v[3] = _mm_add_epi32(u[3], __rounding);
-  u[0] = _mm_srai_epi32(v[0], cos_bit);
-  u[1] = _mm_srai_epi32(v[1], cos_bit);
-  u[2] = _mm_srai_epi32(v[2], cos_bit);
-  u[3] = _mm_srai_epi32(v[3], cos_bit);
+  u[0] = _mm_srai_epi32(v[0], cb);
+  u[1] = _mm_srai_epi32(v[1], cb);
+  u[2] = _mm_srai_epi32(v[2], cb);
+  u[3] = _mm_srai_epi32(v[3], cb);
 
   output[0] = _mm_packs_epi32(u[0], u[1]);
   output[1] = _mm_packs_epi32(u[2], u[3]);
@@ -82,8 +84,10 @@ static void fdct8x4_new_sse2(const __m128i *input, __m128i *output,
 
 static void fdct4x8_new_sse2(const __m128i *input, __m128i *output,
                              int8_t cos_bit) {
-  const int32_t *cospi = cospi_arr(cos_bit);
-  const __m128i __rounding = _mm_set1_epi32(1 << (cos_bit - 1));
+  (void)cos_bit;
+  const int8_t cb = 13;
+  const int32_t *cospi = cospi_arr(cb);
+  const __m128i __rounding = _mm_set1_epi32(1 << (cb - 1));
 
   __m128i cospi_m32_p32 = pair_set_epi16(-cospi[32], cospi[32]);
   __m128i cospi_p32_p32 = pair_set_epi16(cospi[32], cospi[32]);
@@ -113,16 +117,16 @@ static void fdct4x8_new_sse2(const __m128i *input, __m128i *output,
   x2[1] = _mm_adds_epi16(x1[1], x1[2]);
   x2[2] = _mm_subs_epi16(x1[1], x1[2]);
   x2[4] = x1[4];
-  btf_16_w4_sse2(&cospi_m32_p32, &cospi_p32_p32, __rounding, cos_bit, &x1[5],
-                 &x1[6], &x2[5], &x2[6]);
+  btf_16_w4_sse2(&cospi_m32_p32, &cospi_p32_p32, __rounding, cb, &x1[5], &x1[6],
+                 &x2[5], &x2[6]);
   x2[7] = x1[7];
 
   // stage 3
   __m128i x3[8];
-  btf_16_w4_sse2(&cospi_p32_p32, &cospi_p32_m32, __rounding, cos_bit, &x2[0],
-                 &x2[1], &x3[0], &x3[1]);
-  btf_16_w4_sse2(&cospi_p48_p16, &cospi_m16_p48, __rounding, cos_bit, &x2[2],
-                 &x2[3], &x3[2], &x3[3]);
+  btf_16_w4_sse2(&cospi_p32_p32, &cospi_p32_m32, __rounding, cb, &x2[0], &x2[1],
+                 &x3[0], &x3[1]);
+  btf_16_w4_sse2(&cospi_p48_p16, &cospi_m16_p48, __rounding, cb, &x2[2], &x2[3],
+                 &x3[2], &x3[3]);
   x3[4] = _mm_adds_epi16(x2[4], x2[5]);
   x3[5] = _mm_subs_epi16(x2[4], x2[5]);
   x3[6] = _mm_subs_epi16(x2[7], x2[6]);
@@ -134,10 +138,10 @@ static void fdct4x8_new_sse2(const __m128i *input, __m128i *output,
   x4[1] = x3[1];
   x4[2] = x3[2];
   x4[3] = x3[3];
-  btf_16_w4_sse2(&cospi_p56_p08, &cospi_m08_p56, __rounding, cos_bit, &x3[4],
-                 &x3[7], &x4[4], &x4[7]);
-  btf_16_w4_sse2(&cospi_p24_p40, &cospi_m40_p24, __rounding, cos_bit, &x3[5],
-                 &x3[6], &x4[5], &x4[6]);
+  btf_16_w4_sse2(&cospi_p56_p08, &cospi_m08_p56, __rounding, cb, &x3[4], &x3[7],
+                 &x4[4], &x4[7]);
+  btf_16_w4_sse2(&cospi_p24_p40, &cospi_m40_p24, __rounding, cb, &x3[5], &x3[6],
+                 &x4[5], &x4[6]);
 
   // stage 5
   output[0] = x4[0];
@@ -1353,7 +1357,9 @@ void av1_fdct8x64_new_sse2(const __m128i *input, __m128i *output,
 }
 
 static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
-                              int8_t cos_bit) {
+                              int8_t cos_bit_arg) {
+  (void)cos_bit_arg;
+  const int8_t cos_bit = 13;
   const int32_t *sinpi = sinpi_arr(cos_bit);
   const __m128i sinpi_p01_p02 = pair_set_epi16(sinpi[1], sinpi[2]);
   const __m128i sinpi_p04_m01 = pair_set_epi16(sinpi[4], -sinpi[1]);
@@ -1404,7 +1410,9 @@ static void fadst4x4_new_sse2(const __m128i *input, __m128i *output,
 }
 
 static void fadst4x8_new_sse2(const __m128i *input, __m128i *output,
-                              int8_t cos_bit) {
+                              int8_t cos_bit_arg) {
+  (void)cos_bit_arg;
+  const int8_t cos_bit = 13;
   const int32_t *cospi = cospi_arr(cos_bit);
   const __m128i __zero = _mm_setzero_si128();
   const __m128i __rounding = _mm_set1_epi32(1 << (cos_bit - 1));
@@ -1977,12 +1985,24 @@ void av1_lowbd_fwd_txfm2d_4x4_sse2(const int16_t *input, int32_t *output,
   (void)bd;
   __m128i buf0[4], buf1[4], *buf;
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_4X4];
+  const int width = 4;
+  const int height = 4;
+
+  // Fast path for DCT_DCT: bypass function pointer table and flip checks.
+  if (tx_type == DCT_DCT) {
+    load_buffer_16bit_to_16bit_w4(input, stride, buf0, height);
+    round_shift_16bit(buf0, height, shift[0]);
+    fdct4x4_new_sse2(buf0, buf0, 13);
+    transpose_16bit_4x4(buf0, buf1);
+    fdct4x4_new_sse2(buf1, buf1, 13);
+    store_buffer_16bit_to_32bit_w4(buf1, output, height, width);
+    return;
+  }
+
   const int txw_idx = get_txw_idx(TX_4X4);
   const int txh_idx = get_txh_idx(TX_4X4);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
-  const int width = 4;
-  const int height = 4;
   const transform_1d_sse2 col_txfm = col_txfm4x4_arr[tx_type];
   const transform_1d_sse2 row_txfm = row_txfm4x4_arr[tx_type];
   int ud_flip, lr_flip;

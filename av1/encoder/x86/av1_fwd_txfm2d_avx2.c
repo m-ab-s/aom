@@ -20,8 +20,9 @@
 #include "av1/encoder/x86/av1_fwd_txfm_sse2.h"
 #include "aom_dsp/x86/txfm_common_avx2.h"
 
-static inline void fdct16x16_new_avx2(const __m256i *input, __m256i *output,
-                                      int8_t cos_bit) {
+static AOM_FORCE_INLINE void fdct16x16_new_avx2(const __m256i *input,
+                                                __m256i *output,
+                                                int8_t cos_bit) {
   const int32_t *cospi = cospi_arr(cos_bit);
   const __m256i _r = _mm256_set1_epi32(1 << (cos_bit - 1));
 
@@ -113,8 +114,20 @@ static inline void fdct16x16_new_avx2(const __m256i *input, __m256i *output,
   output[15] = x1[15];
 }
 
-static inline void fdct16x32_avx2(const __m256i *input, __m256i *output,
-                                  int8_t cos_bit) {
+static inline void fdct16x16_cb13_avx2(const __m256i *input, __m256i *output,
+                                       int8_t cos_bit) {
+  (void)cos_bit;
+  fdct16x16_new_avx2(input, output, 13);
+}
+
+static inline void fdct16x16_cb12_avx2(const __m256i *input, __m256i *output,
+                                       int8_t cos_bit) {
+  (void)cos_bit;
+  fdct16x16_new_avx2(input, output, 12);
+}
+
+static AOM_FORCE_INLINE void fdct16x32_avx2(const __m256i *input,
+                                            __m256i *output, int8_t cos_bit) {
   const int32_t *cospi = cospi_arr(cos_bit);
   const __m256i _r = _mm256_set1_epi32(1 << (cos_bit - 1));
 
@@ -302,6 +315,18 @@ static inline void fdct16x32_avx2(const __m256i *input, __m256i *output,
   output[29] = x1[23];
   output[30] = x1[15];
   output[31] = x1[31];
+}
+
+static inline void fdct16x32_cb12_avx2(const __m256i *input, __m256i *output,
+                                       int8_t cos_bit) {
+  (void)cos_bit;
+  fdct16x32_avx2(input, output, 12);
+}
+
+static inline void fdct16x32_cb13_avx2(const __m256i *input, __m256i *output,
+                                       int8_t cos_bit) {
+  (void)cos_bit;
+  fdct16x32_avx2(input, output, 13);
 }
 
 static inline void fdct16x64_new_avx2(const __m256i *input, __m256i *output,
@@ -712,7 +737,9 @@ static inline void fdct16x64_new_avx2(const __m256i *input, __m256i *output,
 }
 
 static inline void fdct32_avx2(const __m256i *input, __m256i *output,
-                               int8_t cos_bit) {
+                               int8_t cos_bit_arg) {
+  (void)cos_bit_arg;
+  const int8_t cos_bit = 11;
   __m256i x1[32];
   const int32_t *cospi = cospi_arr(cos_bit);
   const __m256i _r = _mm256_set1_epi32(1 << (cos_bit - 1));
@@ -1278,8 +1305,9 @@ static inline void fdct64_new_avx2(const __m256i *input, __m256i *output,
   output[63] = x1[63];
 }
 
-static inline void fadst16x16_new_avx2(const __m256i *input, __m256i *output,
-                                       int8_t cos_bit) {
+static AOM_FORCE_INLINE void fadst16x16_new_avx2(const __m256i *input,
+                                                 __m256i *output,
+                                                 int8_t cos_bit) {
   const int32_t *cospi = cospi_arr(cos_bit);
   const __m256i __zero = _mm256_setzero_si256();
   const __m256i _r = _mm256_set1_epi32(1 << (cos_bit - 1));
@@ -1408,6 +1436,18 @@ static inline void fadst16x16_new_avx2(const __m256i *input, __m256i *output,
   output[15] = x1[0];
 }
 
+static inline void fadst16x16_cb13_avx2(const __m256i *input, __m256i *output,
+                                        int8_t cos_bit) {
+  (void)cos_bit;
+  fadst16x16_new_avx2(input, output, 13);
+}
+
+static inline void fadst16x16_cb12_avx2(const __m256i *input, __m256i *output,
+                                        int8_t cos_bit) {
+  (void)cos_bit;
+  fadst16x16_new_avx2(input, output, 12);
+}
+
 static inline void fidentity16x16_new_avx2(const __m256i *input,
                                            __m256i *output, int8_t cos_bit) {
   (void)cos_bit;
@@ -1480,7 +1520,7 @@ typedef void (*transform_1d_avx2)(const __m256i *input, __m256i *output,
                                   int8_t cos_bit);
 
 static const transform_1d_avx2 col_txfm16x32_arr[TX_TYPES] = {
-  fdct16x32_avx2,       // DCT_DCT
+  fdct16x32_cb12_avx2,  // DCT_DCT
   NULL,                 // ADST_DCT
   NULL,                 // DCT_ADST
   NULL,                 // ADST_ADST
@@ -1490,7 +1530,7 @@ static const transform_1d_avx2 col_txfm16x32_arr[TX_TYPES] = {
   NULL,                 // ADST_FLIPADST
   NULL,                 // FLIPADST_ADST
   fidentity16x32_avx2,  // IDTX
-  fdct16x32_avx2,       // V_DCT
+  fdct16x32_cb12_avx2,  // V_DCT
   fidentity16x32_avx2,  // H_DCT
   NULL,                 // V_ADST
   NULL,                 // H_ADST
@@ -1498,8 +1538,8 @@ static const transform_1d_avx2 col_txfm16x32_arr[TX_TYPES] = {
   NULL                  // H_FLIPADST
 };
 
-static const transform_1d_avx2 row_txfm16x32_arr[TX_TYPES] = {
-  fdct16x32_avx2,       // DCT_DCT
+static const transform_1d_avx2 row_txfm16x32_cb12_arr[TX_TYPES] = {
+  fdct16x32_cb12_avx2,  // DCT_DCT
   NULL,                 // ADST_DCT
   NULL,                 // DCT_ADST
   NULL,                 // ADST_ADST
@@ -1510,7 +1550,26 @@ static const transform_1d_avx2 row_txfm16x32_arr[TX_TYPES] = {
   NULL,                 // FLIPADST_ADST
   fidentity16x32_avx2,  // IDTX
   fidentity16x32_avx2,  // V_DCT
-  fdct16x32_avx2,       // H_DCT
+  fdct16x32_cb12_avx2,  // H_DCT
+  NULL,                 // V_ADST
+  NULL,                 // H_ADST
+  NULL,                 // V_FLIPADST
+  NULL                  // H_FLIPADST
+};
+
+static const transform_1d_avx2 row_txfm16x32_cb13_arr[TX_TYPES] = {
+  fdct16x32_cb13_avx2,  // DCT_DCT
+  NULL,                 // ADST_DCT
+  NULL,                 // DCT_ADST
+  NULL,                 // ADST_ADST
+  NULL,                 // FLIPADST_DCT
+  NULL,                 // DCT_FLIPADST
+  NULL,                 // FLIPADST_FLIPADST
+  NULL,                 // ADST_FLIPADST
+  NULL,                 // FLIPADST_ADST
+  fidentity16x32_avx2,  // IDTX
+  fidentity16x32_avx2,  // V_DCT
+  fdct16x32_cb13_avx2,  // H_DCT
   NULL,                 // V_ADST
   NULL,                 // H_ADST
   NULL,                 // V_FLIPADST
@@ -1518,79 +1577,98 @@ static const transform_1d_avx2 row_txfm16x32_arr[TX_TYPES] = {
 };
 
 static const transform_1d_avx2 col_txfm16x16_arr[TX_TYPES] = {
-  fdct16x16_new_avx2,       // DCT_DCT
-  fadst16x16_new_avx2,      // ADST_DCT
-  fdct16x16_new_avx2,       // DCT_ADST
-  fadst16x16_new_avx2,      // ADST_ADST
-  fadst16x16_new_avx2,      // FLIPADST_DCT
-  fdct16x16_new_avx2,       // DCT_FLIPADST
-  fadst16x16_new_avx2,      // FLIPADST_FLIPADST
-  fadst16x16_new_avx2,      // ADST_FLIPADST
-  fadst16x16_new_avx2,      // FLIPADST_ADST
+  fdct16x16_cb13_avx2,      // DCT_DCT
+  fadst16x16_cb13_avx2,     // ADST_DCT
+  fdct16x16_cb13_avx2,      // DCT_ADST
+  fadst16x16_cb13_avx2,     // ADST_ADST
+  fadst16x16_cb13_avx2,     // FLIPADST_DCT
+  fdct16x16_cb13_avx2,      // DCT_FLIPADST
+  fadst16x16_cb13_avx2,     // FLIPADST_FLIPADST
+  fadst16x16_cb13_avx2,     // ADST_FLIPADST
+  fadst16x16_cb13_avx2,     // FLIPADST_ADST
   fidentity16x16_new_avx2,  // IDTX
-  fdct16x16_new_avx2,       // V_DCT
+  fdct16x16_cb13_avx2,      // V_DCT
   fidentity16x16_new_avx2,  // H_DCT
-  fadst16x16_new_avx2,      // V_ADST
+  fadst16x16_cb13_avx2,     // V_ADST
   fidentity16x16_new_avx2,  // H_ADST
-  fadst16x16_new_avx2,      // V_FLIPADST
+  fadst16x16_cb13_avx2,     // V_FLIPADST
   fidentity16x16_new_avx2   // H_FLIPADST
 };
 
-static const transform_1d_avx2 row_txfm16x16_arr[TX_TYPES] = {
-  fdct16x16_new_avx2,       // DCT_DCT
-  fdct16x16_new_avx2,       // ADST_DCT
-  fadst16x16_new_avx2,      // DCT_ADST
-  fadst16x16_new_avx2,      // ADST_ADST
-  fdct16x16_new_avx2,       // FLIPADST_DCT
-  fadst16x16_new_avx2,      // DCT_FLIPADST
-  fadst16x16_new_avx2,      // FLIPADST_FLIPADST
-  fadst16x16_new_avx2,      // ADST_FLIPADST
-  fadst16x16_new_avx2,      // FLIPADST_ADST
+static const transform_1d_avx2 row_txfm16x16_cb12_arr[TX_TYPES] = {
+  fdct16x16_cb12_avx2,      // DCT_DCT
+  fdct16x16_cb12_avx2,      // ADST_DCT
+  fadst16x16_cb12_avx2,     // DCT_ADST
+  fadst16x16_cb12_avx2,     // ADST_ADST
+  fdct16x16_cb12_avx2,      // FLIPADST_DCT
+  fadst16x16_cb12_avx2,     // DCT_FLIPADST
+  fadst16x16_cb12_avx2,     // FLIPADST_FLIPADST
+  fadst16x16_cb12_avx2,     // ADST_FLIPADST
+  fadst16x16_cb12_avx2,     // FLIPADST_ADST
   fidentity16x16_new_avx2,  // IDTX
   fidentity16x16_new_avx2,  // V_DCT
-  fdct16x16_new_avx2,       // H_DCT
+  fdct16x16_cb12_avx2,      // H_DCT
   fidentity16x16_new_avx2,  // V_ADST
-  fadst16x16_new_avx2,      // H_ADST
+  fadst16x16_cb12_avx2,     // H_ADST
   fidentity16x16_new_avx2,  // V_FLIPADST
-  fadst16x16_new_avx2       // H_FLIPADST
+  fadst16x16_cb12_avx2      // H_FLIPADST
+};
+
+static const transform_1d_avx2 row_txfm16x16_cb13_arr[TX_TYPES] = {
+  fdct16x16_cb13_avx2,      // DCT_DCT
+  fdct16x16_cb13_avx2,      // ADST_DCT
+  fadst16x16_cb13_avx2,     // DCT_ADST
+  fadst16x16_cb13_avx2,     // ADST_ADST
+  fdct16x16_cb13_avx2,      // FLIPADST_DCT
+  fadst16x16_cb13_avx2,     // DCT_FLIPADST
+  fadst16x16_cb13_avx2,     // FLIPADST_FLIPADST
+  fadst16x16_cb13_avx2,     // ADST_FLIPADST
+  fadst16x16_cb13_avx2,     // FLIPADST_ADST
+  fidentity16x16_new_avx2,  // IDTX
+  fidentity16x16_new_avx2,  // V_DCT
+  fdct16x16_cb13_avx2,      // H_DCT
+  fidentity16x16_new_avx2,  // V_ADST
+  fadst16x16_cb13_avx2,     // H_ADST
+  fidentity16x16_new_avx2,  // V_FLIPADST
+  fadst16x16_cb13_avx2      // H_FLIPADST
 };
 
 static const transform_1d_sse2 col_txfm8x8_arr[TX_TYPES] = {
-  fdct8x8_new_sse2,       // DCT_DCT
-  fadst8x8_new_sse2,      // ADST_DCT
-  fdct8x8_new_sse2,       // DCT_ADST
-  fadst8x8_new_sse2,      // ADST_ADST
-  fadst8x8_new_sse2,      // FLIPADST_DCT
-  fdct8x8_new_sse2,       // DCT_FLIPADST
-  fadst8x8_new_sse2,      // FLIPADST_FLIPADST
-  fadst8x8_new_sse2,      // ADST_FLIPADST
-  fadst8x8_new_sse2,      // FLIPADST_ADST
+  fdct8x8_cb13_sse2,      // DCT_DCT
+  fadst8x8_cb13_sse2,     // ADST_DCT
+  fdct8x8_cb13_sse2,      // DCT_ADST
+  fadst8x8_cb13_sse2,     // ADST_ADST
+  fadst8x8_cb13_sse2,     // FLIPADST_DCT
+  fdct8x8_cb13_sse2,      // DCT_FLIPADST
+  fadst8x8_cb13_sse2,     // FLIPADST_FLIPADST
+  fadst8x8_cb13_sse2,     // ADST_FLIPADST
+  fadst8x8_cb13_sse2,     // FLIPADST_ADST
   fidentity8x8_new_sse2,  // IDTX
-  fdct8x8_new_sse2,       // V_DCT
+  fdct8x8_cb13_sse2,      // V_DCT
   fidentity8x8_new_sse2,  // H_DCT
-  fadst8x8_new_sse2,      // V_ADST
+  fadst8x8_cb13_sse2,     // V_ADST
   fidentity8x8_new_sse2,  // H_ADST
-  fadst8x8_new_sse2,      // V_FLIPADST
+  fadst8x8_cb13_sse2,     // V_FLIPADST
   fidentity8x8_new_sse2,  // H_FLIPADST
 };
 
 static const transform_1d_sse2 row_txfm8x8_arr[TX_TYPES] = {
-  fdct8x8_new_sse2,       // DCT_DCT
-  fdct8x8_new_sse2,       // ADST_DCT
-  fadst8x8_new_sse2,      // DCT_ADST
-  fadst8x8_new_sse2,      // ADST_ADST
-  fdct8x8_new_sse2,       // FLIPADST_DCT
-  fadst8x8_new_sse2,      // DCT_FLIPADST
-  fadst8x8_new_sse2,      // FLIPADST_FLIPADST
-  fadst8x8_new_sse2,      // ADST_FLIPADST
-  fadst8x8_new_sse2,      // FLIPADST_ADST
+  fdct8x8_cb13_sse2,      // DCT_DCT
+  fdct8x8_cb13_sse2,      // ADST_DCT
+  fadst8x8_cb13_sse2,     // DCT_ADST
+  fadst8x8_cb13_sse2,     // ADST_ADST
+  fdct8x8_cb13_sse2,      // FLIPADST_DCT
+  fadst8x8_cb13_sse2,     // DCT_FLIPADST
+  fadst8x8_cb13_sse2,     // FLIPADST_FLIPADST
+  fadst8x8_cb13_sse2,     // ADST_FLIPADST
+  fadst8x8_cb13_sse2,     // FLIPADST_ADST
   fidentity8x8_new_sse2,  // IDTX
   fidentity8x8_new_sse2,  // V_DCT
-  fdct8x8_new_sse2,       // H_DCT
+  fdct8x8_cb13_sse2,      // H_DCT
   fidentity8x8_new_sse2,  // V_ADST
-  fadst8x8_new_sse2,      // H_ADST
+  fadst8x8_cb13_sse2,     // H_ADST
   fidentity8x8_new_sse2,  // V_FLIPADST
-  fadst8x8_new_sse2       // H_FLIPADST
+  fadst8x8_cb13_sse2      // H_FLIPADST
 };
 
 static inline void load_buffer_and_round_shift(const int16_t *in, int stride,
@@ -1775,6 +1853,17 @@ static void av1_lowbd_fwd_txfm2d_8x8_avx2(const int16_t *input, int32_t *output,
   (void)bd;
   __m128i buf0[8], buf1[8], *buf;
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X8];
+
+  // Fast path for DCT_DCT: bypass function pointer table and flip checks.
+  if (tx_type == DCT_DCT) {
+    load_buffer_and_round_shift(input, stride, buf0, shift[0]);
+    fdct8x8_new_sse2(buf0, buf0, 13);
+    transpose_round_shift_8x8(buf0, buf1, shift[1]);
+    fdct8x8_new_sse2(buf1, buf1, 13);
+    store_buffer_16bit_to_32bit_w8_avx2(buf1, output, 8, 8);
+    return;
+  }
+
   const int txw_idx = get_txw_idx(TX_8X8);
   const int txh_idx = get_txh_idx(TX_8X8);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -1818,14 +1907,27 @@ static void lowbd_fwd_txfm2d_16x16_avx2(const int16_t *input, int32_t *output,
   const TX_SIZE tx_size = TX_16X16;
   __m256i buf0[16], buf1[16];
   const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+
+  // Fast path for DCT_DCT: inline 16x16 DCT with constant cos_bit (13, 12).
+  if (tx_type == DCT_DCT) {
+    load_buffer_16bit_to_16bit_avx2(input, stride, buf0, height);
+    round_shift_16bit_w16_avx2(buf0, height, shift[0]);
+    fdct16x16_new_avx2(buf0, buf0, 13);
+    round_shift_16bit_w16_avx2(buf0, height, shift[1]);
+    transpose_16bit_16x16_avx2(buf0, buf1);
+    fdct16x16_new_avx2(buf1, buf1, 12);
+    store_buffer_16bit_to_32bit_w16_avx2(buf1, output, height, width);
+    return;
+  }
+
   const int txw_idx = get_txw_idx(tx_size);
   const int txh_idx = get_txh_idx(tx_size);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
-  const int width = tx_size_wide[tx_size];
-  const int height = tx_size_high[tx_size];
   const transform_1d_avx2 col_txfm = col_txfm16x16_arr[tx_type];
-  const transform_1d_avx2 row_txfm = row_txfm16x16_arr[tx_type];
+  const transform_1d_avx2 row_txfm = row_txfm16x16_cb12_arr[tx_type];
   int ud_flip, lr_flip;
 
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -1856,16 +1958,35 @@ static void lowbd_fwd_txfm2d_32x32_avx2(const int16_t *input, int32_t *output,
                                         int stride, TX_TYPE tx_type, int bd) {
   (void)bd;
   const TX_SIZE tx_size = TX_32X32;
-  __m256i buf0[32], buf1[128];
+  __m256i buf0[32], buf1[64];
   const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+
+  // Fast path for DCT_DCT: inline 32x32 DCT with constant cos_bit (12).
+  if (tx_type == DCT_DCT) {
+    for (int i = 0; i < 2; i++) {
+      load_buffer_16bit_to_16bit_avx2(input + 16 * i, stride, buf0, height);
+      round_shift_16bit_w16_avx2(buf0, height, shift[0]);
+      fdct16x32_avx2(buf0, buf0, 12);
+      round_shift_16bit_w16_avx2(buf0, height, shift[1]);
+      transpose_16bit_16x16_avx2(buf0 + 0 * 16, buf1 + 0 * width + 16 * i);
+      transpose_16bit_16x16_avx2(buf0 + 1 * 16, buf1 + 1 * width + 16 * i);
+    }
+    for (int i = 0; i < 2; i++) {
+      __m256i *buf = buf1 + width * i;
+      fdct16x32_avx2(buf, buf, 12);
+      store_buffer_16bit_to_32bit_w16_avx2(buf, output + i * 16, height, width);
+    }
+    return;
+  }
+
   const int txw_idx = get_txw_idx(tx_size);
   const int txh_idx = get_txh_idx(tx_size);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
   const int cos_bit_row = av1_fwd_cos_bit_row[txw_idx][txh_idx];
-  const int width = tx_size_wide[tx_size];
-  const int height = tx_size_high[tx_size];
   const transform_1d_avx2 col_txfm = col_txfm16x32_arr[tx_type];
-  const transform_1d_avx2 row_txfm = row_txfm16x32_arr[tx_type];
+  const transform_1d_avx2 row_txfm = row_txfm16x32_cb12_arr[tx_type];
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -1955,7 +2076,7 @@ static void lowbd_fwd_txfm2d_16x32_avx2(const int16_t *input, int32_t *output,
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
   const transform_1d_avx2 col_txfm = col_txfm16x32_arr[tx_type];
-  const transform_1d_avx2 row_txfm = row_txfm16x16_arr[tx_type];
+  const transform_1d_avx2 row_txfm = row_txfm16x16_cb13_arr[tx_type];
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -1998,7 +2119,7 @@ static void lowbd_fwd_txfm2d_32x16_avx2(const int16_t *input, int32_t *output,
   const int width = 32;
   const int height = 16;
   const transform_1d_avx2 col_txfm = col_txfm16x16_arr[tx_type];
-  const transform_1d_avx2 row_txfm = row_txfm16x32_arr[tx_type];
+  const transform_1d_avx2 row_txfm = row_txfm16x32_cb13_arr[tx_type];
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -2223,7 +2344,9 @@ static inline void btf_16_avx2(__m256i *w0, __m256i *w1, __m256i *in0,
 }
 
 static inline void fdct8x8_new_avx2(const __m256i *input, __m256i *output,
-                                    int8_t cos_bit) {
+                                    int8_t cos_bit_arg) {
+  (void)cos_bit_arg;
+  const int8_t cos_bit = 13;
   const int32_t *cospi = cospi_arr(cos_bit);
   const __m256i __rounding = _mm256_set1_epi32(1 << (cos_bit - 1));
 
@@ -2302,7 +2425,9 @@ static inline void fdct8x8_new_avx2(const __m256i *input, __m256i *output,
 }
 
 static inline void fadst8x8_new_avx2(const __m256i *input, __m256i *output,
-                                     int8_t cos_bit) {
+                                     int8_t cos_bit_arg) {
+  (void)cos_bit_arg;
+  const int8_t cos_bit = 13;
   const int32_t *cospi = cospi_arr(cos_bit);
   const __m256i __zero = _mm256_setzero_si256();
   const __m256i __rounding = _mm256_set1_epi32(1 << (cos_bit - 1));
@@ -2429,7 +2554,9 @@ static inline void fidentity8x8_new_avx2(const __m256i *input, __m256i *output,
 }
 
 static inline void fdct8x16_new_avx2(const __m128i *input, __m128i *output,
-                                     int8_t cos_bit) {
+                                     int8_t cos_bit_arg) {
+  (void)cos_bit_arg;
+  int8_t cos_bit = 13;
   const int32_t *cospi = cospi_arr(cos_bit);
   const __m256i __rounding_256 = _mm256_set1_epi32(1 << (cos_bit - 1));
   const __m128i __rounding = _mm_set1_epi32(1 << (cos_bit - 1));
@@ -2578,7 +2705,9 @@ static inline void fdct8x16_new_avx2(const __m128i *input, __m128i *output,
 }
 
 static inline void fadst8x16_new_avx2(const __m128i *input, __m128i *output,
-                                      int8_t cos_bit) {
+                                      int8_t cos_bit_arg) {
+  (void)cos_bit_arg;
+  int8_t cos_bit = 13;
   const int32_t *cospi = cospi_arr(cos_bit);
   const __m256i __zero = _mm256_setzero_si256();
   const __m256i __rounding_256 = _mm256_set1_epi32(1 << (cos_bit - 1));

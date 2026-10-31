@@ -205,6 +205,18 @@ static inline void fadst8x8_new_sse2(const __m128i *input, __m128i *output,
               output[6]);
 }
 
+static inline void fdct8x8_cb13_sse2(const __m128i *input, __m128i *output,
+                                     int8_t cos_bit) {
+  (void)cos_bit;
+  fdct8x8_new_sse2(input, output, 13);
+}
+
+static inline void fadst8x8_cb13_sse2(const __m128i *input, __m128i *output,
+                                      int8_t cos_bit) {
+  (void)cos_bit;
+  fadst8x8_new_sse2(input, output, 13);
+}
+
 static inline void fidentity8x16_new_sse2(const __m128i *input, __m128i *output,
                                           int8_t cos_bit) {
   (void)cos_bit;

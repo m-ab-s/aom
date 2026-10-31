@@ -3595,14 +3595,12 @@ static void rectangular_partition_search(
         get_partition_subsize(blk_params.bsize, partition_type);
     assert(blk_params.subsize <= BLOCK_LARGEST);
     av1_init_rd_stats(sum_rdc);
-    for (int j = 0; j < SUB_PARTITIONS_RECT; j++) {
-      if (cur_ctx[i][j][0] == NULL) {
-        cur_ctx[i][j][0] =
-            av1_alloc_pmc(cpi, blk_params.subsize, &td->shared_coeff_buf);
-        if (!cur_ctx[i][j][0])
-          aom_internal_error(x->e_mbd.error_info, AOM_CODEC_MEM_ERROR,
-                             "Failed to allocate PICK_MODE_CONTEXT");
-      }
+    if (cur_ctx[i][0][0] == NULL) {
+      cur_ctx[i][0][0] =
+          av1_alloc_pmc(cpi, blk_params.subsize, &td->shared_coeff_buf);
+      if (!cur_ctx[i][0][0])
+        aom_internal_error(x->e_mbd.error_info, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate PICK_MODE_CONTEXT");
     }
     sum_rdc->rate = part_search_state->partition_cost[partition_type];
     sum_rdc->rdcost = RDCOST(x->rdmult, sum_rdc->rate, 0);
@@ -3624,6 +3622,13 @@ static void rectangular_partition_search(
     // Evaluate second sub-partition if the first sub-partition cost
     // is less than the best cost and if it is not an edge block.
     if (sum_rdc->rdcost < best_rdc->rdcost && is_not_edge_block[i]) {
+      if (cur_ctx[i][1][0] == NULL) {
+        cur_ctx[i][1][0] =
+            av1_alloc_pmc(cpi, blk_params.subsize, &td->shared_coeff_buf);
+        if (!cur_ctx[i][1][0])
+          aom_internal_error(x->e_mbd.error_info, AOM_CODEC_MEM_ERROR,
+                             "Failed to allocate PICK_MODE_CONTEXT");
+      }
       const MB_MODE_INFO *const mbmi = &cur_ctx[i][sub_part_idx][0]->mic;
       const PALETTE_MODE_INFO *const pmi = &mbmi->palette_mode_info;
       // Neither palette mode nor cfl predicted.
@@ -3922,19 +3927,16 @@ static void set_4_part_ctx_and_rdcost(
     PICK_MODE_CONTEXT *cur_part_ctx[SUB_PARTITIONS_PART4],
     PartitionSearchState *part_search_state, PARTITION_TYPE partition_type,
     BLOCK_SIZE bsize) {
+  (void)cpi;
+  (void)td;
+  (void)cur_part_ctx;
+  (void)bsize;
   // Initialize sum_rdc RD cost structure.
   av1_init_rd_stats(&part_search_state->sum_rdc);
-  const int subsize = get_partition_subsize(bsize, partition_type);
   part_search_state->sum_rdc.rate =
       part_search_state->partition_cost[partition_type];
   part_search_state->sum_rdc.rdcost =
       RDCOST(x->rdmult, part_search_state->sum_rdc.rate, 0);
-  for (PART4_TYPES i = 0; i < SUB_PARTITIONS_PART4; ++i) {
-    cur_part_ctx[i] = av1_alloc_pmc(cpi, subsize, &td->shared_coeff_buf);
-    if (!cur_part_ctx[i])
-      aom_internal_error(x->e_mbd.error_info, AOM_CODEC_MEM_ERROR,
-                         "Failed to allocate PICK_MODE_CONTEXT");
-  }
 }
 
 // Partition search of HORZ4 / VERT4 partition types.
@@ -3969,6 +3971,13 @@ static void rd_pick_4partition(
   for (PART4_TYPES i = 0; i < SUB_PARTITIONS_PART4; ++i) {
     if (i > 0 && mi_pos[i][part4_idx] >= mi_pos_check[part4_idx]) break;
 
+    if (cur_part_ctx[i] == NULL) {
+      cur_part_ctx[i] =
+          av1_alloc_pmc(cpi, blk_params.subsize, &td->shared_coeff_buf);
+      if (!cur_part_ctx[i])
+        aom_internal_error(x->e_mbd.error_info, AOM_CODEC_MEM_ERROR,
+                           "Failed to allocate PICK_MODE_CONTEXT");
+    }
     // Sub-block evaluation of Horz4 / Vert4 partition type.
     cur_part_ctx[i]->rd_mode_is_ready = 0;
     if (!rd_try_subblock(

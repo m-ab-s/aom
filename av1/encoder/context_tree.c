@@ -65,49 +65,57 @@ void av1_free_shared_coeff_buffer(PC_TREE_SHARED_BUFFERS *shared_bufs) {
 PICK_MODE_CONTEXT *av1_alloc_pmc(const struct AV1_COMP *const cpi,
                                  BLOCK_SIZE bsize,
                                  PC_TREE_SHARED_BUFFERS *shared_bufs) {
-  PICK_MODE_CONTEXT *volatile ctx = NULL;
   const AV1_COMMON *const cm = &cpi->common;
-  struct aom_internal_error_info error;
-
-  if (setjmp(error.jmp)) {
-    av1_free_pmc(ctx, av1_num_planes(cm));
-    return NULL;
-  }
-  error.setjmp = 1;
-
-  AOM_CHECK_MEM_ERROR(&error, ctx, aom_calloc(1, sizeof(*ctx)));
-  ctx->rd_mode_is_ready = 0;
-
   const int num_planes = av1_num_planes(cm);
   const int num_pix = block_size_wide[bsize] * block_size_high[bsize];
   const int num_blk = num_pix / 16;
 
-  AOM_CHECK_MEM_ERROR(&error, ctx->tx_type_map,
-                      aom_calloc(num_blk, sizeof(*ctx->tx_type_map)));
+  // Allocate PICK_MODE_CONTEXT and all sub-arrays (eobs, txb_entropy_ctx,
+  // color_index_map, tx_type_map) in a single 32-byte aligned memory block to
+  // avoid multiple aom_memalign/aom_free calls per partition context.
+  const size_t ctx_sz = (sizeof(PICK_MODE_CONTEXT) + 31) & ~(size_t)31;
+  const size_t eob_sz = (num_blk * sizeof(uint16_t) + 31) & ~(size_t)31;
+  const size_t txb_ctx_sz =
+      (num_blk * sizeof(ENTROPY_CONTEXT) + 31) & ~(size_t)31;
+  const bool use_palette = (num_pix <= MAX_PALETTE_SQUARE) &&
+                           cm->features.allow_screen_content_tools;
+  const size_t pal_sz =
+      use_palette ? ((num_pix * sizeof(uint8_t) + 31) & ~(size_t)31) : 0;
+  const size_t tx_type_sz = num_blk * sizeof(uint8_t);
+
+  const size_t total_sz = ctx_sz + (size_t)num_planes * (eob_sz + txb_ctx_sz) +
+                          2 * pal_sz + tx_type_sz;
+  uint8_t *raw = (uint8_t *)aom_memalign(32, total_sz);
+  if (!raw) return NULL;
+
+  PICK_MODE_CONTEXT *ctx = (PICK_MODE_CONTEXT *)raw;
+  memset(ctx, 0, sizeof(*ctx));
+  ctx->rd_mode_is_ready = 0;
   ctx->num_4x4_blk = num_blk;
 
+  uint8_t *ptr = raw + ctx_sz;
   for (int i = 0; i < num_planes; ++i) {
     ctx->coeff[i] = shared_bufs->coeff_buf[i];
     ctx->qcoeff[i] = shared_bufs->qcoeff_buf[i];
     ctx->dqcoeff[i] = shared_bufs->dqcoeff_buf[i];
-    AOM_CHECK_MEM_ERROR(&error, ctx->eobs[i],
-                        aom_memalign(32, num_blk * sizeof(*ctx->eobs[i])));
-    AOM_CHECK_MEM_ERROR(
-        &error, ctx->txb_entropy_ctx[i],
-        aom_memalign(32, num_blk * sizeof(*ctx->txb_entropy_ctx[i])));
+    ctx->eobs[i] = (uint16_t *)ptr;
+    ptr += eob_sz;
+    ctx->txb_entropy_ctx[i] = ptr;
+    ptr += txb_ctx_sz;
   }
 
-  if (num_pix <= MAX_PALETTE_SQUARE) {
-    for (int i = 0; i < 2; ++i) {
-      if (cm->features.allow_screen_content_tools) {
-        AOM_CHECK_MEM_ERROR(
-            &error, ctx->color_index_map[i],
-            aom_memalign(32, num_pix * sizeof(*ctx->color_index_map[i])));
-      } else {
-        ctx->color_index_map[i] = NULL;
-      }
-    }
+  if (use_palette) {
+    ctx->color_index_map[0] = ptr;
+    ptr += pal_sz;
+    ctx->color_index_map[1] = ptr;
+    ptr += pal_sz;
+  } else {
+    ctx->color_index_map[0] = NULL;
+    ctx->color_index_map[1] = NULL;
   }
+
+  ctx->tx_type_map = ptr;
+  memset(ctx->tx_type_map, 0, tx_type_sz);
 
   av1_invalid_rd_stats(&ctx->rd_stats);
 
@@ -120,26 +128,8 @@ void av1_reset_pmc(PICK_MODE_CONTEXT *ctx) {
 }
 
 void av1_free_pmc(PICK_MODE_CONTEXT *ctx, int num_planes) {
+  (void)num_planes;
   if (ctx == NULL) return;
-
-  aom_free(ctx->tx_type_map);
-  for (int i = 0; i < num_planes; ++i) {
-    ctx->coeff[i] = NULL;
-    ctx->qcoeff[i] = NULL;
-    ctx->dqcoeff[i] = NULL;
-    aom_free(ctx->eobs[i]);
-    ctx->eobs[i] = NULL;
-    aom_free(ctx->txb_entropy_ctx[i]);
-    ctx->txb_entropy_ctx[i] = NULL;
-  }
-
-  for (int i = 0; i < 2; ++i) {
-    if (ctx->color_index_map[i]) {
-      aom_free(ctx->color_index_map[i]);
-      ctx->color_index_map[i] = NULL;
-    }
-  }
-
   aom_free(ctx);
 }
 
