@@ -541,16 +541,19 @@ static AOM_FORCE_INLINE void update_coeff_simple_facade(
   *si = 0;
 }
 
-int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
-                     int block, TX_SIZE tx_size, TX_TYPE tx_type,
-                     const TXB_CTX *const txb_ctx, int *rate_cost,
-                     int sharpness) {
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+static int av1_optimize_txb_multi(const struct AV1_COMP *cpi, MACROBLOCK *x,
+                                  int plane, int block, TX_SIZE tx_size,
+                                  TX_TYPE tx_type, const TXB_CTX *const txb_ctx,
+                                  int *rate_cost, int sharpness, int eob,
+                                  int64_t rdmult, int is_noise_pattern) {
   MACROBLOCKD *xd = &x->e_mbd;
   const struct macroblock_plane *p = &x->plane[plane];
   const SCAN_ORDER *scan_order = get_scan(tx_size, tx_type);
   const int16_t *scan = scan_order->scan;
   const int shift = av1_get_tx_scale(tx_size);
-  int eob = p->eobs[block];
   const int16_t *dequant = p->dequant_QTX;
   const qm_val_t *iqmatrix =
       tx_type < IDTX
@@ -567,66 +570,24 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
   const tran_low_t *tcoeff = p->coeff + block_offset;
   const CoeffCosts *coeff_costs = &x->coeff_costs;
 
-  // This function is not called if eob = 0.
-  assert(eob > 0);
-
   const AV1_COMMON *cm = &cpi->common;
   const PLANE_TYPE plane_type = get_plane_type(plane);
   const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
   const TX_CLASS tx_class = tx_type_to_class[tx_type];
-  const MB_MODE_INFO *mbmi = xd->mi[0];
   const int bhl = get_txb_bhl(tx_size);
   const int width = get_txb_wide(tx_size);
   const int height = get_txb_high(tx_size);
   assert(height == (1 << bhl));
-  const int is_inter = is_inter_block(mbmi);
   const LV_MAP_COEFF_COST *txb_costs =
       &coeff_costs->coeff_costs[txs_ctx][plane_type];
   const int eob_multi_size = txsize_log2_minus4[tx_size];
   const LV_MAP_EOB_COST *txb_eob_costs =
       &coeff_costs->eob_costs[eob_multi_size][plane_type];
 
-  int is_noise_pattern = 0;
-#if CONFIG_AV1_HIGHBITDEPTH
-  if (xd->bd > 8 && sharpness == 3 && plane == AOM_PLANE_Y) {
-    int64_t src_var, rec_var;
-    av1_get_variance_stats(x, &src_var, &rec_var);
-    if (src_var > rec_var) {
-      const int num_pixels =
-          block_size_wide[mbmi->bsize] * block_size_high[mbmi->bsize];
-      const int64_t src_var_per_px = src_var / num_pixels;
-      if (src_var_per_px < 64) {
-        is_noise_pattern = 1;
-      }
-    }
-  }
-#endif
-
-  // For the IQ and SSIMULACRA 2 tunings, increase rshift from 2 to 4.
-  // This biases trellis quantization towards keeping more coefficients, and
-  // together with the IQ and SSIMULACRA2 rdmult adjustment in
-  // av1_compute_rd_mult_based_on_qindex(), this helps preserve image
-  // features (like repeating patterns and camera noise/film grain), which
-  // improves SSIMULACRA 2 scores.
-  const int rshift = (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IQ ||
-                      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIMULACRA2)
-                         ? 7
-                         : (is_noise_pattern ? 6 : 5);
-
-  const int (*trellis_rd_mult)[2] = cpi->sf.tx_sf.use_chroma_trellis_rd_mult
-                                        ? plane_rd_mult_chroma
-                                        : plane_rd_mult;
-  const int64_t rdmult = ROUND_POWER_OF_TWO(
-      (int64_t)x->rdmult * (8 - sharpness) *
-          (trellis_rd_mult[is_inter][plane_type] << (2 * (xd->bd - 8))),
-      rshift);
-
   uint8_t levels_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, height);
 
-  if (eob > 1) av1_txb_init_levels(qcoeff, width, height, levels);
-
-  // TODO(angirbird): check iqmatrix
+  av1_txb_init_levels(qcoeff, width, height, levels);
 
   const int non_skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][0];
   const int skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
@@ -728,6 +689,175 @@ int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
 
   *rate_cost = accu_rate;
   return eob;
+}
+
+int av1_optimize_txb(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
+                     int block, TX_SIZE tx_size, TX_TYPE tx_type,
+                     const TXB_CTX *const txb_ctx, int *rate_cost,
+                     int sharpness) {
+  MACROBLOCKD *xd = &x->e_mbd;
+  const struct macroblock_plane *p = &x->plane[plane];
+  const int eob = p->eobs[block];
+  assert(eob > 0);
+
+  const PLANE_TYPE plane_type = get_plane_type(plane);
+  const MB_MODE_INFO *mbmi = xd->mi[0];
+  const int is_inter = is_inter_block(mbmi);
+
+  int is_noise_pattern = 0;
+#if CONFIG_AV1_HIGHBITDEPTH
+  if (xd->bd > 8 && sharpness == 3 && plane == AOM_PLANE_Y) {
+    int64_t src_var, rec_var;
+    av1_get_variance_stats(x, &src_var, &rec_var);
+    if (src_var > rec_var) {
+      const int num_pixels =
+          block_size_wide[mbmi->bsize] * block_size_high[mbmi->bsize];
+      const int64_t src_var_per_px = src_var / num_pixels;
+      if (src_var_per_px < 64) {
+        is_noise_pattern = 1;
+      }
+    }
+  }
+#endif
+
+  const int rshift = (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IQ ||
+                      cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIMULACRA2)
+                         ? 7
+                         : (is_noise_pattern ? 6 : 5);
+
+  const int (*trellis_rd_mult)[2] = cpi->sf.tx_sf.use_chroma_trellis_rd_mult
+                                        ? plane_rd_mult_chroma
+                                        : plane_rd_mult;
+  const int64_t rdmult = ROUND_POWER_OF_TWO(
+      (int64_t)x->rdmult * (8 - sharpness) *
+          (trellis_rd_mult[is_inter][plane_type] << (2 * (xd->bd - 8))),
+      rshift);
+
+  if (eob > 1) {
+    return av1_optimize_txb_multi(cpi, x, plane, block, tx_size, tx_type,
+                                  txb_ctx, rate_cost, sharpness, eob, rdmult,
+                                  is_noise_pattern);
+  }
+
+  // Fast path for DC-only blocks (eob == 1): evaluate DC level reduction
+  // without initializing the 2D padded levels buffer.
+  const int block_offset = BLOCK_OFFSET(block);
+  tran_low_t *qcoeff = p->qcoeff + block_offset;
+  tran_low_t *dqcoeff = p->dqcoeff + block_offset;
+  const CoeffCosts *coeff_costs = &x->coeff_costs;
+  const TX_SIZE txs_ctx = get_txsize_entropy_ctx(tx_size);
+  const TX_CLASS tx_class = tx_type_to_class[tx_type];
+  const LV_MAP_COEFF_COST *txb_costs =
+      &coeff_costs->coeff_costs[txs_ctx][plane_type];
+  const int eob_multi_size = txsize_log2_minus4[tx_size];
+  const LV_MAP_EOB_COST *txb_eob_costs =
+      &coeff_costs->eob_costs[eob_multi_size][plane_type];
+
+  const int non_skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][0];
+  const int skip_cost = txb_costs->txb_skip_cost[txb_ctx->txb_skip_ctx][1];
+  const int eob_cost = txb_eob_costs->eob_cost[tx_class != TX_CLASS_2D][0];
+  const tran_low_t qc = qcoeff[0];
+  const tran_low_t abs_qc = abs(qc);
+  const int sign = qc < 0;
+  int accu_rate = eob_cost;
+
+  if (abs_qc == 1) {
+    accu_rate += txb_costs->base_eob_cost[0][0] +
+                 txb_costs->dc_sign_cost[txb_ctx->dc_sign_ctx][sign];
+    if (sharpness == 0) {
+      const tran_low_t tqc = p->coeff[block_offset];
+      const tran_low_t dqc = dqcoeff[0];
+      const int shift = av1_get_tx_scale(tx_size);
+      const qm_val_t *qmatrix =
+          (cpi->oxcf.tune_cfg.dist_metric == AOM_DIST_METRIC_QM_PSNR &&
+           tx_type < IDTX)
+              ? xd->plane[plane].seg_qmatrix[mbmi->segment_id][tx_size]
+              : NULL;
+      const int64_t dist = get_coeff_dist(tqc, dqc, shift, qmatrix, 0);
+      const int64_t dist0 = get_coeff_dist(tqc, 0, shift, qmatrix, 0);
+      const int64_t accu_dist = dist - dist0;
+      if (RDCOST(rdmult, skip_cost, 0) <
+          RDCOST(rdmult, accu_rate + non_skip_cost, accu_dist)) {
+        qcoeff[0] = 0;
+        dqcoeff[0] = 0;
+        p->eobs[block] = 0;
+        p->txb_entropy_ctx[block] = 0;
+        *rate_cost = skip_cost;
+        return 0;
+      }
+    }
+  } else {
+    const tran_low_t tqc = p->coeff[block_offset];
+    const tran_low_t dqc = dqcoeff[0];
+    const int shift = av1_get_tx_scale(tx_size);
+    const qm_val_t *iqmatrix =
+        tx_type < IDTX
+            ? xd->plane[plane].seg_iqmatrix[mbmi->segment_id][tx_size]
+            : NULL;
+    const qm_val_t *qmatrix =
+        (cpi->oxcf.tune_cfg.dist_metric == AOM_DIST_METRIC_QM_PSNR &&
+         tx_type < IDTX)
+            ? xd->plane[plane].seg_qmatrix[mbmi->segment_id][tx_size]
+            : NULL;
+    const int dc_sign_cost =
+        txb_costs->dc_sign_cost[txb_ctx->dc_sign_ctx][sign];
+    int rate =
+        txb_costs->base_eob_cost[0][AOMMIN(abs_qc, 3) - 1] + dc_sign_cost;
+    if (abs_qc > NUM_BASE_LEVELS) {
+      rate += get_br_cost(abs_qc, txb_costs->lps_cost[0]);
+    }
+    const int dqv = get_dqv(p->dequant_QTX, 0, iqmatrix);
+    tran_low_t qc_low, dqc_low;
+    get_qc_dqc_low(abs_qc, sign, dqv, shift, &qc_low, &dqc_low);
+    const tran_low_t abs_qc_low = abs_qc - 1;
+    int rate_low =
+        txb_costs->base_eob_cost[0][AOMMIN(abs_qc_low, 3) - 1] + dc_sign_cost;
+    if (abs_qc_low > NUM_BASE_LEVELS) {
+      rate_low += get_br_cost(abs_qc_low, txb_costs->lps_cost[0]);
+    }
+    int64_t dist_diff_0, dist_diff_low_0;
+    if (qmatrix == NULL) {
+      const int64_t tqc2 = (int64_t)tqc * 2;
+      dist_diff_0 = ((int64_t)dqc * (dqc - tqc2)) * (1LL << (2 * shift));
+      dist_diff_low_0 =
+          ((int64_t)dqc_low * (dqc_low - tqc2)) * (1LL << (2 * shift));
+    } else {
+      const int64_t qm_val = qmatrix[0];
+      const int64_t dist0 = get_coeff_dist_qm(tqc, 0, shift, qm_val);
+      dist_diff_0 = get_coeff_dist_qm(tqc, dqc, shift, qm_val) - dist0;
+      dist_diff_low_0 = get_coeff_dist_qm(tqc, dqc_low, shift, qm_val) - dist0;
+    }
+    const int64_t rd = RDCOST(rdmult, rate, dist_diff_0);
+    const int64_t rd_low = RDCOST(rdmult, rate_low, dist_diff_low_0);
+    int64_t accu_dist;
+    if (rd_low < rd) {
+      qcoeff[0] = qc_low;
+      dqcoeff[0] = dqc_low;
+      accu_rate += rate_low;
+      accu_dist = dist_diff_low_0;
+    } else {
+      accu_rate += rate;
+      accu_dist = dist_diff_0;
+    }
+    if (sharpness == 0) {
+      if (RDCOST(rdmult, skip_cost, 0) <
+          RDCOST(rdmult, accu_rate + non_skip_cost, accu_dist)) {
+        qcoeff[0] = 0;
+        dqcoeff[0] = 0;
+        p->eobs[block] = 0;
+        p->txb_entropy_ctx[block] = 0;
+        *rate_cost = skip_cost;
+        return 0;
+      }
+    }
+  }
+
+  const int tx_type_cost = get_tx_type_cost(
+      x, xd, plane, tx_size, tx_type, cpi->common.features.reduced_tx_set_used);
+  *rate_cost = accu_rate + non_skip_cost + tx_type_cost;
+  p->eobs[block] = 1;
+  p->txb_entropy_ctx[block] = av1_get_txb_entropy_context(qcoeff, NULL, 1);
+  return 1;
 }
 
 static AOM_FORCE_INLINE int warehouse_efficients_txb_loop(

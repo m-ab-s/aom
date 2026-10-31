@@ -204,20 +204,6 @@ static void highbd_inv_txfm_add_64x64_c(const tran_low_t *input, uint8_t *dest,
                              bd);
 }
 
-static void init_txfm_param(const MACROBLOCKD *xd, int plane, TX_SIZE tx_size,
-                            TX_TYPE tx_type, int eob, int reduced_tx_set,
-                            TxfmParam *txfm_param) {
-  (void)plane;
-  txfm_param->tx_type = tx_type;
-  txfm_param->tx_size = tx_size;
-  txfm_param->eob = eob;
-  txfm_param->lossless = xd->lossless[xd->mi[0]->segment_id];
-  txfm_param->bd = xd->bd;
-  txfm_param->is_hbd = is_cur_buf_hbd(xd);
-  txfm_param->tx_set_type = av1_get_ext_tx_set_type(
-      txfm_param->tx_size, is_inter_block(xd->mi[0]), reduced_tx_set);
-}
-
 void av1_highbd_inv_txfm_add_c(const tran_low_t *input, uint8_t *dest,
                                int stride, const TxfmParam *txfm_param) {
   assert(av1_ext_tx_used[txfm_param->tx_set_type][txfm_param->tx_type]);
@@ -307,25 +293,5 @@ void av1_inv_txfm_add_c(const tran_low_t *dqcoeff, uint8_t *dst, int stride,
     for (int c = 0; c < w; ++c) {
       dst[r * stride + c] = (uint8_t)tmp[r * tmp_stride + c];
     }
-  }
-}
-
-void av1_inverse_transform_block(const MACROBLOCKD *xd,
-                                 const tran_low_t *dqcoeff, int plane,
-                                 TX_TYPE tx_type, TX_SIZE tx_size, uint8_t *dst,
-                                 int stride, int eob, int reduced_tx_set) {
-  if (!eob) return;
-
-  assert(eob <= av1_get_max_eob(tx_size));
-
-  TxfmParam txfm_param;
-  init_txfm_param(xd, plane, tx_size, tx_type, eob, reduced_tx_set,
-                  &txfm_param);
-  assert(av1_ext_tx_used[txfm_param.tx_set_type][txfm_param.tx_type]);
-
-  if (txfm_param.is_hbd) {
-    av1_highbd_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
-  } else {
-    av1_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
   }
 }

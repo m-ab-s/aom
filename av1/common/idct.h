@@ -15,6 +15,7 @@
 #include <assert.h>
 
 #include "config/aom_config.h"
+#include "config/av1_rtcd.h"
 
 #include "av1/common/blockd.h"
 #include "av1/common/common.h"
@@ -40,10 +41,38 @@ static inline int av1_get_tx_scale(const TX_SIZE tx_size) {
   return tx_scale[tx_size];
 }
 
-void av1_inverse_transform_block(const MACROBLOCKD *xd,
-                                 const tran_low_t *dqcoeff, int plane,
-                                 TX_TYPE tx_type, TX_SIZE tx_size, uint8_t *dst,
-                                 int stride, int eob, int reduced_tx_set);
+static inline void av1_inverse_transform_block(const MACROBLOCKD *xd,
+                                               const tran_low_t *dqcoeff,
+                                               int plane, TX_TYPE tx_type,
+                                               TX_SIZE tx_size, uint8_t *dst,
+                                               int stride, int eob,
+                                               int reduced_tx_set) {
+  if (!eob) return;
+
+  assert(eob <= av1_get_max_eob(tx_size));
+  (void)plane;
+
+  TxfmParam txfm_param;
+  txfm_param.tx_type = tx_type;
+  txfm_param.tx_size = tx_size;
+  txfm_param.eob = eob;
+  txfm_param.lossless = xd->lossless[xd->mi[0]->segment_id];
+  txfm_param.bd = xd->bd;
+  txfm_param.is_hbd = is_cur_buf_hbd(xd);
+#if !defined(NDEBUG)
+  txfm_param.tx_set_type = av1_get_ext_tx_set_type(
+      txfm_param.tx_size, is_inter_block(xd->mi[0]), reduced_tx_set);
+  assert(av1_ext_tx_used[txfm_param.tx_set_type][txfm_param.tx_type]);
+#else
+  (void)reduced_tx_set;
+#endif
+
+  if (UNLIKELY(txfm_param.is_hbd)) {
+    av1_highbd_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
+  } else {
+    av1_inv_txfm_add(dqcoeff, dst, stride, &txfm_param);
+  }
+}
 void av1_highbd_iwht4x4_add(const tran_low_t *input, uint8_t *dest, int stride,
                             int eob, int bd);
 

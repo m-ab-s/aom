@@ -414,6 +414,33 @@ static inline void set_dc_sign(int *cul_level, int dc_val) {
   *cul_level += ((dc_val < 0) + ((dc_val > 0) << 1)) << COEFF_CONTEXT_BITS;
 }
 
+static inline uint8_t av1_get_txb_entropy_context(const tran_low_t *qcoeff,
+                                                  const SCAN_ORDER *scan_order,
+                                                  int eob) {
+  if (eob == 0) return 0;
+  const int32_t dc_val = qcoeff[0];
+  int cul_level = abs(dc_val);
+  if (cul_level < COEFF_CONTEXT_MASK && eob > 1) {
+    const int16_t *const scan = scan_order->scan;
+    int c = 1;
+    for (; c + 3 < eob; c += 4) {
+      cul_level += abs(qcoeff[scan[c]]) + abs(qcoeff[scan[c + 1]]) +
+                   abs(qcoeff[scan[c + 2]]) + abs(qcoeff[scan[c + 3]]);
+      if (cul_level >= COEFF_CONTEXT_MASK) break;
+    }
+    if (cul_level < COEFF_CONTEXT_MASK) {
+      for (; c < eob; ++c) {
+        cul_level += abs(qcoeff[scan[c]]);
+      }
+    }
+  }
+
+  cul_level = AOMMIN(COEFF_CONTEXT_MASK, cul_level);
+  set_dc_sign(&cul_level, dc_val);
+
+  return (uint8_t)cul_level;
+}
+
 #define MAX_TX_SIZE_UNIT 16
 static const int8_t kTxbCtxSigns[3] = { 0, -1, 1 };
 static const int8_t kTxbCtxDcSignContexts[4 * MAX_TX_SIZE_UNIT + 1] = {

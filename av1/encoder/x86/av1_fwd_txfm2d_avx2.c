@@ -1810,21 +1810,15 @@ static inline void store_buffer_16bit_to_32bit_w8_avx2(const __m128i *const in,
   }
 }
 
-static void av1_lowbd_fwd_txfm2d_8x8_avx2(const int16_t *input, int32_t *output,
-                                          int stride, TX_TYPE tx_type, int bd) {
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+static void lowbd_fwd_txfm2d_8x8_non_dct_avx2(const int16_t *input,
+                                              int32_t *output, int stride,
+                                              TX_TYPE tx_type, int bd) {
   (void)bd;
   __m128i buf0[8], buf1[8];
   const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X8];
-
-  // Fast path for DCT_DCT: bypass function pointer table and flip checks.
-  if (tx_type == DCT_DCT) {
-    load_buffer_and_round_shift(input, stride, buf0, shift[0]);
-    fdct8x8_new_sse2(buf0, buf0, 13);
-    transpose_round_shift_8x8(buf0, buf1, shift[1]);
-    fdct8x8_new_sse2(buf1, buf1, 13);
-    store_buffer_16bit_to_32bit_w8_avx2(buf1, output, 8, 8);
-    return;
-  }
 
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
@@ -1854,32 +1848,38 @@ static void av1_lowbd_fwd_txfm2d_8x8_avx2(const int16_t *input, int32_t *output,
     case FLIPADST_1D: fadst8x8_new_sse2(buf1, buf1, 13); break;
     default: fidentity8x8_new_sse2(buf1, buf1, 13); break;
   }
-
   assert(shift[2] == 0);
   store_buffer_16bit_to_32bit_w8_avx2(buf1, output, 8, 8);
 }
 
-static void lowbd_fwd_txfm2d_16x16_avx2(const int16_t *input, int32_t *output,
-                                        int stride, TX_TYPE tx_type, int bd) {
+static void av1_lowbd_fwd_txfm2d_8x8_avx2(const int16_t *input, int32_t *output,
+                                          int stride, TX_TYPE tx_type, int bd) {
+  if (UNLIKELY(tx_type != DCT_DCT)) {
+    lowbd_fwd_txfm2d_8x8_non_dct_avx2(input, output, stride, tx_type, bd);
+    return;
+  }
+  (void)bd;
+  __m128i buf0[8], buf1[8];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X8];
+  load_buffer_and_round_shift(input, stride, buf0, shift[0]);
+  fdct8x8_new_sse2(buf0, buf0, 13);
+  transpose_round_shift_8x8(buf0, buf1, shift[1]);
+  fdct8x8_new_sse2(buf1, buf1, 13);
+  store_buffer_16bit_to_32bit_w8_avx2(buf1, output, 8, 8);
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+static void lowbd_fwd_txfm2d_16x16_non_dct_avx2(const int16_t *input,
+                                                int32_t *output, int stride,
+                                                TX_TYPE tx_type, int bd) {
   (void)bd;
   const TX_SIZE tx_size = TX_16X16;
   __m256i buf0[16], buf1[16];
   const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
   const int width = tx_size_wide[tx_size];
   const int height = tx_size_high[tx_size];
-
-  // Fast path for DCT_DCT: inline 16x16 DCT with constant cos_bit (13, 12).
-  if (tx_type == DCT_DCT) {
-    load_buffer_16bit_to_16bit_avx2(input, stride, buf0, height);
-    round_shift_16bit_w16_avx2(buf0, height, shift[0]);
-    fdct16x16_new_avx2(buf0, buf0, 13);
-    round_shift_16bit_w16_avx2(buf0, height, shift[1]);
-    transpose_16bit_16x16_avx2(buf0, buf1);
-    fdct16x16_new_avx2(buf1, buf1, 12);
-    store_buffer_16bit_to_32bit_w16_avx2(buf1, output, height, width);
-    return;
-  }
-
   const int txw_idx = get_txw_idx(tx_size);
   const int txh_idx = get_txh_idx(tx_size);
   const int cos_bit_col = av1_fwd_cos_bit_col[txw_idx][txh_idx];
@@ -1910,6 +1910,28 @@ static void lowbd_fwd_txfm2d_16x16_avx2(const int16_t *input, int32_t *output,
   row_txfm(buf, buf, cos_bit_row);
   round_shift_16bit_w16_avx2(buf, width, shift[2]);
   store_buffer_16bit_to_32bit_w16_avx2(buf, output + i * 16, height, width);
+}
+
+static void lowbd_fwd_txfm2d_16x16_avx2(const int16_t *input, int32_t *output,
+                                        int stride, TX_TYPE tx_type, int bd) {
+  if (UNLIKELY(tx_type != DCT_DCT)) {
+    lowbd_fwd_txfm2d_16x16_non_dct_avx2(input, output, stride, tx_type, bd);
+    return;
+  }
+  (void)bd;
+  const TX_SIZE tx_size = TX_16X16;
+  __m256i buf0[16], buf1[16];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[tx_size];
+  const int width = tx_size_wide[tx_size];
+  const int height = tx_size_high[tx_size];
+
+  load_buffer_16bit_to_16bit_avx2(input, stride, buf0, height);
+  round_shift_16bit_w16_avx2(buf0, height, shift[0]);
+  fdct16x16_new_avx2(buf0, buf0, 13);
+  round_shift_16bit_w16_avx2(buf0, height, shift[1]);
+  transpose_16bit_16x16_avx2(buf0, buf1);
+  fdct16x16_new_avx2(buf1, buf1, 12);
+  store_buffer_16bit_to_32bit_w16_avx2(buf1, output, height, width);
 }
 
 static void lowbd_fwd_txfm2d_32x32_avx2(const int16_t *input, int32_t *output,
@@ -2975,8 +2997,12 @@ static const transform_1d_sse2 row_txfm16x8_arr[TX_TYPES] = {
   fadst8x16_new_avx2       // H_FLIPADST
 };
 
-static void lowbd_fwd_txfm2d_8x16_avx2(const int16_t *input, int32_t *output,
-                                       int stride, TX_TYPE tx_type, int bd) {
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+static void lowbd_fwd_txfm2d_8x16_non_dct_avx2(const int16_t *input,
+                                               int32_t *output, int stride,
+                                               TX_TYPE tx_type, int bd) {
   (void)bd;
   __m128i buf0[16], buf1[16];
   __m256i buf2[8];
@@ -3019,8 +3045,33 @@ static void lowbd_fwd_txfm2d_8x16_avx2(const int16_t *input, int32_t *output,
   store_rect_buffer_16bit_to_32bit_w16_avx2(buf2, output, height, width);
 }
 
-static void lowbd_fwd_txfm2d_16x8_avx2(const int16_t *input, int32_t *output,
+static void lowbd_fwd_txfm2d_8x16_avx2(const int16_t *input, int32_t *output,
                                        int stride, TX_TYPE tx_type, int bd) {
+  if (UNLIKELY(tx_type != DCT_DCT)) {
+    lowbd_fwd_txfm2d_8x16_non_dct_avx2(input, output, stride, tx_type, bd);
+    return;
+  }
+  (void)bd;
+  __m128i buf0[16], buf1[16];
+  __m256i buf2[8];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_8X16];
+  load_buffer_16bit_to_16bit(input, stride, buf0, 16);
+  round_shift_16bit(buf0, 16, shift[0]);
+  fdct8x16_new_avx2(buf0, buf0, 13);
+  round_shift_16bit(buf0, 16, shift[1]);
+  transpose_16bit_8x8(buf0, buf1);
+  transpose_16bit_8x8(buf0 + 8, buf1 + 8);
+  pack_reg(buf1, buf1 + 8, buf2);
+  fdct8x8_new_avx2(buf2, buf2, 13);
+  store_rect_buffer_16bit_to_32bit_w16_avx2(buf2, output, 16, 8);
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
+static void lowbd_fwd_txfm2d_16x8_non_dct_avx2(const int16_t *input,
+                                               int32_t *output, int stride,
+                                               TX_TYPE tx_type, int bd) {
   (void)bd;
   __m128i buf0[16], buf1[16];
   __m256i buf2[8];
@@ -3061,6 +3112,28 @@ static void lowbd_fwd_txfm2d_16x8_avx2(const int16_t *input, int32_t *output,
   row_txfm(buf, buf, cos_bit_row);
   round_shift_16bit(buf, width, shift[2]);
   store_rect_buffer_16bit_to_32bit_w8(buf, output, height, width);
+}
+
+static void lowbd_fwd_txfm2d_16x8_avx2(const int16_t *input, int32_t *output,
+                                       int stride, TX_TYPE tx_type, int bd) {
+  if (UNLIKELY(tx_type != DCT_DCT)) {
+    lowbd_fwd_txfm2d_16x8_non_dct_avx2(input, output, stride, tx_type, bd);
+    return;
+  }
+  (void)bd;
+  __m128i buf0[16], buf1[16];
+  __m256i buf2[8];
+  const int8_t *shift = av1_fwd_txfm_shift_ls[TX_16X8];
+  load_buffer_16bit_to_16bit(input + 8 * 0, stride, buf0, 8);
+  load_buffer_16bit_to_16bit(input + 8 * 1, stride, &buf0[8], 8);
+  pack_reg(buf0, &buf0[8], buf2);
+  round_shift_16bit_w16_avx2(buf2, 8, shift[0]);
+  fdct8x8_new_avx2(buf2, buf2, 13);
+  round_shift_16bit_w16_avx2(buf2, 8, shift[1]);
+  transpose_16bit_16x8_avx2(buf2, buf2);
+  extract_reg(buf2, buf1);
+  fdct8x16_new_avx2(buf1, buf1, 13);
+  store_rect_buffer_16bit_to_32bit_w8(buf1, output, 8, 16);
 }
 
 static FwdTxfm2dFunc fwd_txfm2d_func_ls[TX_SIZES_ALL] = {

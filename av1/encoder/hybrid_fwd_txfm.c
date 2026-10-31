@@ -230,14 +230,6 @@ static void highbd_fwd_txfm_64x64(const int16_t *src_diff, tran_low_t *coeff,
   av1_fwd_txfm2d_64x64(src_diff, dst_coeff, diff_stride, DCT_DCT, bd);
 }
 
-void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
-                  TxfmParam *txfm_param) {
-  if (txfm_param->bd == 8)
-    av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-  else
-    av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
-}
-
 void av1_lowbd_fwd_txfm_c(const int16_t *src_diff, tran_low_t *coeff,
                           int diff_stride, TxfmParam *txfm_param) {
   av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);

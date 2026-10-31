@@ -13,16 +13,24 @@
 #define AOM_AV1_ENCODER_HYBRID_FWD_TXFM_H_
 
 #include "config/aom_config.h"
+#include "config/av1_rtcd.h"
+
+#include "av1/common/blockd.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff, int diff_stride,
-                  TxfmParam *txfm_param);
-
 void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
                          int diff_stride, TxfmParam *txfm_param);
+
+static inline void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
+                                int diff_stride, TxfmParam *txfm_param) {
+  if (LIKELY(txfm_param->bd == 8))
+    av1_lowbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+  else
+    av1_highbd_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
+}
 
 /*!\brief Apply Hadamard or DCT transform
  *
