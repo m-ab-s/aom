@@ -19,6 +19,8 @@
 
 #include "aom/aom_integer.h"
 #include "aom_dsp/x86/transpose_sse2.h"
+#include "av1/common/av1_inv_txfm1d_cfg.h"
+#include "av1/common/x86/av1_txfm_sse2.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -231,6 +233,181 @@ void av1_lowbd_inv_txfm2d_add_v_identity_ssse3(const int32_t *input,
                                                uint8_t *output, int stride,
                                                TX_TYPE tx_type, TX_SIZE tx_size,
                                                int eob);
+
+static inline void idct8_low1_ssse3_inline(const __m128i *input,
+                                           __m128i *output) {
+  const int32_t *cospi = cospi_arr(INV_COS_BIT);
+
+  __m128i x[2];
+  x[0] = input[0];
+
+  btf_16_ssse3(cospi[32], cospi[32], x[0], x[0], x[1]);
+
+  output[0] = x[0];
+  output[7] = x[0];
+  output[1] = x[1];
+  output[6] = x[1];
+  output[2] = x[1];
+  output[5] = x[1];
+  output[3] = x[0];
+  output[4] = x[0];
+}
+
+static inline void idct8_sse2_inline(const __m128i *input, __m128i *output) {
+  const int8_t cos_bit = INV_COS_BIT;
+  const int32_t *cospi = cospi_arr(INV_COS_BIT);
+  const __m128i __rounding = _mm_set1_epi32(1 << (INV_COS_BIT - 1));
+
+  const __m128i cospi_p56_m08 = pair_set_epi16(cospi[56], -cospi[8]);
+  const __m128i cospi_p08_p56 = pair_set_epi16(cospi[8], cospi[56]);
+  const __m128i cospi_p24_m40 = pair_set_epi16(cospi[24], -cospi[40]);
+  const __m128i cospi_p40_p24 = pair_set_epi16(cospi[40], cospi[24]);
+  const __m128i cospi_p32_p32 = pair_set_epi16(cospi[32], cospi[32]);
+  const __m128i cospi_p32_m32 = pair_set_epi16(cospi[32], -cospi[32]);
+  const __m128i cospi_p48_m16 = pair_set_epi16(cospi[48], -cospi[16]);
+  const __m128i cospi_p16_p48 = pair_set_epi16(cospi[16], cospi[48]);
+  const __m128i cospi_m32_p32 = pair_set_epi16(-cospi[32], cospi[32]);
+
+  // stage 1
+  __m128i x[8];
+  x[0] = input[0];
+  x[1] = input[4];
+  x[2] = input[2];
+  x[3] = input[6];
+  x[4] = input[1];
+  x[5] = input[5];
+  x[6] = input[3];
+  x[7] = input[7];
+
+  // stage 2
+  btf_16_sse2(cospi_p56_m08, cospi_p08_p56, x[4], x[7], x[4], x[7]);
+  btf_16_sse2(cospi_p24_m40, cospi_p40_p24, x[5], x[6], x[5], x[6]);
+
+  // stage 3
+  btf_16_sse2(cospi_p32_p32, cospi_p32_m32, x[0], x[1], x[0], x[1]);
+  btf_16_sse2(cospi_p48_m16, cospi_p16_p48, x[2], x[3], x[2], x[3]);
+  btf_16_adds_subs_sse2(x[4], x[5]);
+  btf_16_subs_adds_sse2(x[7], x[6]);
+
+  // stage 4
+  btf_16_adds_subs_sse2(x[0], x[3]);
+  btf_16_adds_subs_sse2(x[1], x[2]);
+  btf_16_sse2(cospi_m32_p32, cospi_p32_p32, x[5], x[6], x[5], x[6]);
+
+  // stage 5
+  btf_16_adds_subs_out_sse2(output[0], output[7], x[0], x[7]);
+  btf_16_adds_subs_out_sse2(output[1], output[6], x[1], x[6]);
+  btf_16_adds_subs_out_sse2(output[2], output[5], x[2], x[5]);
+  btf_16_adds_subs_out_sse2(output[3], output[4], x[3], x[4]);
+}
+
+static inline void iadst8_low1_ssse3_inline(const __m128i *input,
+                                            __m128i *output) {
+  const int8_t cos_bit = INV_COS_BIT;
+  const int32_t *cospi = cospi_arr(INV_COS_BIT);
+  const __m128i __zero = _mm_setzero_si128();
+  const __m128i __rounding = _mm_set1_epi32(1 << (INV_COS_BIT - 1));
+
+  const __m128i cospi_p16_p48 = pair_set_epi16(cospi[16], cospi[48]);
+  const __m128i cospi_p48_m16 = pair_set_epi16(cospi[48], -cospi[16]);
+  const __m128i cospi_p32_p32 = pair_set_epi16(cospi[32], cospi[32]);
+  const __m128i cospi_p32_m32 = pair_set_epi16(cospi[32], -cospi[32]);
+
+  __m128i x[8];
+  x[1] = input[0];
+
+  btf_16_ssse3(cospi[60], -cospi[4], x[1], x[0], x[1]);
+
+  x[4] = x[0];
+  x[5] = x[1];
+
+  btf_16_sse2(cospi_p16_p48, cospi_p48_m16, x[4], x[5], x[4], x[5]);
+
+  x[2] = x[0];
+  x[3] = x[1];
+  x[6] = x[4];
+  x[7] = x[5];
+
+  btf_16_sse2(cospi_p32_p32, cospi_p32_m32, x[2], x[3], x[2], x[3]);
+  btf_16_sse2(cospi_p32_p32, cospi_p32_m32, x[6], x[7], x[6], x[7]);
+
+  output[0] = x[0];
+  output[1] = _mm_subs_epi16(__zero, x[4]);
+  output[2] = x[6];
+  output[3] = _mm_subs_epi16(__zero, x[2]);
+  output[4] = x[3];
+  output[5] = _mm_subs_epi16(__zero, x[7]);
+  output[6] = x[5];
+  output[7] = _mm_subs_epi16(__zero, x[1]);
+}
+
+static inline void iadst8_sse2_inline(const __m128i *input, __m128i *output) {
+  const int8_t cos_bit = INV_COS_BIT;
+  const int32_t *cospi = cospi_arr(INV_COS_BIT);
+  const __m128i __zero = _mm_setzero_si128();
+  const __m128i __rounding = _mm_set1_epi32(1 << (INV_COS_BIT - 1));
+
+  const __m128i cospi_p04_p60 = pair_set_epi16(cospi[4], cospi[60]);
+  const __m128i cospi_p60_m04 = pair_set_epi16(cospi[60], -cospi[4]);
+  const __m128i cospi_p20_p44 = pair_set_epi16(cospi[20], cospi[44]);
+  const __m128i cospi_p44_m20 = pair_set_epi16(cospi[44], -cospi[20]);
+  const __m128i cospi_p36_p28 = pair_set_epi16(cospi[36], cospi[28]);
+  const __m128i cospi_p28_m36 = pair_set_epi16(cospi[28], -cospi[36]);
+  const __m128i cospi_p52_p12 = pair_set_epi16(cospi[52], cospi[12]);
+  const __m128i cospi_p12_m52 = pair_set_epi16(cospi[12], -cospi[52]);
+  const __m128i cospi_p16_p48 = pair_set_epi16(cospi[16], cospi[48]);
+  const __m128i cospi_p48_m16 = pair_set_epi16(cospi[48], -cospi[16]);
+  const __m128i cospi_m48_p16 = pair_set_epi16(-cospi[48], cospi[16]);
+  const __m128i cospi_p32_p32 = pair_set_epi16(cospi[32], cospi[32]);
+  const __m128i cospi_p32_m32 = pair_set_epi16(cospi[32], -cospi[32]);
+
+  // stage 1
+  __m128i x[8];
+  x[0] = input[7];
+  x[1] = input[0];
+  x[2] = input[5];
+  x[3] = input[2];
+  x[4] = input[3];
+  x[5] = input[4];
+  x[6] = input[1];
+  x[7] = input[6];
+
+  // stage 2
+  btf_16_sse2(cospi_p04_p60, cospi_p60_m04, x[0], x[1], x[0], x[1]);
+  btf_16_sse2(cospi_p20_p44, cospi_p44_m20, x[2], x[3], x[2], x[3]);
+  btf_16_sse2(cospi_p36_p28, cospi_p28_m36, x[4], x[5], x[4], x[5]);
+  btf_16_sse2(cospi_p52_p12, cospi_p12_m52, x[6], x[7], x[6], x[7]);
+
+  // stage 3
+  btf_16_adds_subs_sse2(x[0], x[4]);
+  btf_16_adds_subs_sse2(x[1], x[5]);
+  btf_16_adds_subs_sse2(x[2], x[6]);
+  btf_16_adds_subs_sse2(x[3], x[7]);
+
+  // stage 4
+  btf_16_sse2(cospi_p16_p48, cospi_p48_m16, x[4], x[5], x[4], x[5]);
+  btf_16_sse2(cospi_m48_p16, cospi_p16_p48, x[6], x[7], x[6], x[7]);
+
+  // stage 5
+  btf_16_adds_subs_sse2(x[0], x[2]);
+  btf_16_adds_subs_sse2(x[1], x[3]);
+  btf_16_adds_subs_sse2(x[4], x[6]);
+  btf_16_adds_subs_sse2(x[5], x[7]);
+
+  // stage 6
+  btf_16_sse2(cospi_p32_p32, cospi_p32_m32, x[2], x[3], x[2], x[3]);
+  btf_16_sse2(cospi_p32_p32, cospi_p32_m32, x[6], x[7], x[6], x[7]);
+
+  // stage 7
+  output[0] = x[0];
+  output[1] = _mm_subs_epi16(__zero, x[4]);
+  output[2] = x[6];
+  output[3] = _mm_subs_epi16(__zero, x[2]);
+  output[4] = x[3];
+  output[5] = _mm_subs_epi16(__zero, x[7]);
+  output[6] = x[5];
+  output[7] = _mm_subs_epi16(__zero, x[1]);
+}
 
 void av1_iadst8_low1_ssse3(const __m128i *input, __m128i *output);
 

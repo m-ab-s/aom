@@ -1081,6 +1081,26 @@ void av1_upsample_intra_edge_c(uint8_t *p, int sz) {
   }
 }
 
+static AOM_FORCE_INLINE void copy_above_row_lbd(uint8_t *above_row,
+                                                const uint8_t *above_ref,
+                                                int n_copy) {
+  if (n_copy == 4) {
+    memcpy(above_row, above_ref, 4);
+  } else if (n_copy == 8) {
+    memcpy(above_row, above_ref, 8);
+  } else if (n_copy == 16) {
+    memcpy(above_row, above_ref, 16);
+  } else if (n_copy == 32) {
+    memcpy(above_row, above_ref, 32);
+  } else if (n_copy == 64) {
+    memcpy(above_row, above_ref, 64);
+  } else if (n_copy == 128) {
+    memcpy(above_row, above_ref, 128);
+  } else {
+    memcpy(above_row, above_ref, n_copy);
+  }
+}
+
 static void build_directional_and_filter_intra_predictors(
     const uint8_t *ref, int ref_stride, uint8_t *dst, int dst_stride,
     PREDICTION_MODE mode, int p_angle, FILTER_INTRA_MODE filter_intra_mode,
@@ -1148,7 +1168,7 @@ static void build_directional_and_filter_intra_predictors(
     const int num_top_pixels_needed = txwpx + (n_topright_px >= 0 ? txhpx : 0);
     if (n_top_px > 0) {
       const int n_top_copy = n_top_px + (n_topright_px > 0 ? n_topright_px : 0);
-      memcpy(above_row, above_ref, n_top_copy);
+      copy_above_row_lbd(above_row, above_ref, n_top_copy);
       if (n_top_copy < num_top_pixels_needed)
         memset(&above_row[n_top_copy], above_row[n_top_copy - 1],
                num_top_pixels_needed - n_top_copy);
@@ -1305,10 +1325,11 @@ static void build_non_directional_intra_predictors(
   }
 
   if (need_above) {
-    if (n_top_px > 0) {
-      memcpy(above_row, above_ref, n_top_px);
-      i = n_top_px;
-      if (i < txwpx) memset(&above_row[i], above_row[i - 1], txwpx - i);
+    if (LIKELY(n_top_px == txwpx)) {
+      copy_above_row_lbd(above_row, above_ref, txwpx);
+    } else if (n_top_px > 0) {
+      copy_above_row_lbd(above_row, above_ref, n_top_px);
+      memset(&above_row[n_top_px], above_row[n_top_px - 1], txwpx - n_top_px);
     } else {
       const uint8_t val = (n_left_px > 0) ? left_ref[0] : 127;
       memset(above_row, val, txwpx);
@@ -1400,6 +1421,26 @@ void av1_highbd_upsample_intra_edge_c(uint16_t *p, int sz, int bd) {
   }
 }
 
+static AOM_FORCE_INLINE void copy_above_row_hbd(uint16_t *above_row,
+                                                const uint16_t *above_ref,
+                                                int n_copy) {
+  if (n_copy == 4) {
+    memcpy(above_row, above_ref, 4 * sizeof(uint16_t));
+  } else if (n_copy == 8) {
+    memcpy(above_row, above_ref, 8 * sizeof(uint16_t));
+  } else if (n_copy == 16) {
+    memcpy(above_row, above_ref, 16 * sizeof(uint16_t));
+  } else if (n_copy == 32) {
+    memcpy(above_row, above_ref, 32 * sizeof(uint16_t));
+  } else if (n_copy == 64) {
+    memcpy(above_row, above_ref, 64 * sizeof(uint16_t));
+  } else if (n_copy == 128) {
+    memcpy(above_row, above_ref, 128 * sizeof(uint16_t));
+  } else {
+    memcpy(above_row, above_ref, n_copy * sizeof(uint16_t));
+  }
+}
+
 static void highbd_build_directional_and_filter_intra_predictors(
     const uint8_t *ref8, int ref_stride, uint8_t *dst8, int dst_stride,
     PREDICTION_MODE mode, int p_angle, FILTER_INTRA_MODE filter_intra_mode,
@@ -1471,7 +1512,7 @@ static void highbd_build_directional_and_filter_intra_predictors(
     const int num_top_pixels_needed = txwpx + (n_topright_px >= 0 ? txhpx : 0);
     if (n_top_px > 0) {
       const int n_top_copy = n_top_px + (n_topright_px > 0 ? n_topright_px : 0);
-      memcpy(above_row, above_ref, n_top_copy * sizeof(above_ref[0]));
+      copy_above_row_hbd(above_row, above_ref, n_top_copy);
       if (n_top_copy < num_top_pixels_needed)
         aom_memset16(&above_row[n_top_copy], above_row[n_top_copy - 1],
                      num_top_pixels_needed - n_top_copy);
@@ -1635,10 +1676,12 @@ static void highbd_build_non_directional_intra_predictors(
   }
 
   if (need_above) {
-    if (n_top_px > 0) {
-      memcpy(above_row, above_ref, n_top_px * sizeof(above_ref[0]));
-      i = n_top_px;
-      if (i < txwpx) aom_memset16(&above_row[i], above_row[i - 1], (txwpx - i));
+    if (LIKELY(n_top_px == txwpx)) {
+      copy_above_row_hbd(above_row, above_ref, txwpx);
+    } else if (n_top_px > 0) {
+      copy_above_row_hbd(above_row, above_ref, n_top_px);
+      aom_memset16(&above_row[n_top_px], above_row[n_top_px - 1],
+                   txwpx - n_top_px);
     } else {
       const int val = (n_left_px > 0) ? left_ref[0] : base - 1;
       aom_memset16(above_row, val, txwpx);

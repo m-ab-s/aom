@@ -36,7 +36,27 @@ static const int8_t inv_start_range[TX_SIZES_ALL] = {
   7,  // 64x16 transform
 };
 
-extern const int8_t *av1_inv_txfm_shift_ls[TX_SIZES_ALL];
+static const int8_t av1_inv_txfm_shift_ls[TX_SIZES_ALL][2] = {
+  { 0, -4 },   // 4x4 transform
+  { -1, -4 },  // 8x8 transform
+  { -2, -4 },  // 16x16 transform
+  { -2, -4 },  // 32x32 transform
+  { -2, -4 },  // 64x64 transform
+  { 0, -4 },   // 4x8 transform
+  { 0, -4 },   // 8x4 transform
+  { -1, -4 },  // 8x16 transform
+  { -1, -4 },  // 16x8 transform
+  { -1, -4 },  // 16x32 transform
+  { -1, -4 },  // 32x16 transform
+  { -1, -4 },  // 32x64 transform
+  { -1, -4 },  // 64x32 transform
+  { -1, -4 },  // 4x16 transform
+  { -1, -4 },  // 16x4 transform
+  { -2, -4 },  // 8x32 transform
+  { -2, -4 },  // 32x8 transform
+  { -2, -4 },  // 16x64 transform
+  { -2, -4 },  // 64x16 transform
+};
 
 // Values in both av1_inv_cos_bit_col and av1_inv_cos_bit_row are always 12
 // for each valid row and col combination

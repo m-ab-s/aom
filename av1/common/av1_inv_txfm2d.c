@@ -131,34 +131,6 @@ static inline TxfmFunc inv_txfm_type_to_func(TXFM_TYPE txfm_type) {
   }
 }
 
-static const int8_t inv_shift_4x4[2] = { 0, -4 };
-static const int8_t inv_shift_8x8[2] = { -1, -4 };
-static const int8_t inv_shift_16x16[2] = { -2, -4 };
-static const int8_t inv_shift_32x32[2] = { -2, -4 };
-static const int8_t inv_shift_64x64[2] = { -2, -4 };
-static const int8_t inv_shift_4x8[2] = { 0, -4 };
-static const int8_t inv_shift_8x4[2] = { 0, -4 };
-static const int8_t inv_shift_8x16[2] = { -1, -4 };
-static const int8_t inv_shift_16x8[2] = { -1, -4 };
-static const int8_t inv_shift_16x32[2] = { -1, -4 };
-static const int8_t inv_shift_32x16[2] = { -1, -4 };
-static const int8_t inv_shift_32x64[2] = { -1, -4 };
-static const int8_t inv_shift_64x32[2] = { -1, -4 };
-static const int8_t inv_shift_4x16[2] = { -1, -4 };
-static const int8_t inv_shift_16x4[2] = { -1, -4 };
-static const int8_t inv_shift_8x32[2] = { -2, -4 };
-static const int8_t inv_shift_32x8[2] = { -2, -4 };
-static const int8_t inv_shift_16x64[2] = { -2, -4 };
-static const int8_t inv_shift_64x16[2] = { -2, -4 };
-
-const int8_t *av1_inv_txfm_shift_ls[TX_SIZES_ALL] = {
-  inv_shift_4x4,   inv_shift_8x8,   inv_shift_16x16, inv_shift_32x32,
-  inv_shift_64x64, inv_shift_4x8,   inv_shift_8x4,   inv_shift_8x16,
-  inv_shift_16x8,  inv_shift_16x32, inv_shift_32x16, inv_shift_32x64,
-  inv_shift_64x32, inv_shift_4x16,  inv_shift_16x4,  inv_shift_8x32,
-  inv_shift_32x8,  inv_shift_16x64, inv_shift_64x16,
-};
-
 static const int8_t iadst4_range[7] = { 0, 1, 0, 0, 0, 0, 0 };
 
 void av1_get_inv_txfm_cfg(TX_TYPE tx_type, TX_SIZE tx_size,
