@@ -572,7 +572,6 @@ void av1_get_block_hash_value(IntraBCHashInfo *intra_bc_hash_info,
   int dst_idx = !src_idx;
 
   // 4x4 subblock hash values to current block hash values
-  uint32_t to_hash[4];
   for (int sub_width = 4; sub_width <= block_size;
        sub_width *= 2, src_idx = !src_idx) {
     dst_idx = !src_idx;
@@ -587,15 +586,11 @@ void av1_get_block_hash_value(IntraBCHashInfo *intra_bc_hash_info,
                AOM_BUFFER_SIZE_FOR_BLOCK_HASH);
         assert(dst_pos < AOM_BUFFER_SIZE_FOR_BLOCK_HASH);
 
-        to_hash[0] = buf[src_idx][srcPos];
-        to_hash[1] = buf[src_idx][srcPos + 1];
-        to_hash[2] = buf[src_idx][srcPos + src_sub_block_in_width];
-        to_hash[3] = buf[src_idx][srcPos + src_sub_block_in_width + 1];
-
-        // TODO: bug aomedia:433531610 - serialize input values in a way that's
-        // independent of the computer architecture's endianness
-        buf[dst_idx][dst_pos] =
-            av1_get_crc32c_value(calc, (uint8_t *)to_hash, sizeof(to_hash));
+        // Hashes the values rather than their bytes in memory, the same way
+        // as the frame passes, so the result does not depend on the CPU.
+        av1_combine_block_hashes(calc, &buf[src_idx][srcPos],
+                                 &buf[src_idx][srcPos + src_sub_block_in_width],
+                                 &buf[dst_idx][dst_pos], 1, 1);
         dst_pos++;
       }
     }

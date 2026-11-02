@@ -386,9 +386,7 @@ if(NOT BUILD_SHARED_LIBS)
                 "${AOM_ROOT}/test/intra_edge_test.cc")
   endif()
 
-  if(HAVE_SSE4_2 OR HAVE_ARM_CRC32)
-    list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES "${AOM_ROOT}/test/hash_test.cc")
-  endif()
+  list(APPEND AOM_UNIT_TEST_ENCODER_SOURCES "${AOM_ROOT}/test/hash_test.cc")
 
   if(CONFIG_REALTIME_ONLY)
     list(REMOVE_ITEM AOM_UNIT_TEST_ENCODER_SOURCES

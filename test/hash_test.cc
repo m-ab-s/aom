@@ -197,6 +197,22 @@ TEST_P(AV1CombineBlockHashesTest, CheckOutput) {
   }
 }
 
+// The hash of 4 values is the CRC-32C of their little endian bytes, the same
+// on every CPU, so the expected values are fixed.
+TEST_P(AV1CombineBlockHashesTest, KnownValues) {
+  const uint32_t top[] = { 0x00000000, 0x01234567, 0x89abcdef,
+                           0xfedcba98, 0x76543210, 0xffffffff };
+  const uint32_t bottom[] = { 0x00000001, 0x80000000, 0x0f0f0f0f,
+                              0xdeadbeef, 0x12345678, 0xa5a5a5a5 };
+  const uint32_t expected[] = { 0xff9c1f5a, 0x9316cf55, 0xca1073ad,
+                                0x6680eda7 };
+  uint32_t out[4];
+  GetParam()(&calc_, top, bottom, out, 4, 2);
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_EQ(expected[i], out[i]) << "x " << i;
+  }
+}
+
 TEST_P(AV1CombineBlockHashesTest, DISABLED_Speed) {
   // One 4x4 pass over a 2560x1440 frame.
   const int stride = 2560;
@@ -320,6 +336,41 @@ TEST(AV1BlockHashValueTest, MatchesSingleBlockHash) {
           }
         }
       }
+    }
+  }
+}
+
+// Pins the hashes of a few fixed blocks, so they can't depend on the CPU.
+TEST(AV1BlockHashValueTest, KnownValues) {
+  const int kSize = 16;
+  const int kBlockSizes[] = { 4, 8, 16 };
+  const uint32_t kExpected[2][3] = { { 0xcf80714a, 0x4609549a, 0x198c5543 },
+                                     { 0x178eba79, 0xe5a79f58, 0x2813775f } };
+
+  IntraBCHashInfo info = {};
+  av1_hash_table_init(&info);
+  std::vector<uint32_t> buf0(AOM_BUFFER_SIZE_FOR_BLOCK_HASH);
+  std::vector<uint32_t> buf1(AOM_BUFFER_SIZE_FOR_BLOCK_HASH);
+  info.hash_value_buffer[0] = buf0.data();
+  info.hash_value_buffer[1] = buf1.data();
+
+  uint8_t pixels8[kSize * kSize];
+  uint16_t pixels16[kSize * kSize];
+  for (int y = 0; y < kSize; ++y) {
+    for (int x = 0; x < kSize; ++x) {
+      pixels8[y * kSize + x] = (x * 29 + y * 71 + x * y) & 0xff;
+      pixels16[y * kSize + x] = (x * 29 + y * 71 + x * y * 3) & 0x3ff;
+    }
+  }
+  for (int hbd = 0; hbd <= 1; ++hbd) {
+    const uint8_t *src = hbd ? CONVERT_TO_BYTEPTR(pixels16) : pixels8;
+    for (int i = 0; i < 3; ++i) {
+      uint32_t hash_value1;
+      uint32_t hash_value2;
+      av1_get_block_hash_value(&info, src, kSize, kBlockSizes[i], &hash_value1,
+                               &hash_value2, hbd);
+      EXPECT_EQ(kExpected[hbd][i], hash_value2)
+          << "hbd " << hbd << " size " << kBlockSizes[i];
     }
   }
 }
