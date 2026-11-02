@@ -204,46 +204,95 @@ const block_hash *av1_hash_get_first_block_hash(const hash_table *p_hash_table,
   return &block_hashes[p_hash_table->bucket_start[size_index][bucket]];
 }
 
-void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
-                                       const IntraBCHashRegion *region,
-                                       uint32_t *pic_block_hash,
-                                       int pic_block_hash_stride) {
-  const int width = 2;
-  const int height = 2;
-  const int x_end = region->x_end - width + 1;
-  const int y_end = region->y_end - height + 1;
-
+// Hashes width 2x2 blocks in a row, the first one at (x, y).
+static void hash_2x2_row(const YV12_BUFFER_CONFIG *picture, int x, int y,
+                         int width, uint32_t *dst) {
+  const int stride = picture->y_stride;
   if (picture->flags & YV12_FLAG_HIGHBITDEPTH) {
-    uint16_t p[4];
-    for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
-      uint32_t *const row_hash = pic_block_hash + y_pos * pic_block_hash_stride;
-      for (int x_pos = region->x_start; x_pos < x_end; x_pos++) {
-        get_pixels_in_1D_short_array_by_block_2x2(
-            CONVERT_TO_SHORTPTR(picture->y_buffer) + y_pos * picture->y_stride +
-                x_pos,
-            picture->y_stride, p);
-        // For HBD, we either have 40 or 48 bits of input data that the xor hash
-        // reduce to 32 bits. We intentionally don't want to "discard" bits to
-        // avoid any kind of biasing.
-        row_hash[x_pos] = get_xor_hash_value_hbd(p[0], p[1], p[2], p[3]);
-      }
+    const uint16_t *const top =
+        CONVERT_TO_SHORTPTR(picture->y_buffer) + y * stride + x;
+    const uint16_t *const bottom = top + stride;
+    for (int i = 0; i < width; i++) {
+      // For HBD, we either have 40 or 48 bits of input data that the xor hash
+      // reduce to 32 bits. We intentionally don't want to "discard" bits to
+      // avoid any kind of biasing.
+      dst[i] =
+          get_xor_hash_value_hbd(top[i], top[i + 1], bottom[i], bottom[i + 1]);
     }
   } else {
-    uint8_t p[4];
-    for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
-      uint32_t *const row_hash = pic_block_hash + y_pos * pic_block_hash_stride;
-      for (int x_pos = region->x_start; x_pos < x_end; x_pos++) {
-        get_pixels_in_1D_char_array_by_block_2x2(
-            picture->y_buffer + y_pos * picture->y_stride + x_pos,
-            picture->y_stride, p);
-        // This 2x2 hash isn't used directly as a "key" for the hash table, so
-        // we can afford to just copy the 4 8-bit pixel values as a single
-        // 32-bit value directly. (i.e. there are no concerns of a lack of
-        // uniform distribution)
-        row_hash[x_pos] = get_identity_hash_value(p[0], p[1], p[2], p[3]);
-      }
+    const uint8_t *const top = picture->y_buffer + y * stride + x;
+    const uint8_t *const bottom = top + stride;
+    for (int i = 0; i < width; i++) {
+      // This 2x2 hash isn't used directly as a "key" for the hash table, so
+      // we can afford to just copy the 4 8-bit pixel values as a single
+      // 32-bit value directly. (i.e. there are no concerns of a lack of
+      // uniform distribution)
+      dst[i] =
+          get_identity_hash_value(top[i], top[i + 1], bottom[i], bottom[i + 1]);
     }
   }
+}
+
+// A 4x4 hash at row y reads the 2x2 rows y and y + 2, and an 8x8 hash the 4x4
+// rows y and y + 4. The pass keeps only the rows it still needs.
+#define kRingRows2x2 3
+#define kRingRows4x4 5
+
+bool av1_generate_block_8x8_hash_value(IntraBCHashInfo *intrabc_hash_info,
+                                       const YV12_BUFFER_CONFIG *picture,
+                                       const IntraBCHashRegion *region,
+                                       uint32_t *hash_4x4, uint32_t *hash_8x8,
+                                       int pic_block_hash_stride) {
+  const int x_start = region->x_start;
+  const int y_start = region->y_start;
+  const int width = region->x_end - x_start;
+  const int height = region->y_end - y_start;
+  // Source blocks at the right and bottom borders cannot be part of larger
+  // blocks, so each block size has fewer positions than the one below it.
+  const int width_4x4 = width - 3;
+  const int height_4x4 = height - 3;
+  const int width_8x8 = width - 7;
+  // Without the 4x4 table only 8x8 hashes are written.
+  const int min_size = hash_4x4 != NULL ? 4 : 8;
+  if (width < min_size || height < min_size) return true;
+
+  // The 4x4 rows only need the ring when hash_4x4 does not hold them.
+  const int ring_rows = kRingRows2x2 + (hash_4x4 != NULL ? 0 : kRingRows4x4);
+  uint32_t *const ring =
+      (uint32_t *)aom_malloc(sizeof(*ring) * width * ring_rows);
+  if (ring == NULL) return false;
+  uint32_t *const rows_2x2 = ring;
+  // The 4x4 rows go to hash_4x4 instead when the caller needs all of them.
+  uint32_t *rows_4x4 = ring + kRingRows2x2 * width;
+  int rows_4x4_stride = width;
+  int num_rows_4x4 = kRingRows4x4;
+  if (hash_4x4 != NULL) {
+    rows_4x4 = hash_4x4 + y_start * pic_block_hash_stride + x_start;
+    rows_4x4_stride = pic_block_hash_stride;
+    num_rows_4x4 = height_4x4;
+  }
+  uint32_t *const out_8x8 =
+      hash_8x8 + y_start * pic_block_hash_stride + x_start;
+  CRC32C *const calc = &intrabc_hash_info->crc_calculator;
+
+  hash_2x2_row(picture, x_start, y_start, width - 1, rows_2x2);
+  hash_2x2_row(picture, x_start, y_start + 1, width - 1, rows_2x2 + width);
+  for (int y = 0; y < height_4x4; y++) {
+    uint32_t *const next_2x2 = rows_2x2 + (y + 2) % kRingRows2x2 * width;
+    hash_2x2_row(picture, x_start, y_start + y + 2, width - 1, next_2x2);
+    uint32_t *const row_4x4 = rows_4x4 + y % num_rows_4x4 * rows_4x4_stride;
+    av1_combine_block_hashes(calc, rows_2x2 + y % kRingRows2x2 * width,
+                             next_2x2, row_4x4, width_4x4, 2);
+    if (y >= 4 && width_8x8 > 0) {
+      const uint32_t *const top_4x4 =
+          rows_4x4 + (y - 4) % num_rows_4x4 * rows_4x4_stride;
+      av1_combine_block_hashes(calc, top_4x4, row_4x4,
+                               out_8x8 + (y - 4) * pic_block_hash_stride,
+                               width_8x8, 4);
+    }
+  }
+  aom_free(ring);
+  return true;
 }
 
 void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
@@ -255,16 +304,19 @@ void av1_generate_block_hash_value(IntraBCHashInfo *intrabc_hash_info,
   const int x_end = region->x_end - block_size + 1;
   const int y_end = region->y_end - block_size + 1;
   if (x_end <= region->x_start || y_end <= region->y_start) return;
-  const int offset = region->y_start * pic_block_hash_stride + region->x_start;
+  const int sub_size = block_size >> 1;
 
   // Build up a bigger block from 4 smaller, non-overlapping source block
   // hashes, and compute its hash. Note: source blocks at the right and
   // bottom borders cannot be part of larger blocks, therefore they won't be
   // considered into the block hash value generation process.
-  av1_combine_block_hashes(
-      &intrabc_hash_info->crc_calculator, src_pic_block_hash + offset,
-      dst_pic_block_hash + offset, pic_block_hash_stride,
-      x_end - region->x_start, y_end - region->y_start, block_size >> 1);
+  for (int y_pos = region->y_start; y_pos < y_end; y_pos++) {
+    const int pos = y_pos * pic_block_hash_stride + region->x_start;
+    av1_combine_block_hashes(
+        &intrabc_hash_info->crc_calculator, src_pic_block_hash + pos,
+        src_pic_block_hash + pos + sub_size * pic_block_hash_stride,
+        dst_pic_block_hash + pos, x_end - region->x_start, sub_size);
+  }
 }
 
 // Adds the blocks of one block size that lie inside region to the table. The

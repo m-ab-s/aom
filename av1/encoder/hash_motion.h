@@ -82,9 +82,12 @@ typedef struct intrabc_hash_info {
   int tile_cols_per_table;
   int tile_rows_per_table;
   // Hash values of every position of the frame, only needed while the tables
-  // are built (two buffers, used alternately). Each buffer has
-  // frame_hash_width * frame_hash_height elements, the luma size of the source
-  // frame they were allocated for. Both sizes are 0 when the buffers are freed.
+  // are built. The first buffer holds the 8x8 hashes. The second one holds the
+  // 4x4 hashes when the 4x4 table is built, and the two are used alternately
+  // for the sizes above 8x8. It is NULL when neither is needed. Both cover
+  // the luma size of the source frame they were allocated for,
+  // frame_hash_width x frame_hash_height. Both sizes are 0 when the buffers
+  // are freed.
   uint32_t *frame_hash_buffer[2];
   int frame_hash_width;
   int frame_hash_height;
@@ -115,10 +118,15 @@ const block_hash *av1_hash_get_first_block_hash(const hash_table *p_hash_table,
                                                 uint32_t hash_value);
 // These fill the hash values of the blocks that lie inside region. The stride
 // parameters give the distance in values between rows of the hash buffers.
-void av1_generate_block_2x2_hash_value(const YV12_BUFFER_CONFIG *picture,
+// av1_generate_block_8x8_hash_value() hashes the picture into hash_8x8, and
+// into hash_4x4 too unless it is NULL. It returns false if it runs out of
+// memory.
+bool av1_generate_block_8x8_hash_value(IntraBCHashInfo *intrabc_hash_info,
+                                       const YV12_BUFFER_CONFIG *picture,
                                        const IntraBCHashRegion *region,
-                                       uint32_t *pic_block_hash,
+                                       uint32_t *hash_4x4, uint32_t *hash_8x8,
                                        int pic_block_hash_stride);
+// Hashes block_size blocks from the block_size / 2 hashes in src.
 void av1_generate_block_hash_value(IntraBCHashInfo *intra_bc_hash_info,
                                    const IntraBCHashRegion *region,
                                    int block_size,

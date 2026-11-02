@@ -2131,6 +2131,19 @@ static void set_intrabc_hash_table_grid(const CommonTileParams *tiles,
       (tiles->rows + tile_rows_per_table - 1) / tile_rows_per_table;
 }
 
+// Returns the largest block size that is hashed for intrabc.
+static int get_max_intrabc_hash_size(const AV1_COMP *cpi) {
+  const int sb_size =
+      1 << (cpi->common.seq_params->mib_size_log2 + MI_SIZE_LOG2);
+  return cpi->sf.mv_sf.hash_max_8x8_intrabc_blocks ? AOMMIN(8, sb_size)
+                                                   : sb_size;
+}
+
+// Returns true if the 4x4 hashes go in a hash table.
+static bool has_intrabc_hash_table_4x4(const AV1_COMMON *cm) {
+  return block_size_wide[cm->mi_params.mi_alloc_bsize] <= 4;
+}
+
 bool av1_build_intrabc_hash_table(AV1_COMP *cpi, int table_idx) {
   const AV1_COMMON *const cm = &cpi->common;
   IntraBCHashInfo *const intrabc_hash_info = &cpi->td.mb.intrabc_hash_info;
@@ -2147,27 +2160,34 @@ bool av1_build_intrabc_hash_table(AV1_COMP *cpi, int table_idx) {
   IntraBCHashRegion region;
   get_intrabc_hash_region(cpi->source, cm, intrabc_hash_info, table_idx,
                           &region);
+  hash_table *const table = &intrabc_hash_info->tile_tables[table_idx];
 
-  av1_generate_block_2x2_hash_value(cpi->source, &region, block_hash_values[0],
-                                    hash_stride);
   // Hash data generated for screen contents is used for intraBC ME
-  const int min_alloc_size = block_size_wide[cm->mi_params.mi_alloc_bsize];
-  int max_sb_size = 1 << (cm->seq_params->mib_size_log2 + MI_SIZE_LOG2);
-
-  if (cpi->sf.mv_sf.hash_max_8x8_intrabc_blocks) {
-    max_sb_size = AOMMIN(8, max_sb_size);
+  uint32_t *const hash_4x4 =
+      has_intrabc_hash_table_4x4(cm) ? block_hash_values[1] : NULL;
+  if (!av1_generate_block_8x8_hash_value(intrabc_hash_info, cpi->source,
+                                         &region, hash_4x4,
+                                         block_hash_values[0], hash_stride)) {
+    return false;
+  }
+  if (hash_4x4 != NULL && !av1_add_to_hash_map_by_row_with_precal_data(
+                              table, hash_4x4, hash_stride, &region, 4)) {
+    return false;
   }
 
+  const int min_alloc_size = block_size_wide[cm->mi_params.mi_alloc_bsize];
+  const int max_size = get_max_intrabc_hash_size(cpi);
   int src_idx = 0;
-  for (int size = 4; size <= max_sb_size; size *= 2, src_idx = !src_idx) {
-    const int dst_idx = !src_idx;
-    av1_generate_block_hash_value(intrabc_hash_info, &region, size,
-                                  block_hash_values[src_idx],
-                                  block_hash_values[dst_idx], hash_stride);
+  for (int size = 8; size <= max_size; size *= 2) {
+    if (size > 8) {
+      av1_generate_block_hash_value(intrabc_hash_info, &region, size,
+                                    block_hash_values[src_idx],
+                                    block_hash_values[!src_idx], hash_stride);
+      src_idx = !src_idx;
+    }
     if (size >= min_alloc_size &&
         !av1_add_to_hash_map_by_row_with_precal_data(
-            &intrabc_hash_info->tile_tables[table_idx],
-            block_hash_values[dst_idx], hash_stride, &region, size)) {
+            table, block_hash_values[src_idx], hash_stride, &region, size)) {
       return false;
     }
   }
@@ -2192,8 +2212,14 @@ static void build_intrabc_hash_tables(AV1_COMP *cpi) {
       intrabc_hash_info->table_cols * intrabc_hash_info->table_rows;
   bool error = false;
 
+  // The second buffer is only needed for the 4x4 hashes and the sizes above
+  // 8x8.
+  const bool needs_second_buffer =
+      has_intrabc_hash_table_4x4(cm) || get_max_intrabc_hash_size(cpi) > 8;
+  const int num_buffers = needs_second_buffer ? 2 : 1;
+
   free_block_hash_buffers(intrabc_hash_info);
-  for (int j = 0; j < 2; ++j) {
+  for (int j = 0; j < num_buffers; ++j) {
     intrabc_hash_info->frame_hash_buffer[j] = (uint32_t *)aom_malloc(
         sizeof(*intrabc_hash_info->frame_hash_buffer[j]) * hash_stride *
         pic_height);
