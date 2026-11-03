@@ -252,3 +252,201 @@ void av1_get_horver_correlation_full_avx2(const int16_t *diff, int stride,
     *vcorr = 1.0;
   }
 }
+
+static inline uint64_t xx_cvtsi128_si64(__m128i a) {
+#if AOM_ARCH_X86_64
+  return (uint64_t)_mm_cvtsi128_si64(a);
+#else
+  uint64_t tmp;
+  _mm_storel_epi64((__m128i *)&tmp, a);
+  return tmp;
+#endif
+}
+
+static inline uint64_t sum_u32x4_to_u64(__m128i v) {
+  const __m256i v64 = _mm256_cvtepu32_epi64(v);
+  const __m128i sum2 = _mm_add_epi64(_mm256_castsi256_si128(v64),
+                                     _mm256_extracti128_si256(v64, 1));
+  const __m128i sum1 = _mm_add_epi64(sum2, _mm_srli_si128(sum2, 8));
+  return xx_cvtsi128_si64(sum1);
+}
+
+static inline uint64_t sum_u32x8_to_u64(__m256i v) {
+  const __m256i lo64 = _mm256_cvtepu32_epi64(_mm256_castsi256_si128(v));
+  const __m256i hi64 = _mm256_cvtepu32_epi64(_mm256_extracti128_si256(v, 1));
+  const __m256i sum4 = _mm256_add_epi64(lo64, hi64);
+  const __m128i sum2 = _mm_add_epi64(_mm256_castsi256_si128(sum4),
+                                     _mm256_extracti128_si256(sum4, 1));
+  const __m128i sum1 = _mm_add_epi64(sum2, _mm_srli_si128(sum2, 8));
+  return xx_cvtsi128_si64(sum1);
+}
+
+void av1_get_energy_distribution_finer_avx2(const int16_t *diff, int stride,
+                                            int bw, int bh, float *hordist,
+                                            float *verdist) {
+  const int w_shift = bw <= 8 ? 0 : 1;
+  const int h_shift = bh <= 8 ? 0 : 1;
+  const int esq_w = bw >> w_shift;
+  const int esq_h = bh >> h_shift;
+  assert(esq_w <= 16);
+  assert(esq_h <= 16);
+  uint32_t col_sum[16] = { 0 };
+  uint32_t row_sum[16] = { 0 };
+  uint64_t total = 0;
+
+  if (bw == 4) {
+    __m128i v_col = _mm_setzero_si128();
+    if (h_shift == 0) {
+      for (int i = 0; i < esq_h; ++i) {
+        const __m128i d = _mm_cvtepi16_epi32(
+            _mm_loadl_epi64((const __m128i *)(diff + i * stride)));
+        const __m128i sq = _mm_mullo_epi32(d, d);
+        v_col = _mm_add_epi32(v_col, sq);
+        const __m128i s1 = _mm_hadd_epi32(sq, sq);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    } else {
+      for (int i = 0; i < esq_h; ++i) {
+        const __m128i d0 =
+            _mm_loadl_epi64((const __m128i *)(diff + (2 * i) * stride));
+        const __m128i d1 =
+            _mm_loadl_epi64((const __m128i *)(diff + (2 * i + 1) * stride));
+        const __m128i d01 = _mm_unpacklo_epi16(d0, d1);
+        const __m128i sq = _mm_madd_epi16(d01, d01);
+        v_col = _mm_add_epi32(v_col, sq);
+        const __m128i s1 = _mm_hadd_epi32(sq, sq);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    }
+    _mm_storeu_si128((__m128i *)col_sum, v_col);
+    total = sum_u32x4_to_u64(v_col);
+  } else if (bw == 8) {
+    __m256i v_col = _mm256_setzero_si256();
+    if (h_shift == 0) {
+      for (int i = 0; i < esq_h; ++i) {
+        const __m256i d = _mm256_cvtepi16_epi32(
+            _mm_loadu_si128((const __m128i *)(diff + i * stride)));
+        const __m256i sq = _mm256_mullo_epi32(d, d);
+        v_col = _mm256_add_epi32(v_col, sq);
+        const __m128i sq128 = _mm_add_epi32(_mm256_castsi256_si128(sq),
+                                            _mm256_extracti128_si256(sq, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    } else {
+      for (int i = 0; i < esq_h; ++i) {
+        const __m128i d0 =
+            _mm_loadu_si128((const __m128i *)(diff + (2 * i) * stride));
+        const __m128i d1 =
+            _mm_loadu_si128((const __m128i *)(diff + (2 * i + 1) * stride));
+        const __m256i d0_256 = _mm256_cvtepi16_epi32(d0);
+        const __m256i d1_256 = _mm256_cvtepi16_epi32(d1);
+        const __m256i sq = _mm256_add_epi32(_mm256_mullo_epi32(d0_256, d0_256),
+                                            _mm256_mullo_epi32(d1_256, d1_256));
+        v_col = _mm256_add_epi32(v_col, sq);
+        const __m128i sq128 = _mm_add_epi32(_mm256_castsi256_si128(sq),
+                                            _mm256_extracti128_si256(sq, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    }
+    _mm256_storeu_si256((__m256i *)col_sum, v_col);
+    total = sum_u32x8_to_u64(v_col);
+  } else if (bw == 16) {
+    __m256i v_col = _mm256_setzero_si256();
+    if (h_shift == 0) {
+      for (int i = 0; i < esq_h; ++i) {
+        const __m256i d =
+            _mm256_loadu_si256((const __m256i *)(diff + i * stride));
+        const __m256i sq = _mm256_madd_epi16(d, d);
+        v_col = _mm256_add_epi32(v_col, sq);
+        const __m128i sq128 = _mm_add_epi32(_mm256_castsi256_si128(sq),
+                                            _mm256_extracti128_si256(sq, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    } else {
+      for (int i = 0; i < esq_h; ++i) {
+        const __m256i d0 =
+            _mm256_loadu_si256((const __m256i *)(diff + (2 * i) * stride));
+        const __m256i d1 =
+            _mm256_loadu_si256((const __m256i *)(diff + (2 * i + 1) * stride));
+        const __m256i sq = _mm256_add_epi32(_mm256_madd_epi16(d0, d0),
+                                            _mm256_madd_epi16(d1, d1));
+        v_col = _mm256_add_epi32(v_col, sq);
+        const __m128i sq128 = _mm_add_epi32(_mm256_castsi256_si128(sq),
+                                            _mm256_extracti128_si256(sq, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    }
+    _mm256_storeu_si256((__m256i *)col_sum, v_col);
+    total = sum_u32x8_to_u64(v_col);
+  } else {
+    assert(bw == 32);
+    __m256i v_col_lo = _mm256_setzero_si256();
+    __m256i v_col_hi = _mm256_setzero_si256();
+    if (h_shift == 0) {
+      for (int i = 0; i < esq_h; ++i) {
+        const int16_t *r0 = diff + i * stride;
+        const __m256i d0_lo = _mm256_loadu_si256((const __m256i *)r0);
+        const __m256i d0_hi = _mm256_loadu_si256((const __m256i *)(r0 + 16));
+        const __m256i sq_lo = _mm256_madd_epi16(d0_lo, d0_lo);
+        const __m256i sq_hi = _mm256_madd_epi16(d0_hi, d0_hi);
+        v_col_lo = _mm256_add_epi32(v_col_lo, sq_lo);
+        v_col_hi = _mm256_add_epi32(v_col_hi, sq_hi);
+        const __m256i sq_sum = _mm256_add_epi32(sq_lo, sq_hi);
+        const __m128i sq128 =
+            _mm_add_epi32(_mm256_castsi256_si128(sq_sum),
+                          _mm256_extracti128_si256(sq_sum, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    } else {
+      for (int i = 0; i < esq_h; ++i) {
+        const int16_t *r0 = diff + (2 * i) * stride;
+        const int16_t *r1 = diff + (2 * i + 1) * stride;
+        const __m256i d0_lo = _mm256_loadu_si256((const __m256i *)r0);
+        const __m256i d0_hi = _mm256_loadu_si256((const __m256i *)(r0 + 16));
+        const __m256i d1_lo = _mm256_loadu_si256((const __m256i *)r1);
+        const __m256i d1_hi = _mm256_loadu_si256((const __m256i *)(r1 + 16));
+        const __m256i sq_lo = _mm256_add_epi32(_mm256_madd_epi16(d0_lo, d0_lo),
+                                               _mm256_madd_epi16(d1_lo, d1_lo));
+        const __m256i sq_hi = _mm256_add_epi32(_mm256_madd_epi16(d0_hi, d0_hi),
+                                               _mm256_madd_epi16(d1_hi, d1_hi));
+        v_col_lo = _mm256_add_epi32(v_col_lo, sq_lo);
+        v_col_hi = _mm256_add_epi32(v_col_hi, sq_hi);
+        const __m256i sq_sum = _mm256_add_epi32(sq_lo, sq_hi);
+        const __m128i sq128 =
+            _mm_add_epi32(_mm256_castsi256_si128(sq_sum),
+                          _mm256_extracti128_si256(sq_sum, 1));
+        const __m128i s1 = _mm_hadd_epi32(sq128, sq128);
+        const __m128i s2 = _mm_hadd_epi32(s1, s1);
+        row_sum[i] = (uint32_t)_mm_cvtsi128_si32(s2);
+      }
+    }
+    _mm256_storeu_si256((__m256i *)col_sum, v_col_lo);
+    _mm256_storeu_si256((__m256i *)(col_sum + 8), v_col_hi);
+    total = sum_u32x8_to_u64(v_col_lo) + sum_u32x8_to_u64(v_col_hi);
+  }
+
+  // Output hordist and verdist arrays are normalized 1D projections of esq
+  if (total == 0) {
+    const float hor_val = 1.0f / esq_w;
+    for (int j = 0; j < esq_w - 1; ++j) hordist[j] = hor_val;
+    const float ver_val = 1.0f / esq_h;
+    for (int i = 0; i < esq_h - 1; ++i) verdist[i] = ver_val;
+    return;
+  }
+
+  const float e_recip = 1.0f / (float)total;
+  for (int j = 0; j < esq_w - 1; ++j) hordist[j] = (float)col_sum[j] * e_recip;
+  for (int i = 0; i < esq_h - 1; ++i) verdist[i] = (float)row_sum[i] * e_recip;
+}

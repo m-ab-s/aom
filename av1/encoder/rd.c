@@ -1460,9 +1460,6 @@ void av1_set_rd_speed_thresholds(AV1_COMP *cpi) {
   rd->thresh_mult[THR_D45_PRED] = 2500;
 }
 
-#if HAVE_AVX2 && (defined(__GNUC__) || defined(__clang__))
-__attribute__((target("avx2")))
-#endif
 static inline void update_thr_fact(int (*factor_buf)[MAX_MODES],
                                    THR_MODES best_mode_index,
                                    THR_MODES mode_start, THR_MODES mode_end,
@@ -1483,9 +1480,6 @@ static inline void update_thr_fact(int (*factor_buf)[MAX_MODES],
   }
 }
 
-#if HAVE_AVX2 && (defined(__GNUC__) || defined(__clang__))
-__attribute__((target("avx2")))
-#endif
 void av1_update_rd_thresh_fact(
     const AV1_COMMON *const cm, int (*factor_buf)[MAX_MODES],
     int use_adaptive_rd_thresh, BLOCK_SIZE bsize, THR_MODES best_mode_index,
