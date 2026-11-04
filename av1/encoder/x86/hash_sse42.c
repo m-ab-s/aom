@@ -10,7 +10,7 @@
  */
 
 #include <stdint.h>
-#include <smmintrin.h>
+#include <nmmintrin.h>
 
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
