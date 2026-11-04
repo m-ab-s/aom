@@ -522,10 +522,10 @@ static inline unsigned int get_num_refs_to_disable(
         const FIRSTPASS_STATS *const this_frame_stats =
             read_one_frame_stats(&cpi->ppi->twopass, cur_frame_display_index);
         const double coded_error_per_mb = this_frame_stats->coded_error;
-        // Retain LAST2_FRAME on mixed static/high-motion frames at speeds 3-4
+        // Retain LAST2_FRAME on mixed static/high-motion frames
         // to avoid quality loss.
         const bool is_partial_high_motion =
-            cpi->oxcf.speed > 2 && cpi->oxcf.speed <= 4 &&
+            cpi->sf.inter_sf.retain_last2_in_partial_high_motion &&
             this_frame_stats->pcnt_motion >= 0.1 &&
             this_frame_stats->pcnt_motion < 0.5 &&
             this_frame_stats->sr_coded_error > 2.0 * coded_error_per_mb;

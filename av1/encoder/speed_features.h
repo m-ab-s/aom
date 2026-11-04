@@ -1021,6 +1021,10 @@ typedef struct INTER_MODE_SPEED_FEATURES {
   // more aggressively than lower ones. (0 means no pruning).
   int selective_ref_frame;
 
+  // Retain LAST2_FRAME on mixed static/high-motion frames when
+  // selective_ref_frame == 5.
+  int retain_last2_in_partial_high_motion;
+
   // Prune reference frames for rectangular partitions.
   // 0 implies no pruning
   // 1 implies prune for extended partition

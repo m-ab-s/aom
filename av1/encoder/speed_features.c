@@ -1339,6 +1339,7 @@ static void set_good_speed_features_framesize_independent(
     sf->inter_sf.prune_inter_modes_based_on_tpl = boosted ? 1 : 2;
     sf->inter_sf.prune_comp_search_by_single_result = boosted ? 4 : 2;
     sf->inter_sf.selective_ref_frame = 5;
+    sf->inter_sf.retain_last2_in_partial_high_motion = 1;
     sf->inter_sf.reuse_compound_type_decision = 1;
     set_txfm_rd_gate_level(sf->inter_sf.txfm_rd_gate_level,
                            boosted ? 0 : (is_boosted_arf2_bwd_type ? 1 : 2));
@@ -1505,6 +1506,7 @@ static void set_good_speed_features_framesize_independent(
     sf->mv_sf.warp_search_method = WARP_SEARCH_DIAMOND;
 
     sf->inter_sf.prune_inter_modes_if_skippable = 1;
+    sf->inter_sf.retain_last2_in_partial_high_motion = 0;
     sf->inter_sf.prune_single_ref = is_boosted_arf2_bwd_type ? 0 : 3;
     sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_DEFAULT] = boosted ? 0 : 4;
     sf->inter_sf.txfm_rd_gate_level[TX_SEARCH_COMP_TYPE_MODE] = boosted ? 0 : 5;
@@ -2441,6 +2443,7 @@ static inline void init_inter_sf(INTER_MODE_SPEED_FEATURES *inter_sf) {
   inter_sf->prune_single_ref = 0;
   inter_sf->prune_comp_ref_frames = 0;
   inter_sf->selective_ref_frame = 0;
+  inter_sf->retain_last2_in_partial_high_motion = 0;
   inter_sf->prune_ref_frame_for_rect_partitions = 0;
   inter_sf->fast_wedge_sign_estimate = 0;
   inter_sf->use_dist_wtd_comp_flag = DIST_WTD_COMP_ENABLED;
