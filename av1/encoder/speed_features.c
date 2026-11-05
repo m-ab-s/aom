@@ -816,6 +816,12 @@ static void set_good_speed_feature_framesize_dependent(
       sf->inter_sf.skip_cmp_using_top_cmp_avg_est_rd_lvl = 2;
     }
 
+    if (is_1080p_or_larger) {
+      sf->intra_sf.skip_intra_in_interframe = boosted ? 1 : 2;
+    } else {
+      sf->intra_sf.skip_intra_in_interframe = 2;
+    }
+
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_128X128;
     } else if (is_480p_or_larger) {
@@ -846,6 +852,7 @@ static void set_good_speed_feature_framesize_dependent(
   if (speed >= 2) {
     sf->inter_sf.skip_newmv_in_drl = boosted ? 1 : !is_720p_or_larger ? 2 : 3;
     sf->part_sf.ml_4_partition_search_level_index = 2;
+    sf->intra_sf.skip_intra_in_interframe = 2;
     if (is_720p_or_larger) {
       sf->part_sf.use_square_partition_only_threshold = BLOCK_64X64;
     } else {
@@ -1176,8 +1183,6 @@ static void set_good_speed_features_framesize_independent(
   const int boosted = frame_is_boosted(cpi);
   const int is_boosted_arf2_bwd_type =
       boosted || gf_group->update_type[cpi->gf_frame_index] == INTNL_ARF_UPDATE;
-  const int is_inter_frame =
-      gf_group->frame_type[cpi->gf_frame_index] == INTER_FRAME;
   const int allow_screen_content_tools =
       cm->features.allow_screen_content_tools;
   const int use_hbd = cpi->oxcf.use_highbitdepth;
@@ -1374,7 +1379,6 @@ static void set_good_speed_features_framesize_independent(
     sf->interp_sf.adaptive_interp_filter_search = 1;
 
     sf->intra_sf.intra_pruning_with_hog = 2;
-    sf->intra_sf.skip_intra_in_interframe = is_inter_frame ? 2 : 1;
     sf->intra_sf.skip_filter_intra_in_inter_frames = 1;
 
     sf->tpl_sf.prune_starting_mv = 1;
@@ -1584,7 +1588,6 @@ static void set_good_speed_features_framesize_independent(
     // sf->intra_sf.intra_y_mode_mask[TX_16X16] = INTRA_DC_H_V;
     // sf->intra_sf.intra_y_mode_mask[TX_32X32] = INTRA_DC_H_V;
     // sf->intra_sf.intra_y_mode_mask[TX_64X64] = INTRA_DC_H_V;
-    sf->intra_sf.skip_intra_in_interframe = 4;
 
     const int high_q = get_mode_q_level(cpi) > 145;
     sf->tx_sf.tx_type_search.fast_intra_tx_type_search =
@@ -1760,7 +1763,6 @@ static void set_good_speed_features_framesize_independent(
   // encoding in general.
   if (cpi->oxcf.tune_cfg.tuning == AOM_TUNE_IQ ||
       cpi->oxcf.tune_cfg.tuning == AOM_TUNE_SSIMULACRA2) {
-    sf->intra_sf.skip_intra_in_interframe = 0;
     sf->inter_sf.inter_mode_rd_model_estimation = 0;
     sf->mv_sf.use_intrabc = 1;
 
