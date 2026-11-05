@@ -14,6 +14,10 @@
 
 #include "av1/common/av1_common_int.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern const int16_t av1_eob_group_start[12];
 extern const int16_t av1_eob_offset_bits[12];
 
@@ -472,5 +476,9 @@ static inline void get_txb_ctx(const BLOCK_SIZE plane_bsize,
   }
 }
 #undef MAX_TX_SIZE_UNIT
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // AOM_AV1_COMMON_TXB_COMMON_H_
