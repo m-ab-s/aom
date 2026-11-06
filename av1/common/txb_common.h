@@ -282,6 +282,43 @@ static AOM_FORCE_INLINE int get_lower_levels_ctx(const uint8_t *levels,
   return get_nz_map_ctx_from_stats(stats, coeff_idx, bhl, tx_size, tx_class);
 }
 
+// Specialized variant for AC coefficients (coeff_idx > 0), skipping the
+// redundant coeff_idx == 0 checks and dispatching on tx_class once.
+static AOM_FORCE_INLINE int get_lower_levels_ctx_simple(const uint8_t *levels,
+                                                        int coeff_idx, int bhl,
+                                                        TX_SIZE tx_size,
+                                                        TX_CLASS tx_class) {
+  assert(coeff_idx > 0);
+  assert(bhl >= MIN_TX_SIZE_LOG2 && bhl <= MAX_TX_SIZE_LOG2 - 1);
+  const uint8_t *const nb = levels + get_padded_idx(coeff_idx, bhl);
+  const ptrdiff_t stride = (1 << bhl) + TX_PAD_HOR;
+  if (tx_class == TX_CLASS_2D) {
+    const int offset = av1_nz_map_ctx_offset[tx_size][coeff_idx];
+    if ((nb[1] | nb[2] | nb[stride] | nb[stride + 1] | nb[2 * stride]) == 0)
+      return offset;
+    const int mag = clip_max3[nb[stride]] + clip_max3[nb[1]] +
+                    clip_max3[nb[stride + 1]] + clip_max3[nb[2 * stride]] +
+                    clip_max3[nb[2]];
+    return offset + AOMMIN((mag + 1) >> 1, 4);
+  } else if (tx_class == TX_CLASS_VERT) {
+    const int offset = nz_map_ctx_offset_1d[coeff_idx & ((1 << bhl) - 1)];
+    if ((nb[stride] | nb[1] | nb[2] | nb[3] | nb[4]) == 0) return offset;
+    const int mag = clip_max3[nb[stride]] + clip_max3[nb[1]] +
+                    clip_max3[nb[2]] + clip_max3[nb[3]] + clip_max3[nb[4]];
+    return offset + AOMMIN((mag + 1) >> 1, 4);
+  } else {
+    assert(tx_class == TX_CLASS_HORIZ);
+    const int offset = nz_map_ctx_offset_1d[coeff_idx >> bhl];
+    if ((nb[stride] | nb[1] | nb[2 * stride] | nb[3 * stride] |
+         nb[4 * stride]) == 0)
+      return offset;
+    const int mag = clip_max3[nb[stride]] + clip_max3[nb[1]] +
+                    clip_max3[nb[2 * stride]] + clip_max3[nb[3 * stride]] +
+                    clip_max3[nb[4 * stride]];
+    return offset + AOMMIN((mag + 1) >> 1, 4);
+  }
+}
+
 static inline int get_lower_levels_ctx_general(int is_last, int scan_idx,
                                                int bhl, int width,
                                                const uint8_t *levels,

@@ -101,7 +101,7 @@ static AOM_FORCE_INLINE int update_coeff_simple(
   assert(ci > 0);
   const tran_low_t qc = qcoeff[ci];
   const int coeff_ctx =
-      get_lower_levels_ctx(levels, ci, bhl, tx_size, tx_class);
+      get_lower_levels_ctx_simple(levels, ci, bhl, tx_size, tx_class);
   if (qc == 0) {
     return txb_costs->base_cost[coeff_ctx][0];
   } else {

@@ -36,9 +36,10 @@ static inline int av1_cost_symbol(aom_cdf_prob p15) {
   p15 = (aom_cdf_prob)clamp(p15, 1, CDF_PROB_TOP - 1);
   assert(0 < p15 && p15 < CDF_PROB_TOP);
   const int shift = CDF_PROB_BITS - 1 - get_msb(p15);
-  const int prob = get_prob(p15 << shift, CDF_PROB_TOP);
-  assert(prob >= 128);
-  return av1_prob_cost[prob - 128] + av1_cost_literal(shift);
+  // Since CDF_PROB_TOP == 32768, get_prob(p15 << shift, 32768) - 128 simplifies
+  // to min(((p15 << shift) - 16320) >> 7, 127).
+  const int prob_idx = AOMMIN(((p15 << shift) - 16320) >> 7, 127);
+  return av1_prob_cost[prob_idx] + av1_cost_literal(shift);
 }
 
 void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
