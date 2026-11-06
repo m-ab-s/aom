@@ -25,8 +25,11 @@
 
 namespace {
 
-// Dummy buffer of zero samples.
-constexpr unsigned char kBuffer[2 * (256 * 512 + 2 * 128 * 256)] = { 0 };
+// Dummy buffer of zero samples. Must be 2-byte aligned because high bit-depth
+// tests wrap it as AOM_IMG_FMT_I42016.
+alignas(2) constexpr unsigned char kBuffer[2 * (256 * 512 + 2 * 128 * 256)] = {
+  0
+};
 #if CONFIG_REALTIME_ONLY
 const int kUsage = 1;
 #else
