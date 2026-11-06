@@ -389,13 +389,6 @@ if(NOT CONFIG_EXCLUDE_SIMD_MISMATCH)
               "${AOM_ROOT}/av1/encoder/x86/ml_avx2.c")
 endif()
 
-list(APPEND AOM_AV1_ENCODER_INTRIN_AVX512
-            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm_avx512.h"
-            "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_avx512.c"
-            "${AOM_ROOT}/av1/encoder/x86/av1_quantize_avx512.c"
-            "${AOM_ROOT}/av1/encoder/x86/encodetxb_avx512.c"
-            "${AOM_ROOT}/av1/encoder/x86/temporal_filter_avx512.c")
-
 if(CONFIG_HIGHWAY)
   list(APPEND AOM_AV1_ENCODER_INTRIN_AVX2
               "${AOM_ROOT}/av1/encoder/x86/av1_fwd_txfm2d_hwy_avx2.cc")
@@ -676,9 +669,6 @@ if(CONFIG_REALTIME_ONLY)
                    "${AOM_ROOT}/av1/encoder/x86/temporal_filter_avx2.c"
                    "${AOM_ROOT}/av1/encoder/x86/cnn_avx2.c")
 
-  list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_AVX512
-                   "${AOM_ROOT}/av1/encoder/x86/temporal_filter_avx512.c")
-
   list(REMOVE_ITEM AOM_AV1_ENCODER_INTRIN_NEON
                    "${AOM_ROOT}/av1/encoder/arm/cnn_neon.c"
                    "${AOM_ROOT}/av1/encoder/arm/highbd_pickrst_neon.c"
@@ -833,10 +823,10 @@ function(setup_av1_targets)
     endif()
   endif()
 
-  if(HAVE_AVX512 AND CONFIG_AV1_ENCODER)
-    add_intrinsics_object_library(
-      "-mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl" "avx512"
-      "aom_av1_encoder" "AOM_AV1_ENCODER_INTRIN_AVX512")
+  if(HAVE_AVX512 AND CONFIG_AV1_ENCODER AND CONFIG_HIGHWAY)
+    add_intrinsics_object_library("-march=skylake-avx512" "avx512"
+                                  "aom_av1_encoder"
+                                  "AOM_AV1_ENCODER_INTRIN_AVX512")
   endif()
 
   if(HAVE_AVX512 AND CONFIG_HIGHWAY)

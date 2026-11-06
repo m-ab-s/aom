@@ -234,10 +234,15 @@ static inline int x86_simd_caps(void) {
         cpuid(7, 0, reg_eax, reg_ebx, reg_ecx, reg_edx);
         flags |= FEATURE_SET(reg_ebx, AVX2) ? HAS_AVX2 : 0;
         // Check for OS-support of ZMM and YMM state. Necessary for AVX512.
+        // Only set HAS_AVX512 flag if AVX512_DL feature are supported.
+        // Older AVX512 implementations (such as Skylake) have turbo curves that
+        // are currently problematic for mixed AVX512/AVX2 code
         if ((xgetbv() & 0xe6) == 0xe6) {
-          flags |= FEATURE_SET(reg_ebx, AVX512) ? HAS_AVX512 : 0;
+          flags |=
+              FEATURE_SET(reg_ebx, AVX512) && FEATURE_SET(reg_ecx, AVX512_DL)
+                  ? HAS_AVX512
+                  : 0;
         }
-        (void)reg_ecx;
       }
     }
   }

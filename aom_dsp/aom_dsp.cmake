@@ -268,12 +268,6 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/x86/blk_sse_sum_avx2.c"
               "${AOM_ROOT}/aom_dsp/x86/sum_squares_avx2.c")
 
-  list(APPEND AOM_DSP_ENCODER_INTRIN_AVX512
-              "${AOM_ROOT}/aom_dsp/x86/avg_intrin_avx512.c"
-              "${AOM_ROOT}/aom_dsp/x86/sad_avx512.c"
-              "${AOM_ROOT}/aom_dsp/x86/subtract_avx512.c"
-              "${AOM_ROOT}/aom_dsp/x86/variance_avx512.c")
-
   if(CONFIG_HIGHWAY)
     list(APPEND AOM_DSP_ENCODER_INTRIN_AVX2
                 "${AOM_ROOT}/aom_dsp/x86/sad_hwy_avx2.cc")
@@ -514,10 +508,10 @@ function(setup_aom_dsp_targets)
     endif()
   endif()
 
-  if(HAVE_AVX512 AND CONFIG_AV1_ENCODER)
-    add_intrinsics_object_library(
-      "-mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl" "avx512"
-      "aom_dsp_encoder" "AOM_DSP_ENCODER_INTRIN_AVX512")
+  if(HAVE_AVX512 AND CONFIG_AV1_ENCODER AND CONFIG_HIGHWAY)
+    add_intrinsics_object_library("-march=skylake-avx512" "avx512"
+                                  "aom_dsp_encoder"
+                                  "AOM_DSP_ENCODER_INTRIN_AVX512")
   endif()
 
   if(HAVE_AVX512 AND CONFIG_HIGHWAY)
