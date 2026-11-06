@@ -749,6 +749,11 @@ static void set_good_speed_feature_framesize_dependent(
 
   if (is_4k_or_larger) {
     sf->part_sf.default_min_partition_size = BLOCK_8X8;
+#if CONFIG_PYRAMID_ME
+    // Larger pyramid motion estimation level 2 search window.
+    if (speed <= 2)
+      sf->pme_sf.lvl2_search_window = (SearchWindowCfg){ 240, 480, 240, 480 };
+#endif  // CONFIG_PYRAMID_ME
   }
 
   // TODO(huisu@google.com): train models for 720P and above.
@@ -1192,6 +1197,27 @@ static void set_good_speed_features_framesize_independent(
     sf->hl_sf.adjust_num_frames_for_arf_filtering =
         allow_screen_content_tools ? 0 : 1;
 
+#if CONFIG_PYRAMID_ME
+    sf->pme_sf.enable_pyramid_me = true;
+    sf->pme_sf.enable_pyr_level[PYR_LEVEL0] = false;
+    sf->pme_sf.lvl1_search_window_w = 8;
+    sf->pme_sf.lvl1_search_window_h = 3;
+    sf->pme_sf.lvl2_qp_based_window_scaling = true;
+    sf->pme_sf.post_search_window = (SearchWindowCfg){ 84, 224, 84, 224 };
+    sf->pme_sf.post_qp_based_window_scaling = true;
+    sf->pme_sf.post_prune_ref_sad_thresh[0] = 80;
+    sf->pme_sf.post_prune_ref_sad_thresh[1] = 5;
+    sf->pme_sf.post_mv_based_search_win = false;
+    sf->pme_sf.post_search_win_thresh = 0;
+    sf->pme_sf.post_is_nearest_ref = false;
+    sf->pme_sf.post_adjust_search_win = 1;
+    sf->pme_sf.post_search_orig_thresh = 4;
+    sf->pme_sf.post_abs_static_sad_thresh = 12000;
+    sf->pme_sf.post_abs_pme_sad_thresh = 12000;
+    sf->pme_sf.post_static_scale = 8;
+    sf->pme_sf.post_low_sad_scale = 8;
+#endif  // CONFIG_PYRAMID_ME
+
     sf->part_sf.intra_cnn_based_part_prune_level =
         allow_screen_content_tools ? 0 : 2;
 
@@ -1255,6 +1281,10 @@ static void set_good_speed_features_framesize_independent(
   if (speed >= 2) {
     sf->hl_sf.recode_loop = ALLOW_RECODE_KFARFGF;
 
+#if CONFIG_PYRAMID_ME
+    sf->pme_sf.post_search_window = (SearchWindowCfg){ 24, 88, 24, 88 };
+#endif  // CONFIG_PYRAMID_ME
+
     sf->part_sf.simple_motion_search_prune_agg =
         allow_screen_content_tools ? NO_PRUNING : SIMPLE_AGG_LVL2;
     sf->fp_sf.skip_motion_search_threshold = 25;
@@ -1309,6 +1339,11 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 3) {
     sf->hl_sf.high_precision_mv_usage = CURRENT_Q;
+#if CONFIG_PYRAMID_ME
+    sf->pme_sf.enable_zero_mv_sad = true;
+    sf->pme_sf.zero_mv_sad_safe_lmt_thresh = 60000;
+    sf->pme_sf.early_exit_thresh = 64 * 64 * 8;
+#endif  // CONFIG_PYRAMID_ME
     sf->hl_sf.weight_calc_level_in_tf = 1;
 
     sf->gm_sf.prune_ref_frame_for_gm_search = 1;
@@ -1387,6 +1422,9 @@ static void set_good_speed_features_framesize_independent(
 
   if (speed >= 4) {
     sf->hl_sf.disable_extra_sc_testing = 1;
+#if CONFIG_PYRAMID_ME
+    sf->pme_sf.enable_pyramid_me = false;
+#endif  // CONFIG_PYRAMID_ME
     sf->mv_sf.subpel_search_method = SUBPEL_TREE_PRUNED_MORE;
 
     sf->gm_sf.prune_zero_mv_with_sse = 2;
@@ -2347,6 +2385,56 @@ static inline void init_tpl_sf(TPL_SPEED_FEATURES *tpl_sf) {
   tpl_sf->reduce_num_frames = 0;
 }
 
+#if CONFIG_PYRAMID_ME
+static inline void init_pme_sf(PYRAMID_ME_SPEED_FEATURES *pme_sf) {
+  pme_sf->enable_pyramid_me = false;
+  pme_sf->enable_pyr_level[PYR_LEVEL0] = true;
+  pme_sf->enable_pyr_level[PYR_LEVEL1] = true;
+  pme_sf->enable_pyr_level[PYR_LEVEL2] = true;
+  pme_sf->enable_pre_pyr_me = true;
+  pme_sf->enable_zero_mv_sad = false;
+  pme_sf->enable_mv_cost = false;
+  pme_sf->use_alt_rows_for_sad = true;
+
+  pme_sf->zero_mv_sad_thresh = 0;
+  pme_sf->zero_mv_sad_safe_lmt_thresh = 0;
+
+  pme_sf->early_exit_thresh = 0;
+
+  pme_sf->pre_search_window[0] = (SearchWindowCfg){ 8, 8, 100, 400 };
+  pme_sf->pre_search_window[1] = (SearchWindowCfg){ 96, 384, 3, 3 };
+  pme_sf->pre_sad_thresh = 0;
+  pme_sf->pre_sad_pct = 0;
+
+  pme_sf->lvl0_search_window_w = 16;
+  pme_sf->lvl0_search_window_h = 16;
+
+  pme_sf->lvl1_search_window_w = 16;
+  pme_sf->lvl1_search_window_h = 16;
+
+  pme_sf->lvl2_search_window = (SearchWindowCfg){ 32, 192, 32, 192 };
+  pme_sf->lvl2_qp_based_window_scaling = false;
+
+  pme_sf->post_search_window = (SearchWindowCfg){ 96, 256, 96, 256 };
+  pme_sf->post_qp_based_window_scaling = false;
+  pme_sf->post_prune_ref_sad_thresh[0] = INT_MAX;
+  pme_sf->post_prune_ref_sad_thresh[1] = INT_MAX;
+  pme_sf->post_var_8x8_enable = 1;
+  pme_sf->post_var_8x8_mult2_thresh = INT_MAX;
+  pme_sf->post_var_8x8_div4_thresh = 80000;
+  pme_sf->post_var_8x8_div2_thresh = 150000;
+  pme_sf->post_mv_based_search_win = true;
+  pme_sf->post_search_win_thresh = 25;
+  pme_sf->post_is_nearest_ref = true;
+  pme_sf->post_adjust_search_win = 0;
+  pme_sf->post_search_orig_thresh = 0;
+  pme_sf->post_abs_static_sad_thresh = 0;
+  pme_sf->post_abs_pme_sad_thresh = 0;
+  pme_sf->post_static_scale = 0;
+  pme_sf->post_low_sad_scale = 0;
+}
+#endif  // CONFIG_PYRAMID_ME
+
 static inline void init_gm_sf(GLOBAL_MOTION_SPEED_FEATURES *gm_sf) {
   gm_sf->gm_search_type = GM_FULL_SEARCH;
   gm_sf->prune_ref_frame_for_gm_search = 0;
@@ -2782,6 +2870,9 @@ void av1_set_speed_features_framesize_independent(AV1_COMP *cpi, int speed) {
   init_hl_sf(&sf->hl_sf);
   init_fp_sf(&sf->fp_sf);
   init_tpl_sf(&sf->tpl_sf);
+#if CONFIG_PYRAMID_ME
+  init_pme_sf(&sf->pme_sf);
+#endif  // CONFIG_PYRAMID_ME
   init_gm_sf(&sf->gm_sf);
   init_part_sf(&sf->part_sf);
   init_mv_sf(&sf->mv_sf);

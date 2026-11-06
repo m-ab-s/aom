@@ -33,6 +33,10 @@ struct txfm_param;
 struct aom_variance_vtable;
 struct search_site_config;
 struct yv12_buffer_config;
+#if CONFIG_PYRAMID_ME
+struct PmeMvCost;
+struct MvStats;
+#endif  // CONFIG_PYRAMID_ME
 struct NN_CONFIG;
 typedef struct NN_CONFIG NN_CONFIG;
 
@@ -324,6 +328,14 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void aom_quantize_b_helper/, "const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan, const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr, const int log_scale";
   specialize qw/aom_quantize_b_helper neon/;
 
+  if (aom_config("CONFIG_PYRAMID_ME") eq "yes") {
+    # Pyramid motion estimation SAD functions.
+    add_proto qw/void av1_pme_sad_loop_kernel/, "const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride, int block_width, int block_height, int *best_cost, FULLPEL_MV *best_mv, int src_stride_org, int search_area_width, int search_area_height, const struct PmeMvCost *mv_cost";
+
+    add_proto qw/void av1_pme_sad_calc_8x8_16x16/, "struct MvStats *best_b8, struct MvStats *best_b16, uint8_t *src, int src_stride, uint8_t *ref, int ref_stride, int_mv mv, int sad16x16_arr[16][8], int search_index, int skip_row, const struct PmeMvCost *mv_cost";
+
+    add_proto qw/void av1_pme_sad_calc_32x32_64x64_core/, "struct MvStats *best_32x32, struct MvStats *best_64x64, int_mv mv, int sad16x16_arr[16][8], int search_index, const struct PmeMvCost *mv_cost";
+  }
   # fdct functions
 
   add_proto qw/void av1_fwht4x4/, "const int16_t *input, tran_low_t *output, int stride";

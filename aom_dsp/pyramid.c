@@ -213,34 +213,33 @@ ImagePyramid *aom_alloc_pyramid(int width, int height, bool image_is_16bit) {
   return pyr;
 }
 
-// Fill the border region of a pyramid frame.
-// This must be called after the main image area is filled out.
-// `img_buf` should point to the first pixel in the image area,
-// ie. it should be pyr->level_buffer + pyr->level_loc[level].
-static inline void fill_border(uint8_t *img_buf, const int width,
-                               const int height, const int stride) {
+void aom_fill_border(uint8_t *img_buf, const int width, const int height,
+                     const int stride, int border, int extra_right_border,
+                     int extra_bottom_border) {
+  const int right_border = border + extra_right_border;
+  const int bottom_border = border + extra_bottom_border;
+  const int filled_width = border + width + right_border;
+
   // Fill left and right areas
   for (int row = 0; row < height; row++) {
     uint8_t *row_start = &img_buf[row * stride];
     uint8_t left_pixel = row_start[0];
-    memset(row_start - PYRAMID_PADDING, left_pixel, PYRAMID_PADDING);
+    memset(row_start - border, left_pixel, border);
     uint8_t right_pixel = row_start[width - 1];
-    memset(row_start + width, right_pixel, PYRAMID_PADDING);
+    memset(row_start + width, right_pixel, right_border);
   }
 
   // Fill top area
-  for (int row = -PYRAMID_PADDING; row < 0; row++) {
+  for (int row = -border; row < 0; row++) {
     uint8_t *row_start = &img_buf[row * stride];
-    memcpy(row_start - PYRAMID_PADDING, img_buf - PYRAMID_PADDING,
-           width + 2 * PYRAMID_PADDING);
+    memcpy(row_start - border, img_buf - border, filled_width);
   }
 
   // Fill bottom area
   uint8_t *last_row_start = &img_buf[(height - 1) * stride];
-  for (int row = height; row < height + PYRAMID_PADDING; row++) {
+  for (int row = height; row < height + bottom_border; row++) {
     uint8_t *row_start = &img_buf[row * stride];
-    memcpy(row_start - PYRAMID_PADDING, last_row_start - PYRAMID_PADDING,
-           width + 2 * PYRAMID_PADDING);
+    memcpy(row_start - border, last_row_start - border, filled_width);
   }
 }
 
@@ -250,12 +249,20 @@ static inline void fill_border(uint8_t *img_buf, const int width,
 // are filled, unless the frame is too small to have this many levels.
 // In that case, we will fill all available levels and then stop.
 //
+// Each level is padded by border pixels, plus extra_right_border pixels on the
+// right and extra_bottom_border rows at the bottom. With copy_8bit_level0,
+// level 0 of an 8-bit frame is a padded copy of the frame instead of a
+// reference to the frame buffer.
+//
 // Returns the actual number of levels filled, capped at n_levels,
 // or -1 on error.
 //
-// This must only be called while holding frame_pyr->mutex
+// This must only be called while holding frame_pyr->mutex, if the pyramid is
+// shared between threads.
 static inline int fill_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
-                               int n_levels, ImagePyramid *frame_pyr) {
+                               int n_levels, ImagePyramid *frame_pyr,
+                               int border, int extra_right_border,
+                               int extra_bottom_border, bool copy_8bit_level0) {
   int already_filled_levels = frame_pyr->filled_levels;
 
   // This condition should already be enforced by aom_compute_pyramid
@@ -290,7 +297,20 @@ static inline int fill_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
         }
       }
 
-      fill_border(pyr_buffer, frame_width, frame_height, pyr_stride);
+      aom_fill_border(pyr_buffer, frame_width, frame_height, pyr_stride, border,
+                      extra_right_border, extra_bottom_border);
+    } else if (copy_8bit_level0) {
+      const uint8_t *src = frame->y_buffer;
+      uint8_t *dst = first_layer->buffer;
+      for (int y = 0; y < frame_height; y++) {
+        memcpy(dst, src, frame_width);
+        src += frame_stride;
+        dst += first_layer->stride;
+      }
+
+      aom_fill_border(first_layer->buffer, frame_width, frame_height,
+                      first_layer->stride, border, extra_right_border,
+                      extra_bottom_border);
     } else {
       // For frames stored in an 8-bit buffer, we don't need to copy anything -
       // we can just reference the original image buffer
@@ -359,7 +379,8 @@ static inline int fill_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
       return -1;
     }
 
-    fill_border(this_buffer, this_width, this_height, this_stride);
+    aom_fill_border(this_buffer, this_width, this_height, this_stride, border,
+                    extra_right_border, extra_bottom_border);
   }
 
   frame_pyr->filled_levels = n_levels;
@@ -396,7 +417,8 @@ int aom_compute_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
   int result = n_levels;
   if (pyr->filled_levels < n_levels) {
     // Compute any missing levels that we need
-    result = fill_pyramid(frame, bit_depth, n_levels, pyr);
+    result = fill_pyramid(frame, bit_depth, n_levels, pyr, PYRAMID_PADDING, 0,
+                          0, /*copy_8bit_level0=*/false);
   }
 
   // At this point, as long as result >= 0, the requested number of pyramid
@@ -408,6 +430,26 @@ int aom_compute_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
 #endif  // CONFIG_MULTITHREAD
   return result;
 }
+
+#if CONFIG_PYRAMID_ME
+int aom_compute_padded_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
+                               int n_levels, ImagePyramid *pyr, int border,
+                               int extra_right_border,
+                               int extra_bottom_border) {
+  assert(pyr);
+
+  n_levels = AOMMIN(n_levels, pyr->max_levels);
+  int result = n_levels;
+  if (pyr->filled_levels < n_levels) {
+    result = fill_pyramid(frame, bit_depth, n_levels, pyr, border,
+                          extra_right_border, extra_bottom_border,
+                          /*copy_8bit_level0=*/true);
+  }
+
+  assert(IMPLIES(result >= 0, pyr->filled_levels >= n_levels));
+  return result;
+}
+#endif  // CONFIG_PYRAMID_ME
 
 #ifndef NDEBUG
 // Check if a pyramid has already been computed to at least n levels

@@ -21,4 +21,8 @@ macro(fix_experiment_configs)
     change_config_and_warn(CONFIG_INSPECTION 1 CONFIG_ANALYZER)
   endif()
 
+  if(CONFIG_PYRAMID_ME AND CONFIG_REALTIME_ONLY)
+    change_config_and_warn(CONFIG_PYRAMID_ME 0 CONFIG_REALTIME_ONLY)
+  endif()
+
 endmacro()

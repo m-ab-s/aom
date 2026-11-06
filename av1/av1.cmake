@@ -494,6 +494,11 @@ if(CONFIG_THREE_PASS)
               "${AOM_ROOT}/av1/encoder/thirdpass.h")
 endif()
 
+if(CONFIG_PYRAMID_ME)
+  list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/pyramid_me.c"
+              "${AOM_ROOT}/av1/encoder/pyramid_me.h")
+endif()
+
 if(CONFIG_TUNE_VMAF)
   list(APPEND AOM_AV1_ENCODER_SOURCES "${AOM_ROOT}/av1/encoder/tune_vmaf.c"
               "${AOM_ROOT}/av1/encoder/tune_vmaf.h")

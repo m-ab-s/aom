@@ -109,6 +109,30 @@ ImagePyramid *aom_alloc_pyramid(int width, int height, bool image_is_16bit);
 int aom_compute_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
                         int n_levels, ImagePyramid *pyr);
 
+// Fill the border region of a pyramid frame, by replicating the outermost
+// pixels: border columns on the left, border + extra_right_border columns on
+// the right, border rows above, and border + extra_bottom_border rows below.
+// This must be called after the main image area is filled out.
+// `img_buf` should point to the first pixel in the image area.
+void aom_fill_border(uint8_t *img_buf, int width, int height, int stride,
+                     int border, int extra_right_border,
+                     int extra_bottom_border);
+
+#if CONFIG_PYRAMID_ME
+// Fill out a downsampling pyramid for a given frame, as aom_compute_pyramid()
+// does, but with level 0 always a copy of the frame, and each level padded by
+// border pixels, plus extra_right_border pixels on the right and
+// extra_bottom_border rows at the bottom.
+//
+// Does not take pyr->mutex, so the pyramid must not be shared between threads.
+//
+// Returns the actual number of levels filled, capped at n_levels,
+// or -1 on error.
+int aom_compute_padded_pyramid(const YV12_BUFFER_CONFIG *frame, int bit_depth,
+                               int n_levels, ImagePyramid *pyr, int border,
+                               int extra_right_border, int extra_bottom_border);
+#endif  // CONFIG_PYRAMID_ME
+
 #ifndef NDEBUG
 // Check if a pyramid has already been computed to at least n levels
 // This is mostly a debug helper - as it is necessary to hold pyr->mutex

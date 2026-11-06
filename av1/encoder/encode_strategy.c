@@ -36,6 +36,9 @@
 #if CONFIG_THREE_PASS
 #include "av1/encoder/thirdpass.h"
 #endif  // CONFIG_THREE_PASS
+#if CONFIG_PYRAMID_ME
+#include "av1/encoder/pyramid_me.h"
+#endif  // CONFIG_PYRAMID_ME
 #include "av1/encoder/tpl_model.h"
 
 #if CONFIG_TUNE_VMAF
@@ -876,6 +879,11 @@ static int denoise_and_encode(AV1_COMP *const cpi, uint8_t *const dest,
   }
 #endif  // CONFIG_RD_COMMAND
   if (cpi->gf_frame_index == 0 && !is_stat_generation_stage(cpi)) {
+#if CONFIG_PYRAMID_ME
+    // Pyramid motion estimation for the sub-GOP.
+    av1_pyramid_me_setup(cpi, frame_params);
+#endif  // CONFIG_PYRAMID_ME
+
     // perform tpl after filtering
     int allow_tpl =
         oxcf->gf_cfg.lag_in_frames > 1 && oxcf->algo_cfg.enable_tpl_model;
@@ -1361,6 +1369,9 @@ int av1_encode_strategy(AV1_COMP *const cpi, size_t *const size,
                             oxcf->frm_dim_cfg.height, 0,
                             oxcf->gf_cfg.lag_in_frames);
     }
+#if CONFIG_PYRAMID_ME
+    av1_alloc_pme_buffers(cpi);
+#endif  // CONFIG_PYRAMID_ME
   }
   cpi->twopass_frame.this_frame = NULL;
   const int use_one_pass_rt_params = is_one_pass_rt_params(cpi);

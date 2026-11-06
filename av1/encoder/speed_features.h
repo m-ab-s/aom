@@ -16,6 +16,9 @@
 #include "av1/encoder/enc_enums.h"
 #include "av1/encoder/mcomp.h"
 #include "av1/encoder/encodemb.h"
+#if CONFIG_PYRAMID_ME
+#include "av1/encoder/pyramid_me.h"
+#endif  // CONFIG_PYRAMID_ME
 
 #ifdef __cplusplus
 extern "C" {
@@ -595,6 +598,95 @@ typedef struct TPL_SPEED_FEATURES {
   // This sf is disabled for the first GF group of the key-frame interval.
   int reduce_num_frames;
 } TPL_SPEED_FEATURES;
+
+#if CONFIG_PYRAMID_ME
+typedef struct PYRAMID_ME_SPEED_FEATURES {
+  // Enable the pyramid motion estimation.
+  bool enable_pyramid_me;
+
+  // Enable the pyramid motion estimation at each pyramid level. Level 2 must
+  // be enabled, and level 1 must be enabled when level 0 is disabled.
+  bool enable_pyr_level[MAX_PYR_LEVELS];
+
+  // Enable the pre pyramid motion estimation at pyramid level 2.
+  bool enable_pre_pyr_me;
+
+  // Compute the zero MV SAD of each 64x64 block and prune references with it.
+  bool enable_zero_mv_sad;
+
+  // Flag to enable motion search candidates on SAD plus the entropy rate of the
+  // motion vector, rather than on SAD alone.
+  bool enable_mv_cost;
+
+  // Compute the SAD on every other row in the pyramid motion search and scale
+  // it to the full block.
+  bool use_alt_rows_for_sad;
+
+  // Zero MV SAD: SAD threshold below which the remaining references are
+  // pruned, and SAD threshold of the safe limit for reference pruning.
+  int zero_mv_sad_thresh;
+  int zero_mv_sad_safe_lmt_thresh;
+
+  // Zero MV SAD threshold for the early exit, shared by all the stages. Each
+  // stage compares the zero MV SAD with a fixed fraction of it.
+  int early_exit_thresh;
+
+  // Pre pyramid motion estimation: search window of each search zone and the
+  // SAD based reference pruning.
+  SearchWindowCfg pre_search_window[PRE_PME_SEARCH_ZONES];
+  int pre_sad_thresh;
+  int pre_sad_pct;
+
+  // Pyramid motion estimation at level 0 (64x64): search window size.
+  int lvl0_search_window_w;
+  int lvl0_search_window_h;
+
+  // Pyramid motion estimation at level 1 (32x32): search window size.
+  int lvl1_search_window_w;
+  int lvl1_search_window_h;
+
+  // Pyramid motion estimation at level 2 (16x16).
+  // Search window.
+  SearchWindowCfg lvl2_search_window;
+  // Scale the search window based on the base q index.
+  bool lvl2_qp_based_window_scaling;
+
+  // Post pyramid motion estimation at level 0 (64x64).
+  // Search window.
+  SearchWindowCfg post_search_window;
+  // Scale the search window based on the base q index.
+  bool post_qp_based_window_scaling;
+  // SAD percentage above the best reference beyond which a reference is
+  // pruned, for frames at layer depth 0 or 1 ([0]) and other frames ([1]).
+  // INT_MAX disables the pruning.
+  int post_prune_ref_sad_thresh[2];
+  // Adjust the search window with the 8x8 SAD variance.
+  int post_var_8x8_enable;
+  // 8x8 SAD variance thresholds of post_var_8x8_enable. The search window is
+  // scaled by 3/2 above post_var_8x8_mult2_thresh, and by 1/4 below
+  // post_var_8x8_div4_thresh, else by 1/2 below post_var_8x8_div2_thresh.
+  int post_var_8x8_mult2_thresh;
+  int post_var_8x8_div4_thresh;
+  int post_var_8x8_div2_thresh;
+  // Double the search window when the search center exceeds
+  // post_search_win_thresh, for the nearest references only when
+  // post_is_nearest_ref is set.
+  bool post_mv_based_search_win;
+  int post_search_win_thresh;
+  bool post_is_nearest_ref;
+  // Reduce the search window based on the best MV and SAD.
+  int post_adjust_search_win;
+  // Reduce the search window by post_static_scale when the search center is
+  // within post_search_orig_thresh and the best SAD is below
+  // post_abs_static_sad_thresh, or by post_low_sad_scale when the best SAD is
+  // below post_abs_pme_sad_thresh.
+  int post_search_orig_thresh;
+  int post_abs_static_sad_thresh;
+  int post_abs_pme_sad_thresh;
+  int post_static_scale;
+  int post_low_sad_scale;
+} PYRAMID_ME_SPEED_FEATURES;
+#endif  // CONFIG_PYRAMID_ME
 
 typedef struct GLOBAL_MOTION_SPEED_FEATURES {
   GM_SEARCH_TYPE gm_search_type;
@@ -2135,6 +2227,13 @@ typedef struct SPEED_FEATURES {
    * Speed features related to how tpl's searches are done.
    */
   TPL_SPEED_FEATURES tpl_sf;
+
+#if CONFIG_PYRAMID_ME
+  /*!
+   * Speed features for the pyramid motion estimation.
+   */
+  PYRAMID_ME_SPEED_FEATURES pme_sf;
+#endif  // CONFIG_PYRAMID_ME
 
   /*!
    * Global motion speed features:

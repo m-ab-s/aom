@@ -56,6 +56,9 @@
 #include "av1/encoder/thirdpass.h"
 #endif
 #include "av1/encoder/tokenize.h"
+#if CONFIG_PYRAMID_ME
+#include "av1/encoder/pyramid_me.h"
+#endif  // CONFIG_PYRAMID_ME
 #include "av1/encoder/tpl_model.h"
 #include "av1/encoder/av1_noise_estimate.h"
 #include "av1/encoder/bitstream.h"
@@ -2809,6 +2812,13 @@ typedef struct AV1_PRIMARY {
    * Parameters related to tpl.
    */
   TplParams tpl_data;
+
+#if CONFIG_PYRAMID_ME
+  /*!
+   * Data structure specific to Pyramid Motion Estimation.
+   */
+  PmeParams pme_data;
+#endif  // CONFIG_PYRAMID_ME
 
   /*!
    * Motion vector stats of the previous encoded frame.

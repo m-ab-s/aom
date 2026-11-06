@@ -1771,6 +1771,9 @@ void av1_remove_primary_compressor(AV1_PRIMARY *ppi) {
 
   TplParams *const tpl_data = &ppi->tpl_data;
   aom_free(tpl_data->txfm_stats_list);
+#if CONFIG_PYRAMID_ME
+  av1_free_pme_buffers(&ppi->pme_data);
+#endif  // CONFIG_PYRAMID_ME
 
   for (int frame = 0; frame < MAX_LAG_BUFFERS; ++frame) {
     aom_free(tpl_data->tpl_stats_pool[frame]);
@@ -4704,6 +4707,9 @@ int av1_encode(AV1_COMP *const cpi, uint8_t *const dest, size_t dest_size,
         // Copy the content from source to this buffer for next gop.
         aom_yv12_copy_frame(cpi->source, &cpi->ppi->tpl_data.prev_gop_arf_src,
                             alloc_y_plane_only ? 1 : av1_num_planes(cm));
+#if CONFIG_PYRAMID_ME
+        av1_compute_prev_gop_arf_pyramid(cpi);
+#endif  // CONFIG_PYRAMID_ME
       } else {
         available = 0;
       }
