@@ -210,6 +210,27 @@ int64_t av1_block_error_avx2(const tran_low_t *coeff, const tran_low_t *dqcoeff,
   return sse;
 }
 
+// Gather 8 quantization matrix weights indexed by scan_ptr[0..7] into two
+// 32-bit halves via _mm_cvtsi32_si128 + _mm_insert_epi32 and zero-extend to 8
+// 32-bit lanes with _mm256_cvtepu8_epi32 (preserving 32-bit x86 builds).
+static inline __m256i load_qm_weights_avx2(const qm_val_t *qmatrix,
+                                           const int16_t *scan_ptr) {
+  const uint32_t w01 =
+      (uint32_t)qmatrix[scan_ptr[0]] | ((uint32_t)qmatrix[scan_ptr[1]] << 8);
+  const uint32_t w23 = ((uint32_t)qmatrix[scan_ptr[2]] << 16) |
+                       ((uint32_t)qmatrix[scan_ptr[3]] << 24);
+  const uint32_t lo = w01 | w23;
+
+  const uint32_t w45 =
+      (uint32_t)qmatrix[scan_ptr[4]] | ((uint32_t)qmatrix[scan_ptr[5]] << 8);
+  const uint32_t w67 = ((uint32_t)qmatrix[scan_ptr[6]] << 16) |
+                       ((uint32_t)qmatrix[scan_ptr[7]] << 24);
+  const uint32_t hi = w45 | w67;
+
+  return _mm256_cvtepu8_epi32(
+      _mm_insert_epi32(_mm_cvtsi32_si128((int)lo), (int)hi, 1));
+}
+
 int64_t av1_block_error_qm_avx2(const tran_low_t *coeff,
                                 const tran_low_t *dqcoeff, intptr_t block_size,
                                 const qm_val_t *qmatrix, const int16_t *scan,
@@ -219,45 +240,37 @@ int64_t av1_block_error_qm_avx2(const tran_low_t *coeff,
   __m256i sse_reg = _mm256_setzero_si256();
   __m256i ssz_reg = _mm256_setzero_si256();
   const __m256i round_qm = _mm256_set1_epi64x(1 << (2 * AOM_QM_BITS - 1));
+  const int16_t *const scan_end = scan + block_size;
 
-  for (intptr_t i = 0; i < block_size; i += 8) {
+  for (; scan < scan_end; coeff += 8, dqcoeff += 8, scan += 8) {
     // Load 8 transform coefficients and dequantized coefficients.
-    const __m256i coeff_reg = _mm256_loadu_si256((const __m256i *)(coeff + i));
-    const __m256i dqcoeff_reg =
-        _mm256_loadu_si256((const __m256i *)(dqcoeff + i));
+    const __m256i coeff_reg = _mm256_loadu_si256((const __m256i *)coeff);
+    const __m256i dqcoeff_reg = _mm256_loadu_si256((const __m256i *)dqcoeff);
+    if (_mm256_testz_si256(dqcoeff_reg, dqcoeff_reg) &&
+        _mm256_testz_si256(coeff_reg, coeff_reg)) {
+      continue;
+    }
 
-    // When all 8 dequantized coefficients are zero, sse and ssz accumulate the
-    // same weighted squared coefficient energy.
+    // Compute weighted squared coefficient energy coeff^2 in 64-bit lanes.
+    const __m256i wt_reg = load_qm_weights_avx2(qmatrix, scan);
+    const __m256i cc = _mm256_mullo_epi32(coeff_reg, wt_reg);
+    const __m256i cc_hi = _mm256_srli_epi64(cc, 32);
+    const __m256i cc_lo_sq = _mm256_mul_epi32(cc, cc);
+    const __m256i cc_hi_sq = _mm256_mul_epi32(cc_hi, cc_hi);
+    const __m256i sq_lo = _mm256_srli_epi64(
+        _mm256_add_epi64(cc_lo_sq, round_qm), 2 * AOM_QM_BITS);
+    const __m256i sq_hi = _mm256_srli_epi64(
+        _mm256_add_epi64(cc_hi_sq, round_qm), 2 * AOM_QM_BITS);
+    const __m256i sq = _mm256_add_epi64(sq_lo, sq_hi);
+    ssz_reg = _mm256_add_epi64(ssz_reg, sq);
+
+    // When all 8 dequantized coefficients are zero, sse equals ssz for these 8
+    // lanes; otherwise compute weighted squared error (coeff - dqcoeff)^2.
     if (_mm256_testz_si256(dqcoeff_reg, dqcoeff_reg)) {
-      if (_mm256_testz_si256(coeff_reg, coeff_reg)) continue;
-
-      const __m256i wt_reg = _mm256_setr_epi32(
-          qmatrix[scan[i + 0]], qmatrix[scan[i + 1]], qmatrix[scan[i + 2]],
-          qmatrix[scan[i + 3]], qmatrix[scan[i + 4]], qmatrix[scan[i + 5]],
-          qmatrix[scan[i + 6]], qmatrix[scan[i + 7]]);
-      const __m256i cc = _mm256_mullo_epi32(coeff_reg, wt_reg);
-      const __m256i cc_hi = _mm256_srli_epi64(cc, 32);
-      const __m256i cc_lo_sq = _mm256_mul_epi32(cc, cc);
-      const __m256i cc_hi_sq = _mm256_mul_epi32(cc_hi, cc_hi);
-
-      const __m256i sq_lo = _mm256_srli_epi64(
-          _mm256_add_epi64(cc_lo_sq, round_qm), 2 * AOM_QM_BITS);
-      const __m256i sq_hi = _mm256_srli_epi64(
-          _mm256_add_epi64(cc_hi_sq, round_qm), 2 * AOM_QM_BITS);
-      const __m256i sq = _mm256_add_epi64(sq_lo, sq_hi);
-
       sse_reg = _mm256_add_epi64(sse_reg, sq);
-      ssz_reg = _mm256_add_epi64(ssz_reg, sq);
     } else {
-      const __m256i wt_reg = _mm256_setr_epi32(
-          qmatrix[scan[i + 0]], qmatrix[scan[i + 1]], qmatrix[scan[i + 2]],
-          qmatrix[scan[i + 3]], qmatrix[scan[i + 4]], qmatrix[scan[i + 5]],
-          qmatrix[scan[i + 6]], qmatrix[scan[i + 7]]);
       const __m256i diff = _mm256_sub_epi32(coeff_reg, dqcoeff_reg);
       const __m256i dd = _mm256_mullo_epi32(diff, wt_reg);
-      const __m256i cc = _mm256_mullo_epi32(coeff_reg, wt_reg);
-
-      // Compute weighted squared error (coeff - dqcoeff)^2 in 64-bit lanes.
       const __m256i dd_hi = _mm256_srli_epi64(dd, 32);
       const __m256i dd_lo_sq = _mm256_mul_epi32(dd, dd);
       const __m256i dd_hi_sq = _mm256_mul_epi32(dd_hi, dd_hi);
@@ -266,16 +279,6 @@ int64_t av1_block_error_qm_avx2(const tran_low_t *coeff,
       const __m256i err_hi = _mm256_srli_epi64(
           _mm256_add_epi64(dd_hi_sq, round_qm), 2 * AOM_QM_BITS);
       sse_reg = _mm256_add_epi64(sse_reg, _mm256_add_epi64(err_lo, err_hi));
-
-      // Compute weighted squared coefficient energy coeff^2 in 64-bit lanes.
-      const __m256i cc_hi = _mm256_srli_epi64(cc, 32);
-      const __m256i cc_lo_sq = _mm256_mul_epi32(cc, cc);
-      const __m256i cc_hi_sq = _mm256_mul_epi32(cc_hi, cc_hi);
-      const __m256i sq_lo = _mm256_srli_epi64(
-          _mm256_add_epi64(cc_lo_sq, round_qm), 2 * AOM_QM_BITS);
-      const __m256i sq_hi = _mm256_srli_epi64(
-          _mm256_add_epi64(cc_hi_sq, round_qm), 2 * AOM_QM_BITS);
-      ssz_reg = _mm256_add_epi64(ssz_reg, _mm256_add_epi64(sq_lo, sq_hi));
     }
   }
 
@@ -291,14 +294,16 @@ int64_t av1_block_error_qm_avx2(const tran_low_t *coeff,
   const __m128i ssz_reg128 = _mm_add_epi64(
       _mm256_castsi256_si128(ssz_reg), _mm256_extracti128_si256(ssz_reg, 1));
 
-  // Scale down for high bit-depth and store the results.
+  // Scale down for high bit-depth when bd > 8 and store the results.
   int64_t sse, sqcoeff;
   _mm_storel_epi64((__m128i *)&sse, sse_reg128);
   _mm_storel_epi64((__m128i *)&sqcoeff, ssz_reg128);
-  const int shift = 2 * (bd - 8);
-  const int rounding = (1 << shift) >> 1;
-  sse = (sse + rounding) >> shift;
-  sqcoeff = (sqcoeff + rounding) >> shift;
+  if (bd > 8) {
+    const int shift = 2 * (bd - 8);
+    const int rounding = (1 << shift) >> 1;
+    sse = (sse + rounding) >> shift;
+    sqcoeff = (sqcoeff + rounding) >> shift;
+  }
 
   *ssz = sqcoeff;
   return sse;

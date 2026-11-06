@@ -1067,27 +1067,17 @@ static const int mul_factors[5] = { 80, 80, 70, 50, 30 };       // scale 100
 
 // R-D costs are sorted in ascending order.
 static inline void sort_rd(int64_t rds[], int txk[], int len) {
-  int i, j, k;
-
-  for (i = 1; i <= len - 1; ++i) {
-    for (j = 0; j < i; ++j) {
-      if (rds[j] > rds[i]) {
-        int64_t temprd;
-        int tempi;
-
-        temprd = rds[i];
-        tempi = txk[i];
-
-        for (k = i; k > j; k--) {
-          rds[k] = rds[k - 1];
-          txk[k] = txk[k - 1];
-        }
-
-        rds[j] = temprd;
-        txk[j] = tempi;
-        break;
-      }
+  for (int i = 1; i < len; ++i) {
+    const int64_t temprd = rds[i];
+    const int tempi = txk[i];
+    int j = i;
+    while (j > 0 && rds[j - 1] > temprd) {
+      rds[j] = rds[j - 1];
+      txk[j] = txk[j - 1];
+      --j;
     }
+    rds[j] = temprd;
+    txk[j] = tempi;
   }
 }
 

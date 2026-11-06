@@ -76,7 +76,7 @@ void av1_txb_init_levels_sse4_1(const tran_low_t *const coeff, const int width,
         j += 16;
         cf += 16;
       } while (j < height);
-      *(int32_t *)(ls + height) = 0;
+      xx_storel_32(ls + height, zeros);
       ls += stride;
       i += 1;
     } while (i < width);

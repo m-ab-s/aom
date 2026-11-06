@@ -442,23 +442,28 @@ static inline void generate_hog_using_gradient_cache(const MACROBLOCK *x,
                                                 plane * MAX_SB_SQUARE +
                                                 block_offset_in_grad_cache;
 
-  // Retrieve the cached gradient information and generate the histogram.
+  // Accumulate cached gradients in integers first to avoid per-pixel
+  // int-to-float conversions inside the inner loop.
+  uint32_t int_hist[HOG_BINS] = { 0 };
   for (int r = 1; r < rows - 1; ++r) {
+    const PixelLevelGradientInfo *const row_info = grad_info_blk + r * sb_width;
     for (int c = 1; c < cols - 1; ++c) {
-      const uint16_t abs_dx_abs_dy_sum =
-          grad_info_blk[r * sb_width + c].abs_dx_abs_dy_sum;
+      const uint16_t abs_dx_abs_dy_sum = row_info[c].abs_dx_abs_dy_sum;
       if (!abs_dx_abs_dy_sum) continue;
       total += abs_dx_abs_dy_sum;
-      const bool is_dx_zero = grad_info_blk[r * sb_width + c].is_dx_zero;
-      if (is_dx_zero) {
-        hist[0] += abs_dx_abs_dy_sum >> 1;
-        hist[HOG_BINS - 1] += abs_dx_abs_dy_sum >> 1;
+      if (row_info[c].is_dx_zero) {
+        const uint32_t half = abs_dx_abs_dy_sum >> 1;
+        int_hist[0] += half;
+        int_hist[HOG_BINS - 1] += half;
       } else {
-        const int8_t idx = grad_info_blk[r * sb_width + c].hist_bin_idx;
+        const int8_t idx = row_info[c].hist_bin_idx;
         assert(idx >= 0 && idx < HOG_BINS);
-        hist[idx] += abs_dx_abs_dy_sum;
+        int_hist[idx] += abs_dx_abs_dy_sum;
       }
     }
+  }
+  for (int b = 0; b < HOG_BINS; ++b) {
+    hist[b] = (float)int_hist[b];
   }
   normalize_hog(total, hist);
 }
@@ -489,8 +494,11 @@ static inline void collect_hog_data(const MACROBLOCK *x, BLOCK_SIZE bsize,
   }
 
   // Scale the hog so the luma and chroma are on the same scale
-  for (int b = 0; b < HOG_BINS; ++b) {
-    hog[b] *= (1 + ss_x) * (1 + ss_y);
+  if (ss_x | ss_y) {
+    const float scale = (float)((1 + ss_x) * (1 + ss_y));
+    for (int b = 0; b < HOG_BINS; ++b) {
+      hog[b] *= scale;
+    }
   }
 }
 

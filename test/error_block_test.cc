@@ -75,10 +75,11 @@ int64_t BlockErrorQmWrapper(const tran_low_t *coeff, const tran_low_t *dqcoeff,
   static qm_val_t qmatrix[4096];
   static int16_t scan[4096];
   static const bool initialized = [&]() {
+    // Exercise full qm_val_t range [16, 242] (up to iwt_matrix_ref max) and a
+    // non-contiguous bijection within each 16-coefficient slice so every
+    // block_size prefix gathers permuted weights via scan_ptr[0..7].
     for (int i = 0; i < 4096; ++i) {
-      qmatrix[i] = static_cast<qm_val_t>(16 + ((i * 37) & 0x7f));
-      // Permute scan within each 16-element chunk to exercise non-identity
-      // gathered qmatrix indexing for all valid block sizes >= 16.
+      qmatrix[i] = static_cast<qm_val_t>(16 + ((i * 37) % 227));
       scan[i] = static_cast<int16_t>((i & ~15) | ((i * 5 + 3) & 15));
     }
     return true;

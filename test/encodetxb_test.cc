@@ -223,16 +223,23 @@ void EncodeTxbInitLevelTest::RunTest(av1_txb_init_levels_func test_func,
   tran_low_t coeff[MAX_TX_SQUARE];
 
   uint8_t levels_buf[2][TX_PAD_2D];
+  alignas(4) uint8_t levels_unaligned_buf[TX_PAD_2D + 1];
   uint8_t *const levels0 = set_levels(levels_buf[0], height);
   uint8_t *const levels1 = set_levels(levels_buf[1], height);
+  uint8_t *const levels_unaligned =
+      set_levels(levels_unaligned_buf + 1, height);
 
   ACMRandom rnd(ACMRandom::DeterministicSeed());
   for (int i = 0; i < width * height; i++) {
     coeff[i] = rnd.Rand16Signed();
   }
+  const uint8_t canary = rnd.Rand8();
+  levels_unaligned_buf[0] = canary;
   for (int i = 0; i < TX_PAD_2D; i++) {
-    levels_buf[0][i] = rnd.Rand8();
-    levels_buf[1][i] = rnd.Rand8();
+    const uint8_t init_byte = rnd.Rand8();
+    levels_buf[0][i] = init_byte;
+    levels_buf[1][i] = init_byte;
+    levels_unaligned_buf[i + 1] = init_byte;
   }
   const int run_times = is_speed ? (width * height) * 10000 : 1;
   aom_usec_timer timer;
@@ -249,6 +256,9 @@ void EncodeTxbInitLevelTest::RunTest(av1_txb_init_levels_func test_func,
   if (is_speed) {
     printf("init %3dx%-3d:%7.2f/%7.2fns", width, height, t1, t2);
     printf("(%3.2f)\n", t1 / t2);
+  } else {
+    API_REGISTER_STATE_CHECK(test_func(coeff, width, height, levels_unaligned));
+    ASSERT_EQ(canary, levels_unaligned_buf[0]);
   }
   const int stride = width + TX_PAD_HOR;
   for (int r = 0; r < height + TX_PAD_VER; ++r) {
@@ -256,6 +266,11 @@ void EncodeTxbInitLevelTest::RunTest(av1_txb_init_levels_func test_func,
       ASSERT_EQ(levels_buf[0][c + r * stride], levels_buf[1][c + r * stride])
           << "[" << r << "," << c << "] " << run_times << width << "x"
           << height;
+      if (!is_speed) {
+        ASSERT_EQ(levels_buf[0][c + r * stride],
+                  levels_unaligned_buf[1 + c + r * stride])
+            << "unaligned [" << r << "," << c << "] " << width << "x" << height;
+      }
     }
   }
 }

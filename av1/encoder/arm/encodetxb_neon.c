@@ -12,6 +12,7 @@
 #include <arm_neon.h>
 #include <assert.h>
 #include <math.h>
+#include <string.h>
 
 #include "config/aom_config.h"
 
@@ -80,7 +81,7 @@ void av1_txb_init_levels_neon(const tran_low_t *const coeff, const int width,
         j += 16;
         cf += 16;
       } while (j < height);
-      *(int32_t *)(ls + height) = 0;
+      memset(ls + height, 0, sizeof(*levels) * TX_PAD_HOR);
       ls += stride;
       i += 1;
     } while (i < width);
