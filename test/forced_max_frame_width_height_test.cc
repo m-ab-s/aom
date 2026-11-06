@@ -711,9 +711,13 @@ void RunForcedMaxSetBeforeFirstFrameTest(unsigned int usage) {
   ASSERT_EQ(AOM_CODEC_OK, aom_codec_enc_config_set(&enc, &cfg));
 
 #if CONFIG_AV1_DECODER
+  // Decode to 8-bit buffers like the encoder reconstruction, even when
+  // FORCE_HIGHBITDEPTH_DECODING is on.
+  aom_codec_dec_cfg_t dec_cfg = {};
+  dec_cfg.allow_lowbitdepth = 1;
   aom_codec_ctx_t dec;
   ASSERT_EQ(AOM_CODEC_OK,
-            aom_codec_dec_init(&dec, aom_codec_av1_dx(), nullptr, 0));
+            aom_codec_dec_init(&dec, aom_codec_av1_dx(), &dec_cfg, 0));
 #endif
 
   aom_image_t *small_image =
