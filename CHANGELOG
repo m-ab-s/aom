@@ -1,6 +1,29 @@
 yyyy-mm-dd next version
   This release is ABI compatible with the last release.
 
+  - Compression Efficiency Improvements
+    * Fewer header bits for segment features and CDEF strengths in
+      RTC mode.
+
+  - Speedups
+    * Faster IntraBC hash table build, especially with tiles and
+      multiple threads.
+    * Faster RTC encoding of inactive areas with active maps.
+    * Arm Neon, SSE2 and AVX2 optimizations for the k-means step of
+      the palette search.
+    * Faster multithreaded loop filter.
+
+  - Bug Fixes
+    * Fixed encoder asserts and encoder/decoder mismatches with RTC
+      active maps and ROI maps. AV1E_GET_ACTIVEMAP now returns the map
+      that was set, and active maps work with temporal layers.
+    * Fixed RTC IntraBC with multiple threads and on frames larger
+      than 2048 pixels.
+    * Fixed RTC output that depended on the thread count.
+    * Fixed MV costs in RTC VBR mode after a q change.
+    * Fixed encoder failures after a frame size change with
+      segmentation or a forced max frame size.
+
 2026-10-20 v3.15.3
   This release is ABI compatible with the last release. See
   https://aomedia.googlesource.com/aom/+log/v3.15.2..v3.15.3 for all the
