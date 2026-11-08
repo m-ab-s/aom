@@ -491,6 +491,14 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void av1_wedge_compute_delta_squares/, "int16_t *d, const int16_t *a, const int16_t *b, int N";
   specialize qw/av1_wedge_compute_delta_squares sse2 avx2 neon/;
 
+  if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/av1_get_nz_map_contexts avx512/;
+    specialize qw/av1_txb_init_levels avx512/;
+    specialize qw/av1_wedge_sse_from_residuals avx512/;
+    specialize qw/av1_wedge_sign_from_residuals avx512/;
+    specialize qw/av1_wedge_compute_delta_squares avx512/;
+  }
+
   # hash
   add_proto qw/uint32_t av1_get_crc32c_value/, "void *crc_calculator, const uint8_t *p, size_t length";
   specialize qw/av1_get_crc32c_value sse4_2 arm_crc32/;

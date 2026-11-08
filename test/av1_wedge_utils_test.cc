@@ -408,6 +408,23 @@ INSTANTIATE_TEST_SUITE_P(
                                    av1_wedge_compute_delta_squares_avx2)));
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, WedgeUtilsSSEOptTest,
+    ::testing::Values(TestFuncsFSSE(av1_wedge_sse_from_residuals_c,
+                                    av1_wedge_sse_from_residuals_avx512)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, WedgeUtilsSignOptTest,
+    ::testing::Values(TestFuncsFSign(av1_wedge_sign_from_residuals_c,
+                                     av1_wedge_sign_from_residuals_avx512)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, WedgeUtilsDeltaSquaresOptTest,
+    ::testing::Values(TestFuncsFDS(av1_wedge_compute_delta_squares_c,
+                                   av1_wedge_compute_delta_squares_avx512)));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 #if HAVE_SVE
 INSTANTIATE_TEST_SUITE_P(
     SVE, WedgeUtilsSSEOptTest,
