@@ -878,6 +878,14 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_sad64x128     avx512/;
     specialize qw/aom_sad64x64      avx512/;
     specialize qw/aom_sad64x32      avx512/;
+    specialize qw/aom_sad64x16      avx512/;
+    specialize qw/aom_sad32x32      avx512/;
+    specialize qw/aom_sad32x16      avx512/;
+    specialize qw/aom_sad32x8       avx512/;
+    specialize qw/aom_sad16x64      avx512/;
+    specialize qw/aom_sad16x32      avx512/;
+    specialize qw/aom_sad16x16      avx512/;
+    specialize qw/aom_sad16x8       avx512/;
   }
 
   specialize qw/aom_sad32x64      avx2 neon neon_dotprod/, "$sse2_asm";
@@ -911,6 +919,12 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_sad_skip_64x128     avx512/;
     specialize qw/aom_sad_skip_64x64      avx512/;
     specialize qw/aom_sad_skip_64x32      avx512/;
+    specialize qw/aom_sad_skip_64x16      avx512/;
+    specialize qw/aom_sad_skip_32x32      avx512/;
+    specialize qw/aom_sad_skip_32x16      avx512/;
+    specialize qw/aom_sad_skip_16x64      avx512/;
+    specialize qw/aom_sad_skip_16x32      avx512/;
+    specialize qw/aom_sad_skip_16x16      avx512/;
   }
 
   specialize qw/aom_sad_skip_32x64      avx2 neon neon_dotprod/, "$sse2_asm";
@@ -939,6 +953,14 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_sad64x128_avg     avx512/;
     specialize qw/aom_sad64x64_avg      avx512/;
     specialize qw/aom_sad64x32_avg      avx512/;
+    specialize qw/aom_sad64x16_avg      avx512/;
+    specialize qw/aom_sad32x32_avg      avx512/;
+    specialize qw/aom_sad32x16_avg      avx512/;
+    specialize qw/aom_sad32x8_avg       avx512/;
+    specialize qw/aom_sad16x64_avg      avx512/;
+    specialize qw/aom_sad16x32_avg      avx512/;
+    specialize qw/aom_sad16x16_avg      avx512/;
+    specialize qw/aom_sad16x8_avg       avx512/;
   }
 
   specialize qw/aom_sad32x32_avg   avx2 neon neon_dotprod/, "$sse2_asm";
@@ -1094,6 +1116,15 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_sad64x128x4d  avx512/;
     specialize qw/aom_sad64x64x4d   avx512/;
     specialize qw/aom_sad64x32x4d   avx512/;
+    specialize qw/aom_sad64x16x4d   avx512/;
+    specialize qw/aom_sad32x32x4d   avx512/;
+    specialize qw/aom_sad32x16x4d   avx512/;
+    specialize qw/aom_sad32x8x4d    avx512/;
+    specialize qw/aom_sad16x64x4d   avx512/;
+    specialize qw/aom_sad16x32x4d   avx512/;
+    specialize qw/aom_sad16x16x4d   avx512/;
+    specialize qw/aom_sad16x8x4d    avx512/;
+    specialize qw/aom_sad16x4x4d    avx512/;
   }
 
   specialize qw/aom_sad32x32x4d   avx2 neon neon_dotprod/, "$sse2_asm";
@@ -1131,6 +1162,12 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_sad_skip_64x128x4d  avx512/;
     specialize qw/aom_sad_skip_64x64x4d   avx512/;
     specialize qw/aom_sad_skip_64x32x4d   avx512/;
+    specialize qw/aom_sad_skip_64x16x4d   avx512/;
+    specialize qw/aom_sad_skip_32x32x4d   avx512/;
+    specialize qw/aom_sad_skip_32x16x4d   avx512/;
+    specialize qw/aom_sad_skip_16x64x4d   avx512/;
+    specialize qw/aom_sad_skip_16x32x4d   avx512/;
+    specialize qw/aom_sad_skip_16x16x4d   avx512/;
   }
 
   specialize qw/aom_sad_skip_16x64x4d   avx2 neon neon_dotprod/, "$sse2_asm";
@@ -1153,6 +1190,15 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_sad64x128x3d  avx512/;
     specialize qw/aom_sad64x64x3d   avx512/;
     specialize qw/aom_sad64x32x3d   avx512/;
+    specialize qw/aom_sad64x16x3d   avx512/;
+    specialize qw/aom_sad32x32x3d   avx512/;
+    specialize qw/aom_sad32x16x3d   avx512/;
+    specialize qw/aom_sad32x8x3d    avx512/;
+    specialize qw/aom_sad16x64x3d   avx512/;
+    specialize qw/aom_sad16x32x3d   avx512/;
+    specialize qw/aom_sad16x16x3d   avx512/;
+    specialize qw/aom_sad16x8x3d    avx512/;
+    specialize qw/aom_sad16x4x3d    avx512/;
   }
 
   specialize qw/aom_sad32x64x3d   avx2 neon neon_dotprod/;
