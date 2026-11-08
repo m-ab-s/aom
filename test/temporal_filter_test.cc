@@ -317,6 +317,16 @@ INSTANTIATE_TEST_SUITE_P(AVX2, TemporalFilterTest,
                                  Values(0, 1)));
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+TemporalFilterFuncParam temporal_filter_test_avx512[] = {
+  TemporalFilterFuncParam(&av1_apply_temporal_filter_c,
+                          &av1_apply_temporal_filter_avx512)
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, TemporalFilterTest,
+                         Combine(ValuesIn(temporal_filter_test_avx512),
+                                 Values(0, 1)));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 #if HAVE_SSE2
 TemporalFilterFuncParam temporal_filter_test_sse2[] = { TemporalFilterFuncParam(
     &av1_apply_temporal_filter_c, &av1_apply_temporal_filter_sse2) };
@@ -343,12 +353,12 @@ INSTANTIATE_TEST_SUITE_P(NEON_DOTPROD, TemporalFilterTest,
                                  Values(0, 1)));
 #endif  // HAVE_NEON_DOTPROD
 
-#if HAVE_AVX2 || HAVE_NEON
+#if HAVE_AVX2 || (CONFIG_HIGHWAY && HAVE_AVX512) || HAVE_NEON
 // Width and height for which av1_estimate_noise_from_single_plane() will be
 // tested.
 const int kWidths[] = { 3840, 1920, 1280, 800, 640, 360, 357 };
 const int kHeights[] = { 2160, 1080, 720, 600, 480, 240, 237 };
-#endif  // HAVE_AVX2 || HAVE_NEON
+#endif  // HAVE_AVX2 || (CONFIG_HIGHWAY && HAVE_AVX512) || HAVE_NEON
 
 using EstimateNoiseFunc = double (*)(const uint8_t *src, int height, int width,
                                      int stride, int edge_thresh);
@@ -436,6 +446,50 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(av1_estimate_noise_from_single_plane_avx2),
         ::testing::ValuesIn(kWidths), ::testing::ValuesIn(kHeights)));
 #endif  // HAVE_AVX2
+
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, EstimateNoiseTest,
+    ::testing::Combine(
+        ::testing::Values(av1_estimate_noise_from_single_plane_c),
+        ::testing::Values(av1_estimate_noise_from_single_plane_avx512),
+        ::testing::ValuesIn(kWidths), ::testing::ValuesIn(kHeights)));
+
+TEST(AVX512, EstimateNoiseEdgeCases) {
+  // 1080p checkerboard (gx = gy = 0, |v| = 8 * 255 = 2040) exercises int32_t
+  // accumulator overflow (~4.22e9 > INT32_MAX).
+  const int w = 1920;
+  const int h = 1080;
+  std::unique_ptr<uint8_t[]> buf(new (std::nothrow) uint8_t[w * h]);
+  ASSERT_NE(buf, nullptr);
+  for (int r = 0; r < h; ++r) {
+    for (int c = 0; c < w; ++c) {
+      buf[r * w + c] = ((r + c) & 1) ? 255 : 0;
+    }
+  }
+  for (int thresh : { 0, -1, NOISE_ESTIMATION_EDGE_THRESHOLD, 40000 }) {
+    const double ref =
+        av1_estimate_noise_from_single_plane_c(buf.get(), h, w, w, thresh);
+    const double tst =
+        av1_estimate_noise_from_single_plane_avx512(buf.get(), h, w, w, thresh);
+    EXPECT_DOUBLE_EQ(ref, tst);
+  }
+
+  // Tiny plane dimensions (must not read out of bounds).
+  for (int tiny_w : { 1, 2, 3, 5, 64 }) {
+    for (int tiny_h : { 1, 2, 3, 5, 64 }) {
+      std::unique_ptr<uint8_t[]> tiny(new (std::nothrow)
+                                          uint8_t[tiny_w * tiny_h]());
+      ASSERT_NE(tiny, nullptr);
+      const double ref = av1_estimate_noise_from_single_plane_c(
+          tiny.get(), tiny_h, tiny_w, tiny_w, NOISE_ESTIMATION_EDGE_THRESHOLD);
+      const double tst = av1_estimate_noise_from_single_plane_avx512(
+          tiny.get(), tiny_h, tiny_w, tiny_w, NOISE_ESTIMATION_EDGE_THRESHOLD);
+      EXPECT_DOUBLE_EQ(ref, tst);
+    }
+  }
+}
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
@@ -737,6 +791,16 @@ INSTANTIATE_TEST_SUITE_P(AVX2, HBDTemporalFilterTest,
                                  Values(0, 1)));
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+HBDTemporalFilterFuncParam HBDtemporal_filter_test_avx512[] = {
+  HBDTemporalFilterFuncParam(&av1_highbd_apply_temporal_filter_c,
+                             &av1_highbd_apply_temporal_filter_avx512)
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, HBDTemporalFilterTest,
+                         Combine(ValuesIn(HBDtemporal_filter_test_avx512),
+                                 Values(0, 1)));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 #if HAVE_NEON
 HBDTemporalFilterFuncParam HBDtemporal_filter_test_neon[] = {
   HBDTemporalFilterFuncParam(&av1_highbd_apply_temporal_filter_c,
@@ -824,6 +888,53 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(HBDEstimateNoiseTest);
 TEST_P(HBDEstimateNoiseTest, RandomValues) { RunTest(); }
 
 TEST_P(HBDEstimateNoiseTest, DISABLED_Speed) { SpeedTest(2000); }
+
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, HBDEstimateNoiseTest,
+    ::testing::Combine(
+        ::testing::Values(av1_highbd_estimate_noise_from_single_plane_c),
+        ::testing::Values(av1_highbd_estimate_noise_from_single_plane_avx512),
+        ::testing::ValuesIn(kWidths), ::testing::ValuesIn(kHeights),
+        ::testing::ValuesIn({ 8, 10, 12 })));
+
+TEST(AVX512, HBDEstimateNoiseEdgeCases) {
+  const int w = 1920;
+  const int h = 1080;
+  std::unique_ptr<uint16_t[]> buf(new (std::nothrow) uint16_t[w * h]);
+  ASSERT_NE(buf, nullptr);
+  for (int bd : { 8, 10, 12 }) {
+    const uint16_t peak = static_cast<uint16_t>((1 << bd) - 1);
+    for (int r = 0; r < h; ++r) {
+      for (int c = 0; c < w; ++c) {
+        buf[r * w + c] = ((r + c) & 1) ? peak : 0;
+      }
+    }
+    for (int thresh : { 0, -1, NOISE_ESTIMATION_EDGE_THRESHOLD, 40000 }) {
+      const double ref = av1_highbd_estimate_noise_from_single_plane_c(
+          buf.get(), h, w, w, bd, thresh);
+      const double tst = av1_highbd_estimate_noise_from_single_plane_avx512(
+          buf.get(), h, w, w, bd, thresh);
+      EXPECT_DOUBLE_EQ(ref, tst);
+    }
+
+    for (int tiny_w : { 1, 2, 3, 5, 64 }) {
+      for (int tiny_h : { 1, 2, 3, 5, 64 }) {
+        std::unique_ptr<uint16_t[]> tiny(new (std::nothrow)
+                                             uint16_t[tiny_w * tiny_h]());
+        ASSERT_NE(tiny, nullptr);
+        const double ref = av1_highbd_estimate_noise_from_single_plane_c(
+            tiny.get(), tiny_h, tiny_w, tiny_w, bd,
+            NOISE_ESTIMATION_EDGE_THRESHOLD);
+        const double tst = av1_highbd_estimate_noise_from_single_plane_avx512(
+            tiny.get(), tiny_h, tiny_w, tiny_w, bd,
+            NOISE_ESTIMATION_EDGE_THRESHOLD);
+        EXPECT_DOUBLE_EQ(ref, tst);
+      }
+    }
+  }
+}
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
