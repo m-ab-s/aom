@@ -393,6 +393,14 @@ INSTANTIATE_TEST_SUITE_P(
                       HadamardFuncWithSize(&aom_hadamard_32x32_avx2, 32, 32)));
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, HadamardLowbdTest,
+    ::testing::Values(HadamardFuncWithSize(&aom_hadamard_16x16_avx512, 16, 16),
+                      HadamardFuncWithSize(&aom_hadamard_32x32_avx512, 32,
+                                           32)));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 // TODO(aomedia:3314): Disable NEON unit test for now, since hadamard 16x16 NEON
 // need modifications to match C/AVX2 behavior.
 #if HAVE_NEON
@@ -441,6 +449,14 @@ INSTANTIATE_TEST_SUITE_P(
         HadamardFuncWithSize(&aom_highbd_hadamard_16x16_avx2, 16, 16),
         HadamardFuncWithSize(&aom_highbd_hadamard_32x32_avx2, 32, 32)));
 #endif  // HAVE_AVX2
+
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, HadamardHighbdTest,
+    ::testing::Values(
+        HadamardFuncWithSize(&aom_highbd_hadamard_16x16_avx512, 16, 16),
+        HadamardFuncWithSize(&aom_highbd_hadamard_32x32_avx512, 32, 32)));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
@@ -492,6 +508,12 @@ INSTANTIATE_TEST_SUITE_P(AVX2, HadamardLowbdLPTest,
                          ::testing::Values(HadamardLPFuncWithSize(
                              &aom_hadamard_lp_16x16_avx2, 16, 16)));
 #endif  // HAVE_AVX2
+
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(AVX512, HadamardLowbdLPTest,
+                         ::testing::Values(HadamardLPFuncWithSize(
+                             &aom_hadamard_lp_16x16_avx512, 16, 16)));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
 
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(

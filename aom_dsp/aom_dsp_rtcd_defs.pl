@@ -1389,6 +1389,20 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/int aom_satd_lp/, "const int16_t *coeff, int length";
   specialize qw/aom_satd_lp sse2 avx2 neon/;
 
+  if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/aom_int_pro_row avx512/;
+    specialize qw/aom_int_pro_col avx512/;
+    specialize qw/aom_hadamard_16x16 avx512/;
+    specialize qw/aom_hadamard_32x32 avx512/;
+    specialize qw/aom_hadamard_lp_16x16 avx512/;
+    if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
+      specialize qw/aom_highbd_hadamard_16x16 avx512/;
+      specialize qw/aom_highbd_hadamard_32x32 avx512/;
+    }
+    specialize qw/aom_satd avx512/;
+    specialize qw/aom_satd_lp avx512/;
+  }
+
 
   #
   # Structured Similarity (SSIM)

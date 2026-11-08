@@ -186,7 +186,8 @@ if(CONFIG_AV1_ENCODER)
               "${AOM_ROOT}/aom_dsp/variance.h")
 
   if(CONFIG_HIGHWAY)
-    list(APPEND AOM_DSP_ENCODER_SOURCES "${AOM_ROOT}/aom_dsp/reduce_sum_hwy.h"
+    list(APPEND AOM_DSP_ENCODER_SOURCES "${AOM_ROOT}/aom_dsp/avg_hwy.h"
+                "${AOM_ROOT}/aom_dsp/reduce_sum_hwy.h"
                 "${AOM_ROOT}/aom_dsp/sad_hwy.h"
                 "${AOM_ROOT}/aom_dsp/subtract_hwy.h"
                 "${AOM_ROOT}/aom_dsp/variance_hwy.h")
@@ -274,6 +275,7 @@ if(CONFIG_AV1_ENCODER)
     list(APPEND AOM_DSP_ENCODER_INTRIN_AVX2
                 "${AOM_ROOT}/aom_dsp/x86/sad_hwy_avx2.cc")
     list(APPEND AOM_DSP_ENCODER_INTRIN_AVX512
+                "${AOM_ROOT}/aom_dsp/x86/avg_hwy_avx512.cc"
                 "${AOM_ROOT}/aom_dsp/x86/sad_hwy_avx512.cc"
                 "${AOM_ROOT}/aom_dsp/x86/subtract_hwy_avx512.cc"
                 "${AOM_ROOT}/aom_dsp/x86/variance_hwy_avx512.cc")

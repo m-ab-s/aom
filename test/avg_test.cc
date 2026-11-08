@@ -800,6 +800,28 @@ INSTANTIATE_TEST_SUITE_P(
         make_tuple(128, 128, &aom_int_pro_col_avx2, &aom_int_pro_col_c)));
 #endif
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, IntProRowTest,
+    ::testing::Values(
+        make_tuple(16, 16, &aom_int_pro_row_avx512, &aom_int_pro_row_c),
+        make_tuple(32, 32, &aom_int_pro_row_avx512, &aom_int_pro_row_c),
+        make_tuple(48, 32, &aom_int_pro_row_avx512, &aom_int_pro_row_c),
+        make_tuple(64, 64, &aom_int_pro_row_avx512, &aom_int_pro_row_c),
+        make_tuple(80, 64, &aom_int_pro_row_avx512, &aom_int_pro_row_c),
+        make_tuple(96, 64, &aom_int_pro_row_avx512, &aom_int_pro_row_c),
+        make_tuple(112, 64, &aom_int_pro_row_avx512, &aom_int_pro_row_c),
+        make_tuple(128, 128, &aom_int_pro_row_avx512, &aom_int_pro_row_c)));
+
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, IntProColTest,
+    ::testing::Values(
+        make_tuple(16, 16, &aom_int_pro_col_avx512, &aom_int_pro_col_c),
+        make_tuple(32, 32, &aom_int_pro_col_avx512, &aom_int_pro_col_c),
+        make_tuple(64, 64, &aom_int_pro_col_avx512, &aom_int_pro_col_c),
+        make_tuple(128, 128, &aom_int_pro_col_avx512, &aom_int_pro_col_c)));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, AverageTest8bpp,
@@ -1058,6 +1080,16 @@ INSTANTIATE_TEST_SUITE_P(
                       make_tuple(5, &aom_vector_var_c, &aom_vector_var_avx2)));
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, SatdTest,
+    ::testing::Values(
+        SatdTestParam<SatdFunc>(16, &aom_satd_c, &aom_satd_avx512),
+        SatdTestParam<SatdFunc>(64, &aom_satd_c, &aom_satd_avx512),
+        SatdTestParam<SatdFunc>(256, &aom_satd_c, &aom_satd_avx512),
+        SatdTestParam<SatdFunc>(1024, &aom_satd_c, &aom_satd_avx512)));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
     SSE2, SatdTest,
@@ -1137,6 +1169,16 @@ INSTANTIATE_TEST_SUITE_P(
         SatdTestParam<SatdLpFunc>(256, &aom_satd_lp_c, &aom_satd_lp_avx2),
         SatdTestParam<SatdLpFunc>(1024, &aom_satd_lp_c, &aom_satd_lp_avx2)));
 #endif
+
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, SatdLpTest,
+    ::testing::Values(
+        SatdTestParam<SatdLpFunc>(16, &aom_satd_lp_c, &aom_satd_lp_avx512),
+        SatdTestParam<SatdLpFunc>(64, &aom_satd_lp_c, &aom_satd_lp_avx512),
+        SatdTestParam<SatdLpFunc>(256, &aom_satd_lp_c, &aom_satd_lp_avx512),
+        SatdTestParam<SatdLpFunc>(1024, &aom_satd_lp_c, &aom_satd_lp_avx512)));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
 
 #if HAVE_SSE2
 INSTANTIATE_TEST_SUITE_P(
