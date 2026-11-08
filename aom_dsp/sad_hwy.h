@@ -16,6 +16,7 @@
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
+#include "aom_dsp/blend.h"
 #include "aom_dsp/reduce_sum_hwy.h"
 #include "third_party/highway/hwy/highway.h"
 
@@ -169,6 +170,103 @@ HWY_ATTR HWY_INLINE void SumOfAbsoluteDiffND(const uint8_t *src_ptr,
   hn::StoreU(block_sum, block_sum_tag, res);
 }
 
+template <int BlockWidth>
+HWY_ATTR HWY_INLINE unsigned int MaskedSumOfAbsoluteDiff(
+    const uint8_t *src_ptr, int src_stride, const uint8_t *ref_ptr,
+    int ref_stride, const uint8_t *second_pred, const uint8_t *msk_ptr,
+    int msk_stride, int invert_mask, int h) {
+  constexpr hn::ScalableTag<uint8_t> pixel_tag;
+  constexpr hn::Repartition<int8_t, decltype(pixel_tag)> int8_tag;
+  constexpr hn::Repartition<int16_t, decltype(pixel_tag)> int16_tag;
+  constexpr hn::Repartition<uint64_t, decltype(pixel_tag)> intermediate_sum_tag;
+  constexpr int vw = hn::MaxLanes(pixel_tag);
+  constexpr int kRowsPerVec = (BlockWidth < vw) ? (vw / BlockWidth) : 1;
+  constexpr int kRowSpan = (BlockWidth < vw) ? vw : BlockWidth;
+  assert(h % kRowsPerVec == 0);
+
+  const auto mask_max = hn::Set(pixel_tag, 1 << AOM_BLEND_A64_ROUND_BITS);
+  const auto round_scale =
+      hn::Set(int16_tag, 1 << (15 - AOM_BLEND_A64_ROUND_BITS));
+  auto sum_sad = hn::Zero(intermediate_sum_tag);
+
+  for (int y = 0; y < h; y += kRowsPerVec) {
+    for (int x = 0; x < kRowSpan; x += vw) {
+      auto src = LoadRowsU<kRowsPerVec>(pixel_tag, &src_ptr[x], src_stride);
+      auto ref = LoadRowsU<kRowsPerVec>(pixel_tag, &ref_ptr[x], ref_stride);
+      auto sec = hn::LoadU(pixel_tag, &second_pred[x]);
+      auto m = LoadRowsU<kRowsPerVec>(pixel_tag, &msk_ptr[x], msk_stride);
+      auto m_inv = hn::Sub(mask_max, m);
+      auto a = invert_mask ? sec : ref;
+      auto b = invert_mask ? ref : sec;
+
+      auto data_l = hn::InterleaveLower(pixel_tag, a, b);
+      auto mask_l = hn::InterleaveLower(pixel_tag, m, m_inv);
+      auto pred_l = hn::MulFixedPoint15(
+          hn::SatWidenMulPairwiseAdd(int16_tag, data_l,
+                                     hn::BitCast(int8_tag, mask_l)),
+          round_scale);
+
+      auto data_r = hn::InterleaveUpper(pixel_tag, a, b);
+      auto mask_r = hn::InterleaveUpper(pixel_tag, m, m_inv);
+      auto pred_r = hn::MulFixedPoint15(
+          hn::SatWidenMulPairwiseAdd(int16_tag, data_r,
+                                     hn::BitCast(int8_tag, mask_r)),
+          round_scale);
+
+      auto pred = hn::ReorderDemote2To(pixel_tag, pred_l, pred_r);
+      sum_sad = hn::Add(sum_sad, hn::SumsOf8AbsDiff(pred, src));
+    }
+    src_ptr += src_stride * kRowsPerVec;
+    ref_ptr += ref_stride * kRowsPerVec;
+    second_pred += BlockWidth * kRowsPerVec;
+    msk_ptr += msk_stride * kRowsPerVec;
+  }
+  return static_cast<unsigned int>(
+      hn::ReduceSum(intermediate_sum_tag, sum_sad));
+}
+
+#if !CONFIG_REALTIME_ONLY
+template <int BlockWidth>
+HWY_ATTR HWY_INLINE unsigned int ObmcSumOfAbsoluteDiff(const uint8_t *pre,
+                                                       int pre_stride,
+                                                       const int32_t *wsrc,
+                                                       const int32_t *mask,
+                                                       int h) {
+  constexpr hn::ScalableTag<int32_t> d32;
+  constexpr hn::Repartition<int16_t, decltype(d32)> d16;
+  constexpr hn::Rebind<uint8_t, decltype(d32)> du8;
+  constexpr int kLanes = hn::MaxLanes(d32);
+  constexpr int kRowsPerVec = (BlockWidth < kLanes) ? (kLanes / BlockWidth) : 1;
+  constexpr int kColsPerRow = (BlockWidth < kLanes) ? kLanes : BlockWidth;
+  assert(h % kRowsPerVec == 0);
+
+  const auto v_bias_d = hn::Set(d32, (1 << 12) >> 1);
+  auto v_sad_d = hn::Zero(d32);
+  int n = 0;
+
+  for (int r = 0; r < h; r += kRowsPerVec) {
+    for (int c = 0; c < kColsPerRow; c += kLanes) {
+      auto v_p_b = LoadRowsU<kRowsPerVec>(du8, pre + c, pre_stride);
+      auto v_p_d = hn::PromoteTo(d32, v_p_b);
+      auto v_m_d = hn::LoadU(d32, mask + n);
+      auto v_w_d = hn::LoadU(d32, wsrc + n);
+      // Values in both pre and mask fit in signed 15 bits and are packed at
+      // 32-bit boundaries, so WidenMulPairwiseAdd (vpmaddwd) produces the
+      // exact product without overflow (matching obmc_sad_avx2.c).
+      auto v_pm_d = hn::WidenMulPairwiseAdd(d32, hn::BitCast(d16, v_p_d),
+                                            hn::BitCast(d16, v_m_d));
+      auto v_diff_d = hn::Sub(v_w_d, v_pm_d);
+      auto v_absdiff_d = hn::Abs(v_diff_d);
+      auto v_rad_d = hn::ShiftRight<12>(hn::Add(v_absdiff_d, v_bias_d));
+      v_sad_d = hn::Add(v_sad_d, v_rad_d);
+      n += kLanes;
+    }
+    pre += pre_stride * kRowsPerVec;
+  }
+  return static_cast<unsigned int>(hn::ReduceSum(d32, v_sad_d));
+}
+#endif  // !CONFIG_REALTIME_ONLY
+
 }  // namespace HWY_NAMESPACE
 }  // namespace
 
@@ -242,6 +340,33 @@ HWY_ATTR HWY_INLINE void SumOfAbsoluteDiffND(const uint8_t *src_ptr,
         src_ptr, src_stride, ref_ptr, ref_stride, h, second_pred);    \
   }
 
+#define FMASKED_SAD(w, h, suffix)                                             \
+  extern "C" unsigned int aom_masked_sad##w##x##h##_##suffix(                 \
+      const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride, \
+      const uint8_t *second_pred, const uint8_t *msk, int msk_stride,         \
+      int invert_mask);                                                       \
+  HWY_ATTR unsigned int aom_masked_sad##w##x##h##_##suffix(                   \
+      const uint8_t *src, int src_stride, const uint8_t *ref, int ref_stride, \
+      const uint8_t *second_pred, const uint8_t *msk, int msk_stride,         \
+      int invert_mask) {                                                      \
+    return HWY_NAMESPACE::MaskedSumOfAbsoluteDiff<w>(                         \
+        src, src_stride, ref, ref_stride, second_pred, msk, msk_stride,       \
+        invert_mask, h);                                                      \
+  }
+
+#if !CONFIG_REALTIME_ONLY
+#define FOBMC_SAD(w, h, suffix)                                           \
+  extern "C" unsigned int aom_obmc_sad##w##x##h##_##suffix(               \
+      const uint8_t *pre, int pre_stride, const int32_t *wsrc,            \
+      const int32_t *mask);                                               \
+  HWY_ATTR unsigned int aom_obmc_sad##w##x##h##_##suffix(                 \
+      const uint8_t *pre, int pre_stride, const int32_t *wsrc,            \
+      const int32_t *mask) {                                              \
+    return HWY_NAMESPACE::ObmcSumOfAbsoluteDiff<w>(pre, pre_stride, wsrc, \
+                                                   mask, h);              \
+  }
+#endif  // !CONFIG_REALTIME_ONLY
+
 #define FOR_EACH_SAD_BLOCK_SIZE(X, suffix) \
   X(128, 128, suffix)                      \
   X(128, 64, suffix)                       \
@@ -257,10 +382,17 @@ HWY_ATTR HWY_INLINE void SumOfAbsoluteDiffND(const uint8_t *src_ptr,
 #define FOR_EACH_SAD_H8_RECT_BLOCK_SIZE(X, suffix) X(32, 8, suffix)
 
 #define FOR_EACH_SAD_H4_BLOCK_SIZE(X, suffix) X(16, 4, suffix)
+
+#define FOR_EACH_MASKED_OBMC_RECT_BLOCK_SIZE(X, suffix) \
+  X(64, 16, suffix)                                     \
+  X(16, 64, suffix)                                     \
+  X(32, 8, suffix)                                      \
+  X(16, 4, suffix)
 #else
 #define FOR_EACH_SAD_SMALL_SKIP_RECT_BLOCK_SIZE(X, suffix)
 #define FOR_EACH_SAD_H8_RECT_BLOCK_SIZE(X, suffix)
 #define FOR_EACH_SAD_H4_BLOCK_SIZE(X, suffix)
+#define FOR_EACH_MASKED_OBMC_RECT_BLOCK_SIZE(X, suffix)
 #endif  // !CONFIG_REALTIME_ONLY
 
 #define FOR_EACH_SAD_SMALL_SKIP_BLOCK_SIZE(X, suffix) \
@@ -273,6 +405,20 @@ HWY_ATTR HWY_INLINE void SumOfAbsoluteDiffND(const uint8_t *src_ptr,
 #define FOR_EACH_SAD_H8_BLOCK_SIZE(X, suffix) \
   X(16, 8, suffix)                            \
   FOR_EACH_SAD_H8_RECT_BLOCK_SIZE(X, suffix)
+
+#define FOR_EACH_MASKED_OBMC_SAD_BLOCK_SIZE(X, suffix) \
+  X(128, 128, suffix)                                  \
+  X(128, 64, suffix)                                   \
+  X(64, 128, suffix)                                   \
+  X(64, 64, suffix)                                    \
+  X(64, 32, suffix)                                    \
+  X(32, 64, suffix)                                    \
+  X(32, 32, suffix)                                    \
+  X(32, 16, suffix)                                    \
+  X(16, 32, suffix)                                    \
+  X(16, 16, suffix)                                    \
+  X(16, 8, suffix)                                     \
+  FOR_EACH_MASKED_OBMC_RECT_BLOCK_SIZE(X, suffix)
 
 HWY_AFTER_NAMESPACE();
 

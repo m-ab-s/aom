@@ -147,6 +147,30 @@ INSTANTIATE_TEST_SUITE_P(AVX2, ObmcSadTest,
                          ::testing::ValuesIn(avx2_functions));
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+const ObmcSadTest::ParamType avx512_functions[] = {
+  TestFuncs(aom_obmc_sad128x128_c, aom_obmc_sad128x128_avx512),
+  TestFuncs(aom_obmc_sad128x64_c, aom_obmc_sad128x64_avx512),
+  TestFuncs(aom_obmc_sad64x128_c, aom_obmc_sad64x128_avx512),
+  TestFuncs(aom_obmc_sad64x64_c, aom_obmc_sad64x64_avx512),
+  TestFuncs(aom_obmc_sad64x32_c, aom_obmc_sad64x32_avx512),
+  TestFuncs(aom_obmc_sad32x64_c, aom_obmc_sad32x64_avx512),
+  TestFuncs(aom_obmc_sad32x32_c, aom_obmc_sad32x32_avx512),
+  TestFuncs(aom_obmc_sad32x16_c, aom_obmc_sad32x16_avx512),
+  TestFuncs(aom_obmc_sad16x32_c, aom_obmc_sad16x32_avx512),
+  TestFuncs(aom_obmc_sad16x16_c, aom_obmc_sad16x16_avx512),
+  TestFuncs(aom_obmc_sad16x8_c, aom_obmc_sad16x8_avx512),
+
+  TestFuncs(aom_obmc_sad64x16_c, aom_obmc_sad64x16_avx512),
+  TestFuncs(aom_obmc_sad16x64_c, aom_obmc_sad16x64_avx512),
+  TestFuncs(aom_obmc_sad32x8_c, aom_obmc_sad32x8_avx512),
+  TestFuncs(aom_obmc_sad16x4_c, aom_obmc_sad16x4_avx512),
+};
+
+INSTANTIATE_TEST_SUITE_P(AVX512, ObmcSadTest,
+                         ::testing::ValuesIn(avx512_functions));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 #if HAVE_NEON
 const ObmcSadTest::ParamType neon_functions[] = {
   TestFuncs(aom_obmc_sad128x128_c, aom_obmc_sad128x128_neon),

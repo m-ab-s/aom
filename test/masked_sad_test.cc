@@ -433,6 +433,31 @@ INSTANTIATE_TEST_SUITE_P(AVX2, HighbdMaskedSADTest,
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+const MaskedSADParam msad_avx512_test[] = {
+  make_tuple(&aom_masked_sad16x8_avx512, &aom_masked_sad16x8_c),
+  make_tuple(&aom_masked_sad16x16_avx512, &aom_masked_sad16x16_c),
+  make_tuple(&aom_masked_sad16x32_avx512, &aom_masked_sad16x32_c),
+  make_tuple(&aom_masked_sad32x16_avx512, &aom_masked_sad32x16_c),
+  make_tuple(&aom_masked_sad32x32_avx512, &aom_masked_sad32x32_c),
+  make_tuple(&aom_masked_sad32x64_avx512, &aom_masked_sad32x64_c),
+  make_tuple(&aom_masked_sad64x32_avx512, &aom_masked_sad64x32_c),
+  make_tuple(&aom_masked_sad64x64_avx512, &aom_masked_sad64x64_c),
+  make_tuple(&aom_masked_sad64x128_avx512, &aom_masked_sad64x128_c),
+  make_tuple(&aom_masked_sad128x64_avx512, &aom_masked_sad128x64_c),
+  make_tuple(&aom_masked_sad128x128_avx512, &aom_masked_sad128x128_c),
+#if !CONFIG_REALTIME_ONLY
+  make_tuple(&aom_masked_sad16x4_avx512, &aom_masked_sad16x4_c),
+  make_tuple(&aom_masked_sad32x8_avx512, &aom_masked_sad32x8_c),
+  make_tuple(&aom_masked_sad16x64_avx512, &aom_masked_sad16x64_c),
+  make_tuple(&aom_masked_sad64x16_avx512, &aom_masked_sad64x16_c)
+#endif
+};
+
+INSTANTIATE_TEST_SUITE_P(AVX512, MaskedSADTest,
+                         ::testing::ValuesIn(msad_avx512_test));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 #if HAVE_NEON
 const MaskedSADParam msad_test[] = {
   make_tuple(&aom_masked_sad4x4_neon, &aom_masked_sad4x4_c),
