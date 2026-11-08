@@ -2007,7 +2007,9 @@ static inline int skip_tpl_for_frame(const GF_GROUP *gf_group, int frame_idx,
  */
 static double get_frame_importance(const TplParams *tpl_data,
                                    int gf_frame_index) {
+  if (gf_frame_index < 0 || gf_frame_index >= MAX_TPL_FRAME_IDX) return 1.0;
   const TplDepFrame *tpl_frame = &tpl_data->tpl_frame[gf_frame_index];
+  if (!tpl_frame->is_valid || tpl_frame->tpl_stats_ptr == NULL) return 1.0;
   const TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
 
   const int tpl_stride = tpl_frame->stride;
@@ -2293,18 +2295,20 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int approx_gop_eval,
   assert(gf_group->arf_index >= 0);
 
   double beta[2] = { 0.0 };
-  const int frame_idx_0 = gf_group->arf_index;
-  const int frame_idx_1 =
-      AOMMIN(tpl_gf_group_frames - 1, gf_group->arf_index + 1);
-  beta[0] = get_frame_importance(tpl_data, frame_idx_0);
-  beta[1] = get_frame_importance(tpl_data, frame_idx_1);
-  if (approx_gop_eval && cpi->oxcf.speed == 4) {
-    if (frame_params->frame_type == KEY_FRAME) {
-      tpl_data->tpl_stats_buffer[0].use_pred_sad =
-          (cpi->ppi->p_rc.baseline_gf_interval >= 32 && beta[0] <= 1.48);
-    }
-    if (!tpl_data->tpl_stats_buffer[0].use_pred_sad && beta[0] <= 1.42) {
-      beta[0] = 1.40;
+  if (tpl_gf_group_frames > gf_group->arf_index) {
+    const int frame_idx_0 = gf_group->arf_index;
+    const int frame_idx_1 =
+        AOMMIN(tpl_gf_group_frames - 1, gf_group->arf_index + 1);
+    beta[0] = get_frame_importance(tpl_data, frame_idx_0);
+    beta[1] = get_frame_importance(tpl_data, frame_idx_1);
+    if (approx_gop_eval && cpi->oxcf.speed == 4) {
+      if (frame_params->frame_type == KEY_FRAME) {
+        tpl_data->tpl_stats_buffer[0].use_pred_sad =
+            (cpi->ppi->p_rc.baseline_gf_interval >= 32 && beta[0] <= 1.48);
+      }
+      if (!tpl_data->tpl_stats_buffer[0].use_pred_sad && beta[0] <= 1.42) {
+        beta[0] = 1.40;
+      }
     }
   }
 #if CONFIG_COLLECT_COMPONENT_TIMING

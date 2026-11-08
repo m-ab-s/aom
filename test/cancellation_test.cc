@@ -89,6 +89,18 @@ class CancellationTest
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
   }
 
+  void DoSimulateCancellationPass2Static(int limit, int cancel_after) {
+    ::libaom_test::DummyVideoSource raw_video;
+    raw_video.SetSize(256, 256);
+    raw_video.set_limit(limit);
+
+    CancellableVideoSource video(&raw_video);
+    video.set_cancel_after(cancel_after);
+
+    // This should not crash
+    ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+  }
+
  private:
   int tile_columns_;
   int tile_rows_;
@@ -102,6 +114,11 @@ TEST_P(CancellationTest, SimulateCancellationPass2) {
 TEST_P(CancellationTest, SimulateCancellationPass2Threads4) {
   DoSimulateCancellationPass2(/*threads=*/4, /*tile_columns=*/1,
                               /*tile_rows=*/1);
+}
+
+TEST_P(CancellationTest, SimulateCancellationPass2LongGop) {
+  DoSimulateCancellationPass2Static(/*limit=*/40, /*cancel_after=*/20);
+  DoSimulateCancellationPass2Static(/*limit=*/60, /*cancel_after=*/40);
 }
 
 // Test 2-pass good quality
