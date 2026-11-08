@@ -1837,6 +1837,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
       add_proto qw/unsigned int/, "aom_obmc_variance${w}x${h}", "const uint8_t *pre, int pre_stride, const int32_t *wsrc, const int32_t *mask, unsigned int *sse";
       add_proto qw/unsigned int/, "aom_obmc_sub_pixel_variance${w}x${h}", "const uint8_t *pre, int pre_stride, int xoffset, int yoffset, const int32_t *wsrc, const int32_t *mask, unsigned int *sse";
       specialize "aom_obmc_variance${w}x${h}", qw/sse4_1 avx2 neon/;
+      if (aom_config("CONFIG_HIGHWAY") eq "yes" && $w >= 16) {
+        specialize "aom_obmc_variance${w}x${h}", qw/avx512/;
+      }
       specialize "aom_obmc_sub_pixel_variance${w}x${h}", qw/sse4_1 neon/;
     }
 
@@ -1858,6 +1861,9 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   #
   add_proto qw/void aom_comp_avg_pred/, "uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride";
   specialize qw/aom_comp_avg_pred avx2 neon/;
+  if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/aom_comp_avg_pred avx512/;
+  }
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
     add_proto qw/void aom_highbd_comp_avg_pred/, "uint8_t *comp_pred8, const uint8_t *pred8, int width, int height, const uint8_t *ref8, int ref_stride";
@@ -1869,10 +1875,16 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
 
   add_proto qw/void aom_comp_mask_pred/, "uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride, const uint8_t *mask, int mask_stride, int invert_mask";
   specialize qw/aom_comp_mask_pred ssse3 avx2 neon/;
+  if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/aom_comp_mask_pred avx512/;
+  }
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
     add_proto qw/void aom_highbd_comp_mask_pred/, "uint8_t *comp_pred, const uint8_t *pred8, int width, int height, const uint8_t *ref8, int ref_stride, const uint8_t *mask, int mask_stride, int invert_mask";
     specialize qw/aom_highbd_comp_mask_pred sse2 avx2 neon/;
+    if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+      specialize qw/aom_highbd_comp_mask_pred avx512/;
+    }
   }
 
   # Flow estimation library

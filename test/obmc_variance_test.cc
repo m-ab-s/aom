@@ -194,6 +194,30 @@ INSTANTIATE_TEST_SUITE_P(AVX2, ObmcVarianceTest,
                          ::testing::ValuesIn(avx2_functions));
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+const ObmcVarianceTest::ParamType avx512_functions[] = {
+  TestFuncs(aom_obmc_variance128x128_c, aom_obmc_variance128x128_avx512),
+  TestFuncs(aom_obmc_variance128x64_c, aom_obmc_variance128x64_avx512),
+  TestFuncs(aom_obmc_variance64x128_c, aom_obmc_variance64x128_avx512),
+  TestFuncs(aom_obmc_variance64x64_c, aom_obmc_variance64x64_avx512),
+  TestFuncs(aom_obmc_variance64x32_c, aom_obmc_variance64x32_avx512),
+  TestFuncs(aom_obmc_variance32x64_c, aom_obmc_variance32x64_avx512),
+  TestFuncs(aom_obmc_variance32x32_c, aom_obmc_variance32x32_avx512),
+  TestFuncs(aom_obmc_variance32x16_c, aom_obmc_variance32x16_avx512),
+  TestFuncs(aom_obmc_variance16x32_c, aom_obmc_variance16x32_avx512),
+  TestFuncs(aom_obmc_variance16x16_c, aom_obmc_variance16x16_avx512),
+  TestFuncs(aom_obmc_variance16x8_c, aom_obmc_variance16x8_avx512),
+
+  TestFuncs(aom_obmc_variance64x16_c, aom_obmc_variance64x16_avx512),
+  TestFuncs(aom_obmc_variance16x64_c, aom_obmc_variance16x64_avx512),
+  TestFuncs(aom_obmc_variance32x8_c, aom_obmc_variance32x8_avx512),
+  TestFuncs(aom_obmc_variance16x4_c, aom_obmc_variance16x4_avx512),
+};
+
+INSTANTIATE_TEST_SUITE_P(AVX512, ObmcVarianceTest,
+                         ::testing::ValuesIn(avx512_functions));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 #if HAVE_NEON
 const ObmcVarianceTest::ParamType neon_functions[] = {
   TestFuncs(aom_obmc_variance128x128_c, aom_obmc_variance128x128_neon),

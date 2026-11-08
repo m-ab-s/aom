@@ -18,6 +18,7 @@
 
 #include "aom/aom_codec.h"
 #include "aom/aom_integer.h"
+#include "aom_dsp/blend.h"
 #include "aom_dsp/variance.h"
 #include "aom_mem/aom_mem.h"
 #include "aom_ports/aom_timer.h"
@@ -39,10 +40,12 @@ using comp_avg_pred_func = void (*)(uint8_t *comp_pred, const uint8_t *pred,
                                     int width, int height, const uint8_t *ref,
                                     int ref_stride);
 
-#if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2 || HAVE_NEON
+#if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2 || HAVE_AVX512 || HAVE_NEON
 const BLOCK_SIZE kCompMaskPredParams[] = {
-  BLOCK_8X8,   BLOCK_8X16, BLOCK_8X32,  BLOCK_16X8, BLOCK_16X16,
-  BLOCK_16X32, BLOCK_32X8, BLOCK_32X16, BLOCK_32X32
+  BLOCK_8X8,    BLOCK_8X16,   BLOCK_8X32,  BLOCK_16X8,  BLOCK_16X16,
+  BLOCK_16X32,  BLOCK_16X64,  BLOCK_32X8,  BLOCK_32X16, BLOCK_32X32,
+  BLOCK_32X64,  BLOCK_64X16,  BLOCK_64X32, BLOCK_64X64, BLOCK_64X128,
+  BLOCK_128X64, BLOCK_128X128
 };
 #endif
 
@@ -128,15 +131,27 @@ void AV1CompMaskPredTest::RunCheckOutput(comp_mask_pred_func test_impl,
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
   const int wedge_types = get_wedge_types_lookup(bsize);
-  for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-    const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
+  if (wedge_types > 0) {
+    for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
+      const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
 
+      aom_comp_mask_pred_c(comp_pred1_, pred_, w, h, ref_, MAX_SB_SIZE, mask, w,
+                           inv);
+      test_impl(comp_pred2_, pred_, w, h, ref_, MAX_SB_SIZE, mask, w, inv);
+
+      ASSERT_EQ(CheckResult(w, h), true)
+          << " wedge " << wedge_index << " inv " << inv;
+    }
+  } else {
+    DECLARE_ALIGNED(16, uint8_t, mask[MAX_SB_SQUARE]);
+    for (int i = 0; i < w * h; ++i) {
+      mask[i] = rnd_(AOM_BLEND_A64_MAX_ALPHA + 1);
+    }
     aom_comp_mask_pred_c(comp_pred1_, pred_, w, h, ref_, MAX_SB_SIZE, mask, w,
                          inv);
     test_impl(comp_pred2_, pred_, w, h, ref_, MAX_SB_SIZE, mask, w, inv);
 
-    ASSERT_EQ(CheckResult(w, h), true)
-        << " wedge " << wedge_index << " inv " << inv;
+    ASSERT_EQ(CheckResult(w, h), true) << " random mask inv " << inv;
   }
 }
 
@@ -145,8 +160,16 @@ void AV1CompMaskPredTest::RunSpeedTest(comp_mask_pred_func test_impl,
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
   const int wedge_types = get_wedge_types_lookup(bsize);
-  int wedge_index = wedge_types / 2;
-  const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
+  DECLARE_ALIGNED(16, uint8_t, rand_mask[MAX_SB_SQUARE]);
+  const uint8_t *mask = nullptr;
+  if (wedge_types > 0) {
+    mask = av1_get_contiguous_soft_mask(wedge_types / 2, 1, bsize);
+  } else {
+    for (int i = 0; i < w * h; ++i) {
+      rand_mask[i] = rnd_(AOM_BLEND_A64_MAX_ALPHA + 1);
+    }
+    mask = rand_mask;
+  }
   const int num_loops = 1000000000 / (w + h);
 
   comp_mask_pred_func funcs[2] = { aom_comp_mask_pred_c, test_impl };
@@ -193,6 +216,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, AV1CompMaskPredTest,
+    ::testing::Combine(::testing::Values(&aom_comp_mask_pred_avx512),
+                       ::testing::ValuesIn(kCompMaskPredParams)));
+#endif
+
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, AV1CompMaskPredTest,
@@ -200,7 +230,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kCompMaskPredParams)));
 #endif
 
-#if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2 || HAVE_NEON
+#if HAVE_SSSE3 || HAVE_SSE2 || HAVE_AVX2 || HAVE_AVX512 || HAVE_NEON
 const BLOCK_SIZE kValidBlockSize[] = {
   BLOCK_4X4,     BLOCK_8X8,   BLOCK_8X16,  BLOCK_8X32,   BLOCK_16X8,
   BLOCK_16X16,   BLOCK_16X32, BLOCK_32X8,  BLOCK_32X16,  BLOCK_32X32,
@@ -413,6 +443,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(kValidBlockSize)));
 #endif
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, AV1CompAvgPredTest,
+    ::testing::Combine(::testing::Values(&aom_comp_avg_pred_avx512),
+                       ::testing::ValuesIn(kValidBlockSize)));
+#endif
+
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, AV1CompAvgPredTest,
@@ -520,9 +557,25 @@ void AV1HighbdCompMaskPredTest::RunCheckOutput(
     ref_buffer_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
   }
 
-  for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
-    const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
+  if (wedge_types > 0) {
+    for (int wedge_index = 0; wedge_index < wedge_types; ++wedge_index) {
+      const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
 
+      aom_highbd_comp_mask_pred_c(
+          CONVERT_TO_BYTEPTR(comp_pred1_), CONVERT_TO_BYTEPTR(pred_), w, h,
+          CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE, mask, w, inv);
+
+      test_impl(CONVERT_TO_BYTEPTR(comp_pred2_), CONVERT_TO_BYTEPTR(pred_), w,
+                h, CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE, mask, w, inv);
+
+      ASSERT_EQ(CheckResult(w, h), true)
+          << " wedge " << wedge_index << " inv " << inv;
+    }
+  } else {
+    DECLARE_ALIGNED(16, uint8_t, mask[MAX_SB_SQUARE]);
+    for (int i = 0; i < w * h; ++i) {
+      mask[i] = rnd_(AOM_BLEND_A64_MAX_ALPHA + 1);
+    }
     aom_highbd_comp_mask_pred_c(
         CONVERT_TO_BYTEPTR(comp_pred1_), CONVERT_TO_BYTEPTR(pred_), w, h,
         CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE, mask, w, inv);
@@ -530,8 +583,7 @@ void AV1HighbdCompMaskPredTest::RunCheckOutput(
     test_impl(CONVERT_TO_BYTEPTR(comp_pred2_), CONVERT_TO_BYTEPTR(pred_), w, h,
               CONVERT_TO_BYTEPTR(ref_), MAX_SB_SIZE, mask, w, inv);
 
-    ASSERT_EQ(CheckResult(w, h), true)
-        << " wedge " << wedge_index << " inv " << inv;
+    ASSERT_EQ(CheckResult(w, h), true) << " random mask inv " << inv;
   }
 }
 
@@ -542,7 +594,6 @@ void AV1HighbdCompMaskPredTest::RunSpeedTest(
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
   const int wedge_types = get_wedge_types_lookup(bsize);
-  int wedge_index = wedge_types / 2;
 
   for (int i = 0; i < MAX_SB_SQUARE; ++i) {
     pred_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
@@ -551,7 +602,16 @@ void AV1HighbdCompMaskPredTest::RunSpeedTest(
     ref_buffer_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
   }
 
-  const uint8_t *mask = av1_get_contiguous_soft_mask(wedge_index, 1, bsize);
+  DECLARE_ALIGNED(16, uint8_t, rand_mask[MAX_SB_SQUARE]);
+  const uint8_t *mask = nullptr;
+  if (wedge_types > 0) {
+    mask = av1_get_contiguous_soft_mask(wedge_types / 2, 1, bsize);
+  } else {
+    for (int i = 0; i < w * h; ++i) {
+      rand_mask[i] = rnd_(AOM_BLEND_A64_MAX_ALPHA + 1);
+    }
+    mask = rand_mask;
+  }
   const int num_loops = 1000000000 / (w + h);
 
   highbd_comp_mask_pred_func funcs[2] = { aom_highbd_comp_mask_pred_c,
@@ -598,6 +658,14 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     AVX2, AV1HighbdCompMaskPredTest,
     ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx2),
+                       ::testing::ValuesIn(kCompMaskPredParams),
+                       ::testing::Range(8, 13, 2)));
+#endif
+
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, AV1HighbdCompMaskPredTest,
+    ::testing::Combine(::testing::Values(&aom_highbd_comp_mask_pred_avx512),
                        ::testing::ValuesIn(kCompMaskPredParams),
                        ::testing::Range(8, 13, 2)));
 #endif

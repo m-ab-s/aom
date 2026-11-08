@@ -19,6 +19,8 @@
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
+#include "aom_dsp/aom_dsp_common.h"
+#include "aom_dsp/blend.h"
 #include "aom_dsp/reduce_sum_hwy.h"
 #include "third_party/highway/hwy/highway.h"
 
@@ -704,6 +706,281 @@ HWY_ATTR HWY_INLINE unsigned int SubPixelVarianceWxH(
                                          (WLog2 + HLog2));
 }
 
+// -----------------------------------------------------------------------------
+// OBMC Variance & CompoundAvg / CompoundMask Pred
+// -----------------------------------------------------------------------------
+
+#if !CONFIG_REALTIME_ONLY
+HWY_ATTR HWY_INLINE void ObmcVarianceW16N(
+    const uint8_t *pre, const int pre_stride, const int32_t *wsrc,
+    const int32_t *mask, unsigned int *const sse, int *const sum, const int w,
+    const int h) {
+  constexpr hn::ScalableTag<int32_t> di32;
+  constexpr hn::Repartition<int16_t, decltype(di32)> di16;
+  constexpr hn::Rebind<uint8_t, decltype(di32)> du8_quarter;
+  constexpr int kStep = hn::MaxLanes(di32);
+
+  assert(w >= kStep);
+  assert(IS_POWER_OF_TWO(w));
+  assert(IS_POWER_OF_TWO(h));
+
+  int n = 0;
+  const auto v_bias_d = hn::Set(di32, (1 << 12) >> 1);
+  auto v_sum_d = hn::Zero(di32);
+  auto v_sse_d = hn::Zero(di32);
+
+  for (int row = 0; row < h; ++row) {
+    for (int col = 0; col < w; col += kStep) {
+      const auto v_p_b = hn::LoadU(du8_quarter, pre + col);
+      const auto v_m_d = hn::LoadU(di32, mask + n);
+      const auto v_w_d = hn::LoadU(di32, wsrc + n);
+      const auto v_p_d = hn::PromoteTo(di32, v_p_b);
+      // Both pre ([0, 255]) and mask ([0, 64 * 64]) fit in signed 15-bit
+      // integers, so their upper int16_t halves in int32_t lanes are 0 and
+      // WidenMulPairwiseAdd computes exact 32-bit products pre * mask.
+      const auto v_pm_d = hn::WidenMulPairwiseAdd(
+          di32, hn::BitCast(di16, v_p_d), hn::BitCast(di16, v_m_d));
+      const auto v_diff_d = hn::Sub(v_w_d, v_pm_d);
+      const auto v_sign_d = hn::ShiftRight<31>(v_diff_d);
+      const auto v_tmp_d = hn::Add(hn::Add(v_diff_d, v_bias_d), v_sign_d);
+      const auto v_rdiff_d = hn::ShiftRight<12>(v_tmp_d);
+
+      v_sum_d = hn::Add(v_sum_d, v_rdiff_d);
+      v_sse_d = hn::Add(v_sse_d, hn::Mul(v_rdiff_d, v_rdiff_d));
+      n += kStep;
+    }
+    pre += pre_stride;
+  }
+  *sum = VarianceFinalFrom32BitSum(di32, v_sse_d, v_sum_d, sse);
+}
+#endif  // !CONFIG_REALTIME_ONLY
+
+HWY_ATTR HWY_INLINE void CompAvgPred(uint8_t *comp_pred, const uint8_t *pred,
+                                     int width, int height, const uint8_t *ref,
+                                     int ref_stride) {
+  constexpr hn::ScalableTag<uint8_t> du8;
+  constexpr int vw = hn::MaxLanes(du8);
+  int row = 0;
+  if (width == 8) {
+    assert(height % 4 == 0);
+    constexpr hn::FixedTag<uint8_t, 32> du8_32;
+    do {
+      const auto pred_0123 = hn::LoadU(du8_32, pred);
+      const auto ref_0123 = LoadRowsU<4>(du8_32, ref, ref_stride);
+      hn::StoreU(hn::AverageRound(pred_0123, ref_0123), du8_32, comp_pred);
+      row += 4;
+      pred += 32;
+      comp_pred += 32;
+      ref += 4 * ref_stride;
+    } while (row < height);
+  } else if (width == 16) {
+    constexpr int kRows = (16 < vw) ? (vw / 16) : 1;
+    do {
+      const auto pred_vec = hn::LoadU(du8, pred);
+      const auto ref_vec = LoadRowsU<kRows>(du8, ref, ref_stride);
+      hn::StoreU(hn::AverageRound(pred_vec, ref_vec), du8, comp_pred);
+      row += kRows;
+      pred += 16 * kRows;
+      comp_pred += 16 * kRows;
+      ref += kRows * ref_stride;
+    } while (row < height);
+  } else if (width == 32) {
+    constexpr int kRows = (32 < vw) ? (vw / 32) : 1;
+    do {
+      const auto pred_vec = hn::LoadU(du8, pred);
+      const auto ref_vec = LoadRowsU<kRows>(du8, ref, ref_stride);
+      hn::StoreU(hn::AverageRound(pred_vec, ref_vec), du8, comp_pred);
+      row += kRows;
+      pred += 32 * kRows;
+      comp_pred += 32 * kRows;
+      ref += kRows * ref_stride;
+    } while (row < height);
+  } else if (width % vw == 0) {
+    do {
+      for (int x = 0; x < width; x += vw) {
+        const auto p0 = hn::LoadU(du8, pred + x);
+        const auto r0 = hn::LoadU(du8, ref + x);
+        const auto p1 = hn::LoadU(du8, pred + width + x);
+        const auto r1 = hn::LoadU(du8, ref + ref_stride + x);
+        hn::StoreU(hn::AverageRound(p0, r0), du8, comp_pred + x);
+        hn::StoreU(hn::AverageRound(p1, r1), du8, comp_pred + width + x);
+      }
+      row += 2;
+      pred += 2 * width;
+      comp_pred += 2 * width;
+      ref += 2 * ref_stride;
+    } while (row < height);
+  } else {
+    aom_comp_avg_pred_c(comp_pred, pred, width, height, ref, ref_stride);
+  }
+}
+
+template <class DU8>
+HWY_ATTR HWY_INLINE void CompMaskPredLine(DU8 du8, hn::VFromD<DU8> s0,
+                                          hn::VFromD<DU8> s1, hn::VFromD<DU8> a,
+                                          uint8_t *comp_pred) {
+  constexpr hn::Repartition<int8_t, DU8> di8;
+  constexpr hn::Repartition<int16_t, DU8> di16;
+  const auto alpha_max =
+      hn::Set(du8, static_cast<uint8_t>(AOM_BLEND_A64_MAX_ALPHA));
+  constexpr int16_t round_bits = 15 - AOM_BLEND_A64_ROUND_BITS;
+  const auto round_offset =
+      hn::Set(di16, static_cast<int16_t>(1 << round_bits));
+  const auto ma = hn::Sub(alpha_max, a);
+
+  const auto ssAL = hn::InterleaveLower(du8, s0, s1);
+  const auto aaAL = hn::BitCast(di8, hn::InterleaveLower(du8, a, ma));
+  const auto ssAH = hn::InterleaveUpper(du8, s0, s1);
+  const auto aaAH = hn::BitCast(di8, hn::InterleaveUpper(du8, a, ma));
+
+  const auto blendAL = hn::SatWidenMulPairwiseAdd(di16, ssAL, aaAL);
+  const auto blendAH = hn::SatWidenMulPairwiseAdd(di16, ssAH, aaAH);
+  const auto roundAL = hn::MulFixedPoint15(blendAL, round_offset);
+  const auto roundAH = hn::MulFixedPoint15(blendAH, round_offset);
+
+  const auto roundA = hn::ReorderDemote2To(du8, roundAL, roundAH);
+  hn::StoreU(roundA, du8, comp_pred);
+}
+
+HWY_ATTR HWY_INLINE void CompMaskPred(uint8_t *comp_pred, const uint8_t *pred,
+                                      int width, int height, const uint8_t *ref,
+                                      int ref_stride, const uint8_t *mask,
+                                      int mask_stride, int invert_mask) {
+  constexpr hn::ScalableTag<uint8_t> du8;
+  constexpr int vw = hn::MaxLanes(du8);
+  int i = 0;
+  const uint8_t *src0 = invert_mask ? pred : ref;
+  const uint8_t *src1 = invert_mask ? ref : pred;
+  const int stride0 = invert_mask ? width : ref_stride;
+  const int stride1 = invert_mask ? ref_stride : width;
+
+  if (width == 8) {
+    aom_comp_mask_pred_avx2(comp_pred, pred, width, height, ref, ref_stride,
+                            mask, mask_stride, invert_mask);
+  } else if (width == 16) {
+    constexpr int kRows = (16 < vw) ? (vw / 16) : 1;
+    do {
+      const auto s0 = LoadRowsU<kRows>(du8, src0, stride0);
+      const auto s1 = LoadRowsU<kRows>(du8, src1, stride1);
+      const auto a = LoadRowsU<kRows>(du8, mask, mask_stride);
+      CompMaskPredLine(du8, s0, s1, a, comp_pred);
+      src0 += stride0 * kRows;
+      src1 += stride1 * kRows;
+      mask += mask_stride * kRows;
+      comp_pred += 16 * kRows;
+      i += kRows;
+    } while (i < height);
+  } else if (width == 32) {
+    constexpr int kRows = (32 < vw) ? (vw / 32) : 1;
+    do {
+      const auto s0 = LoadRowsU<kRows>(du8, src0, stride0);
+      const auto s1 = LoadRowsU<kRows>(du8, src1, stride1);
+      const auto a = LoadRowsU<kRows>(du8, mask, mask_stride);
+      CompMaskPredLine(du8, s0, s1, a, comp_pred);
+      src0 += stride0 * kRows;
+      src1 += stride1 * kRows;
+      mask += mask_stride * kRows;
+      comp_pred += 32 * kRows;
+      i += kRows;
+    } while (i < height);
+  } else {
+    do {
+      for (int x = 0; x < width; x += vw) {
+        const auto s0 = hn::LoadU(du8, src0 + x);
+        const auto s1 = hn::LoadU(du8, src1 + x);
+        const auto a = hn::LoadU(du8, mask + x);
+        CompMaskPredLine(du8, s0, s1, a, comp_pred);
+        comp_pred += vw;
+      }
+      src0 += stride0;
+      src1 += stride1;
+      mask += mask_stride;
+      i++;
+    } while (i < height);
+  }
+}
+
+#if CONFIG_AV1_HIGHBITDEPTH
+template <class DI16>
+HWY_ATTR HWY_INLINE hn::VFromD<DI16> HighbdCompMaskPredLine(
+    DI16 di16, hn::VFromD<DI16> s0, hn::VFromD<DI16> s1, hn::VFromD<DI16> a) {
+  constexpr hn::Repartition<int32_t, DI16> di32;
+  const auto alpha_max =
+      hn::Set(di16, static_cast<int16_t>(1 << AOM_BLEND_A64_ROUND_BITS));
+  const auto round_const = hn::Set(di32, (1 << AOM_BLEND_A64_ROUND_BITS) >> 1);
+  const auto a_inv = hn::Sub(alpha_max, a);
+
+  const auto s_lo = hn::InterleaveLower(di16, s0, s1);
+  const auto a_lo = hn::InterleaveLower(di16, a, a_inv);
+  const auto pred_l = hn::ShiftRight<AOM_BLEND_A64_ROUND_BITS>(
+      hn::Add(hn::WidenMulPairwiseAdd(di32, s_lo, a_lo), round_const));
+
+  const auto s_hi = hn::InterleaveUpper(di16, s0, s1);
+  const auto a_hi = hn::InterleaveUpper(di16, a, a_inv);
+  const auto pred_h = hn::ShiftRight<AOM_BLEND_A64_ROUND_BITS>(
+      hn::Add(hn::WidenMulPairwiseAdd(di32, s_hi, a_hi), round_const));
+
+  return hn::ReorderDemote2To(di16, pred_l, pred_h);
+}
+
+HWY_ATTR HWY_INLINE void HighbdCompMaskPred(uint8_t *comp_pred8,
+                                            const uint8_t *pred8, int width,
+                                            int height, const uint8_t *ref8,
+                                            int ref_stride, const uint8_t *mask,
+                                            int mask_stride, int invert_mask) {
+  if (width < 16) {
+    aom_highbd_comp_mask_pred_avx2(comp_pred8, pred8, width, height, ref8,
+                                   ref_stride, mask, mask_stride, invert_mask);
+    return;
+  }
+  constexpr hn::ScalableTag<int16_t> di16;
+  constexpr hn::Rebind<uint8_t, decltype(di16)> du8_half;
+  constexpr int kLanes16 = hn::MaxLanes(di16);
+
+  const uint16_t *pred = CONVERT_TO_SHORTPTR(pred8);
+  const uint16_t *ref = CONVERT_TO_SHORTPTR(ref8);
+  int16_t *comp_pred =
+      reinterpret_cast<int16_t *>(CONVERT_TO_SHORTPTR(comp_pred8));
+  const int16_t *src0 =
+      reinterpret_cast<const int16_t *>(invert_mask ? pred : ref);
+  const int16_t *src1 =
+      reinterpret_cast<const int16_t *>(invert_mask ? ref : pred);
+  const int stride0 = invert_mask ? width : ref_stride;
+  const int stride1 = invert_mask ? ref_stride : width;
+
+  if (width == 16) {
+    constexpr int kRows = (16 < kLanes16) ? (kLanes16 / 16) : 1;
+    for (int i = 0; i < height; i += kRows) {
+      const auto s0 = LoadRowsU<kRows>(di16, src0, stride0);
+      const auto s1 = LoadRowsU<kRows>(di16, src1, stride1);
+      const auto m8 = LoadRowsU<kRows>(du8_half, mask, mask_stride);
+      const auto m16 = hn::PromoteTo(di16, m8);
+      const auto comp = HighbdCompMaskPredLine(di16, s0, s1, m16);
+      hn::StoreU(comp, di16, comp_pred);
+      src0 += stride0 * kRows;
+      src1 += stride1 * kRows;
+      mask += mask_stride * kRows;
+      comp_pred += 16 * kRows;
+    }
+  } else {
+    for (int i = 0; i < height; ++i) {
+      for (int x = 0; x < width; x += kLanes16) {
+        const auto s0 = hn::LoadU(di16, src0 + x);
+        const auto s1 = hn::LoadU(di16, src1 + x);
+        const auto m8 = hn::LoadU(du8_half, mask + x);
+        const auto m16 = hn::PromoteTo(di16, m8);
+        const auto comp = HighbdCompMaskPredLine(di16, s0, s1, m16);
+        hn::StoreU(comp, di16, comp_pred);
+        comp_pred += kLanes16;
+      }
+      src0 += stride0;
+      src1 += stride1;
+      mask += mask_stride;
+    }
+  }
+}
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
 }  // namespace HWY_NAMESPACE
 }  // namespace
 
@@ -856,6 +1133,84 @@ HWY_ATTR HWY_INLINE unsigned int SubPixelVarianceWxH(
   X(64, 64, 64, 6, 6, suffix)                 \
   X(64, 32, 32, 6, 5, suffix)                 \
   FOR_EACH_SUBPIX_VAR_64_128_RECT(X, suffix)
+
+#if !CONFIG_REALTIME_ONLY
+#define FOBMC_VAR(W, H, suffix)                                                \
+  extern "C" unsigned int aom_obmc_variance##W##x##H##_##suffix(               \
+      const uint8_t *pre, int pre_stride, const int32_t *wsrc,                 \
+      const int32_t *mask, unsigned int *sse);                                 \
+  HWY_ATTR unsigned int aom_obmc_variance##W##x##H##_##suffix(                 \
+      const uint8_t *pre, int pre_stride, const int32_t *wsrc,                 \
+      const int32_t *mask, unsigned int *sse) {                                \
+    static_assert((W) >= 16, "FOBMC_VAR requires W >= 16.");                   \
+    int sum = 0;                                                               \
+    HWY_NAMESPACE::ObmcVarianceW16N(pre, pre_stride, wsrc, mask, sse, &sum, W, \
+                                    H);                                        \
+    return *sse - static_cast<unsigned int>(                                   \
+                      (static_cast<int64_t>(sum) * sum) / ((W) * (H)));        \
+  }
+
+#define FOR_EACH_OBMC_VAR_BLOCK_SIZE(X, suffix) \
+  X(128, 128, suffix)                           \
+  X(128, 64, suffix)                            \
+  X(64, 128, suffix)                            \
+  X(64, 64, suffix)                             \
+  X(64, 32, suffix)                             \
+  X(64, 16, suffix)                             \
+  X(32, 64, suffix)                             \
+  X(32, 32, suffix)                             \
+  X(32, 16, suffix)                             \
+  X(32, 8, suffix)                              \
+  X(16, 64, suffix)                             \
+  X(16, 32, suffix)                             \
+  X(16, 16, suffix)                             \
+  X(16, 8, suffix)                              \
+  X(16, 4, suffix)
+#else
+#define FOBMC_VAR(W, H, suffix)
+#define FOR_EACH_OBMC_VAR_BLOCK_SIZE(X, suffix)
+#endif  // !CONFIG_REALTIME_ONLY
+
+#if CONFIG_AV1_HIGHBITDEPTH
+#define FHIGHBD_COMP_MASK_PRED(suffix)                                        \
+  extern "C" void aom_highbd_comp_mask_pred_##suffix(                         \
+      uint8_t *comp_pred8, const uint8_t *pred8, int width, int height,       \
+      const uint8_t *ref8, int ref_stride, const uint8_t *mask,               \
+      int mask_stride, int invert_mask);                                      \
+  HWY_ATTR void aom_highbd_comp_mask_pred_##suffix(                           \
+      uint8_t *comp_pred8, const uint8_t *pred8, int width, int height,       \
+      const uint8_t *ref8, int ref_stride, const uint8_t *mask,               \
+      int mask_stride, int invert_mask) {                                     \
+    HWY_NAMESPACE::HighbdCompMaskPred(comp_pred8, pred8, width, height, ref8, \
+                                      ref_stride, mask, mask_stride,          \
+                                      invert_mask);                           \
+  }
+#else
+#define FHIGHBD_COMP_MASK_PRED(suffix)
+#endif
+
+#define FCOMP_AVG_MASK_PRED(suffix)                                          \
+  extern "C" void aom_comp_avg_pred_##suffix(                                \
+      uint8_t *comp_pred, const uint8_t *pred, int width, int height,        \
+      const uint8_t *ref, int ref_stride);                                   \
+  HWY_ATTR void aom_comp_avg_pred_##suffix(                                  \
+      uint8_t *comp_pred, const uint8_t *pred, int width, int height,        \
+      const uint8_t *ref, int ref_stride) {                                  \
+    HWY_NAMESPACE::CompAvgPred(comp_pred, pred, width, height, ref,          \
+                               ref_stride);                                  \
+  }                                                                          \
+  extern "C" void aom_comp_mask_pred_##suffix(                               \
+      uint8_t *comp_pred, const uint8_t *pred, int width, int height,        \
+      const uint8_t *ref, int ref_stride, const uint8_t *mask,               \
+      int mask_stride, int invert_mask);                                     \
+  HWY_ATTR void aom_comp_mask_pred_##suffix(                                 \
+      uint8_t *comp_pred, const uint8_t *pred, int width, int height,        \
+      const uint8_t *ref, int ref_stride, const uint8_t *mask,               \
+      int mask_stride, int invert_mask) {                                    \
+    HWY_NAMESPACE::CompMaskPred(comp_pred, pred, width, height, ref,         \
+                                ref_stride, mask, mask_stride, invert_mask); \
+  }                                                                          \
+  FHIGHBD_COMP_MASK_PRED(suffix)
 
 HWY_AFTER_NAMESPACE();
 
