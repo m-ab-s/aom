@@ -3992,6 +3992,40 @@ INSTANTIATE_TEST_SUITE_P(
     AVX512, CalcVarianceStatHbdTest,
     ::testing::Values(&aom_highbd_calc_variance_stat_avx512));
 #endif  // CONFIG_AV1_HIGHBITDEPTH
+
+const SubpelVarianceParams kArraySubpelVariance_avx512[] = {
+  SubpelVarianceParams(7, 7, &aom_sub_pixel_variance128x128_avx512, 0),
+  SubpelVarianceParams(7, 6, &aom_sub_pixel_variance128x64_avx512, 0),
+  SubpelVarianceParams(6, 7, &aom_sub_pixel_variance64x128_avx512, 0),
+  SubpelVarianceParams(6, 6, &aom_sub_pixel_variance64x64_avx512, 0),
+  SubpelVarianceParams(6, 5, &aom_sub_pixel_variance64x32_avx512, 0),
+  SubpelVarianceParams(5, 6, &aom_sub_pixel_variance32x64_avx512, 0),
+  SubpelVarianceParams(5, 5, &aom_sub_pixel_variance32x32_avx512, 0),
+  SubpelVarianceParams(5, 4, &aom_sub_pixel_variance32x16_avx512, 0),
+#if !CONFIG_REALTIME_ONLY
+  SubpelVarianceParams(6, 4, &aom_sub_pixel_variance64x16_avx512, 0),
+  SubpelVarianceParams(5, 3, &aom_sub_pixel_variance32x8_avx512, 0),
+#endif
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, AvxSubpelVarianceTest,
+                         ::testing::ValuesIn(kArraySubpelVariance_avx512));
+
+const SubpelAvgVarianceParams kArraySubpelAvgVariance_avx512[] = {
+  SubpelAvgVarianceParams(7, 7, &aom_sub_pixel_avg_variance128x128_avx512, 0),
+  SubpelAvgVarianceParams(7, 6, &aom_sub_pixel_avg_variance128x64_avx512, 0),
+  SubpelAvgVarianceParams(6, 7, &aom_sub_pixel_avg_variance64x128_avx512, 0),
+  SubpelAvgVarianceParams(6, 6, &aom_sub_pixel_avg_variance64x64_avx512, 0),
+  SubpelAvgVarianceParams(6, 5, &aom_sub_pixel_avg_variance64x32_avx512, 0),
+  SubpelAvgVarianceParams(5, 6, &aom_sub_pixel_avg_variance32x64_avx512, 0),
+  SubpelAvgVarianceParams(5, 5, &aom_sub_pixel_avg_variance32x32_avx512, 0),
+  SubpelAvgVarianceParams(5, 4, &aom_sub_pixel_avg_variance32x16_avx512, 0),
+#if !CONFIG_REALTIME_ONLY
+  SubpelAvgVarianceParams(6, 4, &aom_sub_pixel_avg_variance64x16_avx512, 0),
+  SubpelAvgVarianceParams(5, 3, &aom_sub_pixel_avg_variance32x8_avx512, 0),
+#endif
+};
+INSTANTIATE_TEST_SUITE_P(AVX512, AvxSubpelAvgVarianceTest,
+                         ::testing::ValuesIn(kArraySubpelAvgVariance_avx512));
 #endif  // CONFIG_HIGHWAY && HAVE_AVX512
 
 }  // namespace

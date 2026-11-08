@@ -1537,6 +1537,17 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sub_pixel_variance4x8            neon neon_dotprod/, "$ssse3_asm";
   specialize qw/aom_sub_pixel_variance4x4            neon/, "$ssse3_asm";
 
+  if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/aom_sub_pixel_variance128x128 avx512/;
+    specialize qw/aom_sub_pixel_variance128x64  avx512/;
+    specialize qw/aom_sub_pixel_variance64x128  avx512/;
+    specialize qw/aom_sub_pixel_variance64x64   avx512/;
+    specialize qw/aom_sub_pixel_variance64x32   avx512/;
+    specialize qw/aom_sub_pixel_variance32x64   avx512/;
+    specialize qw/aom_sub_pixel_variance32x32   avx512/;
+    specialize qw/aom_sub_pixel_variance32x16   avx512/;
+  }
+
   specialize qw/aom_sub_pixel_avg_variance128x128 avx2 neon/, "$ssse3_asm";
   specialize qw/aom_sub_pixel_avg_variance128x64  avx2 neon/, "$ssse3_asm";
   specialize qw/aom_sub_pixel_avg_variance64x128  avx2 neon/, "$ssse3_asm";
@@ -1553,6 +1564,17 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   specialize qw/aom_sub_pixel_avg_variance8x4          neon/, "$ssse3_asm";
   specialize qw/aom_sub_pixel_avg_variance4x8          neon/, "$ssse3_asm";
   specialize qw/aom_sub_pixel_avg_variance4x4          neon/, "$ssse3_asm";
+
+  if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/aom_sub_pixel_avg_variance128x128 avx512/;
+    specialize qw/aom_sub_pixel_avg_variance128x64  avx512/;
+    specialize qw/aom_sub_pixel_avg_variance64x128  avx512/;
+    specialize qw/aom_sub_pixel_avg_variance64x64   avx512/;
+    specialize qw/aom_sub_pixel_avg_variance64x32   avx512/;
+    specialize qw/aom_sub_pixel_avg_variance32x64   avx512/;
+    specialize qw/aom_sub_pixel_avg_variance32x32   avx512/;
+    specialize qw/aom_sub_pixel_avg_variance32x16   avx512/;
+  }
 
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
     specialize qw/aom_variance4x16  neon neon_dotprod sse2/;
@@ -1581,6 +1603,13 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     specialize qw/aom_sub_pixel_avg_variance32x8 neon/, "$ssse3_asm";
     specialize qw/aom_sub_pixel_avg_variance16x64 neon/, "$ssse3_asm";
     specialize qw/aom_sub_pixel_avg_variance64x16 neon/, "$ssse3_asm";
+
+    if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+      specialize qw/aom_sub_pixel_variance32x8      avx512/;
+      specialize qw/aom_sub_pixel_variance64x16     avx512/;
+      specialize qw/aom_sub_pixel_avg_variance32x8  avx512/;
+      specialize qw/aom_sub_pixel_avg_variance64x16 avx512/;
+    }
   }
 
   if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
