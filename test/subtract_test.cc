@@ -311,6 +311,13 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(&aom_subtract_block_c)));
 
 #endif
+#if CONFIG_HIGHWAY && HAVE_AVX512
+INSTANTIATE_TEST_SUITE_P(
+    AVX512, AV1SubtractBlockTest,
+    ::testing::Combine(::testing::ValuesIn(kValidBlockSize),
+                       ::testing::Values(&aom_subtract_block_avx512),
+                       ::testing::Values(&aom_subtract_block_c)));
+#endif
 #if HAVE_NEON
 INSTANTIATE_TEST_SUITE_P(
     NEON, AV1SubtractBlockTest,

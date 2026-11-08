@@ -817,7 +817,11 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   # Block subtraction
   #
   add_proto qw/void aom_subtract_block/, "int rows, int cols, int16_t *diff_ptr, ptrdiff_t diff_stride, const uint8_t *src_ptr, ptrdiff_t src_stride, const uint8_t *pred_ptr, ptrdiff_t pred_stride";
-  specialize qw/aom_subtract_block neon avx2/, "$sse2_asm";
+  if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/aom_subtract_block neon avx2 avx512/, "$sse2_asm";
+  } else {
+    specialize qw/aom_subtract_block neon avx2/, "$sse2_asm";
+  }
 
   add_proto qw/int64_t/, "aom_sse", "const uint8_t *a, int a_stride, const uint8_t *b,int b_stride, int width, int height";
   specialize qw/aom_sse sse4_1 avx2 neon neon_dotprod/;

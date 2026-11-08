@@ -187,7 +187,8 @@ if(CONFIG_AV1_ENCODER)
 
   if(CONFIG_HIGHWAY)
     list(APPEND AOM_DSP_ENCODER_SOURCES "${AOM_ROOT}/aom_dsp/reduce_sum_hwy.h"
-                "${AOM_ROOT}/aom_dsp/sad_hwy.h")
+                "${AOM_ROOT}/aom_dsp/sad_hwy.h"
+                "${AOM_ROOT}/aom_dsp/subtract_hwy.h")
   endif()
 
   # Flow estimation library and grain/noise table/model.
@@ -272,7 +273,8 @@ if(CONFIG_AV1_ENCODER)
     list(APPEND AOM_DSP_ENCODER_INTRIN_AVX2
                 "${AOM_ROOT}/aom_dsp/x86/sad_hwy_avx2.cc")
     list(APPEND AOM_DSP_ENCODER_INTRIN_AVX512
-                "${AOM_ROOT}/aom_dsp/x86/sad_hwy_avx512.cc")
+                "${AOM_ROOT}/aom_dsp/x86/sad_hwy_avx512.cc"
+                "${AOM_ROOT}/aom_dsp/x86/subtract_hwy_avx512.cc")
     list(REMOVE_ITEM AOM_DSP_ENCODER_INTRIN_AVX2
                      "${AOM_ROOT}/aom_dsp/x86/sad_impl_avx2.c")
   endif()
