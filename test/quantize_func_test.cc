@@ -762,6 +762,66 @@ INSTANTIATE_TEST_SUITE_P(AVX2, FullPrecisionQuantizeTest,
                          ::testing::ValuesIn(kQParamArrayAvx2));
 #endif  // HAVE_AVX2
 
+#if CONFIG_HIGHWAY && HAVE_AVX512
+const QuantizeParam<LPQuantizeFunc> kLPQParamArrayAvx512[] = {
+  make_tuple(&av1_quantize_lp_c, &av1_quantize_lp_avx512,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_lp_c, &av1_quantize_lp_avx512,
+             static_cast<TX_SIZE>(TX_8X8), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_lp_c, &av1_quantize_lp_avx512,
+             static_cast<TX_SIZE>(TX_4X4), TYPE_FP, AOM_BITS_8)
+};
+
+INSTANTIATE_TEST_SUITE_P(AVX512, LowPrecisionQuantizeTest,
+                         ::testing::ValuesIn(kLPQParamArrayAvx512));
+
+const QuantizeParam<QuantizeFunc> kQParamArrayAvx512[] = {
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx512,
+             static_cast<TX_SIZE>(TX_4X4), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx512,
+             static_cast<TX_SIZE>(TX_4X8), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx512,
+             static_cast<TX_SIZE>(TX_8X4), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx512,
+             static_cast<TX_SIZE>(TX_8X8), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx512,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx512,
+             static_cast<TX_SIZE>(TX_4X16), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx512,
+             static_cast<TX_SIZE>(TX_16X4), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx512,
+             static_cast<TX_SIZE>(TX_32X8), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_avx512,
+             static_cast<TX_SIZE>(TX_8X32), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_32x32_c, &av1_quantize_fp_32x32_avx512,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_32x32_c, &av1_quantize_fp_32x32_avx512,
+             static_cast<TX_SIZE>(TX_16X64), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_32x32_c, &av1_quantize_fp_32x32_avx512,
+             static_cast<TX_SIZE>(TX_64X16), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_64x64_c, &av1_quantize_fp_64x64_avx512,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_c, &aom_quantize_b_avx512,
+             static_cast<TX_SIZE>(TX_4X4), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_c, &aom_quantize_b_avx512,
+             static_cast<TX_SIZE>(TX_4X8), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_c, &aom_quantize_b_avx512,
+             static_cast<TX_SIZE>(TX_8X4), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_c, &aom_quantize_b_avx512,
+             static_cast<TX_SIZE>(TX_8X8), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_c, &aom_quantize_b_avx512,
+             static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_32x32_c, &aom_quantize_b_32x32_avx512,
+             static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_64x64_c, &aom_quantize_b_64x64_avx512,
+             static_cast<TX_SIZE>(TX_64X64), TYPE_B, AOM_BITS_8),
+};
+
+INSTANTIATE_TEST_SUITE_P(AVX512, FullPrecisionQuantizeTest,
+                         ::testing::ValuesIn(kQParamArrayAvx512));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
+
 #if HAVE_SSE2
 
 const QuantizeParam<LPQuantizeFunc> kLPQParamArraySSE2[] = {

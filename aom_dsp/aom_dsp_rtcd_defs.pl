@@ -755,6 +755,12 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/void aom_quantize_b_64x64/, "const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan";
   specialize qw/aom_quantize_b_64x64 neon ssse3 avx2/;
 
+  if (aom_config("CONFIG_HIGHWAY") eq "yes") {
+    specialize qw/aom_quantize_b avx512/;
+    specialize qw/aom_quantize_b_32x32 avx512/;
+    specialize qw/aom_quantize_b_64x64 avx512/;
+  }
+
   if (aom_config("CONFIG_REALTIME_ONLY") ne "yes") {
     add_proto qw/void aom_quantize_b_adaptive/, "const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan";
     specialize qw/aom_quantize_b_adaptive sse2 avx2/;

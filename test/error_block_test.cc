@@ -213,6 +213,36 @@ TEST_P(ErrorBlockTest, ExtremeValues) {
     }
     err_count_total += err_count;
   }
+
+  // Test -(1 << msb) (e.g. INT16_MIN = -32768 for 8-bit) on adjacent lanes,
+  // where pairwise squared sums reach 2 * 32768^2 = 0x80000000 and must be
+  // zero-extended rather than sign-extended to 64 bits.
+  const tran_low_t min_val = -(1 << msb);
+  for (int b = 0; b < 9; ++b) {
+    block_size = 16 << b;
+    for (int pair_offset = 0; pair_offset < 8; pair_offset += 2) {
+      for (int mode = 1; mode <= 3; ++mode) {
+        for (int j = 0; j < block_size; ++j) {
+          const bool active =
+              (j % 64) == pair_offset || (j % 64) == pair_offset + 1;
+          coeff[j] = (active && (mode & 1)) ? min_val : 0;
+          dqcoeff[j] = (active && (mode & 2)) ? min_val : 0;
+        }
+        ref_ret = ref_error_block_op_(coeff, dqcoeff, block_size, &ref_ssz,
+                                      bit_depth_);
+        API_REGISTER_STATE_CHECK(
+            ret =
+                error_block_op_(coeff, dqcoeff, block_size, &ssz, bit_depth_));
+        EXPECT_EQ(ref_ret, ret)
+            << "sse mismatch for min_val at block_size=" << block_size
+            << " pair_offset=" << pair_offset << " mode=" << mode;
+        EXPECT_EQ(ref_ssz, ssz)
+            << "ssz mismatch for min_val at block_size=" << block_size
+            << " pair_offset=" << pair_offset << " mode=" << mode;
+      }
+    }
+  }
+
   EXPECT_EQ(0, err_count_total)
       << "Error: Error Block Test, C output doesn't match optimized output. "
       << "First failed at test case " << first_failure;
@@ -330,6 +360,15 @@ const ErrorBlockParam kErrorBlockTestParamsAvx2[] = {
 INSTANTIATE_TEST_SUITE_P(AVX2, ErrorBlockTest,
                          ::testing::ValuesIn(kErrorBlockTestParamsAvx2));
 #endif  // HAVE_AVX2
+
+#if CONFIG_HIGHWAY && HAVE_AVX512
+const ErrorBlockParam kErrorBlockTestParamsAvx512[] = { make_tuple(
+    &BlockError8BitWrapper<av1_block_error_avx512>,
+    &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8) };
+
+INSTANTIATE_TEST_SUITE_P(AVX512, ErrorBlockTest,
+                         ::testing::ValuesIn(kErrorBlockTestParamsAvx512));
+#endif  // CONFIG_HIGHWAY && HAVE_AVX512
 
 #if HAVE_NEON
 const ErrorBlockParam kErrorBlockTestParamsNeon[] = {
