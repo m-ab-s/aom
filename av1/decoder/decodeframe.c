@@ -3584,20 +3584,26 @@ static inline void sync_dec_workers(AV1Decoder *pbi, int num_workers) {
 static inline void decode_mt_init(AV1Decoder *pbi) {
   AV1_COMMON *const cm = &pbi->common;
   const AVxWorkerInterface *const winterface = aom_get_worker_interface();
+  const int num_threads = pbi->max_threads;
   int worker_idx;
 
-  // Create workers and thread_data
-  if (pbi->num_workers == 0) {
-    const int num_threads = pbi->max_threads;
+  // Create workers and thread_data. This may be re-entered after a previous
+  // call bailed out via aom_internal_error() (e.g., thread creation or memory
+  // allocation failure), so only set up what is still missing.
+  if (pbi->tile_workers == NULL) {
     CHECK_MEM_ERROR(cm, pbi->tile_workers,
                     aom_malloc(num_threads * sizeof(*pbi->tile_workers)));
+  }
+  if (pbi->thread_data == NULL) {
     CHECK_MEM_ERROR(cm, pbi->thread_data,
                     aom_calloc(num_threads, sizeof(*pbi->thread_data)));
+  }
 
-    for (worker_idx = 0; worker_idx < num_threads; ++worker_idx) {
-      AVxWorker *const worker = &pbi->tile_workers[worker_idx];
-      DecWorkerData *const thread_data = pbi->thread_data + worker_idx;
+  for (worker_idx = 0; worker_idx < num_threads; ++worker_idx) {
+    AVxWorker *const worker = &pbi->tile_workers[worker_idx];
+    DecWorkerData *const thread_data = pbi->thread_data + worker_idx;
 
+    if (worker_idx >= pbi->num_workers) {
       winterface->init(worker);
       worker->thread_name = "aom tile worker";
       if (worker_idx != 0 && !winterface->reset(worker)) {
@@ -3605,16 +3611,16 @@ static inline void decode_mt_init(AV1Decoder *pbi) {
                            "Tile decoder thread creation failed");
       }
       ++pbi->num_workers;
+    }
 
-      if (worker_idx != 0) {
-        // Allocate thread data.
-        CHECK_MEM_ERROR(cm, thread_data->td,
-                        aom_memalign(32, sizeof(*thread_data->td)));
-        av1_zero(*thread_data->td);
-      } else {
-        // Main thread acts as a worker and uses the thread data in pbi
-        thread_data->td = &pbi->td;
-      }
+    if (worker_idx == 0) {
+      // Main thread acts as a worker and uses the thread data in pbi
+      thread_data->td = &pbi->td;
+    } else if (thread_data->td == NULL) {
+      // Allocate thread data.
+      CHECK_MEM_ERROR(cm, thread_data->td,
+                      aom_memalign(32, sizeof(*thread_data->td)));
+      av1_zero(*thread_data->td);
       thread_data->error_info.error_code = AOM_CODEC_OK;
       thread_data->error_info.setjmp = 0;
     }
