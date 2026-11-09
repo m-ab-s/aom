@@ -4848,6 +4848,73 @@ TEST(EncodeAPI, HighbdMisalignedPlanesAndStrides) {
 
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+
+// A test that reproduces b/580524406: signed integer overflow when computing
+// (9 * avg_64x64) in av1_choose_var_based_partitioning().
+TEST(EncodeAPI, Avg64x64IntegerOverflow) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_threads = 16;
+  cfg.g_profile = 2;
+  cfg.g_w = 729;
+  cfg.g_h = 806;
+  cfg.g_forced_max_frame_width = cfg.g_w;
+  cfg.g_forced_max_frame_height = cfg.g_h;
+  cfg.g_bit_depth = AOM_BITS_12;
+  cfg.g_input_bit_depth = 12;
+  cfg.g_timebase.num = 1;
+  cfg.g_timebase.den = 1000 * 1000;  // microseconds
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_CBR;
+  cfg.rc_min_quantizer = 2;
+  cfg.rc_max_quantizer = 58;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 7), AOM_CODEC_OK);
+
+  // Encode a gray 12-bit 4:2:0 key frame.
+  aom_image_t *const image =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 1);
+  ASSERT_NE(image, nullptr);
+  const uint16_t kGray = 1 << 11;
+  for (int plane = 0; plane < 3; ++plane) {
+    const unsigned int w = aom_img_plane_width(image, plane);
+    const unsigned int h = aom_img_plane_height(image, plane);
+    for (unsigned int i = 0; i < h; ++i) {
+      uint16_t *const row = reinterpret_cast<uint16_t *>(
+          image->planes[plane] + i * image->stride[plane]);
+      for (unsigned int j = 0; j < w; ++j) row[j] = kGray;
+    }
+  }
+  ASSERT_EQ(aom_codec_encode(&enc, image, 0, 1, AOM_EFLAG_FORCE_KF),
+            AOM_CODEC_OK);
+  aom_codec_iter_t iter = nullptr;
+  const aom_codec_cx_pkt_t *pkt;
+  while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+    ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+    ASSERT_EQ(pkt->data.frame.flags & AOM_FRAME_IS_KEY, AOM_FRAME_IS_KEY);
+  }
+  aom_img_free(image);
+
+  // Flush the encoder.
+  bool got_data;
+  do {
+    ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+    got_data = false;
+    iter = nullptr;
+    while ((pkt = aom_codec_get_cx_data(&enc, &iter)) != nullptr) {
+      ASSERT_EQ(pkt->kind, AOM_CODEC_CX_FRAME_PKT);
+      got_data = true;
+    }
+  } while (got_data);
+
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 // A key frame whose luma is a block of noise repeated over the frame. IntraBC

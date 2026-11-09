@@ -1611,7 +1611,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   MACROBLOCKD *xd = &x->e_mbd;
   const int64_t *const vbp_thresholds = cpi->vbp_info.thresholds;
   PART_EVAL_STATUS force_split[85];
-  int avg_64x64;
+  int64_t avg_64x64;
   int max_var_32x32[4];
   int min_var_32x32[4];
   int var_32x32;
@@ -1884,7 +1884,7 @@ int av1_choose_var_based_partitioning(AV1_COMP *cpi, const TileInfo *const tile,
   if (force_split[0] == PART_EVAL_ALL) {
     fill_variance_tree(vt, BLOCK_128X128);
     get_variance(&vt->part_variances.none);
-    const int set_avg_64x64 = (9 * avg_64x64) >> 5;
+    const int64_t set_avg_64x64 = (9 * avg_64x64) >> 5;
     if (!is_key_frame && vt->part_variances.none.variance > set_avg_64x64)
       force_split[0] = PART_EVAL_ONLY_SPLIT;
 
