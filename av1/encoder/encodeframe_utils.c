@@ -11,7 +11,6 @@
 
 #include "aom/aom_codec.h"
 #include "aom/internal/aom_codec_internal.h"
-#include <stdlib.h>
 
 #include "av1/common/common_data.h"
 #include "av1/common/quant_common.h"
@@ -1093,6 +1092,10 @@ static void avg_cdf_symbol_general(aom_cdf_prob *cdf_ptr_left,
   }
 }
 
+// Precondition for the 3:1 fast path: a, b < CDF_PROB_TOP (32768), so
+// (uint16_t)(a + b) <= 65534 never wraps uint16_t. Kept as a comment rather
+// than an inner-loop assert so !NDEBUG builds preserve SIMD
+// auto-vectorization (vpavgw/pavgw).
 static inline void avg_cdf_symbol(aom_cdf_prob *restrict cdf_ptr_left,
                                   const aom_cdf_prob *restrict cdf_ptr_tr,
                                   int num_cdfs, int cdf_stride, int nsymbs,
@@ -1164,6 +1167,7 @@ static void avg_nmv(nmv_context *nmv_left, nmv_context *nmv_tr, int wt_left,
 // of CDF and used only when row-mt is enabled in encoder.
 void av1_avg_cdf_symbols(FRAME_CONTEXT *ctx_left, FRAME_CONTEXT *ctx_tr,
                          int wt_left, int wt_tr) {
+  assert(ctx_left != ctx_tr);
   AVERAGE_CDF(ctx_left->txb_skip_cdf, ctx_tr->txb_skip_cdf, 2);
   AVERAGE_CDF(ctx_left->eob_extra_cdf, ctx_tr->eob_extra_cdf, 2);
   AVERAGE_CDF(ctx_left->dc_sign_cdf, ctx_tr->dc_sign_cdf, 2);

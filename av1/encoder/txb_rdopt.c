@@ -98,6 +98,7 @@ static AOM_FORCE_INLINE int update_coeff_simple(
   assert(si != eob - 1);
   assert(si > 0);
   const int ci = scan[si];
+  assert(ci > 0);
   const tran_low_t qc = qcoeff[ci];
   const int coeff_ctx =
       get_lower_levels_ctx(levels, ci, bhl, tx_size, tx_class);
