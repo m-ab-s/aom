@@ -1400,6 +1400,10 @@ int av1_is_integer_mv(const YV12_BUFFER_CONFIG *cur_picture,
 
   const int pic_width = cur_picture->y_width;
   const int pic_height = cur_picture->y_height;
+  if (pic_width != last_picture->y_width ||
+      pic_height != last_picture->y_height) {
+    return 0;
+  }
   for (int i = 0; i + block_size <= pic_height; i += block_size) {
     for (int j = 0; j + block_size <= pic_width; j += block_size) {
       const int x_pos = j;

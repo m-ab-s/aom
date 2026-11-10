@@ -3741,6 +3741,52 @@ TEST(EncodeAPI, Buganizer565488030) {
     }
   }
 }
+
+// Regression test for b/580372713: Heap-buffer-overflow in av1_is_integer_mv()
+// when resolution increases mid-stream on an inter frame with screen content
+// tools enabled.
+TEST(EncodeAPI, Buganizer580372713) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY),
+            AOM_CODEC_OK);
+
+  cfg.g_w = 64;
+  cfg.g_h = 64;
+  cfg.g_forced_max_frame_width = 800;
+  cfg.g_forced_max_frame_height = 800;
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_threads = 1;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 6), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN),
+            AOM_CODEC_OK);
+
+  aom_image_t *img_small = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 64, 64, 1);
+  ASSERT_NE(img_small, nullptr);
+  FillImage(img_small, 128);
+
+  aom_image_t *img_large = aom_img_alloc(nullptr, AOM_IMG_FMT_I420, 64, 768, 1);
+  ASSERT_NE(img_large, nullptr);
+  FillImage(img_large, 128);
+
+  // Frame 0 at 64x64.
+  EncodeOne(&enc, img_small, 0);
+
+  // Increase resolution to 64x768 on an inter frame so cpi->source (64x768) is
+  // larger than cpi->unscaled_last_source (64x64).
+  cfg.g_w = 64;
+  cfg.g_h = 768;
+  ASSERT_EQ(aom_codec_enc_config_set(&enc, &cfg), AOM_CODEC_OK);
+  EncodeOne(&enc, img_large, 1);
+
+  aom_img_free(img_small);
+  aom_img_free(img_large);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
 #endif  // !CONFIG_REALTIME_ONLY
 
 // Regression test for b/568565869: Undefined left-shift overflow of
