@@ -653,10 +653,14 @@ static inline void encode_nonrd_sb(AV1_COMP *cpi, ThreadData *td,
     // If 128x128 block is used, we need to set the flag for all 4 64x64 sub
     // "blocks".
     for (int r = 0; r < block64_in_sb; ++r) {
+      const int mi_row_sub = mi_row + r * MI_SIZE_64X64;
+      if (mi_row_sub >= cm->mi_params.mi_rows) continue;
       for (int c = 0; c < block64_in_sb; ++c) {
-        const int idx_in_sb =
-            r * MI_SIZE_64X64 * cm->mi_params.mi_stride + c * MI_SIZE_64X64;
-        if (mi[idx_in_sb]) mi[idx_in_sb]->cdef_strength = 1;
+        const int mi_col_sub = mi_col + c * MI_SIZE_64X64;
+        if (mi_col_sub >= cm->mi_params.mi_cols) continue;
+        const int alloc_mi_idx =
+            get_alloc_mi_idx(&cm->mi_params, mi_row_sub, mi_col_sub);
+        cm->mi_params.mi_alloc[alloc_mi_idx].cdef_strength = 1;
       }
     }
   }

@@ -1520,6 +1520,19 @@ TEST(EncodeAPI, Buganizer487259772RowMT) {
   ReproBuganizer487259772(/*row_mt=*/true);
 }
 
+// Reproduces b/584727137: data race in encode_nonrd_sb() when initializing
+// cdef_strength for 128x128 superblocks after reconfiguring to a smaller
+// frame size with multi-threading.
+TEST(EncodeAPI, Buganizer584727137) {
+  AV1Encoder encoder(11);
+  encoder.Configure(10, 721, 877, AOM_VBR, AOM_USAGE_REALTIME);
+  encoder.Encode(true);
+  encoder.Configure(6, 721, 603, AOM_CBR, AOM_USAGE_REALTIME);
+  encoder.Encode(false);
+  encoder.Configure(8, 436, 687, AOM_VBR, AOM_USAGE_REALTIME);
+  encoder.Encode(false);
+}
+
 class EncodeAPIParameterized
     : public testing::TestWithParam<std::tuple<
           /*usage=*/unsigned int, /*speed=*/int, /*aq_mode=*/unsigned int>> {};
