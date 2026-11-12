@@ -1094,8 +1094,7 @@ static void avg_cdf_symbol_general(aom_cdf_prob *cdf_ptr_left,
                           (int)cdf_ptr_tr[i * cdf_stride + j] * wt_tr +
                           ((wt_left + wt_tr) / 2)) /
                          (wt_left + wt_tr));
-      assert(cdf_ptr_left[i * cdf_stride + j] >= 0 &&
-             cdf_ptr_left[i * cdf_stride + j] < CDF_PROB_TOP);
+      assert(cdf_ptr_left[i * cdf_stride + j] < CDF_PROB_TOP);
     }
   }
 }
