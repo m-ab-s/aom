@@ -5387,6 +5387,90 @@ TEST(EncodeAPI, Avg64x64IntegerOverflow) {
 
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+
+// Reproduces signed integer overflow in av1_choose_var_based_partitioning()
+// when 12-bit inter-frame variance in get_variance() exceeds INT_MAX and wraps
+// negative, causing max_var_64x64 - min_var_64x64 to overflow int.
+TEST(EncodeAPI, VarBasedPart12BitVarianceOverflow) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_profile = 2;
+  cfg.g_w = 128;
+  cfg.g_h = 128;
+  cfg.g_bit_depth = AOM_BITS_12;
+  cfg.g_input_bit_depth = 12;
+  cfg.g_pass = AOM_RC_ONE_PASS;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_Q;
+  cfg.rc_min_quantizer = 2;
+  cfg.rc_max_quantizer = 2;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 10), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CQ_LEVEL, 2), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SUPERBLOCK_SIZE,
+                              AOM_SUPERBLOCK_SIZE_128X128),
+            AOM_CODEC_OK);
+
+  aom_image_t *const img0 =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 1);
+  aom_image_t *const img1 =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, cfg.g_w, cfg.g_h, 1);
+  ASSERT_NE(img0, nullptr);
+  ASSERT_NE(img1, nullptr);
+
+  // Fill chroma planes with mid-gray.
+  for (int plane = 1; plane < 3; ++plane) {
+    const unsigned int w = aom_img_plane_width(img0, plane);
+    const unsigned int h = aom_img_plane_height(img0, plane);
+    for (unsigned int y = 0; y < h; ++y) {
+      uint16_t *const row0 = reinterpret_cast<uint16_t *>(
+          img0->planes[plane] + y * img0->stride[plane]);
+      uint16_t *const row1 = reinterpret_cast<uint16_t *>(
+          img1->planes[plane] + y * img1->stride[plane]);
+      for (unsigned int x = 0; x < w; ++x) {
+        row0[x] = 2048;
+        row1[x] = 2048;
+      }
+    }
+  }
+
+  // Construct a 32x32 checkerboard in the top two 64x64 blocks so that every
+  // 16x16 and 32x32 sub-block has zero variance (keeping force_split[0] ==
+  // PART_EVAL_ALL), while the 64x64 inter-frame residual is +/-2890 in the
+  // left block (variance ~ 2.138e9 < INT_MAX) and +/-2910 in the right block
+  // (variance ~ 2.168e9 > INT_MAX, wrapping to ~ -2.127e9 without clamping).
+  for (unsigned int y = 0; y < cfg.g_h; ++y) {
+    uint16_t *const row0 = reinterpret_cast<uint16_t *>(
+        img0->planes[AOM_PLANE_Y] + y * img0->stride[AOM_PLANE_Y]);
+    uint16_t *const row1 = reinterpret_cast<uint16_t *>(
+        img1->planes[AOM_PLANE_Y] + y * img1->stride[AOM_PLANE_Y]);
+    for (unsigned int x = 0; x < cfg.g_w; ++x) {
+      if (y < 64) {
+        const bool high = (((x >> 5) ^ (y >> 5)) & 1) != 0;
+        const uint16_t delta = (x < 64) ? 2890 : 2910;
+        row0[x] = high ? 4095 : 0;
+        row1[x] = high ? static_cast<uint16_t>(4095 - delta) : delta;
+      } else {
+        row0[x] = 0;
+        row1[x] = 0;
+      }
+    }
+  }
+
+  ASSERT_EQ(aom_codec_encode(&enc, img0, 0, 1, AOM_EFLAG_FORCE_KF),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&enc, img1, 1, 1, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_encode(&enc, nullptr, 0, 0, 0), AOM_CODEC_OK);
+
+  aom_img_free(img1);
+  aom_img_free(img0);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #if CONFIG_AV1_DECODER
