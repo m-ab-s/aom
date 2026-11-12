@@ -177,12 +177,18 @@ static inline uint64_t xgetbv(void) {
 #define SSE_BITS BIT(25)
 #define SSE2_BITS BIT(26)
 #define SSE3_BITS BIT(0)
+#define PCLMUL_BITS BIT(1)
 #define SSSE3_BITS BIT(9)
+#define FMA_BITS BIT(12)
 #define SSE4_1_BITS BIT(19)
 #define SSE4_2_BITS BIT(20)
+#define AES_BITS BIT(25)
 // Bits 27 (OSXSAVE) & 28 (256-bit AVX)
 #define AVX_BITS (BIT(27) | BIT(28))
+#define F16C_BITS BIT(29)
+#define BMI1_BITS BIT(3)
 #define AVX2_BITS BIT(5)
+#define BMI2_BITS BIT(8)
 // Bits 16 (AVX512-F) & 17 (AVX512-DQ) & 28 (AVX512-CD) & 30 (AVX512-BW)
 // & 31 (AVX512-VL)
 #define AVX512_BITS (BIT(16) | BIT(17) | BIT(28) | BIT(30) | BIT(31))
@@ -191,6 +197,31 @@ static inline uint64_t xgetbv(void) {
 // 14 (AVX512-POPCNTDQ)
 #define AVX512_DL_BITS \
   (BIT(1) | BIT(6) | BIT(8) | BIT(9) | BIT(10) | BIT(11) | BIT(12) | BIT(14))
+
+#if CONFIG_HIGHWAY
+#if defined(HWY_DISABLE_PCLMUL_AES)
+#define HWY_PCLMUL_AES_BITS 0
+#else
+#define HWY_PCLMUL_AES_BITS (PCLMUL_BITS | AES_BITS)
+#endif
+#if defined(HWY_DISABLE_BMI2_FMA)
+#define HWY_FMA_BITS 0
+#define HWY_BMI_BITS 0
+#else
+#define HWY_FMA_BITS FMA_BITS
+#define HWY_BMI_BITS (BMI1_BITS | BMI2_BITS)
+#endif
+#if defined(HWY_DISABLE_F16C)
+#define HWY_F16C_BITS 0
+#else
+#define HWY_F16C_BITS F16C_BITS
+#endif
+#define HWY_SSE4_EDX_BITS (SSE_BITS | SSE2_BITS)
+#define HWY_SSE4_ECX_BITS \
+  (SSE3_BITS | SSSE3_BITS | SSE4_1_BITS | SSE4_2_BITS | HWY_PCLMUL_AES_BITS)
+#define HWY_AVX2_ECX_BITS (HWY_SSE4_ECX_BITS | HWY_FMA_BITS | HWY_F16C_BITS)
+#define HWY_AVX2_EBX_BITS (AVX2_BITS | HWY_BMI_BITS)
+#endif  // CONFIG_HIGHWAY
 
 #define FEATURE_SET(reg, feature) \
   (((reg) & (feature##_BITS)) == (feature##_BITS))
@@ -221,7 +252,14 @@ static inline int x86_simd_caps(void) {
   flags |= FEATURE_SET(reg_edx, SSE2) ? HAS_SSE2 : 0;
   flags |= FEATURE_SET(reg_ecx, SSE3) ? HAS_SSE3 : 0;
   flags |= FEATURE_SET(reg_ecx, SSSE3) ? HAS_SSSE3 : 0;
+#if CONFIG_HIGHWAY
+  if (FEATURE_SET(reg_edx, HWY_SSE4_EDX) &&
+      FEATURE_SET(reg_ecx, HWY_SSE4_ECX)) {
+    flags |= HAS_SSE4_1;
+  }
+#else
   flags |= FEATURE_SET(reg_ecx, SSE4_1) ? HAS_SSE4_1 : 0;
+#endif
   flags |= FEATURE_SET(reg_ecx, SSE4_2) ? HAS_SSE4_2 : 0;
 
   // bits 27 (OSXSAVE) & 28 (256-bit AVX)
@@ -230,14 +268,24 @@ static inline int x86_simd_caps(void) {
     if ((xgetbv() & 0x6) == 0x6) {
       flags |= HAS_AVX;
       if (max_cpuid_val >= 7) {
+#if CONFIG_HIGHWAY
+        const int has_avx2_leaf1 =
+            (flags & HAS_SSE4_1) && FEATURE_SET(reg_ecx, HWY_AVX2_ECX);
+#endif
         /* Get the leaf 7 feature flags. Needed to check for AVX2 support */
         cpuid(7, 0, reg_eax, reg_ebx, reg_ecx, reg_edx);
+#if CONFIG_HIGHWAY
+        if (has_avx2_leaf1 && FEATURE_SET(reg_ebx, HWY_AVX2_EBX)) {
+          flags |= HAS_AVX2;
+        }
+#else
         flags |= FEATURE_SET(reg_ebx, AVX2) ? HAS_AVX2 : 0;
+#endif
         // Check for OS-support of ZMM and YMM state. Necessary for AVX512.
         // Only set HAS_AVX512 flag if AVX512_DL feature are supported.
         // Older AVX512 implementations (such as Skylake) have turbo curves that
         // are currently problematic for mixed AVX512/AVX2 code
-        if ((xgetbv() & 0xe6) == 0xe6) {
+        if ((flags & HAS_AVX2) && (xgetbv() & 0xe6) == 0xe6) {
           flags |=
               FEATURE_SET(reg_ebx, AVX512) && FEATURE_SET(reg_ecx, AVX512_DL)
                   ? HAS_AVX512
