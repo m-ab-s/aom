@@ -4104,6 +4104,103 @@ TEST(EncodeAPI, Buganizer567944558) {
   }
 }
 
+#if CONFIG_AV1_HIGHBITDEPTH
+// Fills a 10 bit `img` with a smooth background that pans left by `step`
+// pixels per frame. Noise patches left of `patch_width` stay in place and
+// switch between two patterns every frame.
+static void FillPanWithFlickerPatches(aom_image_t *img, int frame, int step,
+                                      int patch_width) {
+  for (int r = 0; r < static_cast<int>(img->d_h); ++r) {
+    uint16_t *const row = reinterpret_cast<uint16_t *>(
+        img->planes[AOM_PLANE_Y] + r * img->stride[AOM_PLANE_Y]);
+    for (int c = 0; c < static_cast<int>(img->d_w); ++c) {
+      const int x = c + frame * step;
+      int val = 200 + 2 * std::abs((x + 3 * r) % 336 - 168) +
+                2 * std::abs(r % 96 - 48);
+      if (c < patch_width && (c / 64) % 2 == 0 && (r / 64) % 2 == 1) {
+        const uint32_t key =
+            static_cast<uint32_t>((r * img->d_w + c) * 2 + (frame & 1));
+        val = static_cast<int>(
+            static_cast<uint32_t>(uint64_t{ key } * 2654435761u) >> 22);
+      }
+      row[c] = static_cast<uint16_t>(val);
+    }
+  }
+  for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; ++plane) {
+    const int h = (img->d_h + img->y_chroma_shift) >> img->y_chroma_shift;
+    const int w = (img->d_w + img->x_chroma_shift) >> img->x_chroma_shift;
+    for (int r = 0; r < h; ++r) {
+      uint16_t *const row = reinterpret_cast<uint16_t *>(
+          img->planes[plane] + r * img->stride[plane]);
+      for (int c = 0; c < w; ++c) row[c] = 512;
+    }
+  }
+}
+
+// GOLDEN stays at frame 0 while the background pans, so the projected
+// GOLDEN ref MV on the patches goes past 1023 pixels. The zero MV from the
+// high bitdepth int pro search must still be clamped to the search range
+// around that ref MV before the subpel search.
+TEST(EncodeAPI, HighbdFarGoldenRefMv) {
+  constexpr int kWidth = 1280;
+  constexpr int kHeight = 256;
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_bit_depth = AOM_BITS_10;
+  cfg.g_input_bit_depth = 10;
+  cfg.g_threads = 1;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_CBR;
+  cfg.rc_target_bitrate = 1500;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 9), AOM_CODEC_OK);
+  // The GOLDEN ref MV comes from the projected motion field. Realtime only
+  // builds turn these tools off by default.
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ENABLE_ORDER_HINT, 1),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ENABLE_REF_FRAME_MVS, 1),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ALLOW_REF_FRAME_MVS, 1),
+            AOM_CODEC_OK);
+
+  aom_image_t *img =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I42016, kWidth, kHeight, 32);
+  ASSERT_NE(img, nullptr);
+
+  for (int frame = 0; frame < 60; ++frame) {
+    FillPanWithFlickerPatches(img, frame, /*step=*/48,
+                              /*patch_width=*/kWidth - 1088);
+    // LAST is refreshed every frame. GOLDEN keeps frame 0 and ALTREF keeps
+    // frame 1, so the LAST motion field is projected onto GOLDEN.
+    aom_svc_ref_frame_config_t ref_frame_config = {};
+    ref_frame_config.ref_idx[3] = 1;
+    ref_frame_config.ref_idx[6] = 2;
+    ref_frame_config.reference[0] = 1;
+    ref_frame_config.reference[3] = frame > 0;
+    ref_frame_config.refresh[0] = 1;
+    ref_frame_config.refresh[1] = frame == 0;
+    ref_frame_config.refresh[2] = frame == 1;
+    ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_REF_FRAME_CONFIG,
+                                &ref_frame_config),
+              AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_encode(&enc, img, frame, 1, 0), AOM_CODEC_OK);
+    aom_codec_iter_t iter = nullptr;
+    while (aom_codec_get_cx_data(&enc, &iter) != nullptr) {
+    }
+  }
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+#endif  // CONFIG_AV1_HIGHBITDEPTH
+
 // Fills `img` with deterministic content that changes from frame to frame, so
 // that inter prediction and rate control have something to work with.
 static void FillMovingPattern(aom_image_t *img, int frame) {

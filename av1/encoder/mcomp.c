@@ -2161,6 +2161,11 @@ unsigned int av1_int_pro_motion_estimation(
     best_int_mv->as_fullmv = kZeroFullMv;
     best_sad = cpi->ppi->fn_ptr[bsize].sdf(x->plane[0].src.buf, src_stride,
                                            xd->plane[0].pre[0].buf, ref_stride);
+    // Keep the MV inside the search range around ref_mv, as below.
+    FullMvLimits mv_limits = x->mv_limits;
+    av1_set_mv_search_range(&mv_limits, ref_mv);
+    clamp_fullmv(&best_int_mv->as_fullmv, &mv_limits);
+    convert_fullmv_to_mv(best_int_mv);
 
     if (scaled_ref_frame) {
       int i;
