@@ -316,10 +316,27 @@ void av1_single_motion_search(const AV1_COMP *const cpi, MACROBLOCK *x,
             &full_ms_params, cpi, x, bsize, &ref_mv, smv.as_fullmv,
             src_search_site_cfg, search_method, fine_search_interval);
 
-        const int thissme =
-            av1_full_pixel_search(smv.as_fullmv, &full_ms_params, step_param,
-                                  cond_cost_list(cpi, cost_list), &this_best_mv,
-                                  &this_mv_stats, &this_second_best_mv);
+        // Narrow the full-pixel search range when TPL MV candidates strongly
+        // agree on the top starting MV.
+        int pme_step_param = step_param;
+        if (cpi->sf.mv_sf.reduce_search_range_using_tpl && total_weight > 0 &&
+            m == 0 && 4 * cand[0].weight > 3 * total_weight) {
+          if (cpi->sf.mv_sf.reduce_search_range_using_tpl >= 2) {
+            const int max_step = (ref > LAST_FRAME && ref != ALTREF_FRAME)
+                                     ? MAX_MVSEARCH_STEPS - 1
+                                     : MAX_MVSEARCH_STEPS - 2;
+            pme_step_param = AOMMAX(step_param, max_step);
+          } else if (cand[0].weight == total_weight) {
+            const int max_step = (ref > LAST_FRAME && ref != ALTREF_FRAME)
+                                     ? MAX_MVSEARCH_STEPS - 2
+                                     : MAX_MVSEARCH_STEPS - 3;
+            pme_step_param = AOMMAX(step_param, max_step);
+          }
+        }
+        const int thissme = av1_full_pixel_search(
+            smv.as_fullmv, &full_ms_params, pme_step_param,
+            cond_cost_list(cpi, cost_list), &this_best_mv, &this_mv_stats,
+            &this_second_best_mv);
 
         if (thissme < bestsme) {
           bestsme = thissme;
@@ -1078,10 +1095,24 @@ int_mv av1_simple_motion_search_sse_var(AV1_COMP *const cpi, MACROBLOCK *x,
   struct buf_2d backup_yv12;
   // ref_mv is used to calculate the cost of the motion vector
   const MV ref_mv = kZeroMv;
-  const int step_param =
+  int step_param =
       AOMMIN(cpi->mv_search_params.mv_step_param +
                  cpi->sf.part_sf.simple_motion_search_reduce_search_steps,
              MAX_MVSEARCH_STEPS - 2);
+  // Reduce the full-pixel search range when all TPL subblock MV candidates
+  // unanimously agree with start_mv.
+  if (cpi->sf.mv_sf.reduce_search_range_using_tpl >= 2 &&
+      x->sb_enc.tpl_data_count > 0) {
+    cand_mv_t hme_cand[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB + 1];
+    av1_zero(hme_cand);
+    hme_cand[0].fmv.as_fullmv = start_mv;
+    int hme_cnt = 1, hme_weight = 0;
+    get_mv_candidate_from_tpl(cpi, x, bsize, ref, hme_cand, &hme_cnt,
+                              &hme_weight);
+    if (hme_weight > 0 && hme_cand[0].weight == hme_weight) {
+      step_param = AOMMAX(step_param, MAX_MVSEARCH_STEPS - 2);
+    }
+  }
   int cost_list[5];
   const int ref_idx = 0;
   int bestsme;

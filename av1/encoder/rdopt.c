@@ -3235,19 +3235,29 @@ static int64_t handle_inter_mode(
 
   // Do not prune the mode based on inter cost from tpl if the current ref frame
   // is the winner ref in neighbouring blocks.
-  int ref_match_found_in_above_nb = 0;
-  int ref_match_found_in_left_nb = 0;
-  if (prune_modes_based_on_tpl) {
-    ref_match_found_in_above_nb =
-        find_ref_match_in_above_nbs(cm->mi_params.mi_cols, xd);
-    ref_match_found_in_left_nb =
-        find_ref_match_in_left_nbs(cm->mi_params.mi_rows, xd);
+  const int ref_set = get_drl_refmv_count(x, mbmi->ref_frame, this_mode);
+  int tpl_prune_mask = 0;
+  if (prune_modes_based_on_tpl &&
+      !find_ref_match_in_above_nbs(cm->mi_params.mi_cols, xd) &&
+      !find_ref_match_in_left_nbs(cm->mi_params.mi_rows, xd)) {
+    for (int ref_mv_idx = 0; ref_mv_idx < ref_set; ++ref_mv_idx) {
+      if (prune_modes_based_on_tpl_stats(
+              inter_cost_info_from_tpl, refs, ref_mv_idx, this_mode,
+              cpi->sf.inter_sf.prune_inter_modes_based_on_tpl)) {
+        // Since TPL pruning thresholds are non-increasing with ref_mv_idx,
+        // pruning ref_mv_idx 0 guarantees all indices will be pruned; exit
+        // early before ref_mv_idx_to_search().
+        if (ref_mv_idx == 0 && ref_best_rd != INT64_MAX) {
+          return INT64_MAX;
+        }
+        mask_set_bit(&tpl_prune_mask, ref_mv_idx);
+      }
+    }
   }
 
   // First, perform a simple translation search for each of the indices. If
   // an index performs well, it will be fully searched in the main loop
   // of this function.
-  const int ref_set = get_drl_refmv_count(x, mbmi->ref_frame, this_mode);
   // Save MV results from first 2 ref_mv_idx.
   int_mv save_mv[MAX_REF_MV_SEARCH - 1][2];
   int best_ref_mv_idx = -1;
@@ -3287,17 +3297,12 @@ static int64_t handle_inter_mode(
     mode_info[ref_mv_idx].drl_cost = drl_cost;
     mode_info[ref_mv_idx].skip = 0;
 
-    if (!mask_check_bit(idx_mask, ref_mv_idx)) {
-      // MV did not perform well in simple translation search. Skip it.
+    if (!mask_check_bit(idx_mask, ref_mv_idx) ||
+        (ref_best_rd != INT64_MAX &&
+         mask_check_bit(tpl_prune_mask, ref_mv_idx))) {
+      // Skip MV if simple translation search or TPL model indicates it will
+      // not be beneficial.
       continue;
-    }
-    if (prune_modes_based_on_tpl && !ref_match_found_in_above_nb &&
-        !ref_match_found_in_left_nb && (ref_best_rd != INT64_MAX)) {
-      // Skip mode if TPL model indicates it will not be beneficial.
-      if (prune_modes_based_on_tpl_stats(
-              inter_cost_info_from_tpl, refs, ref_mv_idx, this_mode,
-              cpi->sf.inter_sf.prune_inter_modes_based_on_tpl))
-        continue;
     }
     av1_init_rd_stats(rd_stats);
 

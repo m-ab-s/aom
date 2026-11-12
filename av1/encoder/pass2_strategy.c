@@ -3291,6 +3291,10 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
   av1_zero(frame_stat);
   int i = 0, num_stat_used = 0;
   double boost_score = 0.0;
+  double sum_zm = 0.0;
+  double sum_intra_skip = 0.0;
+  int static_frame_count = 0;
+  int total_zm_frames = 0;
   const double kf_max_boost =
       cpi->oxcf.rc_cfg.mode == AOM_Q
           ? fclamp(rc->frames_to_key * 2.0, KF_MIN_FRAME_BOOST,
@@ -3307,12 +3311,18 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
 
     // Monitor for static sections.
     // For the first frame in kf group, the second ref indicator is invalid.
+    const double cur_zm = get_zero_motion_factor(&frame_stat);
     if (i > 0) {
-      *zero_motion_accumulator =
-          AOMMIN(*zero_motion_accumulator, get_zero_motion_factor(&frame_stat));
+      *zero_motion_accumulator = AOMMIN(*zero_motion_accumulator, cur_zm);
     } else {
       *zero_motion_accumulator = frame_stat.pcnt_inter - frame_stat.pcnt_motion;
     }
+    sum_zm += (frame_stat.pcnt_inter - frame_stat.pcnt_motion);
+    sum_intra_skip += frame_stat.intra_skip_pct;
+    if ((frame_stat.pcnt_inter - frame_stat.pcnt_motion) >= MIN_ZERO_MOTION) {
+      ++static_frame_count;
+    }
+    ++total_zm_frames;
 
     // Not all frames in the group are necessarily used in calculating boost.
     if ((*sr_accumulator < (kf_raw_err * 1.50)) &&
@@ -3328,6 +3338,21 @@ static double get_kf_boost_score(AV1_COMP *cpi, double kf_raw_err,
           calc_kf_frame_boost(&cpi->ppi->p_rc, frame_info, &frame_stat,
                               sr_accumulator, kf_max_boost);
       boost_score += frame_boost * zm_factor;
+    }
+  }
+  // Flag the KF group as static screen content if frames are predominantly
+  // zero-motion with significant flat/skip intra regions.
+  if (!use_avg_stat) {
+    if (total_zm_frames >= 10) {
+      const double mean_zm = sum_zm / total_zm_frames;
+      const double static_ratio = (double)static_frame_count / total_zm_frames;
+      const double mean_intra_skip = sum_intra_skip / total_zm_frames;
+      twopass->is_static_sc_kf_group =
+          (mean_zm >= STATIC_SC_KF_MEAN_ZM_THRESH &&
+           static_ratio >= STATIC_SC_KF_RATIO_THRESH &&
+           mean_intra_skip >= STATIC_SC_KF_INTRA_SKIP_THRESH);
+    } else {
+      twopass->is_static_sc_kf_group = 0;
     }
   }
   return boost_score;
@@ -3372,6 +3397,7 @@ static void find_next_key_frame(AV1_COMP *cpi, FIRSTPASS_STATS *this_frame) {
 
   // KF is always a GF so clear frames till next gf counter.
   rc->frames_till_gf_update_due = 0;
+  twopass->is_static_sc_kf_group = 0;
 
   if (has_no_stats_stage(cpi)) {
     int num_frames_to_app_forced_key = detect_app_forced_key(cpi);
@@ -3679,6 +3705,11 @@ static void process_first_pass_stats(AV1_COMP *cpi,
     p_rc->avg_frame_qindex[INTER_FRAME] = tmp_q;
     p_rc->last_q[KEY_FRAME] = (tmp_q + cpi->oxcf.rc_cfg.best_allowed_q) / 2;
     p_rc->avg_frame_qindex[KEY_FRAME] = p_rc->last_q[KEY_FRAME];
+#if CONFIG_FPMT_TEST
+    p_rc->temp_avg_frame_qindex[INTER_FRAME] =
+        p_rc->avg_frame_qindex[INTER_FRAME];
+    p_rc->temp_avg_frame_qindex[KEY_FRAME] = p_rc->avg_frame_qindex[KEY_FRAME];
+#endif
   }
 
   if (cpi->twopass_frame.stats_in < twopass->stats_buf_ctx->stats_in_end) {

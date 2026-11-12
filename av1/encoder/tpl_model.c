@@ -340,7 +340,7 @@ static uint32_t motion_estimation(AV1_COMP *cpi, MACROBLOCK *x,
   best_mv_stats.err_cost = 0;
   MV subpel_start_mv = get_mv_from_fullmv(&best_mv->as_fullmv);
   assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, subpel_start_mv));
-  bestsme = cpi->mv_search_params.find_fractional_mv_step(
+  bestsme = cpi->mv_search_params.find_fractional_mv_step_tpl(
       xd, cm, &ms_params, subpel_start_mv, &best_mv_stats, &best_mv->as_mv,
       &distortion, &sse, NULL);
 
@@ -503,7 +503,17 @@ static inline int32_t get_inter_cost(const AV1_COMP *cpi, MACROBLOCKD *xd,
   const int bh = 4 << mi_size_high_log2[bsize];
   int32_t inter_cost;
 
-  if (cpi->sf.tpl_sf.subpel_force_stop != FULL_PEL) {
+  // Only invoke 8-tap subpel interpolation when the MV has fractional
+  // components or crosses the reference frame border; otherwise read directly
+  // from the reference buffer.
+  const int is_subpel = ((rfidx_mv->row | rfidx_mv->col) & 7) != 0;
+  const int full_row = mi_row * MI_SIZE + (rfidx_mv->row >> 3);
+  const int full_col = mi_col * MI_SIZE + (rfidx_mv->col >> 3);
+  const int is_out_of_bounds = full_row < 0 || full_col < 0 ||
+                               full_row + bh > ref_frame_ptr->y_height ||
+                               full_col + bw > ref_frame_ptr->y_width;
+  if (cpi->sf.tpl_sf.subpel_force_stop != FULL_PEL &&
+      (is_subpel || is_out_of_bounds)) {
     const int_interpfilters kernel =
         av1_broadcast_interp_filter(EIGHTTAP_REGULAR);
     uint8_t *predictor8 = tpl_tmp_buffers->predictor8;
@@ -2180,7 +2190,7 @@ int av1_tpl_setup_stats(AV1_COMP *cpi, int approx_gop_eval,
                     cm->features.allow_high_precision_mv, cpi->td.mb.mv_costs);
 
   const TPL_SPEED_FEATURES saved_tpl_sf = cpi->sf.tpl_sf;
-  if (cpi->oxcf.speed == 4) {
+  if (cpi->oxcf.mode == GOOD && cpi->oxcf.speed == 4) {
     if (approx_gop_eval) {
       // Use faster half-pel diamond search during approximate GOP length
       // evaluation, and restrict RD to luma unless keyframe stats indicate

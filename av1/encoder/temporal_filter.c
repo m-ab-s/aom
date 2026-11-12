@@ -124,7 +124,7 @@ static void subblock_motion_search(
 
   MV subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
   assert(av1_is_subpelmv_in_range(&ms_params->mv_limits, subpel_start_mv));
-  error = cpi->mv_search_params.find_fractional_mv_step(
+  error = cpi->mv_search_params.find_fractional_mv_step_tf(
       &mb->e_mbd, &cpi->common, ms_params, subpel_start_mv, best_mv_stats,
       &best_mv.as_mv, &distortion, &sse, NULL);
 
@@ -373,7 +373,7 @@ static void tf_motion_search(AV1_COMP *cpi, MACROBLOCK *mb,
 
     MV subpel_start_mv = get_mv_from_fullmv(&best_mv.as_fullmv);
     assert(av1_is_subpelmv_in_range(&ms_params.mv_limits, subpel_start_mv));
-    error = cpi->mv_search_params.find_fractional_mv_step(
+    error = cpi->mv_search_params.find_fractional_mv_step_tf(
         &mb->e_mbd, &cpi->common, &ms_params, subpel_start_mv, &best_mv_stats,
         &best_mv.as_mv, &distortion, &sse, NULL);
     block_mse = DIVIDE_AND_ROUND(error, mb_pels);

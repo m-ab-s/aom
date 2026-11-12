@@ -433,6 +433,12 @@ typedef struct {
 
   /*!
    * Temporary variable used in simulating the delayed update of
+   * avg_frame_qindex.
+   */
+  int temp_avg_frame_qindex[FRAME_TYPES];
+
+  /*!
+   * Temporary variable used in simulating the delayed update of
    * last_q.
    */
   int temp_last_q[FRAME_TYPES];

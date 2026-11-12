@@ -2167,6 +2167,14 @@ typedef struct {
    */
   fractional_mv_step_fp *find_fractional_mv_step;
   /*!
+   * Pointer to sub-pixel search function for TPL motion search.
+   */
+  fractional_mv_step_fp *find_fractional_mv_step_tpl;
+  /*!
+   * Pointer to sub-pixel search function for temporal filtering motion search.
+   */
+  fractional_mv_step_fp *find_fractional_mv_step_tf;
+  /*!
    * Search site configuration for full-pel MV search.
    * search_site_cfg[SS_CFG_SRC]: Used in tpl, rd/non-rd inter mode loop, simple
    * motion search. search_site_cfg[SS_CFG_LOOKAHEAD]: Used in intraBC, temporal

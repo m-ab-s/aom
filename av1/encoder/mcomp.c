@@ -3576,6 +3576,8 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
   // Calculate the center position's error
   assert(av1_is_subpelmv_in_range(mv_limits, *best_mv));
   bestmse = compute_motion_cost(xd, cm, ms_params, bsize, best_mv);
+  unsigned int best_var =
+      bestmse - mv_err_cost_(best_mv, &ms_params->mv_cost_params);
   unsigned int dst_y_valid = 1;
 
   // MV search
@@ -3609,16 +3611,40 @@ unsigned int av1_refine_warped_mv(MACROBLOCKD *xd, const AV1_COMMON *const cm,
         if (!av1_find_projection(mbmi->num_proj_ref, pts, pts_inref, bsize,
                                  this_mv.row, this_mv.col, &mbmi->wm_params,
                                  mi_row, mi_col)) {
-          thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv);
-
-          if (thismse < bestmse) {
-            best_idx = idx;
-            best_wm_params = mbmi->wm_params;
-            best_num_proj_ref = mbmi->num_proj_ref;
-            bestmse = thismse;
-            dst_y_valid = 1;
+          const unsigned int this_mv_cost =
+              mv_err_cost_(&this_mv, &ms_params->mv_cost_params);
+          // If the projected warp parameters match the current best, the
+          // warped prediction pixels (and thus prediction distortion best_var)
+          // are identical; reuse best_var instead of recomputing warped MC.
+          const bool same_wm_params =
+              mbmi->wm_params.wmtype == best_wm_params.wmtype &&
+              mbmi->wm_params.invalid == best_wm_params.invalid &&
+              mbmi->wm_params.alpha == best_wm_params.alpha &&
+              mbmi->wm_params.beta == best_wm_params.beta &&
+              mbmi->wm_params.gamma == best_wm_params.gamma &&
+              mbmi->wm_params.delta == best_wm_params.delta &&
+              memcmp(mbmi->wm_params.wmmat, best_wm_params.wmmat,
+                     sizeof(best_wm_params.wmmat)) == 0;
+          if (same_wm_params) {
+            thismse = best_var + this_mv_cost;
+            if (thismse < bestmse) {
+              best_idx = idx;
+              best_num_proj_ref = mbmi->num_proj_ref;
+              bestmse = thismse;
+            }
           } else {
-            dst_y_valid = 0;
+            thismse = compute_motion_cost(xd, cm, ms_params, bsize, &this_mv);
+
+            if (thismse < bestmse) {
+              best_idx = idx;
+              best_wm_params = mbmi->wm_params;
+              best_num_proj_ref = mbmi->num_proj_ref;
+              bestmse = thismse;
+              best_var = thismse - this_mv_cost;
+              dst_y_valid = 1;
+            } else {
+              dst_y_valid = 0;
+            }
           }
         }
       }

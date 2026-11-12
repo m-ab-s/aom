@@ -500,6 +500,11 @@ void av1_primary_rc_init(const AV1EncoderConfig *oxcf,
     p_rc->avg_frame_qindex[INTER_FRAME] =
         (worst_allowed_q + rc_cfg->best_allowed_q) / 2;
   }
+#if CONFIG_FPMT_TEST
+  for (int i = 0; i < FRAME_TYPES; i++) {
+    p_rc->temp_avg_frame_qindex[i] = p_rc->avg_frame_qindex[i];
+  }
+#endif
   p_rc->avg_q = av1_convert_qindex_to_q(rc_cfg->worst_allowed_q,
                                         oxcf->tool_cfg.bit_depth);
   p_rc->last_q[KEY_FRAME] = rc_cfg->best_allowed_q;
@@ -2572,6 +2577,7 @@ void av1_rc_postencode_update(AV1_COMP *cpi, uint64_t bytes_used) {
   if (cpi->do_frame_data_update && !show_existing_between_parallel_frames &&
       cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
     for (int i = 0; i < FRAME_TYPES; i++) {
+      p_rc->temp_avg_frame_qindex[i] = p_rc->avg_frame_qindex[i];
       p_rc->temp_last_q[i] = p_rc->last_q[i];
     }
     p_rc->temp_avg_q = p_rc->avg_q;

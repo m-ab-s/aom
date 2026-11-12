@@ -575,9 +575,27 @@ static inline void simple_motion_search_prune_part_features(
 
   // Rectangular subblocks
   if (!sms_tree->sms_rect_valid && features_to_get & FEATURE_SMS_RECT_FLAG) {
+    const int ref0 = ref_list[0];
+    // Reuse the sum of split subblocks' SMS features for a rectangular
+    // subblock when both split subblocks already have valid SMS results and
+    // nearly identical starting MVs (<= 1 pel).
+    const bool reuse_sms_split_for_rect =
+        cpi->sf.part_sf.reuse_sms_split_features_for_rect;
     // Horz subblock
     BLOCK_SIZE subsize = get_partition_subsize(bsize, PARTITION_HORZ);
     for (int r_idx = 0; r_idx < SUB_PARTITIONS_RECT; r_idx++) {
+      const SIMPLE_MOTION_DATA_TREE *const s0 = sms_tree->split[2 * r_idx];
+      const SIMPLE_MOTION_DATA_TREE *const s1 = sms_tree->split[2 * r_idx + 1];
+      if (reuse_sms_split_for_rect && s0->sms_none_valid &&
+          s1->sms_none_valid &&
+          abs(s0->start_mvs[ref0].row - s1->start_mvs[ref0].row) <= 1 &&
+          abs(s0->start_mvs[ref0].col - s1->start_mvs[ref0].col) <= 1) {
+        sms_tree->sms_rect_feat[2 * r_idx] =
+            s0->sms_none_feat[0] + s1->sms_none_feat[0];
+        sms_tree->sms_rect_feat[2 * r_idx + 1] =
+            s0->sms_none_feat[1] + s1->sms_none_feat[1];
+        continue;
+      }
       const int sub_mi_col = mi_col + 0;
       const int sub_mi_row = mi_row + r_idx * h_mi / 2;
 
@@ -590,6 +608,18 @@ static inline void simple_motion_search_prune_part_features(
     // Vert subblock
     subsize = get_partition_subsize(bsize, PARTITION_VERT);
     for (int r_idx = 0; r_idx < SUB_PARTITIONS_RECT; r_idx++) {
+      const SIMPLE_MOTION_DATA_TREE *const s0 = sms_tree->split[r_idx];
+      const SIMPLE_MOTION_DATA_TREE *const s1 = sms_tree->split[r_idx + 2];
+      if (reuse_sms_split_for_rect && s0->sms_none_valid &&
+          s1->sms_none_valid &&
+          abs(s0->start_mvs[ref0].row - s1->start_mvs[ref0].row) <= 1 &&
+          abs(s0->start_mvs[ref0].col - s1->start_mvs[ref0].col) <= 1) {
+        sms_tree->sms_rect_feat[4 + 2 * r_idx] =
+            s0->sms_none_feat[0] + s1->sms_none_feat[0];
+        sms_tree->sms_rect_feat[4 + 2 * r_idx + 1] =
+            s0->sms_none_feat[1] + s1->sms_none_feat[1];
+        continue;
+      }
       const int sub_mi_col = mi_col + r_idx * w_mi / 2;
       const int sub_mi_row = mi_row + 0;
 

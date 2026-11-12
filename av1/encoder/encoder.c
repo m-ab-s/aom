@@ -2501,6 +2501,15 @@ void av1_set_screen_content_options(AV1_COMP *cpi, FeatureFlags *features) {
   } else {
     estimate_screen_content(cpi, features);
   }
+
+  // Force screen content tools (palette and IntraBC) when firstpass
+  // identified the current KF group as static screen content.
+  if (cpi->ppi->twopass.is_static_sc_kf_group) {
+    features->allow_screen_content_tools = 1;
+    features->allow_intrabc = 1;
+    cpi->use_screen_content_tools = 1;
+    cpi->is_screen_content_type = 1;
+  }
 }
 
 static void init_motion_estimation(AV1_COMP *cpi) {

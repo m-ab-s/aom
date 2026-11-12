@@ -454,8 +454,17 @@ typedef struct {
 
   int sr_update_lag;
 
+// First-pass thresholds for identifying static screen-content KF groups.
+#define STATIC_SC_KF_MEAN_ZM_THRESH 0.90
+#define STATIC_SC_KF_RATIO_THRESH 0.75
+#define STATIC_SC_KF_INTRA_SKIP_THRESH 0.15
+
   int kf_zeromotion_pct;
   int last_kfgroup_zeromotion_pct;
+  // Indicates whether the current KF group exhibits static screen-content
+  // characteristics (high zero-motion and intra-skip ratios) in firstpass
+  // stats.
+  int is_static_sc_kf_group;
   int extend_minq;
   int extend_maxq;
   /*!\endcond */

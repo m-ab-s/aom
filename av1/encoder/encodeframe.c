@@ -372,6 +372,9 @@ static inline void setup_delta_q(AV1_COMP *const cpi, ThreadData *td,
                         ? current_qindex - cm->quant_params.base_qindex
                         : 0;
   x->rdmult_delta_qindex = current_qindex - cm->quant_params.base_qindex;
+  // Invalidate SB-level TPL cost and rdmult caches when starting a new SB.
+  x->cb_rdmult_costs_row = -1;
+  x->cb_rdmult_sb_row = -1;
 
   av1_set_offsets(cpi, tile_info, x, mi_row, mi_col, sb_size);
   xd->mi[0]->current_qindex = cm->delta_q_info.delta_q_present_flag

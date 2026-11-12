@@ -494,6 +494,11 @@ typedef struct HIGH_LEVEL_SPEED_FEATURES {
   int allow_sub_blk_me_in_tf;
 
   /*!
+   * Sub-pixel search method used in temporal filtering motion estimation.
+   */
+  SUBPEL_SEARCH_METHOD tf_subpel_search_method;
+
+  /*!
    * Decide whether to disable temporal mv prediction.
    * 0: Do not disable
    * 1: Conditionally disable
@@ -569,6 +574,9 @@ typedef struct TPL_SPEED_FEATURES {
 
   // When to stop subpel search.
   SUBPEL_FORCE_STOP subpel_force_stop;
+
+  // Sub-pixel search method used in TPL motion estimation.
+  SUBPEL_SEARCH_METHOD subpel_search_method;
 
   // Which search method to use.
   SEARCH_METHODS search_method;
@@ -958,6 +966,10 @@ typedef struct PARTITION_SPEED_FEATURES {
   // simple motion search.
   bool prune_h_or_v_4part_using_sms_info;
 
+  // Reuse simple motion search split features for rectangular partition
+  // pruning instead of running separate rectangular simple motion searches.
+  bool reuse_sms_split_features_for_rect;
+
   // Decoder side speed feature to add penalty for use of smaller partitions.
   // Takes values 0 - 2, 0 indicating no penalty and higher level indicating
   // increased penalty.
@@ -1010,6 +1022,13 @@ typedef struct MV_SPEED_FEATURES {
 
   // Reduce single motion search range based on MV result of prior ref_mv_idx.
   int reduce_search_range;
+
+  // Reduce motion search range when TPL MVs agree across the block.
+  // 0: disabled
+  // 1: reduce single motion search range when TPL MVs agree unanimously
+  // 2: reduce single motion search range when >75% of TPL MVs agree, and
+  //    reduce simple motion search range when TPL MVs agree unanimously
+  int reduce_search_range_using_tpl;
 
   // Prune mesh search.
   PRUNE_MESH_SEARCH_LEVEL prune_mesh_search;

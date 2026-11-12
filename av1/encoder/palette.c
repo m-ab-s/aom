@@ -573,7 +573,11 @@ void av1_rd_pick_palette_intra_sby(
   }
 
   uint8_t *const color_map = xd->plane[0].color_index_map;
-  int color_thresh_palette = x->color_palette_thresh;
+  // Relax the distinct-color threshold for static screen-content KF groups so
+  // blocks with anti-aliased text/graphics are not prematurely pruned from
+  // luma palette search.
+  int color_thresh_palette =
+      cpi->ppi->twopass.is_static_sc_kf_group ? 256 : x->color_palette_thresh;
   // Allow for larger color_threshold for palette search, based on color,
   // scene_change, and block source variance.
   // Since palette is Y based, only allow larger threshold if block
@@ -812,7 +816,10 @@ void av1_rd_pick_palette_intra_sbuv(const AV1_COMP *cpi, MACROBLOCK *x,
   colors_threshold = colors_threshold_u > colors_threshold_v
                          ? colors_threshold_u
                          : colors_threshold_v;
-  if (colors_threshold > 1 && colors_threshold <= 64) {
+  // Relax chroma palette color threshold for static screen-content KF groups.
+  const int max_colors_thresh =
+      cpi->ppi->twopass.is_static_sc_kf_group ? 256 : 64;
+  if (colors_threshold > 1 && colors_threshold <= max_colors_thresh) {
     int r, c, n, i, j;
     const int max_itr = 50;
     int lb_u, ub_u, val_u;

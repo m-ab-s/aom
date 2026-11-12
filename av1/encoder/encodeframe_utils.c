@@ -98,6 +98,24 @@ void av1_set_saliency_map_vmaf_rdmult(const AV1_COMP *const cpi,
 
 // TODO(angiebird): Move this function to tpl_model.c
 #if !CONFIG_REALTIME_ONLY
+// Helper to compute weighted log-domain TPL costs for a single TPL block
+// (shared by the superblock cache and fallback path in av1_get_cb_rdmult).
+static inline void compute_tpl_block_log_costs(const TplDepFrame *tpl_frame,
+                                               const TplDepStats *this_stats,
+                                               double *intra_cost,
+                                               double *mc_dep_cost,
+                                               double *cbcmp_out) {
+  const double cbcmp = (double)this_stats->srcrf_dist;
+  const int64_t mc_dep_delta = RDCOST(
+      tpl_frame->base_rdmult, this_stats->mc_dep_rate, this_stats->mc_dep_dist);
+  double dist_scaled = (double)(this_stats->recrf_dist << RDDIV_BITS);
+  // Clamp to >= 1 to avoid log(0) / NaN when recrf_dist is zero.
+  dist_scaled = AOMMAX(dist_scaled, 1);
+  *intra_cost = log(dist_scaled) * cbcmp;
+  *mc_dep_cost = log(3 * dist_scaled + mc_dep_delta) * cbcmp;
+  *cbcmp_out = cbcmp;
+}
+
 int av1_get_cb_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
                       const BLOCK_SIZE bsize, const int mi_row,
                       const int mi_col) {
@@ -105,47 +123,154 @@ int av1_get_cb_rdmult(const AV1_COMP *const cpi, MACROBLOCK *const x,
   assert(IMPLIES(cpi->ppi->gf_group.size > 0,
                  cpi->gf_frame_index < cpi->ppi->gf_group.size));
   const int tpl_idx = cpi->gf_frame_index;
-  int deltaq_rdmult = set_rdmult(cpi, x, -1);
-  if (!av1_tpl_stats_ready(&cpi->ppi->tpl_data, tpl_idx)) return deltaq_rdmult;
-  if (cm->superres_scale_denominator != SCALE_NUMERATOR) return deltaq_rdmult;
-  if (cpi->oxcf.q_cfg.aq_mode != NO_AQ) return deltaq_rdmult;
-  if (x->rb == 0) return deltaq_rdmult;
+  if (!av1_tpl_stats_ready(&cpi->ppi->tpl_data, tpl_idx) ||
+      cm->superres_scale_denominator != SCALE_NUMERATOR ||
+      cpi->oxcf.q_cfg.aq_mode != NO_AQ || x->rb == 0) {
+    return set_rdmult(cpi, x, -1);
+  }
 
   TplParams *const tpl_data = &cpi->ppi->tpl_data;
-  TplDepFrame *tpl_frame = &tpl_data->tpl_frame[tpl_idx];
-  TplDepStats *tpl_stats = tpl_frame->tpl_stats_ptr;
+  const int block_mis_log2 = tpl_data->tpl_stats_block_mis_log2;
+  const int step = 1 << block_mis_log2;
+  const int mib_size = cm->seq_params->mib_size;
+  const int sb_mi_row = mi_row & ~(mib_size - 1);
+  const int sb_mi_col = mi_col & ~(mib_size - 1);
+  const int sb_grid = mib_size >> block_mis_log2;
+  const int cur_frame_num = cm->current_frame.frame_number + 1;
+
+  // Cache TPL log-domain costs and 16x16 rdmult values per superblock so
+  // repeated partition/mode evaluations within the same SB avoid recomputing
+  // TPL stats lookups, log(), and exp().
+  if (sb_grid <= MAX_TPL_BLK_IN_SB) {
+    // Stage 1: Populate per-TPL-block weighted log costs once per superblock.
+    if (x->cb_rdmult_cur_frame_num != cur_frame_num ||
+        x->cb_rdmult_costs_row != sb_mi_row ||
+        x->cb_rdmult_costs_col != sb_mi_col ||
+        x->cb_rdmult_costs_gf_idx != tpl_idx) {
+      const TplDepFrame *const tpl_frame = &tpl_data->tpl_frame[tpl_idx];
+      const TplDepStats *const tpl_stats = tpl_frame->tpl_stats_ptr;
+      const int tpl_stride = tpl_frame->stride;
+      for (int r = 0; r < sb_grid; ++r) {
+        const int row = sb_mi_row + (r << block_mis_log2);
+        for (int c = 0; c < sb_grid; ++c) {
+          const int col = sb_mi_col + (c << block_mis_log2);
+          const int idx = r * MAX_TPL_BLK_IN_SB + c;
+          if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols) {
+            x->cb_intra_cost_16x16[idx] = 0.0;
+            x->cb_mc_dep_cost_16x16[idx] = 0.0;
+            x->cb_cbcmp_16x16[idx] = 0.0;
+            continue;
+          }
+          const TplDepStats *const this_stats =
+              &tpl_stats[av1_tpl_ptr_pos(row, col, tpl_stride, block_mis_log2)];
+          compute_tpl_block_log_costs(
+              tpl_frame, this_stats, &x->cb_intra_cost_16x16[idx],
+              &x->cb_mc_dep_cost_16x16[idx], &x->cb_cbcmp_16x16[idx]);
+        }
+      }
+      x->cb_rdmult_cur_frame_num = cur_frame_num;
+      x->cb_rdmult_costs_row = sb_mi_row;
+      x->cb_rdmult_costs_col = sb_mi_col;
+      x->cb_rdmult_costs_gf_idx = tpl_idx;
+      x->cb_rdmult_sb_row = -1;
+    }
+
+    // Stage 2: Precompute per-unit rdmult whenever SB quantizer/rb changes.
+    if (x->cb_rdmult_sb_row != sb_mi_row || x->cb_rdmult_sb_col != sb_mi_col ||
+        x->cb_rdmult_sb_gf_idx != tpl_idx ||
+        x->cb_rdmult_sb_deltaq != x->rdmult_delta_qindex ||
+        x->cb_rdmult_sb_base_q != cm->quant_params.base_qindex ||
+        x->cb_rdmult_sb_rb != x->rb) {
+      const int base_rdmult = set_rdmult(cpi, x, -1);
+      x->cb_rdmult_sb_base_rdmult = base_rdmult;
+      for (int r = 0; r < sb_grid; ++r) {
+        for (int c = 0; c < sb_grid; ++c) {
+          const int idx = r * MAX_TPL_BLK_IN_SB + c;
+          const double cbcmp_base = x->cb_cbcmp_16x16[idx];
+          if (cbcmp_base == 0.0) {
+            x->cb_rdmult_16x16[idx] = base_rdmult;
+          } else {
+            const double rk = exp(
+                (x->cb_intra_cost_16x16[idx] - x->cb_mc_dep_cost_16x16[idx]) /
+                cbcmp_base);
+            const int rdmult = (int)(base_rdmult * (rk / x->rb));
+            x->cb_rdmult_16x16[idx] = AOMMAX(rdmult, 1);
+          }
+        }
+      }
+      x->cb_rdmult_sb_row = sb_mi_row;
+      x->cb_rdmult_sb_col = sb_mi_col;
+      x->cb_rdmult_sb_gf_idx = tpl_idx;
+      x->cb_rdmult_sb_deltaq = x->rdmult_delta_qindex;
+      x->cb_rdmult_sb_base_q = cm->quant_params.base_qindex;
+      x->cb_rdmult_sb_rb = x->rb;
+    }
+
+    const int mi_wide = mi_size_wide[bsize];
+    const int mi_high = mi_size_high[bsize];
+    // Blocks at or below TPL block granularity directly reuse the cached unit
+    // rdmult; larger blocks aggregate the cached log costs over covered units.
+    if (mi_wide <= step && mi_high <= step) {
+      if (mi_row >= cm->mi_params.mi_rows || mi_col >= cm->mi_params.mi_cols)
+        return x->cb_rdmult_sb_base_rdmult;
+      const int r_idx = (mi_row - sb_mi_row) >> block_mis_log2;
+      const int c_idx = (mi_col - sb_mi_col) >> block_mis_log2;
+      return x->cb_rdmult_16x16[r_idx * MAX_TPL_BLK_IN_SB + c_idx];
+    }
+
+    int deltaq_rdmult = x->cb_rdmult_sb_base_rdmult;
+    double intra_cost_base = 0;
+    double mc_dep_cost_base = 0;
+    double cbcmp_base = 0;
+    for (int row = mi_row; row < mi_row + mi_high; row += step) {
+      for (int col = mi_col; col < mi_col + mi_wide; col += step) {
+        if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
+          continue;
+        const int idx =
+            ((row - sb_mi_row) >> block_mis_log2) * MAX_TPL_BLK_IN_SB +
+            ((col - sb_mi_col) >> block_mis_log2);
+        intra_cost_base += x->cb_intra_cost_16x16[idx];
+        mc_dep_cost_base += x->cb_mc_dep_cost_16x16[idx];
+        cbcmp_base += x->cb_cbcmp_16x16[idx];
+      }
+    }
+    if (cbcmp_base == 0) return deltaq_rdmult;
+    const double rk = exp((intra_cost_base - mc_dep_cost_base) / cbcmp_base);
+    deltaq_rdmult = (int)(deltaq_rdmult * (rk / x->rb));
+    return AOMMAX(deltaq_rdmult, 1);
+  }
+
+  int deltaq_rdmult = set_rdmult(cpi, x, -1);
+  const TplDepFrame *const tpl_frame = &tpl_data->tpl_frame[tpl_idx];
+  const TplDepStats *const tpl_stats = tpl_frame->tpl_stats_ptr;
 
   const int mi_wide = mi_size_wide[bsize];
   const int mi_high = mi_size_high[bsize];
 
-  int tpl_stride = tpl_frame->stride;
+  const int tpl_stride = tpl_frame->stride;
   double intra_cost_base = 0;
   double mc_dep_cost_base = 0;
   double cbcmp_base = 0;
-  const int step = 1 << tpl_data->tpl_stats_block_mis_log2;
 
   for (int row = mi_row; row < mi_row + mi_high; row += step) {
     for (int col = mi_col; col < mi_col + mi_wide; col += step) {
       if (row >= cm->mi_params.mi_rows || col >= cm->mi_params.mi_cols)
         continue;
 
-      TplDepStats *this_stats = &tpl_stats[av1_tpl_ptr_pos(
-          row, col, tpl_stride, tpl_data->tpl_stats_block_mis_log2)];
-
-      double cbcmp = (double)this_stats->srcrf_dist;
-      int64_t mc_dep_delta =
-          RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
-                 this_stats->mc_dep_dist);
-      double dist_scaled = (double)(this_stats->recrf_dist << RDDIV_BITS);
-      intra_cost_base += log(dist_scaled) * cbcmp;
-      mc_dep_cost_base += log(3 * dist_scaled + mc_dep_delta) * cbcmp;
+      const TplDepStats *const this_stats =
+          &tpl_stats[av1_tpl_ptr_pos(row, col, tpl_stride, block_mis_log2)];
+      double intra_cost, mc_dep_cost, cbcmp;
+      compute_tpl_block_log_costs(tpl_frame, this_stats, &intra_cost,
+                                  &mc_dep_cost, &cbcmp);
+      intra_cost_base += intra_cost;
+      mc_dep_cost_base += mc_dep_cost;
       cbcmp_base += cbcmp;
     }
   }
 
   if (cbcmp_base == 0) return deltaq_rdmult;
 
-  double rk = exp((intra_cost_base - mc_dep_cost_base) / cbcmp_base);
+  const double rk = exp((intra_cost_base - mc_dep_cost_base) / cbcmp_base);
   deltaq_rdmult = (int)(deltaq_rdmult * (rk / x->rb));
 
   return AOMMAX(deltaq_rdmult, 1);
@@ -960,6 +1085,8 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
           RDCOST(tpl_frame->base_rdmult, this_stats->mc_dep_rate,
                  this_stats->mc_dep_dist);
       double dist_scaled = (double)(this_stats->recrf_dist << RDDIV_BITS);
+      // Clamp to >= 1 to avoid log(0) / NaN when recrf_dist is zero.
+      dist_scaled = AOMMAX(dist_scaled, 1);
       intra_cost += log(dist_scaled) * cbcmp;
       mc_dep_cost += log(dist_scaled + mc_dep_delta) * cbcmp;
       mc_dep_reg += log(3 * dist_scaled + mc_dep_delta) * cbcmp;

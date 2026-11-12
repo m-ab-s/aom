@@ -1022,6 +1022,38 @@ typedef struct macroblock {
   //! Superblock level distortion propagation factor.
   double rb;
 
+  //! Frame number (+1) for which the SB TPL log-cost cache in av1_get_cb_rdmult
+  //! was populated.
+  int cb_rdmult_cur_frame_num;
+  //! Superblock MI row for which cb_rdmult_16x16 was precomputed.
+  int cb_rdmult_sb_row;
+  //! Superblock MI column for which cb_rdmult_16x16 was precomputed.
+  int cb_rdmult_sb_col;
+  //! GF group frame index for which cb_rdmult_16x16 was precomputed.
+  int cb_rdmult_sb_gf_idx;
+  //! Superblock delta-qindex offset used when precomputing cb_rdmult_16x16.
+  int cb_rdmult_sb_deltaq;
+  //! Frame base_qindex used when precomputing cb_rdmult_16x16.
+  int cb_rdmult_sb_base_q;
+  //! Base rdmult value for the superblock before TPL scaling.
+  int cb_rdmult_sb_base_rdmult;
+  //! Superblock distortion propagation factor rb used for cb_rdmult_16x16.
+  double cb_rdmult_sb_rb;
+  //! Superblock MI row for which per-TPL-block log costs were cached.
+  int cb_rdmult_costs_row;
+  //! Superblock MI column for which per-TPL-block log costs were cached.
+  int cb_rdmult_costs_col;
+  //! GF group frame index for which per-TPL-block log costs were cached.
+  int cb_rdmult_costs_gf_idx;
+  //! Cached per-TPL-unit coding-block rdmult values within the superblock.
+  int cb_rdmult_16x16[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB];
+  //! Cached weighted log own-distortion costs per TPL unit in the superblock.
+  double cb_intra_cost_16x16[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB];
+  //! Cached weighted log temporal-dependency costs per TPL unit in the SB.
+  double cb_mc_dep_cost_16x16[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB];
+  //! Cached TPL source-reference distortion weights per TPL unit in the SB.
+  double cb_cbcmp_16x16[MAX_TPL_BLK_IN_SB * MAX_TPL_BLK_IN_SB];
+
   //! Energy in the current source coding block. Used to calculate \ref rdmult
   int mb_energy;
   //! Energy in the current source superblock. Used to calculate \ref rdmult
