@@ -590,10 +590,35 @@ static int ac_thr_factor(int speed, int width, int height, int norm_sum) {
   return 1;
 }
 
+// Builds the inter prediction of one chroma plane and checks if its residual
+// would quantize to zero.
+static bool is_uv_plane_skippable(const AV1_COMP *cpi, MACROBLOCK *x,
+                                  BLOCK_SIZE bsize, int mi_row, int mi_col,
+                                  int plane) {
+  MACROBLOCKD *const xd = &x->e_mbd;
+  struct macroblock_plane *const puv = &x->plane[plane];
+  struct macroblockd_plane *const puvd = &xd->plane[plane];
+  const BLOCK_SIZE uv_bsize =
+      get_plane_block_size(bsize, puvd->subsampling_x, puvd->subsampling_y);
+  // Adjust these thresholds for UV.
+  const int shift_ac = cpi->sf.rt_sf.increase_source_sad_thresh ? 5 : 3;
+  const int shift_dc = cpi->sf.rt_sf.increase_source_sad_thresh ? 4 : 3;
+  const int64_t uv_dc_thr =
+      (puv->dequant_QTX[0] * puv->dequant_QTX[0]) >> shift_dc;
+  const int64_t uv_ac_thr =
+      (puv->dequant_QTX[1] * puv->dequant_QTX[1]) >> shift_ac;
+  unsigned int sse;
+  av1_enc_build_inter_predictor(&cpi->common, xd, mi_row, mi_col, NULL, bsize,
+                                plane, plane);
+  const unsigned int var = cpi->ppi->fn_ptr[uv_bsize].vf(
+      puv->src.buf, puv->src.stride, puvd->dst.buf, puvd->dst.stride, &sse);
+  return (var < uv_ac_thr || var == 0) && (sse - var < uv_dc_thr || sse == var);
+}
+
 // Sets early_term flag based on chroma planes prediction
 static inline void set_early_term_based_on_uv_plane(
-    AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, MACROBLOCKD *xd, int mi_row,
-    int mi_col, int *early_term, int num_blk, const unsigned int *sse_tx,
+    AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize, int mi_row, int mi_col,
+    int *early_term, int num_blk, const unsigned int *sse_tx,
     const unsigned int *var_tx, int sum, unsigned int var, unsigned int sse) {
   AV1_COMMON *const cm = &cpi->common;
   struct macroblock_plane *const p = &x->plane[AOM_PLANE_Y];
@@ -648,35 +673,14 @@ static inline void set_early_term_based_on_uv_plane(
   // Check if chroma can be skipped based on ac and dc test flags.
   if (ac_test && dc_test) {
     int skip_uv[2] = { 0 };
-    unsigned int var_uv[2];
-    unsigned int sse_uv[2];
     // Transform skipping test in UV planes.
     for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; plane++) {
       int j = plane - 1;
       skip_uv[j] = 1;
       if (x->color_sensitivity[COLOR_SENS_IDX(plane)]) {
-        skip_uv[j] = 0;
-        struct macroblock_plane *const puv = &x->plane[plane];
-        struct macroblockd_plane *const puvd = &xd->plane[plane];
-        const BLOCK_SIZE uv_bsize = get_plane_block_size(
-            bsize, puvd->subsampling_x, puvd->subsampling_y);
-        // Adjust these thresholds for UV.
-        const int shift_ac = cpi->sf.rt_sf.increase_source_sad_thresh ? 5 : 3;
-        const int shift_dc = cpi->sf.rt_sf.increase_source_sad_thresh ? 4 : 3;
-        const int64_t uv_dc_thr =
-            (puv->dequant_QTX[0] * puv->dequant_QTX[0]) >> shift_dc;
-        const int64_t uv_ac_thr =
-            (puv->dequant_QTX[1] * puv->dequant_QTX[1]) >> shift_ac;
-        av1_enc_build_inter_predictor(cm, xd, mi_row, mi_col, NULL, bsize,
-                                      plane, plane);
-        var_uv[j] = cpi->ppi->fn_ptr[uv_bsize].vf(puv->src.buf, puv->src.stride,
-                                                  puvd->dst.buf,
-                                                  puvd->dst.stride, &sse_uv[j]);
-        if ((var_uv[j] < uv_ac_thr || var_uv[j] == 0) &&
-            (sse_uv[j] - var_uv[j] < uv_dc_thr || sse_uv[j] == var_uv[j]))
-          skip_uv[j] = 1;
-        else
-          break;
+        skip_uv[j] =
+            is_uv_plane_skippable(cpi, x, bsize, mi_row, mi_col, plane);
+        if (!skip_uv[j]) break;
       }
     }
     if (skip_uv[0] & skip_uv[1]) {
@@ -763,9 +767,8 @@ static void model_skip_for_sb_y_large_64(AV1_COMP *cpi, BLOCK_SIZE bsize,
     const unsigned int *sse_tx = sse16x16;
     const unsigned int *var_tx = var16x16;
     const unsigned int num_block = (1 << (bw + bh - 2)) >> 2;
-    set_early_term_based_on_uv_plane(cpi, x, bsize, xd, mi_row, mi_col,
-                                     early_term, num_block, sse_tx, var_tx, sum,
-                                     var, sse);
+    set_early_term_based_on_uv_plane(cpi, x, bsize, mi_row, mi_col, early_term,
+                                     num_block, sse_tx, var_tx, sum, var, sse);
   }
   calc_rate_dist_block_param(cpi, x, rd_stats, calculate_rd, early_term, bsize,
                              sse);
@@ -863,9 +866,8 @@ static void model_skip_for_sb_y_large(AV1_COMP *cpi, BLOCK_SIZE bsize,
       var_tx = var16x16;
       num_blks = num_blks >> 2;
     }
-    set_early_term_based_on_uv_plane(cpi, x, bsize, xd, mi_row, mi_col,
-                                     early_term, num_blks, sse_tx, var_tx, sum,
-                                     var, sse);
+    set_early_term_based_on_uv_plane(cpi, x, bsize, mi_row, mi_col, early_term,
+                                     num_blks, sse_tx, var_tx, sum, var, sse);
   }
   calc_rate_dist_block_param(cpi, x, rd_stats, calculate_rd, early_term, bsize,
                              sse);
@@ -3982,6 +3984,26 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
     txfm_info->skip_txfm = 0;
   } else {
     txfm_info->skip_txfm = best_pickmode->best_mode_skip_txfm;
+  }
+  // Color sensitivity is set from the zero mv chroma, so a skipped block with
+  // motion may still have a chroma plane that was never checked.
+  const int num_planes = av1_num_planes(cm);
+  if (txfm_info->skip_txfm && num_planes > 1 && xd->is_chroma_ref &&
+      is_inter_block(mi) && !has_second_ref(mi) && mi->mv[0].as_int != 0) {
+    const MV_REFERENCE_FRAME ref = mi->ref_frame[0];
+    set_ref_ptrs(cm, xd, ref, NONE_FRAME);
+    if (search_state.use_scaled_ref_frame[ref])
+      xd->block_ref_scale_factors[0] = &sf_no_scale;
+    for (int plane = AOM_PLANE_U; plane < num_planes; ++plane) {
+      if (x->color_sensitivity[COLOR_SENS_IDX(plane)]) continue;
+      xd->plane[plane].pre[0] = search_state.yv12_mb[ref][plane];
+      if (!is_uv_plane_skippable(cpi, x, bsize, mi_row, mi_col, plane)) {
+        txfm_info->skip_txfm = 0;
+        best_pickmode->best_mode_skip_txfm = 0;
+        search_state.best_rdc.skip_txfm = 0;
+        break;
+      }
+    }
   }
   if (has_second_ref(mi)) {
     mi->comp_group_idx = 0;
