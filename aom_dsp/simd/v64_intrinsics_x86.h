@@ -150,6 +150,16 @@ SIMD_INLINE v64 v64_abs_s8(v64 a) {
 #endif
 }
 
+SIMD_INLINE v64 v64_sign_s16(v64 a, v64 b) {
+#if defined(__SSSE3__)
+  return _mm_sign_epi16(a, b);
+#else
+  const v64 sign = _mm_srai_epi16(b, 15);
+  const v64 val = _mm_xor_si128(_mm_add_epi16(a, sign), sign);
+  return _mm_andnot_si128(_mm_cmpeq_epi16(b, _mm_setzero_si128()), val);
+#endif
+}
+
 SIMD_INLINE v64 v64_ziplo_8(v64 a, v64 b) { return _mm_unpacklo_epi8(b, a); }
 
 SIMD_INLINE v64 v64_ziphi_8(v64 a, v64 b) {

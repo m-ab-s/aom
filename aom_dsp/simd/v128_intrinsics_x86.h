@@ -144,6 +144,16 @@ SIMD_INLINE v128 v128_abs_s8(v128 a) {
 #endif
 }
 
+SIMD_INLINE v128 v128_sign_s16(v128 a, v128 b) {
+#if defined(__SSSE3__)
+  return _mm_sign_epi16(a, b);
+#else
+  const v128 sign = _mm_srai_epi16(b, 15);
+  const v128 val = _mm_xor_si128(_mm_add_epi16(a, sign), sign);
+  return _mm_andnot_si128(_mm_cmpeq_epi16(b, _mm_setzero_si128()), val);
+#endif
+}
+
 SIMD_INLINE v128 v128_ziplo_8(v128 a, v128 b) {
   return _mm_unpacklo_epi8(b, a);
 }

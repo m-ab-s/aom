@@ -31,10 +31,6 @@
 #define CDEF_INBUF_SIZE \
   (CDEF_BSTRIDE * ((1 << MAX_SB_SIZE_LOG2) + 2 * CDEF_VBORDER))
 
-extern const int cdef_pri_taps[2][2];
-extern const int cdef_sec_taps[2];
-extern const int (*const cdef_directions)[2];
-
 typedef struct {
   uint8_t by;
   uint8_t bx;
@@ -47,12 +43,26 @@ typedef void (*cdef_filter_block_func)(void *dest, int dstride,
                                        int coeff_shift, int block_width,
                                        int block_height);
 
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility push(hidden)
+#endif
+
+extern const int cdef_pri_taps[2][2];
+extern const int cdef_sec_taps[2];
+extern const int (*const cdef_directions)[2];
+
 void av1_cdef_filter_fb(uint8_t *dst8, uint16_t *dst16, int dstride,
                         const uint16_t *in, int xdec, int ydec,
                         int dir[CDEF_NBLOCKS][CDEF_NBLOCKS], int *dirinit,
                         int var[CDEF_NBLOCKS][CDEF_NBLOCKS], int pli,
                         cdef_list *dlist, int cdef_count, int level,
                         int sec_strength, int damping, int coeff_shift);
+
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility pop
+#endif
 
 static inline void fill_rect(uint16_t *dst, int dstride, int v, int h,
                              uint16_t x) {

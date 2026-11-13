@@ -112,6 +112,8 @@ template <typename c_ret, typename c_arg1, typename c_arg2, typename c_arg3>
 void TestSimd3Args(uint32_t iterations, uint32_t mask, uint32_t maskwidth,
                    const char *name);
 
+void TestSignS16EdgeCases();
+
 const int kIterations = 65536;
 
 // Add a macro layer since TEST_P will quote the name so we need to
@@ -394,7 +396,7 @@ INSTANTIATE(
     SIMD_TUPLE(imm_v64_align<1>, 0U, 0U), SIMD_TUPLE(imm_v64_align<2>, 0U, 0U),
     SIMD_TUPLE(imm_v64_align<3>, 0U, 0U), SIMD_TUPLE(imm_v64_align<4>, 0U, 0U),
     SIMD_TUPLE(imm_v64_align<5>, 0U, 0U), SIMD_TUPLE(imm_v64_align<6>, 0U, 0U),
-    SIMD_TUPLE(imm_v64_align<7>, 0U, 0U));
+    SIMD_TUPLE(imm_v64_align<7>, 0U, 0U), SIMD_TUPLE(v64_sign_s16, 0U, 0U));
 
 INSTANTIATE(ARCH, ARCH_POSTFIX(V64_V64), SIMD_TUPLE(v64_abs_s8, 0U, 0U),
             SIMD_TUPLE(v64_abs_s16, 0U, 0U),
@@ -553,32 +555,30 @@ INSTANTIATE(
     SIMD_TUPLE(v128_cmplt_s8, 0U, 0U), SIMD_TUPLE(v128_cmpeq_8, 0U, 0U),
     SIMD_TUPLE(v128_cmpgt_s16, 0U, 0U));
 
-INSTANTIATE(ARCH, ARCH_POSTFIX(V128_V128V128_Part2),
-            SIMD_TUPLE(v128_pack_s32_u16, 0U, 0U),
-            SIMD_TUPLE(v128_rdavg_u16, 0U, 0U), SIMD_TUPLE(v128_add_64, 0U, 0U),
-            SIMD_TUPLE(v128_sub_64, 0U, 0U), SIMD_TUPLE(v128_sadd_s8, 0U, 0U),
-            SIMD_TUPLE(v128_sadd_u8, 0U, 0U), SIMD_TUPLE(v128_cmpeq_16, 0U, 0U),
-            SIMD_TUPLE(v128_cmplt_s16, 0U, 0U),
-            SIMD_TUPLE(v128_cmplt_s32, 0U, 0U),
-            SIMD_TUPLE(v128_cmpeq_32, 0U, 0U),
-            SIMD_TUPLE(v128_cmpgt_s32, 0U, 0U),
-            SIMD_TUPLE(v128_shuffle_8, 15U, 8U),
-            SIMD_TUPLE(v128_min_s32, 0U, 0U), SIMD_TUPLE(v128_max_s32, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<1>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<2>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<3>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<4>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<5>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<6>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<7>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<8>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<9>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<10>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<11>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<12>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<13>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<14>, 0U, 0U),
-            SIMD_TUPLE(imm_v128_align<15>, 0U, 0U));
+INSTANTIATE(
+    ARCH, ARCH_POSTFIX(V128_V128V128_Part2),
+    SIMD_TUPLE(v128_pack_s32_u16, 0U, 0U), SIMD_TUPLE(v128_rdavg_u16, 0U, 0U),
+    SIMD_TUPLE(v128_add_64, 0U, 0U), SIMD_TUPLE(v128_sub_64, 0U, 0U),
+    SIMD_TUPLE(v128_sadd_s8, 0U, 0U), SIMD_TUPLE(v128_sadd_u8, 0U, 0U),
+    SIMD_TUPLE(v128_cmpeq_16, 0U, 0U), SIMD_TUPLE(v128_cmplt_s16, 0U, 0U),
+    SIMD_TUPLE(v128_cmplt_s32, 0U, 0U), SIMD_TUPLE(v128_cmpeq_32, 0U, 0U),
+    SIMD_TUPLE(v128_cmpgt_s32, 0U, 0U), SIMD_TUPLE(v128_shuffle_8, 15U, 8U),
+    SIMD_TUPLE(v128_min_s32, 0U, 0U), SIMD_TUPLE(v128_max_s32, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<1>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<2>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<3>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<4>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<5>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<6>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<7>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<8>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<9>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<10>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<11>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<12>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<13>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<14>, 0U, 0U),
+    SIMD_TUPLE(imm_v128_align<15>, 0U, 0U), SIMD_TUPLE(v128_sign_s16, 0U, 0U));
 
 INSTANTIATE(ARCH, ARCH_POSTFIX(V128_V128V128V128),
             SIMD_TUPLE(v128_blend_8, 0U, 0U));
@@ -869,7 +869,7 @@ INSTANTIATE(
     SIMD_TUPLE(imm_v256_align<28>, 0U, 0U),
     SIMD_TUPLE(imm_v256_align<29>, 0U, 0U),
     SIMD_TUPLE(imm_v256_align<30>, 0U, 0U),
-    SIMD_TUPLE(imm_v256_align<31>, 0U, 0U));
+    SIMD_TUPLE(imm_v256_align<31>, 0U, 0U), SIMD_TUPLE(v256_sign_s16, 0U, 0U));
 
 INSTANTIATE(ARCH, ARCH_POSTFIX(V256_V128V128),
             SIMD_TUPLE(v256_from_v128, 0U, 0U), SIMD_TUPLE(v256_zip_8, 0U, 0U),
@@ -1136,5 +1136,7 @@ INSTANTIATE(ARCH, ARCH_POSTFIX(U32_V256), SIMD_TUPLE(v256_low_u32, 0U, 0U),
             SIMD_TUPLE(v256_movemask_8, 0U, 0U));
 
 INSTANTIATE(ARCH, ARCH_POSTFIX(V64_V256), SIMD_TUPLE(v256_low_v64, 0U, 0U));
+
+TEST(ARCH, ARCH_POSTFIX(SignS16EdgeCases)) { TestSignS16EdgeCases(); }
 
 }  // namespace SIMD_NAMESPACE

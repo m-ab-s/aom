@@ -10,6 +10,7 @@
  */
 
 #include <assert.h>
+#include <stdint.h>
 #include <string>
 
 #include "config/aom_dsp_rtcd.h"
@@ -528,6 +529,7 @@ const mapping m[] = { MAP(v64_sad_u8),
                       MAP(v64_cmpgt_s16),
                       MAP(v64_cmplt_s16),
                       MAP(v64_cmpeq_16),
+                      MAP(v64_sign_s16),
                       MAP(v64_shuffle_8),
                       MAP(imm_v64_align<1>),
                       MAP(imm_v64_align<2>),
@@ -738,6 +740,7 @@ const mapping m[] = { MAP(v64_sad_u8),
                       MAP(imm_v128_align<15>),
                       MAP(v128_abs_s8),
                       MAP(v128_abs_s16),
+                      MAP(v128_sign_s16),
                       MAP(v128_padd_u8),
                       MAP(v128_padd_s16),
                       MAP(v128_unpacklo_u16_s32),
@@ -1069,6 +1072,7 @@ const mapping m[] = { MAP(v64_sad_u8),
                       MAP(v256_shr_s64),
                       MAP(v256_abs_s8),
                       MAP(v256_abs_s16),
+                      MAP(v256_sign_s16),
                       MAP(v256_padd_u8),
                       MAP(v256_padd_s16),
                       MAP(v256_unpacklo_u16_s32),
@@ -2171,5 +2175,82 @@ template void TestSimd2Args<uint32_t, c_v256, c_v256>(uint32_t, uint32_t,
 template void TestSimd3Args<c_v256, c_v256, c_v256, c_v256>(uint32_t, uint32_t,
                                                             uint32_t,
                                                             const char *);
+
+void TestSignS16EdgeCases();
+
+void TestSignS16EdgeCases() {
+  const int16_t a_vals[] = { 0, 1, -1, 42, -42, INT16_MIN, INT16_MAX };
+  const int16_t b_vals[] = { 0, 1, -1, 100, -100, INT16_MIN, INT16_MAX };
+  const auto expected_sign_s16 = [](int16_t a, int16_t b) -> int16_t {
+    if (b == 0) return 0;
+    if (b > 0) return a;
+    return (a == INT16_MIN) ? INT16_MIN : static_cast<int16_t>(-a);
+  };
+  DECLARE_ALIGNED(32, int16_t, a_buf[16]);
+  DECLARE_ALIGNED(32, int16_t, b_buf[16]);
+  DECLARE_ALIGNED(32, int16_t, out_simd[16]);
+  DECLARE_ALIGNED(32, int16_t, out_ref[16]);
+
+  const auto verify_all_widths = [&]() {
+    v64_store_aligned(out_simd, v64_sign_s16(v64_load_aligned(a_buf),
+                                             v64_load_aligned(b_buf)));
+    c_v64_store_aligned(out_ref, c_v64_sign_s16(c_v64_load_aligned(a_buf),
+                                                c_v64_load_aligned(b_buf)));
+    for (int lane = 0; lane < 4; ++lane) {
+      const int16_t exp = expected_sign_s16(a_buf[lane], b_buf[lane]);
+      ASSERT_EQ(out_ref[lane], exp)
+          << "lane=" << lane << " a=" << a_buf[lane] << " b=" << b_buf[lane];
+      ASSERT_EQ(out_simd[lane], exp)
+          << "lane=" << lane << " a=" << a_buf[lane] << " b=" << b_buf[lane];
+    }
+
+    v128_store_aligned(out_simd, v128_sign_s16(v128_load_aligned(a_buf),
+                                               v128_load_aligned(b_buf)));
+    c_v128_store_aligned(out_ref, c_v128_sign_s16(c_v128_load_aligned(a_buf),
+                                                  c_v128_load_aligned(b_buf)));
+    for (int lane = 0; lane < 8; ++lane) {
+      const int16_t exp = expected_sign_s16(a_buf[lane], b_buf[lane]);
+      ASSERT_EQ(out_ref[lane], exp)
+          << "lane=" << lane << " a=" << a_buf[lane] << " b=" << b_buf[lane];
+      ASSERT_EQ(out_simd[lane], exp)
+          << "lane=" << lane << " a=" << a_buf[lane] << " b=" << b_buf[lane];
+    }
+
+    v256_store_aligned(out_simd, v256_sign_s16(v256_load_aligned(a_buf),
+                                               v256_load_aligned(b_buf)));
+    c_v256_store_aligned(out_ref, c_v256_sign_s16(c_v256_load_aligned(a_buf),
+                                                  c_v256_load_aligned(b_buf)));
+    for (int lane = 0; lane < 16; ++lane) {
+      const int16_t exp = expected_sign_s16(a_buf[lane], b_buf[lane]);
+      ASSERT_EQ(out_ref[lane], exp)
+          << "lane=" << lane << " a=" << a_buf[lane] << " b=" << b_buf[lane];
+      ASSERT_EQ(out_simd[lane], exp)
+          << "lane=" << lane << " a=" << a_buf[lane] << " b=" << b_buf[lane];
+    }
+  };
+
+  for (int16_t av : a_vals) {
+    for (int16_t bv : b_vals) {
+      for (int lane = 0; lane < 16; ++lane) {
+        a_buf[lane] = av;
+        b_buf[lane] = bv;
+      }
+      verify_all_widths();
+    }
+  }
+
+  // Mixed-lane pass to catch cross-lane swizzles or lane-bleed bugs.
+  constexpr int kNumA = static_cast<int>(sizeof(a_vals) / sizeof(a_vals[0]));
+  constexpr int kNumB = static_cast<int>(sizeof(b_vals) / sizeof(b_vals[0]));
+  constexpr int kTotalPairs = kNumA * kNumB;
+  for (int offset = 0; offset < kTotalPairs; ++offset) {
+    for (int lane = 0; lane < 16; ++lane) {
+      const int pair_idx = (offset + lane * 3) % kTotalPairs;
+      a_buf[lane] = a_vals[pair_idx / kNumB];
+      b_buf[lane] = b_vals[pair_idx % kNumB];
+    }
+    verify_all_widths();
+  }
+}
 
 }  // namespace SIMD_NAMESPACE
