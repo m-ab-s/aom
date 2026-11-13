@@ -2847,9 +2847,9 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
   }
 
   if (cm->seg.enabled) {
-    cm->seg.temporal_update = 1;
-    if (rdc->seg_tmp_pred_cost[0] < rdc->seg_tmp_pred_cost[1])
-      cm->seg.temporal_update = 0;
+    cm->seg.temporal_update =
+        cm->features.primary_ref_frame != PRIMARY_REF_NONE &&
+        rdc->seg_tmp_pred_cost[0] >= rdc->seg_tmp_pred_cost[1];
   }
 
   if (cpi->sf.inter_sf.prune_obmc_prob_thresh > 0 &&

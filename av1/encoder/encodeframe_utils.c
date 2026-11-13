@@ -387,7 +387,8 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
     if (mi_addr->uv_mode == UV_CFL_PRED && !is_cfl_allowed(xd))
       mi_addr->uv_mode = UV_DC_PRED;
 
-    if (!dry_run && !mi_addr->skip_txfm) {
+    if (!dry_run && !mi_addr->skip_txfm &&
+        cm->features.primary_ref_frame != PRIMARY_REF_NONE) {
       int cdf_num;
       const uint8_t spatial_pred = av1_get_spatial_seg_pred(
           cm, xd, &cdf_num, cpi->cyclic_refresh->skip_over4x4);

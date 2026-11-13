@@ -759,6 +759,11 @@ typedef struct {
   //! spatial_pred_cost
   int spatial_pred_cost[SPATIAL_PREDICTION_PROBS][MAX_SEGMENTS];
   /**@}*/
+
+  //! Whether intra-only mode rate fill deferred default inter cost tables.
+  uint8_t intra_only_skipped_inter_costs;
+  //! Whether intra-only mode rate fill also deferred inter_tx_type_costs.
+  uint8_t intra_only_skipped_inter_tx_type;
 } ModeCosts;
 
 /*! \brief Holds mv costs for encoding and motion search.

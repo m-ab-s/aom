@@ -13,6 +13,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "aom_mem/aom_mem.h"
@@ -80,9 +81,40 @@ static const int av1_ext_tx_set_idx_to_type[2][AOMMAX(EXT_TX_SETS_INTRA,
   },
 };
 
+static void fill_inter_tx_type_costs(ModeCosts *mode_costs,
+                                     const FRAME_CONTEXT *fc) {
+  for (int i = TX_4X4; i < EXT_TX_SIZES; ++i) {
+    for (int s = 1; s < EXT_TX_SETS_INTER; ++s) {
+      if (use_inter_ext_tx_for_txsize[s][i]) {
+        av1_cost_tokens_from_cdf(
+            mode_costs->inter_tx_type_costs[s][i], fc->inter_ext_tx_cdf[s][i],
+            av1_ext_tx_inv[av1_ext_tx_set_idx_to_type[1][s]]);
+      }
+    }
+  }
+}
+
+// Populates the three mode cost tables deferred on intra-only frames.
+static void fill_deferred_inter_mode_rates(ModeCosts *mode_costs,
+                                           const FRAME_CONTEXT *fc,
+                                           int fill_inter_tx_type) {
+  mode_costs->intra_only_skipped_inter_costs = 0;
+  mode_costs->intra_only_skipped_inter_tx_type = 0;
+  for (int i = 0; i < SWITCHABLE_FILTER_CONTEXTS; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->switchable_interp_costs[i],
+                             fc->switchable_interp_cdf[i], NULL);
+  }
+  if (fill_inter_tx_type) fill_inter_tx_type_costs(mode_costs, fc);
+  for (int i = 0; i < SEG_TEMPORAL_PRED_CTXS; ++i) {
+    av1_cost_tokens_from_cdf(mode_costs->tmp_pred_cost[i], fc->seg.pred_cdf[i],
+                             NULL);
+  }
+}
+
 void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                          FRAME_CONTEXT *fc) {
   int i, j;
+  const int is_intra_only = frame_is_intra_only(cm);
 
   for (i = 0; i < PARTITION_CONTEXTS; ++i)
     av1_cost_tokens_from_cdf(mode_costs->partition_cost[i],
@@ -122,10 +154,6 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
       av1_cost_tokens_from_cdf(mode_costs->filter_intra_cost[i],
                                fc->filter_intra_cdfs[i], NULL);
   }
-
-  for (i = 0; i < SWITCHABLE_FILTER_CONTEXTS; ++i)
-    av1_cost_tokens_from_cdf(mode_costs->switchable_interp_costs[i],
-                             fc->switchable_interp_cdf[i], NULL);
 
   for (i = 0; i < PALATTE_BSIZE_CTXS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->palette_y_size_cost[i],
@@ -183,16 +211,13 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
                              fc->txfm_partition_cdf[i], NULL);
   }
 
+  const int allow_intrabc = av1_allow_intrabc(cm);
+  if (allow_intrabc) {
+    fill_inter_tx_type_costs(mode_costs, fc);
+    av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
+  }
   for (i = TX_4X4; i < EXT_TX_SIZES; ++i) {
-    int s;
-    for (s = 1; s < EXT_TX_SETS_INTER; ++s) {
-      if (use_inter_ext_tx_for_txsize[s][i]) {
-        av1_cost_tokens_from_cdf(
-            mode_costs->inter_tx_type_costs[s][i], fc->inter_ext_tx_cdf[s][i],
-            av1_ext_tx_inv[av1_ext_tx_set_idx_to_type[1][s]]);
-      }
-    }
-    for (s = 1; s < EXT_TX_SETS_INTRA; ++s) {
+    for (int s = 1; s < EXT_TX_SETS_INTRA; ++s) {
       if (use_intra_ext_tx_for_txsize[s][i]) {
         for (j = 0; j < INTRA_MODES; ++j) {
           av1_cost_tokens_from_cdf(
@@ -207,19 +232,17 @@ void av1_fill_mode_rates(AV1_COMMON *const cm, ModeCosts *mode_costs,
     av1_cost_tokens_from_cdf(mode_costs->angle_delta_cost[i],
                              fc->angle_delta_cdf[i], NULL);
   }
-  av1_cost_tokens_from_cdf(mode_costs->intrabc_cost, fc->intrabc_cdf, NULL);
-
   for (i = 0; i < SPATIAL_PREDICTION_PROBS; ++i) {
     av1_cost_tokens_from_cdf(mode_costs->spatial_pred_cost[i],
                              fc->seg.spatial_pred_seg_cdf[i], NULL);
   }
 
-  for (i = 0; i < SEG_TEMPORAL_PRED_CTXS; ++i) {
-    av1_cost_tokens_from_cdf(mode_costs->tmp_pred_cost[i], fc->seg.pred_cdf[i],
-                             NULL);
-  }
+  if (is_intra_only) {
+    mode_costs->intra_only_skipped_inter_costs = 1;
+    mode_costs->intra_only_skipped_inter_tx_type = (uint8_t)!allow_intrabc;
+  } else {
+    fill_deferred_inter_mode_rates(mode_costs, fc, /*fill_inter_tx_type=*/1);
 
-  if (!frame_is_intra_only(cm)) {
     for (i = 0; i < COMP_INTER_CONTEXTS; ++i) {
       av1_cost_tokens_from_cdf(mode_costs->comp_inter_cost[i],
                                fc->comp_inter_cdf[i], NULL);
@@ -677,41 +700,51 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
                                    NULL);
       }
 
-      for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx)
-        av1_cost_tokens_from_cdf(pcost->dc_sign_cost[ctx],
-                                 fc->dc_sign_cdf[plane][ctx], NULL);
-
-      int br_rate_all[LEVEL_CONTEXTS][BR_CDF_SIZE];
-      if (is_realtime) {
-        av1_cost_tokens_from_cdf_4_batch(
-            br_rate_all[0], BR_CDF_SIZE,
-            fc->coeff_br_cdf[AOMMIN(tx_size, TX_32X32)][plane][0],
-            CDF_SIZE(BR_CDF_SIZE), LEVEL_CONTEXTS);
+      if (tx_size == TX_4X4) {
+        for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx)
+          av1_cost_tokens_from_cdf(pcost->dc_sign_cost[ctx],
+                                   fc->dc_sign_cdf[plane][ctx], NULL);
       } else {
-        for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx)
-          av1_cost_tokens_from_cdf(
-              br_rate_all[ctx],
-              fc->coeff_br_cdf[AOMMIN(tx_size, TX_32X32)][plane][ctx], NULL);
+        memcpy(pcost->dc_sign_cost,
+               coeff_costs->coeff_costs[TX_4X4][plane].dc_sign_cost,
+               sizeof(pcost->dc_sign_cost));
       }
-      for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx) {
-        const int *br_rate = br_rate_all[ctx];
-        int prev_cost = 0;
-        int i, j;
-        for (i = 0; i < COEFF_BASE_RANGE; i += BR_CDF_SIZE - 1) {
-          for (j = 0; j < BR_CDF_SIZE - 1; j++) {
-            pcost->lps_cost[ctx][i + j] = prev_cost + br_rate[j];
+
+      if (tx_size <= TX_32X32) {
+        int br_rate_all[LEVEL_CONTEXTS][BR_CDF_SIZE];
+        if (is_realtime) {
+          av1_cost_tokens_from_cdf_4_batch(
+              br_rate_all[0], BR_CDF_SIZE, fc->coeff_br_cdf[tx_size][plane][0],
+              CDF_SIZE(BR_CDF_SIZE), LEVEL_CONTEXTS);
+        } else {
+          for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx)
+            av1_cost_tokens_from_cdf(
+                br_rate_all[ctx], fc->coeff_br_cdf[tx_size][plane][ctx], NULL);
+        }
+        for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx) {
+          const int *br_rate = br_rate_all[ctx];
+          int prev_cost = 0;
+          int i, j;
+          for (i = 0; i < COEFF_BASE_RANGE; i += BR_CDF_SIZE - 1) {
+            for (j = 0; j < BR_CDF_SIZE - 1; j++) {
+              pcost->lps_cost[ctx][i + j] = prev_cost + br_rate[j];
+            }
+            prev_cost += br_rate[j];
           }
-          prev_cost += br_rate[j];
+          pcost->lps_cost[ctx][i] = prev_cost;
         }
-        pcost->lps_cost[ctx][i] = prev_cost;
-      }
-      for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx) {
-        pcost->lps_cost[ctx][0 + COEFF_BASE_RANGE + 1] =
-            pcost->lps_cost[ctx][0];
-        for (int i = 1; i <= COEFF_BASE_RANGE; ++i) {
-          pcost->lps_cost[ctx][i + COEFF_BASE_RANGE + 1] =
-              pcost->lps_cost[ctx][i] - pcost->lps_cost[ctx][i - 1];
+        for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx) {
+          pcost->lps_cost[ctx][0 + COEFF_BASE_RANGE + 1] =
+              pcost->lps_cost[ctx][0];
+          for (int i = 1; i <= COEFF_BASE_RANGE; ++i) {
+            pcost->lps_cost[ctx][i + COEFF_BASE_RANGE + 1] =
+                pcost->lps_cost[ctx][i] - pcost->lps_cost[ctx][i - 1];
+          }
         }
+      } else {
+        memcpy(pcost->lps_cost,
+               coeff_costs->coeff_costs[TX_32X32][plane].lps_cost,
+               sizeof(pcost->lps_cost));
       }
     }
   }
@@ -881,8 +914,17 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   // Frame level mode cost update
   if (should_force_mode_cost_update(cpi) ||
       is_frame_level_cost_upd_freq_set(cm, inter_sf->mode_cost_upd_level,
-                                       use_nonrd_pick_mode, frames_since_key))
+                                       use_nonrd_pick_mode, frames_since_key)) {
     av1_fill_mode_rates(cm, &x->mode_costs, cm->fc);
+  } else if (!frame_is_intra_only(cm) &&
+             x->mode_costs.intra_only_skipped_inter_costs) {
+    const FRAME_CONTEXT *const default_fc =
+        cm->default_frame_context->initialized ? cm->default_frame_context
+                                               : cm->fc;
+    fill_deferred_inter_mode_rates(
+        &x->mode_costs, default_fc,
+        x->mode_costs.intra_only_skipped_inter_tx_type);
+  }
 
   // Frame level dv cost update
   if (av1_need_dv_costs(cpi)) {

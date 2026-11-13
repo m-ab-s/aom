@@ -12,6 +12,8 @@
 #ifndef AOM_AV1_ENCODER_COST_H_
 #define AOM_AV1_ENCODER_COST_H_
 
+#include <assert.h>
+
 #include "aom_dsp/entcode.h"
 #include "aom_dsp/prob.h"
 #include "aom/aom_integer.h"
@@ -36,12 +38,12 @@ extern uint16_t av1_cost_lut_low[COST_LUT_LOW];  // filled by av1_init_cost_luts
 
 static inline int av1_cost_symbol_clamped(int p15) {
   assert(0 < p15 && p15 < CDF_PROB_TOP);
-  const int shift = CDF_PROB_BITS - 1 - get_msb(p15);
   // Since CDF_PROB_TOP == 32768 and av1_prob_cost has 129 entries (including a
   // duplicate 128th entry for prob_idx == 128), get_prob(p15 << shift, 32768) -
   // 128 simplifies to ((p15 << shift) - 16320) >> 7.
-  const int prob_idx = ((p15 << shift) - 16320) >> 7;
-  return av1_prob_cost[prob_idx] + av1_cost_literal(shift);
+  const unsigned int shift = (unsigned int)(CDF_PROB_BITS - 1 - get_msb(p15));
+  const unsigned int prob_idx = (((unsigned int)p15 << shift) - 16320U) >> 7;
+  return av1_prob_cost[prob_idx] + (int)av1_cost_literal(shift);
 }
 
 // Calculate the cost of a symbol with probability p15 / 2^15
