@@ -679,14 +679,13 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
       }
 
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx) {
-        pcost->base_cost[ctx][4] = 0;
-        pcost->base_cost[ctx][5] = pcost->base_cost[ctx][1] +
-                                   av1_cost_literal(1) -
-                                   pcost->base_cost[ctx][0];
+        pcost->base_cost[ctx][4] = pcost->base_cost[ctx][0];
+        pcost->base_cost[ctx][5] =
+            pcost->base_cost[ctx][1] + av1_cost_literal(1);
         pcost->base_cost[ctx][6] =
-            pcost->base_cost[ctx][2] - pcost->base_cost[ctx][1];
+            pcost->base_cost[ctx][2] + av1_cost_literal(1);
         pcost->base_cost[ctx][7] =
-            pcost->base_cost[ctx][3] - pcost->base_cost[ctx][2];
+            pcost->base_cost[ctx][3] + av1_cost_literal(1);
       }
 
       if (is_realtime) {
@@ -732,14 +731,6 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
             prev_cost += br_rate[j];
           }
           pcost->lps_cost[ctx][i] = prev_cost;
-        }
-        for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx) {
-          pcost->lps_cost[ctx][0 + COEFF_BASE_RANGE + 1] =
-              pcost->lps_cost[ctx][0];
-          for (int i = 1; i <= COEFF_BASE_RANGE; ++i) {
-            pcost->lps_cost[ctx][i + COEFF_BASE_RANGE + 1] =
-                pcost->lps_cost[ctx][i] - pcost->lps_cost[ctx][i - 1];
-          }
         }
       } else {
         memcpy(pcost->lps_cost,

@@ -180,7 +180,7 @@ typedef struct {
    *
    * Decoder uses base_eob to derive the base_level as base_eob := base_eob+1.
    */
-  int base_eob_cost[SIG_COEF_CONTEXTS_EOB][3];
+  int base_eob_cost[SIG_COEF_CONTEXTS_EOB][4];
   /*! \brief Cost for encoding the base level of a coefficient.
    *
    * Decoder derives coeff_base as coeff_base := base_eob + 1.
@@ -194,14 +194,14 @@ typedef struct {
   //! Cost for encoding the dc_sign
   int dc_sign_cost[DC_SIGN_CONTEXTS][2];
   //! Cost for encoding an increment to the coefficient
-  int lps_cost[LEVEL_CONTEXTS][COEFF_BASE_RANGE + 1 + COEFF_BASE_RANGE + 1];
+  int lps_cost[LEVEL_CONTEXTS][16];
 } LV_MAP_COEFF_COST;
 
 /*! \brief Costs for encoding the eob.
  */
 typedef struct {
   //! eob_cost.
-  int eob_cost[2][11];
+  int eob_cost[2][16];
 } LV_MAP_EOB_COST;
 
 /*! \brief Stores the transforms coefficients for the whole superblock.

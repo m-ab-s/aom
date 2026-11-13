@@ -21,11 +21,6 @@ static const int golomb_bits_cost[32] = {
   512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9, 512 * 9
 };
 
-static const int golomb_cost_diff[32] = {
-  0,       512, 512 * 2, 0, 512 * 2, 0, 0, 0, 512 * 2, 0, 0, 0, 0, 0, 0, 0,
-  512 * 2, 0,   0,       0, 0,       0, 0, 0, 0,       0, 0, 0, 0, 0, 0, 0
-};
-
 // Look up table of individual cost of coefficient by its quantization level.
 // determined based on Laplacian distribution conditioned on estimated context
 static const int costLUT[15] = { -1143, 53,   545,  825,  1031,
@@ -96,54 +91,6 @@ static inline int get_br_cost(tran_low_t level, const int *coeff_lps) {
   }
   const int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
   return coeff_lps[COEFF_BASE_RANGE] + av1_cost_literal((get_msb(r) << 1) + 1);
-}
-
-static inline int get_br_cost_with_diff(tran_low_t level, const int *coeff_lps,
-                                        int *diff) {
-  if (level < 1 + NUM_BASE_LEVELS + COEFF_BASE_RANGE) {
-    const int base_range = level - 1 - NUM_BASE_LEVELS;
-    *diff += coeff_lps[base_range + COEFF_BASE_RANGE + 1];
-    return coeff_lps[base_range];
-  }
-  int golomb_bits = 0;
-  if (level == COEFF_BASE_RANGE + 1 + NUM_BASE_LEVELS)
-    *diff += coeff_lps[COEFF_BASE_RANGE + COEFF_BASE_RANGE + 1];
-
-  const int r = level - COEFF_BASE_RANGE - NUM_BASE_LEVELS;
-  if (r < 32) {
-    golomb_bits = golomb_bits_cost[r];
-    *diff += golomb_cost_diff[r];
-  } else {
-    golomb_bits = av1_cost_literal((get_msb(r) << 1) + 1);
-    *diff += (r & (r - 1)) == 0 ? 1024 : 0;
-  }
-
-  return coeff_lps[COEFF_BASE_RANGE] + golomb_bits;
-}
-
-static AOM_FORCE_INLINE int get_two_coeff_cost_simple(
-    int ci, tran_low_t abs_qc, int coeff_ctx,
-    const LV_MAP_COEFF_COST *txb_costs, int bhl, TX_CLASS tx_class,
-    const uint8_t *levels, int *cost_low) {
-  // this simple version assumes the coeff's scan_idx is not DC (scan_idx != 0)
-  // and not the last (scan_idx != eob - 1)
-  assert(ci > 0);
-  int cost = txb_costs->base_cost[coeff_ctx][AOMMIN(abs_qc, 3)];
-  int diff = 0;
-  if (abs_qc <= 3) diff = txb_costs->base_cost[coeff_ctx][abs_qc + 4];
-  if (abs_qc) {
-    cost += av1_cost_literal(1);
-    if (abs_qc > NUM_BASE_LEVELS) {
-      const int br_ctx = get_br_ctx_simple(levels, ci, bhl, tx_class);
-      int brcost_diff = 0;
-      cost += get_br_cost_with_diff(abs_qc, txb_costs->lps_cost[br_ctx],
-                                    &brcost_diff);
-      diff += brcost_diff;
-    }
-  }
-  *cost_low = cost - diff;
-
-  return cost;
 }
 
 static inline int get_coeff_cost_eob(int ci, tran_low_t abs_qc, int sign,
