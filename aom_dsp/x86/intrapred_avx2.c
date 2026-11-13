@@ -10,6 +10,7 @@
  */
 
 #include <immintrin.h>
+#include <string.h>
 
 #include "config/av1_rtcd.h"
 #include "aom_dsp/x86/intrapred_x86.h"
@@ -3839,6 +3840,17 @@ void av1_dr_prediction_z1_avx2(uint8_t *dst, ptrdiff_t stride, int bw, int bh,
   return;
 }
 
+// Load two adjacent 8-bit reference samples (left[y] and left[y + 1]) as a
+// single 16-bit value.
+static inline int16_t load_u16_unaligned(const uint8_t *p) {
+  int16_t val;
+  memcpy(&val, p, sizeof(val));
+  return val;
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
 static void dr_prediction_z2_Nx4_avx2(int N, uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above, const uint8_t *left,
                                       int upsample_above, int upsample_left,
@@ -3921,13 +3933,13 @@ static void dr_prediction_z2_Nx4_avx2(int N, uint8_t *dst, ptrdiff_t stride,
       mask128 = _mm_cmpgt_epi16(min_base_y128, base_y_c128);
       base_y_c128 = _mm_andnot_si128(mask128, base_y_c128);
       _mm_store_si128((__m128i *)base_y_c, base_y_c128);
-
-      a0_y = _mm_setr_epi16(left[base_y_c[0]], left[base_y_c[1]],
-                            left[base_y_c[2]], left[base_y_c[3]], 0, 0, 0, 0);
-      base_y_c128 = _mm_add_epi16(base_y_c128, _mm_srli_epi16(a16, 4));
-      _mm_store_si128((__m128i *)base_y_c, base_y_c128);
-      a1_y = _mm_setr_epi16(left[base_y_c[0]], left[base_y_c[1]],
-                            left[base_y_c[2]], left[base_y_c[3]], 0, 0, 0, 0);
+      const __m128i pairs =
+          _mm_setr_epi16(load_u16_unaligned(left + base_y_c[0]),
+                         load_u16_unaligned(left + base_y_c[1]),
+                         load_u16_unaligned(left + base_y_c[2]),
+                         load_u16_unaligned(left + base_y_c[3]), 0, 0, 0, 0);
+      a0_y = _mm_and_si128(pairs, _mm_set1_epi16(0x00ff));
+      a1_y = _mm_srli_epi16(pairs, 8);
 
       if (upsample_left) {
         shifty = _mm_srli_epi16(
@@ -3957,6 +3969,9 @@ static void dr_prediction_z2_Nx4_avx2(int N, uint8_t *dst, ptrdiff_t stride,
   }
 }
 
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
 static void dr_prediction_z2_Nx8_avx2(int N, uint8_t *dst, ptrdiff_t stride,
                                       const uint8_t *above, const uint8_t *left,
                                       int upsample_above, int upsample_left,
@@ -4041,19 +4056,17 @@ static void dr_prediction_z2_Nx8_avx2(int N, uint8_t *dst, ptrdiff_t stride,
       mask128 = _mm_cmpgt_epi16(min_base_y128, base_y_c128);
       base_y_c128 = _mm_andnot_si128(mask128, base_y_c128);
       _mm_store_si128((__m128i *)base_y_c, base_y_c128);
-
-      a0_y = _mm_setr_epi16(left[base_y_c[0]], left[base_y_c[1]],
-                            left[base_y_c[2]], left[base_y_c[3]],
-                            left[base_y_c[4]], left[base_y_c[5]],
-                            left[base_y_c[6]], left[base_y_c[7]]);
-      base_y_c128 = _mm_add_epi16(
-          base_y_c128, _mm_srli_epi16(_mm256_castsi256_si128(a16), 4));
-      _mm_store_si128((__m128i *)base_y_c, base_y_c128);
-
-      a1_y = _mm_setr_epi16(left[base_y_c[0]], left[base_y_c[1]],
-                            left[base_y_c[2]], left[base_y_c[3]],
-                            left[base_y_c[4]], left[base_y_c[5]],
-                            left[base_y_c[6]], left[base_y_c[7]]);
+      const __m128i pairs =
+          _mm_setr_epi16(load_u16_unaligned(left + base_y_c[0]),
+                         load_u16_unaligned(left + base_y_c[1]),
+                         load_u16_unaligned(left + base_y_c[2]),
+                         load_u16_unaligned(left + base_y_c[3]),
+                         load_u16_unaligned(left + base_y_c[4]),
+                         load_u16_unaligned(left + base_y_c[5]),
+                         load_u16_unaligned(left + base_y_c[6]),
+                         load_u16_unaligned(left + base_y_c[7]));
+      a0_y = _mm_and_si128(pairs, _mm_set1_epi16(0x00ff));
+      a1_y = _mm_srli_epi16(pairs, 8);
 
       if (upsample_left) {
         shifty = _mm_srli_epi16(
@@ -4086,6 +4099,9 @@ static void dr_prediction_z2_Nx8_avx2(int N, uint8_t *dst, ptrdiff_t stride,
   }
 }
 
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#endif
 static void dr_prediction_z2_HxW_avx2(int H, int W, uint8_t *dst,
                                       ptrdiff_t stride, const uint8_t *above,
                                       const uint8_t *left, int upsample_above,
@@ -4200,24 +4216,25 @@ static void dr_prediction_z2_HxW_avx2(int H, int W, uint8_t *dst,
         } else {
           base_y_c256 = _mm256_andnot_si256(mask256, base_y_c256);
           _mm256_store_si256((__m256i *)base_y_c, base_y_c256);
-
-          a0_y = _mm256_setr_epi16(
-              left[base_y_c[0]], left[base_y_c[1]], left[base_y_c[2]],
-              left[base_y_c[3]], left[base_y_c[4]], left[base_y_c[5]],
-              left[base_y_c[6]], left[base_y_c[7]], left[base_y_c[8]],
-              left[base_y_c[9]], left[base_y_c[10]], left[base_y_c[11]],
-              left[base_y_c[12]], left[base_y_c[13]], left[base_y_c[14]],
-              left[base_y_c[15]]);
-          base_y_c256 = _mm256_add_epi16(base_y_c256, c1);
-          _mm256_store_si256((__m256i *)base_y_c, base_y_c256);
-
-          a1_y = _mm256_setr_epi16(
-              left[base_y_c[0]], left[base_y_c[1]], left[base_y_c[2]],
-              left[base_y_c[3]], left[base_y_c[4]], left[base_y_c[5]],
-              left[base_y_c[6]], left[base_y_c[7]], left[base_y_c[8]],
-              left[base_y_c[9]], left[base_y_c[10]], left[base_y_c[11]],
-              left[base_y_c[12]], left[base_y_c[13]], left[base_y_c[14]],
-              left[base_y_c[15]]);
+          const __m256i pairs =
+              _mm256_setr_epi16(load_u16_unaligned(left + base_y_c[0]),
+                                load_u16_unaligned(left + base_y_c[1]),
+                                load_u16_unaligned(left + base_y_c[2]),
+                                load_u16_unaligned(left + base_y_c[3]),
+                                load_u16_unaligned(left + base_y_c[4]),
+                                load_u16_unaligned(left + base_y_c[5]),
+                                load_u16_unaligned(left + base_y_c[6]),
+                                load_u16_unaligned(left + base_y_c[7]),
+                                load_u16_unaligned(left + base_y_c[8]),
+                                load_u16_unaligned(left + base_y_c[9]),
+                                load_u16_unaligned(left + base_y_c[10]),
+                                load_u16_unaligned(left + base_y_c[11]),
+                                load_u16_unaligned(left + base_y_c[12]),
+                                load_u16_unaligned(left + base_y_c[13]),
+                                load_u16_unaligned(left + base_y_c[14]),
+                                load_u16_unaligned(left + base_y_c[15]));
+          a0_y = _mm256_and_si256(pairs, _mm256_set1_epi16(0x00ff));
+          a1_y = _mm256_srli_epi16(pairs, 8);
         }
         shifty = _mm256_srli_epi16(_mm256_and_si256(y_c256, c3f), 1);
 
