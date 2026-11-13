@@ -721,6 +721,7 @@ static uint8_t update_and_record_txb_context_multi(
     }
   }
   if (cpi->mt_info.pack_bs_mt_enabled) td->abs_sum_level += abs_sum;
+  int dc_sign_mask = 0;
   // Update the context needed to code the DC sign (if applicable)
   if (tcoeff[0] != 0) {
     const int dc_sign = (tcoeff[0] < 0) ? 1 : 0;
@@ -730,11 +731,12 @@ static uint8_t update_and_record_txb_context_multi(
     if (allow_update_cdf)
       update_cdf(ec_ctx->dc_sign_cdf[plane_type][dc_sign_ctx], dc_sign, 2);
     entropy_ctx[block] |= dc_sign_ctx << DC_SIGN_CTX_SHIFT;
+    dc_sign_mask = (2 - dc_sign) << COEFF_CONTEXT_BITS;
   }
 #if !CONFIG_ENTROPY_STATS
 #undef allow_update_cdf
 #endif
-  return av1_get_txb_entropy_context(tcoeff, scan_order, eob);
+  return (uint8_t)(AOMMIN(abs_sum, COEFF_CONTEXT_MASK) | dc_sign_mask);
 }
 
 #if defined(__GNUC__) || defined(__clang__)
