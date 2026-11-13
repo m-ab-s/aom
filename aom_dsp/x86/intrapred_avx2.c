@@ -3877,7 +3877,7 @@ static void dr_prediction_z2_Nx4_avx2(int N, uint8_t *dst, ptrdiff_t stride,
   dy128 = _mm_set1_epi16(dy);
 
   for (int r = 0; r < N; r++) {
-    __m128i b, res, shift, r6, ydx;
+    __m128i b, res, shift, r6;
     __m128i resx, resy, resxy;
     __m128i a0_x128, a1_x128;
     int y = r + 1;
@@ -3900,23 +3900,16 @@ static void dr_prediction_z2_Nx4_avx2(int N, uint8_t *dst, ptrdiff_t stride,
       shift = _mm_setzero_si128();
     } else {
       a0_x128 = _mm_loadu_si128((__m128i *)(above + base_x + base_shift));
-      ydx = _mm_set1_epi16(y * dx);
-      r6 = _mm_slli_epi16(c1234, 6);
+      const int shift_val = (((-y * dx) * (1 << upsample_above)) & 0x3f) >> 1;
+      shift = _mm_set1_epi16(shift_val);
 
       if (upsample_above) {
         a0_x128 =
             _mm_shuffle_epi8(a0_x128, *(__m128i *)EvenOddMaskx[base_shift]);
         a1_x128 = _mm_srli_si128(a0_x128, 8);
-
-        shift = _mm_srli_epi16(
-            _mm_and_si128(
-                _mm_slli_epi16(_mm_sub_epi16(r6, ydx), upsample_above), c3f),
-            1);
       } else {
         a0_x128 = _mm_shuffle_epi8(a0_x128, *(__m128i *)LoadMaskx[base_shift]);
         a1_x128 = _mm_srli_si128(a0_x128, 1);
-
-        shift = _mm_srli_epi16(_mm_and_si128(_mm_sub_epi16(r6, ydx), c3f), 1);
       }
       a0_x = _mm_cvtepu8_epi16(a0_x128);
       a1_x = _mm_cvtepu8_epi16(a1_x128);
@@ -3924,22 +3917,40 @@ static void dr_prediction_z2_Nx4_avx2(int N, uint8_t *dst, ptrdiff_t stride,
     // y calc
     __m128i a0_y, a1_y, shifty;
     if (base_x < min_base_x) {
-      DECLARE_ALIGNED(32, int16_t, base_y_c[8]);
-      __m128i y_c128, base_y_c128, mask128, c1234_;
+      __m128i y_c128, base_y_c128, c1234_;
       c1234_ = _mm_srli_si128(c1234, 2);
       r6 = _mm_set1_epi16(r << 6);
       y_c128 = _mm_sub_epi16(r6, _mm_mullo_epi16(c1234_, dy128));
       base_y_c128 = _mm_srai_epi16(y_c128, frac_bits_y);
-      mask128 = _mm_cmpgt_epi16(min_base_y128, base_y_c128);
-      base_y_c128 = _mm_andnot_si128(mask128, base_y_c128);
-      _mm_store_si128((__m128i *)base_y_c, base_y_c128);
-      const __m128i pairs =
-          _mm_setr_epi16(load_u16_unaligned(left + base_y_c[0]),
-                         load_u16_unaligned(left + base_y_c[1]),
-                         load_u16_unaligned(left + base_y_c[2]),
-                         load_u16_unaligned(left + base_y_c[3]), 0, 0, 0, 0);
-      a0_y = _mm_and_si128(pairs, _mm_set1_epi16(0x00ff));
-      a1_y = _mm_srli_epi16(pairs, 8);
+      base_y_c128 = _mm_max_epi16(base_y_c128, min_base_y128);
+      const int min_y = (int16_t)_mm_extract_epi16(base_y_c128, 3);
+      const int max_y = (int16_t)_mm_extract_epi16(base_y_c128, 0);
+      const int offset_diff = max_y - min_y;
+      // When the vertical span fits within a 16-byte window, use masked vector
+      // load and _mm_shuffle_epi8 instead of scalar extracts.
+      if (offset_diff < 16) {
+        const __m128i min_y128 = _mm_set1_epi16((int16_t)min_y);
+        const __m128i base_y_offset = _mm_sub_epi16(base_y_c128, min_y128);
+        const __m128i base_y_offset128 =
+            _mm_packus_epi16(base_y_offset, base_y_offset);
+        const __m128i mask = *(__m128i *)LoadMaskz2[offset_diff >> 2];
+        const __m128i a0_y128 =
+            _mm_maskload_epi32((const int *)(left + min_y), mask);
+        const __m128i a1_y128 =
+            _mm_maskload_epi32((const int *)(left + min_y + 1), mask);
+        a0_y = _mm_cvtepu8_epi16(_mm_shuffle_epi8(a0_y128, base_y_offset128));
+        a1_y = _mm_cvtepu8_epi16(_mm_shuffle_epi8(a1_y128, base_y_offset128));
+      } else {
+        const __m128i pairs =
+            _mm_setr_epi16(load_u16_unaligned(left + max_y),
+                           load_u16_unaligned(left + (int16_t)_mm_extract_epi16(
+                                                         base_y_c128, 1)),
+                           load_u16_unaligned(left + (int16_t)_mm_extract_epi16(
+                                                         base_y_c128, 2)),
+                           load_u16_unaligned(left + min_y), 0, 0, 0, 0);
+        a0_y = _mm_and_si128(pairs, _mm_set1_epi16(0x00ff));
+        a1_y = _mm_srli_epi16(pairs, 8);
+      }
 
       if (upsample_left) {
         shifty = _mm_srli_epi16(
@@ -4000,7 +4011,7 @@ static void dr_prediction_z2_Nx8_avx2(int N, uint8_t *dst, ptrdiff_t stride,
 
   for (int r = 0; r < N; r++) {
     __m256i b, res, shift;
-    __m128i resx, resy, resxy, r6, ydx;
+    __m128i resx, resy, resxy, r6;
 
     int y = r + 1;
     int base_x = (-y * dx) >> frac_bits_x;
@@ -4022,24 +4033,16 @@ static void dr_prediction_z2_Nx8_avx2(int N, uint8_t *dst, ptrdiff_t stride,
       shift = _mm256_setzero_si256();
     } else {
       a0_x128 = _mm_loadu_si128((__m128i *)(above + base_x + base_shift));
-      ydx = _mm_set1_epi16(y * dx);
-      r6 = _mm_slli_epi16(_mm_srli_si128(c1234, 2), 6);
+      const int shift_val = (((-y * dx) * (1 << upsample_above)) & 0x3f) >> 1;
+      shift = _mm256_castsi128_si256(_mm_set1_epi16(shift_val));
       if (upsample_above) {
         a0_x128 =
             _mm_shuffle_epi8(a0_x128, *(__m128i *)EvenOddMaskx[base_shift]);
         a1_x128 = _mm_srli_si128(a0_x128, 8);
-
-        shift = _mm256_castsi128_si256(_mm_srli_epi16(
-            _mm_and_si128(
-                _mm_slli_epi16(_mm_sub_epi16(r6, ydx), upsample_above), c3f),
-            1));
       } else {
         a1_x128 = _mm_srli_si128(a0_x128, 1);
         a0_x128 = _mm_shuffle_epi8(a0_x128, *(__m128i *)LoadMaskx[base_shift]);
         a1_x128 = _mm_shuffle_epi8(a1_x128, *(__m128i *)LoadMaskx[base_shift]);
-
-        shift = _mm256_castsi128_si256(
-            _mm_srli_epi16(_mm_and_si128(_mm_sub_epi16(r6, ydx), c3f), 1));
       }
       a0_x = _mm256_castsi128_si256(_mm_cvtepu8_epi16(a0_x128));
       a1_x = _mm256_castsi128_si256(_mm_cvtepu8_epi16(a1_x128));
@@ -4048,25 +4051,47 @@ static void dr_prediction_z2_Nx8_avx2(int N, uint8_t *dst, ptrdiff_t stride,
     // y calc
     __m128i a0_y, a1_y, shifty;
     if (base_x < min_base_x) {
-      DECLARE_ALIGNED(32, int16_t, base_y_c[16]);
-      __m128i y_c128, base_y_c128, mask128;
+      __m128i y_c128, base_y_c128;
       r6 = _mm_set1_epi16(r << 6);
       y_c128 = _mm_sub_epi16(r6, _mm_mullo_epi16(c1234, dy128));
       base_y_c128 = _mm_srai_epi16(y_c128, frac_bits_y);
-      mask128 = _mm_cmpgt_epi16(min_base_y128, base_y_c128);
-      base_y_c128 = _mm_andnot_si128(mask128, base_y_c128);
-      _mm_store_si128((__m128i *)base_y_c, base_y_c128);
-      const __m128i pairs =
-          _mm_setr_epi16(load_u16_unaligned(left + base_y_c[0]),
-                         load_u16_unaligned(left + base_y_c[1]),
-                         load_u16_unaligned(left + base_y_c[2]),
-                         load_u16_unaligned(left + base_y_c[3]),
-                         load_u16_unaligned(left + base_y_c[4]),
-                         load_u16_unaligned(left + base_y_c[5]),
-                         load_u16_unaligned(left + base_y_c[6]),
-                         load_u16_unaligned(left + base_y_c[7]));
-      a0_y = _mm_and_si128(pairs, _mm_set1_epi16(0x00ff));
-      a1_y = _mm_srli_epi16(pairs, 8);
+      base_y_c128 = _mm_max_epi16(base_y_c128, min_base_y128);
+      const int min_y = (int16_t)_mm_extract_epi16(base_y_c128, 7);
+      const int max_y = (int16_t)_mm_extract_epi16(base_y_c128, 0);
+      const int offset_diff = max_y - min_y;
+      // When the vertical span fits within a 16-byte window, use masked vector
+      // load and _mm_shuffle_epi8 instead of scalar extracts.
+      if (offset_diff < 16) {
+        const __m128i min_y128 = _mm_set1_epi16((int16_t)min_y);
+        const __m128i base_y_offset = _mm_sub_epi16(base_y_c128, min_y128);
+        const __m128i base_y_offset128 =
+            _mm_packus_epi16(base_y_offset, base_y_offset);
+        const __m128i mask = *(__m128i *)LoadMaskz2[offset_diff >> 2];
+        const __m128i a0_y128 =
+            _mm_maskload_epi32((const int *)(left + min_y), mask);
+        const __m128i a1_y128 =
+            _mm_maskload_epi32((const int *)(left + min_y + 1), mask);
+        a0_y = _mm_cvtepu8_epi16(_mm_shuffle_epi8(a0_y128, base_y_offset128));
+        a1_y = _mm_cvtepu8_epi16(_mm_shuffle_epi8(a1_y128, base_y_offset128));
+      } else {
+        const __m128i pairs = _mm_setr_epi16(
+            load_u16_unaligned(left + max_y),
+            load_u16_unaligned(left +
+                               (int16_t)_mm_extract_epi16(base_y_c128, 1)),
+            load_u16_unaligned(left +
+                               (int16_t)_mm_extract_epi16(base_y_c128, 2)),
+            load_u16_unaligned(left +
+                               (int16_t)_mm_extract_epi16(base_y_c128, 3)),
+            load_u16_unaligned(left +
+                               (int16_t)_mm_extract_epi16(base_y_c128, 4)),
+            load_u16_unaligned(left +
+                               (int16_t)_mm_extract_epi16(base_y_c128, 5)),
+            load_u16_unaligned(left +
+                               (int16_t)_mm_extract_epi16(base_y_c128, 6)),
+            load_u16_unaligned(left + min_y));
+        a0_y = _mm_and_si128(pairs, _mm_set1_epi16(0x00ff));
+        a1_y = _mm_srli_epi16(pairs, 8);
+      }
 
       if (upsample_left) {
         shifty = _mm_srli_epi16(
@@ -4130,11 +4155,12 @@ static void dr_prediction_z2_HxW_avx2(int H, int W, uint8_t *dst,
   c1234 = _mm256_add_epi16(c0123, c1);
 
   for (int r = 0; r < H; r++) {
-    __m256i b, res, shift, j256, r6, ydx;
+    __m256i b, res, shift, j256, r6;
     __m128i resx, resy;
     __m128i resxy;
     int y = r + 1;
-    ydx = _mm256_set1_epi16((int16_t)(y * dx));
+    const int shift_val = ((-y * dx) & 0x3f) >> 1;
+    shift = _mm256_set1_epi16((int16_t)shift_val);
 
     int base_x = (-y * dx) >> frac_bits_x;
     for (int j = 0; j < W; j += 16) {
@@ -4159,10 +4185,6 @@ static void dr_prediction_z2_HxW_avx2(int H, int W, uint8_t *dst,
 
         a0_x = _mm256_cvtepu8_epi16(a0_x128);
         a1_x = _mm256_cvtepu8_epi16(a1_x128);
-
-        r6 = _mm256_slli_epi16(_mm256_add_epi16(c0123, j256), 6);
-        shift = _mm256_srli_epi16(
-            _mm256_and_si256(_mm256_sub_epi16(r6, ydx), c3f), 1);
 
         diff = _mm256_sub_epi16(a1_x, a0_x);  // a[x+1] - a[x]
         a32 = _mm256_slli_epi16(a0_x, 5);     // a[x] * 32
@@ -4196,6 +4218,8 @@ static void dr_prediction_z2_HxW_avx2(int H, int W, uint8_t *dst,
             (int16_t)_mm_extract_epi16(_mm256_castsi256_si128(base_y_c256), 0);
         int16_t offset_diff = max_y - min_y;
 
+        // Load 16 bytes for base_y, max_base_y is 30 so we may need a masked
+        // load
         if (offset_diff < 16) {
           __m256i min_y256 = _mm256_set1_epi16(min_y);
 
@@ -4214,7 +4238,6 @@ static void dr_prediction_z2_HxW_avx2(int H, int W, uint8_t *dst,
           a0_y = _mm256_cvtepu8_epi16(a0_y128);
           a1_y = _mm256_cvtepu8_epi16(a1_y128);
         } else {
-          base_y_c256 = _mm256_andnot_si256(mask256, base_y_c256);
           _mm256_store_si256((__m256i *)base_y_c, base_y_c256);
           const __m256i pairs =
               _mm256_setr_epi16(load_u16_unaligned(left + base_y_c[0]),
