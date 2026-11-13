@@ -1648,13 +1648,15 @@ void av1_convolve_x_sr_intrabc_neon(const uint8_t *src, int src_stride,
 
   if (w <= 4) {
     do {
-      uint8x8_t s0_0 = vld1_u8(src);
-      uint8x8_t s0_1 = vld1_u8(src + 1);
-      uint8x8_t s1_0 = vld1_u8(src + src_stride);
-      uint8x8_t s1_1 = vld1_u8(src + src_stride + 1);
+      // Load at most 5 pixels per row. A full 8-byte load would read
+      // pixels to the right of the reference block, which may be in a region
+      // that is concurrently being reconstructed by another encoder thread.
+      uint8x8_t s0 = load_unaligned_u8(src, src_stride);
+      uint8x8_t s1 = load_unaligned_u8(src + 1, src_stride);
 
-      uint8x8_t d0 = vrhadd_u8(s0_0, s0_1);
-      uint8x8_t d1 = vrhadd_u8(s1_0, s1_1);
+      // Row 0 is in the low half of d0, row 1 in the high half.
+      uint8x8_t d0 = vrhadd_u8(s0, s1);
+      uint8x8_t d1 = vext_u8(d0, d0, 4);
 
       if (w == 2) {
         store_u8_2x1(dst + 0 * dst_stride, d0);
@@ -1806,8 +1808,11 @@ void av1_convolve_2d_sr_intrabc_neon(const uint8_t *src, int src_stride,
   // Horizontal filter.
   if (w <= 4) {
     do {
-      uint8x8_t s0 = vld1_u8(src);
-      uint8x8_t s1 = vld1_u8(src + 1);
+      // Load at most 5 pixels per row. A full 8-byte load would read
+      // pixels to the right of the reference block, which may be in a region
+      // that is concurrently being reconstructed by another encoder thread.
+      uint8x8_t s0 = load_unaligned_u8_4x1(src);
+      uint8x8_t s1 = load_unaligned_u8_4x1(src + 1);
 
       uint16x4_t sum = vget_low_u16(vaddl_u8(s0, s1));
 
