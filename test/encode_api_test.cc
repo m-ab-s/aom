@@ -4794,6 +4794,139 @@ TEST(EncodeAPI, SvcRefFrameConfigUnusedRefIdxWithResolutionChange) {
 }
 #endif  // CONFIG_AV1_DECODER
 
+#if CONFIG_AV1_DECODER
+// Two level noise that is the same for the same seed and position.
+static uint8_t NoisePixel(int seed, int r, int c) {
+  // 64 bit math, since the integer sanitizer reports unsigned wraparound.
+  uint64_t h = (static_cast<uint64_t>(seed) * 2654435761u ^
+                static_cast<uint64_t>(r / 2) * 40503u ^
+                static_cast<uint64_t>(c / 2) * 2246822519u) &
+               0xffffffffu;
+  h ^= h >> 13;
+  h = (h * 0x5bd1e995u) & 0xffffffffu;
+  h ^= h >> 15;
+  return (h & 1) ? 220 : 40;
+}
+
+// Fills a 64x64 frame. Frame 0 becomes GOLDEN and frame 1 LAST. In frame 2
+// the text in the left half has moved up by 8 rows since frame 1 and has a
+// new color, which GOLDEN has at the same place.
+static void FillMovedTextNewColor(aom_image_t *img, int frame) {
+  constexpr int kShift = 8;
+  constexpr int kText = 7;
+  const int background = frame == 1 ? 2 : 1;
+  for (int r = 0; r < 64; ++r) {
+    uint8_t *const row = img->planes[AOM_PLANE_Y] + r * img->stride[0];
+    for (int c = 0; c < 64; ++c) {
+      uint8_t v = NoisePixel(background, r, c);
+      if (c < 32) {
+        if (frame == 0 && r < 32) v = NoisePixel(3, r, c);
+        if (frame == 1 && r >= kShift && r < 32 + kShift) {
+          v = NoisePixel(kText, r - kShift, c);
+        }
+        if (frame == 2 && r < 32) v = NoisePixel(kText, r, c);
+      }
+      row[c] = v;
+    }
+  }
+  for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; ++plane) {
+    const uint8_t old_color = plane == AOM_PLANE_U ? 100 : 150;
+    const uint8_t new_color = plane == AOM_PLANE_U ? 150 : 100;
+    for (int r = 0; r < aom_img_plane_height(img, plane); ++r) {
+      uint8_t *const row = img->planes[plane] + r * img->stride[plane];
+      const int luma_r = r << img->y_chroma_shift;
+      for (int c = 0; c < aom_img_plane_width(img, plane); ++c) {
+        uint8_t v = 128;
+        if ((c << img->x_chroma_shift) < 32) {
+          if (frame == 0 && luma_r < 32 + 2 * kShift) v = new_color;
+          if (frame == 1 && luma_r >= kShift && luma_r < 32 + kShift) {
+            v = old_color;
+          }
+          if (frame == 2 && luma_r < 32) v = new_color;
+        }
+        row[c] = v;
+      }
+    }
+  }
+}
+
+// LAST is the best reference for the moved text. The identity transform test
+// must measure the chroma of LAST, not of the reference searched last.
+TEST(EncodeAPI, ScreenIdtxChromaOfBestReference) {
+  for (const bool is_444 : { false, true }) {
+    for (int speed = 7; speed <= 11; ++speed) {
+      SCOPED_TRACE(testing::Message()
+                   << (is_444 ? "4:4:4" : "4:2:0") << ", speed " << speed);
+      aom_codec_iface_t *const iface = aom_codec_av1_cx();
+      aom_codec_enc_cfg_t cfg;
+      ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+                AOM_CODEC_OK);
+      cfg.g_w = 64;
+      cfg.g_h = 64;
+      cfg.g_profile = is_444 ? 1 : 0;
+      cfg.g_lag_in_frames = 0;
+      cfg.rc_end_usage = AOM_CBR;
+      cfg.rc_target_bitrate = 1000;
+      aom_codec_ctx_t enc;
+      ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+      ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, speed), AOM_CODEC_OK);
+      ASSERT_EQ(
+          aom_codec_control(&enc, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN),
+          AOM_CODEC_OK);
+      ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_AQ_MODE, 0), AOM_CODEC_OK);
+      // The identity transform test needs the inter prediction kept.
+      ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ENABLE_WARPED_MOTION, 0),
+                AOM_CODEC_OK);
+      // Decode to 8 bit buffers even when FORCE_HIGHBITDEPTH_DECODING is on.
+      aom_codec_dec_cfg_t dec_cfg = {};
+      dec_cfg.allow_lowbitdepth = 1;
+      aom_codec_ctx_t dec;
+      ASSERT_EQ(aom_codec_dec_init(&dec, aom_codec_av1_dx(), &dec_cfg, 0),
+                AOM_CODEC_OK);
+      aom_image_t *img =
+          aom_img_alloc(nullptr, is_444 ? AOM_IMG_FMT_I444 : AOM_IMG_FMT_I420,
+                        cfg.g_w, cfg.g_h, 1);
+      ASSERT_NE(img, nullptr);
+
+      int max_diff = 0;
+      for (int frame = 0; frame < 3; ++frame) {
+        FillMovedTextNewColor(img, frame);
+        ASSERT_EQ(aom_codec_encode(&enc, img, frame, 1, 0), AOM_CODEC_OK);
+        aom_codec_iter_t iter = nullptr;
+        const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter);
+        ASSERT_NE(pkt, nullptr);
+        ASSERT_EQ(aom_codec_decode(
+                      &dec, static_cast<const uint8_t *>(pkt->data.frame.buf),
+                      pkt->data.frame.sz, nullptr),
+                  AOM_CODEC_OK);
+        aom_codec_iter_t dec_iter = nullptr;
+        const aom_image_t *decoded = aom_codec_get_frame(&dec, &dec_iter);
+        ASSERT_NE(decoded, nullptr);
+        if (frame < 2) continue;
+        for (int plane = AOM_PLANE_U; plane <= AOM_PLANE_V; ++plane) {
+          for (int r = 0; r < aom_img_plane_height(img, plane); ++r) {
+            const uint8_t *const src =
+                img->planes[plane] + r * img->stride[plane];
+            const uint8_t *const out =
+                decoded->planes[plane] + r * decoded->stride[plane];
+            for (int c = 0; c < aom_img_plane_width(img, plane); ++c) {
+              const int diff = std::abs(src[c] - out[c]);
+              if (diff > max_diff) max_diff = diff;
+            }
+          }
+        }
+      }
+      // The new color is 50 away from the old one.
+      EXPECT_LT(max_diff, 25);
+
+      aom_img_free(img);
+      ASSERT_EQ(aom_codec_destroy(&dec), AOM_CODEC_OK);
+      ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+    }
+  }
+}
+#endif  // CONFIG_AV1_DECODER
+
 // Verify that when handle_inter_mode_nonrd() reuses the superblock motion
 // vector (x->sb_me_mv, searched relative to zero) for NEWMV on screen content,
 // the vector is clamped to the valid subpel range relative to the block's

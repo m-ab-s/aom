@@ -2671,6 +2671,32 @@ static AOM_FORCE_INLINE void set_params_nonrd_pick_inter_mode(
   }
 }
 
+// Points the prediction planes and scale factors of the block at the given
+// reference frames.
+static inline void set_pred_ref_frames(
+    const AV1_COMMON *cm, MACROBLOCKD *xd,
+    const InterModeSearchStateNonrd *search_state,
+    const struct scale_factors *sf_no_scale, MV_REFERENCE_FRAME ref_frame,
+    MV_REFERENCE_FRAME ref_frame2) {
+  const int is_single_pred = ref_frame2 <= INTRA_FRAME;
+  for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
+    xd->plane[plane].pre[0] = search_state->yv12_mb[ref_frame][plane];
+    if (!is_single_pred)
+      xd->plane[plane].pre[1] = search_state->yv12_mb[ref_frame2][plane];
+  }
+  set_ref_ptrs(cm, xd, ref_frame, ref_frame2);
+
+  // Check if the scaled reference frame should be used. This is set in the
+  // find_predictors() for each usable reference. If so, set the
+  // block_ref_scale_factors[] to no reference scaling.
+  if (search_state->use_scaled_ref_frame[ref_frame]) {
+    xd->block_ref_scale_factors[0] = sf_no_scale;
+  }
+  if (!is_single_pred && search_state->use_scaled_ref_frame[ref_frame2]) {
+    xd->block_ref_scale_factors[1] = sf_no_scale;
+  }
+}
+
 // Function to check the inter mode can be skipped based on mode statistics and
 // speed features settings.
 static AOM_FORCE_INLINE bool skip_inter_mode_nonrd(
@@ -3823,25 +3849,10 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
       continue;
 
     // Select prediction reference frames.
-    for (int plane = 0; plane < MAX_MB_PLANE; plane++) {
-      xd->plane[plane].pre[0] = search_state.yv12_mb[ref_frame][plane];
-      if (!is_single_pred)
-        xd->plane[plane].pre[1] = search_state.yv12_mb[ref_frame2][plane];
-    }
-
     mi->ref_frame[0] = ref_frame;
     mi->ref_frame[1] = ref_frame2;
-    set_ref_ptrs(cm, xd, ref_frame, ref_frame2);
-
-    // Check if the scaled reference frame should be used. This is set in the
-    // find_predictors() for each usable reference. If so, set the
-    // block_ref_scale_factors[] to no reference scaling.
-    if (search_state.use_scaled_ref_frame[ref_frame]) {
-      xd->block_ref_scale_factors[0] = &sf_no_scale;
-    }
-    if (!is_single_pred && search_state.use_scaled_ref_frame[ref_frame2]) {
-      xd->block_ref_scale_factors[1] = &sf_no_scale;
-    }
+    set_pred_ref_frames(cm, xd, &search_state, &sf_no_scale, ref_frame,
+                        ref_frame2);
 
     // Perform inter mode evaluation for non-rd
     if (!handle_inter_mode_nonrd(
@@ -3868,17 +3879,25 @@ void av1_nonrd_pick_inter_mode_sb(AV1_COMP *cpi, TileDataEnc *tile_data,
   mi->tx_size = best_pickmode->best_tx_size;
   memset(mi->inter_tx_size, mi->tx_size, sizeof(mi->inter_tx_size));
   mi->ref_frame[0] = best_pickmode->best_ref_frame;
+  mi->ref_frame[1] = best_pickmode->best_second_ref_frame;
   mi->mv[0].as_int = search_state
                          .frame_mv_best[best_pickmode->best_mode]
                                        [best_pickmode->best_ref_frame]
                          .as_int;
   mi->mv[1].as_int = 0;
   if (best_pickmode->best_second_ref_frame > INTRA_FRAME) {
-    mi->ref_frame[1] = best_pickmode->best_second_ref_frame;
     mi->mv[1].as_int = search_state
                            .frame_mv_best[best_pickmode->best_mode]
                                          [best_pickmode->best_second_ref_frame]
                            .as_int;
+  }
+  // The chroma checks below predict from the planes of the best mode.
+  if (search_state.best_rdc.rdcost != INT64_MAX &&
+      (x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_U)] ||
+       x->color_sensitivity[COLOR_SENS_IDX(AOM_PLANE_V)])) {
+    set_pred_ref_frames(cm, xd, &search_state, &sf_no_scale,
+                        best_pickmode->best_ref_frame,
+                        best_pickmode->best_second_ref_frame);
   }
   // Perform intra prediction search, if the best SAD is above a certain
   // threshold.
