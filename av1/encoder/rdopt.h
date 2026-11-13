@@ -35,6 +35,11 @@ struct TileInfo;
 struct macroblock;
 struct RD_STATS;
 
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility push(hidden)
+#endif
+
 /*!\brief AV1 intra mode selection for intra frames.
  *
  * \ingroup intra_mode_search
@@ -352,6 +357,11 @@ static inline void av1_copy_mbmi_ext_to_mbmi_ext_frame(
   memcpy(mbmi_ext_best->global_mvs, mbmi_ext->global_mvs,
          sizeof(mbmi_ext->global_mvs));
 }
+
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility pop
+#endif
 
 #ifdef __cplusplus
 }  // extern "C"

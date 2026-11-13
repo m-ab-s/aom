@@ -74,7 +74,10 @@ static AOM_FORCE_INLINE void update_coeff_dc(
     tran_low_t *qcoeff, tran_low_t *dqcoeff, uint8_t *levels,
     const qm_val_t *iqmatrix, const qm_val_t *qmatrix) {
   const tran_low_t qc = qcoeff[0];
-  const int coeff_ctx = get_lower_levels_ctx(levels, 0, bhl, tx_size, tx_class);
+  const int coeff_ctx =
+      (tx_class == TX_CLASS_2D)
+          ? 0
+          : get_lower_levels_ctx(levels, 0, bhl, tx_size, tx_class);
   if (qc == 0) {
     *accu_rate += txb_costs->base_cost[coeff_ctx][0];
   } else {
@@ -524,22 +527,36 @@ static AOM_FORCE_INLINE void update_coeff_eob_facade(
   const int8_t *const nz_map_ctx =
       (tx_class == TX_CLASS_2D) ? av1_nz_map_ctx_offset[tx_size] : NULL;
   const int (*base_cost)[8] = txb_costs->base_cost;
-  while (s >= 0 && ctx.nz_num <= max_nz_num) {
+  while (s >= 1 && ctx.nz_num <= max_nz_num) {
     int ci;
     tran_low_t qc;
     int coeff_ctx;
     do {
       ci = scan[s];
-      coeff_ctx = get_lower_levels_ctx_fast(levels, ci, bhl, stride, nz_map_ctx,
-                                            tx_class);
+      coeff_ctx = get_lower_levels_ctx_simple_fast(levels, ci, bhl, stride,
+                                                   nz_map_ctx, tx_class);
       qc = qcoeff[ci];
       if (qc != 0) break;
       local_rate += base_cost[coeff_ctx][0];
-    } while (--s >= 0);
-    if (s < 0) break;
+    } while (--s >= 1);
+    if (s < 1) break;
     ctx.accu_rate = local_rate;
     local_rate = update_coeff_eob_nz(s, ci, qc, coeff_ctx, tx_class, &ctx);
     --s;
+  }
+  if (s == 0 && ctx.nz_num <= max_nz_num) {
+    const int coeff_ctx =
+        (tx_class == TX_CLASS_2D)
+            ? 0
+            : get_lower_levels_ctx(levels, 0, bhl, tx_size, tx_class);
+    const tran_low_t qc = qcoeff[0];
+    if (qc == 0) {
+      local_rate += txb_costs->base_cost[coeff_ctx][0];
+    } else {
+      ctx.accu_rate = local_rate;
+      local_rate = update_coeff_eob_nz(0, 0, qc, coeff_ctx, tx_class, &ctx);
+    }
+    s = -1;
   }
   *accu_rate = local_rate;
   *accu_dist = ctx.accu_dist;
@@ -679,46 +696,38 @@ static int av1_optimize_txb_multi(const struct AV1_COMP *cpi, MACROBLOCK *x,
     --si;
   }
 
-#define UPDATE_COEFF_EOB_CASE(tx_class_literal)                              \
-  case tx_class_literal:                                                     \
-    update_coeff_eob_facade(                                                 \
-        &accu_rate, &accu_dist, &eob, &nz_num, nz_ci, &si, tx_size,          \
-        tx_class_literal, bhl, width, txb_ctx->dc_sign_ctx, rdmult, shift,   \
-        dequant, scan, txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff,    \
-        levels, sharpness, iqmatrix, qmatrix, max_nz_num, is_noise_pattern); \
+#define UPDATE_COEFF_PASSES_CASE(tx_class_literal)                             \
+  case tx_class_literal:                                                       \
+    update_coeff_eob_facade(                                                   \
+        &accu_rate, &accu_dist, &eob, &nz_num, nz_ci, &si, tx_size,            \
+        tx_class_literal, bhl, width, txb_ctx->dc_sign_ctx, rdmult, shift,     \
+        dequant, scan, txb_eob_costs, txb_costs, tcoeff, qcoeff, dqcoeff,      \
+        levels, sharpness, iqmatrix, qmatrix, max_nz_num, is_noise_pattern);   \
+    if (si >= 1) {                                                             \
+      update_coeff_simple_facade(                                              \
+          &accu_rate, &si, eob, tx_size, tx_class_literal, bhl, rdmult, shift, \
+          dequant, scan, txb_costs, tcoeff, qcoeff, dqcoeff, levels,           \
+          sharpness, iqmatrix, qmatrix);                                       \
+    }                                                                          \
     break
   if (si >= 0) {
     switch (tx_class) {
-      UPDATE_COEFF_EOB_CASE(TX_CLASS_2D);
-      UPDATE_COEFF_EOB_CASE(TX_CLASS_HORIZ);
-      UPDATE_COEFF_EOB_CASE(TX_CLASS_VERT);
-#undef UPDATE_COEFF_EOB_CASE
+      UPDATE_COEFF_PASSES_CASE(TX_CLASS_2D);
+      UPDATE_COEFF_PASSES_CASE(TX_CLASS_HORIZ);
+      UPDATE_COEFF_PASSES_CASE(TX_CLASS_VERT);
+#undef UPDATE_COEFF_PASSES_CASE
       default: assert(false);
     }
   }
 
-  if (si == -1 && nz_num <= max_nz_num && sharpness == 0) {
-    update_skip(&accu_rate, accu_dist, &eob, nz_num, nz_ci, rdmult, skip_cost,
-                non_skip_cost, qcoeff, dqcoeff);
-  } else if (si >= 1) {
-#define UPDATE_COEFF_SIMPLE_CASE(tx_class_literal)                            \
-  case tx_class_literal:                                                      \
-    update_coeff_simple_facade(&accu_rate, &si, eob, tx_size,                 \
-                               tx_class_literal, bhl, rdmult, shift, dequant, \
-                               scan, txb_costs, tcoeff, qcoeff, dqcoeff,      \
-                               levels, sharpness, iqmatrix, qmatrix);         \
-    break
-    switch (tx_class) {
-      UPDATE_COEFF_SIMPLE_CASE(TX_CLASS_2D);
-      UPDATE_COEFF_SIMPLE_CASE(TX_CLASS_HORIZ);
-      UPDATE_COEFF_SIMPLE_CASE(TX_CLASS_VERT);
-#undef UPDATE_COEFF_SIMPLE_CASE
-      default: assert(false);
+  if (si == -1) {
+    if (nz_num <= max_nz_num && sharpness == 0) {
+      update_skip(&accu_rate, accu_dist, &eob, nz_num, nz_ci, rdmult, skip_cost,
+                  non_skip_cost, qcoeff, dqcoeff);
     }
-  }
-
-  // DC position
-  if (si == 0) {
+  } else {
+    assert(si == 0);
+    // DC position (si == 0)
     // no need to update accu_dist because it's not used after this point
     update_coeff_dc(&accu_rate, tx_size, tx_class, bhl, rdmult, shift,
                     txb_ctx->dc_sign_ctx, dequant, txb_costs, tcoeff, qcoeff,

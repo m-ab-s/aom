@@ -12,6 +12,9 @@
 #ifndef AOM_AV1_COMMON_TXB_COMMON_H_
 #define AOM_AV1_COMMON_TXB_COMMON_H_
 
+#include <assert.h>
+#include <stdint.h>
+
 #include "av1/common/av1_common_int.h"
 
 #ifdef __cplusplus
@@ -56,18 +59,27 @@ static const TX_CLASS tx_type_to_class[TX_TYPES] = {
 };
 
 static inline int get_txb_bhl(TX_SIZE tx_size) {
-  tx_size = av1_get_adjusted_tx_size(tx_size);
-  return tx_size_high_log2[tx_size];
+  assert((unsigned int)tx_size < TX_SIZES_ALL);
+  static const uint8_t txb_bhl_tab[TX_SIZES_ALL] = { 2, 3, 4, 5, 5, 3, 2,
+                                                     4, 3, 5, 4, 5, 5, 4,
+                                                     2, 5, 3, 5, 4 };
+  return txb_bhl_tab[tx_size];
 }
 
 static inline int get_txb_wide(TX_SIZE tx_size) {
-  tx_size = av1_get_adjusted_tx_size(tx_size);
-  return tx_size_wide[tx_size];
+  assert((unsigned int)tx_size < TX_SIZES_ALL);
+  static const uint8_t txb_wide_tab[TX_SIZES_ALL] = { 4,  8,  16, 32, 32, 4,  8,
+                                                      8,  16, 16, 32, 32, 32, 4,
+                                                      16, 8,  32, 16, 32 };
+  return txb_wide_tab[tx_size];
 }
 
 static inline int get_txb_high(TX_SIZE tx_size) {
-  tx_size = av1_get_adjusted_tx_size(tx_size);
-  return tx_size_high[tx_size];
+  assert((unsigned int)tx_size < TX_SIZES_ALL);
+  static const uint8_t txb_high_tab[TX_SIZES_ALL] = {
+    4, 8, 16, 32, 32, 8, 4, 16, 8, 32, 16, 32, 32, 16, 4, 32, 8, 32, 16
+  };
+  return txb_high_tab[tx_size];
 }
 
 static inline uint8_t *set_levels(uint8_t *const levels_buf, const int height) {
@@ -315,39 +327,6 @@ static AOM_FORCE_INLINE int get_lower_levels_ctx(const uint8_t *levels,
   }
   const int stats = get_nz_mag(nb, bhl, tx_class);
   return get_nz_map_ctx_from_stats(stats, coeff_idx, bhl, tx_size, tx_class);
-}
-
-static AOM_FORCE_INLINE int get_lower_levels_ctx_fast(
-    const uint8_t *levels, int coeff_idx, int bhl, intptr_t stride,
-    const int8_t *nz_map_ctx_offset, TX_CLASS tx_class) {
-  assert(bhl >= MIN_TX_SIZE_LOG2 && bhl <= MAX_TX_SIZE_LOG2 - 1);
-  assert(stride == ((intptr_t)1 << bhl) + TX_PAD_HOR);
-  const uint8_t *const nb = levels + get_padded_idx(coeff_idx, bhl);
-  const uint8_t *const lvs = nb + stride;
-  if (tx_class == TX_CLASS_2D) {
-    if (coeff_idx == 0) return 0;
-    const int offset = nz_map_ctx_offset[coeff_idx];
-    if ((nb[1] | nb[2] | lvs[0] | lvs[1] | lvs[stride]) == 0) return offset;
-    const int mag = clip_max3[lvs[0]] + clip_max3[nb[1]] + clip_max3[lvs[1]] +
-                    clip_max3[lvs[stride]] + clip_max3[nb[2]];
-    return offset + AOMMIN((mag + 1) >> 1, 4);
-  } else if (tx_class == TX_CLASS_VERT) {
-    const int offset =
-        nz_map_ctx_offset_1d[coeff_idx & ((int)stride - (TX_PAD_HOR + 1))];
-    if ((lvs[0] | nb[1] | nb[2] | nb[3] | nb[4]) == 0) return offset;
-    const int mag = clip_max3[lvs[0]] + clip_max3[nb[1]] + clip_max3[nb[2]] +
-                    clip_max3[nb[3]] + clip_max3[nb[4]];
-    return offset + AOMMIN((mag + 1) >> 1, 4);
-  } else {
-    assert(tx_class == TX_CLASS_HORIZ);
-    const uint8_t *const lvs2 = lvs + stride;
-    const int offset = nz_map_ctx_offset_1d[coeff_idx >> bhl];
-    if ((lvs[0] | nb[1] | lvs2[0] | lvs2[stride] | lvs2[stride * 2]) == 0)
-      return offset;
-    const int mag = clip_max3[lvs[0]] + clip_max3[nb[1]] + clip_max3[lvs2[0]] +
-                    clip_max3[lvs2[stride]] + clip_max3[lvs2[stride * 2]];
-    return offset + AOMMIN((mag + 1) >> 1, 4);
-  }
 }
 
 // Specialized variant for AC coefficients (coeff_idx > 0), skipping the

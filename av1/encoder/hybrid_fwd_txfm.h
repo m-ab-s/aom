@@ -21,6 +21,11 @@
 extern "C" {
 #endif
 
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility push(hidden)
+#endif
+
 void av1_highbd_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
                          int diff_stride, TxfmParam *txfm_param);
 
@@ -41,6 +46,12 @@ static inline void av1_fwd_txfm(const int16_t *src_diff, tran_low_t *coeff,
  */
 void av1_quick_txfm(int use_hadamard, TX_SIZE tx_size, BitDepthInfo bd_info,
                     const int16_t *src_diff, int src_stride, tran_low_t *coeff);
+
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility pop
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

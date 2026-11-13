@@ -33,6 +33,11 @@ enum {
   FTXS_USE_TRANSFORM_DOMAIN = 1 << 2
 } UENUM1BYTE(FAST_TX_SEARCH_MODE);
 
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility push(hidden)
+#endif
+
 static inline int tx_size_cost(const MACROBLOCK *const x, BLOCK_SIZE bsize,
                                TX_SIZE tx_size) {
   assert(bsize == x->e_mbd.mi[0]->bsize);
@@ -191,6 +196,11 @@ void av1_txfm_rd_in_plane(MACROBLOCK *x, const AV1_COMP *cpi,
 int av1_txfm_search(const AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
                     RD_STATS *rd_stats, RD_STATS *rd_stats_y,
                     RD_STATS *rd_stats_uv, int mode_rate, int64_t ref_best_rd);
+
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility pop
+#endif
 
 #ifdef __cplusplus
 }  // extern "C"

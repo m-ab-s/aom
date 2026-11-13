@@ -18,6 +18,11 @@
 extern "C" {
 #endif
 
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility push(hidden)
+#endif
+
 void av1_fdct4(const int32_t *input, int32_t *output, int8_t cos_bit,
                const int8_t *stage_range);
 void av1_fdct8(const int32_t *input, int32_t *output, int8_t cos_bit,
@@ -42,6 +47,12 @@ void av1_fidentity16_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
 void av1_fidentity32_c(const int32_t *input, int32_t *output, int8_t cos_bit,
                        const int8_t *stage_range);
+
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility pop
+#endif
+
 #ifdef __cplusplus
 }
 #endif
