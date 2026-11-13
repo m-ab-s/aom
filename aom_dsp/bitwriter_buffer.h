@@ -12,6 +12,8 @@
 #ifndef AOM_AOM_DSP_BITWRITER_BUFFER_H_
 #define AOM_AOM_DSP_BITWRITER_BUFFER_H_
 
+#include <assert.h>
+
 #include "aom/aom_integer.h"
 
 #ifdef __cplusplus
@@ -27,9 +29,25 @@ int aom_wb_is_byte_aligned(const struct aom_write_bit_buffer *wb);
 
 uint32_t aom_wb_bytes_written(const struct aom_write_bit_buffer *wb);
 
-void aom_wb_write_bit(struct aom_write_bit_buffer *wb, int bit);
+static inline void aom_wb_write_bit(struct aom_write_bit_buffer *wb, int bit) {
+  const uint32_t off = wb->bit_offset;
+  const uint32_t p = off >> 3;
+  const int q = 7 - (int)(off & 7);
+  if (q == 7) {
+    wb->bit_buffer[p] = (uint8_t)(bit << 7);
+  } else {
+    wb->bit_buffer[p] = (uint8_t)((wb->bit_buffer[p] & ~(1 << q)) | (bit << q));
+  }
+  wb->bit_offset = off + 1;
+}
 
-void aom_wb_write_literal(struct aom_write_bit_buffer *wb, int data, int bits);
+static inline void aom_wb_write_literal(struct aom_write_bit_buffer *wb,
+                                        int data, int bits) {
+  assert(bits <= 31);
+  for (int bit = bits - 1; bit >= 0; bit--) {
+    aom_wb_write_bit(wb, (data >> bit) & 1);
+  }
+}
 
 void aom_wb_write_unsigned_literal(struct aom_write_bit_buffer *wb,
                                    uint32_t data, int bits);
