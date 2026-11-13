@@ -1030,9 +1030,7 @@ HWY_ATTR HWY_INLINE void HighbdCompMaskPred(uint8_t *comp_pred8,
       const uint16_t *src, int stride, int bw, int bh) {               \
     return HWY_NAMESPACE::HighbdCalcVarianceStat(src, stride, bw, bh); \
   }
-#else
-#define FHIGHBD_CALC_VAR_STAT(suffix)
-#endif
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #define FCALC_VAR_STAT(suffix)                                   \
   extern "C" int64_t aom_calc_variance_stat_##suffix(            \
@@ -1040,8 +1038,7 @@ HWY_ATTR HWY_INLINE void HighbdCompMaskPred(uint8_t *comp_pred8,
   HWY_ATTR int64_t aom_calc_variance_stat_##suffix(              \
       const uint8_t *src, int stride, int bw, int bh) {          \
     return HWY_NAMESPACE::CalcVarianceStat(src, stride, bw, bh); \
-  }                                                              \
-  FHIGHBD_CALC_VAR_STAT(suffix)
+  }
 
 #if !CONFIG_REALTIME_ONLY
 #define FOR_EACH_VAR_RECT_BLOCK_SIZE(X, suffix) \
@@ -1166,9 +1163,6 @@ HWY_ATTR HWY_INLINE void HighbdCompMaskPred(uint8_t *comp_pred8,
   X(16, 16, suffix)                             \
   X(16, 8, suffix)                              \
   X(16, 4, suffix)
-#else
-#define FOBMC_VAR(W, H, suffix)
-#define FOR_EACH_OBMC_VAR_BLOCK_SIZE(X, suffix)
 #endif  // !CONFIG_REALTIME_ONLY
 
 #if CONFIG_AV1_HIGHBITDEPTH
@@ -1185,9 +1179,7 @@ HWY_ATTR HWY_INLINE void HighbdCompMaskPred(uint8_t *comp_pred8,
                                       ref_stride, mask, mask_stride,          \
                                       invert_mask);                           \
   }
-#else
-#define FHIGHBD_COMP_MASK_PRED(suffix)
-#endif
+#endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #define FCOMP_AVG_MASK_PRED(suffix)                                          \
   extern "C" void aom_comp_avg_pred_##suffix(                                \
@@ -1209,8 +1201,7 @@ HWY_ATTR HWY_INLINE void HighbdCompMaskPred(uint8_t *comp_pred8,
       int mask_stride, int invert_mask) {                                    \
     HWY_NAMESPACE::CompMaskPred(comp_pred, pred, width, height, ref,         \
                                 ref_stride, mask, mask_stride, invert_mask); \
-  }                                                                          \
-  FHIGHBD_COMP_MASK_PRED(suffix)
+  }
 
 HWY_AFTER_NAMESPACE();
 
