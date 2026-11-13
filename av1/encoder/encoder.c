@@ -2993,6 +2993,87 @@ static void update_motion_stat(AV1_COMP *const cpi) {
   }
 }
 
+static int is_quarter_scale(const AV1_COMP *cpi,
+                            const YV12_BUFFER_CONFIG *unscaled) {
+  const AV1_COMMON *const cm = &cpi->common;
+  const SVC *const svc = &cpi->svc;
+  return cpi->ppi->use_svc && !cm->seq_params->use_highbitdepth &&
+         svc->spatial_layer_id + 1 < svc->number_spatial_layers &&
+         unscaled->y_crop_width == cm->width << 2 &&
+         unscaled->y_crop_height == cm->height << 2;
+}
+
+static YV12_BUFFER_CONFIG *scale_twostage(AV1_COMP *cpi,
+                                          YV12_BUFFER_CONFIG *unscaled,
+                                          YV12_BUFFER_CONFIG *scaled,
+                                          YV12_BUFFER_CONFIG *half,
+                                          InterpFilter filter, int phase) {
+  AV1_COMMON *const cm = &cpi->common;
+  const SVC *const svc = &cpi->svc;
+  const SequenceHeader *const seq_params = cm->seq_params;
+  if (aom_realloc_frame_buffer(
+          half, cm->width << 1, cm->height << 1, seq_params->subsampling_x,
+          seq_params->subsampling_y, 0, cpi->oxcf.border_in_pixels,
+          cm->features.byte_alignment, NULL, NULL, NULL, cpi->alloc_pyramid,
+          0)) {
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate two-stage scaling buffer");
+  }
+  av1_resize_and_extend_frame(
+      unscaled, half, svc->downsample_filter_type[svc->spatial_layer_id + 1],
+      svc->downsample_filter_phase[svc->spatial_layer_id + 1],
+      av1_num_planes(cm));
+  aom_remove_metadata_from_frame_buffer(half);
+  if (unscaled->metadata &&
+      aom_copy_metadata_to_frame_buffer(half, unscaled->metadata)) {
+    aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                       "Failed to copy source metadata to scaled frame");
+  }
+  return av1_realloc_and_scale_if_required(
+      cm, half, scaled, filter, phase, true, false, cpi->oxcf.border_in_pixels,
+      cpi->alloc_pyramid);
+}
+
+static YV12_BUFFER_CONFIG *scale_source(AV1_COMP *cpi,
+                                        YV12_BUFFER_CONFIG *unscaled,
+                                        InterpFilter filter, int phase) {
+  AV1_COMMON *const cm = &cpi->common;
+  SVC *const svc = &cpi->svc;
+  if (is_quarter_scale(cpi, unscaled)) {
+    svc->source_half_valid = 1;
+    svc->source_half_superframe = svc->current_superframe;
+    svc->source_half_filter =
+        svc->downsample_filter_type[svc->spatial_layer_id + 1];
+    svc->source_half_phase =
+        svc->downsample_filter_phase[svc->spatial_layer_id + 1];
+    return scale_twostage(cpi, unscaled, &cpi->scaled_source, &svc->source_half,
+                          filter, phase);
+  }
+  if (svc->source_half_valid &&
+      svc->source_half_superframe == svc->current_superframe &&
+      unscaled->y_crop_width == cm->width << 1 &&
+      unscaled->y_crop_height == cm->height << 1 &&
+      svc->source_half.y_crop_width == cm->width &&
+      svc->source_half.y_crop_height == cm->height &&
+      svc->source_half_filter == filter && svc->source_half_phase == phase) {
+    int keep_source_half = cpi->ppi->b_freeze_internal_state;
+#if CONFIG_AV1_TEMPORAL_DENOISING
+    if (cpi->oxcf.noise_sensitivity > 0) keep_source_half = 0;
+#endif
+    if (!keep_source_half) svc->source_half_valid = 0;
+    aom_remove_metadata_from_frame_buffer(&svc->source_half);
+    if (unscaled->metadata && aom_copy_metadata_to_frame_buffer(
+                                  &svc->source_half, unscaled->metadata)) {
+      aom_internal_error(cm->error, AOM_CODEC_MEM_ERROR,
+                         "Failed to copy source metadata to scaled frame");
+    }
+    return &svc->source_half;
+  }
+  return av1_realloc_and_scale_if_required(
+      cm, unscaled, &cpi->scaled_source, filter, phase, true, false,
+      cpi->oxcf.border_in_pixels, cpi->alloc_pyramid);
+}
+
 /*!\brief Encode a frame without the recode loop, usually used in one-pass
  * encoding and realtime coding.
  *
@@ -3087,9 +3168,7 @@ static int encode_without_recode(AV1_COMP *cpi) {
   }
 #endif
 
-  cpi->source = av1_realloc_and_scale_if_required(
-      cm, unscaled, &cpi->scaled_source, filter_scaler, phase_scaler, true,
-      false, cpi->oxcf.border_in_pixels, cpi->alloc_pyramid);
+  cpi->source = scale_source(cpi, unscaled, filter_scaler, phase_scaler);
   if (cpi->oxcf.mode != ALLINTRA &&
       (frame_is_intra_only(cm) || resize_pending != 0 ||
        cpi->consec_zero_mv == NULL)) {
@@ -3111,10 +3190,15 @@ static int encode_without_recode(AV1_COMP *cpi) {
     cpi->last_source = &cpi->scaled_last_source;
     cpi->scaled_last_source_available = 0;
   } else if (cpi->unscaled_last_source != NULL) {
-    cpi->last_source = av1_realloc_and_scale_if_required(
-        cm, cpi->unscaled_last_source, &cpi->scaled_last_source, filter_scaler,
-        phase_scaler, true, false, cpi->oxcf.border_in_pixels,
-        cpi->alloc_pyramid);
+    cpi->last_source =
+        is_quarter_scale(cpi, cpi->unscaled_last_source)
+            ? scale_twostage(cpi, cpi->unscaled_last_source,
+                             &cpi->scaled_last_source, &svc->last_source_half,
+                             filter_scaler, phase_scaler)
+            : av1_realloc_and_scale_if_required(
+                  cm, cpi->unscaled_last_source, &cpi->scaled_last_source,
+                  filter_scaler, phase_scaler, true, false,
+                  cpi->oxcf.border_in_pixels, cpi->alloc_pyramid);
   }
 
   if (cpi->sf.rt_sf.use_temporal_noise_estimate) {

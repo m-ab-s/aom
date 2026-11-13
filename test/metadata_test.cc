@@ -11,6 +11,7 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
 #include <cstring>
 #include <string>
 
@@ -266,11 +267,11 @@ class MetadataMultilayerEncodeTest
                                    AOM_MIF_ANY_FRAME),
               0);
 
-    ASSERT_EQ(
-        aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35,
-                             kMetadataPayloadT35Two, kMetadataPayloadSizeT35Two,
-                             AOM_MIF_ANY_FRAME_LAYER_SPECIFIC),
-        0);
+    const auto layer_payload = LayerSpecificPayload(spatial_layer_id);
+    ASSERT_EQ(aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_ITUT_T35,
+                                   layer_payload.data(), layer_payload.size(),
+                                   AOM_MIF_ANY_FRAME_LAYER_SPECIFIC),
+              0);
 
     ASSERT_EQ(aom_img_add_metadata(current_frame, OBU_METADATA_TYPE_HDR_MDCV,
                                    kMetadataPayloadMdcv,
@@ -312,6 +313,7 @@ class MetadataMultilayerEncodeTest
   void DecompressedFrameHook(const aom_image_t &img,
                              aom_codec_pts_t /*pts*/) override {
     const bool is_key_frame = (num_decompressed_frames_ == 0);
+    const int spatial_layer_id = num_decompressed_frames_ % kNumSpatialLayers;
 
     ++num_decompressed_frames_;
 
@@ -331,7 +333,8 @@ class MetadataMultilayerEncodeTest
     ASSERT_EQ(metadata->type, OBU_METADATA_TYPE_ITUT_T35);
     ASSERT_EQ(metadata->insert_flag, AOM_MIF_ANY_FRAME_LAYER_SPECIFIC);
     ASSERT_EQ(metadata->sz, kMetadataPayloadSizeT35Two);
-    EXPECT_EQ(memcmp(kMetadataPayloadT35Two, metadata->payload,
+    const auto layer_payload = LayerSpecificPayload(spatial_layer_id);
+    EXPECT_EQ(memcmp(layer_payload.data(), metadata->payload,
                      kMetadataPayloadSizeT35Two),
               0);
 
@@ -355,6 +358,14 @@ class MetadataMultilayerEncodeTest
   }
 
  private:
+  static std::array<uint8_t, kMetadataPayloadSizeT35Two> LayerSpecificPayload(
+      int spatial_layer_id) {
+    std::array<uint8_t, kMetadataPayloadSizeT35Two> payload;
+    memcpy(payload.data(), kMetadataPayloadT35Two, payload.size());
+    payload.back() = spatial_layer_id;
+    return payload;
+  }
+
   aom_svc_params_t GetSvcParams() {
     aom_svc_params_t svc_params = {};
     svc_params.number_spatial_layers = kNumSpatialLayers;

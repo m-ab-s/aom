@@ -2622,18 +2622,21 @@ TEST(EncodeAPI, FreezeInternalStateSVC) {
   ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 7), AOM_CODEC_OK);
 
   aom_svc_params_t svc_params = {};
-  svc_params.number_spatial_layers = 2;
+  svc_params.number_spatial_layers = 3;
   svc_params.number_temporal_layers = 1;
-  svc_params.max_quantizers[0] = 56;
-  svc_params.min_quantizers[0] = 10;
-  svc_params.max_quantizers[1] = 56;
-  svc_params.min_quantizers[1] = 10;
+  for (int i = 0; i < 3; ++i) {
+    svc_params.max_quantizers[i] = 56;
+    svc_params.min_quantizers[i] = 10;
+  }
   svc_params.scaling_factor_num[0] = 1;
-  svc_params.scaling_factor_den[0] = 2;
+  svc_params.scaling_factor_den[0] = 4;
   svc_params.scaling_factor_num[1] = 1;
-  svc_params.scaling_factor_den[1] = 1;
-  svc_params.layer_target_bitrate[0] = cfg.rc_target_bitrate * 2 / 3;
-  svc_params.layer_target_bitrate[1] = cfg.rc_target_bitrate;
+  svc_params.scaling_factor_den[1] = 2;
+  svc_params.scaling_factor_num[2] = 1;
+  svc_params.scaling_factor_den[2] = 1;
+  svc_params.layer_target_bitrate[0] = cfg.rc_target_bitrate / 4;
+  svc_params.layer_target_bitrate[1] = cfg.rc_target_bitrate / 2;
+  svc_params.layer_target_bitrate[2] = cfg.rc_target_bitrate;
   svc_params.framerate_factor[0] = 1;
   ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_PARAMS, &svc_params),
             AOM_CODEC_OK);

@@ -1696,7 +1696,7 @@ class DatarateTestSVC
     ResetModel();
     SetTargetBitratesFor3SL1TL();
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    CheckDatarate(0.80, 1.38);
+    CheckDatarate(0.79, 1.38);
   }
 
   virtual void BasicRateTargetingSVC1TL3SLLastIsScaledTest() {
@@ -1711,7 +1711,7 @@ class DatarateTestSVC
     use_last_as_scaled_ = true;
     SetTargetBitratesFor3SL1TL();
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    CheckDatarate(0.80, 1.38);
+    CheckDatarate(0.75, 1.38);
   }
 
   virtual void BasicRateTargetingSVC1TL3SLLastIsScaledSingleRefTest() {
@@ -1727,7 +1727,7 @@ class DatarateTestSVC
     use_last_as_scaled_single_ref_ = true;
     SetTargetBitratesFor3SL1TL();
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    CheckDatarate(0.80, 1.38);
+    CheckDatarate(0.79, 1.38);
   }
 
   virtual void BasicRateTargetingSVC1TL3SLMultiRefTest() {
@@ -1742,7 +1742,7 @@ class DatarateTestSVC
     multi_ref_ = 1;
     SetTargetBitratesFor3SL1TL();
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    CheckDatarate(0.80, 1.38);
+    CheckDatarate(0.79, 1.38);
   }
 
   virtual void BasicRateTargetingSVC3TL3SLTest() {

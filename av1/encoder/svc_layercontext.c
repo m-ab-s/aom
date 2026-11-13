@@ -31,6 +31,7 @@ void av1_init_layer_context(AV1_COMP *const cpi) {
   int mi_cols = cpi->common.mi_params.mi_cols;
   svc->base_framerate = 30.0;
   svc->current_superframe = 0;
+  svc->source_half_valid = 0;
   svc->force_zero_mode_spatial_ref = 1;
   svc->num_encoded_top_layer = 0;
   svc->use_flexible_mode = 0;
@@ -463,8 +464,16 @@ void av1_one_pass_cbr_svc_start_layer(AV1_COMP *const cpi) {
                            cpi->oxcf.frm_dim_cfg.height, lc->scaling_factor_num,
                            lc->scaling_factor_den, &width, &height);
   // Use Eightap_smooth for low resolutions.
-  if (width * height <= 320 * 240)
-    svc->downsample_filter_type[svc->spatial_layer_id] = EIGHTTAP_SMOOTH;
+  for (int sl = 0; sl < svc->number_spatial_layers; ++sl) {
+    const LAYER_CONTEXT *const lc_sl =
+        &svc->layer_context[sl * svc->number_temporal_layers +
+                            svc->temporal_layer_id];
+    int w = 0, h = 0;
+    av1_get_layer_resolution(
+        cpi->oxcf.frm_dim_cfg.width, cpi->oxcf.frm_dim_cfg.height,
+        lc_sl->scaling_factor_num, lc_sl->scaling_factor_den, &w, &h);
+    if (w * h <= 320 * 240) svc->downsample_filter_type[sl] = EIGHTTAP_SMOOTH;
+  }
 
   cm->width = width;
   cm->height = height;

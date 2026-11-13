@@ -109,6 +109,12 @@ typedef struct SVC {
   int num_encoded_top_layer;
   int first_layer_denoise;
   YV12_BUFFER_CONFIG source_last_TL0;
+  YV12_BUFFER_CONFIG source_half;
+  YV12_BUFFER_CONFIG last_source_half;
+  unsigned int source_half_superframe;
+  int source_half_valid;
+  InterpFilter source_half_filter;
+  int source_half_phase;
   /*!\endcond */
 
   /*!
