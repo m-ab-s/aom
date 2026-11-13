@@ -1034,11 +1034,11 @@ static inline int block_signals_txsize(BLOCK_SIZE bsize) {
 }
 
 // Number of transform types in each set type
-static const int av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
+static const uint8_t av1_num_ext_tx_set[EXT_TX_SET_TYPES] = {
   1, 2, 5, 7, 12, 16,
 };
 
-static const int av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
+static const uint8_t av1_ext_tx_used[EXT_TX_SET_TYPES][TX_TYPES] = {
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
   { 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
   { 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 },
@@ -1139,7 +1139,7 @@ static inline TxSetType av1_get_ext_tx_set_type(TX_SIZE tx_size, int is_inter,
 }
 
 // Maps tx set types to the indices.
-static const int ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
+static const int8_t ext_tx_set_index[2][EXT_TX_SET_TYPES] = {
   { // Intra
     0, -1, 2, 1, -1, -1 },
   { // Inter
@@ -1431,10 +1431,88 @@ typedef void (*foreach_transformed_block_visitor)(int plane, int block,
                                                   BLOCK_SIZE plane_bsize,
                                                   TX_SIZE tx_size, void *arg);
 
-void av1_set_entropy_contexts(const MACROBLOCKD *xd,
-                              struct macroblockd_plane *pd, int plane,
-                              BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
-                              int has_eob, int aoff, int loff);
+static inline int max_block_wide(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                 int plane) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  int max_blocks_wide = block_size_wide[bsize];
+
+  if (xd->mb_to_right_edge < 0) {
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    max_blocks_wide += xd->mb_to_right_edge >> (3 + pd->subsampling_x);
+  }
+
+  // Scale the width in the transform block unit.
+  return max_blocks_wide >> MI_SIZE_LOG2;
+}
+
+static inline int max_block_high(const MACROBLOCKD *xd, BLOCK_SIZE bsize,
+                                 int plane) {
+  assert(bsize < BLOCK_SIZES_ALL);
+  int max_blocks_high = block_size_high[bsize];
+
+  if (xd->mb_to_bottom_edge < 0) {
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    max_blocks_high += xd->mb_to_bottom_edge >> (3 + pd->subsampling_y);
+  }
+
+  // Scale the height in the transform block unit.
+  return max_blocks_high >> MI_SIZE_LOG2;
+}
+
+// Fast power-of-two specialization for filling n ENTROPY_CONTEXT bytes with val
+// using fixed-width scalar stores instead of a runtime memset call.
+static inline void av1_fill_entropy_ctx_pow2(ENTROPY_CONTEXT *dst, uint8_t val,
+                                             int n) {
+  if (n == 1) {
+    dst[0] = val;
+  } else if (n == 2) {
+    const uint16_t v2 = (uint16_t)val * 0x0101u;
+    memcpy(dst, &v2, 2);
+  } else if (n == 4) {
+    const uint32_t v4 = (uint32_t)val * 0x01010101u;
+    memcpy(dst, &v4, 4);
+  } else if (n == 8) {
+    const uint64_t v8 = (uint64_t)val * 0x0101010101010101ULL;
+    memcpy(dst, &v8, 8);
+  } else if (n == 16) {
+    const uint64_t v8 = (uint64_t)val * 0x0101010101010101ULL;
+    memcpy(dst, &v8, 8);
+    memcpy(dst + 8, &v8, 8);
+  } else {
+    memset(dst, val, sizeof(*dst) * n);
+  }
+}
+
+static inline void av1_set_entropy_contexts(const MACROBLOCKD *xd,
+                                            struct macroblockd_plane *pd,
+                                            int plane, BLOCK_SIZE plane_bsize,
+                                            TX_SIZE tx_size, int has_eob,
+                                            int aoff, int loff) {
+  ENTROPY_CONTEXT *const a = pd->above_entropy_context + aoff;
+  ENTROPY_CONTEXT *const l = pd->left_entropy_context + loff;
+  const int txs_wide = tx_size_wide_unit[tx_size];
+  const int txs_high = tx_size_high_unit[tx_size];
+
+  // above
+  if (UNLIKELY(has_eob && xd->mb_to_right_edge < 0)) {
+    const int blocks_wide = max_block_wide(xd, plane_bsize, plane);
+    const int above_contexts = AOMMIN(txs_wide, blocks_wide - aoff);
+    memset(a, has_eob, sizeof(*a) * above_contexts);
+    memset(a + above_contexts, 0, sizeof(*a) * (txs_wide - above_contexts));
+  } else {
+    av1_fill_entropy_ctx_pow2(a, (uint8_t)has_eob, txs_wide);
+  }
+
+  // left
+  if (UNLIKELY(has_eob && xd->mb_to_bottom_edge < 0)) {
+    const int blocks_high = max_block_high(xd, plane_bsize, plane);
+    const int left_contexts = AOMMIN(txs_high, blocks_high - loff);
+    memset(l, has_eob, sizeof(*l) * left_contexts);
+    memset(l + left_contexts, 0, sizeof(*l) * (txs_high - left_contexts));
+  } else {
+    av1_fill_entropy_ctx_pow2(l, (uint8_t)has_eob, txs_high);
+  }
+}
 
 #define MAX_INTERINTRA_SB_SQUARE 32 * 32
 static inline int is_interintra_mode(const MB_MODE_INFO *mbmi) {

@@ -319,8 +319,8 @@ static inline void av1_set_txb_context(MACROBLOCK *x, int plane, int block,
                                        TX_SIZE tx_size, ENTROPY_CONTEXT *a,
                                        ENTROPY_CONTEXT *l) {
   const uint8_t ctx = x->plane[plane].txb_entropy_ctx[block];
-  memset(a, ctx, tx_size_wide_unit[tx_size] * sizeof(*a));
-  memset(l, ctx, tx_size_high_unit[tx_size] * sizeof(*l));
+  av1_fill_entropy_ctx_pow2(a, ctx, tx_size_wide_unit[tx_size]);
+  av1_fill_entropy_ctx_pow2(l, ctx, tx_size_high_unit[tx_size]);
 }
 
 void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,

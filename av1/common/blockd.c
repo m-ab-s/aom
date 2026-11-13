@@ -26,35 +26,6 @@ PREDICTION_MODE av1_above_block_mode(const MB_MODE_INFO *above_mi) {
   return above_mi->mode;
 }
 
-void av1_set_entropy_contexts(const MACROBLOCKD *xd,
-                              struct macroblockd_plane *pd, int plane,
-                              BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
-                              int has_eob, int aoff, int loff) {
-  ENTROPY_CONTEXT *const a = pd->above_entropy_context + aoff;
-  ENTROPY_CONTEXT *const l = pd->left_entropy_context + loff;
-  const int txs_wide = tx_size_wide_unit[tx_size];
-  const int txs_high = tx_size_high_unit[tx_size];
-
-  // above
-  if (has_eob && xd->mb_to_right_edge < 0) {
-    const int blocks_wide = max_block_wide(xd, plane_bsize, plane);
-    const int above_contexts = AOMMIN(txs_wide, blocks_wide - aoff);
-    memset(a, has_eob, sizeof(*a) * above_contexts);
-    memset(a + above_contexts, 0, sizeof(*a) * (txs_wide - above_contexts));
-  } else {
-    memset(a, has_eob, sizeof(*a) * txs_wide);
-  }
-
-  // left
-  if (has_eob && xd->mb_to_bottom_edge < 0) {
-    const int blocks_high = max_block_high(xd, plane_bsize, plane);
-    const int left_contexts = AOMMIN(txs_high, blocks_high - loff);
-    memset(l, has_eob, sizeof(*l) * left_contexts);
-    memset(l + left_contexts, 0, sizeof(*l) * (txs_high - left_contexts));
-  } else {
-    memset(l, has_eob, sizeof(*l) * txs_high);
-  }
-}
 void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
                                const int num_planes) {
   assert(bsize < BLOCK_SIZES_ALL);
@@ -65,8 +36,8 @@ void av1_reset_entropy_context(MACROBLOCKD *xd, BLOCK_SIZE bsize,
         get_plane_block_size(bsize, pd->subsampling_x, pd->subsampling_y);
     const int txs_wide = mi_size_wide[plane_bsize];
     const int txs_high = mi_size_high[plane_bsize];
-    memset(pd->above_entropy_context, 0, sizeof(ENTROPY_CONTEXT) * txs_wide);
-    memset(pd->left_entropy_context, 0, sizeof(ENTROPY_CONTEXT) * txs_high);
+    av1_fill_entropy_ctx_pow2(pd->above_entropy_context, 0, txs_wide);
+    av1_fill_entropy_ctx_pow2(pd->left_entropy_context, 0, txs_high);
   }
 }
 

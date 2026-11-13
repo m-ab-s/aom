@@ -886,13 +886,22 @@ static inline void record_txb_context_dry_run(
   const int eob = p->eobs[block];
   uint8_t cul_level = 0;
   if (eob > 0) {
-    const AV1_COMMON *cm = &args->cpi->common;
-    const TX_TYPE tx_type =
-        av1_get_tx_type(xd, pd->plane_type, blk_row, blk_col, tx_size,
-                        cm->features.reduced_tx_set_used);
-    const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
     const tran_low_t *tcoeff = p->qcoeff + BLOCK_OFFSET(block);
-    cul_level = av1_get_txb_entropy_context(tcoeff, scan_order, eob);
+    const tran_low_t dc_val = tcoeff[0];
+    int cul_sum = abs(dc_val);
+    if (eob == 1 || cul_sum >= COEFF_CONTEXT_MASK) {
+      cul_sum = AOMMIN(cul_sum, COEFF_CONTEXT_MASK);
+      const int dc_sign_mask = ((dc_val < 0) + ((dc_val > 0) << 1))
+                               << COEFF_CONTEXT_BITS;
+      cul_level = (uint8_t)(cul_sum | dc_sign_mask);
+    } else {
+      const AV1_COMMON *cm = &args->cpi->common;
+      const TX_TYPE tx_type =
+          av1_get_tx_type(xd, pd->plane_type, blk_row, blk_col, tx_size,
+                          cm->features.reduced_tx_set_used);
+      const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
+      cul_level = av1_get_txb_entropy_context(tcoeff, scan_order, eob);
+    }
   }
   av1_set_entropy_contexts(xd, pd, plane, plane_bsize, tx_size, cul_level,
                            blk_col, blk_row);
