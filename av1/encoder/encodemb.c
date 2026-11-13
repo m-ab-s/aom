@@ -13,6 +13,7 @@
 #include "config/av1_rtcd.h"
 #include "config/aom_dsp_rtcd.h"
 
+#include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/bitwriter.h"
 #include "aom_dsp/quantize.h"
 #include "aom_mem/aom_mem.h"
@@ -638,9 +639,10 @@ void av1_encode_sb(const struct AV1_COMP *cpi, MACROBLOCK *x, BLOCK_SIZE bsize,
   }
 }
 
-static void encode_block_intra(int plane, int block, int blk_row, int blk_col,
-                               BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
-                               void *arg) {
+// Keep intra block encoding out-of-line so callers stay compact.
+static AOM_NOINLINE void encode_block_intra(int plane, int block, int blk_row,
+                                            int blk_col, BLOCK_SIZE plane_bsize,
+                                            TX_SIZE tx_size, void *arg) {
   struct encode_b_args *const args = arg;
   const AV1_COMP *const cpi = args->cpi;
   const AV1_COMMON *const cm = &cpi->common;
@@ -732,10 +734,12 @@ static void encode_block_intra_and_set_context(int plane, int block,
   encode_block_intra(plane, block, blk_row, blk_col, plane_bsize, tx_size, arg);
 
   struct encode_b_args *const args = arg;
-  MACROBLOCK *x = args->x;
-  ENTROPY_CONTEXT *a = &args->ta[blk_col];
-  ENTROPY_CONTEXT *l = &args->tl[blk_row];
-  av1_set_txb_context(x, plane, block, tx_size, a, l);
+  if (is_trellis_used(args->enable_optimize_b, args->dry_run)) {
+    MACROBLOCK *x = args->x;
+    ENTROPY_CONTEXT *a = &args->ta[blk_col];
+    ENTROPY_CONTEXT *l = &args->tl[blk_row];
+    av1_set_txb_context(x, plane, block, tx_size, a, l);
+  }
 }
 
 void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
@@ -748,13 +752,27 @@ void av1_encode_intra_block_plane(const struct AV1_COMP *cpi, MACROBLOCK *x,
   const struct macroblockd_plane *const pd = &xd->plane[plane];
   const int ss_x = pd->subsampling_x;
   const int ss_y = pd->subsampling_y;
-  ENTROPY_CONTEXT ta[MAX_MIB_SIZE] = { 0 };
-  ENTROPY_CONTEXT tl[MAX_MIB_SIZE] = { 0 };
+  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
+  const TX_SIZE tx_size = av1_get_tx_size(plane, xd);
+  if (plane_bsize == txsize_to_bsize[tx_size] && xd->mb_to_right_edge >= 0 &&
+      xd->mb_to_bottom_edge >= 0) {
+    struct encode_b_args arg = { cpi,
+                                 x,
+                                 NULL,
+                                 pd->above_entropy_context,
+                                 pd->left_entropy_context,
+                                 dry_run,
+                                 enable_optimize_b };
+    encode_block_intra(plane, 0, 0, 0, plane_bsize, tx_size, &arg);
+    return;
+  }
+
+  ENTROPY_CONTEXT ta[MAX_MIB_SIZE];
+  ENTROPY_CONTEXT tl[MAX_MIB_SIZE];
   struct encode_b_args arg = {
     cpi, x, NULL, ta, tl, dry_run, enable_optimize_b
   };
-  const BLOCK_SIZE plane_bsize = get_plane_block_size(bsize, ss_x, ss_y);
-  if (enable_optimize_b) {
+  if (is_trellis_used(enable_optimize_b, dry_run)) {
     av1_get_entropy_contexts(plane_bsize, pd, ta, tl);
   }
   av1_foreach_transformed_block_in_plane(

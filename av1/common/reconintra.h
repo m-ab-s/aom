@@ -12,7 +12,11 @@
 #ifndef AOM_AV1_COMMON_RECONINTRA_H_
 #define AOM_AV1_COMMON_RECONINTRA_H_
 
+#include <assert.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "aom/aom_integer.h"
 #include "av1/common/av1_common_int.h"
@@ -151,6 +155,111 @@ static inline int av1_use_intra_edge_upsample(int bs0, int bs1, int delta,
   const int blk_wh = bs0 + bs1;
   if (d == 0 || d >= 40) return 0;
   return type ? (blk_wh <= 8) : (blk_wh <= 16);
+}
+static AOM_FORCE_INLINE uint32_t av1_sum_left_col_lbd(const uint8_t *left_ref,
+                                                      ptrdiff_t ref_stride,
+                                                      int txhpx) {
+  assert(txhpx >= 4 && (txhpx & 3) == 0);
+  const ptrdiff_t s2 = ref_stride * 2;
+  const ptrdiff_t s3 = ref_stride * 3;
+  const ptrdiff_t s4 = ref_stride * 4;
+  uint32_t sum0 = (uint32_t)left_ref[0] + (uint32_t)left_ref[ref_stride];
+  uint32_t sum1 = (uint32_t)left_ref[s2] + (uint32_t)left_ref[s3];
+  while ((txhpx -= 4) != 0) {
+    left_ref += s4;
+    sum0 += (uint32_t)left_ref[0] + (uint32_t)left_ref[ref_stride];
+    sum1 += (uint32_t)left_ref[s2] + (uint32_t)left_ref[s3];
+  }
+  return sum0 + sum1;
+}
+
+static AOM_FORCE_INLINE void av1_fill_block_lbd(uint8_t *dst,
+                                                ptrdiff_t dst_stride,
+                                                uint8_t val, int txwpx,
+                                                int txhpx) {
+  assert(txhpx >= 4);
+  if (txwpx == 4) {
+    assert((txhpx & 3) == 0);
+    const uint32_t v = (uint32_t)val * 0x01010101u;
+    // Avoid GCC over-unrolling the 4-row fill loop.
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 8
+#pragma GCC unroll 1
+#endif
+    do {
+      memcpy(dst, &v, 4);
+      memcpy(dst + dst_stride, &v, 4);
+      dst += dst_stride * 2;
+      memcpy(dst, &v, 4);
+      memcpy(dst + dst_stride, &v, 4);
+      dst += dst_stride * 2;
+      txhpx -= 4;
+    } while (txhpx != 0);
+  } else if (txwpx == 8) {
+    assert((txhpx & 3) == 0);
+    const uint64_t v = (uint64_t)val * 0x0101010101010101ULL;
+    // Avoid GCC over-unrolling the 4-row fill loop.
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 8
+#pragma GCC unroll 1
+#endif
+    do {
+      memcpy(dst, &v, 8);
+      memcpy(dst + dst_stride, &v, 8);
+      dst += dst_stride * 2;
+      memcpy(dst, &v, 8);
+      memcpy(dst + dst_stride, &v, 8);
+      dst += dst_stride * 2;
+      txhpx -= 4;
+    } while (txhpx != 0);
+  } else if (txwpx == 16) {
+    do {
+      memset(dst, val, 16);
+      dst += dst_stride;
+    } while (--txhpx != 0);
+  } else if (txwpx == 32) {
+    do {
+      memset(dst, val, 32);
+      dst += dst_stride;
+    } while (--txhpx != 0);
+  } else {
+    assert(txwpx == 64);
+    do {
+      memset(dst, val, 64);
+      dst += dst_stride;
+    } while (--txhpx != 0);
+  }
+}
+
+static AOM_FORCE_INLINE uint8_t av1_dc_val_from_sums_lbd(
+    TX_SIZE tx_size, int txwpx, int txhpx, uint32_t sum_top, uint32_t sum_left,
+    int n_top_px, int n_left_px) {
+  assert((unsigned int)tx_size < TX_SIZES_ALL);
+  if (n_top_px > 0 && n_left_px > 0) {
+    // Reciprocal multiplication tables to divide by (txwpx + txhpx) for square,
+    // 1:2 / 2:1, and 1:4 / 4:1 transform blocks.
+    static const uint8_t dc_shift1_tab[TX_SIZES_ALL] = {
+      2, 3, 4, 5, 6,  // 4x4, 8x8, 16x16, 32x32, 64x64
+      2, 2, 3, 3, 4, 4,
+      5, 5,             // 4x8, 8x4, 8x16, 16x8, 16x32, 32x16, 32x64, 64x32
+      2, 2, 3, 3, 4, 4  // 4x16, 16x4, 8x32, 32x8, 16x64, 64x16
+    };
+    static const uint16_t dc_mult_tab[TX_SIZES_ALL] = {
+      0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x5556, 0x5556,
+      0x5556, 0x5556, 0x5556, 0x5556, 0x5556, 0x5556, 0x3334,
+      0x3334, 0x3334, 0x3334, 0x3334, 0x3334
+    };
+    const uint32_t total =
+        sum_top + sum_left + (uint32_t)((txwpx + txhpx) >> 1);
+    return (
+        uint8_t)(((total >> dc_shift1_tab[tx_size]) * dc_mult_tab[tx_size]) >>
+                 16);
+  } else if (n_top_px > 0) {
+    const int log2_w = tx_size_wide_log2[tx_size];
+    return (uint8_t)((sum_top + (uint32_t)(txwpx >> 1)) >> log2_w);
+  } else if (n_left_px > 0) {
+    const int log2_h = tx_size_high_log2[tx_size];
+    return (uint8_t)((sum_left + (uint32_t)(txhpx >> 1)) >> log2_h);
+  }
+  return 128;
 }
 #ifdef __cplusplus
 }  // extern "C"
