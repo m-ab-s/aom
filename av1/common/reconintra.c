@@ -986,7 +986,8 @@ static int get_intra_edge_filter_type(const MACROBLOCKD *xd, int plane) {
   return (above && is_smooth(above, plane)) || (left && is_smooth(left, plane));
 }
 
-static int intra_edge_filter_strength(int bs0, int bs1, int delta, int type) {
+static AOM_FORCE_INLINE int intra_edge_filter_strength(int bs0, int bs1,
+                                                       int delta, int type) {
   const int d = abs(delta);
   int strength = 0;
 
@@ -1097,7 +1098,62 @@ static AOM_FORCE_INLINE void copy_above_row_lbd(uint8_t *above_row,
   } else if (n_copy == 128) {
     memcpy(above_row, above_ref, 128);
   } else {
-    memcpy(above_row, above_ref, n_copy);
+    int k = 0;
+    for (; k + 4 <= n_copy; k += 4) memcpy(above_row + k, above_ref + k, 4);
+    for (; k < n_copy; ++k) above_row[k] = above_ref[k];
+  }
+}
+
+static AOM_FORCE_INLINE void fill_intra_edge_lbd(uint8_t *p, uint8_t val,
+                                                 int n) {
+  if (n == 4) {
+    memset(p, val, 4);
+  } else if (n == 8) {
+    memset(p, val, 8);
+  } else if (n == 16) {
+    memset(p, val, 16);
+  } else if (n == 32) {
+    memset(p, val, 32);
+  } else if (n == 64) {
+    memset(p, val, 64);
+  } else if (n == 128) {
+    memset(p, val, 128);
+  } else {
+    const uint32_t v32 = (uint32_t)val * 0x01010101U;
+    int k = 0;
+    for (; k + 4 <= n; k += 4) memcpy(p + k, &v32, 4);
+    for (; k < n; ++k) p[k] = val;
+  }
+}
+
+static AOM_FORCE_INLINE void fill_block_lbd(uint8_t *dst, int dst_stride,
+                                            uint8_t val, int txwpx, int txhpx) {
+  if (txwpx == 4) {
+    for (int i = 0; i < txhpx; ++i) {
+      memset(dst, val, 4);
+      dst += dst_stride;
+    }
+  } else if (txwpx == 8) {
+    for (int i = 0; i < txhpx; ++i) {
+      memset(dst, val, 8);
+      dst += dst_stride;
+    }
+  } else if (txwpx == 16) {
+    for (int i = 0; i < txhpx; ++i) {
+      memset(dst, val, 16);
+      dst += dst_stride;
+    }
+  } else if (txwpx == 32) {
+    for (int i = 0; i < txhpx; ++i) {
+      memset(dst, val, 32);
+      dst += dst_stride;
+    }
+  } else {
+    assert(txwpx == 64);
+    for (int i = 0; i < txhpx; ++i) {
+      memset(dst, val, 64);
+      dst += dst_stride;
+    }
   }
 }
 
@@ -1125,16 +1181,13 @@ static void build_directional_and_filter_intra_predictors(
   assert(n_bottomleft_px >= -1);
 
   if ((!need_above && n_left_px == 0) || (!need_left && n_top_px == 0)) {
-    int val;
+    uint8_t val;
     if (need_left) {
       val = (n_top_px > 0) ? above_ref[0] : 129;
     } else {
       val = (n_left_px > 0) ? left_ref[0] : 127;
     }
-    for (i = 0; i < txhpx; ++i) {
-      memset(dst, val, txwpx);
-      dst += dst_stride;
-    }
+    fill_block_lbd(dst, dst_stride, val, txwpx, txhpx);
     return;
   }
 
@@ -1156,10 +1209,11 @@ static void build_directional_and_filter_intra_predictors(
 #endif
       for (i = 0; i < n_left_copy; i++) left_col[i] = left_ref[i * ref_stride];
       if (i < num_left_pixels_needed)
-        memset(&left_col[i], left_col[i - 1], num_left_pixels_needed - i);
+        fill_intra_edge_lbd(&left_col[i], left_col[i - 1],
+                            num_left_pixels_needed - i);
     } else {
       const uint8_t val = (n_top_px > 0) ? above_ref[0] : 129;
-      memset(left_col, val, num_left_pixels_needed);
+      fill_intra_edge_lbd(left_col, val, num_left_pixels_needed);
     }
   }
 
@@ -1170,11 +1224,11 @@ static void build_directional_and_filter_intra_predictors(
       const int n_top_copy = n_top_px + (n_topright_px > 0 ? n_topright_px : 0);
       copy_above_row_lbd(above_row, above_ref, n_top_copy);
       if (n_top_copy < num_top_pixels_needed)
-        memset(&above_row[n_top_copy], above_row[n_top_copy - 1],
-               num_top_pixels_needed - n_top_copy);
+        fill_intra_edge_lbd(&above_row[n_top_copy], above_row[n_top_copy - 1],
+                            num_top_pixels_needed - n_top_copy);
     } else {
       const uint8_t val = (n_left_px > 0) ? left_ref[0] : 127;
-      memset(above_row, val, num_top_pixels_needed);
+      fill_intra_edge_lbd(above_row, val, num_top_pixels_needed);
     }
   }
 
@@ -1293,16 +1347,13 @@ static void build_non_directional_intra_predictors(
          mode == SMOOTH_H_PRED || mode == PAETH_PRED);
 
   if ((!need_above && n_left_px == 0) || (!need_left && n_top_px == 0)) {
-    int val = 0;
+    uint8_t val = 0;
     if (need_left) {
       val = (n_top_px > 0) ? above_ref[0] : 129;
     } else {
       val = (n_left_px > 0) ? left_ref[0] : 127;
     }
-    for (i = 0; i < txhpx; ++i) {
-      memset(dst, val, txwpx);
-      dst += dst_stride;
-    }
+    fill_block_lbd(dst, dst_stride, val, txwpx, txhpx);
     return;
   }
 
@@ -1317,10 +1368,11 @@ static void build_non_directional_intra_predictors(
 #pragma GCC novector
 #endif
       for (i = 0; i < n_left_px; i++) left_col[i] = left_ref[i * ref_stride];
-      if (i < txhpx) memset(&left_col[i], left_col[i - 1], txhpx - i);
+      if (i < txhpx)
+        fill_intra_edge_lbd(&left_col[i], left_col[i - 1], txhpx - i);
     } else {
       const uint8_t val = (n_top_px > 0) ? above_ref[0] : 129;
-      memset(left_col, val, txhpx);
+      fill_intra_edge_lbd(left_col, val, txhpx);
     }
   }
 
@@ -1329,10 +1381,11 @@ static void build_non_directional_intra_predictors(
       copy_above_row_lbd(above_row, above_ref, txwpx);
     } else if (n_top_px > 0) {
       copy_above_row_lbd(above_row, above_ref, n_top_px);
-      memset(&above_row[n_top_px], above_row[n_top_px - 1], txwpx - n_top_px);
+      fill_intra_edge_lbd(&above_row[n_top_px], above_row[n_top_px - 1],
+                          txwpx - n_top_px);
     } else {
       const uint8_t val = (n_left_px > 0) ? left_ref[0] : 127;
-      memset(above_row, val, txwpx);
+      fill_intra_edge_lbd(above_row, val, txwpx);
     }
   }
 
@@ -1710,8 +1763,9 @@ static void highbd_build_non_directional_intra_predictors(
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
-static inline BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize, int subsampling_x,
-                                            int subsampling_y) {
+static AOM_FORCE_INLINE BLOCK_SIZE scale_chroma_bsize(BLOCK_SIZE bsize,
+                                                      int subsampling_x,
+                                                      int subsampling_y) {
   assert(subsampling_x >= 0 && subsampling_x < 2);
   assert(subsampling_y >= 0 && subsampling_y < 2);
   BLOCK_SIZE bs = bsize;

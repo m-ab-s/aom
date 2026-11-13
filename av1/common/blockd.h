@@ -1218,10 +1218,11 @@ static inline TX_TYPE get_default_tx_type(PLANE_TYPE plane_type,
 static inline BLOCK_SIZE get_plane_block_size(BLOCK_SIZE bsize,
                                               int subsampling_x,
                                               int subsampling_y) {
-  assert(bsize < BLOCK_SIZES_ALL);
+  assert((unsigned int)bsize < BLOCK_SIZES_ALL);
   assert(subsampling_x >= 0 && subsampling_x < 2);
   assert(subsampling_y >= 0 && subsampling_y < 2);
-  return av1_ss_size_lookup[bsize][subsampling_x][subsampling_y];
+  if ((subsampling_x | subsampling_y) == 0) return bsize;
+  return av1_ss_size_lookup_inline[bsize][subsampling_x][subsampling_y];
 }
 
 /*
