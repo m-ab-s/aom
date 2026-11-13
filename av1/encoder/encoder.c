@@ -302,6 +302,7 @@ void av1_initialize_enc(unsigned int usage, enum aom_rc_mode end_usage) {
   aom_scale_rtcd();
   av1_init_intra_predictors();
   av1_init_me_luts();
+  av1_init_cost_luts();
   if (!is_allintra) av1_init_wedge_masks();
   if (!is_allintra || end_usage != AOM_Q) av1_rc_init_minq_luts();
 }

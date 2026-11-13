@@ -307,6 +307,12 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
   add_proto qw/int64_t av1_block_error_lp/, "const int16_t *coeff, const int16_t *dqcoeff, intptr_t block_size";
   specialize qw/av1_block_error_lp sse2 avx2 neon sve/;
 
+  add_proto qw/void av1_cost_tokens_from_cdf_2_batch/, "int *costs, int costs_stride, const uint16_t *cdf, int cdf_stride, int n";
+  specialize qw/av1_cost_tokens_from_cdf_2_batch avx2/;
+
+  add_proto qw/void av1_cost_tokens_from_cdf_4_batch/, "int *costs, int costs_stride, const uint16_t *cdf, int cdf_stride, int n";
+  specialize qw/av1_cost_tokens_from_cdf_4_batch avx2/;
+
   add_proto qw/void av1_quantize_fp/, "const tran_low_t *coeff_ptr, intptr_t n_coeffs, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan";
   specialize qw/av1_quantize_fp sse2 avx2 neon/;
 

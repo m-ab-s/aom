@@ -12,6 +12,7 @@
 #ifndef AOM_AV1_ENCODER_COST_H_
 #define AOM_AV1_ENCODER_COST_H_
 
+#include "aom_dsp/entcode.h"
 #include "aom_dsp/prob.h"
 #include "aom/aom_integer.h"
 
@@ -19,7 +20,12 @@
 extern "C" {
 #endif
 
+// Direct lookup table for small p15 (< COST_LUT_LOW).
+// COST_LUT_LOW * 2 B = 8 KB.
+#define COST_LUT_LOW 4096
+
 extern const uint16_t av1_prob_cost[129];
+extern uint16_t av1_cost_lut_low[COST_LUT_LOW];  // filled by av1_init_cost_luts
 
 // The factor to scale from cost in bits to cost in av1_prob_cost units.
 #define AV1_PROB_COST_SHIFT 9
@@ -47,8 +53,43 @@ static inline int av1_cost_symbol(aom_cdf_prob p15) {
   return av1_cost_symbol_clamped(clamped);
 }
 
+// Same as av1_cost_symbol(), but uses a lookup table for small p15.
+static inline int av1_cost_symbol_lut(aom_cdf_prob p15) {
+  if (p15 < COST_LUT_LOW) return av1_cost_lut_low[p15];
+  return av1_cost_symbol(p15);
+}
+
+// Same as av1_cost_tokens_from_cdf() for a 2-symbol CDF with inv_map == NULL.
+// The fixed symbol count removes the CDF-terminator check.
+static inline void av1_cost_tokens_from_cdf_2(int *costs,
+                                              const aom_cdf_prob *cdf) {
+  aom_cdf_prob prev = 0;
+  for (int i = 0; i < 2; ++i) {
+    const aom_cdf_prob c = AOM_ICDF(cdf[i]);
+    aom_cdf_prob p15 = c - prev;
+    p15 = (p15 < EC_MIN_PROB) ? EC_MIN_PROB : p15;
+    prev = c;
+    costs[i] = av1_cost_symbol_lut(p15);
+  }
+}
+
+// Same as av1_cost_tokens_from_cdf() for a 4-symbol CDF with inv_map == NULL.
+// The fixed symbol count removes the CDF-terminator check.
+static inline void av1_cost_tokens_from_cdf_4(int *costs,
+                                              const aom_cdf_prob *cdf) {
+  aom_cdf_prob prev = 0;
+  for (int i = 0; i < 4; ++i) {
+    const aom_cdf_prob c = AOM_ICDF(cdf[i]);
+    aom_cdf_prob p15 = c - prev;
+    p15 = (p15 < EC_MIN_PROB) ? EC_MIN_PROB : p15;
+    prev = c;
+    costs[i] = av1_cost_symbol_lut(p15);
+  }
+}
+
 void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
                               const int *inv_map);
+void av1_init_cost_luts(void);  // one-time fill of av1_cost_lut_low
 
 #ifdef __cplusplus
 }  // extern "C"

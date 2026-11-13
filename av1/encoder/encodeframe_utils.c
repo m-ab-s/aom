@@ -1688,7 +1688,8 @@ void av1_set_cost_upd_freq(AV1_COMP *cpi, ThreadData *td,
       if (skip_cost_update(cm->seq_params, tile_info, mi_row, mi_col,
                            cpi->sf.inter_sf.coeff_cost_upd_level))
         break;
-      av1_fill_coeff_costs(&x->coeff_costs, xd->tile_ctx, num_planes);
+      av1_fill_coeff_costs(&x->coeff_costs, xd->tile_ctx, num_planes,
+                           cpi->oxcf.mode == REALTIME);
       break;
     default: assert(0);
   }

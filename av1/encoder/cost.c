@@ -10,7 +10,10 @@
  */
 #include <assert.h>
 
+#include "config/av1_rtcd.h"
+
 #include "aom_dsp/entcode.h"
+#include "aom_ports/aom_once.h"
 #include "av1/encoder/cost.h"
 #include "av1/common/entropy.h"
 
@@ -27,6 +30,15 @@ const uint16_t av1_prob_cost[129] = {
   70,  66,  63,  60,  57,  54,  51,  48,  45,  42,  38,  35,  32,  29,  26,
   23,  20,  18,  15,  12,  9,   6,   3,   3,
 };
+
+uint16_t av1_cost_lut_low[COST_LUT_LOW];
+
+static void init_cost_luts(void) {
+  for (int p = 1; p < COST_LUT_LOW; ++p)
+    av1_cost_lut_low[p] = (uint16_t)av1_cost_symbol((aom_cdf_prob)p);
+}
+
+void av1_init_cost_luts(void) { aom_once(init_cost_luts); }
 
 void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
                               const int *inv_map) {
@@ -50,4 +62,22 @@ void av1_cost_tokens_from_cdf(int *costs, const aom_cdf_prob *cdf,
       if (cur_icdf == 0) break;
     }
   }
+}
+
+// Fills N=2 costs for `n` CDFs: costs[k*costs_stride + 0..1] gets the two
+// symbol costs of cdf[k*cdf_stride + 0..1]. inv_map is implicitly NULL.
+void av1_cost_tokens_from_cdf_2_batch_c(int *costs, int costs_stride,
+                                        const uint16_t *cdf, int cdf_stride,
+                                        int n) {
+  for (int i = 0; i < n; ++i)
+    av1_cost_tokens_from_cdf_2(costs + i * costs_stride, cdf + i * cdf_stride);
+}
+
+// Fills N=4 costs for `n` CDFs: costs[k*costs_stride + 0..3] gets the four
+// symbol costs of cdf[k*cdf_stride + 0..3]. inv_map is implicitly NULL.
+void av1_cost_tokens_from_cdf_4_batch_c(int *costs, int costs_stride,
+                                        const uint16_t *cdf, int cdf_stride,
+                                        int n) {
+  for (int i = 0; i < n; ++i)
+    av1_cost_tokens_from_cdf_4(costs + i * costs_stride, cdf + i * cdf_stride);
 }

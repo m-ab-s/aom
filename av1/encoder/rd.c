@@ -36,6 +36,7 @@
 #include "av1/encoder/ratectrl.h"
 #include "av1/encoder/rd.h"
 #include "config/aom_config.h"
+#include "config/av1_rtcd.h"
 
 #define RD_THRESH_POW 1.25
 
@@ -599,8 +600,10 @@ static void set_block_thresholds(const AV1_COMMON *cm, RD_OPT *rd,
   }
 }
 
+// In real-time mode, fill the coeff cost tables with the batched/SIMD
+// specializations; otherwise use the generic scalar path.
 void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
-                          const int num_planes) {
+                          const int num_planes, int is_realtime) {
   const int nplanes = AOMMIN(num_planes, PLANE_TYPES);
   for (int eob_multi_size = 0; eob_multi_size < 7; ++eob_multi_size) {
     for (int plane = 0; plane < nplanes; ++plane) {
@@ -626,17 +629,31 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
     for (int plane = 0; plane < nplanes; ++plane) {
       LV_MAP_COEFF_COST *pcost = &coeff_costs->coeff_costs[tx_size][plane];
 
-      for (int ctx = 0; ctx < TXB_SKIP_CONTEXTS; ++ctx)
-        av1_cost_tokens_from_cdf(pcost->txb_skip_cost[ctx],
-                                 fc->txb_skip_cdf[tx_size][ctx], NULL);
+      if (is_realtime) {
+        av1_cost_tokens_from_cdf_2_batch(pcost->txb_skip_cost[0], 2,
+                                         fc->txb_skip_cdf[tx_size][0],
+                                         CDF_SIZE(2), TXB_SKIP_CONTEXTS);
+      } else {
+        for (int ctx = 0; ctx < TXB_SKIP_CONTEXTS; ++ctx)
+          av1_cost_tokens_from_cdf(pcost->txb_skip_cost[ctx],
+                                   fc->txb_skip_cdf[tx_size][ctx], NULL);
+      }
 
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS_EOB; ++ctx)
         av1_cost_tokens_from_cdf(pcost->base_eob_cost[ctx],
                                  fc->coeff_base_eob_cdf[tx_size][plane][ctx],
                                  NULL);
-      for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx)
-        av1_cost_tokens_from_cdf(pcost->base_cost[ctx],
-                                 fc->coeff_base_cdf[tx_size][plane][ctx], NULL);
+      // base_cost[ctx] is int[8]; only [0..3] are filled here (stride 8).
+      if (is_realtime) {
+        av1_cost_tokens_from_cdf_4_batch(pcost->base_cost[0], 8,
+                                         fc->coeff_base_cdf[tx_size][plane][0],
+                                         CDF_SIZE(4), SIG_COEF_CONTEXTS);
+      } else {
+        for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx)
+          av1_cost_tokens_from_cdf(pcost->base_cost[ctx],
+                                   fc->coeff_base_cdf[tx_size][plane][ctx],
+                                   NULL);
+      }
 
       for (int ctx = 0; ctx < SIG_COEF_CONTEXTS; ++ctx) {
         pcost->base_cost[ctx][4] = 0;
@@ -649,21 +666,37 @@ void av1_fill_coeff_costs(CoeffCosts *coeff_costs, FRAME_CONTEXT *fc,
             pcost->base_cost[ctx][3] - pcost->base_cost[ctx][2];
       }
 
-      for (int ctx = 0; ctx < EOB_COEF_CONTEXTS; ++ctx)
-        av1_cost_tokens_from_cdf(pcost->eob_extra_cost[ctx],
-                                 fc->eob_extra_cdf[tx_size][plane][ctx], NULL);
+      if (is_realtime) {
+        av1_cost_tokens_from_cdf_2_batch(pcost->eob_extra_cost[0], 2,
+                                         fc->eob_extra_cdf[tx_size][plane][0],
+                                         CDF_SIZE(2), EOB_COEF_CONTEXTS);
+      } else {
+        for (int ctx = 0; ctx < EOB_COEF_CONTEXTS; ++ctx)
+          av1_cost_tokens_from_cdf(pcost->eob_extra_cost[ctx],
+                                   fc->eob_extra_cdf[tx_size][plane][ctx],
+                                   NULL);
+      }
 
       for (int ctx = 0; ctx < DC_SIGN_CONTEXTS; ++ctx)
         av1_cost_tokens_from_cdf(pcost->dc_sign_cost[ctx],
                                  fc->dc_sign_cdf[plane][ctx], NULL);
 
+      int br_rate_all[LEVEL_CONTEXTS][BR_CDF_SIZE];
+      if (is_realtime) {
+        av1_cost_tokens_from_cdf_4_batch(
+            br_rate_all[0], BR_CDF_SIZE,
+            fc->coeff_br_cdf[AOMMIN(tx_size, TX_32X32)][plane][0],
+            CDF_SIZE(BR_CDF_SIZE), LEVEL_CONTEXTS);
+      } else {
+        for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx)
+          av1_cost_tokens_from_cdf(
+              br_rate_all[ctx],
+              fc->coeff_br_cdf[AOMMIN(tx_size, TX_32X32)][plane][ctx], NULL);
+      }
       for (int ctx = 0; ctx < LEVEL_CONTEXTS; ++ctx) {
-        int br_rate[BR_CDF_SIZE];
+        const int *br_rate = br_rate_all[ctx];
         int prev_cost = 0;
         int i, j;
-        av1_cost_tokens_from_cdf(
-            br_rate, fc->coeff_br_cdf[AOMMIN(tx_size, TX_32X32)][plane][ctx],
-            NULL);
         for (i = 0; i < COEFF_BASE_RANGE; i += BR_CDF_SIZE - 1) {
           for (j = 0; j < BR_CDF_SIZE - 1; j++) {
             pcost->lps_cost[ctx][i + j] = prev_cost + br_rate[j];
@@ -842,7 +875,8 @@ void av1_initialize_rd_consts(AV1_COMP *cpi) {
   // Frame level coefficient cost update
   if (is_frame_level_cost_upd_freq_set(cm, inter_sf->coeff_cost_upd_level,
                                        use_nonrd_pick_mode, frames_since_key))
-    av1_fill_coeff_costs(&x->coeff_costs, cm->fc, av1_num_planes(cm));
+    av1_fill_coeff_costs(&x->coeff_costs, cm->fc, av1_num_planes(cm),
+                         cpi->oxcf.mode == REALTIME);
 
   // Frame level mode cost update
   if (should_force_mode_cost_update(cpi) ||
