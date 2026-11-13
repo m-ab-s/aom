@@ -9,12 +9,16 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <cstdint>
+#include <cstring>
 #include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
+#include "config/av1_rtcd.h"
 
 #include "test/acm_random.h"
 #include "test/register_state_check.h"
@@ -582,4 +586,119 @@ INSTANTIATE_TEST_SUITE_P(SSE2, HighbdIntraPredTest,
                          ::testing::ValuesIn(HighbdIntraPredTestVectorSse2));
 #endif  // HAVE_SSE2
 #endif  // CONFIG_AV1_HIGHBITDEPTH
+
+using PredictDcBlockFunc = void (*)(const uint8_t *ref, int ref_stride,
+                                    uint8_t *dst, int dst_stride,
+                                    TX_SIZE tx_size, int txwpx, int txhpx,
+                                    int n_top_px, int n_left_px);
+
+uint8_t ReferenceLowbdDcValue(const uint8_t *ref, int ref_stride, int txwpx,
+                              int txhpx, int n_top_px, int n_left_px) {
+  int sum = 0;
+  int count = 0;
+  if (n_top_px > 0) {
+    const uint8_t *above = ref - ref_stride;
+    for (int c = 0; c < txwpx; ++c) {
+      sum += above[c < n_top_px ? c : n_top_px - 1];
+    }
+    count += txwpx;
+  }
+  if (n_left_px > 0) {
+    const uint8_t *left = ref - 1;
+    for (int r = 0; r < txhpx; ++r) {
+      sum += left[(r < n_left_px ? r : n_left_px - 1) * ref_stride];
+    }
+    count += txhpx;
+  }
+  if (count == 0) return 128;
+  return static_cast<uint8_t>((sum + (count >> 1)) / count);
+}
+
+void CheckLowbdPredictDcBlockMatchesC(PredictDcBlockFunc fn) {
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  constexpr int kBufSize = 96 * 96;
+  std::vector<uint8_t> rnd_buf(kBufSize);
+  for (int idx = 0; idx < kBufSize; ++idx) {
+    rnd_buf[idx] = rnd.Rand8();
+  }
+  std::vector<uint8_t> ref_buf(kBufSize);
+  std::vector<uint8_t> dst_c(kBufSize);
+  std::vector<uint8_t> dst_test(kBufSize);
+
+  for (int tx = 0; tx < TX_SIZES_ALL; ++tx) {
+    const TX_SIZE tx_size = static_cast<TX_SIZE>(tx);
+    const int txwpx = tx_size_wide[tx_size];
+    const int txhpx = tx_size_high[tx_size];
+    const int ref_stride = txwpx + 19;
+    const int dst_stride = txwpx + 23;
+    const int top_cases[] = { 0, 1, txwpx / 2, txwpx };
+    const int left_cases[] = { 0, 1, txhpx / 2, txhpx };
+
+    for (int align_off = 0; align_off <= 3; ++align_off) {
+      const uint8_t *ref = ref_buf.data() + ref_stride + 16 + align_off;
+      for (int n_top_px : top_cases) {
+        for (int n_left_px : left_cases) {
+          for (int pat = 0; pat < 3; ++pat) {
+            if (pat == 0) {
+              memset(ref_buf.data(), 0, kBufSize);
+            } else if (pat == 1) {
+              memset(ref_buf.data(), 255, kBufSize);
+            } else {
+              memcpy(ref_buf.data(), rnd_buf.data(), kBufSize);
+            }
+            memset(dst_c.data(), 0xA5, kBufSize);
+            memset(dst_test.data(), 0xA5, kBufSize);
+            uint8_t *out_c = dst_c.data() + dst_stride + 16 + align_off;
+            uint8_t *out_test = dst_test.data() + dst_stride + 16 + align_off;
+            const uint8_t *const cur_ref =
+                (n_top_px == 0 && n_left_px == 0 && pat == 0) ? ref_buf.data()
+                                                              : ref;
+            const uint8_t expected_dc = ReferenceLowbdDcValue(
+                cur_ref, ref_stride, txwpx, txhpx, n_top_px, n_left_px);
+
+            API_REGISTER_STATE_CHECK(av1_predict_dc_block_lbd_c(
+                cur_ref, ref_stride, out_c, dst_stride, tx_size, txwpx, txhpx,
+                n_top_px, n_left_px));
+            API_REGISTER_STATE_CHECK(fn(cur_ref, ref_stride, out_test,
+                                        dst_stride, tx_size, txwpx, txhpx,
+                                        n_top_px, n_left_px));
+
+            for (int c = -1; c <= txwpx; ++c) {
+              ASSERT_EQ(out_c[-dst_stride + c], 0xA5);
+              ASSERT_EQ(out_test[-dst_stride + c], 0xA5);
+              ASSERT_EQ(out_c[txhpx * dst_stride + c], 0xA5);
+              ASSERT_EQ(out_test[txhpx * dst_stride + c], 0xA5);
+            }
+            for (int r = 0; r < txhpx; ++r) {
+              ASSERT_EQ(out_c[r * dst_stride - 1], 0xA5);
+              ASSERT_EQ(out_test[r * dst_stride - 1], 0xA5);
+              for (int c = 0; c < txwpx; ++c) {
+                ASSERT_EQ(out_c[r * dst_stride + c], expected_dc)
+                    << "tx_size=" << tx << " align=" << align_off
+                    << " n_top=" << n_top_px << " n_left=" << n_left_px
+                    << " pat=" << pat << " r=" << r << " c=" << c;
+                ASSERT_EQ(out_test[r * dst_stride + c], expected_dc)
+                    << "tx_size=" << tx << " align=" << align_off
+                    << " n_top=" << n_top_px << " n_left=" << n_left_px
+                    << " pat=" << pat << " r=" << r << " c=" << c;
+              }
+              ASSERT_EQ(out_c[r * dst_stride + txwpx], 0xA5);
+              ASSERT_EQ(out_test[r * dst_stride + txwpx], 0xA5);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+TEST(LowbdPredictDcBlockTest, RtcdMatchesC) {
+  CheckLowbdPredictDcBlockMatchesC(av1_predict_dc_block_lbd);
+}
+
+#if HAVE_SSE2
+TEST(SSE2, LowbdPredictDcBlockMatchesC) {
+  CheckLowbdPredictDcBlockMatchesC(av1_predict_dc_block_lbd_sse2);
+}
+#endif  // HAVE_SSE2
 }  // namespace

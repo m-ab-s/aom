@@ -722,6 +722,8 @@ add_proto qw/void av1_filter_intra_edge/, "uint8_t *p, int sz, int strength";
 specialize qw/av1_filter_intra_edge sse4_1 neon/;
 add_proto qw/void av1_upsample_intra_edge/, "uint8_t *p, int sz";
 specialize qw/av1_upsample_intra_edge sse4_1 neon/;
+add_proto qw/void av1_predict_dc_block_lbd/, "const uint8_t *ref, int ref_stride, uint8_t *dst, int dst_stride, TX_SIZE tx_size, int txwpx, int txhpx, int n_top_px, int n_left_px";
+specialize qw/av1_predict_dc_block_lbd sse2/;
 
 if (aom_config("CONFIG_AV1_HIGHBITDEPTH") eq "yes") {
   add_proto qw/void av1_highbd_filter_intra_edge/, "uint16_t *p, int sz, int strength";

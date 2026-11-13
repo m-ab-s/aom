@@ -1300,7 +1300,6 @@ static void build_directional_and_filter_intra_predictors(
                upsample_left, p_angle);
 }
 
-#if HAVE_SSE2
 static AOM_FORCE_INLINE uint32_t sum_above_row_lbd(const uint8_t *above_ref,
                                                    int txwpx) {
   uint32_t sum = 0;
@@ -1310,10 +1309,10 @@ static AOM_FORCE_INLINE uint32_t sum_above_row_lbd(const uint8_t *above_ref,
 
 // Computes 8-bit DC_PRED directly from the reference boundary pixels without
 // staging above_row and left_col buffers on the stack.
-static void predict_dc_block_lbd_c(const uint8_t *ref, int ref_stride,
-                                   uint8_t *dst, int dst_stride,
-                                   TX_SIZE tx_size, int txwpx, int txhpx,
-                                   int n_top_px, int n_left_px) {
+void av1_predict_dc_block_lbd_c(const uint8_t *ref, int ref_stride,
+                                uint8_t *dst, int dst_stride, TX_SIZE tx_size,
+                                int txwpx, int txhpx, int n_top_px,
+                                int n_left_px) {
   assert((unsigned int)tx_size < TX_SIZES_ALL);
   assert(txwpx == tx_size_wide[tx_size] && txhpx == tx_size_high[tx_size]);
   assert(n_top_px >= 0 && n_top_px <= txwpx);
@@ -1349,7 +1348,6 @@ static void predict_dc_block_lbd_c(const uint8_t *ref, int ref_stride,
       tx_size, txwpx, txhpx, sum_top, sum_left, n_top_px, n_left_px);
   av1_fill_block_lbd(dst, dst_stride, dc_val, txwpx, txhpx);
 }
-#endif  // HAVE_SSE2
 
 // Directly broadcasts the top reference row or left reference column into dst
 // for pure 90-degree (V_PRED) and 180-degree (H_PRED) blocks with width < 32
@@ -1968,8 +1966,8 @@ static AOM_FORCE_INLINE void predict_intra_block_internal(
 #if HAVE_SSE2
     // Keep RTCD dc_pred for non-SSE2/NEON targets and wide >= 32 AVX2 blocks.
     if (mode == DC_PRED && txwpx < 32) {
-      predict_dc_block_lbd_c(ref, ref_stride, dst, dst_stride, tx_size, txwpx,
-                             txhpx, n_top_px, n_left_px);
+      av1_predict_dc_block_lbd(ref, ref_stride, dst, dst_stride, tx_size, txwpx,
+                               txhpx, n_top_px, n_left_px);
       return;
     }
 #endif  // HAVE_SSE2
