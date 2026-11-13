@@ -10,8 +10,11 @@
  */
 
 #include <assert.h>
+#include <limits.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "aom_dsp/aom_dsp_common.h"
 #include "av1/common/av1_common_int.h"
@@ -1081,53 +1084,91 @@ bool av1_cnn_predict_img_multi_out(uint8_t **dgd, int width, int height,
                                    int stride, const CNN_CONFIG *cnn_config,
                                    const CNN_THREAD_DATA *thread_data,
                                    CNN_MULTI_OUT *output) {
-  const float max_val = 255.0;
+  // Precomputed lookup table for 8-bit pixel normalization (x / 255.0f).
+#define INV255_ROW(b)                                                \
+  ((b) + 0) / 255.0f, ((b) + 1) / 255.0f, ((b) + 2) / 255.0f,        \
+      ((b) + 3) / 255.0f, ((b) + 4) / 255.0f, ((b) + 5) / 255.0f,    \
+      ((b) + 6) / 255.0f, ((b) + 7) / 255.0f, ((b) + 8) / 255.0f,    \
+      ((b) + 9) / 255.0f, ((b) + 10) / 255.0f, ((b) + 11) / 255.0f,  \
+      ((b) + 12) / 255.0f, ((b) + 13) / 255.0f, ((b) + 14) / 255.0f, \
+      ((b) + 15) / 255.0f
+  static const float inv_255_lut[256] = {
+    INV255_ROW(0),   INV255_ROW(16),  INV255_ROW(32),  INV255_ROW(48),
+    INV255_ROW(64),  INV255_ROW(80),  INV255_ROW(96),  INV255_ROW(112),
+    INV255_ROW(128), INV255_ROW(144), INV255_ROW(160), INV255_ROW(176),
+    INV255_ROW(192), INV255_ROW(208), INV255_ROW(224), INV255_ROW(240),
+  };
+#undef INV255_ROW
 
+  const int in_channels = cnn_config->layer_config[0].in_channels;
+  if (width <= 0 || height <= 0 || cnn_config->ext_width < 0 ||
+      cnn_config->ext_height < 0 ||
+      cnn_config->ext_width > (INT_MAX - width) / 2 ||
+      cnn_config->ext_height > (INT_MAX - height) / 2 || in_channels <= 0 ||
+      in_channels > CNN_MAX_CHANNELS) {
+    return false;
+  }
   const int in_width = width + 2 * cnn_config->ext_width;
   const int in_height = height + 2 * cnn_config->ext_height;
-  const int in_channels = cnn_config->layer_config[0].in_channels;
+  if ((size_t)in_width > SIZE_MAX / (size_t)in_height ||
+      (size_t)in_width * (size_t)in_height > SIZE_MAX / (size_t)in_channels) {
+    return false;
+  }
+  const size_t total_elems =
+      (size_t)in_width * (size_t)in_height * (size_t)in_channels;
+  if (total_elems > SIZE_MAX / sizeof(float)) return false;
   float *inputs[CNN_MAX_CHANNELS];
-  float *input_ =
-      (float *)aom_malloc(in_width * in_height * in_channels * sizeof(*input_));
+  // Covers 64x64 + 2-px border (and 65x65 intra-partition input), ~18.5 KiB.
+  enum { kCnnStackInputElems = 68 * 68 };
+  DECLARE_ALIGNED(32, float, stack_input[kCnnStackInputElems]);
+  float *input_ = (total_elems <= (size_t)kCnnStackInputElems)
+                      ? stack_input
+                      : (float *)aom_malloc(total_elems * sizeof(*input_));
   if (!input_) return false;
   const int in_stride = in_width;
 
   for (int c = 0; c < in_channels; ++c) {
-    inputs[c] = input_ + c * in_stride * in_height;
-    float *input =
-        inputs[c] + cnn_config->ext_height * in_stride + cnn_config->ext_width;
+    inputs[c] = input_ + (size_t)c * (size_t)in_stride * (size_t)in_height;
+    float *input = inputs[c] +
+                   (size_t)cnn_config->ext_height * (size_t)in_stride +
+                   (size_t)cnn_config->ext_width;
 
     if (cnn_config->strict_bounds) {
       for (int i = 0; i < height; ++i)
         for (int j = 0; j < width; ++j)
-          input[i * in_stride + j] = (float)dgd[c][i * stride + j] / max_val;
+          input[(ptrdiff_t)i * in_stride + j] =
+              inv_255_lut[dgd[c][(ptrdiff_t)i * stride + j]];
       // extend left and right
       for (int i = 0; i < height; ++i) {
+        const ptrdiff_t row_off = (ptrdiff_t)i * in_stride;
         for (int j = -cnn_config->ext_width; j < 0; ++j)
-          input[i * in_stride + j] = input[i * in_stride];
+          input[row_off + j] = input[row_off];
         for (int j = width; j < width + cnn_config->ext_width; ++j)
-          input[i * in_stride + j] = input[i * in_stride + width - 1];
+          input[row_off + j] = input[row_off + width - 1];
       }
       // extend top and bottom
       for (int i = -cnn_config->ext_height; i < 0; ++i)
-        memcpy(&input[i * in_stride - cnn_config->ext_width],
-               &input[-cnn_config->ext_width], in_width * sizeof(*input));
+        memcpy(&input[(ptrdiff_t)i * in_stride - cnn_config->ext_width],
+               &input[-cnn_config->ext_width],
+               (size_t)in_width * sizeof(*input));
       for (int i = height; i < height + cnn_config->ext_height; ++i)
-        memcpy(&input[i * in_stride - cnn_config->ext_width],
-               &input[(height - 1) * in_stride - cnn_config->ext_width],
-               in_width * sizeof(*input));
+        memcpy(
+            &input[(ptrdiff_t)i * in_stride - cnn_config->ext_width],
+            &input[(ptrdiff_t)(height - 1) * in_stride - cnn_config->ext_width],
+            (size_t)in_width * sizeof(*input));
     } else {
       for (int i = -cnn_config->ext_height; i < height + cnn_config->ext_height;
            ++i)
         for (int j = -cnn_config->ext_width; j < width + cnn_config->ext_width;
              ++j)
-          input[i * in_stride + j] = (float)dgd[c][i * stride + j] / max_val;
+          input[(ptrdiff_t)i * in_stride + j] =
+              inv_255_lut[dgd[c][(ptrdiff_t)i * stride + j]];
     }
   }
   bool success = av1_cnn_predict((const float **)inputs, in_width, in_height,
                                  in_stride, cnn_config, thread_data, output);
 
-  aom_free(input_);
+  if (input_ != stack_input) aom_free(input_);
   return success;
 }
 
