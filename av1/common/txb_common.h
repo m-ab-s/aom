@@ -124,8 +124,8 @@ static AOM_FORCE_INLINE int get_br_ctx_stride(const uint8_t *const levels,
                                               const int bhl,
                                               const intptr_t stride,
                                               const TX_CLASS tx_class) {
-  const int col = c >> bhl;
-  const uint8_t *const lv = levels + c + (col << TX_PAD_HOR_LOG2);
+  const intptr_t col = (intptr_t)c >> bhl;
+  const uint8_t *const lv = levels + (intptr_t)c + (col << TX_PAD_HOR_LOG2);
   const uint8_t *const lvs = lv + stride;
   int mag = lv[1] + lvs[0];
   switch (tx_class) {
@@ -134,7 +134,7 @@ static AOM_FORCE_INLINE int get_br_ctx_stride(const uint8_t *const levels,
       mag = AOMMIN((mag + 1) >> 1, 6);
       if (c == 0) return mag;
       const int row = c & ((int)stride - (TX_PAD_HOR + 1));
-      if ((row | col) < 2) return mag + 7;
+      if ((row | (int)col) < 2) return mag + 7;
       break;
     }
     case TX_CLASS_HORIZ:
@@ -169,8 +169,8 @@ static AOM_FORCE_INLINE int get_br_ctx_simple_stride(
     const int c,  // raster order > 0
     const int bhl, const intptr_t stride, const TX_CLASS tx_class) {
   assert(c > 0);
-  const int col = c >> bhl;
-  const uint8_t *const lv = levels + c + (col << TX_PAD_HOR_LOG2);
+  const intptr_t col = (intptr_t)c >> bhl;
+  const uint8_t *const lv = levels + (intptr_t)c + (col << TX_PAD_HOR_LOG2);
   const uint8_t *const lvs = lv + stride;
   int mag = lv[1] + lvs[0];
   switch (tx_class) {
@@ -178,7 +178,7 @@ static AOM_FORCE_INLINE int get_br_ctx_simple_stride(
       const int row = c & ((int)stride - (TX_PAD_HOR + 1));
       mag += lvs[1];
       mag = AOMMIN((mag + 1) >> 1, 6);
-      return mag + (((row | col) < 2) ? 7 : 14);
+      return mag + (((row | (int)col) < 2) ? 7 : 14);
     }
     case TX_CLASS_HORIZ:
       mag += lvs[stride];

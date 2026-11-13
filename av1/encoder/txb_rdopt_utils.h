@@ -47,6 +47,13 @@ static inline int64_t get_coeff_dist_qm(tran_low_t tcoeff, tran_low_t dqcoeff,
   return (diff * diff + (1 << (2 * AOM_QM_BITS - 1))) >> (2 * AOM_QM_BITS);
 }
 
+static inline int64_t get_coeff_dist_scaled_qm(tran_low_t tcoeff,
+                                               tran_low_t dqcoeff,
+                                               int64_t scaled_qm) {
+  const int64_t diff = (int64_t)(tcoeff - dqcoeff) * scaled_qm;
+  return (diff * diff + (1 << (2 * AOM_QM_BITS - 1))) >> (2 * AOM_QM_BITS);
+}
+
 static inline int64_t get_coeff_dist(tran_low_t tcoeff, tran_low_t dqcoeff,
                                      int shift, const qm_val_t *qmatrix,
                                      int coeff_idx) {

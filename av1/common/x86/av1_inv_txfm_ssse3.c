@@ -2294,18 +2294,6 @@ static inline __m128i lowbd_get_recon_16x16_sse2(const __m128i pred,
   return _mm_packus_epi16(x0, x1);
 }
 
-static inline void lowbd_write_buffer_16xn_sse2(__m128i *in, uint8_t *output,
-                                                int stride, int flipud,
-                                                int height) {
-  int j = flipud ? (height - 1) : 0;
-  const int step = flipud ? -1 : 1;
-  for (int i = 0; i < height; ++i, j += step) {
-    __m128i v = _mm_loadu_si128((__m128i const *)(output + i * stride));
-    __m128i u = lowbd_get_recon_16x16_sse2(v, in[j], in[j + height]);
-    _mm_storeu_si128((__m128i *)(output + i * stride), u);
-  }
-}
-
 static inline void round_shift_ssse3(const __m128i *input, __m128i *output,
                                      int size) {
   const __m128i scale = _mm_set1_epi16(NewInvSqrt2 * 8);
@@ -2382,10 +2370,18 @@ static inline void lowbd_inv_txfm2d_add_no_identity_ssse3(
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
   for (int i = 0; i < buf_size_nonzero_h_div8; i++) {
     __m128i buf0[64];
-    load_buffer_32bit_to_16bit(input + 8 * i, input_stride, buf0,
-                               buf_size_nonzero_w);
+    const int32_t *in_ptr = input + 8 * i;
     if (rect_type == 1 || rect_type == -1) {
-      round_shift_ssse3(buf0, buf0, buf_size_nonzero_w);  // rect special code
+      // Fuse 32-to-16-bit coefficient packing with rectangular 1/sqrt(2)
+      // scaling in a single pass.
+      const __m128i rect_scale = _mm_set1_epi16(NewInvSqrt2 * 8);
+      for (int j = 0; j < buf_size_nonzero_w; ++j) {
+        buf0[j] = _mm_mulhrs_epi16(
+            load_32bit_to_16bit(in_ptr + j * input_stride), rect_scale);
+      }
+    } else {
+      load_buffer_32bit_to_16bit(in_ptr, input_stride, buf0,
+                                 buf_size_nonzero_w);
     }
     row_txfm(buf0, buf0);
     round_shift_16bit_ssse3(buf0, txfm_size_col, shift[0]);
@@ -2403,19 +2399,38 @@ static inline void lowbd_inv_txfm2d_add_no_identity_ssse3(
       }
     }
   }
-  for (int i = 0; i < buf_size_w_div8; i++) {
-    col_txfm(buf1 + i * txfm_size_row, buf1 + i * txfm_size_row);
-    round_shift_16bit_ssse3(buf1 + i * txfm_size_row, txfm_size_row, -4);
-  }
-
+  // Perform 1D column transforms and fuse the final rounding shift with
+  // prediction reconstruction.
+  const __m128i scale1 = _mm_set1_epi16(1 << (15 - 4));
   if (txfm_size_col >= 16) {
     for (int i = 0; i < (txfm_size_col >> 4); i++) {
-      lowbd_write_buffer_16xn_sse2(buf1 + i * txfm_size_row * 2,
-                                   output + 16 * i, stride, ud_flip,
-                                   txfm_size_row);
+      __m128i *col0 = buf1 + i * txfm_size_row * 2;
+      __m128i *col1 = col0 + txfm_size_row;
+      col_txfm(col0, col0);
+      col_txfm(col1, col1);
+
+      int j = ud_flip ? (txfm_size_row - 1) : 0;
+      const int step = ud_flip ? -1 : 1;
+      uint8_t *out = output + 16 * i;
+      for (int r = 0; r < txfm_size_row; ++r, j += step) {
+        const __m128i v = _mm_loadu_si128((__m128i const *)(out + r * stride));
+        const __m128i res0 = _mm_mulhrs_epi16(col0[j], scale1);
+        const __m128i res1 = _mm_mulhrs_epi16(col1[j], scale1);
+        const __m128i u = lowbd_get_recon_16x16_sse2(v, res0, res1);
+        _mm_storeu_si128((__m128i *)(out + r * stride), u);
+      }
     }
   } else if (txfm_size_col == 8) {
-    lowbd_write_buffer_8xn_sse2(buf1, output, stride, ud_flip, txfm_size_row);
+    col_txfm(buf1, buf1);
+
+    int j = ud_flip ? (txfm_size_row - 1) : 0;
+    const int step = ud_flip ? -1 : 1;
+    for (int r = 0; r < txfm_size_row; ++r, j += step) {
+      const __m128i v = _mm_loadl_epi64((__m128i const *)(output + r * stride));
+      const __m128i res = _mm_mulhrs_epi16(buf1[j], scale1);
+      const __m128i u = lowbd_get_recon_8x8_sse2(v, res);
+      _mm_storel_epi64((__m128i *)(output + r * stride), u);
+    }
   }
 }
 
@@ -2495,10 +2510,18 @@ void av1_lowbd_inv_txfm2d_add_v_identity_ssse3(const int32_t *input,
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
   for (int i = 0; i < buf_size_h_div8; i++) {
     __m128i buf0[64];
-    load_buffer_32bit_to_16bit(input + i * 8, input_stride, buf0,
-                               buf_size_nonzero_w);
+    const int32_t *in_ptr = input + i * 8;
     if (rect_type == 1 || rect_type == -1) {
-      round_shift_ssse3(buf0, buf0, buf_size_nonzero_w);  // rect special code
+      // Fuse 32-to-16-bit coefficient packing with rectangular 1/sqrt(2)
+      // scaling in a single pass.
+      const __m128i rect_scale = _mm_set1_epi16(NewInvSqrt2 * 8);
+      for (int j = 0; j < buf_size_nonzero_w; ++j) {
+        buf0[j] = _mm_mulhrs_epi16(
+            load_32bit_to_16bit(in_ptr + j * input_stride), rect_scale);
+      }
+    } else {
+      load_buffer_32bit_to_16bit(in_ptr, input_stride, buf0,
+                                 buf_size_nonzero_w);
     }
     row_txfm(buf0, buf0);
     round_shift_16bit_ssse3(buf0, txfm_size_col, shift[0]);

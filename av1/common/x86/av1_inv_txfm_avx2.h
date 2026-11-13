@@ -11,6 +11,7 @@
 #ifndef AOM_AV1_COMMON_X86_AV1_INV_TXFM_AVX2_H_
 #define AOM_AV1_COMMON_X86_AV1_INV_TXFM_AVX2_H_
 
+#include <assert.h>
 #include <immintrin.h>
 
 #include "config/aom_config.h"
@@ -51,13 +52,29 @@ static inline void write_recon_w16_avx2(__m256i res, uint8_t *output) {
   _mm_storeu_si128((__m128i *)(output), y);
 }
 
+// Add two 16-pixel residual rows (res0, res1) to prediction rows (out0, out1),
+// pack to unsigned 8-bit pixels with a single vpackuswb + vpermq pair, and
+// store both reconstructed rows.
+static inline void write_recon_w16x2_avx2(__m256i res0, __m256i res1,
+                                          uint8_t *out0, uint8_t *out1) {
+  const __m128i pred0 = _mm_loadu_si128((__m128i const *)out0);
+  const __m128i pred1 = _mm_loadu_si128((__m128i const *)out1);
+  const __m256i u0 = _mm256_adds_epi16(_mm256_cvtepu8_epi16(pred0), res0);
+  const __m256i u1 = _mm256_adds_epi16(_mm256_cvtepu8_epi16(pred1), res1);
+  const __m256i y = _mm256_permute4x64_epi64(_mm256_packus_epi16(u0, u1), 0xd8);
+  _mm_storeu_si128((__m128i *)out0, _mm256_castsi256_si128(y));
+  _mm_storeu_si128((__m128i *)out1, _mm256_extracti128_si256(y, 1));
+}
+
 static inline void lowbd_write_buffer_16xn_avx2(__m256i *in, uint8_t *output,
                                                 int stride, int flipud,
                                                 int height) {
+  assert(height >= 2 && (height & 1) == 0);
   int j = flipud ? (height - 1) : 0;
   const int step = flipud ? -1 : 1;
-  for (int i = 0; i < height; ++i, j += step) {
-    write_recon_w16_avx2(in[j], output + i * stride);
+  for (int i = 0; i < height; i += 2, j += 2 * step) {
+    write_recon_w16x2_avx2(in[j], in[j + step], output + i * stride,
+                           output + (i + 1) * stride);
   }
 }
 
