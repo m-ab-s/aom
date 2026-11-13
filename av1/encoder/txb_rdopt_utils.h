@@ -47,14 +47,15 @@ static inline int get_dqv(const int16_t *dequant, int coeff_idx,
 
 static inline int64_t get_coeff_dist_qm(tran_low_t tcoeff, tran_low_t dqcoeff,
                                         int shift, int64_t qm_val) {
-  const int64_t diff = (int64_t)(tcoeff - dqcoeff) * (1 << shift) * qm_val;
+  const int64_t diff =
+      (int64_t)(tcoeff - dqcoeff) * ((int64_t)1 << shift) * qm_val;
   return (diff * diff + (1 << (2 * AOM_QM_BITS - 1))) >> (2 * AOM_QM_BITS);
 }
 
 static inline int64_t get_coeff_dist(tran_low_t tcoeff, tran_low_t dqcoeff,
                                      int shift, const qm_val_t *qmatrix,
                                      int coeff_idx) {
-  const int64_t diff = (int64_t)(tcoeff - dqcoeff) * (1 << shift);
+  const int64_t diff = (int64_t)(tcoeff - dqcoeff) * ((int64_t)1 << shift);
   if (qmatrix == NULL) {
     return diff * diff;
   }
