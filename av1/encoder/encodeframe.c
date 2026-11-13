@@ -700,7 +700,7 @@ static inline void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
 #if !CONFIG_REALTIME_ONLY
   if (!(has_no_stats_stage(cpi) && cpi->oxcf.mode == REALTIME &&
         cpi->oxcf.gf_cfg.lag_in_frames == 0)) {
-    init_ref_frame_space(cpi, td, mi_row, mi_col);
+    if (!frame_is_intra_only(cm)) init_ref_frame_space(cpi, td, mi_row, mi_col);
     x->sb_energy_level = 0;
     x->part_search_info.cnn_output_valid = 0;
     if (gather_tpl_data) {
@@ -727,7 +727,7 @@ static inline void init_encode_rd_sb(AV1_COMP *cpi, ThreadData *td,
   x->reuse_inter_pred = false;
   x->txfm_search_params.mode_eval_type = DEFAULT_EVAL;
   reset_mb_rd_record(x->txfm_search_info.mb_rd_record);
-  av1_zero(x->picked_ref_frames_mask);
+  if (!frame_is_intra_only(cm)) av1_zero(x->picked_ref_frames_mask);
   av1_invalid_rd_stats(rd_cost);
 }
 

@@ -695,8 +695,10 @@ void av1_set_offsets_without_segment_id(const AV1_COMP *const cpi,
 
   // Set up limit values for MV components.
   // Mv beyond the range do not produce new/different prediction block.
-  av1_set_mv_limits(&cm->mi_params, &x->mv_limits, mi_row, mi_col, mi_height,
-                    mi_width, cpi->oxcf.border_in_pixels);
+  if (!frame_is_intra_only(cm) || av1_allow_intrabc(cm)) {
+    av1_set_mv_limits(&cm->mi_params, &x->mv_limits, mi_row, mi_col, mi_height,
+                      mi_width, cpi->oxcf.border_in_pixels);
+  }
 
   set_plane_n4(xd, mi_width, mi_height, num_planes);
 

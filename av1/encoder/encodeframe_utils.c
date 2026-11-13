@@ -217,8 +217,10 @@ void av1_update_state(const AV1_COMP *const cpi, ThreadData *td,
   TxfmSearchInfo *txfm_info = &x->txfm_search_info;
 
   *mi_addr = *mi;
-  copy_mbmi_ext_frame_to_mbmi_ext(&x->mbmi_ext, &ctx->mbmi_ext_best,
-                                  av1_ref_frame_type(ctx->mic.ref_frame));
+  if (!frame_is_intra_only(cm) || av1_allow_intrabc(cm)) {
+    copy_mbmi_ext_frame_to_mbmi_ext(&x->mbmi_ext, &ctx->mbmi_ext_best,
+                                    av1_ref_frame_type(ctx->mic.ref_frame));
+  }
 
   txfm_info->skip_txfm = ctx->rd_stats.skip_txfm;
 
