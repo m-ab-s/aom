@@ -328,13 +328,19 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
   const tran_low_t *tcoeff = tcoeff_txb + BLOCK_OFFSET(block);
   const SCAN_ORDER *const scan_order = get_scan(tx_size, tx_type);
   const int16_t *const scan = scan_order->scan;
+  assert(scan[0] == 0);
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
-  if (eob > 1) {
+  if (eob == 1) {
+    coeff_contexts[0] = 0;
+  } else if (eob == 2 && tx_class == TX_CLASS_2D &&
+             (unsigned int)(tcoeff[0] + NUM_BASE_LEVELS) <=
+                 2 * NUM_BASE_LEVELS) {
+    coeff_contexts[0] = 0;
+    coeff_contexts[scan[1]] = 1;
+  } else {
     av1_txb_init_levels(tcoeff, width, height, levels);
     av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class,
                             coeff_contexts);
-  } else {
-    coeff_contexts[0] = 0;
   }
 
   // The rest of the block only writes symbols, so keep the range coder state
@@ -413,7 +419,7 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
       write_coeff_br(w, &st, br_cdf[get_br_ctx_eob(pos, bhl, tx_class)], level);
     }
   }
-  for (int c = eob - 2; c >= 0; --c) {
+  for (int c = eob - 2; c >= 1; --c) {
     const int pos = scan[c];
     const tran_low_t v = tcoeff[pos];
     const tran_low_t level = abs(v);
@@ -424,6 +430,19 @@ void av1_write_coeffs_txb(const AV1_COMMON *const cm, MACROBLOCK *const x,
     if (UNLIKELY(level > NUM_BASE_LEVELS)) {
       write_coeff_br(
           w, &st, br_cdf[get_br_ctx_stride(levels, pos, bhl, stride, tx_class)],
+          level);
+    }
+  }
+  if (eob > 1) {
+    const tran_low_t v = tcoeff[0];
+    const tran_low_t level = abs(v);
+    nz_coeffs[num_nz] = v;
+    num_nz += (v != 0);
+    aom_write_symbol_state(w, &st, AOMMIN(level, 3),
+                           base_cdf[coeff_contexts[0]], 4);
+    if (UNLIKELY(level > NUM_BASE_LEVELS)) {
+      write_coeff_br(
+          w, &st, br_cdf[get_br_ctx_stride(levels, 0, bhl, stride, tx_class)],
           level);
     }
   }
@@ -634,19 +653,35 @@ static void update_and_record_txb_context_output(
   tran_low_t *tcoeff_txb =
       cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane_type];
   tran_low_t *tcoeff = tcoeff_txb + block_offset;
+  const TX_CLASS tx_class = tx_type_to_class[tx_type];
+  const int16_t *const scan = scan_order->scan;
+  const int fast_eob2 =
+      eob == 2 && tx_class == TX_CLASS_2D &&
+      (unsigned int)(qcoeff[0] + NUM_BASE_LEVELS) <= 2 * NUM_BASE_LEVELS;
+#if !CONFIG_ENTROPY_STATS
   if (eob == 1) {
+    assert(scan[0] == 0);
+    tcoeff[0] = qcoeff[0];
+  } else if (fast_eob2) {
+    assert(scan[0] == 0);
+    tcoeff[0] = qcoeff[0];
+    tcoeff[scan[1]] = qcoeff[scan[1]];
+  } else {
+    memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
+  }
+#else
+  if (eob == 1) {
+    assert(scan[0] == 0);
     tcoeff[0] = qcoeff[0];
   } else {
     memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
   }
+#endif
 
   uint8_t levels_buf[TX_PAD_2D];
   uint8_t *const levels = set_levels(levels_buf, height);
   update_tx_type_count(cpi, cm, xd, blk_row, blk_col, plane, tx_size,
                        td->counts, allow_update_cdf);
-
-  const TX_CLASS tx_class = tx_type_to_class[tx_type];
-  const int16_t *const scan = scan_order->scan;
 
   // record tx type usage
   td->rd_counts.tx_type_used[tx_size][tx_type]++;
@@ -660,12 +695,17 @@ static void update_and_record_txb_context_output(
 #endif
 
   DECLARE_ALIGNED(16, int8_t, coeff_contexts[MAX_TX_SQUARE]);
-  if (eob > 1) {
+  if (eob == 1) {
+    assert(scan[0] == 0);
+    coeff_contexts[0] = 0;
+  } else if (fast_eob2) {
+    assert(scan[0] == 0);
+    coeff_contexts[0] = 0;
+    coeff_contexts[scan[1]] = 1;
+  } else {
     av1_txb_init_levels(tcoeff, width, height, levels);
     av1_get_nz_map_contexts(levels, scan, eob, tx_size, tx_class,
                             coeff_contexts);
-  } else {
-    coeff_contexts[0] = 0;
   }
 
   const intptr_t stride = height + TX_PAD_HOR;
@@ -824,9 +864,17 @@ static void record_txb_context_output(int plane, int block, int blk_row,
   tran_low_t *tcoeff_txb =
       cb_coef_buff->tcoeff[plane] + x->mbmi_ext_frame->cb_offset[plane_type];
   tran_low_t *tcoeff = tcoeff_txb + block_offset;
+  const int16_t *const scan = scan_order->scan;
 #if !CONFIG_ENTROPY_STATS
   if (eob == 1) {
+    assert(scan[0] == 0);
     tcoeff[0] = qcoeff[0];
+  } else if (eob == 2 && tx_type_to_class[tx_type] == TX_CLASS_2D &&
+             (unsigned int)(qcoeff[0] + NUM_BASE_LEVELS) <=
+                 2 * NUM_BASE_LEVELS) {
+    assert(scan[0] == 0);
+    tcoeff[0] = qcoeff[0];
+    tcoeff[scan[1]] = qcoeff[scan[1]];
   } else {
     memcpy(tcoeff, qcoeff, sizeof(*tcoeff) * seg_eob);
   }
@@ -846,7 +894,6 @@ static void record_txb_context_output(int plane, int block, int blk_row,
 #else
   const bool do_coeff_scan = cpi->mt_info.pack_bs_mt_enabled;
 #endif
-  const int16_t *const scan = scan_order->scan;
 
   // record tx type usage
   td->rd_counts.tx_type_used[tx_size][tx_type]++;
