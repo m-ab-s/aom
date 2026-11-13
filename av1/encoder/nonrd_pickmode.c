@@ -1950,6 +1950,8 @@ void av1_nonrd_pick_intra_mode(AV1_COMP *cpi, MACROBLOCK *x, RD_STATS *rd_cost,
       best_mode = DC_PRED;
       mi->use_intrabc = 1;
       mi->mv[0] = best_dv;
+      // Code the residual. The skip flag may be left from an earlier block.
+      x->txfm_search_info.skip_txfm = 0;
       mi->uv_mode = UV_DC_PRED;
       mi->motion_mode = SIMPLE_TRANSLATION;
       mi->interp_filters = av1_broadcast_interp_filter(BILINEAR);

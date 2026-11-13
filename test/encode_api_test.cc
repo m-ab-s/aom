@@ -1980,6 +1980,94 @@ TEST(EncodeAPI, IntraBCFarCopyAboveRealtime) {
 TEST(EncodeAPI, IntraBCFarCopyAboveRightRealtime) {
   IntraBCFarCopyTest(2120, 576, 2056, 0, 0, 512);
 }
+
+// Encodes a static screen and then forces a key frame. The bottom half has the
+// luma of the top half but another color, so the IntraBC blocks there must
+// code their chroma residual. The skipped blocks of the inter frames before
+// the key frame must not make them skip it.
+TEST(EncodeAPI, IntraBCKeyFrameCodesChroma) {
+  constexpr int kWidth = 256;
+  constexpr int kHeight = 256;
+  constexpr int kFrames = 4;
+  constexpr int kKeyFrame = 3;
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = 0;
+  cfg.g_threads = 1;
+  cfg.rc_min_quantizer = 20;
+  cfg.rc_max_quantizer = 20;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, 11), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN),
+            AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ENABLE_INTRABC, 1), AOM_CODEC_OK);
+
+  aom_codec_dec_cfg_t dec_cfg = {};
+  dec_cfg.allow_lowbitdepth = 1;
+  aom_codec_ctx_t dec;
+  ASSERT_EQ(aom_codec_dec_init(&dec, aom_codec_av1_dx(), &dec_cfg, 0),
+            AOM_CODEC_OK);
+
+  aom_image_t *img =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kWidth, kHeight, 1);
+  ASSERT_NE(img, nullptr);
+  ::libaom_test::ACMRandom rnd(::libaom_test::ACMRandom::DeterministicSeed());
+  for (int r = 0; r < kHeight / 2; ++r) {
+    uint8_t *top = img->planes[0] + r * img->stride[0];
+    for (int c = 0; c < kWidth; ++c) {
+      top[c] = (rnd.Rand8() & 1) ? 16 : 235;
+    }
+    memcpy(top + (kHeight / 2) * img->stride[0], top, kWidth);
+  }
+  for (int plane = 1; plane < 3; ++plane) {
+    for (int r = 0; r < kHeight / 2; ++r) {
+      uint8_t *row = img->planes[plane] + r * img->stride[plane];
+      const uint8_t bottom_color = plane == 1 ? 64 : 192;
+      memset(row, r < kHeight / 4 ? 128 : bottom_color, kWidth / 2);
+    }
+  }
+
+  for (int i = 0; i < kFrames; ++i) {
+    const aom_enc_frame_flags_t flags = i == kKeyFrame ? AOM_EFLAG_FORCE_KF : 0;
+    ASSERT_EQ(aom_codec_encode(&enc, img, i, 1, flags), AOM_CODEC_OK);
+    aom_codec_iter_t iter = nullptr;
+    while (const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter)) {
+      if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) continue;
+      ASSERT_EQ(aom_codec_decode(
+                    &dec, static_cast<const uint8_t *>(pkt->data.frame.buf),
+                    pkt->data.frame.sz, nullptr),
+                AOM_CODEC_OK);
+      aom_codec_iter_t dec_iter = nullptr;
+      const aom_image_t *decoded = aom_codec_get_frame(&dec, &dec_iter);
+      ASSERT_NE(decoded, nullptr);
+      ASSERT_EQ(decoded->fmt, AOM_IMG_FMT_I420);
+      for (int plane = 1; plane < 3; ++plane) {
+        int64_t sse = 0;
+        for (int r = 0; r < kHeight / 2; ++r) {
+          const uint8_t *src = img->planes[plane] + r * img->stride[plane];
+          const uint8_t *out =
+              decoded->planes[plane] + r * decoded->stride[plane];
+          for (int c = 0; c < kWidth / 2; ++c) {
+            const int diff = src[c] - out[c];
+            sse += diff * diff;
+          }
+        }
+        EXPECT_LT(sse, kWidth * kHeight / 4 * 16)
+            << "frame " << i << " plane " << plane;
+      }
+    }
+  }
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&dec), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
 #endif  // CONFIG_AV1_DECODER
 
 #if !CONFIG_REALTIME_ONLY
