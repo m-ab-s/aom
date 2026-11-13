@@ -1747,6 +1747,18 @@ static int ml_predict_tx_split(MACROBLOCK *x, BLOCK_SIZE bsize, int blk_row,
   return clamp(int_score, -80000, 80000);
 }
 
+static inline const int *get_tx_type_probs(const AV1_COMP *cpi,
+                                           FRAME_UPDATE_TYPE update_type,
+                                           TX_SIZE tx_size) {
+#if CONFIG_FPMT_TEST
+  if (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) {
+    return (const int *)
+        cpi->ppi->temp_frame_probs.tx_type_probs[update_type][tx_size];
+  }
+#endif
+  return cpi->ppi->frame_probs.tx_type_probs[update_type][tx_size];
+}
+
 static inline uint16_t get_tx_mask(
     const AV1_COMP *cpi, MACROBLOCK *x, int plane, int block, int blk_row,
     int blk_col, BLOCK_SIZE plane_bsize, TX_SIZE tx_size,
@@ -1764,28 +1776,23 @@ static inline uint16_t get_tx_mask(
   TX_TYPE txk_allowed = TX_TYPES;
   *is_txk_map_populated = 0;
 
-  const FRAME_UPDATE_TYPE update_type =
-      get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
-  int use_actual_frame_probs = 1;
-  const int *tx_type_probs;
-#if CONFIG_FPMT_TEST
-  use_actual_frame_probs =
-      (cpi->ppi->fpmt_unit_test_cfg == PARALLEL_SIMULATION_ENCODE) ? 0 : 1;
-  if (!use_actual_frame_probs) {
-    tx_type_probs =
-        (int *)cpi->ppi->temp_frame_probs.tx_type_probs[update_type][tx_size];
-  }
-#endif
-  if (use_actual_frame_probs) {
-    tx_type_probs = cpi->ppi->frame_probs.tx_type_probs[update_type][tx_size];
-  }
-
-  if ((!is_inter && txfm_params->use_default_intra_tx_type) ||
-      (is_inter && txfm_params->default_inter_tx_type_prob_thresh == 0)) {
+  TX_TYPE uv_tx_type = DCT_DCT;
+  if (plane) {
+    // tx_type of PLANE_TYPE_UV should be the same as PLANE_TYPE_Y
+    uv_tx_type = txk_allowed =
+        av1_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col, tx_size,
+                        cm->features.reduced_tx_set_used);
+  } else if ((!is_inter && txfm_params->use_default_intra_tx_type) ||
+             (is_inter &&
+              txfm_params->default_inter_tx_type_prob_thresh == 0)) {
     txk_allowed =
         get_default_tx_type(0, xd, tx_size, cpi->use_screen_content_tools);
   } else if (is_inter &&
              txfm_params->default_inter_tx_type_prob_thresh != INT_MAX) {
+    const FRAME_UPDATE_TYPE update_type =
+        get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+    const int *const tx_type_probs =
+        get_tx_type_probs(cpi, update_type, tx_size);
     if (tx_type_probs[DEFAULT_INTER_TX_TYPE] >
         txfm_params->default_inter_tx_type_prob_thresh) {
       txk_allowed = DEFAULT_INTER_TX_TYPE;
@@ -1804,23 +1811,15 @@ static inline uint16_t get_tx_mask(
       if (max_prob > tx_type_prob_threshold)  // force tx type with max prob.
         txk_allowed = force_tx_type;
       else if (x->rd_model == LOW_TXFM_RD) {
-        if (plane == 0) txk_allowed = DCT_DCT;
+        txk_allowed = DCT_DCT;
       }
     }
   } else if (x->rd_model == LOW_TXFM_RD) {
-    if (plane == 0) txk_allowed = DCT_DCT;
+    txk_allowed = DCT_DCT;
   }
 
   const TxSetType tx_set_type = av1_get_ext_tx_set_type(
       tx_size, is_inter, cm->features.reduced_tx_set_used);
-
-  TX_TYPE uv_tx_type = DCT_DCT;
-  if (plane) {
-    // tx_type of PLANE_TYPE_UV should be the same as PLANE_TYPE_Y
-    uv_tx_type = txk_allowed =
-        av1_get_tx_type(xd, get_plane_type(plane), blk_row, blk_col, tx_size,
-                        cm->features.reduced_tx_set_used);
-  }
   PREDICTION_MODE intra_dir =
       mbmi->filter_intra_mode_info.use_filter_intra
           ? fimode_to_intradir[mbmi->filter_intra_mode_info.filter_intra_mode]
@@ -1861,6 +1860,10 @@ static inline uint16_t get_tx_mask(
     int i;
 
     if (cpi->sf.tx_sf.tx_type_search.prune_tx_type_using_stats) {
+      const FRAME_UPDATE_TYPE update_type =
+          get_frame_update_type(&cpi->ppi->gf_group, cpi->gf_frame_index);
+      const int *const tx_type_probs =
+          get_tx_type_probs(cpi, update_type, tx_size);
       static const int thresh_arr[2][7] = { { 10, 15, 15, 10, 15, 15, 15 },
                                             { 10, 17, 17, 10, 17, 17, 17 } };
       const int thresh =
@@ -2204,8 +2207,8 @@ static void search_tx_type(const AV1_COMP *cpi, MACROBLOCK *x, int plane,
                                : AV1_XFORM_QUANT_FP,
                   cpi->oxcf.q_cfg.quant_b_adapt, &quant_param);
 
-  const int use_qmatrix =
-      av1_use_qmatrix(&cm->quant_params, xd, mbmi->segment_id);
+  const bool use_qmatrix =
+      cm->quant_params.using_qmatrix && !xd->lossless[mbmi->segment_id];
   const qm_val_t *const seg_qmatrix =
       use_qmatrix ? xd->plane[plane].seg_qmatrix[mbmi->segment_id][tx_size]
                   : NULL;

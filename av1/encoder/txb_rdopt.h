@@ -21,6 +21,13 @@
 extern "C" {
 #endif
 
+/*!\cond */
+int av1_optimize_txb_multi(const struct AV1_COMP *cpi, MACROBLOCK *x, int plane,
+                           int block, TX_SIZE tx_size, TX_TYPE tx_type,
+                           const TXB_CTX *const txb_ctx, int *rate_cost,
+                           int sharpness);
+/*!\endcond */
+
 /*!\brief Adjust the magnitude of quantized coefficients to achieve better
  * rate-distortion (RD) trade-off.
  *
@@ -71,6 +78,11 @@ static inline int av1_optimize_b(const struct AV1_COMP *cpi, MACROBLOCK *x,
     return eob;
   }
 
+  if (eob > 1) {
+    return av1_optimize_txb_multi(cpi, x, plane, block, tx_size, tx_type,
+                                  txb_ctx, rate_cost,
+                                  cpi->oxcf.algo_cfg.sharpness);
+  }
   return av1_optimize_txb(cpi, x, plane, block, tx_size, tx_type, txb_ctx,
                           rate_cost, cpi->oxcf.algo_cfg.sharpness);
 }
