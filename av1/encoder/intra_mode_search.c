@@ -26,12 +26,6 @@
 #define SIZE_OF_ANGLE_DELTA_RD_COST_ARRAY (2 * MAX_ANGLE_DELTA + 3)
 
 /*!\cond */
-static const PREDICTION_MODE intra_rd_search_mode_order[INTRA_MODES] = {
-  DC_PRED,       H_PRED,        V_PRED,    SMOOTH_PRED, PAETH_PRED,
-  SMOOTH_V_PRED, SMOOTH_H_PRED, D135_PRED, D203_PRED,   D157_PRED,
-  D67_PRED,      D113_PRED,     D45_PRED,
-};
-
 static const UV_PREDICTION_MODE uv_rd_search_mode_order[UV_INTRA_MODES] = {
   UV_DC_PRED,     UV_CFL_PRED,   UV_H_PRED,        UV_V_PRED,
   UV_SMOOTH_PRED, UV_PAETH_PRED, UV_SMOOTH_V_PRED, UV_SMOOTH_H_PRED,
@@ -391,43 +385,6 @@ bool av1_count_colors_with_threshold(const uint8_t *src, int stride, int rows,
   return true;
 }
 
-void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi,
-                                int reorder_delta_angle_eval) {
-  if (mode_idx < INTRA_MODE_END) {
-    mbmi->mode = intra_rd_search_mode_order[mode_idx];
-    mbmi->angle_delta[PLANE_TYPE_Y] = 0;
-  } else {
-    // Precomputed lookup tables for directional mode and delta angle indexed by
-    // (mode_idx - INTRA_MODE_END) to avoid division/modulo by 6.
-    static const uint8_t mode_div6[48] = {
-      V_PRED,    V_PRED,    V_PRED,    V_PRED,    V_PRED,    V_PRED,
-      H_PRED,    H_PRED,    H_PRED,    H_PRED,    H_PRED,    H_PRED,
-      D45_PRED,  D45_PRED,  D45_PRED,  D45_PRED,  D45_PRED,  D45_PRED,
-      D135_PRED, D135_PRED, D135_PRED, D135_PRED, D135_PRED, D135_PRED,
-      D113_PRED, D113_PRED, D113_PRED, D113_PRED, D113_PRED, D113_PRED,
-      D157_PRED, D157_PRED, D157_PRED, D157_PRED, D157_PRED, D157_PRED,
-      D203_PRED, D203_PRED, D203_PRED, D203_PRED, D203_PRED, D203_PRED,
-      D67_PRED,  D67_PRED,  D67_PRED,  D67_PRED,  D67_PRED,  D67_PRED,
-    };
-    static const int8_t angle_mod6[2][48] = {
-      {
-          -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,
-          2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2,
-          -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,
-      },
-      {
-          -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1,
-          1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,
-          -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,
-      },
-    };
-    const int offset = mode_idx - INTRA_MODE_END;
-    mbmi->mode = (PREDICTION_MODE)mode_div6[offset];
-    mbmi->angle_delta[PLANE_TYPE_Y] =
-        angle_mod6[reorder_delta_angle_eval != 0][offset];
-  }
-}
-
 static inline int get_model_rd_index_for_pruning(
     const MACROBLOCK *const x,
     const INTRA_MODE_SPEED_FEATURES *const intra_sf) {
@@ -472,12 +429,11 @@ static inline int get_model_rd_index_for_pruning(
  * \param[in]    model_rd_index_for_pruning Index of the candidate used for
  *                                          pruning based on model rd.
  */
-static int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
-                              int64_t top_intra_model_rd[],
-                              int max_model_cnt_allowed,
-                              int model_rd_index_for_pruning) {
-  const double thresh_best = 1.50;
-  const double thresh_top = 1.00;
+static inline int prune_intra_y_mode(int64_t this_model_rd,
+                                     int64_t *best_model_rd,
+                                     int64_t top_intra_model_rd[],
+                                     int max_model_cnt_allowed,
+                                     int model_rd_index_for_pruning) {
   for (int i = 0; i < max_model_cnt_allowed; i++) {
     if (this_model_rd < top_intra_model_rd[i]) {
       for (int j = max_model_cnt_allowed - 1; j > i; j--) {
@@ -487,13 +443,10 @@ static int prune_intra_y_mode(int64_t this_model_rd, int64_t *best_model_rd,
       break;
     }
   }
-  if (top_intra_model_rd[model_rd_index_for_pruning] != INT64_MAX &&
-      this_model_rd >
-          thresh_top * top_intra_model_rd[model_rd_index_for_pruning])
-    return 1;
+  if (this_model_rd > top_intra_model_rd[model_rd_index_for_pruning]) return 1;
 
-  if (this_model_rd != INT64_MAX &&
-      this_model_rd > thresh_best * (*best_model_rd))
+  if (this_model_rd != INT64_MAX && *best_model_rd != INT64_MAX &&
+      this_model_rd > *best_model_rd + (*best_model_rd >> 1))
     return 1;
   if (this_model_rd < *best_model_rd) *best_model_rd = this_model_rd;
   return 0;
@@ -1223,19 +1176,15 @@ static inline int intra_block_yrd(const AV1_COMP *const cpi, MACROBLOCK *x,
                             : INT64_MAX;
   av1_pick_uniform_tx_size_type_yrd(cpi, x, &rd_stats, bsize, ref_best_rd);
   if (rd_stats.rate == INT_MAX) return 0;
-  int this_rate_tokenonly = rd_stats.rate;
-  if (!xd->lossless[mbmi->segment_id] && block_signals_txsize(mbmi->bsize)) {
-    // av1_pick_uniform_tx_size_type_yrd above includes the cost of the tx_size
-    // in the tokenonly rate, but for intra blocks, tx_size is always coded
-    // (prediction granularity), so we account for it in the full rate,
-    // not the tokenonly rate.
-    this_rate_tokenonly -= tx_size_cost(x, bsize, mbmi->tx_size);
-  }
   const int this_rate =
       rd_stats.rate +
       intra_mode_info_cost_y(cpi, x, mbmi, bsize, bmode_costs[mbmi->mode], 0);
   const int64_t this_rd = RDCOST(x->rdmult, this_rate, rd_stats.dist);
   if (this_rd < *best_rd) {
+    int this_rate_tokenonly = rd_stats.rate;
+    if (!xd->lossless[mbmi->segment_id] && block_signals_txsize(mbmi->bsize)) {
+      this_rate_tokenonly -= tx_size_cost(x, bsize, mbmi->tx_size);
+    }
     *best_mbmi = *mbmi;
     *best_rd = this_rd;
     *rate = this_rate;
@@ -1584,7 +1533,8 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
                              [SIZE_OF_ANGLE_DELTA_RD_COST_ARRAY];
   if (use_angle_delta && intra_sf->prune_luma_odd_delta_angles_in_intra) {
     for (int i = V_PRED; i <= D67_PRED; i++) {
-      for (int j = 0; j < SIZE_OF_ANGLE_DELTA_RD_COST_ARRAY; j++) {
+      if (!(allowed_mode_mask & (1 << i))) continue;
+      for (int j = 0; j < SIZE_OF_ANGLE_DELTA_RD_COST_ARRAY; j += 2) {
         intra_modes_rd_cost[i][j] = INT64_MAX;
       }
     }
@@ -1630,13 +1580,6 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
 
     if (this_rate_tokenonly == INT_MAX) continue;
 
-    if (!xd->lossless[mbmi->segment_id] && block_signals_txsize(mbmi->bsize)) {
-      // av1_pick_uniform_tx_size_type_yrd above includes the cost of the
-      // tx_size in the tokenonly rate, but for intra blocks, tx_size is always
-      // coded (prediction granularity), so we account for it in the full rate,
-      // not the tokenonly rate.
-      this_rate_tokenonly -= tx_size_cost(x, bsize, mbmi->tx_size);
-    }
     this_rate =
         this_rd_stats.rate +
         intra_mode_info_cost_y(cpi, x, mbmi, bsize, bmode_costs[mbmi->mode], 0);
@@ -1656,6 +1599,10 @@ int64_t av1_rd_pick_intra_sby_mode(const AV1_COMP *const cpi, MACROBLOCK *x,
         cpi, x, mbmi, NULL, NULL, NULL, 0, NULL, bsize, this_rd,
         cpi->sf.winner_mode_sf.multi_winner_mode_type, txfm_search_done);
     if (this_rd < best_rd) {
+      if (!xd->lossless[mbmi->segment_id] &&
+          block_signals_txsize(mbmi->bsize)) {
+        this_rate_tokenonly -= tx_size_cost(x, bsize, mbmi->tx_size);
+      }
       best_mbmi = *mbmi;
       best_rd = this_rd;
       // Setting beat_best_rd flag because current mode rd is better than

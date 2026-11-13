@@ -15,7 +15,9 @@
 #ifndef AOM_AV1_ENCODER_INTRA_MODE_SEARCH_H_
 #define AOM_AV1_ENCODER_INTRA_MODE_SEARCH_H_
 
+#include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "av1/encoder/encoder.h"
 
@@ -70,6 +72,11 @@ typedef struct IntraModeSearchState {
   int8_t uv_angle_delta;      /*!< \brief Angle delta if mode_uv directional */
   /**@}*/
 } IntraModeSearchState;
+
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility push(hidden)
+#endif
 
 /*!\brief Evaluate a given luma intra-mode for inter frames.
  *
@@ -321,8 +328,47 @@ static inline void init_intra_mode_search_state(
  * \param[in]    reorder_delta_angle_eval  Indicates whether to reorder the
  *                                         evaluation of delta angle modes.
  */
-void set_y_mode_and_delta_angle(const int mode_idx, MB_MODE_INFO *const mbmi,
-                                int reorder_delta_angle_eval);
+static inline void set_y_mode_and_delta_angle(const int mode_idx,
+                                              MB_MODE_INFO *const mbmi,
+                                              int reorder_delta_angle_eval) {
+  static const uint8_t luma_mode_order[LUMA_MODE_COUNT] = {
+    DC_PRED,       H_PRED,    V_PRED,    SMOOTH_PRED, PAETH_PRED, SMOOTH_V_PRED,
+    SMOOTH_H_PRED, D135_PRED, D203_PRED, D157_PRED,   D67_PRED,   D113_PRED,
+    D45_PRED,      V_PRED,    V_PRED,    V_PRED,      V_PRED,     V_PRED,
+    V_PRED,        H_PRED,    H_PRED,    H_PRED,      H_PRED,     H_PRED,
+    H_PRED,        D45_PRED,  D45_PRED,  D45_PRED,    D45_PRED,   D45_PRED,
+    D45_PRED,      D135_PRED, D135_PRED, D135_PRED,   D135_PRED,  D135_PRED,
+    D135_PRED,     D113_PRED, D113_PRED, D113_PRED,   D113_PRED,  D113_PRED,
+    D113_PRED,     D157_PRED, D157_PRED, D157_PRED,   D157_PRED,  D157_PRED,
+    D157_PRED,     D203_PRED, D203_PRED, D203_PRED,   D203_PRED,  D203_PRED,
+    D203_PRED,     D67_PRED,  D67_PRED,  D67_PRED,    D67_PRED,   D67_PRED,
+    D67_PRED,
+  };
+  static const int8_t luma_angle_delta_order[2][LUMA_MODE_COUNT] = {
+    {
+        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  -3, -2, -1,
+        1,  2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,  -3,
+        -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,
+        3,  -3, -2, -1, 1,  2,  3,  -3, -2, -1, 1,  2,  3,
+    },
+    {
+        0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  -2, 2,  -3,
+        -1, 1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,  -2,
+        2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,
+        3,  -2, 2,  -3, -1, 1,  3,  -2, 2,  -3, -1, 1,  3,
+    },
+  };
+  assert(mode_idx >= 0 && mode_idx < LUMA_MODE_COUNT);
+  mbmi->mode = (PREDICTION_MODE)luma_mode_order[mode_idx];
+  mbmi->angle_delta[PLANE_TYPE_Y] =
+      luma_angle_delta_order[reorder_delta_angle_eval != 0][mode_idx];
+}
+
+#if defined(AOM_INTERNAL_HIDDEN_VISIBILITY) && defined(__ELF__) && \
+    (defined(__GNUC__) || defined(__clang__))
+#pragma GCC visibility pop
+#endif
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
