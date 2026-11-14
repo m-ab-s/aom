@@ -1504,8 +1504,8 @@ static void idct8x8_low1_neon(int32x4_t *in, int32x4_t *out, int bit,
   const int32x4_t v_bit = vdupq_n_s32(-bit);
   const int32x4_t rnding = vdupq_n_s32(1 << (bit - 1));
   // stage 0-1-2-3
-  x = vmulq_n_s32(in[0], cospi[32]);
-  x = vaddq_s32(vshlq_s32(x, v_bit), rnding);
+  x = vmlaq_n_s32(rnding, in[0], cospi[32]);
+  x = vshlq_s32(x, v_bit);
 
   // stage 4-5
   if (!do_cols) {
@@ -1627,8 +1627,8 @@ static void iadst8x8_low1_neon(int32x4_t *in, int32x4_t *out, int bit,
   u[0] = vmlaq_n_s32(rnding, in[0], cospi[60]);
   u[0] = vshlq_s32(u[0], v_bit);
 
-  u[1] = vmlaq_n_s32(rnding, in[0], cospi[4]);
-  u[1] = vshlq_s32(vnegq_s32(u[1]), v_bit);
+  u[1] = vmlsq_n_s32(rnding, in[0], cospi[4]);
+  u[1] = vshlq_s32(u[1], v_bit);
 
   // stage 3-4
   int32x4_t temp1, temp2;
@@ -2256,7 +2256,7 @@ static void iadst16x16_low8_neon(int32x4_t *in, int32x4_t *out, int bit,
   u[7] = vshlq_s32(u[7], v_bit);
 
   y = vmlaq_n_s32(rnding, u[12], cospi[48]);
-  u[12] = vmulq_n_s32(u[12], cospi[16]);
+  u[12] = vmlaq_n_s32(rnding, u[12], cospi[16]);
   u[12] = vmlaq_n_s32(u[12], u[13], cospi[48]);
   u[12] = vshlq_s32(u[12], v_bit);
 
@@ -3463,8 +3463,8 @@ static void idct64x64_low16_neon(int32x4_t *in, int32x4_t *out, int bit,
                                   &v_bit, &rnding);
     tmp2 = half_btf_neon_mode11_r(&cospi[44], &u[42], &cospi[20], &u[53],
                                   &v_bit, &rnding);
-    tmp3 = half_btf_neon_r(&cospi[52], &u[45], &cospi[12], &u[50], &v_bit,
-                           &rnding);
+    tmp3 = half_btf_neon_mode10_r(&cospi[52], &u[45], &cospi[12], &u[50],
+                                  &v_bit, &rnding);
     tmp4 = half_btf_neon_mode11_r(&cospi[12], &u[46], &cospi[52], &u[49],
                                   &v_bit, &rnding);
     u[49] = half_btf_neon_mode10_r(&cospi[52], &u[46], &cospi[12], &u[49],
@@ -3534,7 +3534,7 @@ static void idct64x64_low16_neon(int32x4_t *in, int32x4_t *out, int bit,
     u[14] =
         half_btf_neon_r(&cospi[48], &u[9], &cospi[16], &u[14], &v_bit, &rnding);
     u[9] = tmp1;
-    tmp2 = half_btf_neon_mode01_r(&cospi[48], &u[10], &cospi[16], &u[13],
+    tmp2 = half_btf_neon_mode11_r(&cospi[48], &u[10], &cospi[16], &u[13],
                                   &v_bit, &rnding);
     u[13] = half_btf_neon_mode10_r(&cospi[16], &u[10], &cospi[48], &u[13],
                                    &v_bit, &rnding);
@@ -5398,10 +5398,10 @@ static void highbd_inv_txfm2d_add_no_identity_neon(const int32_t *input,
   const int txh_idx = get_txh_idx(tx_size);
   const int txfm_size_col = tx_size_wide[tx_size];
   const int txfm_size_row = tx_size_high[tx_size];
-  const int buf_size_w_div8 = txfm_size_col >> 2;
-  const int buf_size_nonzero_w_div8 = (eobx + 8) >> 3;
+  const int buf_size_w_div4 = txfm_size_col >> 2;
+  const int buf_size_nonzero_w = (eobx + 8) >> 3 << 3;
   const int buf_size_nonzero_h_div8 = (eoby + 8) >> 3;
-  const int input_stride = AOMMIN(32, txfm_size_col);
+  const int input_stride = AOMMIN(32, txfm_size_row);
   const int rect_type = get_rect_tx_log_ratio(txfm_size_col, txfm_size_row);
 
   const int fun_idx_x = lowbd_txfm_all_1d_zeros_idx[eobx];
@@ -5415,35 +5415,29 @@ static void highbd_inv_txfm2d_add_no_identity_neon(const int32_t *input,
   assert(row_txfm != NULL);
   int ud_flip, lr_flip;
   get_flip_cfg(tx_type, &ud_flip, &lr_flip);
-  // 1st stage: column transform
+  // 1st stage: row transform
   for (int i = 0; i < buf_size_nonzero_h_div8 << 1; i++) {
     int32x4_t buf0[64];
-    const int32_t *input_row = input + i * input_stride * 4;
-    for (int j = 0; j < buf_size_nonzero_w_div8 << 1; ++j) {
-      int32x4_t *buf0_cur = &buf0[j * 4];
-      load_buffer_32bit_input(input_row + j * 4, input_stride, buf0_cur, 4);
-
-      TRANSPOSE_4X4(buf0_cur[0], buf0_cur[1], buf0_cur[2], buf0_cur[3],
-                    buf0_cur[0], buf0_cur[1], buf0_cur[2], buf0_cur[3]);
-    }
+    load_buffer_32bit_input(input + i * 4, input_stride, buf0,
+                            buf_size_nonzero_w);
     if (rect_type == 1 || rect_type == -1) {
-      round_shift_rect_array_32_neon(buf0, buf0, buf_size_nonzero_w_div8 << 3);
+      round_shift_rect_array_32_neon(buf0, buf0, buf_size_nonzero_w);
     }
     row_txfm(buf0, buf0, INV_COS_BIT, 0, bd, -shift[0]);
 
     int32x4_t *_buf1 = &buf1[i * 4];
 
     if (lr_flip) {
-      for (int j = 0; j < buf_size_w_div8; ++j) {
+      for (int j = 0; j < buf_size_w_div4; ++j) {
         TRANSPOSE_4X4(buf0[4 * j + 3], buf0[4 * j + 2], buf0[4 * j + 1],
                       buf0[4 * j],
-                      _buf1[txfm_size_row * (buf_size_w_div8 - 1 - j) + 0],
-                      _buf1[txfm_size_row * (buf_size_w_div8 - 1 - j) + 1],
-                      _buf1[txfm_size_row * (buf_size_w_div8 - 1 - j) + 2],
-                      _buf1[txfm_size_row * (buf_size_w_div8 - 1 - j) + 3]);
+                      _buf1[txfm_size_row * (buf_size_w_div4 - 1 - j) + 0],
+                      _buf1[txfm_size_row * (buf_size_w_div4 - 1 - j) + 1],
+                      _buf1[txfm_size_row * (buf_size_w_div4 - 1 - j) + 2],
+                      _buf1[txfm_size_row * (buf_size_w_div4 - 1 - j) + 3]);
       }
     } else {
-      for (int j = 0; j < buf_size_w_div8; ++j) {
+      for (int j = 0; j < buf_size_w_div4; ++j) {
         TRANSPOSE_4X4(
             buf0[j * 4 + 0], buf0[j * 4 + 1], buf0[j * 4 + 2], buf0[j * 4 + 3],
             _buf1[j * txfm_size_row + 0], _buf1[j * txfm_size_row + 1],
@@ -5452,7 +5446,7 @@ static void highbd_inv_txfm2d_add_no_identity_neon(const int32_t *input,
     }
   }
   // 2nd stage: column transform
-  for (int i = 0; i < buf_size_w_div8; i++) {
+  for (int i = 0; i < buf_size_w_div4; i++) {
     col_txfm(buf1 + i * txfm_size_row, buf1 + i * txfm_size_row, INV_COS_BIT, 1,
              bd, 0);
 
@@ -5647,13 +5641,6 @@ void av1_inv_txfm2d_add_16x64_neon(const tran_low_t *input, uint16_t *dest,
                                TX_16X64, bd);
 }
 
-static void av1_inv_txfm2d_add_16x16_neon(const tran_low_t *input,
-                                          uint16_t *dest, int stride,
-                                          TX_TYPE tx_type, const int bd) {
-  inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type,
-                               TX_16X16, bd);
-}
-
 void av1_inv_txfm2d_add_32x8_neon(const tran_low_t *input, uint16_t *dest,
                                   int stride, TX_TYPE tx_type, const int bd) {
   inv_txfm2d_add_universe_neon(input, (uint8_t *)dest, stride, tx_type, TX_32X8,
@@ -5666,12 +5653,134 @@ void av1_inv_txfm2d_add_8x32_neon(const tran_low_t *input, uint16_t *dest,
                                bd);
 }
 
+static inline void highbd_add_dc_row_w8_neon(uint16_t *output,
+                                             const int16x8_t v_dc,
+                                             const int16x8_t v_zero,
+                                             const int16x8_t v_max) {
+  int16x8_t p = vreinterpretq_s16_u16(vld1q_u16(output));
+  p = vaddq_s16(p, v_dc);
+  p = vmaxq_s16(p, v_zero);
+  p = vminq_s16(p, v_max);
+  vst1q_u16(output, vreinterpretq_u16_s16(p));
+}
+
+static inline void highbd_inv_txfm_dc_only_neon(const tran_low_t *input,
+                                                uint16_t *output, int stride,
+                                                TX_SIZE tx_size, int bd) {
+  const int w = tx_size_wide[tx_size];
+  int h = tx_size_high[tx_size];
+  assert(h >= 4 && (h & 3) == 0);
+  const int rect_type = get_rect_tx_log_ratio(w, h);
+  const int8_t *shift = av1_inv_txfm_shift_ls[tx_size];
+  const int32_t cospi32 = cospi_arr(INV_COS_BIT)[32];
+  int32_t dc = input[0];
+
+  if (rect_type == 1 || rect_type == -1) {
+    dc = (int32_t)(((int64_t)dc * NewInvSqrt2 + (1 << (NewSqrt2Bits - 1))) >>
+                   NewSqrt2Bits);
+  }
+  dc = clamp_value(dc, bd + 8);
+  dc = (int32_t)(((int64_t)dc * cospi32 + (1 << (INV_COS_BIT - 1))) >>
+                 INV_COS_BIT);
+  dc = clamp_value(dc, get_log_range(bd, 0));
+  if (shift[0] < 0) {
+    const int rshift0 = -shift[0];
+    dc = (int32_t)((dc + (1 << (rshift0 - 1))) >> rshift0);
+  }
+  dc = clamp_value(dc, get_log_range_out(bd));
+  dc = (int32_t)(((int64_t)dc * cospi32 + (1 << (INV_COS_BIT - 1))) >>
+                 INV_COS_BIT);
+  dc = clamp_value(dc, get_log_range(bd, 1));
+  if (shift[1] < 0) {
+    const int rshift1 = -shift[1];
+    dc = (int32_t)((dc + (1 << (rshift1 - 1))) >> rshift1);
+  }
+  if (dc == 0) return;
+
+  if (w == 4) {
+    const int16x4_t d_dc = vdup_n_s16((int16_t)dc);
+    const int16x4_t d_zero = vdup_n_s16(0);
+    const int16x4_t d_max = vdup_n_s16((int16_t)((1 << bd) - 1));
+    do {
+      uint16_t *row0 = output;
+      uint16_t *row1 = row0 + stride;
+      uint16_t *row2 = row1 + stride;
+      uint16_t *row3 = row2 + stride;
+      int16x4_t p0 = vadd_s16(vreinterpret_s16_u16(vld1_u16(row0)), d_dc);
+      int16x4_t p1 = vadd_s16(vreinterpret_s16_u16(vld1_u16(row1)), d_dc);
+      int16x4_t p2 = vadd_s16(vreinterpret_s16_u16(vld1_u16(row2)), d_dc);
+      int16x4_t p3 = vadd_s16(vreinterpret_s16_u16(vld1_u16(row3)), d_dc);
+      p0 = vmin_s16(vmax_s16(p0, d_zero), d_max);
+      p1 = vmin_s16(vmax_s16(p1, d_zero), d_max);
+      p2 = vmin_s16(vmax_s16(p2, d_zero), d_max);
+      p3 = vmin_s16(vmax_s16(p3, d_zero), d_max);
+      vst1_u16(row0, vreinterpret_u16_s16(p0));
+      vst1_u16(row1, vreinterpret_u16_s16(p1));
+      vst1_u16(row2, vreinterpret_u16_s16(p2));
+      vst1_u16(row3, vreinterpret_u16_s16(p3));
+      output = row3 + stride;
+      h -= 4;
+    } while (h != 0);
+    return;
+  }
+
+  const int16x8_t v_dc = vdupq_n_s16((int16_t)dc);
+  const int16x8_t v_zero = vdupq_n_s16(0);
+  const int16x8_t v_max = vdupq_n_s16((int16_t)((1 << bd) - 1));
+  if (w == 8) {
+    do {
+      uint16_t *row0 = output;
+      uint16_t *row1 = row0 + stride;
+      uint16_t *row2 = row1 + stride;
+      uint16_t *row3 = row2 + stride;
+      highbd_add_dc_row_w8_neon(row0, v_dc, v_zero, v_max);
+      highbd_add_dc_row_w8_neon(row1, v_dc, v_zero, v_max);
+      highbd_add_dc_row_w8_neon(row2, v_dc, v_zero, v_max);
+      highbd_add_dc_row_w8_neon(row3, v_dc, v_zero, v_max);
+      output = row3 + stride;
+      h -= 4;
+    } while (h != 0);
+  } else if (w == 16) {
+    do {
+      highbd_add_dc_row_w8_neon(output, v_dc, v_zero, v_max);
+      highbd_add_dc_row_w8_neon(output + 8, v_dc, v_zero, v_max);
+      output += stride;
+    } while (--h != 0);
+  } else if (w == 32) {
+    do {
+      highbd_add_dc_row_w8_neon(output + 0, v_dc, v_zero, v_max);
+      highbd_add_dc_row_w8_neon(output + 8, v_dc, v_zero, v_max);
+      highbd_add_dc_row_w8_neon(output + 16, v_dc, v_zero, v_max);
+      highbd_add_dc_row_w8_neon(output + 24, v_dc, v_zero, v_max);
+      output += stride;
+    } while (--h != 0);
+  } else {
+    assert(w >= 64 && (w & 31) == 0);
+    do {
+      int c = 0;
+      do {
+        highbd_add_dc_row_w8_neon(output + c + 0, v_dc, v_zero, v_max);
+        highbd_add_dc_row_w8_neon(output + c + 8, v_dc, v_zero, v_max);
+        highbd_add_dc_row_w8_neon(output + c + 16, v_dc, v_zero, v_max);
+        highbd_add_dc_row_w8_neon(output + c + 24, v_dc, v_zero, v_max);
+        c += 32;
+      } while (c != w);
+      output += stride;
+    } while (--h != 0);
+  }
+}
+
 void av1_highbd_inv_txfm_add_neon(const tran_low_t *input, uint8_t *dest,
                                   int stride, const TxfmParam *txfm_param) {
   const TX_SIZE tx_size = txfm_param->tx_size;
 
   TX_TYPE tx_type = txfm_param->tx_type;
   int bd = txfm_param->bd;
+  if (!txfm_param->lossless && txfm_param->eob == 1 && tx_type == DCT_DCT) {
+    highbd_inv_txfm_dc_only_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
+                                 tx_size, bd);
+    return;
+  }
   switch (tx_size) {
     case TX_8X8:
       highbd_inv_txfm_add_8x8_neon(input, dest, stride, txfm_param);
@@ -5695,57 +5804,9 @@ void av1_highbd_inv_txfm_add_neon(const tran_low_t *input, uint8_t *dest,
       av1_inv_txfm2d_add_4x16_neon(input, CONVERT_TO_SHORTPTR(dest), stride,
                                    txfm_param->tx_type, txfm_param->bd);
       break;
-    case TX_8X16:
-      av1_inv_txfm2d_add_8x16_neon(input, (uint16_t *)dest, stride, tx_type,
-                                   bd);
-      break;
-    case TX_16X8:
-      av1_inv_txfm2d_add_16x8_neon(input, (uint16_t *)dest, stride, tx_type,
-                                   bd);
-      break;
-    case TX_16X32:
-      av1_inv_txfm2d_add_16x32_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
-      break;
-    case TX_32X16:
-      av1_inv_txfm2d_add_32x16_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
-      break;
-    case TX_16X16:
-      av1_inv_txfm2d_add_16x16_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
-      break;
-    case TX_32X32:
-      av1_inv_txfm2d_add_32x32_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
-      break;
-    case TX_64X64:
-      av1_inv_txfm2d_add_64x64_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
-      break;
-    case TX_32X64:
-      av1_inv_txfm2d_add_32x64_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
-      break;
-    case TX_64X32:
-      av1_inv_txfm2d_add_64x32_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
-      break;
-    case TX_16X64:
-      av1_inv_txfm2d_add_16x64_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
-      break;
-    case TX_64X16:
-      av1_inv_txfm2d_add_64x16_neon(input, (uint16_t *)dest, stride, tx_type,
-                                    bd);
-      break;
-    case TX_32X8:
-      av1_inv_txfm2d_add_32x8_neon(input, (uint16_t *)dest, stride, tx_type,
-                                   bd);
-      break;
-    case TX_8X32:
-      av1_inv_txfm2d_add_8x32_neon(input, (uint16_t *)dest, stride, tx_type,
-                                   bd);
+    default:
+      highbd_inv_txfm2d_add_universe_neon(input, dest, stride, tx_type, tx_size,
+                                          txfm_param->eob, bd);
       break;
   }
 }
