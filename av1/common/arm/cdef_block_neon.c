@@ -775,32 +775,45 @@ void cdef_filter_8_1_neon(void *dest, int dstride, const uint16_t *in,
 
     int h = block_height;
     do {
-      int16x8_t sum = vdupq_n_s16(0);
-      uint16x8_t s = load_unaligned_u16_4x2(in, CDEF_BSTRIDE);
+      int16x8_t sum0 = vdupq_n_s16(0);
+      int16x8_t sum1 = vdupq_n_s16(0);
+      uint16x8_t s0, s1;
+      load_unaligned_u16_4x4(in, CDEF_BSTRIDE, &s0, &s1);
 
-      uint16x8_t pri_src[4];
+      uint16x8_t pri_src0[4], pri_src1[4];
 
       // Primary near taps
-      pri_src[0] = load_unaligned_u16_4x2(in + po1, CDEF_BSTRIDE);
-      pri_src[1] = load_unaligned_u16_4x2(in - po1, CDEF_BSTRIDE);
+      load_unaligned_u16_4x4(in + po1, CDEF_BSTRIDE, &pri_src0[0],
+                             &pri_src1[0]);
+      load_unaligned_u16_4x4(in - po1, CDEF_BSTRIDE, &pri_src0[1],
+                             &pri_src1[1]);
 
       // Primary far taps
-      pri_src[2] = load_unaligned_u16_4x2(in + po2, CDEF_BSTRIDE);
-      pri_src[3] = load_unaligned_u16_4x2(in - po2, CDEF_BSTRIDE);
+      load_unaligned_u16_4x4(in + po2, CDEF_BSTRIDE, &pri_src0[2],
+                             &pri_src1[2]);
+      load_unaligned_u16_4x4(in - po2, CDEF_BSTRIDE, &pri_src0[3],
+                             &pri_src1[3]);
 
-      primary_filter(s, pri_src, pri_taps, pri_strength, pri_damping, &sum);
+      primary_filter(s0, pri_src0, pri_taps, pri_strength, pri_damping, &sum0);
+      primary_filter(s1, pri_src1, pri_taps, pri_strength, pri_damping, &sum1);
 
       // res = s + ((sum - (sum < 0) + 8) >> 4)
-      sum =
-          vaddq_s16(sum, vreinterpretq_s16_u16(vcltq_s16(sum, vdupq_n_s16(0))));
-      const int16x8_t res_s16 = vrsraq_n_s16(vreinterpretq_s16_u16(s), sum, 4);
+      sum0 = vaddq_s16(sum0,
+                       vreinterpretq_s16_u16(vcltq_s16(sum0, vdupq_n_s16(0))));
+      sum1 = vaddq_s16(sum1,
+                       vreinterpretq_s16_u16(vcltq_s16(sum1, vdupq_n_s16(0))));
+      const int16x8_t res0_s16 =
+          vrsraq_n_s16(vreinterpretq_s16_u16(s0), sum0, 4);
+      const int16x8_t res1_s16 =
+          vrsraq_n_s16(vreinterpretq_s16_u16(s1), sum1, 4);
 
-      const uint8x8_t res_u8 = vqmovun_s16(res_s16);
-      store_u8x4_strided_x2(dst8, dstride, res_u8);
+      const uint8x16_t res_u8 =
+          vcombine_u8(vqmovun_s16(res0_s16), vqmovun_s16(res1_s16));
+      store_u8x4_strided_x4(dst8, dstride, res_u8);
 
-      in += 2 * CDEF_BSTRIDE;
-      dst8 += 2 * dstride;
-      h -= 2;
+      in += 4 * CDEF_BSTRIDE;
+      dst8 += 4 * dstride;
+      h -= 4;
     } while (h != 0);
   }
 }
@@ -863,36 +876,55 @@ void cdef_filter_8_2_neon(void *dest, int dstride, const uint16_t *in,
 
     int h = block_height;
     do {
-      int16x8_t sum = vdupq_n_s16(0);
-      uint16x8_t s = load_unaligned_u16_4x2(in, CDEF_BSTRIDE);
+      int16x8_t sum0 = vdupq_n_s16(0);
+      int16x8_t sum1 = vdupq_n_s16(0);
+      uint16x8_t s0, s1;
+      load_unaligned_u16_4x4(in, CDEF_BSTRIDE, &s0, &s1);
 
-      uint16x8_t sec_src[8];
+      uint16x8_t sec_src0[8], sec_src1[8];
 
       // Secondary near taps
-      sec_src[0] = load_unaligned_u16_4x2(in + s1o1, CDEF_BSTRIDE);
-      sec_src[1] = load_unaligned_u16_4x2(in - s1o1, CDEF_BSTRIDE);
-      sec_src[2] = load_unaligned_u16_4x2(in + s2o1, CDEF_BSTRIDE);
-      sec_src[3] = load_unaligned_u16_4x2(in - s2o1, CDEF_BSTRIDE);
+      load_unaligned_u16_4x4(in + s1o1, CDEF_BSTRIDE, &sec_src0[0],
+                             &sec_src1[0]);
+      load_unaligned_u16_4x4(in - s1o1, CDEF_BSTRIDE, &sec_src0[1],
+                             &sec_src1[1]);
+      load_unaligned_u16_4x4(in + s2o1, CDEF_BSTRIDE, &sec_src0[2],
+                             &sec_src1[2]);
+      load_unaligned_u16_4x4(in - s2o1, CDEF_BSTRIDE, &sec_src0[3],
+                             &sec_src1[3]);
 
       // Secondary far taps
-      sec_src[4] = load_unaligned_u16_4x2(in + s1o2, CDEF_BSTRIDE);
-      sec_src[5] = load_unaligned_u16_4x2(in - s1o2, CDEF_BSTRIDE);
-      sec_src[6] = load_unaligned_u16_4x2(in + s2o2, CDEF_BSTRIDE);
-      sec_src[7] = load_unaligned_u16_4x2(in - s2o2, CDEF_BSTRIDE);
+      load_unaligned_u16_4x4(in + s1o2, CDEF_BSTRIDE, &sec_src0[4],
+                             &sec_src1[4]);
+      load_unaligned_u16_4x4(in - s1o2, CDEF_BSTRIDE, &sec_src0[5],
+                             &sec_src1[5]);
+      load_unaligned_u16_4x4(in + s2o2, CDEF_BSTRIDE, &sec_src0[6],
+                             &sec_src1[6]);
+      load_unaligned_u16_4x4(in - s2o2, CDEF_BSTRIDE, &sec_src0[7],
+                             &sec_src1[7]);
 
-      secondary_filter(s, sec_src, sec_taps, sec_strength, sec_damping, &sum);
+      secondary_filter(s0, sec_src0, sec_taps, sec_strength, sec_damping,
+                       &sum0);
+      secondary_filter(s1, sec_src1, sec_taps, sec_strength, sec_damping,
+                       &sum1);
 
       // res = s + ((sum - (sum < 0) + 8) >> 4)
-      sum =
-          vaddq_s16(sum, vreinterpretq_s16_u16(vcltq_s16(sum, vdupq_n_s16(0))));
-      const int16x8_t res_s16 = vrsraq_n_s16(vreinterpretq_s16_u16(s), sum, 4);
+      sum0 = vaddq_s16(sum0,
+                       vreinterpretq_s16_u16(vcltq_s16(sum0, vdupq_n_s16(0))));
+      sum1 = vaddq_s16(sum1,
+                       vreinterpretq_s16_u16(vcltq_s16(sum1, vdupq_n_s16(0))));
+      const int16x8_t res0_s16 =
+          vrsraq_n_s16(vreinterpretq_s16_u16(s0), sum0, 4);
+      const int16x8_t res1_s16 =
+          vrsraq_n_s16(vreinterpretq_s16_u16(s1), sum1, 4);
 
-      const uint8x8_t res_u8 = vqmovun_s16(res_s16);
-      store_u8x4_strided_x2(dst8, dstride, res_u8);
+      const uint8x16_t res_u8 =
+          vcombine_u8(vqmovun_s16(res0_s16), vqmovun_s16(res1_s16));
+      store_u8x4_strided_x4(dst8, dstride, res_u8);
 
-      in += 2 * CDEF_BSTRIDE;
-      dst8 += 2 * dstride;
-      h -= 2;
+      in += 4 * CDEF_BSTRIDE;
+      dst8 += 4 * dstride;
+      h -= 4;
     } while (h != 0);
   }
 }
@@ -1200,31 +1232,43 @@ void cdef_filter_16_1_neon(void *dest, int dstride, const uint16_t *in,
 
     int h = block_height;
     do {
-      int16x8_t sum = vdupq_n_s16(0);
-      uint16x8_t s = load_unaligned_u16_4x2(in, CDEF_BSTRIDE);
+      int16x8_t sum0 = vdupq_n_s16(0);
+      int16x8_t sum1 = vdupq_n_s16(0);
+      uint16x8_t s0, s1;
+      load_unaligned_u16_4x4(in, CDEF_BSTRIDE, &s0, &s1);
 
-      uint16x8_t pri_src[4];
+      uint16x8_t pri_src0[4], pri_src1[4];
 
       // Primary near taps
-      pri_src[0] = load_unaligned_u16_4x2(in + po1, CDEF_BSTRIDE);
-      pri_src[1] = load_unaligned_u16_4x2(in - po1, CDEF_BSTRIDE);
+      load_unaligned_u16_4x4(in + po1, CDEF_BSTRIDE, &pri_src0[0],
+                             &pri_src1[0]);
+      load_unaligned_u16_4x4(in - po1, CDEF_BSTRIDE, &pri_src0[1],
+                             &pri_src1[1]);
 
       // Primary far taps
-      pri_src[2] = load_unaligned_u16_4x2(in + po2, CDEF_BSTRIDE);
-      pri_src[3] = load_unaligned_u16_4x2(in - po2, CDEF_BSTRIDE);
+      load_unaligned_u16_4x4(in + po2, CDEF_BSTRIDE, &pri_src0[2],
+                             &pri_src1[2]);
+      load_unaligned_u16_4x4(in - po2, CDEF_BSTRIDE, &pri_src0[3],
+                             &pri_src1[3]);
 
-      primary_filter(s, pri_src, pri_taps, pri_strength, pri_damping, &sum);
+      primary_filter(s0, pri_src0, pri_taps, pri_strength, pri_damping, &sum0);
+      primary_filter(s1, pri_src1, pri_taps, pri_strength, pri_damping, &sum1);
 
       // res = s + ((sum - (sum < 0) + 8) >> 4)
-      sum =
-          vaddq_s16(sum, vreinterpretq_s16_u16(vcltq_s16(sum, vdupq_n_s16(0))));
-      const int16x8_t res = vrsraq_n_s16(vreinterpretq_s16_u16(s), sum, 4);
+      sum0 = vaddq_s16(sum0,
+                       vreinterpretq_s16_u16(vcltq_s16(sum0, vdupq_n_s16(0))));
+      sum1 = vaddq_s16(sum1,
+                       vreinterpretq_s16_u16(vcltq_s16(sum1, vdupq_n_s16(0))));
+      const int16x8_t res0 = vrsraq_n_s16(vreinterpretq_s16_u16(s0), sum0, 4);
+      const int16x8_t res1 = vrsraq_n_s16(vreinterpretq_s16_u16(s1), sum1, 4);
 
-      store_u16x4_strided_x2(dst16, dstride, vreinterpretq_u16_s16(res));
+      store_u16x4_strided_x2(dst16, dstride, vreinterpretq_u16_s16(res0));
+      store_u16x4_strided_x2(dst16 + 2 * dstride, dstride,
+                             vreinterpretq_u16_s16(res1));
 
-      in += 2 * CDEF_BSTRIDE;
-      dst16 += 2 * dstride;
-      h -= 2;
+      in += 4 * CDEF_BSTRIDE;
+      dst16 += 4 * dstride;
+      h -= 4;
     } while (h != 0);
   }
 }
