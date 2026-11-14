@@ -317,13 +317,14 @@ static inline void lpf_14_neon(uint8x8_t *p6q6, uint8x8_t *p5q5,
 
   // Calculate filter masks.
   uint8x8_t mask_8x8 = lpf_mask(*p3q3, *p2q2, *p1q1, *p0q0, blimit, limit);
-  uint8x8_t flat_8x8 = lpf_flat_mask4(*p3q3, *p2q2, *p1q1, *p0q0);
-  uint8x8_t flat2_8x8 = lpf_flat_mask4(*p6q6, *p5q5, *p4q4, *p0q0);
 
   // No filtering.
   if (vget_lane_u64(vreinterpret_u64_u8(mask_8x8), 0) == 0) {
     return;
   }
+
+  uint8x8_t flat_8x8 = lpf_flat_mask4(*p3q3, *p2q2, *p1q1, *p0q0);
+  uint8x8_t flat2_8x8 = lpf_flat_mask4(*p6q6, *p5q5, *p4q4, *p0q0);
 
   uint8x8_t filter8_cond = vand_u8(flat_8x8, mask_8x8);
   uint8x8_t filter4_cond = vmvn_u8(filter8_cond);
@@ -407,13 +408,13 @@ static inline void lpf_8_neon(uint8x8_t *p3q3, uint8x8_t *p2q2, uint8x8_t *p1q1,
 
   // Calculate filter masks.
   uint8x8_t mask_8x8 = lpf_mask(*p3q3, *p2q2, *p1q1, *p0q0, blimit, limit);
-  uint8x8_t flat_8x8 = lpf_flat_mask4(*p3q3, *p2q2, *p1q1, *p0q0);
 
   // No filtering.
   if (vget_lane_u64(vreinterpret_u64_u8(mask_8x8), 0) == 0) {
     return;
   }
 
+  uint8x8_t flat_8x8 = lpf_flat_mask4(*p3q3, *p2q2, *p1q1, *p0q0);
   uint8x8_t filter8_cond = vand_u8(flat_8x8, mask_8x8);
   uint8x8_t filter4_cond = vmvn_u8(filter8_cond);
 
@@ -477,13 +478,13 @@ static inline void lpf_6_neon(uint8x8_t *p2q2, uint8x8_t *p1q1, uint8x8_t *p0q0,
 
   // Calculate filter masks.
   uint8x8_t mask_8x8 = lpf_mask3_chroma(*p2q2, *p1q1, *p0q0, blimit, limit);
-  uint8x8_t flat_8x8 = lpf_flat_mask3(*p2q2, *p1q1, *p0q0);
 
   // No filtering.
   if (vget_lane_u64(vreinterpret_u64_u8(mask_8x8), 0) == 0) {
     return;
   }
 
+  uint8x8_t flat_8x8 = lpf_flat_mask3(*p2q2, *p1q1, *p0q0);
   uint8x8_t filter6_cond = vand_u8(flat_8x8, mask_8x8);
   uint8x8_t filter4_cond = vmvn_u8(filter6_cond);
 
@@ -847,29 +848,17 @@ void aom_lpf_horizontal_8_neon(uint8_t *src, int stride, const uint8_t *blimit,
                                const uint8_t *limit, const uint8_t *thresh) {
   uint8x8_t p0q0, p1q1, p2q2, p3q3;
 
-  p3q3 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t *)(src - 4 * stride)));
-  p2q2 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t *)(src - 3 * stride)));
-  p1q1 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t *)(src - 2 * stride)));
-  p0q0 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t *)(src - 1 * stride)));
-  p0q0 = vreinterpret_u8_u32(vld1_lane_u32((uint32_t *)(src + 0 * stride),
-                                           vreinterpret_u32_u8(p0q0), 1));
-  p1q1 = vreinterpret_u8_u32(vld1_lane_u32((uint32_t *)(src + 1 * stride),
-                                           vreinterpret_u32_u8(p1q1), 1));
-  p2q2 = vreinterpret_u8_u32(vld1_lane_u32((uint32_t *)(src + 2 * stride),
-                                           vreinterpret_u32_u8(p2q2), 1));
-  p3q3 = vreinterpret_u8_u32(vld1_lane_u32((uint32_t *)(src + 3 * stride),
-                                           vreinterpret_u32_u8(p3q3), 1));
+  p3q3 = load_u8_4x2(src - 4 * stride, 7 * stride);
+  p2q2 = load_u8_4x2(src - 3 * stride, 5 * stride);
+  p1q1 = load_u8_4x2(src - 2 * stride, 3 * stride);
+  p0q0 = load_u8_4x2(src - stride, stride);
 
   lpf_8_neon(&p3q3, &p2q2, &p1q1, &p0q0, *blimit, *limit, *thresh);
 
-  vst1_lane_u32((uint32_t *)(src - 4 * stride), vreinterpret_u32_u8(p3q3), 0);
-  vst1_lane_u32((uint32_t *)(src - 3 * stride), vreinterpret_u32_u8(p2q2), 0);
-  vst1_lane_u32((uint32_t *)(src - 2 * stride), vreinterpret_u32_u8(p1q1), 0);
-  vst1_lane_u32((uint32_t *)(src - 1 * stride), vreinterpret_u32_u8(p0q0), 0);
-  vst1_lane_u32((uint32_t *)(src + 0 * stride), vreinterpret_u32_u8(p0q0), 1);
-  vst1_lane_u32((uint32_t *)(src + 1 * stride), vreinterpret_u32_u8(p1q1), 1);
-  vst1_lane_u32((uint32_t *)(src + 2 * stride), vreinterpret_u32_u8(p2q2), 1);
-  vst1_lane_u32((uint32_t *)(src + 3 * stride), vreinterpret_u32_u8(p3q3), 1);
+  store_u8x4_strided_x2(src - stride, stride, p0q0);
+  store_u8x4_strided_x2(src - 2 * stride, 3 * stride, p1q1);
+  store_u8x4_strided_x2(src - 3 * stride, 5 * stride, p2q2);
+  store_u8x4_strided_x2(src - 4 * stride, 7 * stride, p3q3);
 }
 
 void aom_lpf_horizontal_8_dual_neon(
@@ -895,24 +884,15 @@ void aom_lpf_horizontal_6_neon(uint8_t *src, int stride, const uint8_t *blimit,
                                const uint8_t *limit, const uint8_t *thresh) {
   uint8x8_t p0q0, p1q1, p2q2;
 
-  p2q2 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t *)(src - 3 * stride)));
-  p1q1 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t *)(src - 2 * stride)));
-  p0q0 = vreinterpret_u8_u32(vld1_dup_u32((uint32_t *)(src - 1 * stride)));
-  p0q0 = vreinterpret_u8_u32(vld1_lane_u32((uint32_t *)(src + 0 * stride),
-                                           vreinterpret_u32_u8(p0q0), 1));
-  p1q1 = vreinterpret_u8_u32(vld1_lane_u32((uint32_t *)(src + 1 * stride),
-                                           vreinterpret_u32_u8(p1q1), 1));
-  p2q2 = vreinterpret_u8_u32(vld1_lane_u32((uint32_t *)(src + 2 * stride),
-                                           vreinterpret_u32_u8(p2q2), 1));
+  p2q2 = load_u8_4x2(src - 3 * stride, 5 * stride);
+  p1q1 = load_u8_4x2(src - 2 * stride, 3 * stride);
+  p0q0 = load_u8_4x2(src - stride, stride);
 
   lpf_6_neon(&p2q2, &p1q1, &p0q0, *blimit, *limit, *thresh);
 
-  vst1_lane_u32((uint32_t *)(src - 3 * stride), vreinterpret_u32_u8(p2q2), 0);
-  vst1_lane_u32((uint32_t *)(src - 2 * stride), vreinterpret_u32_u8(p1q1), 0);
-  vst1_lane_u32((uint32_t *)(src - 1 * stride), vreinterpret_u32_u8(p0q0), 0);
-  vst1_lane_u32((uint32_t *)(src + 0 * stride), vreinterpret_u32_u8(p0q0), 1);
-  vst1_lane_u32((uint32_t *)(src + 1 * stride), vreinterpret_u32_u8(p1q1), 1);
-  vst1_lane_u32((uint32_t *)(src + 2 * stride), vreinterpret_u32_u8(p2q2), 1);
+  store_u8x4_strided_x2(src - stride, stride, p0q0);
+  store_u8x4_strided_x2(src - 2 * stride, 3 * stride, p1q1);
+  store_u8x4_strided_x2(src - 3 * stride, 5 * stride, p2q2);
 }
 
 void aom_lpf_horizontal_6_dual_neon(
