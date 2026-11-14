@@ -11,20 +11,19 @@
 
 #include <arm_neon.h>
 #include <assert.h>
-#include <string.h>
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
 #include "aom_dsp/quantize.h"
 
-static inline uint32_t sum_abs_coeff(const uint32x4_t a) {
+static inline int all_zero_u32x8(const uint32x4_t a, const uint32x4_t b) {
+  const uint32x4_t ab = vorrq_u32(a, b);
 #if AOM_ARCH_AARCH64
-  return vaddvq_u32(a);
+  return vmaxvq_u32(ab) == 0;
 #else
-  const uint64x2_t b = vpaddlq_u32(a);
-  const uint64x1_t c = vadd_u64(vget_low_u64(b), vget_high_u64(b));
-  return (uint32_t)vget_lane_u64(c, 0);
+  const uint32x2_t d = vorr_u32(vget_low_u32(ab), vget_high_u32(ab));
+  return vget_lane_u64(vreinterpret_u64_u32(d), 0) == 0;
 #endif
 }
 
@@ -169,8 +168,9 @@ static void highbd_quantize_b_neon(
 
   intptr_t non_zero_count = n_coeffs;
 
-  assert(n_coeffs > 8);
+  assert(n_coeffs >= 16 && (n_coeffs & 7) == 0);
   // Pre-scan pass
+  const int32x4_t v_zero_s32 = vdupq_n_s32(0);
   const int32x4_t v_zbin_s32x = vdupq_lane_s32(vget_low_s32(v_zbin_s32), 1);
   intptr_t i = n_coeffs;
   do {
@@ -181,19 +181,18 @@ static void highbd_quantize_b_neon(
     const uint32x4_t v_mask_a = vcgeq_s32(v_abs_coeff_a, v_zbin_s32x);
     const uint32x4_t v_mask_b = vcgeq_s32(v_abs_coeff_b, v_zbin_s32x);
     // If the coefficient is in the base ZBIN range, then discard.
-    if (sum_abs_coeff(v_mask_a) + sum_abs_coeff(v_mask_b) == 0) {
+    if (all_zero_u32x8(v_mask_a, v_mask_b)) {
+      vst1q_s32(qcoeff_ptr + i - 8, v_zero_s32);
+      vst1q_s32(qcoeff_ptr + i - 4, v_zero_s32);
+      vst1q_s32(dqcoeff_ptr + i - 8, v_zero_s32);
+      vst1q_s32(dqcoeff_ptr + i - 4, v_zero_s32);
       non_zero_count -= 8;
     } else {
       break;
     }
     i -= 8;
-  } while (i > 0);
-
-  const intptr_t remaining_zcoeffs = n_coeffs - non_zero_count;
-  memset(qcoeff_ptr + non_zero_count, 0,
-         remaining_zcoeffs * sizeof(*qcoeff_ptr));
-  memset(dqcoeff_ptr + non_zero_count, 0,
-         remaining_zcoeffs * sizeof(*dqcoeff_ptr));
+    // The first 8 coefficients are always quantized below.
+  } while (i != 8);
 
   // DC and first 3 AC
   v_mask_lo =
@@ -216,7 +215,7 @@ static void highbd_quantize_b_neon(
       get_max_lane_eob(iscan, v_eobmax, vcombine_u16(v_mask_lo, v_mask_hi));
 
   intptr_t count = non_zero_count - 8;
-  for (; count > 0; count -= 8) {
+  for (; count != 0; count -= 8) {
     coeff_ptr += 8;
     qcoeff_ptr += 8;
     dqcoeff_ptr += 8;
@@ -302,13 +301,14 @@ static void highbd_quantize_b_adaptive_neon(
   int16x8_t v_eobmax = vdupq_n_s16(-1);
   int16x8_t v_eobmin = vdupq_n_s16((int16_t)n_coeffs);
 
-  assert(n_coeffs > 8);
+  assert(n_coeffs >= 16 && (n_coeffs & 7) == 0);
   // Pre-scan pass
   const int32x4_t v_zbin_s32x = vdupq_lane_s32(vget_low_s32(v_zbin_s32), 1);
   const int prescan_add_1 =
       ROUND_POWER_OF_TWO(dequant_ptr[1] * EOB_FACTOR, 7 + AOM_QM_BITS);
   const int32x4_t v_zbin_prescan =
       vaddq_s32(v_zbin_s32x, vdupq_n_s32(prescan_add_1));
+  const int32x4_t v_zero_s32 = vdupq_n_s32(0);
   intptr_t non_zero_count = n_coeffs;
   intptr_t i = n_coeffs;
   do {
@@ -319,19 +319,18 @@ static void highbd_quantize_b_adaptive_neon(
     const uint32x4_t v_mask_a = vcgeq_s32(v_abs_coeff_a, v_zbin_prescan);
     const uint32x4_t v_mask_b = vcgeq_s32(v_abs_coeff_b, v_zbin_prescan);
     // If the coefficient is in the base ZBIN range, then discard.
-    if (sum_abs_coeff(v_mask_a) + sum_abs_coeff(v_mask_b) == 0) {
+    if (all_zero_u32x8(v_mask_a, v_mask_b)) {
+      vst1q_s32(qcoeff_ptr + i - 8, v_zero_s32);
+      vst1q_s32(qcoeff_ptr + i - 4, v_zero_s32);
+      vst1q_s32(dqcoeff_ptr + i - 8, v_zero_s32);
+      vst1q_s32(dqcoeff_ptr + i - 4, v_zero_s32);
       non_zero_count -= 8;
     } else {
       break;
     }
     i -= 8;
-  } while (i > 0);
-
-  const intptr_t remaining_zcoeffs = n_coeffs - non_zero_count;
-  memset(qcoeff_ptr + non_zero_count, 0,
-         remaining_zcoeffs * sizeof(*qcoeff_ptr));
-  memset(dqcoeff_ptr + non_zero_count, 0,
-         remaining_zcoeffs * sizeof(*dqcoeff_ptr));
+    // The first 8 coefficients are always quantized below.
+  } while (i != 8);
 
   // DC and first 3 AC
   v_mask_lo =
@@ -354,7 +353,7 @@ static void highbd_quantize_b_adaptive_neon(
                        vcombine_u16(v_mask_lo, v_mask_hi), n_coeffs);
 
   intptr_t count = non_zero_count - 8;
-  for (; count > 0; count -= 8) {
+  for (; count != 0; count -= 8) {
     coeff_ptr += 8;
     qcoeff_ptr += 8;
     dqcoeff_ptr += 8;
