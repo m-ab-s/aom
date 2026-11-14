@@ -119,4 +119,10 @@ INSTANTIATE_TEST_SUITE_P(
     SSE3, FastSoftmaxTest,
     ::testing::Values(FastSoftmaxTestParams(av1_nn_fast_softmax_16_sse3, 16)));
 #endif
+
+#if HAVE_NEON && !CONFIG_EXCLUDE_SIMD_MISMATCH
+INSTANTIATE_TEST_SUITE_P(
+    NEON, FastSoftmaxTest,
+    ::testing::Values(FastSoftmaxTestParams(av1_nn_fast_softmax_16_neon, 16)));
+#endif
 }  // namespace
