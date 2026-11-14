@@ -1106,7 +1106,15 @@ int av1_get_sbq_variance_boost(const AV1_COMP *cpi, const MACROBLOCK *x) {
   // Variance Boost only supports 64x64 SBs.
   assert(cm->seq_params->sb_size == BLOCK_64X64);
 
+  if (cpi->oxcf.q_cfg.deltaq_strength == 0) {
+    return AOMMAX(base_qindex, MINQ + 1);
+  }
+
   unsigned int variance = av1_get_variance_boost_block_variance(cpi, x);
+  if (variance >= 1024) {
+    return AOMMAX(base_qindex, MINQ + 1);
+  }
+
   // Compute Variance Boost strength from the deltaq_strength value.
   double strength = (cpi->oxcf.q_cfg.deltaq_strength / 100.0) * 3.0;
 

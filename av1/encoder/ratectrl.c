@@ -209,17 +209,22 @@ double av1_convert_qindex_to_q(int qindex, aom_bit_depth_t bit_depth) {
 }
 
 int av1_convert_q_to_qindex(double q, aom_bit_depth_t bit_depth) {
-  int qindex = MINQ;
+  int low = MINQ;
+  int high = MAXQ;
 
-  // Find the first qindex that matches or exceeds q.
-  // Note: this operation can also be done with a binary search, as
+  // Find the first qindex that matches or exceeds q via binary search, as
   // av1_convert_qindex_to_q() is monotonically increasing with respect to
   // increasing qindex.
-  while (qindex < MAXQ && av1_convert_qindex_to_q(qindex, bit_depth) < q) {
-    qindex++;
+  while (low < high) {
+    const int mid = (low + high) >> 1;
+    if (av1_convert_qindex_to_q(mid, bit_depth) < q) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
   }
 
-  return qindex;
+  return low;
 }
 
 // Gets the appropriate bpmb enumerator based on the frame and content type
