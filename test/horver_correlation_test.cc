@@ -263,6 +263,12 @@ TEST_P(EnergyDistributionTest, ZeroValues) { RunZeroTest(); }
 
 TEST_P(EnergyDistributionTest, ExtremeValues) { RunExtremeValuesTest(); }
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, EnergyDistributionTest,
+    ::testing::Values(av1_get_energy_distribution_finer_neon));
+#endif  // HAVE_NEON
+
 #if HAVE_AVX2
 INSTANTIATE_TEST_SUITE_P(
     AVX2, EnergyDistributionTest,
