@@ -1979,17 +1979,20 @@ void av1_highbd_convolve_2d_sr_intrabc_neon(
   assert(filter_params_x->taps == 2 && filter_params_y->taps == 2);
   assert((conv_params->round_0 + conv_params->round_1) == 2 * FILTER_BITS);
   assert(w <= MAX_SB_SIZE && h <= MAX_SB_SIZE);
-  (void)filter_params_x;
+  assert(w >= 2 && h >= 2);
+  assert((w & 1) == 0 && (h & 1) == 0);
+  assert(w <= 8 || (w & 15) == 0);
   (void)subpel_x_qn;
-  (void)filter_params_y;
   (void)subpel_y_qn;
+  (void)filter_params_x;
+  (void)filter_params_y;
   (void)conv_params;
   (void)bd;
 
   DECLARE_ALIGNED(16, uint16_t,
                   im_block[(MAX_SB_SIZE + MAX_FILTER_TAP - 1) * MAX_SB_SIZE]);
   int im_h = h + 1;
-  int im_stride = MAX_SB_SIZE;
+  const int im_stride = w <= 4 ? 4 : w;
 
   uint16x8_t vert_offset = vdupq_n_u16(1);
 
@@ -1998,6 +2001,9 @@ void av1_highbd_convolve_2d_sr_intrabc_neon(
   // Horizontal filter.
   if (w <= 4) {
     do {
+      // Load at most 5 pixels per row. A full 8-pixel load would read
+      // pixels to the right of the reference block, which may be in a region
+      // that is concurrently being reconstructed by another encoder thread.
       uint16x4_t s0 = vld1_u16(src);
       uint16x4_t s1 = vld1_u16(src + 1);
 
@@ -2005,6 +2011,16 @@ void av1_highbd_convolve_2d_sr_intrabc_neon(
 
       // Safe to store the whole vector, the im buffer is big enough.
       vst1_u16(im, d0);
+
+      src += src_stride;
+      im += im_stride;
+    } while (--im_h != 0);
+  } else if (w == 8) {
+    do {
+      uint16x8_t s0 = vld1q_u16(src);
+      uint16x8_t s1 = vld1q_u16(src + 1);
+
+      vst1q_u16(im, vaddq_u16(s0, s1));
 
       src += src_stride;
       im += im_stride;
@@ -2018,14 +2034,15 @@ void av1_highbd_convolve_2d_sr_intrabc_neon(
       do {
         uint16x8_t s0 = vld1q_u16(src_ptr);
         uint16x8_t s1 = vld1q_u16(src_ptr + 1);
+        uint16x8_t s2 = vld1q_u16(src_ptr + 8);
+        uint16x8_t s3 = vld1q_u16(src_ptr + 9);
 
-        uint16x8_t d0 = vaddq_u16(s0, s1);
+        vst1q_u16(im_ptr, vaddq_u16(s0, s1));
+        vst1q_u16(im_ptr + 8, vaddq_u16(s2, s3));
 
-        vst1q_u16(im_ptr, d0);
-
-        src_ptr += 8;
-        im_ptr += 8;
-        width -= 8;
+        src_ptr += 16;
+        im_ptr += 16;
+        width -= 16;
       } while (width != 0);
       src += src_stride;
       im += im_stride;
@@ -2036,40 +2053,50 @@ void av1_highbd_convolve_2d_sr_intrabc_neon(
 
   // Vertical filter.
   if (w <= 4) {
+    const uint16x4_t v_off = vget_low_u16(vert_offset);
+    uint16x4_t s0 = vld1_u16(im);
     do {
-      uint16x4_t s0 = vld1_u16(im);
       uint16x4_t s1 = vld1_u16(im + im_stride);
+      uint16x4_t s2 = vld1_u16(im + 2 * im_stride);
 
-      uint16x4_t d0 = vhadd_u16(s0, s1);
-      d0 = vhadd_u16(d0, vget_low_u16(vert_offset));
+      uint16x4_t d0 = vhadd_u16(vhadd_u16(s0, s1), v_off);
+      uint16x4_t d1 = vhadd_u16(vhadd_u16(s1, s2), v_off);
 
       if (w == 2) {
-        store_u16_2x1(dst, d0);
+        store_u16_2x1(dst + 0 * dst_stride, d0);
+        store_u16_2x1(dst + 1 * dst_stride, d1);
       } else {
-        vst1_u16(dst, d0);
+        vst1_u16(dst + 0 * dst_stride, d0);
+        vst1_u16(dst + 1 * dst_stride, d1);
       }
 
-      im += im_stride;
-      dst += dst_stride;
-    } while (--h != 0);
+      s0 = s2;
+      im += 2 * im_stride;
+      dst += 2 * dst_stride;
+      h -= 2;
+    } while (h != 0);
   } else {
     do {
       uint16_t *im_ptr = im;
       uint16_t *dst_ptr = dst;
       int height = h;
+      uint16x8_t s0 = vld1q_u16(im_ptr);
 
       do {
-        uint16x8_t s0 = vld1q_u16(im_ptr);
         uint16x8_t s1 = vld1q_u16(im_ptr + im_stride);
+        uint16x8_t s2 = vld1q_u16(im_ptr + 2 * im_stride);
 
-        uint16x8_t d0 = vhaddq_u16(s0, s1);
-        d0 = vhaddq_u16(d0, vert_offset);
+        uint16x8_t d0 = vhaddq_u16(vhaddq_u16(s0, s1), vert_offset);
+        uint16x8_t d1 = vhaddq_u16(vhaddq_u16(s1, s2), vert_offset);
 
         vst1q_u16(dst_ptr, d0);
+        vst1q_u16(dst_ptr + dst_stride, d1);
 
-        im_ptr += im_stride;
-        dst_ptr += dst_stride;
-      } while (--height != 0);
+        s0 = s2;
+        im_ptr += 2 * im_stride;
+        dst_ptr += 2 * dst_stride;
+        height -= 2;
+      } while (height != 0);
       im += 8;
       dst += 8;
       w -= 8;
