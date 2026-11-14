@@ -10,6 +10,7 @@
  */
 
 #include <arm_neon.h>
+#include <assert.h>
 
 #include "config/aom_dsp_rtcd.h"
 #include "aom_dsp/arm/sum_neon.h"
@@ -153,110 +154,128 @@ static inline int64_t highbd_sse_32xh_neon(const uint16_t *src, int src_stride,
 static inline int64_t highbd_sse_16xh_neon(const uint16_t *src, int src_stride,
                                            const uint16_t *ref, int ref_stride,
                                            int height) {
-  uint32x4_t sse[4];
+  assert(height >= 2 && (height & 1) == 0);
+  uint32x4_t sse[8];
   highbd_sse_8x1_init_neon(src + 0 * 8, ref + 0 * 8, &sse[0], &sse[1]);
   highbd_sse_8x1_init_neon(src + 1 * 8, ref + 1 * 8, &sse[2], &sse[3]);
-
+  src += src_stride;
+  ref += ref_stride;
+  highbd_sse_8x1_init_neon(src + 0 * 8, ref + 0 * 8, &sse[4], &sse[5]);
+  highbd_sse_8x1_init_neon(src + 1 * 8, ref + 1 * 8, &sse[6], &sse[7]);
   src += src_stride;
   ref += ref_stride;
 
-  while (--height != 0) {
+  height -= 2;
+  while (height != 0) {
     highbd_sse_8x1_neon(src + 0 * 8, ref + 0 * 8, &sse[0], &sse[1]);
     highbd_sse_8x1_neon(src + 1 * 8, ref + 1 * 8, &sse[2], &sse[3]);
-
     src += src_stride;
     ref += ref_stride;
+    highbd_sse_8x1_neon(src + 0 * 8, ref + 0 * 8, &sse[4], &sse[5]);
+    highbd_sse_8x1_neon(src + 1 * 8, ref + 1 * 8, &sse[6], &sse[7]);
+    src += src_stride;
+    ref += ref_stride;
+    height -= 2;
   }
 
-  return horizontal_long_add_u32x4_x4(sse);
+  return horizontal_long_add_u32x4_x8(sse);
 }
 
 static inline int64_t highbd_sse_8xh_neon(const uint16_t *src, int src_stride,
                                           const uint16_t *ref, int ref_stride,
                                           int height) {
-  uint32x4_t sse[2];
+  assert(height >= 2 && (height & 1) == 0);
+  uint32x4_t sse[4];
   highbd_sse_8x1_init_neon(src, ref, &sse[0], &sse[1]);
-
+  src += src_stride;
+  ref += ref_stride;
+  highbd_sse_8x1_init_neon(src, ref, &sse[2], &sse[3]);
   src += src_stride;
   ref += ref_stride;
 
-  while (--height != 0) {
+  height -= 2;
+  while (height != 0) {
     highbd_sse_8x1_neon(src, ref, &sse[0], &sse[1]);
-
     src += src_stride;
     ref += ref_stride;
+    highbd_sse_8x1_neon(src, ref, &sse[2], &sse[3]);
+    src += src_stride;
+    ref += ref_stride;
+    height -= 2;
   }
 
-  return horizontal_long_add_u32x4_x2(sse);
+  return horizontal_long_add_u32x4_x4(sse);
 }
 
 static inline int64_t highbd_sse_4xh_neon(const uint16_t *src, int src_stride,
                                           const uint16_t *ref, int ref_stride,
                                           int height) {
+  assert(height >= 2 && (height & 1) == 0);
   // Peel the first loop iteration.
-  uint16x4_t s = vld1_u16(src);
-  uint16x4_t r = vld1_u16(ref);
+  uint32x4_t sse[2];
+  uint16x8_t s = vcombine_u16(vld1_u16(src), vld1_u16(src + src_stride));
+  uint16x8_t r = vcombine_u16(vld1_u16(ref), vld1_u16(ref + ref_stride));
+  uint16x8_t abs_diff = vabdq_u16(s, r);
+  sse[0] = vmull_u16(vget_low_u16(abs_diff), vget_low_u16(abs_diff));
+  sse[1] = vmull_u16(vget_high_u16(abs_diff), vget_high_u16(abs_diff));
+  src += 2 * src_stride;
+  ref += 2 * ref_stride;
 
-  uint16x4_t abs_diff = vabd_u16(s, r);
-  uint32x4_t sse = vmull_u16(abs_diff, abs_diff);
-
-  src += src_stride;
-  ref += ref_stride;
-
-  while (--height != 0) {
-    s = vld1_u16(src);
-    r = vld1_u16(ref);
-
-    abs_diff = vabd_u16(s, r);
-    sse = vmlal_u16(sse, abs_diff, abs_diff);
-
-    src += src_stride;
-    ref += ref_stride;
+  height -= 2;
+  while (height != 0) {
+    s = vcombine_u16(vld1_u16(src), vld1_u16(src + src_stride));
+    r = vcombine_u16(vld1_u16(ref), vld1_u16(ref + ref_stride));
+    abs_diff = vabdq_u16(s, r);
+    sse[0] = vmlal_u16(sse[0], vget_low_u16(abs_diff), vget_low_u16(abs_diff));
+    sse[1] =
+        vmlal_u16(sse[1], vget_high_u16(abs_diff), vget_high_u16(abs_diff));
+    src += 2 * src_stride;
+    ref += 2 * ref_stride;
+    height -= 2;
   }
 
-  return horizontal_long_add_u32x4(sse);
+  return horizontal_long_add_u32x4_x2(sse);
 }
 
 static inline int64_t highbd_sse_wxh_neon(const uint16_t *src, int src_stride,
                                           const uint16_t *ref, int ref_stride,
                                           int width, int height) {
+  assert(width >= 8);
   // { 0, 1, 2, 3, 4, 5, 6, 7 }
-  uint16x8_t k01234567 = vmovl_u8(vcreate_u8(0x0706050403020100));
-  uint16x8_t remainder_mask = vcltq_u16(k01234567, vdupq_n_u16(width & 7));
-  uint64_t sse = 0;
+  const uint16x8_t k01234567 = vmovl_u8(vcreate_u8(0x0706050403020100));
+  const uint16x8_t remainder_mask =
+      vcltq_u16(k01234567, vdupq_n_u16(width & 7));
+  uint64x2_t sse_u64 = vdupq_n_u64(0);
 
   do {
-    int w = width;
-    int offset = 0;
+    int w = width - 8;
+    int offset = 8;
+    uint32x4_t sse_u32[2];
+    highbd_sse_8x1_init_neon(src, ref, &sse_u32[0], &sse_u32[1]);
 
-    do {
-      uint16x8_t s = vld1q_u16(src + offset);
-      uint16x8_t r = vld1q_u16(ref + offset);
-
-      if (w < 8) {
-        // Mask out-of-range elements.
-        s = vandq_u16(s, remainder_mask);
-        r = vandq_u16(r, remainder_mask);
-      }
-
-      uint16x8_t abs_diff = vabdq_u16(s, r);
-      uint16x4_t abs_diff_lo = vget_low_u16(abs_diff);
-      uint16x4_t abs_diff_hi = vget_high_u16(abs_diff);
-
-      uint32x4_t sse_u32 = vmull_u16(abs_diff_lo, abs_diff_lo);
-      sse_u32 = vmlal_u16(sse_u32, abs_diff_hi, abs_diff_hi);
-
-      sse += horizontal_long_add_u32x4(sse_u32);
-
+    while (w >= 8) {
+      highbd_sse_8x1_neon(src + offset, ref + offset, &sse_u32[0], &sse_u32[1]);
       offset += 8;
       w -= 8;
-    } while (w > 0);
+    }
 
+    if (w > 0) {
+      const uint16x8_t s = vandq_u16(vld1q_u16(src + offset), remainder_mask);
+      const uint16x8_t r = vandq_u16(vld1q_u16(ref + offset), remainder_mask);
+      const uint16x8_t abs_diff = vabdq_u16(s, r);
+      sse_u32[0] =
+          vmlal_u16(sse_u32[0], vget_low_u16(abs_diff), vget_low_u16(abs_diff));
+      sse_u32[1] = vmlal_u16(sse_u32[1], vget_high_u16(abs_diff),
+                             vget_high_u16(abs_diff));
+    }
+
+    sse_u64 = vpadalq_u32(sse_u64, sse_u32[0]);
+    sse_u64 = vpadalq_u32(sse_u64, sse_u32[1]);
     src += src_stride;
     ref += ref_stride;
   } while (--height != 0);
 
-  return sse;
+  return horizontal_add_u64x2(sse_u64);
 }
 
 int64_t aom_highbd_sse_neon(const uint8_t *src8, int src_stride,
