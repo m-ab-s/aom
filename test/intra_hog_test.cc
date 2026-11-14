@@ -264,7 +264,26 @@ TEST(IntraHogRefTest, HighbdGenerateHogMatchesTextbookOracle) {
         av1_highbd_generate_hog_sse2(CONVERT_TO_BYTEPTR(patch), 3, 3, 3,
                                      hist_sse2);
         ExpectHogNear(hist_ref, hist_sse2, 3, 3, 3, 12);
-#endif
+#endif  // HAVE_SSE2
+#if HAVE_NEON
+        float hist_neon_3x3[kHogBins] = { 0.0f };
+        av1_highbd_generate_hog_neon(CONVERT_TO_BYTEPTR(patch), 3, 3, 3,
+                                     hist_neon_3x3);
+        ExpectHogNear(hist_ref, hist_neon_3x3, 3, 3, 3, 12);
+
+        // Embed the 3x3 patch in a 3x10 buffer (cols >= 10) so AArch64 NEON
+        // enters the 8-pixel compute_8_bins_neon vector loop at c = 1.
+        uint16_t patch_3x10[3 * 10] = { 0 };
+        for (int r = 0; r < 3; ++r) {
+          for (int c = 0; c < 3; ++c) patch_3x10[r * 10 + c] = patch[r * 3 + c];
+        }
+        float hist_ref_3x10[kHogBins] = { 0.0f };
+        float hist_neon_3x10[kHogBins] = { 0.0f };
+        RefGenerateHog(patch_3x10, 10, 3, 10, hist_ref_3x10);
+        av1_highbd_generate_hog_neon(CONVERT_TO_BYTEPTR(patch_3x10), 10, 3, 10,
+                                     hist_neon_3x10);
+        ExpectHogNear(hist_ref_3x10, hist_neon_3x10, 3, 10, 10, 12);
+#endif  // HAVE_NEON
       }
     }
   }
@@ -371,6 +390,13 @@ INSTANTIATE_TEST_SUITE_P(SSE2, LowbdIntraHogSimdTest,
                              &av1_lowbd_compute_gradient_info_sb_sse2)));
 #endif  // HAVE_SSE2
 
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(NEON, LowbdIntraHogSimdTest,
+                         ::testing::Values(std::make_tuple(
+                             &av1_lowbd_generate_hog_neon,
+                             &av1_lowbd_compute_gradient_info_sb_neon)));
+#endif  // HAVE_NEON
+
 #if CONFIG_AV1_HIGHBITDEPTH
 class HighbdIntraHogSimdTest
     : public ::testing::TestWithParam<
@@ -472,6 +498,15 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(&av1_highbd_compute_gradient_info_sb_sse2),
         ::testing::Values(8, 10, 12)));
 #endif  // HAVE_SSE2
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, HighbdIntraHogSimdTest,
+    ::testing::Combine(
+        ::testing::Values(&av1_highbd_generate_hog_neon),
+        ::testing::Values(&av1_highbd_compute_gradient_info_sb_neon),
+        ::testing::Values(8, 10, 12)));
+#endif  // HAVE_NEON
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 }  // namespace

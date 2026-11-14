@@ -411,6 +411,7 @@ list(APPEND AOM_AV1_ENCODER_INTRIN_NEON
             "${AOM_ROOT}/av1/encoder/arm/encodetxb_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/highbd_fwd_txfm_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/hybrid_fwd_txfm_neon.c"
+            "${AOM_ROOT}/av1/encoder/arm/intra_mode_search_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/pickrst_neon.c"
             "${AOM_ROOT}/av1/encoder/arm/pickrst_neon.h"
             "${AOM_ROOT}/av1/encoder/arm/quantize_neon.c"
