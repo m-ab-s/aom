@@ -24,17 +24,30 @@ static inline uint64_t aom_sum_squares_2d_i16_4x4_neon(const int16_t *src,
   int16x4_t s2 = vld1_s16(src + 2 * stride);
   int16x4_t s3 = vld1_s16(src + 3 * stride);
 
-  int32x4_t sum_squares = vmull_s16(s0, s0);
-  sum_squares = vmlal_s16(sum_squares, s1, s1);
-  sum_squares = vmlal_s16(sum_squares, s2, s2);
-  sum_squares = vmlal_s16(sum_squares, s3, s3);
+  int16x8_t s01 = vcombine_s16(s0, s1);
+  int16x8_t s23 = vcombine_s16(s2, s3);
 
-  return horizontal_long_add_u32x4(vreinterpretq_u32_s32(sum_squares));
+  int32x4_t sum_squares0 = vmull_s16(vget_low_s16(s01), vget_low_s16(s01));
+  int32x4_t sum_squares1 = vmull_s16(vget_low_s16(s23), vget_low_s16(s23));
+
+#if AOM_ARCH_AARCH64
+  sum_squares0 = vmlal_high_s16(sum_squares0, s01, s01);
+  sum_squares1 = vmlal_high_s16(sum_squares1, s23, s23);
+#else
+  sum_squares0 =
+      vmlal_s16(sum_squares0, vget_high_s16(s01), vget_high_s16(s01));
+  sum_squares1 =
+      vmlal_s16(sum_squares1, vget_high_s16(s23), vget_high_s16(s23));
+#endif
+
+  return horizontal_long_add_u32x4(
+      vreinterpretq_u32_s32(vaddq_s32(sum_squares0, sum_squares1)));
 }
 
 static inline uint64_t aom_sum_squares_2d_i16_4xn_neon(const int16_t *src,
                                                        int stride, int height) {
-  int32x4_t sum_squares[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
+  int32x4_t sum_squares0 = vdupq_n_s32(0);
+  int32x4_t sum_squares1 = vdupq_n_s32(0);
 
   int h = height;
   do {
@@ -43,17 +56,29 @@ static inline uint64_t aom_sum_squares_2d_i16_4xn_neon(const int16_t *src,
     int16x4_t s2 = vld1_s16(src + 2 * stride);
     int16x4_t s3 = vld1_s16(src + 3 * stride);
 
-    sum_squares[0] = vmlal_s16(sum_squares[0], s0, s0);
-    sum_squares[0] = vmlal_s16(sum_squares[0], s1, s1);
-    sum_squares[1] = vmlal_s16(sum_squares[1], s2, s2);
-    sum_squares[1] = vmlal_s16(sum_squares[1], s3, s3);
+    int16x8_t s01 = vcombine_s16(s0, s1);
+    int16x8_t s23 = vcombine_s16(s2, s3);
+
+    sum_squares0 =
+        vmlal_s16(sum_squares0, vget_low_s16(s01), vget_low_s16(s01));
+    sum_squares1 =
+        vmlal_s16(sum_squares1, vget_low_s16(s23), vget_low_s16(s23));
+#if AOM_ARCH_AARCH64
+    sum_squares0 = vmlal_high_s16(sum_squares0, s01, s01);
+    sum_squares1 = vmlal_high_s16(sum_squares1, s23, s23);
+#else
+    sum_squares0 =
+        vmlal_s16(sum_squares0, vget_high_s16(s01), vget_high_s16(s01));
+    sum_squares1 =
+        vmlal_s16(sum_squares1, vget_high_s16(s23), vget_high_s16(s23));
+#endif
 
     src += 4 * stride;
     h -= 4;
   } while (h != 0);
 
   return horizontal_long_add_u32x4(
-      vreinterpretq_u32_s32(vaddq_s32(sum_squares[0], sum_squares[1])));
+      vreinterpretq_u32_s32(vaddq_s32(sum_squares0, sum_squares1)));
 }
 
 static inline uint64_t aom_sum_squares_2d_i16_nxn_neon(const int16_t *src,
@@ -117,23 +142,34 @@ static inline uint64_t aom_sum_sse_2d_i16_4x4_neon(const int16_t *src,
   int16x4_t s2 = vld1_s16(src + 2 * stride);
   int16x4_t s3 = vld1_s16(src + 3 * stride);
 
-  int32x4_t sse = vmull_s16(s0, s0);
-  sse = vmlal_s16(sse, s1, s1);
-  sse = vmlal_s16(sse, s2, s2);
-  sse = vmlal_s16(sse, s3, s3);
+  int16x8_t s01 = vcombine_s16(s0, s1);
+  int16x8_t s23 = vcombine_s16(s2, s3);
 
-  int32x4_t sum_01 = vaddl_s16(s0, s1);
-  int32x4_t sum_23 = vaddl_s16(s2, s3);
-  *sum += horizontal_add_s32x4(vaddq_s32(sum_01, sum_23));
+  int32x4_t sse_0 = vmull_s16(vget_low_s16(s01), vget_low_s16(s01));
+  int32x4_t sse_1 = vmull_s16(vget_low_s16(s23), vget_low_s16(s23));
 
-  return horizontal_long_add_u32x4(vreinterpretq_u32_s32(sse));
+#if AOM_ARCH_AARCH64
+  sse_0 = vmlal_high_s16(sse_0, s01, s01);
+  sse_1 = vmlal_high_s16(sse_1, s23, s23);
+#else
+  sse_0 = vmlal_s16(sse_0, vget_high_s16(s01), vget_high_s16(s01));
+  sse_1 = vmlal_s16(sse_1, vget_high_s16(s23), vget_high_s16(s23));
+#endif
+
+  int32x4_t sum_acc = vpaddlq_s16(s01);
+  sum_acc = vpadalq_s16(sum_acc, s23);
+  *sum += horizontal_add_s32x4(sum_acc);
+
+  return horizontal_long_add_u32x4(
+      vreinterpretq_u32_s32(vaddq_s32(sse_0, sse_1)));
 }
 
 static inline uint64_t aom_sum_sse_2d_i16_4xn_neon(const int16_t *src,
                                                    int stride, int height,
                                                    int *sum) {
-  int32x4_t sse[2] = { vdupq_n_s32(0), vdupq_n_s32(0) };
-  int32x2_t sum_acc[2] = { vdup_n_s32(0), vdup_n_s32(0) };
+  int32x4_t sse_0 = vdupq_n_s32(0);
+  int32x4_t sse_1 = vdupq_n_s32(0);
+  int32x4_t sum_acc = vdupq_n_s32(0);
 
   int h = height;
   do {
@@ -142,23 +178,29 @@ static inline uint64_t aom_sum_sse_2d_i16_4xn_neon(const int16_t *src,
     int16x4_t s2 = vld1_s16(src + 2 * stride);
     int16x4_t s3 = vld1_s16(src + 3 * stride);
 
-    sse[0] = vmlal_s16(sse[0], s0, s0);
-    sse[0] = vmlal_s16(sse[0], s1, s1);
-    sse[1] = vmlal_s16(sse[1], s2, s2);
-    sse[1] = vmlal_s16(sse[1], s3, s3);
+    int16x8_t s01 = vcombine_s16(s0, s1);
+    int16x8_t s23 = vcombine_s16(s2, s3);
 
-    sum_acc[0] = vpadal_s16(sum_acc[0], s0);
-    sum_acc[0] = vpadal_s16(sum_acc[0], s1);
-    sum_acc[1] = vpadal_s16(sum_acc[1], s2);
-    sum_acc[1] = vpadal_s16(sum_acc[1], s3);
+    sse_0 = vmlal_s16(sse_0, vget_low_s16(s01), vget_low_s16(s01));
+    sse_1 = vmlal_s16(sse_1, vget_low_s16(s23), vget_low_s16(s23));
+#if AOM_ARCH_AARCH64
+    sse_0 = vmlal_high_s16(sse_0, s01, s01);
+    sse_1 = vmlal_high_s16(sse_1, s23, s23);
+#else
+    sse_0 = vmlal_s16(sse_0, vget_high_s16(s01), vget_high_s16(s01));
+    sse_1 = vmlal_s16(sse_1, vget_high_s16(s23), vget_high_s16(s23));
+#endif
+
+    sum_acc = vpadalq_s16(sum_acc, s01);
+    sum_acc = vpadalq_s16(sum_acc, s23);
 
     src += 4 * stride;
     h -= 4;
   } while (h != 0);
 
-  *sum += horizontal_add_s32x4(vcombine_s32(sum_acc[0], sum_acc[1]));
+  *sum += horizontal_add_s32x4(sum_acc);
   return horizontal_long_add_u32x4(
-      vreinterpretq_u32_s32(vaddq_s32(sse[0], sse[1])));
+      vreinterpretq_u32_s32(vaddq_s32(sse_0, sse_1)));
 }
 
 static inline uint64_t aom_sum_sse_2d_i16_nxn_neon(const int16_t *src,
