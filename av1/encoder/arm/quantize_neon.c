@@ -15,6 +15,7 @@
 #include <math.h>
 
 #include "config/aom_config.h"
+#include "config/av1_rtcd.h"
 
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/sum_neon.h"
@@ -26,6 +27,20 @@
 #include "av1/encoder/av1_quantize.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/rd.h"
+
+static AOM_FORCE_INLINE uint64_t mask_nonzero_u16(uint16x8_t v_mask) {
+#if AOM_ARCH_AARCH64
+  return vmaxvq_u32(vreinterpretq_u32_u16(v_mask));
+#else
+  return vget_lane_u64(vreinterpret_u64_u8(vmovn_u16(v_mask)), 0);
+#endif
+}
+
+static AOM_FORCE_INLINE void store_zero_8_tran_low(tran_low_t *ptr) {
+  const int32x4_t zero = vdupq_n_s32(0);
+  vst1q_s32(ptr, zero);
+  vst1q_s32(ptr + 4, zero);
+}
 
 static inline uint16_t get_max_eob(int16x8_t v_eobmax) {
 #if AOM_ARCH_AARCH64
@@ -54,23 +69,29 @@ static inline int16x8_t get_max_lane_eob(const int16_t *iscan,
   return vmaxq_s16(v_eobmax, v_nz_iscan);
 }
 
-static inline uint16x8_t quantize_fp_8(const tran_low_t *coeff_ptr,
-                                       tran_low_t *qcoeff_ptr,
-                                       tran_low_t *dqcoeff_ptr,
-                                       int16x8_t v_quant, int16x8_t v_dequant,
-                                       int16x8_t v_round, int16x8_t v_zero) {
+static AOM_FORCE_INLINE int16x8_t
+quantize_fp_8(const tran_low_t *coeff_ptr, tran_low_t *qcoeff_ptr,
+              tran_low_t *dqcoeff_ptr, const int16_t *iscan, int16x8_t v_quant,
+              int16x8_t v_dequant, int16x8_t v_round, uint16x8_t v_thresh,
+              int16x8_t v_eobmax) {
   const int16x8_t v_coeff = load_tran_low_to_s16q(&coeff_ptr[0]);
-  const int16x8_t v_coeff_sign = vshrq_n_s16(v_coeff, 15);
   const int16x8_t v_abs = vabsq_s16(v_coeff);
-  const int16x8_t v_tmp = vqaddq_s16(v_abs, v_round);
-  const int16x8_t v_tmp2 = vshrq_n_s16(vqdmulhq_s16(v_tmp, v_quant), 1);
-  const uint16x8_t v_nz_mask = vcgtq_s16(v_tmp2, v_zero);
-  const int16x8_t v_qcoeff_a = veorq_s16(v_tmp2, v_coeff_sign);
-  const int16x8_t v_qcoeff = vsubq_s16(v_qcoeff_a, v_coeff_sign);
-  const int16x8_t v_dqcoeff = vmulq_s16(v_qcoeff, v_dequant);
-  store_s16q_to_tran_low(&qcoeff_ptr[0], v_qcoeff);
-  store_s16q_to_tran_low(&dqcoeff_ptr[0], v_dqcoeff);
-  return v_nz_mask;
+  const uint16x8_t v_mask = vcgeq_u16(vreinterpretq_u16_s16(v_abs), v_thresh);
+  if (mask_nonzero_u16(v_mask)) {
+    const int16x8_t v_coeff_sign = vshrq_n_s16(v_coeff, 15);
+    const int16x8_t v_tmp = vqaddq_s16(v_abs, v_round);
+    const int16x8_t v_tmp2 = vshrq_n_s16(vqdmulhq_s16(v_tmp, v_quant), 1);
+    const uint16x8_t v_nz_mask = vcgtq_s16(v_tmp2, vdupq_n_s16(0));
+    const int16x8_t v_qcoeff_a = veorq_s16(v_tmp2, v_coeff_sign);
+    const int16x8_t v_qcoeff = vsubq_s16(v_qcoeff_a, v_coeff_sign);
+    const int16x8_t v_dqcoeff = vmulq_s16(v_qcoeff, v_dequant);
+    store_s16q_to_tran_low(&qcoeff_ptr[0], v_qcoeff);
+    store_s16q_to_tran_low(&dqcoeff_ptr[0], v_dqcoeff);
+    return get_max_lane_eob(iscan, v_eobmax, v_nz_mask);
+  }
+  store_zero_8_tran_low(&qcoeff_ptr[0]);
+  store_zero_8_tran_low(&dqcoeff_ptr[0]);
+  return v_eobmax;
 }
 
 void av1_quantize_fp_neon(const tran_low_t *coeff_ptr, intptr_t count,
@@ -85,23 +106,24 @@ void av1_quantize_fp_neon(const tran_low_t *coeff_ptr, intptr_t count,
   (void)zbin_ptr;
   (void)quant_shift_ptr;
   (void)scan;
+  assert(count >= 16 && (count & 7) == 0);
 
-  // Quantization pass: All coefficients with index >= zero_flag are
-  // skippable. Note: zero_flag can be zero.
-  const int16x8_t v_zero = vdupq_n_s16(0);
   int16x8_t v_quant = vld1q_s16(quant_ptr);
   int16x8_t v_dequant = vld1q_s16(dequant_ptr);
   int16x8_t v_round = vld1q_s16(round_ptr);
+  uint16x8_t v_thresh = vreinterpretq_u16_s16(vshrq_n_s16(v_dequant, 1));
   int16x8_t v_eobmax_76543210 = vdupq_n_s16(-1);
-  uint16x8_t v_nz_mask;
+
   // process dc and the first seven ac coeffs
-  v_nz_mask = quantize_fp_8(coeff_ptr, qcoeff_ptr, dqcoeff_ptr, v_quant,
-                            v_dequant, v_round, v_zero);
-  v_eobmax_76543210 = get_max_lane_eob(&iscan[0], v_eobmax_76543210, v_nz_mask);
+  v_eobmax_76543210 =
+      quantize_fp_8(coeff_ptr, qcoeff_ptr, dqcoeff_ptr, iscan, v_quant,
+                    v_dequant, v_round, v_thresh, v_eobmax_76543210);
+
   // overwrite the dc constants with ac constants
   v_quant = vdupq_lane_s16(vget_low_s16(v_quant), 1);
   v_dequant = vdupq_lane_s16(vget_low_s16(v_dequant), 1);
   v_round = vdupq_lane_s16(vget_low_s16(v_round), 1);
+  v_thresh = vdupq_lane_u16(vget_low_u16(v_thresh), 1);
 
   count -= 8;
   // now process the rest of the ac coeffs
@@ -110,11 +132,11 @@ void av1_quantize_fp_neon(const tran_low_t *coeff_ptr, intptr_t count,
     qcoeff_ptr += 8;
     dqcoeff_ptr += 8;
     iscan += 8;
-    v_nz_mask = quantize_fp_8(coeff_ptr, qcoeff_ptr, dqcoeff_ptr, v_quant,
-                              v_dequant, v_round, v_zero);
-    v_eobmax_76543210 = get_max_lane_eob(iscan, v_eobmax_76543210, v_nz_mask);
+    v_eobmax_76543210 =
+        quantize_fp_8(coeff_ptr, qcoeff_ptr, dqcoeff_ptr, iscan, v_quant,
+                      v_dequant, v_round, v_thresh, v_eobmax_76543210);
     count -= 8;
-  } while (count > 0);
+  } while (count != 0);
   *eob_ptr = get_max_eob(v_eobmax_76543210);
 }
 
@@ -177,69 +199,78 @@ void av1_quantize_lp_neon(const int16_t *coeff_ptr, intptr_t n_coeffs,
   *eob_ptr = get_max_eob(v_eobmax_76543210);
 }
 
-static AOM_FORCE_INLINE uint16x8_t quantize_fp_logscale_8(
+static AOM_FORCE_INLINE int16x8_t quantize_fp_logscale_8(
     const tran_low_t *coeff_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, int16x8_t v_quant, int16x8_t v_dequant,
-    int16x8_t v_round, int16x8_t v_zero, int log_scale) {
-  const int16x8_t v_log_scale_minus_1 = vdupq_n_s16(log_scale - 1);
-  const int16x8_t v_neg_log_scale_plus_1 = vdupq_n_s16(-(1 + log_scale));
+    tran_low_t *dqcoeff_ptr, const int16_t *iscan, int16x8_t v_quant,
+    int16x8_t v_dequant, int16x8_t v_round, uint16x8_t v_thresh,
+    int16x8_t v_eobmax, int log_scale) {
   const int16x8_t v_coeff = load_tran_low_to_s16q(coeff_ptr);
-  const int16x8_t v_coeff_sign = vshrq_n_s16(v_coeff, 15);
   const int16x8_t v_abs_coeff = vabsq_s16(v_coeff);
   const uint16x8_t v_mask =
-      vcgeq_s16(v_abs_coeff, vshlq_s16(v_dequant, v_neg_log_scale_plus_1));
-  // const int64_t tmp = vmask ? (int64_t)abs_coeff + log_scaled_round : 0
-  const int16x8_t v_tmp = vandq_s16(vqaddq_s16(v_abs_coeff, v_round),
-                                    vreinterpretq_s16_u16(v_mask));
-  const int16x8_t v_tmp2 =
-      vqdmulhq_s16(vshlq_s16(v_tmp, v_log_scale_minus_1), v_quant);
-  const uint16x8_t v_nz_mask = vcgtq_s16(v_tmp2, v_zero);
-  const int16x8_t v_qcoeff =
-      vsubq_s16(veorq_s16(v_tmp2, v_coeff_sign), v_coeff_sign);
-  // Multiplying by dequant here will use all 16 bits. Cast to unsigned before
-  // shifting right. (vshlq_s16 will shift right if shift value is negative)
-  const uint16x8_t v_abs_dqcoeff =
-      vshlq_u16(vreinterpretq_u16_s16(vmulq_s16(v_tmp2, v_dequant)),
-                vdupq_n_s16(-log_scale));
-  const int16x8_t v_dqcoeff =
-      vsubq_s16(veorq_s16(vreinterpretq_s16_u16(v_abs_dqcoeff), v_coeff_sign),
-                v_coeff_sign);
-  store_s16q_to_tran_low(qcoeff_ptr, v_qcoeff);
-  store_s16q_to_tran_low(dqcoeff_ptr, v_dqcoeff);
-  return v_nz_mask;
+      vcgeq_u16(vreinterpretq_u16_s16(v_abs_coeff), v_thresh);
+  if (mask_nonzero_u16(v_mask)) {
+    const int16x8_t v_coeff_sign = vshrq_n_s16(v_coeff, 15);
+    // const int64_t tmp = vmask ? (int64_t)abs_coeff + log_scaled_round : 0
+    const int16x8_t v_tmp = vandq_s16(vqaddq_s16(v_abs_coeff, v_round),
+                                      vreinterpretq_s16_u16(v_mask));
+    const int16x8_t v_tmp2 =
+        vqdmulhq_s16(vshlq_s16(v_tmp, vdupq_n_s16(log_scale - 1)), v_quant);
+    const uint16x8_t v_nz_mask = vcgtq_s16(v_tmp2, vdupq_n_s16(0));
+    const int16x8_t v_qcoeff =
+        vsubq_s16(veorq_s16(v_tmp2, v_coeff_sign), v_coeff_sign);
+    // Multiplying by dequant here will use all 16 bits. Cast to unsigned
+    // before shifting right.
+    const uint16x8_t v_abs_dqcoeff =
+        vshlq_u16(vreinterpretq_u16_s16(vmulq_s16(v_tmp2, v_dequant)),
+                  vdupq_n_s16(-log_scale));
+    const int16x8_t v_dqcoeff =
+        vsubq_s16(veorq_s16(vreinterpretq_s16_u16(v_abs_dqcoeff), v_coeff_sign),
+                  v_coeff_sign);
+    store_s16q_to_tran_low(qcoeff_ptr, v_qcoeff);
+    store_s16q_to_tran_low(dqcoeff_ptr, v_dqcoeff);
+    return get_max_lane_eob(iscan, v_eobmax, v_nz_mask);
+  }
+  store_zero_8_tran_low(qcoeff_ptr);
+  store_zero_8_tran_low(dqcoeff_ptr);
+  return v_eobmax;
 }
 
-static AOM_FORCE_INLINE uint16x8_t quantize_fp_logscale2_8(
+static AOM_FORCE_INLINE int16x8_t quantize_fp_logscale2_8(
     const tran_low_t *coeff_ptr, tran_low_t *qcoeff_ptr,
-    tran_low_t *dqcoeff_ptr, int16x8_t v_quant, int16x8_t v_dequant,
-    int16x8_t v_round, int16x8_t v_zero) {
+    tran_low_t *dqcoeff_ptr, const int16_t *iscan, int16x8_t v_quant,
+    int16x8_t v_dequant, int16x8_t v_round, uint16x8_t v_thresh,
+    int16x8_t v_eobmax) {
   const int16x8_t v_coeff = load_tran_low_to_s16q(coeff_ptr);
-  const int16x8_t v_coeff_sign = vshrq_n_s16(v_coeff, 15);
   const int16x8_t v_abs_coeff = vabsq_s16(v_coeff);
   const uint16x8_t v_mask =
-      vcgeq_u16(vshlq_n_u16(vreinterpretq_u16_s16(v_abs_coeff), 1),
-                vshrq_n_u16(vreinterpretq_u16_s16(v_dequant), 2));
-  // abs_coeff = vmask ? (int64_t)abs_coeff + log_scaled_round : 0
-  const int16x8_t v_tmp = vandq_s16(vqaddq_s16(v_abs_coeff, v_round),
-                                    vreinterpretq_s16_u16(v_mask));
-  // tmp32 = (int)((abs_coeff * quant_ptr[rc != 0]) >> (16 - log_scale));
-  const int16x8_t v_tmp2 =
-      vorrq_s16(vshlq_n_s16(vqdmulhq_s16(v_tmp, v_quant), 1),
-                vreinterpretq_s16_u16(vshrq_n_u16(
-                    vreinterpretq_u16_s16(vmulq_s16(v_tmp, v_quant)), 14)));
-  const uint16x8_t v_nz_mask = vcgtq_s16(v_tmp2, v_zero);
-  const int16x8_t v_qcoeff =
-      vsubq_s16(veorq_s16(v_tmp2, v_coeff_sign), v_coeff_sign);
-  // const tran_low_t abs_dqcoeff = (tmp32 * dequant_ptr[rc != 0]) >> log_scale;
-  const int16x8_t v_abs_dqcoeff =
-      vorrq_s16(vshlq_n_s16(vqdmulhq_s16(v_tmp2, v_dequant), 13),
-                vreinterpretq_s16_u16(vshrq_n_u16(
-                    vreinterpretq_u16_s16(vmulq_s16(v_tmp2, v_dequant)), 2)));
-  const int16x8_t v_dqcoeff =
-      vsubq_s16(veorq_s16(v_abs_dqcoeff, v_coeff_sign), v_coeff_sign);
-  store_s16q_to_tran_low(qcoeff_ptr, v_qcoeff);
-  store_s16q_to_tran_low(dqcoeff_ptr, v_dqcoeff);
-  return v_nz_mask;
+      vcgeq_u16(vreinterpretq_u16_s16(v_abs_coeff), v_thresh);
+  if (mask_nonzero_u16(v_mask)) {
+    const int16x8_t v_coeff_sign = vshrq_n_s16(v_coeff, 15);
+    // abs_coeff = vmask ? (int64_t)abs_coeff + log_scaled_round : 0
+    const int16x8_t v_tmp = vandq_s16(vqaddq_s16(v_abs_coeff, v_round),
+                                      vreinterpretq_s16_u16(v_mask));
+    // tmp32 = (int)((abs_coeff * quant_ptr[rc != 0]) >> (16 - log_scale));
+    const int16x8_t v_tmp2 =
+        vorrq_s16(vshlq_n_s16(vqdmulhq_s16(v_tmp, v_quant), 1),
+                  vreinterpretq_s16_u16(vshrq_n_u16(
+                      vreinterpretq_u16_s16(vmulq_s16(v_tmp, v_quant)), 14)));
+    const uint16x8_t v_nz_mask = vcgtq_s16(v_tmp2, vdupq_n_s16(0));
+    const int16x8_t v_qcoeff =
+        vsubq_s16(veorq_s16(v_tmp2, v_coeff_sign), v_coeff_sign);
+    // abs_dqcoeff = (tmp32 * dequant_ptr[rc != 0]) >> log_scale;
+    const int16x8_t v_abs_dqcoeff =
+        vorrq_s16(vshlq_n_s16(vqdmulhq_s16(v_tmp2, v_dequant), 13),
+                  vreinterpretq_s16_u16(vshrq_n_u16(
+                      vreinterpretq_u16_s16(vmulq_s16(v_tmp2, v_dequant)), 2)));
+    const int16x8_t v_dqcoeff =
+        vsubq_s16(veorq_s16(v_abs_dqcoeff, v_coeff_sign), v_coeff_sign);
+    store_s16q_to_tran_low(qcoeff_ptr, v_qcoeff);
+    store_s16q_to_tran_low(dqcoeff_ptr, v_dqcoeff);
+    return get_max_lane_eob(iscan, v_eobmax, v_nz_mask);
+  }
+  store_zero_8_tran_low(qcoeff_ptr);
+  store_zero_8_tran_low(dqcoeff_ptr);
+  return v_eobmax;
 }
 
 static AOM_FORCE_INLINE void quantize_fp_no_qmatrix_neon(
@@ -247,7 +278,7 @@ static AOM_FORCE_INLINE void quantize_fp_no_qmatrix_neon(
     const int16_t *quant_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
     const int16_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *iscan,
     int log_scale) {
-  const int16x8_t v_zero = vdupq_n_s16(0);
+  assert(n_coeffs > 16 && (n_coeffs & 15) == 0);
   int16x8_t v_quant = vld1q_s16(quant_ptr);
   int16x8_t v_dequant = vld1q_s16(dequant_ptr);
   const int16x8_t v_round_no_scale = vld1q_s16(round_ptr);
@@ -256,66 +287,64 @@ static AOM_FORCE_INLINE void quantize_fp_no_qmatrix_neon(
   int16x8_t v_eobmax_76543210 = vdupq_n_s16(-1);
   intptr_t non_zero_count = n_coeffs;
 
-  assert(n_coeffs > 16);
-  // Pre-scan pass
-  const int16x8_t v_dequant_scaled =
-      vshlq_s16(v_dequant, vdupq_n_s16(-(1 + log_scale)));
-  const int16x8_t v_zbin_s16 =
-      vdupq_lane_s16(vget_low_s16(v_dequant_scaled), 1);
-  intptr_t i = n_coeffs;
+  // Pre-scan pass: compute exact ceil(dequant / 2^(1 + log_scale)) threshold.
+  const uint16x8_t v_bias = vdupq_n_u16((uint16_t)((1 << (1 + log_scale)) - 1));
+  uint16x8_t v_thresh =
+      vshlq_u16(vaddq_u16(vreinterpretq_u16_s16(v_dequant), v_bias),
+                vdupq_n_s16(-(1 + log_scale)));
+  const uint16x8_t v_zbin_u16 = vdupq_lane_u16(vget_low_u16(v_thresh), 1);
   do {
-    const int16x8_t v_coeff_a = load_tran_low_to_s16q(coeff_ptr + i - 8);
-    const int16x8_t v_coeff_b = load_tran_low_to_s16q(coeff_ptr + i - 16);
-    const int16x8_t v_abs_coeff_a = vabsq_s16(v_coeff_a);
-    const int16x8_t v_abs_coeff_b = vabsq_s16(v_coeff_b);
-    const uint16x8_t v_mask_a = vcgeq_s16(v_abs_coeff_a, v_zbin_s16);
-    const uint16x8_t v_mask_b = vcgeq_s16(v_abs_coeff_b, v_zbin_s16);
-    // If the coefficient is in the base ZBIN range, then discard.
-    if (horizontal_long_add_u16x8(v_mask_a, v_mask_b) == 0) {
-      non_zero_count -= 16;
-    } else {
+    const int16x8_t v_coeff_a =
+        load_tran_low_to_s16q(coeff_ptr + non_zero_count - 8);
+    const int16x8_t v_coeff_b =
+        load_tran_low_to_s16q(coeff_ptr + non_zero_count - 16);
+    const uint16x8_t v_abs_a = vreinterpretq_u16_s16(vabsq_s16(v_coeff_a));
+    const uint16x8_t v_abs_b = vreinterpretq_u16_s16(vabsq_s16(v_coeff_b));
+    const uint16x8_t v_mask_a = vcgeq_u16(v_abs_a, v_zbin_u16);
+    const uint16x8_t v_mask_b = vcgeq_u16(v_abs_b, v_zbin_u16);
+    if (mask_nonzero_u16(vorrq_u16(v_mask_a, v_mask_b))) {
       break;
     }
-    i -= 16;
-  } while (i > 0);
-
-  const intptr_t remaining_zcoeffs = n_coeffs - non_zero_count;
-  memset(qcoeff_ptr + non_zero_count, 0,
-         remaining_zcoeffs * sizeof(*qcoeff_ptr));
-  memset(dqcoeff_ptr + non_zero_count, 0,
-         remaining_zcoeffs * sizeof(*dqcoeff_ptr));
+    non_zero_count -= 16;
+    store_zero_8_tran_low(qcoeff_ptr + non_zero_count);
+    store_zero_8_tran_low(qcoeff_ptr + non_zero_count + 8);
+    store_zero_8_tran_low(dqcoeff_ptr + non_zero_count);
+    store_zero_8_tran_low(dqcoeff_ptr + non_zero_count + 8);
+  } while (non_zero_count != 16);
 
   // process dc and the first seven ac coeffs
-  uint16x8_t v_nz_mask;
   if (log_scale == 2) {
-    v_nz_mask = quantize_fp_logscale2_8(coeff_ptr, qcoeff_ptr, dqcoeff_ptr,
-                                        v_quant, v_dequant, v_round, v_zero);
+    v_eobmax_76543210 = quantize_fp_logscale2_8(
+        coeff_ptr, qcoeff_ptr, dqcoeff_ptr, iscan, v_quant, v_dequant, v_round,
+        v_thresh, v_eobmax_76543210);
   } else {
-    v_nz_mask =
-        quantize_fp_logscale_8(coeff_ptr, qcoeff_ptr, dqcoeff_ptr, v_quant,
-                               v_dequant, v_round, v_zero, log_scale);
+    v_eobmax_76543210 = quantize_fp_logscale_8(
+        coeff_ptr, qcoeff_ptr, dqcoeff_ptr, iscan, v_quant, v_dequant, v_round,
+        v_thresh, v_eobmax_76543210, log_scale);
   }
-  v_eobmax_76543210 = get_max_lane_eob(iscan, v_eobmax_76543210, v_nz_mask);
   // overwrite the dc constants with ac constants
   v_quant = vdupq_lane_s16(vget_low_s16(v_quant), 1);
   v_dequant = vdupq_lane_s16(vget_low_s16(v_dequant), 1);
   v_round = vdupq_lane_s16(vget_low_s16(v_round), 1);
+  v_thresh = v_zbin_u16;
 
-  for (intptr_t count = non_zero_count - 8; count > 0; count -= 8) {
+  intptr_t count = non_zero_count - 8;
+  do {
     coeff_ptr += 8;
     qcoeff_ptr += 8;
     dqcoeff_ptr += 8;
     iscan += 8;
     if (log_scale == 2) {
-      v_nz_mask = quantize_fp_logscale2_8(coeff_ptr, qcoeff_ptr, dqcoeff_ptr,
-                                          v_quant, v_dequant, v_round, v_zero);
+      v_eobmax_76543210 = quantize_fp_logscale2_8(
+          coeff_ptr, qcoeff_ptr, dqcoeff_ptr, iscan, v_quant, v_dequant,
+          v_round, v_thresh, v_eobmax_76543210);
     } else {
-      v_nz_mask =
-          quantize_fp_logscale_8(coeff_ptr, qcoeff_ptr, dqcoeff_ptr, v_quant,
-                                 v_dequant, v_round, v_zero, log_scale);
+      v_eobmax_76543210 = quantize_fp_logscale_8(
+          coeff_ptr, qcoeff_ptr, dqcoeff_ptr, iscan, v_quant, v_dequant,
+          v_round, v_thresh, v_eobmax_76543210, log_scale);
     }
-    v_eobmax_76543210 = get_max_lane_eob(iscan, v_eobmax_76543210, v_nz_mask);
-  }
+    count -= 8;
+  } while (count != 0);
   *eob_ptr = get_max_eob(v_eobmax_76543210);
 }
 
@@ -385,12 +414,11 @@ void aom_quantize_b_neon(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
                          tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr,
                          uint16_t *eob_ptr, const int16_t *scan,
                          const int16_t *iscan) {
-  (void)quant_shift_ptr;
   (void)scan;
 
   int16x8_t v_eobmax_76543210 = vdupq_n_s16(-1);
 
-  int16x8_t v_zbins = vdupq_n_s16(zbin_ptr[1]);
+  const int16x8_t v_zbins = vdupq_n_s16(zbin_ptr[1]);
   int16x8_t v_round = vdupq_n_s16(round_ptr[1]);
   int16x8_t v_dequant = vdupq_n_s16(dequant_ptr[1]);
   int16x8_t v_quant = vdupq_n_s16(quant_ptr[1]);
@@ -402,34 +430,37 @@ void aom_quantize_b_neon(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
   int16x8_t v_abs = vabsq_s16(v_coeff);
   uint16x8_t v_cond = vcgeq_s16(v_abs, v_zbins0);
 
-  uint64_t nz_check = vget_lane_u64(vreinterpret_u64_u8(vmovn_u16(v_cond)), 0);
-  if (nz_check) {
-    int16x8_t v_round0 = vsetq_lane_s16(round_ptr[0], v_round, 0);
-    int16x8_t v_quant0 = vsetq_lane_s16(quant_ptr[0], v_quant, 0);
-    int16x8_t v_dequant0 = vsetq_lane_s16(dequant_ptr[0], v_dequant, 0);
+  if (mask_nonzero_u16(v_cond)) {
+    v_round = vsetq_lane_s16(round_ptr[0], v_round, 0);
+    v_quant = vsetq_lane_s16(quant_ptr[0], v_quant, 0);
+    v_dequant = vsetq_lane_s16(dequant_ptr[0], v_dequant, 0);
     // Shift by 1 in order to save one shift in the kernel function.
-    int16x8_t v_quant_shift0 =
-        vsetq_lane_s16(quant_shift_ptr[0] >> 1, v_quant_shift, 0);
+    v_quant_shift = vsetq_lane_s16(quant_shift_ptr[0] >> 1, v_quant_shift, 0);
 
-    const uint16x8_t v_nz_mask = quantize_b_logscale0_8(
-        v_coeff, v_abs, v_cond, v_round0, v_dequant0, v_quant0, v_quant_shift0,
-        qcoeff_ptr, dqcoeff_ptr);
+    const uint16x8_t v_nz_mask =
+        quantize_b_logscale0_8(v_coeff, v_abs, v_cond, v_round, v_dequant,
+                               v_quant, v_quant_shift, qcoeff_ptr, dqcoeff_ptr);
+
+    v_round = vdupq_lane_s16(vget_low_s16(v_round), 1);
+    v_quant = vdupq_lane_s16(vget_low_s16(v_quant), 1);
+    v_dequant = vdupq_lane_s16(vget_low_s16(v_dequant), 1);
+    v_quant_shift = vdupq_lane_s16(vget_low_s16(v_quant_shift), 1);
 
     int16x8_t v_iscan = vld1q_s16(iscan);
     int16x8_t v_eobmax = vmaxq_s16(v_iscan, v_eobmax_76543210);
     v_eobmax_76543210 = vbslq_s16(v_nz_mask, v_eobmax, v_eobmax_76543210);
   } else {
-    store_s16q_to_tran_low(qcoeff_ptr, vdupq_n_s16(0));
-    store_s16q_to_tran_low(dqcoeff_ptr, vdupq_n_s16(0));
+    store_zero_8_tran_low(qcoeff_ptr);
+    store_zero_8_tran_low(dqcoeff_ptr);
   }
 
-  for (int i = 8; i < n_coeffs; i += 8) {
+  intptr_t i = 8;
+  do {
     v_coeff = load_tran_low_to_s16q(coeff_ptr + i);
     v_abs = vabsq_s16(v_coeff);
     v_cond = vcgeq_s16(v_abs, v_zbins);
 
-    nz_check = vget_lane_u64(vreinterpret_u64_u8(vmovn_u16(v_cond)), 0);
-    if (nz_check) {
+    if (mask_nonzero_u16(v_cond)) {
       const uint16x8_t v_nz_mask = quantize_b_logscale0_8(
           v_coeff, v_abs, v_cond, v_round, v_dequant, v_quant, v_quant_shift,
           qcoeff_ptr + i, dqcoeff_ptr + i);
@@ -438,10 +469,11 @@ void aom_quantize_b_neon(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
       int16x8_t v_eobmax = vmaxq_s16(v_iscan, v_eobmax_76543210);
       v_eobmax_76543210 = vbslq_s16(v_nz_mask, v_eobmax, v_eobmax_76543210);
     } else {
-      store_s16q_to_tran_low(qcoeff_ptr + i, vdupq_n_s16(0));
-      store_s16q_to_tran_low(dqcoeff_ptr + i, vdupq_n_s16(0));
+      store_zero_8_tran_low(qcoeff_ptr + i);
+      store_zero_8_tran_low(dqcoeff_ptr + i);
     }
-  }
+    i += 8;
+  } while (i != n_coeffs);
   *eob_ptr = get_max_eob(v_eobmax_76543210);
 }
 
@@ -943,44 +975,66 @@ void aom_quantize_b_32x32_neon(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
 
   int16x8_t v_eobmax_76543210 = vdupq_n_s16(-1);
 
-  int16x8_t v_zbins = vdupq_n_s16(zbins[1]);
+  const int16x8_t v_zbins = vdupq_n_s16(zbins[1]);
   int16x8_t v_round = vdupq_n_s16(rounds[1]);
   int16x8_t v_dequant = vdupq_n_s16(dequant_ptr[1]);
   int16x8_t v_quant = vdupq_n_s16(quant_ptr[1]);
   int16x8_t v_quant_shift = vdupq_n_s16(quant_shift_ptr[1]);
+
+  assert(n_coeffs > 16 && (n_coeffs & 15) == 0);
+  intptr_t non_zero_count = n_coeffs;
+  do {
+    const int16x8_t v_coeff_a =
+        load_tran_low_to_s16q(coeff_ptr + non_zero_count - 8);
+    const int16x8_t v_coeff_b =
+        load_tran_low_to_s16q(coeff_ptr + non_zero_count - 16);
+    const uint16x8_t v_mask_a = vcgeq_s16(vabsq_s16(v_coeff_a), v_zbins);
+    const uint16x8_t v_mask_b = vcgeq_s16(vabsq_s16(v_coeff_b), v_zbins);
+    if (mask_nonzero_u16(vorrq_u16(v_mask_a, v_mask_b))) {
+      break;
+    }
+    non_zero_count -= 16;
+    store_zero_8_tran_low(qcoeff_ptr + non_zero_count);
+    store_zero_8_tran_low(qcoeff_ptr + non_zero_count + 8);
+    store_zero_8_tran_low(dqcoeff_ptr + non_zero_count);
+    store_zero_8_tran_low(dqcoeff_ptr + non_zero_count + 8);
+  } while (non_zero_count != 16);
 
   int16x8_t v_zbins0 = vsetq_lane_s16(zbins[0], v_zbins, 0);
   int16x8_t v_coeff = load_tran_low_to_s16q(coeff_ptr);
   int16x8_t v_abs = vabsq_s16(v_coeff);
   uint16x8_t v_cond = vcgeq_s16(v_abs, v_zbins0);
 
-  uint64_t nz_check = vget_lane_u64(vreinterpret_u64_u8(vmovn_u16(v_cond)), 0);
-  if (nz_check) {
-    int16x8_t v_round0 = vsetq_lane_s16(rounds[0], v_round, 0);
-    int16x8_t v_quant0 = vsetq_lane_s16(quant_ptr[0], v_quant, 0);
-    int16x8_t v_dequant0 = vsetq_lane_s16(dequant_ptr[0], v_dequant, 0);
-    int16x8_t v_quant_shift0 =
-        vsetq_lane_s16(quant_shift_ptr[0], v_quant_shift, 0);
+  if (mask_nonzero_u16(v_cond)) {
+    v_round = vsetq_lane_s16(rounds[0], v_round, 0);
+    v_quant = vsetq_lane_s16(quant_ptr[0], v_quant, 0);
+    v_dequant = vsetq_lane_s16(dequant_ptr[0], v_dequant, 0);
+    v_quant_shift = vsetq_lane_s16(quant_shift_ptr[0], v_quant_shift, 0);
 
-    const uint16x8_t v_nz_mask = quantize_b_logscale1_8(
-        v_coeff, v_abs, v_cond, v_round0, v_dequant0, v_quant0, v_quant_shift0,
-        qcoeff_ptr, dqcoeff_ptr);
+    const uint16x8_t v_nz_mask =
+        quantize_b_logscale1_8(v_coeff, v_abs, v_cond, v_round, v_dequant,
+                               v_quant, v_quant_shift, qcoeff_ptr, dqcoeff_ptr);
+
+    v_round = vdupq_lane_s16(vget_low_s16(v_round), 1);
+    v_quant = vdupq_lane_s16(vget_low_s16(v_quant), 1);
+    v_dequant = vdupq_lane_s16(vget_low_s16(v_dequant), 1);
+    v_quant_shift = vdupq_lane_s16(vget_low_s16(v_quant_shift), 1);
 
     int16x8_t v_iscan = vld1q_s16(iscan);
     int16x8_t v_eobmax = vmaxq_s16(v_iscan, v_eobmax_76543210);
     v_eobmax_76543210 = vbslq_s16(v_nz_mask, v_eobmax, v_eobmax_76543210);
   } else {
-    store_s16q_to_tran_low(qcoeff_ptr, vdupq_n_s16(0));
-    store_s16q_to_tran_low(dqcoeff_ptr, vdupq_n_s16(0));
+    store_zero_8_tran_low(qcoeff_ptr);
+    store_zero_8_tran_low(dqcoeff_ptr);
   }
 
-  for (int i = 8; i < n_coeffs; i += 8) {
+  intptr_t i = 8;
+  do {
     v_coeff = load_tran_low_to_s16q(coeff_ptr + i);
     v_abs = vabsq_s16(v_coeff);
     v_cond = vcgeq_s16(v_abs, v_zbins);
 
-    nz_check = vget_lane_u64(vreinterpret_u64_u8(vmovn_u16(v_cond)), 0);
-    if (nz_check) {
+    if (mask_nonzero_u16(v_cond)) {
       const uint16x8_t v_nz_mask = quantize_b_logscale1_8(
           v_coeff, v_abs, v_cond, v_round, v_dequant, v_quant, v_quant_shift,
           qcoeff_ptr + i, dqcoeff_ptr + i);
@@ -989,10 +1043,11 @@ void aom_quantize_b_32x32_neon(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
       int16x8_t v_eobmax = vmaxq_s16(v_iscan, v_eobmax_76543210);
       v_eobmax_76543210 = vbslq_s16(v_nz_mask, v_eobmax, v_eobmax_76543210);
     } else {
-      store_s16q_to_tran_low(qcoeff_ptr + i, vdupq_n_s16(0));
-      store_s16q_to_tran_low(dqcoeff_ptr + i, vdupq_n_s16(0));
+      store_zero_8_tran_low(qcoeff_ptr + i);
+      store_zero_8_tran_low(dqcoeff_ptr + i);
     }
-  }
+    i += 8;
+  } while (i != non_zero_count);
   *eob_ptr = get_max_eob(v_eobmax_76543210);
 }
 
@@ -1047,44 +1102,66 @@ void aom_quantize_b_64x64_neon(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
 
   int16x8_t v_eobmax_76543210 = vdupq_n_s16(-1);
 
-  int16x8_t v_zbins = vdupq_n_s16(zbins[1]);
+  const int16x8_t v_zbins = vdupq_n_s16(zbins[1]);
   int16x8_t v_round = vdupq_n_s16(rounds[1]);
   int16x8_t v_dequant = vdupq_n_s16(dequant_ptr[1]);
   int16x8_t v_quant = vdupq_n_s16(quant_ptr[1]);
   int16x8_t v_quant_shift = vdupq_n_s16(quant_shift_ptr[1]);
+
+  assert(n_coeffs > 16 && (n_coeffs & 15) == 0);
+  intptr_t non_zero_count = n_coeffs;
+  do {
+    const int16x8_t v_coeff_a =
+        load_tran_low_to_s16q(coeff_ptr + non_zero_count - 8);
+    const int16x8_t v_coeff_b =
+        load_tran_low_to_s16q(coeff_ptr + non_zero_count - 16);
+    const uint16x8_t v_mask_a = vcgeq_s16(vabsq_s16(v_coeff_a), v_zbins);
+    const uint16x8_t v_mask_b = vcgeq_s16(vabsq_s16(v_coeff_b), v_zbins);
+    if (mask_nonzero_u16(vorrq_u16(v_mask_a, v_mask_b))) {
+      break;
+    }
+    non_zero_count -= 16;
+    store_zero_8_tran_low(qcoeff_ptr + non_zero_count);
+    store_zero_8_tran_low(qcoeff_ptr + non_zero_count + 8);
+    store_zero_8_tran_low(dqcoeff_ptr + non_zero_count);
+    store_zero_8_tran_low(dqcoeff_ptr + non_zero_count + 8);
+  } while (non_zero_count != 16);
 
   int16x8_t v_zbins0 = vsetq_lane_s16(zbins[0], v_zbins, 0);
   int16x8_t v_coeff = load_tran_low_to_s16q(coeff_ptr);
   int16x8_t v_abs = vabsq_s16(v_coeff);
   uint16x8_t v_cond = vcgeq_s16(v_abs, v_zbins0);
 
-  uint64_t nz_check = vget_lane_u64(vreinterpret_u64_u8(vmovn_u16(v_cond)), 0);
-  if (nz_check) {
-    int16x8_t v_round0 = vsetq_lane_s16(rounds[0], v_round, 0);
-    int16x8_t v_quant0 = vsetq_lane_s16(quant_ptr[0], v_quant, 0);
-    int16x8_t v_dequant0 = vsetq_lane_s16(dequant_ptr[0], v_dequant, 0);
-    int16x8_t v_quant_shift0 =
-        vsetq_lane_s16(quant_shift_ptr[0], v_quant_shift, 0);
+  if (mask_nonzero_u16(v_cond)) {
+    v_round = vsetq_lane_s16(rounds[0], v_round, 0);
+    v_quant = vsetq_lane_s16(quant_ptr[0], v_quant, 0);
+    v_dequant = vsetq_lane_s16(dequant_ptr[0], v_dequant, 0);
+    v_quant_shift = vsetq_lane_s16(quant_shift_ptr[0], v_quant_shift, 0);
 
-    const uint16x8_t v_nz_mask = quantize_b_logscale2_8(
-        v_coeff, v_abs, v_cond, v_round0, v_dequant0, v_quant0, v_quant_shift0,
-        qcoeff_ptr, dqcoeff_ptr);
+    const uint16x8_t v_nz_mask =
+        quantize_b_logscale2_8(v_coeff, v_abs, v_cond, v_round, v_dequant,
+                               v_quant, v_quant_shift, qcoeff_ptr, dqcoeff_ptr);
+
+    v_round = vdupq_lane_s16(vget_low_s16(v_round), 1);
+    v_quant = vdupq_lane_s16(vget_low_s16(v_quant), 1);
+    v_dequant = vdupq_lane_s16(vget_low_s16(v_dequant), 1);
+    v_quant_shift = vdupq_lane_s16(vget_low_s16(v_quant_shift), 1);
 
     int16x8_t v_iscan = vld1q_s16(iscan);
     int16x8_t v_eobmax = vmaxq_s16(v_iscan, v_eobmax_76543210);
     v_eobmax_76543210 = vbslq_s16(v_nz_mask, v_eobmax, v_eobmax_76543210);
   } else {
-    store_s16q_to_tran_low(qcoeff_ptr, vdupq_n_s16(0));
-    store_s16q_to_tran_low(dqcoeff_ptr, vdupq_n_s16(0));
+    store_zero_8_tran_low(qcoeff_ptr);
+    store_zero_8_tran_low(dqcoeff_ptr);
   }
 
-  for (int i = 8; i < n_coeffs; i += 8) {
+  intptr_t i = 8;
+  do {
     v_coeff = load_tran_low_to_s16q(coeff_ptr + i);
     v_abs = vabsq_s16(v_coeff);
     v_cond = vcgeq_s16(v_abs, v_zbins);
 
-    nz_check = vget_lane_u64(vreinterpret_u64_u8(vmovn_u16(v_cond)), 0);
-    if (nz_check) {
+    if (mask_nonzero_u16(v_cond)) {
       const uint16x8_t v_nz_mask = quantize_b_logscale2_8(
           v_coeff, v_abs, v_cond, v_round, v_dequant, v_quant, v_quant_shift,
           qcoeff_ptr + i, dqcoeff_ptr + i);
@@ -1093,9 +1170,286 @@ void aom_quantize_b_64x64_neon(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
       int16x8_t v_eobmax = vmaxq_s16(v_iscan, v_eobmax_76543210);
       v_eobmax_76543210 = vbslq_s16(v_nz_mask, v_eobmax, v_eobmax_76543210);
     } else {
-      store_s16q_to_tran_low(qcoeff_ptr + i, vdupq_n_s16(0));
-      store_s16q_to_tran_low(dqcoeff_ptr + i, vdupq_n_s16(0));
+      store_zero_8_tran_low(qcoeff_ptr + i);
+      store_zero_8_tran_low(dqcoeff_ptr + i);
     }
-  }
+    i += 8;
+  } while (i != non_zero_count);
   *eob_ptr = get_max_eob(v_eobmax_76543210);
+}
+
+static AOM_FORCE_INLINE int mask_any_nonzero_u32(uint32x4_t m0, uint32x4_t m1) {
+  const uint32x4_t any = vorrq_u32(m0, m1);
+#if AOM_ARCH_AARCH64
+  return vmaxvq_u32(any) != 0;
+#else
+  const uint64x2_t u64 = vreinterpretq_u64_u32(any);
+  return (vgetq_lane_u64(u64, 0) | vgetq_lane_u64(u64, 1)) != 0;
+#endif
+}
+
+static AOM_FORCE_INLINE int16x8_t update_qm_eob(const int16_t *iscan_ptr,
+                                                int16x8_t v_eobmax,
+                                                uint32x4_t nz_mask0,
+                                                uint32x4_t nz_mask1) {
+#if AOM_ARCH_AARCH64
+  const uint16x8_t v_nz_mask = vuzp1q_u16(vreinterpretq_u16_u32(nz_mask0),
+                                          vreinterpretq_u16_u32(nz_mask1));
+#else
+  const uint16x8_t v_nz_mask =
+      vcombine_u16(vmovn_u32(nz_mask0), vmovn_u32(nz_mask1));
+#endif
+  return get_max_lane_eob(iscan_ptr, v_eobmax, v_nz_mask);
+}
+
+static AOM_FORCE_INLINE int16x8_t quantize_fp_qm_8_neon(
+    const tran_low_t *coeff_ptr, const int16_t *iscan_ptr,
+    const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, int32x4_t v_thr0, int32x4_t v_thr1,
+    int32x4_t v_round0, int32x4_t v_round1, int32x4_t v_quant0,
+    int32x4_t v_quant1, int32x4_t v_dequant0, int32x4_t v_dequant1,
+    int32x4_t v_log_scale, int32x4_t v_neg_log_scale, int16x8_t v_eobmax) {
+  const int32x4_t v_coeff0 = vld1q_s32(coeff_ptr);
+  const int32x4_t v_coeff1 = vld1q_s32(coeff_ptr + 4);
+  const int32x4_t v_abs0 = vabsq_s32(v_coeff0);
+  const int32x4_t v_abs1 = vabsq_s32(v_coeff1);
+  const uint16x8_t v_wt_u16 = vmovl_u8(vld1_u8(qm_ptr));
+  const int32x4_t v_wt0 =
+      vreinterpretq_s32_u32(vmovl_u16(vget_low_u16(v_wt_u16)));
+  const int32x4_t v_wt1 =
+      vreinterpretq_s32_u32(vmovl_u16(vget_high_u16(v_wt_u16)));
+  const uint32x4_t v_mask0 = vcgeq_s32(vmulq_s32(v_abs0, v_wt0), v_thr0);
+  const uint32x4_t v_mask1 = vcgeq_s32(vmulq_s32(v_abs1, v_wt1), v_thr1);
+
+  if (mask_any_nonzero_u32(v_mask0, v_mask1)) {
+    const int32x4_t v_zero = vdupq_n_s32(0);
+    const int32x4_t v_max_s16 = vdupq_n_s32(INT16_MAX);
+    const int32x4_t v_sign0 = vshrq_n_s32(v_coeff0, 31);
+    const int32x4_t v_sign1 = vshrq_n_s32(v_coeff1, 31);
+    const int32x4_t v_tmp0 =
+        vandq_s32(vminq_s32(vaddq_s32(v_abs0, v_round0), v_max_s16),
+                  vreinterpretq_s32_u32(v_mask0));
+    const int32x4_t v_tmp1 =
+        vandq_s32(vminq_s32(vaddq_s32(v_abs1, v_round1), v_max_s16),
+                  vreinterpretq_s32_u32(v_mask1));
+    const int32x4_t v_tmp_wt0 = vmulq_s32(v_tmp0, v_wt0);
+    const int32x4_t v_tmp_wt1 = vmulq_s32(v_tmp1, v_wt1);
+    const int32x4_t v_abs_q0 = vshrq_n_s32(
+        vqdmulhq_s32(vshlq_s32(v_tmp_wt0, v_log_scale), v_quant0), AOM_QM_BITS);
+    const int32x4_t v_abs_q1 = vshrq_n_s32(
+        vqdmulhq_s32(vshlq_s32(v_tmp_wt1, v_log_scale), v_quant1), AOM_QM_BITS);
+
+    const uint16x8_t v_iwt_u16 = vmovl_u8(vld1_u8(iqm_ptr));
+    const int32x4_t v_iwt0 =
+        vreinterpretq_s32_u32(vmovl_u16(vget_low_u16(v_iwt_u16)));
+    const int32x4_t v_iwt1 =
+        vreinterpretq_s32_u32(vmovl_u16(vget_high_u16(v_iwt_u16)));
+    const int32x4_t v_dq_rnd = vdupq_n_s32(1 << (AOM_QM_BITS - 1));
+    const int32x4_t v_dq0 =
+        vshrq_n_s32(vmlaq_s32(v_dq_rnd, v_dequant0, v_iwt0), AOM_QM_BITS);
+    const int32x4_t v_dq1 =
+        vshrq_n_s32(vmlaq_s32(v_dq_rnd, v_dequant1, v_iwt1), AOM_QM_BITS);
+    const int32x4_t v_abs_dq0 =
+        vshlq_s32(vmulq_s32(v_abs_q0, v_dq0), v_neg_log_scale);
+    const int32x4_t v_abs_dq1 =
+        vshlq_s32(vmulq_s32(v_abs_q1, v_dq1), v_neg_log_scale);
+
+    const int32x4_t v_q0 = vsubq_s32(veorq_s32(v_abs_q0, v_sign0), v_sign0);
+    const int32x4_t v_q1 = vsubq_s32(veorq_s32(v_abs_q1, v_sign1), v_sign1);
+    const int32x4_t v_dq_out0 =
+        vsubq_s32(veorq_s32(v_abs_dq0, v_sign0), v_sign0);
+    const int32x4_t v_dq_out1 =
+        vsubq_s32(veorq_s32(v_abs_dq1, v_sign1), v_sign1);
+    vst1q_s32(qcoeff_ptr, v_q0);
+    vst1q_s32(qcoeff_ptr + 4, v_q1);
+    vst1q_s32(dqcoeff_ptr, v_dq_out0);
+    vst1q_s32(dqcoeff_ptr + 4, v_dq_out1);
+
+    const uint32x4_t v_nz0 = vcgtq_s32(v_abs_q0, v_zero);
+    const uint32x4_t v_nz1 = vcgtq_s32(v_abs_q1, v_zero);
+    return update_qm_eob(iscan_ptr, v_eobmax, v_nz0, v_nz1);
+  }
+  const int32x4_t v_zero = vdupq_n_s32(0);
+  vst1q_s32(qcoeff_ptr, v_zero);
+  vst1q_s32(qcoeff_ptr + 4, v_zero);
+  vst1q_s32(dqcoeff_ptr, v_zero);
+  vst1q_s32(dqcoeff_ptr + 4, v_zero);
+  return v_eobmax;
+}
+
+void av1_quantize_fp_qm_neon(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+                             const int16_t *round_ptr, const int16_t *quant_ptr,
+                             tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
+                             const int16_t *dequant_ptr, uint16_t *eob_ptr,
+                             const int16_t *scan, const int16_t *iscan,
+                             const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr,
+                             int log_scale) {
+  (void)scan;
+  assert(qm_ptr != NULL && iqm_ptr != NULL);
+  assert(n_coeffs >= 16 && (n_coeffs & 7) == 0);
+  const int thr_shift = AOM_QM_BITS - (1 + log_scale);
+  const int32x4_t v_thr_ac = vdupq_n_s32((int32_t)dequant_ptr[1] << thr_shift);
+  const int32x4_t v_thr0 =
+      vsetq_lane_s32((int32_t)dequant_ptr[0] << thr_shift, v_thr_ac, 0);
+  const int32x4_t v_round_ac =
+      vdupq_n_s32(ROUND_POWER_OF_TWO(round_ptr[1], log_scale));
+  const int32x4_t v_round0 = vsetq_lane_s32(
+      ROUND_POWER_OF_TWO(round_ptr[0], log_scale), v_round_ac, 0);
+  const int32x4_t v_quant_ac =
+      vdupq_n_s32((int32_t)((uint32_t)quant_ptr[1] << 15));
+  const int32x4_t v_quant0 =
+      vsetq_lane_s32((int32_t)((uint32_t)quant_ptr[0] << 15), v_quant_ac, 0);
+  const int32x4_t v_dequant_ac = vdupq_n_s32(dequant_ptr[1]);
+  const int32x4_t v_dequant0 = vsetq_lane_s32(dequant_ptr[0], v_dequant_ac, 0);
+  const int32x4_t v_log_scale = vdupq_n_s32(log_scale);
+  const int32x4_t v_neg_log_scale = vdupq_n_s32(-log_scale);
+  int16x8_t v_eobmax = vdupq_n_s16(-1);
+
+  v_eobmax = quantize_fp_qm_8_neon(
+      coeff_ptr, iscan, qm_ptr, iqm_ptr, qcoeff_ptr, dqcoeff_ptr, v_thr0,
+      v_thr_ac, v_round0, v_round_ac, v_quant0, v_quant_ac, v_dequant0,
+      v_dequant_ac, v_log_scale, v_neg_log_scale, v_eobmax);
+
+  intptr_t i = 8;
+  do {
+    v_eobmax = quantize_fp_qm_8_neon(
+        coeff_ptr + i, iscan + i, qm_ptr + i, iqm_ptr + i, qcoeff_ptr + i,
+        dqcoeff_ptr + i, v_thr_ac, v_thr_ac, v_round_ac, v_round_ac, v_quant_ac,
+        v_quant_ac, v_dequant_ac, v_dequant_ac, v_log_scale, v_neg_log_scale,
+        v_eobmax);
+    i += 8;
+  } while (i != n_coeffs);
+  *eob_ptr = get_max_eob(v_eobmax);
+}
+
+static AOM_FORCE_INLINE int16x8_t quantize_b_qm_8_neon(
+    const tran_low_t *coeff_ptr, const int16_t *iscan_ptr,
+    const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr, tran_low_t *qcoeff_ptr,
+    tran_low_t *dqcoeff_ptr, int32x4_t v_zbin0, int32x4_t v_zbin1,
+    int32x4_t v_round0, int32x4_t v_round1, int32x4_t v_quant0,
+    int32x4_t v_quant1, int32x4_t v_qshift0, int32x4_t v_qshift1,
+    int32x4_t v_dequant0, int32x4_t v_dequant1, int32x4_t v_log_scale,
+    int32x4_t v_neg_log_scale, int16x8_t v_eobmax) {
+  const int32x4_t v_coeff0 = vld1q_s32(coeff_ptr);
+  const int32x4_t v_coeff1 = vld1q_s32(coeff_ptr + 4);
+  const int32x4_t v_abs0 = vabsq_s32(v_coeff0);
+  const int32x4_t v_abs1 = vabsq_s32(v_coeff1);
+  const uint16x8_t v_wt_u16 = vmovl_u8(vld1_u8(qm_ptr));
+  const int32x4_t v_wt0 =
+      vreinterpretq_s32_u32(vmovl_u16(vget_low_u16(v_wt_u16)));
+  const int32x4_t v_wt1 =
+      vreinterpretq_s32_u32(vmovl_u16(vget_high_u16(v_wt_u16)));
+  const uint32x4_t v_mask0 = vcgeq_s32(vmulq_s32(v_abs0, v_wt0), v_zbin0);
+  const uint32x4_t v_mask1 = vcgeq_s32(vmulq_s32(v_abs1, v_wt1), v_zbin1);
+
+  if (mask_any_nonzero_u32(v_mask0, v_mask1)) {
+    const int32x4_t v_zero = vdupq_n_s32(0);
+    const int32x4_t v_max_s16 = vdupq_n_s32(INT16_MAX);
+    const int32x4_t v_sign0 = vshrq_n_s32(v_coeff0, 31);
+    const int32x4_t v_sign1 = vshrq_n_s32(v_coeff1, 31);
+    const int32x4_t v_tmp0 =
+        vandq_s32(vminq_s32(vaddq_s32(v_abs0, v_round0), v_max_s16),
+                  vreinterpretq_s32_u32(v_mask0));
+    const int32x4_t v_tmp1 =
+        vandq_s32(vminq_s32(vaddq_s32(v_abs1, v_round1), v_max_s16),
+                  vreinterpretq_s32_u32(v_mask1));
+    const int32x4_t v_tmp_wt0 = vmulq_s32(v_tmp0, v_wt0);
+    const int32x4_t v_tmp_wt1 = vmulq_s32(v_tmp1, v_wt1);
+    const int32x4_t v_tmp2_0 =
+        vaddq_s32(vqdmulhq_s32(v_tmp_wt0, v_quant0), v_tmp_wt0);
+    const int32x4_t v_tmp2_1 =
+        vaddq_s32(vqdmulhq_s32(v_tmp_wt1, v_quant1), v_tmp_wt1);
+    const int32x4_t v_abs_q0 = vshrq_n_s32(
+        vqdmulhq_s32(vshlq_s32(v_tmp2_0, v_log_scale), v_qshift0), AOM_QM_BITS);
+    const int32x4_t v_abs_q1 = vshrq_n_s32(
+        vqdmulhq_s32(vshlq_s32(v_tmp2_1, v_log_scale), v_qshift1), AOM_QM_BITS);
+
+    const uint16x8_t v_iwt_u16 = vmovl_u8(vld1_u8(iqm_ptr));
+    const int32x4_t v_iwt0 =
+        vreinterpretq_s32_u32(vmovl_u16(vget_low_u16(v_iwt_u16)));
+    const int32x4_t v_iwt1 =
+        vreinterpretq_s32_u32(vmovl_u16(vget_high_u16(v_iwt_u16)));
+    const int32x4_t v_dq_rnd = vdupq_n_s32(1 << (AOM_QM_BITS - 1));
+    const int32x4_t v_dq0 =
+        vshrq_n_s32(vmlaq_s32(v_dq_rnd, v_dequant0, v_iwt0), AOM_QM_BITS);
+    const int32x4_t v_dq1 =
+        vshrq_n_s32(vmlaq_s32(v_dq_rnd, v_dequant1, v_iwt1), AOM_QM_BITS);
+    const int32x4_t v_abs_dq0 =
+        vshlq_s32(vmulq_s32(v_abs_q0, v_dq0), v_neg_log_scale);
+    const int32x4_t v_abs_dq1 =
+        vshlq_s32(vmulq_s32(v_abs_q1, v_dq1), v_neg_log_scale);
+
+    const int32x4_t v_q0 = vsubq_s32(veorq_s32(v_abs_q0, v_sign0), v_sign0);
+    const int32x4_t v_q1 = vsubq_s32(veorq_s32(v_abs_q1, v_sign1), v_sign1);
+    const int32x4_t v_dq_out0 =
+        vsubq_s32(veorq_s32(v_abs_dq0, v_sign0), v_sign0);
+    const int32x4_t v_dq_out1 =
+        vsubq_s32(veorq_s32(v_abs_dq1, v_sign1), v_sign1);
+    vst1q_s32(qcoeff_ptr, v_q0);
+    vst1q_s32(qcoeff_ptr + 4, v_q1);
+    vst1q_s32(dqcoeff_ptr, v_dq_out0);
+    vst1q_s32(dqcoeff_ptr + 4, v_dq_out1);
+
+    const uint32x4_t v_nz0 = vcgtq_s32(v_abs_q0, v_zero);
+    const uint32x4_t v_nz1 = vcgtq_s32(v_abs_q1, v_zero);
+    return update_qm_eob(iscan_ptr, v_eobmax, v_nz0, v_nz1);
+  }
+  const int32x4_t v_zero = vdupq_n_s32(0);
+  vst1q_s32(qcoeff_ptr, v_zero);
+  vst1q_s32(qcoeff_ptr + 4, v_zero);
+  vst1q_s32(dqcoeff_ptr, v_zero);
+  vst1q_s32(dqcoeff_ptr + 4, v_zero);
+  return v_eobmax;
+}
+
+void av1_quantize_b_qm_neon(const tran_low_t *coeff_ptr, intptr_t n_coeffs,
+                            const int16_t *zbin_ptr, const int16_t *round_ptr,
+                            const int16_t *quant_ptr,
+                            const int16_t *quant_shift_ptr,
+                            tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr,
+                            const int16_t *dequant_ptr, uint16_t *eob_ptr,
+                            const int16_t *scan, const int16_t *iscan,
+                            const qm_val_t *qm_ptr, const qm_val_t *iqm_ptr,
+                            int log_scale) {
+  (void)scan;
+  assert(qm_ptr != NULL && iqm_ptr != NULL);
+  assert(n_coeffs >= 16 && (n_coeffs & 7) == 0);
+  const int32x4_t v_zbin_ac =
+      vdupq_n_s32(ROUND_POWER_OF_TWO(zbin_ptr[1], log_scale) << AOM_QM_BITS);
+  const int32x4_t v_zbin0 = vsetq_lane_s32(
+      ROUND_POWER_OF_TWO(zbin_ptr[0], log_scale) << AOM_QM_BITS, v_zbin_ac, 0);
+  const int32x4_t v_round_ac =
+      vdupq_n_s32(ROUND_POWER_OF_TWO(round_ptr[1], log_scale));
+  const int32x4_t v_round0 = vsetq_lane_s32(
+      ROUND_POWER_OF_TWO(round_ptr[0], log_scale), v_round_ac, 0);
+  const int32x4_t v_quant_ac =
+      vdupq_n_s32((int32_t)((uint32_t)quant_ptr[1] << 15));
+  const int32x4_t v_quant0 =
+      vsetq_lane_s32((int32_t)((uint32_t)quant_ptr[0] << 15), v_quant_ac, 0);
+  const int32x4_t v_qshift_ac =
+      vdupq_n_s32((int32_t)((uint32_t)quant_shift_ptr[1] << 15));
+  const int32x4_t v_qshift0 = vsetq_lane_s32(
+      (int32_t)((uint32_t)quant_shift_ptr[0] << 15), v_qshift_ac, 0);
+  const int32x4_t v_dequant_ac = vdupq_n_s32(dequant_ptr[1]);
+  const int32x4_t v_dequant0 = vsetq_lane_s32(dequant_ptr[0], v_dequant_ac, 0);
+  const int32x4_t v_log_scale = vdupq_n_s32(log_scale);
+  const int32x4_t v_neg_log_scale = vdupq_n_s32(-log_scale);
+  int16x8_t v_eobmax = vdupq_n_s16(-1);
+
+  v_eobmax = quantize_b_qm_8_neon(coeff_ptr, iscan, qm_ptr, iqm_ptr, qcoeff_ptr,
+                                  dqcoeff_ptr, v_zbin0, v_zbin_ac, v_round0,
+                                  v_round_ac, v_quant0, v_quant_ac, v_qshift0,
+                                  v_qshift_ac, v_dequant0, v_dequant_ac,
+                                  v_log_scale, v_neg_log_scale, v_eobmax);
+
+  intptr_t i = 8;
+  do {
+    v_eobmax = quantize_b_qm_8_neon(
+        coeff_ptr + i, iscan + i, qm_ptr + i, iqm_ptr + i, qcoeff_ptr + i,
+        dqcoeff_ptr + i, v_zbin_ac, v_zbin_ac, v_round_ac, v_round_ac,
+        v_quant_ac, v_quant_ac, v_qshift_ac, v_qshift_ac, v_dequant_ac,
+        v_dequant_ac, v_log_scale, v_neg_log_scale, v_eobmax);
+    i += 8;
+  } while (i != n_coeffs);
+  *eob_ptr = get_max_eob(v_eobmax);
 }
