@@ -13,6 +13,8 @@
 #include <math.h>
 #include <stdio.h>
 
+#include <vector>
+
 #include "gtest/gtest.h"
 
 #include "config/av1_rtcd.h"
@@ -22,6 +24,7 @@
 #include "av1/encoder/partition_cnn_weights.h"
 #include "test/acm_random.h"
 #include "test/function_equivalence_test.h"
+#include "test/register_state_check.h"
 #include "test/util.h"
 
 #define SQR(x) ((x) * (x))
@@ -2656,6 +2659,76 @@ INSTANTIATE_TEST_SUITE_P(NEON, CNNConvolveTest,
                          ::testing::Values(CNNConvolveTestFuncs(
                              &av1_cnn_convolve_no_maxpool_padding_valid_c,
                              &av1_cnn_convolve_no_maxpool_padding_valid_neon)));
-#endif
+
+TEST(NEON, CNNAdd) {
+  libaom_test::ACMRandom rnd(libaom_test::ACMRandom::DeterministicSeed());
+  // { width, height, stride }
+  static constexpr int kDims[][3] = {
+    { 1, 1, 1 },   { 2, 2, 2 },    { 3, 5, 5 },   { 7, 3, 7 },   { 8, 8, 8 },
+    { 13, 3, 16 }, { 16, 16, 16 }, { 17, 5, 24 }, { 65, 65, 68 }
+  };
+  constexpr int kChannels = 4;
+  for (const auto &d : kDims) {
+    const int w = d[0], h = d[1], stride = d[2];
+    std::vector<float> buf_ref(kChannels * h * stride);
+    std::vector<float> buf_mod(kChannels * h * stride);
+    std::vector<float> buf_add(kChannels * h * stride);
+    for (size_t i = 0; i < buf_ref.size(); ++i) {
+      buf_ref[i] = ((float)rnd.Rand31() - (1 << 30)) / (1u << 28);
+      buf_mod[i] = buf_ref[i];
+      buf_add[i] = ((float)rnd.Rand31() - (1 << 30)) / (1u << 28);
+    }
+    float *out_ref[kChannels], *out_mod[kChannels];
+    const float *add_ptrs[kChannels];
+    for (int c = 0; c < kChannels; ++c) {
+      out_ref[c] = buf_ref.data() + c * h * stride;
+      out_mod[c] = buf_mod.data() + c * h * stride;
+      add_ptrs[c] = buf_add.data() + c * h * stride;
+    }
+    av1_cnn_add_c(out_ref, kChannels, w, h, stride, add_ptrs);
+    API_REGISTER_STATE_CHECK(
+        av1_cnn_add_neon(out_mod, kChannels, w, h, stride, add_ptrs));
+    for (size_t i = 0; i < buf_ref.size(); ++i) {
+      ASSERT_EQ(buf_ref[i], buf_mod[i])
+          << "w=" << w << " h=" << h << " stride=" << stride << " i=" << i;
+    }
+  }
+}
+
+TEST(NEON, CNNActivate) {
+  libaom_test::ACMRandom rnd(libaom_test::ACMRandom::DeterministicSeed());
+  // { width, height, stride }
+  static constexpr int kDims[][3] = {
+    { 1, 1, 1 },   { 2, 2, 2 },    { 3, 5, 5 },   { 7, 3, 7 },   { 8, 8, 8 },
+    { 13, 3, 16 }, { 16, 16, 16 }, { 17, 5, 24 }, { 65, 65, 68 }
+  };
+  static constexpr ACTIVATION kActs[] = { NONE, RELU, SOFTSIGN };
+  constexpr int kChannels = 4;
+  for (const auto act : kActs) {
+    for (const auto &d : kDims) {
+      const int w = d[0], h = d[1], stride = d[2];
+      std::vector<float> buf_ref(kChannels * h * stride);
+      std::vector<float> buf_mod(kChannels * h * stride);
+      for (size_t i = 0; i < buf_ref.size(); ++i) {
+        buf_ref[i] = ((float)rnd.Rand31() - (1 << 30)) / (1u << 28);
+        buf_mod[i] = buf_ref[i];
+      }
+      float *out_ref[kChannels], *out_mod[kChannels];
+      for (int c = 0; c < kChannels; ++c) {
+        out_ref[c] = buf_ref.data() + c * h * stride;
+        out_mod[c] = buf_mod.data() + c * h * stride;
+      }
+      av1_cnn_activate_c(out_ref, kChannels, w, h, stride, act);
+      API_REGISTER_STATE_CHECK(
+          av1_cnn_activate_neon(out_mod, kChannels, w, h, stride, act));
+      for (size_t i = 0; i < buf_ref.size(); ++i) {
+        ASSERT_EQ(buf_ref[i], buf_mod[i])
+            << "w=" << w << " h=" << h << " stride=" << stride << " act=" << act
+            << " i=" << i;
+      }
+    }
+  }
+}
+#endif  // HAVE_NEON
 
 }  // namespace

@@ -774,6 +774,149 @@ static inline float32x4_t add_f32x4_x4(const float32x4_t a[4]) {
   return vaddq_f32(sum01, sum23);
 }
 
+#if AOM_ARCH_AARCH64
+static inline void cnn_convolve_2x2_4out_4w_neon(
+    const float **input, int in_width, int in_height, int in_stride,
+    const float *bias, int in_channels, float **output, int out_stride,
+    const float *weights) {
+  assert(in_channels >= 2 && (in_channels & 1) == 0);
+  assert(in_width >= 8 && (in_width & 7) == 0);
+  assert(in_height >= 2 && (in_height & 1) == 0);
+  const int in_size = in_height * in_width;
+  const int w_stride = in_channels * 4;
+  const float *weight_base0 = weights;
+  const float *weight_base1 = weights + w_stride;
+  const float *weight_base2 = weights + 2 * w_stride;
+  const float *weight_base3 = weights + 3 * w_stride;
+  const float32x4_t zero = vdupq_n_f32(0);
+  const float32x4_t bias_v0 = vdupq_n_f32(bias[0]);
+  const float32x4_t bias_v1 = vdupq_n_f32(bias[1]);
+  const float32x4_t bias_v2 = vdupq_n_f32(bias[2]);
+  const float32x4_t bias_v3 = vdupq_n_f32(bias[3]);
+  const float *in_ptr0 = *input;
+  float *out_ptr0_0 = output[0];
+  float *out_ptr0_1 = output[1];
+  float *out_ptr0_2 = output[2];
+  float *out_ptr0_3 = output[3];
+  int h = in_height;
+
+  do {
+    const float *in_ptr1 = in_ptr0;
+    float *out_ptr1_0 = out_ptr0_0;
+    float *out_ptr1_1 = out_ptr0_1;
+    float *out_ptr1_2 = out_ptr0_2;
+    float *out_ptr1_3 = out_ptr0_3;
+    int w = in_width;
+
+    do {
+      const float *in_ptr2 = in_ptr1;
+      const float *wp0 = weight_base0;
+      const float *wp1 = weight_base1;
+      const float *wp2 = weight_base2;
+      const float *wp3 = weight_base3;
+      int k = in_channels;
+      float32x4_t sum0[4] = { bias_v0, zero, zero, zero };
+      float32x4_t sum1[4] = { bias_v1, zero, zero, zero };
+      float32x4_t sum2[4] = { bias_v2, zero, zero, zero };
+      float32x4_t sum3[4] = { bias_v3, zero, zero, zero };
+
+      do {
+        const float32x4x2_t in0_lo = vld2q_f32(in_ptr2);
+        const float32x4x2_t in0_hi = vld2q_f32(in_ptr2 + in_stride);
+        const float32x4x2_t in1_lo = vld2q_f32(in_ptr2 + in_size);
+        const float32x4x2_t in1_hi = vld2q_f32(in_ptr2 + in_size + in_stride);
+
+        const float32x4_t w0_0 = vld1q_f32(wp0);
+        const float32x4_t w0_1 = vld1q_f32(wp0 + 4);
+        sum0[0] = vmlaq_lane_f32(sum0[0], in0_lo.val[0], vget_low_f32(w0_0), 0);
+        sum0[0] = vmlaq_lane_f32(sum0[0], in0_lo.val[1], vget_low_f32(w0_0), 1);
+        sum0[1] =
+            vmlaq_lane_f32(sum0[1], in0_hi.val[0], vget_high_f32(w0_0), 0);
+        sum0[1] =
+            vmlaq_lane_f32(sum0[1], in0_hi.val[1], vget_high_f32(w0_0), 1);
+        sum0[2] = vmlaq_lane_f32(sum0[2], in1_lo.val[0], vget_low_f32(w0_1), 0);
+        sum0[2] = vmlaq_lane_f32(sum0[2], in1_lo.val[1], vget_low_f32(w0_1), 1);
+        sum0[3] =
+            vmlaq_lane_f32(sum0[3], in1_hi.val[0], vget_high_f32(w0_1), 0);
+        sum0[3] =
+            vmlaq_lane_f32(sum0[3], in1_hi.val[1], vget_high_f32(w0_1), 1);
+
+        const float32x4_t w1_0 = vld1q_f32(wp1);
+        const float32x4_t w1_1 = vld1q_f32(wp1 + 4);
+        sum1[0] = vmlaq_lane_f32(sum1[0], in0_lo.val[0], vget_low_f32(w1_0), 0);
+        sum1[0] = vmlaq_lane_f32(sum1[0], in0_lo.val[1], vget_low_f32(w1_0), 1);
+        sum1[1] =
+            vmlaq_lane_f32(sum1[1], in0_hi.val[0], vget_high_f32(w1_0), 0);
+        sum1[1] =
+            vmlaq_lane_f32(sum1[1], in0_hi.val[1], vget_high_f32(w1_0), 1);
+        sum1[2] = vmlaq_lane_f32(sum1[2], in1_lo.val[0], vget_low_f32(w1_1), 0);
+        sum1[2] = vmlaq_lane_f32(sum1[2], in1_lo.val[1], vget_low_f32(w1_1), 1);
+        sum1[3] =
+            vmlaq_lane_f32(sum1[3], in1_hi.val[0], vget_high_f32(w1_1), 0);
+        sum1[3] =
+            vmlaq_lane_f32(sum1[3], in1_hi.val[1], vget_high_f32(w1_1), 1);
+
+        const float32x4_t w2_0 = vld1q_f32(wp2);
+        const float32x4_t w2_1 = vld1q_f32(wp2 + 4);
+        sum2[0] = vmlaq_lane_f32(sum2[0], in0_lo.val[0], vget_low_f32(w2_0), 0);
+        sum2[0] = vmlaq_lane_f32(sum2[0], in0_lo.val[1], vget_low_f32(w2_0), 1);
+        sum2[1] =
+            vmlaq_lane_f32(sum2[1], in0_hi.val[0], vget_high_f32(w2_0), 0);
+        sum2[1] =
+            vmlaq_lane_f32(sum2[1], in0_hi.val[1], vget_high_f32(w2_0), 1);
+        sum2[2] = vmlaq_lane_f32(sum2[2], in1_lo.val[0], vget_low_f32(w2_1), 0);
+        sum2[2] = vmlaq_lane_f32(sum2[2], in1_lo.val[1], vget_low_f32(w2_1), 1);
+        sum2[3] =
+            vmlaq_lane_f32(sum2[3], in1_hi.val[0], vget_high_f32(w2_1), 0);
+        sum2[3] =
+            vmlaq_lane_f32(sum2[3], in1_hi.val[1], vget_high_f32(w2_1), 1);
+
+        const float32x4_t w3_0 = vld1q_f32(wp3);
+        const float32x4_t w3_1 = vld1q_f32(wp3 + 4);
+        sum3[0] = vmlaq_lane_f32(sum3[0], in0_lo.val[0], vget_low_f32(w3_0), 0);
+        sum3[0] = vmlaq_lane_f32(sum3[0], in0_lo.val[1], vget_low_f32(w3_0), 1);
+        sum3[1] =
+            vmlaq_lane_f32(sum3[1], in0_hi.val[0], vget_high_f32(w3_0), 0);
+        sum3[1] =
+            vmlaq_lane_f32(sum3[1], in0_hi.val[1], vget_high_f32(w3_0), 1);
+        sum3[2] = vmlaq_lane_f32(sum3[2], in1_lo.val[0], vget_low_f32(w3_1), 0);
+        sum3[2] = vmlaq_lane_f32(sum3[2], in1_lo.val[1], vget_low_f32(w3_1), 1);
+        sum3[3] =
+            vmlaq_lane_f32(sum3[3], in1_hi.val[0], vget_high_f32(w3_1), 0);
+        sum3[3] =
+            vmlaq_lane_f32(sum3[3], in1_hi.val[1], vget_high_f32(w3_1), 1);
+
+        wp0 += 8;
+        wp1 += 8;
+        wp2 += 8;
+        wp3 += 8;
+        in_ptr2 += 2 * in_size;
+        k -= 2;
+      } while (k != 0);
+
+      vst1q_f32(out_ptr1_0, add_f32x4_x4(sum0));
+      vst1q_f32(out_ptr1_1, add_f32x4_x4(sum1));
+      vst1q_f32(out_ptr1_2, add_f32x4_x4(sum2));
+      vst1q_f32(out_ptr1_3, add_f32x4_x4(sum3));
+
+      out_ptr1_0 += 4;
+      out_ptr1_1 += 4;
+      out_ptr1_2 += 4;
+      out_ptr1_3 += 4;
+      in_ptr1 += 8;
+      w -= 8;
+    } while (w != 0);
+
+    out_ptr0_0 += out_stride;
+    out_ptr0_1 += out_stride;
+    out_ptr0_2 += out_stride;
+    out_ptr0_3 += out_stride;
+    in_ptr0 += 2 * in_stride;
+    h -= 2;
+  } while (h != 0);
+}
+#endif  // AOM_ARCH_AARCH64
+
 static inline void av1_cnn_convolve_no_maxpool_padding_valid_2x2_large_neon(
     const float **input, int in_width, int in_height, int in_stride,
     const float *bias, const int skip_width, const int skip_height,
@@ -784,6 +927,18 @@ static inline void av1_cnn_convolve_no_maxpool_padding_valid_2x2_large_neon(
   assert(skip_width == 2 && skip_height == 2);
   assert(in_width >= 16);
   const int in_size = in_height * in_width;
+
+#if AOM_ARCH_AARCH64
+  while (start_idx + 4 <= out_channels) {
+    cnn_convolve_2x2_4out_4w_neon(input, in_width, in_height, in_stride, bias,
+                                  in_channels, output, out_stride, weights);
+    bias += 4;
+    output += 4;
+    weights += 4 * in_channels * filter_height * filter_width;
+    start_idx += 4;
+  }
+  if (start_idx >= out_channels) return;
+#endif  // AOM_ARCH_AARCH64
 
   do {
     const float32x4_t bias_v = vdupq_n_f32(bias[0]);
@@ -883,6 +1038,17 @@ static inline void av1_cnn_convolve_no_maxpool_padding_valid_2x2_neon(
   assert(filter_height == 2 && filter_width == 2);
   assert(skip_width == 2 && skip_height == 2);
   assert(in_width == 8);
+#if AOM_ARCH_AARCH64
+  while (start_idx + 4 <= out_channels) {
+    cnn_convolve_2x2_4out_4w_neon(input, in_width, in_height, in_stride, bias,
+                                  in_channels, output, out_stride, weights);
+    bias += 4;
+    output += 4;
+    weights += 4 * in_channels * filter_height * filter_width;
+    start_idx += 4;
+  }
+  if (start_idx >= out_channels) return;
+#endif  // AOM_ARCH_AARCH64
   const int in_size = in_height * in_width;
   do {
     const float32x4_t bias_v = vdupq_n_f32(*bias);
@@ -1140,5 +1306,129 @@ void av1_cnn_convolve_no_maxpool_padding_valid_neon(
     av1_cnn_convolve_no_maxpool_padding_valid_c(
         input, in_width, in_height, in_stride, layer_config, output, out_stride,
         start_idx, cstep, channel_step);
+  }
+}
+
+static inline void add_line_neon(float *dst, const float *src, int n) {
+  int j = 0;
+  for (; j + 16 <= n; j += 16) {
+    const float32x4_t d0 = vld1q_f32(dst + j);
+    const float32x4_t d1 = vld1q_f32(dst + j + 4);
+    const float32x4_t d2 = vld1q_f32(dst + j + 8);
+    const float32x4_t d3 = vld1q_f32(dst + j + 12);
+    const float32x4_t s0 = vld1q_f32(src + j);
+    const float32x4_t s1 = vld1q_f32(src + j + 4);
+    const float32x4_t s2 = vld1q_f32(src + j + 8);
+    const float32x4_t s3 = vld1q_f32(src + j + 12);
+    vst1q_f32(dst + j, vaddq_f32(d0, s0));
+    vst1q_f32(dst + j + 4, vaddq_f32(d1, s1));
+    vst1q_f32(dst + j + 8, vaddq_f32(d2, s2));
+    vst1q_f32(dst + j + 12, vaddq_f32(d3, s3));
+  }
+  for (; j + 4 <= n; j += 4) {
+    vst1q_f32(dst + j, vaddq_f32(vld1q_f32(dst + j), vld1q_f32(src + j)));
+  }
+  for (; j < n; ++j) dst[j] += src[j];
+}
+
+void av1_cnn_add_neon(float **output, int channels, int width, int height,
+                      int stride, const float **add) {
+  if (stride == width) {
+    const int n = width * height;
+    for (int c = 0; c < channels; ++c) add_line_neon(output[c], add[c], n);
+    return;
+  }
+
+  for (int c = 0; c < channels; ++c) {
+    float *dst_row = output[c];
+    const float *src_row = add[c];
+    for (int i = 0; i < height; ++i) {
+      add_line_neon(dst_row, src_row, width);
+      dst_row += stride;
+      src_row += stride;
+    }
+  }
+}
+
+static inline void relu_line_neon(float *dst, int n) {
+  const float32x4_t v_zero = vdupq_n_f32(0.0f);
+  int j = 0;
+  for (; j + 16 <= n; j += 16) {
+    const float32x4_t x0 = vld1q_f32(dst + j);
+    const float32x4_t x1 = vld1q_f32(dst + j + 4);
+    const float32x4_t x2 = vld1q_f32(dst + j + 8);
+    const float32x4_t x3 = vld1q_f32(dst + j + 12);
+    const uint32x4_t m0 = vcltq_f32(x0, v_zero);
+    const uint32x4_t m1 = vcltq_f32(x1, v_zero);
+    const uint32x4_t m2 = vcltq_f32(x2, v_zero);
+    const uint32x4_t m3 = vcltq_f32(x3, v_zero);
+    vst1q_f32(dst + j, vbslq_f32(m0, v_zero, x0));
+    vst1q_f32(dst + j + 4, vbslq_f32(m1, v_zero, x1));
+    vst1q_f32(dst + j + 8, vbslq_f32(m2, v_zero, x2));
+    vst1q_f32(dst + j + 12, vbslq_f32(m3, v_zero, x3));
+  }
+  for (; j + 4 <= n; j += 4) {
+    const float32x4_t x = vld1q_f32(dst + j);
+    vst1q_f32(dst + j, vbslq_f32(vcltq_f32(x, v_zero), v_zero, x));
+  }
+  for (; j < n; ++j) {
+    if (dst[j] < 0) dst[j] = 0;
+  }
+}
+
+static inline void softsign_line_neon(float *dst, int n) {
+  int j = 0;
+#if AOM_ARCH_AARCH64
+  const float32x4_t v_one = vdupq_n_f32(1.0f);
+  for (; j + 8 <= n; j += 8) {
+    const float32x4_t x0 = vld1q_f32(dst + j);
+    const float32x4_t x1 = vld1q_f32(dst + j + 4);
+    const float32x4_t d0 = vaddq_f32(vabsq_f32(x0), v_one);
+    const float32x4_t d1 = vaddq_f32(vabsq_f32(x1), v_one);
+    vst1q_f32(dst + j, vdivq_f32(x0, d0));
+    vst1q_f32(dst + j + 4, vdivq_f32(x1, d1));
+  }
+  for (; j + 4 <= n; j += 4) {
+    const float32x4_t x = vld1q_f32(dst + j);
+    vst1q_f32(dst + j, vdivq_f32(x, vaddq_f32(vabsq_f32(x), v_one)));
+  }
+#endif  // AOM_ARCH_AARCH64
+  for (; j < n; ++j) {
+    dst[j] = dst[j] / (fabsf(dst[j]) + 1.0f);
+  }
+}
+
+void av1_cnn_activate_neon(float **output, int channels, int width, int height,
+                           int stride, ACTIVATION layer_activation) {
+  if (layer_activation == RELU) {
+    if (stride == width) {
+      const int n = width * height;
+      for (int c = 0; c < channels; ++c) relu_line_neon(output[c], n);
+    } else {
+      for (int c = 0; c < channels; ++c) {
+        float *row = output[c];
+        for (int i = 0; i < height; ++i) {
+          relu_line_neon(row, width);
+          row += stride;
+        }
+      }
+    }
+  } else if (layer_activation == SOFTSIGN) {
+    if (stride == width) {
+      const int n = width * height;
+      for (int c = 0; c < channels; ++c) softsign_line_neon(output[c], n);
+    } else {
+      for (int c = 0; c < channels; ++c) {
+        float *row = output[c];
+        for (int i = 0; i < height; ++i) {
+          softsign_line_neon(row, width);
+          row += stride;
+        }
+      }
+    }
+  } else if (layer_activation == SIGMOID) {
+    assert(0 && "Sigmoid has not been supported in CNN.");
+  } else if (layer_activation != NONE) {
+    assert(0 && "Unknown activation type");
   }
 }
