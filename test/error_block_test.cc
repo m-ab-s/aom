@@ -344,7 +344,13 @@ const ErrorBlockParam kErrorBlockTestParamsNeon[] = {
   make_tuple(&BlockError8BitWrapper<av1_block_error_neon>,
              &BlockError8BitWrapper<av1_block_error_c>, AOM_BITS_8),
   make_tuple(&BlockErrorLpWrapper<av1_block_error_lp_neon>,
-             &BlockErrorLpWrapper<av1_block_error_lp_c>, AOM_BITS_8)
+             &BlockErrorLpWrapper<av1_block_error_lp_c>, AOM_BITS_8),
+  make_tuple(&BlockErrorQmWrapper<av1_block_error_qm_neon>,
+             &BlockErrorQmWrapper<av1_block_error_qm_c>, AOM_BITS_8),
+  make_tuple(&BlockErrorQmWrapper<av1_block_error_qm_neon>,
+             &BlockErrorQmWrapper<av1_block_error_qm_c>, AOM_BITS_10),
+  make_tuple(&BlockErrorQmWrapper<av1_block_error_qm_neon>,
+             &BlockErrorQmWrapper<av1_block_error_qm_c>, AOM_BITS_12)
 };
 
 INSTANTIATE_TEST_SUITE_P(NEON, ErrorBlockTest,
