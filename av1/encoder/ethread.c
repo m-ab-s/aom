@@ -1869,8 +1869,9 @@ static void lpf_pipeline_mt_init(AV1_COMP *cpi, int num_workers) {
   // Pipelining of loop-filtering after encoding is enabled when loop-filter
   // level is chosen based on quantizer and frame type. It is disabled in case
   // of 'LOOPFILTER_SELECTIVELY' as the stats collected during encoding stage
-  // decides the filter level. Loop-filtering is disabled in case
-  // of non-reference frames and for frames with intra block copy tool enabled.
+  // decides the filter level. Loop-filtering is disabled when
+  // SKIP_APPLY_LOOPFILTER is set and for frames with intra block copy tool
+  // enabled.
   AV1_COMMON *cm = &cpi->common;
   const int use_loopfilter = is_loopfilter_used(cm);
   const int use_superres = av1_superres_scaled(cm);
@@ -1886,7 +1887,7 @@ static void lpf_pipeline_mt_init(AV1_COMP *cpi, int num_workers) {
       (cpi->oxcf.mode == REALTIME) && (cpi->oxcf.speed >= 5) &&
       (cpi->sf.lpf_sf.lpf_pick == LPF_PICK_FROM_Q) &&
       (cpi->oxcf.algo_cfg.loopfilter_control != LOOPFILTER_SELECTIVELY) &&
-      !cpi->ppi->rtc_ref.non_reference_frame && !cm->features.allow_intrabc &&
+      !cm->features.allow_intrabc &&
       ((skip_apply_postproc_filters & SKIP_APPLY_LOOPFILTER) == 0);
 
   if (!mt_info->pipeline_lpf_mt_with_enc) return;

@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <climits>
@@ -2447,6 +2448,173 @@ TEST(EncodeAPI, PerFramePsnr) {
   aom_img_free(image);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+
+#if CONFIG_AV1_DECODER
+using PsnrPkt = decltype(aom_codec_cx_pkt_t().data.psnr);
+
+// Computes 8-bit I420 PSNR stats (total/Y/U/V) between two images of identical
+// dimensions, matching the layout of aom_codec_cx_pkt_t::data.psnr.
+PsnrPkt ComputeI420Psnr(const aom_image_t *img1, const aom_image_t *img2) {
+  assert(img1->fmt == AOM_IMG_FMT_I420 && img2->fmt == AOM_IMG_FMT_I420);
+  assert(img1->d_w == img2->d_w && img1->d_h == img2->d_h);
+
+  PsnrPkt stats = {};
+  for (int plane = 0; plane < 3; ++plane) {
+    const int ss = plane ? 1 : 0;
+    const unsigned int w = (img1->d_w + ss) >> ss;
+    const unsigned int h = (img1->d_h + ss) >> ss;
+    stats.samples[plane + 1] = w * h;
+    stats.samples[0] += stats.samples[plane + 1];
+    for (unsigned int y = 0; y < h; ++y) {
+      const uint8_t *row1 = img1->planes[plane] + y * img1->stride[plane];
+      const uint8_t *row2 = img2->planes[plane] + y * img2->stride[plane];
+      for (unsigned int x = 0; x < w; ++x) {
+        const int diff = static_cast<int>(row1[x]) - static_cast<int>(row2[x]);
+        stats.sse[plane + 1] += static_cast<uint64_t>(diff * diff);
+      }
+    }
+    stats.sse[0] += stats.sse[plane + 1];
+  }
+  constexpr double kMaxPsnr = 100.0;
+  constexpr double kPeak = 255.0;
+  for (int c = 0; c < 4; ++c) {
+    if (stats.sse[c] == 0) {
+      stats.psnr[c] = kMaxPsnr;
+    } else {
+      const double psnr = 10.0 * std::log10(stats.samples[c] * kPeak * kPeak /
+                                            static_cast<double>(stats.sse[c]));
+      stats.psnr[c] = std::min(psnr, kMaxPsnr);
+    }
+  }
+  return stats;
+}
+
+TEST(EncodeAPI, PerFramePsnrNonRefTemporalLayer) {
+  constexpr int kWidth = 320;
+  constexpr int kHeight = 192;
+  constexpr int kFrames = 4;
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+
+  struct TestConfig {
+    int speed;
+    int threads;
+  };
+  // Cover both realtime pick modes, CDEF pick methods, and loop-filter paths:
+  // - speed 6, 1 thread: RD pick mode with search-based CDEF
+  //   (CDEF_FAST_SEARCH_LVL4) and post-encode loopfilter_frame() in encoder.c.
+  // - speed 10, 2 threads: non-RD pick mode with quantizer-based CDEF
+  //   (CDEF_PICK_FROM_Q) and row-MT pipelined loop filtering
+  //   (lpf_pipeline_mt_init()) in ethread.c.
+  constexpr TestConfig kConfigs[] = {
+    { /*speed=*/6, /*threads=*/1 },
+    { /*speed=*/10, /*threads=*/2 },
+  };
+
+  for (const TestConfig &test_cfg : kConfigs) {
+    SCOPED_TRACE(::testing::Message() << "speed=" << test_cfg.speed
+                                      << " threads=" << test_cfg.threads);
+    aom_codec_enc_cfg_t cfg;
+    ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+              AOM_CODEC_OK);
+    cfg.g_w = kWidth;
+    cfg.g_h = kHeight;
+    cfg.g_lag_in_frames = 0;
+    cfg.g_threads = test_cfg.threads;
+    cfg.rc_target_bitrate = 300;
+    cfg.rc_end_usage = AOM_CBR;
+
+    aom_codec_ctx_t enc;
+    ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, test_cfg.speed),
+              AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ROW_MT, 1), AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_ENABLE_CDEF, 1), AOM_CODEC_OK);
+
+    aom_svc_params_t svc_params = {};
+    svc_params.number_spatial_layers = 1;
+    svc_params.number_temporal_layers = 2;
+    svc_params.max_quantizers[0] = 56;
+    svc_params.min_quantizers[0] = 10;
+    svc_params.max_quantizers[1] = 56;
+    svc_params.min_quantizers[1] = 10;
+    svc_params.scaling_factor_num[0] = 1;
+    svc_params.scaling_factor_den[0] = 1;
+    svc_params.layer_target_bitrate[0] = cfg.rc_target_bitrate * 2 / 3;
+    svc_params.layer_target_bitrate[1] = cfg.rc_target_bitrate;
+    svc_params.framerate_factor[0] = 2;
+    svc_params.framerate_factor[1] = 1;
+    ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_PARAMS, &svc_params),
+              AOM_CODEC_OK);
+
+    aom_codec_dec_cfg_t dec_cfg = {};
+    dec_cfg.allow_lowbitdepth = 1;
+    aom_codec_ctx_t dec;
+    ASSERT_EQ(aom_codec_dec_init(&dec, aom_codec_av1_dx(), &dec_cfg, 0),
+              AOM_CODEC_OK);
+
+    aom_image_t *img =
+        aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kWidth, kHeight, 1);
+    ASSERT_NE(img, nullptr);
+
+    for (int i = 0; i < kFrames; ++i) {
+      FillPannedScreen(img, i * 5);
+
+      aom_svc_layer_id_t layer_id = {};
+      layer_id.spatial_layer_id = 0;
+      layer_id.temporal_layer_id = i % 2;
+      ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_LAYER_ID, &layer_id),
+                AOM_CODEC_OK);
+
+      aom_svc_ref_frame_config_t ref_frame_config = {};
+      // Odd frames (TL1) do not refresh any reference slot -> non-reference.
+      ref_frame_config.refresh[0] = (i % 2 == 0) ? 1 : 0;
+      ref_frame_config.reference[0] = 1;
+      ref_frame_config.ref_idx[0] = 0;
+      ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_SVC_REF_FRAME_CONFIG,
+                                  &ref_frame_config),
+                AOM_CODEC_OK);
+
+      ASSERT_EQ(aom_codec_encode(&enc, img, i, 1, AOM_EFLAG_CALCULATE_PSNR),
+                AOM_CODEC_OK);
+
+      const aom_image_t *decoded = nullptr;
+      bool had_psnr = false;
+      PsnrPkt psnr_pkt = {};
+      aom_codec_iter_t iter = nullptr;
+      while (const aom_codec_cx_pkt_t *pkt =
+                 aom_codec_get_cx_data(&enc, &iter)) {
+        if (pkt->kind == AOM_CODEC_CX_FRAME_PKT) {
+          ASSERT_EQ(aom_codec_decode(
+                        &dec, static_cast<const uint8_t *>(pkt->data.frame.buf),
+                        pkt->data.frame.sz, nullptr),
+                    AOM_CODEC_OK);
+          aom_codec_iter_t dec_iter = nullptr;
+          decoded = aom_codec_get_frame(&dec, &dec_iter);
+        } else if (pkt->kind == AOM_CODEC_PSNR_PKT) {
+          had_psnr = true;
+          psnr_pkt = pkt->data.psnr;
+        }
+      }
+      ASSERT_NE(decoded, nullptr);
+      ASSERT_TRUE(had_psnr);
+
+      const PsnrPkt expected = ComputeI420Psnr(img, decoded);
+      for (int c = 0; c < 4; ++c) {
+        EXPECT_EQ(psnr_pkt.samples[c], expected.samples[c])
+            << "frame " << i << " component " << c;
+        EXPECT_EQ(psnr_pkt.sse[c], expected.sse[c])
+            << "frame " << i << " component " << c;
+        EXPECT_NEAR(psnr_pkt.psnr[c], expected.psnr[c], 1e-6)
+            << "frame " << i << " component " << c;
+      }
+    }
+
+    aom_img_free(img);
+    ASSERT_EQ(aom_codec_destroy(&dec), AOM_CODEC_OK);
+    ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+  }
+}
+#endif  // CONFIG_AV1_DECODER
 
 #if !CONFIG_REALTIME_ONLY
 TEST(EncodeAPI, PerFramePsnrGoodQualityZeroLagInFrames) {
