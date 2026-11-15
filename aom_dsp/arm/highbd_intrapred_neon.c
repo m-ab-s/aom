@@ -10,6 +10,7 @@
  */
 
 #include <arm_neon.h>
+#include <assert.h>
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
@@ -40,24 +41,75 @@ static inline void highbd_dc_store_8xh(uint16_t *dst, ptrdiff_t stride, int h,
 
 static inline void highbd_dc_store_16xh(uint16_t *dst, ptrdiff_t stride, int h,
                                         uint16x8_t dc) {
+#if AOM_ARCH_AARCH64
+  assert(h >= 4 && (h & 3) == 0);
+  const uint16x8x2_t dc2 = { { dc, dc } };
+  do {
+    vst1q_u16_x2(dst, dc2);
+    dst += stride;
+    vst1q_u16_x2(dst, dc2);
+    dst += stride;
+    vst1q_u16_x2(dst, dc2);
+    dst += stride;
+    vst1q_u16_x2(dst, dc2);
+    dst += stride;
+    h -= 4;
+  } while (h != 0);
+#else
   for (int i = 0; i < h; ++i) {
     vst1q_u16(dst + i * stride, dc);
     vst1q_u16(dst + i * stride + 8, dc);
   }
+#endif
 }
 
 static inline void highbd_dc_store_32xh(uint16_t *dst, ptrdiff_t stride, int h,
                                         uint16x8_t dc) {
+#if AOM_ARCH_AARCH64
+  assert(h >= 4 && (h & 3) == 0);
+  const uint16x8x4_t dc4 = { { dc, dc, dc, dc } };
+  do {
+    vst1q_u16_x4(dst, dc4);
+    dst += stride;
+    vst1q_u16_x4(dst, dc4);
+    dst += stride;
+    vst1q_u16_x4(dst, dc4);
+    dst += stride;
+    vst1q_u16_x4(dst, dc4);
+    dst += stride;
+    h -= 4;
+  } while (h != 0);
+#else
   for (int i = 0; i < h; ++i) {
     vst1q_u16(dst + i * stride, dc);
     vst1q_u16(dst + i * stride + 8, dc);
     vst1q_u16(dst + i * stride + 16, dc);
     vst1q_u16(dst + i * stride + 24, dc);
   }
+#endif
 }
 
 static inline void highbd_dc_store_64xh(uint16_t *dst, ptrdiff_t stride, int h,
                                         uint16x8_t dc) {
+#if AOM_ARCH_AARCH64
+  assert(h >= 4 && (h & 3) == 0);
+  const uint16x8x4_t dc4 = { { dc, dc, dc, dc } };
+  do {
+    vst1q_u16_x4(dst, dc4);
+    vst1q_u16_x4(dst + 32, dc4);
+    dst += stride;
+    vst1q_u16_x4(dst, dc4);
+    vst1q_u16_x4(dst + 32, dc4);
+    dst += stride;
+    vst1q_u16_x4(dst, dc4);
+    vst1q_u16_x4(dst + 32, dc4);
+    dst += stride;
+    vst1q_u16_x4(dst, dc4);
+    vst1q_u16_x4(dst + 32, dc4);
+    dst += stride;
+    h -= 4;
+  } while (h != 0);
+#else
   for (int i = 0; i < h; ++i) {
     vst1q_u16(dst + i * stride, dc);
     vst1q_u16(dst + i * stride + 8, dc);
@@ -68,21 +120,19 @@ static inline void highbd_dc_store_64xh(uint16_t *dst, ptrdiff_t stride, int h,
     vst1q_u16(dst + i * stride + 48, dc);
     vst1q_u16(dst + i * stride + 56, dc);
   }
+#endif
 }
 
+#if !AOM_ARCH_AARCH64
 static inline uint32x4_t horizontal_add_and_broadcast_long_u16x8(uint16x8_t a) {
   // Need to assume input is up to 16 bits wide from dc 64x64 partial sum, so
   // promote first.
   const uint32x4_t b = vpaddlq_u16(a);
-#if AOM_ARCH_AARCH64
-  const uint32x4_t c = vpaddq_u32(b, b);
-  return vpaddq_u32(c, c);
-#else
   const uint32x2_t c = vadd_u32(vget_low_u32(b), vget_high_u32(b));
   const uint32x2_t d = vpadd_u32(c, c);
   return vcombine_u32(d, d);
-#endif
 }
+#endif  // !AOM_ARCH_AARCH64
 
 static inline uint16x8_t highbd_dc_load_partial_sum_4(const uint16_t *left) {
   // Nothing to do since sum is already one vector, but saves needing to
@@ -132,6 +182,29 @@ static inline uint16x8_t highbd_dc_load_partial_sum_64(const uint16_t *left) {
   return vaddq_u16(c0, c1);  // up to 15 bits
 }
 
+#if AOM_ARCH_AARCH64
+#define HIGHBD_DC_PREDICTOR(w, h, shift)                                      \
+  void aom_highbd_dc_predictor_##w##x##h##_neon(                              \
+      uint16_t *dst, ptrdiff_t stride, const uint16_t *above,                 \
+      const uint16_t *left, int bd) {                                         \
+    (void)bd;                                                                 \
+    const uint16x8_t a = highbd_dc_load_partial_sum_##w(above);               \
+    const uint16x8_t l = highbd_dc_load_partial_sum_##h(left);                \
+    const uint32_t sum = vaddlvq_u16(vaddq_u16(a, l));                        \
+    const uint16_t dc0 = (uint16_t)((sum + (1 << ((shift) - 1))) >> (shift)); \
+    highbd_dc_store_##w##xh(dst, stride, (h), vdupq_n_u16(dc0));              \
+  }
+
+void aom_highbd_dc_predictor_4x4_neon(uint16_t *dst, ptrdiff_t stride,
+                                      const uint16_t *above,
+                                      const uint16_t *left, int bd) {
+  (void)bd;
+  const uint16x8_t al = vcombine_u16(vld1_u16(above), vld1_u16(left));
+  const uint32_t sum = vaddlvq_u16(al);
+  const uint16_t dc0 = (uint16_t)((sum + 4) >> 3);
+  highbd_dc_store_4xh(dst, stride, 4, vdup_n_u16(dc0));
+}
+#else
 #define HIGHBD_DC_PREDICTOR(w, h, shift)                               \
   void aom_highbd_dc_predictor_##w##x##h##_neon(                       \
       uint16_t *dst, ptrdiff_t stride, const uint16_t *above,          \
@@ -161,6 +234,7 @@ void aom_highbd_dc_predictor_4x4_neon(uint16_t *dst, ptrdiff_t stride,
   const uint16x4_t dc = vrshr_n_u16(sum, 3);
   highbd_dc_store_4xh(dst, stride, 4, dc);
 }
+#endif  // AOM_ARCH_AARCH64
 
 HIGHBD_DC_PREDICTOR(8, 8, 4)
 HIGHBD_DC_PREDICTOR(16, 16, 5)
@@ -285,6 +359,38 @@ HIGHBD_DC_PREDICTOR_128(64, 64, q)
 // -----------------------------------------------------------------------------
 // DC_LEFT
 
+#if AOM_ARCH_AARCH64
+static inline uint32_t highbd_dc_sum_scalar_4(const uint16_t *left) {
+  return vaddlv_u16(vld1_u16(left));
+}
+
+static inline uint32_t highbd_dc_sum_scalar_8(const uint16_t *left) {
+  return vaddlvq_u16(vld1q_u16(left));
+}
+
+static inline uint32_t highbd_dc_sum_scalar_16(const uint16_t *left) {
+  return vaddlvq_u16(highbd_dc_load_partial_sum_16(left));
+}
+
+static inline uint32_t highbd_dc_sum_scalar_32(const uint16_t *left) {
+  return vaddlvq_u16(highbd_dc_load_partial_sum_32(left));
+}
+
+static inline uint32_t highbd_dc_sum_scalar_64(const uint16_t *left) {
+  return vaddlvq_u16(highbd_dc_load_partial_sum_64(left));
+}
+
+#define DC_PREDICTOR_LEFT(w, h, shift, q)                                     \
+  void aom_highbd_dc_left_predictor_##w##x##h##_neon(                         \
+      uint16_t *dst, ptrdiff_t stride, const uint16_t *above,                 \
+      const uint16_t *left, int bd) {                                         \
+    (void)above;                                                              \
+    (void)bd;                                                                 \
+    const uint32_t sum = highbd_dc_sum_scalar_##h(left);                      \
+    const uint16_t dc0 = (uint16_t)((sum + (1 << ((shift) - 1))) >> (shift)); \
+    highbd_dc_store_##w##xh(dst, stride, (h), vdup##q##_n_u16(dc0));          \
+  }
+#else
 static inline uint32x4_t highbd_dc_load_sum_4(const uint16_t *left) {
   const uint16x4_t a = vld1_u16(left);   // up to 12 bits
   const uint16x4_t b = vpadd_u16(a, a);  // up to 13 bits
@@ -320,6 +426,7 @@ static inline uint32x4_t highbd_dc_load_sum_64(const uint16_t *left) {
     const uint16x4_t dc0 = vrshrn_n_u32(sum, (shift));                     \
     highbd_dc_store_##w##xh(dst, stride, (h), vdup##q##_lane_u16(dc0, 0)); \
   }
+#endif  // AOM_ARCH_AARCH64
 
 #if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 DC_PREDICTOR_LEFT(4, 4, 2, )
@@ -362,6 +469,18 @@ DC_PREDICTOR_LEFT(64, 64, 6, q)
 // -----------------------------------------------------------------------------
 // DC_TOP
 
+#if AOM_ARCH_AARCH64
+#define DC_PREDICTOR_TOP(w, h, shift, q)                                      \
+  void aom_highbd_dc_top_predictor_##w##x##h##_neon(                          \
+      uint16_t *dst, ptrdiff_t stride, const uint16_t *above,                 \
+      const uint16_t *left, int bd) {                                         \
+    (void)bd;                                                                 \
+    (void)left;                                                               \
+    const uint32_t sum = highbd_dc_sum_scalar_##w(above);                     \
+    const uint16_t dc0 = (uint16_t)((sum + (1 << ((shift) - 1))) >> (shift)); \
+    highbd_dc_store_##w##xh(dst, stride, (h), vdup##q##_n_u16(dc0));          \
+  }
+#else
 #define DC_PREDICTOR_TOP(w, h, shift, q)                                   \
   void aom_highbd_dc_top_predictor_##w##x##h##_neon(                       \
       uint16_t *dst, ptrdiff_t stride, const uint16_t *above,              \
@@ -372,6 +491,7 @@ DC_PREDICTOR_LEFT(64, 64, 6, q)
     const uint16x4_t dc0 = vrshrn_n_u32(sum, (shift));                     \
     highbd_dc_store_##w##xh(dst, stride, (h), vdup##q##_lane_u16(dc0, 0)); \
   }
+#endif  // AOM_ARCH_AARCH64
 
 #if !CONFIG_REALTIME_ONLY || CONFIG_AV1_DECODER
 DC_PREDICTOR_TOP(4, 4, 2, )
