@@ -5389,6 +5389,121 @@ TEST(EncodeAPI, Avg64x64IntegerOverflow) {
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
+#if CONFIG_AV1_DECODER
+// Encodes a static screen in realtime mode, then fades a small flat area a
+// few levels per frame. Each frame changes less than one level per 64x64
+// block on average, and the decoded area must still follow the source.
+void EncodeSlowFadeOnStaticScreen(int lag_in_frames, int speed) {
+  constexpr int kWidth = 640;
+  constexpr int kHeight = 384;
+  // The zero motion skip of static superblocks starts 30 frames after the
+  // key frame.
+  constexpr int kStaticFrames = 40;
+  constexpr int kFadeFrames = 30;
+  constexpr int kFrames = kStaticFrames + kFadeFrames;
+  constexpr int kAreaX = 200;
+  constexpr int kAreaY = 136;
+  constexpr int kAreaSize = 4;
+  constexpr int kAreaStart = 64;
+  constexpr int kFadeStep = 3;
+  aom_codec_iface_t *iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_REALTIME),
+            AOM_CODEC_OK);
+  cfg.g_w = kWidth;
+  cfg.g_h = kHeight;
+  cfg.g_lag_in_frames = lag_in_frames;
+  cfg.g_threads = 1;
+  cfg.rc_min_quantizer = 20;
+  cfg.rc_max_quantizer = 20;
+
+  aom_codec_ctx_t enc;
+  ASSERT_EQ(aom_codec_enc_init(&enc, iface, &cfg, 0), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AOME_SET_CPUUSED, speed), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(&enc, AV1E_SET_TUNE_CONTENT, AOM_CONTENT_SCREEN),
+            AOM_CODEC_OK);
+  // Decode to 8 bit buffers even when FORCE_HIGHBITDEPTH_DECODING is on.
+  aom_codec_dec_cfg_t dec_cfg = {};
+  dec_cfg.allow_lowbitdepth = 1;
+  aom_codec_ctx_t dec;
+  ASSERT_EQ(aom_codec_dec_init(&dec, aom_codec_av1_dx(), &dec_cfg, 0),
+            AOM_CODEC_OK);
+
+  aom_image_t *img =
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I420, kWidth, kHeight, 1);
+  ASSERT_NE(img, nullptr);
+  for (int y = 0; y < kHeight; ++y) {
+    uint8_t *row = img->planes[0] + y * img->stride[0];
+    for (int x = 0; x < kWidth; ++x) {
+      row[x] = ((x * 7 + y * 3) % 11 < 3 && ((x ^ y) & 4)) ? 32 : 224;
+    }
+  }
+  for (int plane = 1; plane < 3; ++plane) {
+    for (int y = 0; y < kHeight / 2; ++y) {
+      memset(img->planes[plane] + y * img->stride[plane], 128, kWidth / 2);
+    }
+  }
+
+  int area_values[kFrames];
+  int decoded_frames = 0;
+  int sse = 0;
+  // The calls after the last frame flush the lookahead.
+  for (int frame = 0; frame < kFrames + lag_in_frames; ++frame) {
+    aom_image_t *input = nullptr;
+    if (frame < kFrames) {
+      const int fade_steps =
+          frame < kStaticFrames ? 0 : frame - kStaticFrames + 1;
+      area_values[frame] = kAreaStart + fade_steps * kFadeStep;
+      for (int y = kAreaY; y < kAreaY + kAreaSize; ++y) {
+        memset(img->planes[0] + y * img->stride[0] + kAreaX, area_values[frame],
+               kAreaSize);
+      }
+      input = img;
+    }
+    ASSERT_EQ(aom_codec_encode(&enc, input, frame, 1, 0), AOM_CODEC_OK);
+    aom_codec_iter_t iter = nullptr;
+    while (const aom_codec_cx_pkt_t *pkt = aom_codec_get_cx_data(&enc, &iter)) {
+      if (pkt->kind != AOM_CODEC_CX_FRAME_PKT) continue;
+      ASSERT_EQ(aom_codec_decode(
+                    &dec, static_cast<const uint8_t *>(pkt->data.frame.buf),
+                    pkt->data.frame.sz, nullptr),
+                AOM_CODEC_OK);
+      aom_codec_iter_t dec_iter = nullptr;
+      const aom_image_t *decoded = aom_codec_get_frame(&dec, &dec_iter);
+      ASSERT_NE(decoded, nullptr);
+      ASSERT_LT(decoded_frames, kFrames);
+      const int area_value = area_values[decoded_frames++];
+      sse = 0;
+      for (int y = kAreaY; y < kAreaY + kAreaSize; ++y) {
+        const uint8_t *row = decoded->planes[0] + y * decoded->stride[0];
+        for (int x = kAreaX; x < kAreaX + kAreaSize; ++x) {
+          const int diff = row[x] - area_value;
+          sse += diff * diff;
+        }
+      }
+    }
+  }
+  EXPECT_EQ(decoded_frames, kFrames);
+  // The area ends 90 levels above where it started. Without a coded update
+  // the error stays near that.
+  EXPECT_LT(sse, 100 * kAreaSize * kAreaSize);
+
+  aom_img_free(img);
+  ASSERT_EQ(aom_codec_destroy(&dec), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
+}
+
+TEST(EncodeAPI, SlowFadeOnStaticScreenRealtime) {
+  for (int lag_in_frames = 0; lag_in_frames <= 1; ++lag_in_frames) {
+    for (int speed = 9; speed <= 11; ++speed) {
+      SCOPED_TRACE(testing::Message()
+                   << "lag_in_frames " << lag_in_frames << ", speed " << speed);
+      EncodeSlowFadeOnStaticScreen(lag_in_frames, speed);
+    }
+  }
+}
+#endif  // CONFIG_AV1_DECODER
+
 // A key frame whose luma is a block of noise repeated over the frame. IntraBC
 // can copy every block from the one above it. The chroma is flat.
 class RepeatedNoiseVideoSource : public ::libaom_test::DummyVideoSource {

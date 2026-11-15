@@ -1193,7 +1193,10 @@ static inline void grade_source_content_sb(AV1_COMP *cpi, MACROBLOCK *const x,
   bool calc_src_content = false;
 
   if (cpi->sf.rt_sf.source_metrics_sb_nonrd) {
-    if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0) {
+    // The frame average can round down to 0 for a small change, so check the
+    // largest block sad too.
+    if (!cpi->sf.rt_sf.check_scene_detection || cpi->rc.frame_source_sad > 0 ||
+        cpi->rc.max_block_source_sad > 0) {
       calc_src_content = is_calc_src_content_needed(cpi, x, mi_row, mi_col);
     } else {
       x->content_state_sb.source_sad_nonrd = kZeroSad;

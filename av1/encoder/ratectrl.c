@@ -3937,6 +3937,7 @@ void av1_get_one_pass_rt_params(AV1_COMP *cpi, FRAME_TYPE *const frame_type,
     rc->frame_source_sad = 0;
     rc->avg_source_sad = (3 * rc->avg_source_sad + rc->frame_source_sad) >> 2;
     rc->percent_blocks_with_motion = 0;
+    rc->max_block_source_sad = 0;
     rc->high_source_sad = 0;
   } else if (cpi->sf.rt_sf.check_scene_detection &&
              svc->spatial_layer_id == 0) {
