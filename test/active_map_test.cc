@@ -665,6 +665,118 @@ AV1_INSTANTIATE_TEST_SUITE(
     ::testing::Range(7, 12), ::testing::Values(0, 3), ::testing::Values(1, 4),
     ::testing::Values(AOM_CONTENT_DEFAULT, AOM_CONTENT_SCREEN));
 
+constexpr int kFewWidth = 1024;
+constexpr int kFewHeight = 448;
+constexpr int kFewMapCols = kFewWidth / 16;
+constexpr int kFewMapRows = kFewHeight / 16;
+constexpr int kNoiseSize = 64;
+
+// A still gradient with new noise in the top left superblock on every frame.
+class CornerNoiseSource : public ::libaom_test::DummyVideoSource {
+ public:
+  CornerNoiseSource() {
+    SetSize(kFewWidth, kFewHeight);
+    set_limit(10);
+  }
+
+ protected:
+  void FillFrame() override {
+    memset(img_->img_data, 128, raw_sz_);
+    ::libaom_test::ACMRandom rnd(static_cast<int>(frame_) + 1);
+    for (int y = 0; y < kFewHeight; ++y) {
+      uint8_t *const row =
+          img_->planes[AOM_PLANE_Y] + y * img_->stride[AOM_PLANE_Y];
+      for (int x = 0; x < kFewWidth; ++x) {
+        row[x] = (x < kNoiseSize && y < kNoiseSize)
+                     ? rnd.Rand8()
+                     : static_cast<uint8_t>(x / 8 + y / 4);
+      }
+    }
+  }
+};
+
+// Marks only the noisy superblock inactive, 16 of the 1792 blocks, so under 1%
+// of the frame. Its pixels away from the active blocks must not change.
+// Params: test mode, speed, aq_mode and content type.
+class FewInactiveBlocksTest
+    : public ::libaom_test::CodecTestWith4Params<libaom_test::TestMode, int,
+                                                 int, int>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  static constexpr int kCheckSize = kNoiseSize - kEdgeMargin;
+
+  FewInactiveBlocksTest() : EncoderTest(GET_PARAM(0)) {}
+  ~FewInactiveBlocksTest() override = default;
+
+  void SetUp() override {
+    InitializeConfig(GET_PARAM(1));
+    cpu_used_ = GET_PARAM(2);
+    aq_mode_ = GET_PARAM(3);
+    content_ = GET_PARAM(4);
+    cfg_.g_lag_in_frames = 0;
+    cfg_.rc_target_bitrate = 1000;
+    cfg_.rc_end_usage = AOM_CBR;
+    cfg_.g_pass = AOM_RC_ONE_PASS;
+    cfg_.kf_max_dist = 90000;
+  }
+
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
+    if (video->frame() == 0) {
+      encoder->Control(AOME_SET_CPUUSED, cpu_used_);
+      encoder->Control(AV1E_SET_AQ_MODE, aq_mode_);
+      encoder->Control(AV1E_SET_TUNE_CONTENT, content_);
+      return;
+    }
+    uint8_t map[kFewMapRows * kFewMapCols];
+    memset(map, 1, sizeof(map));
+    for (int r = 0; r < kNoiseSize / 16; ++r) {
+      memset(&map[r * kFewMapCols], 0, kNoiseSize / 16);
+    }
+    aom_active_map_t active_map = {};
+    active_map.rows = kFewMapRows;
+    active_map.cols = kFewMapCols;
+    active_map.active_map = map;
+    encoder->Control(AOME_SET_ACTIVEMAP, &active_map);
+  }
+
+  void DecompressedFrameHook(const aom_image_t &img,
+                             aom_codec_pts_t pts) override {
+    const int frame = static_cast<int>(pts);
+    int changed = 0;
+    for (int plane = 0; plane < 3; ++plane) {
+      const int size = kCheckSize >> (plane ? 1 : 0);
+      std::vector<uint8_t> &prev = prev_[plane];
+      if (prev.empty()) prev.resize(size * size);
+      for (int y = 0; y < size; ++y) {
+        for (int x = 0; x < size; ++x) {
+          const uint8_t pixel =
+              static_cast<uint8_t>(GetPixel(img, plane, x, y));
+          changed += frame > 0 && pixel != prev[y * size + x];
+          prev[y * size + x] = pixel;
+        }
+      }
+    }
+    EXPECT_EQ(changed, 0) << "Inactive pixels changed in frame " << frame;
+  }
+
+  int cpu_used_;
+  int aq_mode_;
+  int content_;
+  std::vector<uint8_t> prev_[3];
+};
+
+TEST_P(FewInactiveBlocksTest, InactivePixelsKept) {
+  CornerNoiseSource video;
+  ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
+}
+
+AV1_INSTANTIATE_TEST_SUITE(FewInactiveBlocksTest,
+                           ::testing::Values(::libaom_test::kRealTime),
+                           ::testing::Range(7, 12), ::testing::Values(0, 3),
+                           ::testing::Values(AOM_CONTENT_DEFAULT,
+                                             AOM_CONTENT_SCREEN));
+
 constexpr int kSmallFrame = 10;
 
 // Puts new noise in every luma pixel of every frame. From frame kSmallFrame on

@@ -257,8 +257,9 @@ int av1_set_active_map(AV1_COMP *cpi, unsigned char *new_map_16x16, int rows,
       cpi->active_map.mi_rows = mi_rows;
       cpi->active_map.mi_cols = mi_cols;
       assert(num_samples);
-      cpi->rc.percent_blocks_inactive =
-          (num_blocks_inactive * 100) / num_samples;
+      // Round a share under 1% up, since 0 turns the map off.
+      cpi->rc.percent_blocks_inactive = AOMMAX(
+          (num_blocks_inactive * 100) / num_samples, num_blocks_inactive > 0);
     }
     return 0;
   }
