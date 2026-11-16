@@ -12,7 +12,9 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "config/aom_config.h"
@@ -356,6 +358,140 @@ void AV1FwdTxfm2dSpeedTest(TX_SIZE tx_size, lowbd_fwd_txfm_func target_func) {
   }
 }
 
+using FwdTxfmFunc = void (*)(const int16_t *src_diff, tran_low_t *coeff,
+                             int diff_stride, TxfmParam *txfm_param);
+
+void BuildMixedTxTypeSchedule(TX_SIZE tx_size, TX_TYPE *schedule,
+                              int schedule_len) {
+  vector<TX_TYPE> valid_types;
+  for (int t = 0; t < TX_TYPES; ++t) {
+    const TX_TYPE tx_type = static_cast<TX_TYPE>(t);
+    if (libaom_test::IsTxSizeTypeValid(tx_size, tx_type)) {
+      valid_types.push_back(tx_type);
+    }
+  }
+
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  if (libaom_test::IsTxSizeTypeValid(tx_size, ADST_ADST)) {
+    // Sizes with max(w, h) <= 16 allow all 16 transform types: populate half of
+    // the schedule with complete cycles of all 16 valid types (guaranteeing
+    // full I-cache coverage) and half with DTT4 intra/inter modes (~16%
+    // DCT_DCT, ~84% non-DCT_DCT), then shuffle using high-entropy Rand16 bits.
+    static constexpr TX_TYPE kDtt4Types[4] = { DCT_DCT, ADST_DCT, DCT_ADST,
+                                               ADST_ADST };
+    const int num_valid = static_cast<int>(valid_types.size());
+    const int half_len = schedule_len / 2;
+    for (int i = 0; i < half_len; ++i) {
+      schedule[i] = valid_types[i % num_valid];
+    }
+    for (int i = half_len; i < schedule_len; ++i) {
+      schedule[i] = kDtt4Types[i & 3];
+    }
+    for (int i = schedule_len - 1; i > 0; --i) {
+      std::swap(schedule[i], schedule[rnd.Rand16() % (i + 1)]);
+    }
+  } else if (libaom_test::IsTxSizeTypeValid(tx_size, IDTX)) {
+    // Sizes whose larger dimension is 32 allow only DCT_DCT and IDTX (75%
+    // DCT_DCT, 25% IDTX), shuffled with high-entropy Rand16 bits.
+    const int idtx_count = schedule_len / 4;
+    for (int i = 0; i < schedule_len; ++i) {
+      schedule[i] = (i < idtx_count) ? IDTX : DCT_DCT;
+    }
+    for (int i = schedule_len - 1; i > 0; --i) {
+      std::swap(schedule[i], schedule[rnd.Rand16() % (i + 1)]);
+    }
+  } else {
+    for (int i = 0; i < schedule_len; ++i) {
+      schedule[i] = valid_types[0];
+    }
+  }
+}
+
+void AV1FwdTxfm2dMixedSpeedTest(TX_SIZE tx_size, int bit_depth,
+                                FwdTxfmFunc target_func) {
+  const FwdTxfm2dFunc ref_func = libaom_test::fwd_txfm_func_ls[tx_size];
+  if (ref_func == nullptr) return;
+
+  // 4096 entries (16 KB) stays L1D-resident while exceeding hardware branch
+  // history lengths so dynamic branch-misprediction penalties are captured.
+  static constexpr int kScheduleLen = 4096;
+  static_assert((kScheduleLen & (kScheduleLen - 1)) == 0,
+                "kScheduleLen must be a power of two");
+  TX_TYPE schedule[kScheduleLen];
+  BuildMixedTxTypeSchedule(tx_size, schedule, kScheduleLen);
+
+  const int rows = tx_size_high[tx_size];
+  const int cols = tx_size_wide[tx_size];
+  const int num_loops = AOMMAX(1000, (1000000 * 4) / (rows * cols));
+  const int input_stride = 64;
+
+  DECLARE_ALIGNED(32, int16_t, input[64 * 64]) = { 0 };
+  DECLARE_ALIGNED(32, tran_low_t, output[64 * 64]);
+  DECLARE_ALIGNED(32, tran_low_t, ref_output[64 * 64]) = { 0 };
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  for (int r = 0; r < rows; ++r) {
+    for (int c = 0; c < cols; ++c) {
+      const int a = rnd.Rand16() % (1 << bit_depth);
+      const int b = rnd.Rand16() % (1 << bit_depth);
+      input[r * input_stride + c] = static_cast<int16_t>(a - b);
+    }
+  }
+
+  TxfmParam param;
+  memset(&param, 0, sizeof(param));
+  param.tx_size = tx_size;
+  param.tx_set_type = EXT_TX_SET_ALL16;
+  param.bd = bit_depth;
+
+  for (int i = 0; i < kScheduleLen; ++i) {
+    ASSERT_TRUE(libaom_test::IsTxSizeTypeValid(tx_size, schedule[i]));
+  }
+  const int check_cols = AOMMIN(32, cols);
+  const int check_rows = AOMMIN(32, rows * cols / check_cols);
+  const int num_coeffs = check_cols * check_rows;
+  for (int t = 0; t < TX_TYPES; ++t) {
+    const TX_TYPE tx_type = static_cast<TX_TYPE>(t);
+    if (!libaom_test::IsTxSizeTypeValid(tx_size, tx_type)) continue;
+    param.tx_type = tx_type;
+    memset(output, 0x5a, sizeof(output));
+    memset(ref_output, 0, sizeof(ref_output));
+    ref_func(input, ref_output, input_stride, tx_type, bit_depth);
+    target_func(input, output, input_stride, &param);
+    for (int j = 0; j < num_coeffs; ++j) {
+      ASSERT_EQ(ref_output[j], output[j])
+          << "j=" << j << " tx_size=" << cols << "x" << rows
+          << " tx_type=" << tx_type_name[tx_type] << " bd=" << bit_depth;
+    }
+  }
+
+  aom_usec_timer ref_timer, test_timer;
+  aom_usec_timer_start(&ref_timer);
+  for (int i = 0; i < num_loops; ++i) {
+    const TX_TYPE tx_type = schedule[i & (kScheduleLen - 1)];
+    ref_func(input, ref_output, input_stride, tx_type, bit_depth);
+  }
+  aom_usec_timer_mark(&ref_timer);
+  const double elapsed_time_c =
+      static_cast<double>(aom_usec_timer_elapsed(&ref_timer));
+
+  aom_usec_timer_start(&test_timer);
+  for (int i = 0; i < num_loops; ++i) {
+    param.tx_type = schedule[i & (kScheduleLen - 1)];
+    target_func(input, output, input_stride, &param);
+  }
+  aom_usec_timer_mark(&test_timer);
+  const double elapsed_time_simd =
+      static_cast<double>(aom_usec_timer_elapsed(&test_timer));
+
+  const double gain =
+      (elapsed_time_simd > 0.0) ? (elapsed_time_c / elapsed_time_simd) : 0.0;
+  printf(
+      "txfm_size[%2dx%-2d] bd[%2d] txfm_type[MIXED] \t c_time=%.0f us \t"
+      "simd_time=%.0f us (%.1f ns/call) \t gain=%.2fx\n",
+      cols, rows, bit_depth, elapsed_time_c, elapsed_time_simd,
+      (elapsed_time_simd * 1000.0) / num_loops, gain);
+}
+
 using LbdFwdTxfm2dParam = std::tuple<TX_SIZE, lowbd_fwd_txfm_func>;
 
 class AV1FwdTxfm2dTest : public ::testing::TestWithParam<LbdFwdTxfm2dParam> {};
@@ -366,6 +502,9 @@ TEST_P(AV1FwdTxfm2dTest, match) {
 }
 TEST_P(AV1FwdTxfm2dTest, DISABLED_Speed) {
   AV1FwdTxfm2dSpeedTest(GET_PARAM(0), GET_PARAM(1));
+}
+TEST_P(AV1FwdTxfm2dTest, DISABLED_MixedTxTypeSpeed) {
+  AV1FwdTxfm2dMixedSpeedTest(GET_PARAM(0), 8, GET_PARAM(1));
 }
 TEST(AV1FwdTxfm2dTest, DCTScaleTest) {
   BitDepthInfo bd_info;
@@ -661,6 +800,14 @@ TEST_P(AV1HighbdFwdTxfm2dTest, match) {
 
 TEST_P(AV1HighbdFwdTxfm2dTest, DISABLED_Speed) {
   AV1HighbdFwdTxfm2dSpeedTest(GET_PARAM(0), GET_PARAM(1));
+}
+
+TEST_P(AV1HighbdFwdTxfm2dTest, DISABLED_MixedTxTypeSpeed) {
+  static constexpr int kBitDepths[2] = { 10, 12 };
+  for (int bit_depth : kBitDepths) {
+    ASSERT_NO_FATAL_FAILURE(
+        AV1FwdTxfm2dMixedSpeedTest(GET_PARAM(0), bit_depth, GET_PARAM(1)));
+  }
 }
 
 using ::testing::Combine;
