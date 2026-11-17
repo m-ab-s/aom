@@ -10,6 +10,7 @@
  */
 
 #include <arm_neon.h>
+#include <assert.h>
 
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
@@ -22,10 +23,12 @@ void aom_subtract_block_neon(int rows, int cols, int16_t *diff,
                              ptrdiff_t diff_stride, const uint8_t *src,
                              ptrdiff_t src_stride, const uint8_t *pred,
                              ptrdiff_t pred_stride) {
+  assert(rows >= 4 && (rows & 3) == 0);
+  assert(cols >= 4 && (cols & (cols - 1)) == 0);
+  int r = rows;
   if (cols > 16) {
-    int r = rows;
     if (cols == 32) {
-      while (r >= 2) {
+      do {
         const uint8x16_t s0_0 = vld1q_u8(&src[0]);
         const uint8x16_t s0_1 = vld1q_u8(&src[16]);
         const uint8x16_t p0_0 = vld1q_u8(&pred[0]);
@@ -63,21 +66,7 @@ void aom_subtract_block_neon(int rows, int cols, int16_t *diff,
         pred += pred_stride << 1;
         src += src_stride << 1;
         r -= 2;
-      }
-      if (r != 0) {
-        const uint8x16_t s0 = vld1q_u8(&src[0]);
-        const uint8x16_t s1 = vld1q_u8(&src[16]);
-        const uint8x16_t p0 = vld1q_u8(&pred[0]);
-        const uint8x16_t p1 = vld1q_u8(&pred[16]);
-        vst1q_s16(&diff[0], vreinterpretq_s16_u16(
-                                vsubl_u8(vget_low_u8(s0), vget_low_u8(p0))));
-        vst1q_s16(&diff[8], vreinterpretq_s16_u16(
-                                vsubl_u8(vget_high_u8(s0), vget_high_u8(p0))));
-        vst1q_s16(&diff[16], vreinterpretq_s16_u16(
-                                 vsubl_u8(vget_low_u8(s1), vget_low_u8(p1))));
-        vst1q_s16(&diff[24], vreinterpretq_s16_u16(
-                                 vsubl_u8(vget_high_u8(s1), vget_high_u8(p1))));
-      }
+      } while (r != 0);
     } else {
       do {
         int c = 0;
@@ -106,116 +95,81 @@ void aom_subtract_block_neon(int rows, int cols, int16_t *diff,
       } while (--r != 0);
     }
   } else if (cols > 8) {
-    int r = rows;
-    while (r >= 2) {
-      const uint8x16_t v_src0 = vld1q_u8(&src[0]);
-      const uint8x16_t v_pred0 = vld1q_u8(&pred[0]);
-      const uint8x16_t v_src1 = vld1q_u8(&src[src_stride]);
-      const uint8x16_t v_pred1 = vld1q_u8(&pred[pred_stride]);
-      const uint16x8_t v_diff0_lo =
-          vsubl_u8(vget_low_u8(v_src0), vget_low_u8(v_pred0));
-      const uint16x8_t v_diff0_hi =
-          vsubl_u8(vget_high_u8(v_src0), vget_high_u8(v_pred0));
-      const uint16x8_t v_diff1_lo =
-          vsubl_u8(vget_low_u8(v_src1), vget_low_u8(v_pred1));
-      const uint16x8_t v_diff1_hi =
-          vsubl_u8(vget_high_u8(v_src1), vget_high_u8(v_pred1));
-      vst1q_s16(&diff[0], vreinterpretq_s16_u16(v_diff0_lo));
-      vst1q_s16(&diff[8], vreinterpretq_s16_u16(v_diff0_hi));
-      vst1q_s16(&diff[diff_stride + 0], vreinterpretq_s16_u16(v_diff1_lo));
-      vst1q_s16(&diff[diff_stride + 8], vreinterpretq_s16_u16(v_diff1_hi));
-      diff += diff_stride << 1;
-      pred += pred_stride << 1;
-      src += src_stride << 1;
-      r -= 2;
-    }
-    if (r != 0) {
-      const uint8x16_t v_src = vld1q_u8(&src[0]);
-      const uint8x16_t v_pred = vld1q_u8(&pred[0]);
-      const uint16x8_t v_diff_lo =
-          vsubl_u8(vget_low_u8(v_src), vget_low_u8(v_pred));
-      const uint16x8_t v_diff_hi =
-          vsubl_u8(vget_high_u8(v_src), vget_high_u8(v_pred));
-      vst1q_s16(&diff[0], vreinterpretq_s16_u16(v_diff_lo));
-      vst1q_s16(&diff[8], vreinterpretq_s16_u16(v_diff_hi));
-    }
+    do {
+      uint8x16_t v_src0, v_src1, v_src2, v_src3;
+      uint8x16_t v_pred0, v_pred1, v_pred2, v_pred3;
+      load_u8_16x4(src, src_stride, &v_src0, &v_src1, &v_src2, &v_src3);
+      load_u8_16x4(pred, pred_stride, &v_pred0, &v_pred1, &v_pred2, &v_pred3);
+      const int16x8_t v_diff0_lo = vreinterpretq_s16_u16(
+          vsubl_u8(vget_low_u8(v_src0), vget_low_u8(v_pred0)));
+      const int16x8_t v_diff0_hi = vreinterpretq_s16_u16(
+          vsubl_u8(vget_high_u8(v_src0), vget_high_u8(v_pred0)));
+      const int16x8_t v_diff1_lo = vreinterpretq_s16_u16(
+          vsubl_u8(vget_low_u8(v_src1), vget_low_u8(v_pred1)));
+      const int16x8_t v_diff1_hi = vreinterpretq_s16_u16(
+          vsubl_u8(vget_high_u8(v_src1), vget_high_u8(v_pred1)));
+      const int16x8_t v_diff2_lo = vreinterpretq_s16_u16(
+          vsubl_u8(vget_low_u8(v_src2), vget_low_u8(v_pred2)));
+      const int16x8_t v_diff2_hi = vreinterpretq_s16_u16(
+          vsubl_u8(vget_high_u8(v_src2), vget_high_u8(v_pred2)));
+      const int16x8_t v_diff3_lo = vreinterpretq_s16_u16(
+          vsubl_u8(vget_low_u8(v_src3), vget_low_u8(v_pred3)));
+      const int16x8_t v_diff3_hi = vreinterpretq_s16_u16(
+          vsubl_u8(vget_high_u8(v_src3), vget_high_u8(v_pred3)));
+      vst1q_s16(diff, v_diff0_lo);
+      vst1q_s16(diff + 8, v_diff0_hi);
+      diff += diff_stride;
+      vst1q_s16(diff, v_diff1_lo);
+      vst1q_s16(diff + 8, v_diff1_hi);
+      diff += diff_stride;
+      vst1q_s16(diff, v_diff2_lo);
+      vst1q_s16(diff + 8, v_diff2_hi);
+      diff += diff_stride;
+      vst1q_s16(diff, v_diff3_lo);
+      vst1q_s16(diff + 8, v_diff3_hi);
+      diff += diff_stride;
+      pred += 4 * pred_stride;
+      src += 4 * src_stride;
+      r -= 4;
+    } while (r != 0);
   } else if (cols > 4) {
-    int r = rows;
-    while (r >= 2) {
-      const uint8x8_t v_src0 = vld1_u8(&src[0]);
-      const uint8x8_t v_src1 = vld1_u8(&src[src_stride]);
-      const uint8x8_t v_pred0 = vld1_u8(&pred[0]);
-      const uint8x8_t v_pred1 = vld1_u8(&pred[pred_stride]);
-      const uint16x8_t v_diff0 = vsubl_u8(v_src0, v_pred0);
-      const uint16x8_t v_diff1 = vsubl_u8(v_src1, v_pred1);
-      vst1q_s16(&diff[0], vreinterpretq_s16_u16(v_diff0));
-      vst1q_s16(&diff[diff_stride], vreinterpretq_s16_u16(v_diff1));
-      diff += diff_stride << 1;
-      pred += pred_stride << 1;
-      src += src_stride << 1;
-      r -= 2;
-    }
-    if (r != 0) {
-      do {
-        const uint8x8_t v_src = vld1_u8(&src[0]);
-        const uint8x8_t v_pred = vld1_u8(&pred[0]);
-        const uint16x8_t v_diff = vsubl_u8(v_src, v_pred);
-        vst1q_s16(&diff[0], vreinterpretq_s16_u16(v_diff));
-        diff += diff_stride;
-        pred += pred_stride;
-        src += src_stride;
-      } while (--r != 0);
-    }
-  } else if (cols == 4) {
-    int r = rows;
-    if (r >= 4) {
-      do {
-        uint8x8_t v_src_01, v_src_23, v_pred_01, v_pred_23;
-        load_unaligned_u8_4x4(src, src_stride, &v_src_01, &v_src_23);
-        load_unaligned_u8_4x4(pred, pred_stride, &v_pred_01, &v_pred_23);
-        const int16x8_t v_diff_01 =
-            vreinterpretq_s16_u16(vsubl_u8(v_src_01, v_pred_01));
-        const int16x8_t v_diff_23 =
-            vreinterpretq_s16_u16(vsubl_u8(v_src_23, v_pred_23));
-        vst1_s16(&diff[0 * diff_stride], vget_low_s16(v_diff_01));
-        vst1_s16(&diff[1 * diff_stride], vget_high_s16(v_diff_01));
-        vst1_s16(&diff[2 * diff_stride], vget_low_s16(v_diff_23));
-        vst1_s16(&diff[3 * diff_stride], vget_high_s16(v_diff_23));
-        diff += diff_stride << 2;
-        pred += pred_stride << 2;
-        src += src_stride << 2;
-        r -= 4;
-      } while (r >= 4);
-    }
-    while (r >= 2) {
-      const uint8x8_t v_src_01 = load_unaligned_u8_4x2(src, src_stride);
-      const uint8x8_t v_pred_01 = load_unaligned_u8_4x2(pred, pred_stride);
+    do {
+      uint8x8_t v_src0, v_src1, v_src2, v_src3;
+      uint8x8_t v_pred0, v_pred1, v_pred2, v_pred3;
+      load_u8_8x4(src, src_stride, &v_src0, &v_src1, &v_src2, &v_src3);
+      load_u8_8x4(pred, pred_stride, &v_pred0, &v_pred1, &v_pred2, &v_pred3);
+      const int16x8_t v_diff0 =
+          vreinterpretq_s16_u16(vsubl_u8(v_src0, v_pred0));
+      const int16x8_t v_diff1 =
+          vreinterpretq_s16_u16(vsubl_u8(v_src1, v_pred1));
+      const int16x8_t v_diff2 =
+          vreinterpretq_s16_u16(vsubl_u8(v_src2, v_pred2));
+      const int16x8_t v_diff3 =
+          vreinterpretq_s16_u16(vsubl_u8(v_src3, v_pred3));
+      store_s16_8x4(diff, diff_stride, v_diff0, v_diff1, v_diff2, v_diff3);
+      diff += 4 * diff_stride;
+      pred += 4 * pred_stride;
+      src += 4 * src_stride;
+      r -= 4;
+    } while (r != 0);
+  } else {
+    assert(cols == 4);
+    do {
+      uint8x8_t v_src_01, v_src_23, v_pred_01, v_pred_23;
+      load_unaligned_u8_4x4(src, src_stride, &v_src_01, &v_src_23);
+      load_unaligned_u8_4x4(pred, pred_stride, &v_pred_01, &v_pred_23);
       const int16x8_t v_diff_01 =
           vreinterpretq_s16_u16(vsubl_u8(v_src_01, v_pred_01));
-      vst1_s16(&diff[0 * diff_stride], vget_low_s16(v_diff_01));
-      vst1_s16(&diff[1 * diff_stride], vget_high_s16(v_diff_01));
-      diff += diff_stride << 1;
-      pred += pred_stride << 1;
-      src += src_stride << 1;
-      r -= 2;
-    }
-    if (r != 0) {
-      const uint8x8_t v_src = load_unaligned_u8_4x1(src);
-      const uint8x8_t v_pred = load_unaligned_u8_4x1(pred);
-      const int16x8_t v_diff = vreinterpretq_s16_u16(vsubl_u8(v_src, v_pred));
-      vst1_s16(diff, vget_low_s16(v_diff));
-    }
-  } else {
-    int r = rows;
-    do {
-      int c = 0;
-      do {
-        diff[c] = src[c] - pred[c];
-      } while (++c < cols);
-      diff += diff_stride;
-      pred += pred_stride;
-      src += src_stride;
-    } while (--r != 0);
+      const int16x8_t v_diff_23 =
+          vreinterpretq_s16_u16(vsubl_u8(v_src_23, v_pred_23));
+      store_s16_4x4(diff, diff_stride, vget_low_s16(v_diff_01),
+                    vget_high_s16(v_diff_01), vget_low_s16(v_diff_23),
+                    vget_high_s16(v_diff_23));
+      diff += diff_stride << 2;
+      pred += pred_stride << 2;
+      src += src_stride << 2;
+      r -= 4;
+    } while (r != 0);
   }
 }
 
