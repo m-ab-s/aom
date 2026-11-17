@@ -166,7 +166,10 @@ class QuantizeTestBase
     for (int i = 0; i < test_num; ++i) {
       if (is_loop) FillCoeffRandom();
 
-      memset(qcoeff_ref, 0, 5 * n_coeffs * sizeof(*qcoeff_ref));
+      memset(qcoeff_ref, 0, 2 * n_coeffs * sizeof(*qcoeff_ref));
+      memset(qcoeff, 0x5a, 2 * n_coeffs * sizeof(*qcoeff));
+      eob[0] = 0;
+      eob[1] = 0x5a5a;
 
       RunQuantizeFunc(coeff_ptr, n_coeffs, zbin, round, quant, quant_shift,
                       qcoeff, qcoeff_ref, dqcoeff, dqcoeff_ref, dequant,
@@ -948,6 +951,12 @@ INSTANTIATE_TEST_SUITE_P(NEON, LowPrecisionQuantizeTest,
 
 const QuantizeParam<QuantizeFunc> kQParamArrayNEON[] = {
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_4X4), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_4X8), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_neon,
+             static_cast<TX_SIZE>(TX_8X8), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_neon,
              static_cast<TX_SIZE>(TX_16X16), TYPE_FP, AOM_BITS_8),
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_neon,
              static_cast<TX_SIZE>(TX_4X16), TYPE_FP, AOM_BITS_8),
@@ -958,11 +967,21 @@ const QuantizeParam<QuantizeFunc> kQParamArrayNEON[] = {
   make_tuple(&av1_quantize_fp_c, &av1_quantize_fp_neon,
              static_cast<TX_SIZE>(TX_32X8), TYPE_FP, AOM_BITS_8),
   make_tuple(&av1_quantize_fp_32x32_c, &av1_quantize_fp_32x32_neon,
+             static_cast<TX_SIZE>(TX_16X32), TYPE_FP, AOM_BITS_8),
+  make_tuple(&av1_quantize_fp_32x32_c, &av1_quantize_fp_32x32_neon,
              static_cast<TX_SIZE>(TX_32X32), TYPE_FP, AOM_BITS_8),
   make_tuple(&av1_quantize_fp_64x64_c, &av1_quantize_fp_64x64_neon,
              static_cast<TX_SIZE>(TX_64X64), TYPE_FP, AOM_BITS_8),
   make_tuple(&aom_quantize_b_c, &aom_quantize_b_neon,
+             static_cast<TX_SIZE>(TX_4X4), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_c, &aom_quantize_b_neon,
+             static_cast<TX_SIZE>(TX_4X8), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_c, &aom_quantize_b_neon,
+             static_cast<TX_SIZE>(TX_8X8), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_c, &aom_quantize_b_neon,
              static_cast<TX_SIZE>(TX_16X16), TYPE_B, AOM_BITS_8),
+  make_tuple(&aom_quantize_b_32x32_c, &aom_quantize_b_32x32_neon,
+             static_cast<TX_SIZE>(TX_16X32), TYPE_B, AOM_BITS_8),
   make_tuple(&aom_quantize_b_32x32_c, &aom_quantize_b_32x32_neon,
              static_cast<TX_SIZE>(TX_32X32), TYPE_B, AOM_BITS_8),
   make_tuple(&aom_quantize_b_64x64_c, &aom_quantize_b_64x64_neon,
