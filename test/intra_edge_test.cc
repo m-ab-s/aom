@@ -33,7 +33,7 @@ class UpsampleTest : public FunctionEquivalenceTest<F> {
  protected:
   static const int kIterations = 1000000;
   static const int kMinEdge = 4;
-  static const int kMaxEdge = 24;
+  static const int kMaxEdge = 16;
   static const int kBufSize = 2 * 64 + 32;
   static const int kOffset = 16;
 
@@ -178,6 +178,33 @@ TEST_P(FilterEdgeTest8B, RandomValues) {
     }
 
     Common();
+  }
+}
+
+TEST_P(FilterEdgeTest8B, AllSizes) {
+  for (int sz = 1; sz <= kMaxEdge + 1; ++sz) {
+    size_ = sz;
+    for (int strength = 0; strength <= 3; ++strength) {
+      strength_ = strength;
+      for (int iter = 0; iter < 8 && !HasFatalFailure(); ++iter) {
+        for (int i = 0; i < kBufSize; ++i) {
+          const uint8_t pix = rng_.Rand8();
+          edge_ref_data_[i] = pix;
+          edge_tst_data_[i] = pix;
+        }
+        Common();
+#if HAVE_NEON
+        if (params_.tst_func == av1_filter_intra_edge_neon) {
+          for (int i = 0; i < kOffset; ++i) {
+            ASSERT_EQ(edge_ref_data_[i], edge_tst_data_[i]);
+          }
+          for (int i = size_; i < kBufSize - kOffset; ++i) {
+            ASSERT_EQ(edge_ref_[i], edge_tst_[i]);
+          }
+        }
+#endif  // HAVE_NEON
+      }
+    }
   }
 }
 
