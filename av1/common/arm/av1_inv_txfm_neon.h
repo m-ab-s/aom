@@ -12,13 +12,13 @@
 #define AOM_AV1_COMMON_ARM_AV1_INV_TXFM_NEON_H_
 
 #include <arm_neon.h>
+#include <assert.h>
 
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
 #include "aom/aom_integer.h"
 #include "av1/common/enums.h"
-#include "av1/common/av1_inv_txfm1d.h"
 #include "av1/common/av1_inv_txfm1d_cfg.h"
 #include "av1/common/av1_txfm.h"
 
@@ -26,15 +26,8 @@
 extern "C" {
 #endif
 
-typedef void (*transform_1d_neon)(const int32_t *input, int32_t *output,
-                                  const int8_t cos_bit,
-                                  const int8_t *stage_ptr);
 typedef void (*transform_neon)(int16x8_t *input, int16x8_t *output,
                                int8_t cos_bit);
-
-DECLARE_ALIGNED(16, static const int16_t, av1_eob_to_eobxy_8x8_default[8]) = {
-  0x0707, 0x0707, 0x0707, 0x0707, 0x0707, 0x0707, 0x0707, 0x0707,
-};
 
 DECLARE_ALIGNED(16, static const int16_t,
                 av1_eob_to_eobxy_16x16_default[16]) = {
@@ -87,7 +80,7 @@ DECLARE_ALIGNED(16, static const int16_t, av1_eob_to_eobxy_32x8_default[8]) = {
 DECLARE_ALIGNED(16, static const int16_t *,
                 av1_eob_to_eobxy_default[TX_SIZES_ALL]) = {
   NULL,
-  av1_eob_to_eobxy_8x8_default,
+  NULL,
   av1_eob_to_eobxy_16x16_default,
   av1_eob_to_eobxy_32x32_default,
   av1_eob_to_eobxy_32x32_default,
@@ -132,6 +125,7 @@ static inline void get_eobx_eoby_scan_default(int *eobx, int *eoby,
 
   const int tx_w_log2 = tx_size_wide_log2_eob[tx_size];
   const int eob_row = (eob - 1) >> tx_w_log2;
+  assert(av1_eob_to_eobxy_default[tx_size] != NULL);
   const int eobxy = av1_eob_to_eobxy_default[tx_size][eob_row];
   *eobx = eobxy & 0xFF;
   *eoby = eobxy >> 8;
