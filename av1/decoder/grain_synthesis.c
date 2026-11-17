@@ -1384,6 +1384,89 @@ static int add_film_grain_run(const aom_film_grain_t *params, uint8_t *luma,
   return 0;
 }
 
+// Returns true if the scaling function points are within the ranges allowed by
+// the film_grain_params() syntax: at most max_num_points points, 8-bit
+// coordinates, and strictly increasing x coordinates.
+static bool scaling_points_are_valid(const int points[][2], int num_points,
+                                     int max_num_points) {
+  if (num_points < 0 || num_points > max_num_points) return false;
+  for (int i = 0; i < num_points; i++) {
+    if (points[i][0] < 0 || points[i][0] > 255 || points[i][1] < 0 ||
+        points[i][1] > 255) {
+      return false;
+    }
+    if (i > 0 && points[i][0] <= points[i - 1][0]) return false;
+  }
+  return true;
+}
+
+static bool ar_coeffs_are_valid(const int *coeffs, int num_coeffs) {
+  for (int i = 0; i < num_coeffs; i++) {
+    if (coeffs[i] < -128 || coeffs[i] > 127) return false;
+  }
+  return true;
+}
+
+// Returns true if params could have been parsed from a conforming bitstream
+// for an image with the given format (see read_film_grain_params() in
+// av1/decoder/decodeframe.c and Section 6.8.20 of the AV1 specification). The
+// grain synthesis code relies on these ranges to avoid out-of-bounds accesses,
+// divisions by zero and signed integer overflows.
+static bool film_grain_params_are_valid(const aom_film_grain_t *params,
+                                        int monochrome, int chroma_subsamp_x,
+                                        int chroma_subsamp_y) {
+  if (params->bit_depth != 8 && params->bit_depth != 10 &&
+      params->bit_depth != 12) {
+    return false;
+  }
+  if (!scaling_points_are_valid(params->scaling_points_y, params->num_y_points,
+                                NELEMENTS(params->scaling_points_y)) ||
+      !scaling_points_are_valid(params->scaling_points_cb,
+                                params->num_cb_points,
+                                NELEMENTS(params->scaling_points_cb)) ||
+      !scaling_points_are_valid(params->scaling_points_cr,
+                                params->num_cr_points,
+                                NELEMENTS(params->scaling_points_cr))) {
+    return false;
+  }
+  if (params->scaling_shift < 8 || params->scaling_shift > 11) return false;
+  if (params->ar_coeff_lag < 0 || params->ar_coeff_lag > 3) return false;
+  const int num_pos_luma =
+      2 * params->ar_coeff_lag * (params->ar_coeff_lag + 1);
+  const int num_pos_chroma = num_pos_luma + (params->num_y_points > 0);
+  // generate_chroma_grain_blocks() uses the coefficients of both chroma planes
+  // even if grain is applied to only one of them.
+  if (!ar_coeffs_are_valid(params->ar_coeffs_y, num_pos_luma) ||
+      !ar_coeffs_are_valid(params->ar_coeffs_cb, num_pos_chroma) ||
+      !ar_coeffs_are_valid(params->ar_coeffs_cr, num_pos_chroma)) {
+    return false;
+  }
+  if (params->ar_coeff_shift < 6 || params->ar_coeff_shift > 9) return false;
+  if (params->grain_scale_shift < 0 || params->grain_scale_shift > 3) {
+    return false;
+  }
+  if (params->cb_mult < 0 || params->cb_mult > 255 ||
+      params->cb_luma_mult < 0 || params->cb_luma_mult > 255 ||
+      params->cb_offset < 0 || params->cb_offset > 511 || params->cr_mult < 0 ||
+      params->cr_mult > 255 || params->cr_luma_mult < 0 ||
+      params->cr_luma_mult > 255 || params->cr_offset < 0 ||
+      params->cr_offset > 511) {
+    return false;
+  }
+  // Chroma constraints of the film_grain_params() syntax.
+  const bool is_420 = chroma_subsamp_x == 1 && chroma_subsamp_y == 1;
+  if (monochrome && params->chroma_scaling_from_luma) return false;
+  if ((monochrome || params->chroma_scaling_from_luma ||
+       (is_420 && params->num_y_points == 0)) &&
+      (params->num_cb_points != 0 || params->num_cr_points != 0)) {
+    return false;
+  }
+  if (is_420 && (params->num_cb_points == 0) != (params->num_cr_points == 0)) {
+    return false;
+  }
+  return true;
+}
+
 int av1_add_film_grain(const aom_film_grain_t *params, const aom_image_t *src,
                        aom_image_t *dst) {
   uint8_t *luma, *cb, *cr;
@@ -1391,7 +1474,11 @@ int av1_add_film_grain(const aom_film_grain_t *params, const aom_image_t *src,
   int use_high_bit_depth = 0;
   int chroma_subsamp_x = 0;
   int chroma_subsamp_y = 0;
-  int mc_identity = src->mc == AOM_CICP_MC_IDENTITY ? 1 : 0;
+  int mc_identity;
+
+  if (!params || !src || !dst) return -1;
+
+  mc_identity = src->mc == AOM_CICP_MC_IDENTITY ? 1 : 0;
 
   switch (src->fmt) {
     case AOM_IMG_FMT_I420:
@@ -1430,7 +1517,14 @@ int av1_add_film_grain(const aom_film_grain_t *params, const aom_image_t *src,
       return -1;
   }
 
-  assert(params->bit_depth == src->bit_depth);
+  // The grain synthesis code assumes the parameters are within the ranges that
+  // can be signaled in a bitstream and that the bit depth matches the image.
+  if (params->bit_depth != src->bit_depth ||
+      (!use_high_bit_depth && params->bit_depth != 8) ||
+      !film_grain_params_are_valid(params, src->monochrome, chroma_subsamp_x,
+                                   chroma_subsamp_y)) {
+    return -1;
+  }
 
   dst->fmt = src->fmt;
   dst->bit_depth = src->bit_depth;

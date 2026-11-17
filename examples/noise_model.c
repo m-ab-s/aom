@@ -311,6 +311,9 @@ int main(int argc, char *argv[]) {
       (info.frame_width % 2) != 0 || (info.frame_height % 2) != 0) {
     die("Invalid frame size: %dx%d", info.frame_width, info.frame_height);
   }
+  if (args.bit_depth != 8 && args.bit_depth != 10 && args.bit_depth != 12) {
+    die("Invalid bit depth: %d\n", args.bit_depth);
+  }
   if (!aom_img_alloc(&raw, args.img_fmt, info.frame_width, info.frame_height,
                      1)) {
     die("Failed to allocate image.");
@@ -319,6 +322,8 @@ int main(int argc, char *argv[]) {
                      info.frame_height, 1)) {
     die("Failed to allocate image.");
   }
+  raw.bit_depth = args.bit_depth;
+  denoised.bit_depth = args.bit_depth;
   infile = fopen(args.input, "rb");
   if (!infile) {
     die("Failed to open input file: %s", args.input);
@@ -328,8 +333,10 @@ int main(int argc, char *argv[]) {
   const int high_bd = args.bit_depth > 8;
   const int block_size = args.block_size;
   aom_flat_block_finder_t block_finder;
-  aom_flat_block_finder_init(&block_finder, block_size, args.bit_depth,
-                             high_bd);
+  if (!aom_flat_block_finder_init(&block_finder, block_size, args.bit_depth,
+                                  high_bd)) {
+    die("Failed to initialize flat block finder\n");
+  }
 
   const int num_blocks_w = (info.frame_width + block_size - 1) / block_size;
   const int num_blocks_h = (info.frame_height + block_size - 1) / block_size;
@@ -340,7 +347,9 @@ int main(int argc, char *argv[]) {
   aom_noise_model_t noise_model;
   aom_noise_model_params_t params = { AOM_NOISE_SHAPE_SQUARE, 3, args.bit_depth,
                                       high_bd };
-  aom_noise_model_init(&noise_model, params);
+  if (!aom_noise_model_init(&noise_model, params)) {
+    die("Failed to initialize noise model\n");
+  }
 
   FILE *denoised_file = 0;
   if (args.input_denoised) {

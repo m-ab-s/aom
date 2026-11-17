@@ -193,6 +193,8 @@ if(NOT BUILD_SHARED_LIBS)
     add_to_libaom_test_srcs(AOM_UNIT_TEST_COMMON_INTRIN_AVX2)
   endif()
 
+  list(APPEND AOM_UNIT_TEST_DECODER_SOURCES
+              "${AOM_ROOT}/test/grain_synthesis_test.cc")
   if(CONFIG_MULTITHREAD)
     list(APPEND AOM_UNIT_TEST_DECODER_SOURCES
                 "${AOM_ROOT}/test/grain_synthesis_race_test.cc")
