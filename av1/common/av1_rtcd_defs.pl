@@ -583,6 +583,19 @@ if (aom_config("CONFIG_AV1_ENCODER") eq "yes") {
     add_proto qw/int av1_denoiser_filter/, "const uint8_t *sig, int sig_stride, const uint8_t *mc_avg, int mc_avg_stride, uint8_t *avg, int avg_stride, int increase_denoising, BLOCK_SIZE bs, int motion_magnitude";
     specialize qw/av1_denoiser_filter neon sse2/;
   }
+
+  # Fused subtract + Hadamard + SATD for intra model RD
+  add_proto qw/int av1_hadamard_satd_4x4_sub/, "const uint8_t *src, ptrdiff_t src_stride, const uint8_t *pred, ptrdiff_t pred_stride";
+  specialize qw/av1_hadamard_satd_4x4_sub neon/;
+
+  add_proto qw/int av1_hadamard_satd_8x8_sub/, "const uint8_t *src, ptrdiff_t src_stride, const uint8_t *pred, ptrdiff_t pred_stride";
+  specialize qw/av1_hadamard_satd_8x8_sub neon/;
+
+  add_proto qw/int av1_hadamard_satd_16x16_sub/, "const uint8_t *src, ptrdiff_t src_stride, const uint8_t *pred, ptrdiff_t pred_stride";
+  specialize qw/av1_hadamard_satd_16x16_sub neon/;
+
+  add_proto qw/int av1_hadamard_satd_32x32_sub/, "const uint8_t *src, ptrdiff_t src_stride, const uint8_t *pred, ptrdiff_t pred_stride";
+  specialize qw/av1_hadamard_satd_32x32_sub neon/;
 }
 # end encoder functions
 

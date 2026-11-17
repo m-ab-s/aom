@@ -17,7 +17,16 @@
 #ifndef AOM_AV1_ENCODER_INTRA_MODE_SEARCH_UTILS_H_
 #define AOM_AV1_ENCODER_INTRA_MODE_SEARCH_UTILS_H_
 
+#include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include "config/aom_config.h"
+#include "config/aom_dsp_rtcd.h"
 #include "config/av1_rtcd.h"
+
+#include "aom_dsp/aom_dsp_common.h"
 
 #include "av1/common/enums.h"
 #include "av1/common/pred_common.h"
@@ -677,6 +686,57 @@ static inline int intra_mode_info_cost_uv(const AV1_COMP *cpi,
 }
 
 /*!\cond */
+#if HAVE_NEON
+static inline int quick_sub_hadamard_satd_lowbd(const uint8_t *src,
+                                                ptrdiff_t src_stride,
+                                                const uint8_t *pred,
+                                                ptrdiff_t pred_stride,
+                                                TX_SIZE tx_size) {
+  switch (tx_size) {
+    case TX_4X4:
+      return av1_hadamard_satd_4x4_sub(src, src_stride, pred, pred_stride);
+    case TX_8X8:
+      return av1_hadamard_satd_8x8_sub(src, src_stride, pred, pred_stride);
+    case TX_16X16:
+      return av1_hadamard_satd_16x16_sub(src, src_stride, pred, pred_stride);
+    case TX_32X32:
+      return av1_hadamard_satd_32x32_sub(src, src_stride, pred, pred_stride);
+    default: assert(0); return 0;
+  }
+}
+
+int64_t av1_intra_model_rd_slow(const AV1_COMMON *cm, MACROBLOCK *const x,
+                                int plane, BLOCK_SIZE plane_bsize,
+                                TX_SIZE tx_size, int use_hadamard,
+                                bool need_border_pad);
+
+// Makes a quick intra prediction and estimate the rdcost with a model without
+// going through the whole txfm/quantize/itxfm process.
+// Note: leaves p->src_diff and p->coeff with unspecified scratch contents.
+static inline int64_t intra_model_rd(const AV1_COMMON *cm, MACROBLOCK *const x,
+                                     int plane, BLOCK_SIZE plane_bsize,
+                                     TX_SIZE tx_size, int use_hadamard,
+                                     bool do_border_pad) {
+  MACROBLOCKD *const xd = &x->e_mbd;
+  assert(!is_inter_block(xd->mi[0]));
+  assert(plane >= 0 && plane < MAX_MB_PLANE);
+  assert(plane_bsize < BLOCK_SIZES_ALL);
+  assert(tx_size < TX_SIZES_ALL);
+  assert(IMPLIES(use_hadamard, tx_size <= TX_32X32));
+  const bool need_border_pad =
+      do_border_pad && (x->pix_to_bottom_edge < 0 || x->pix_to_right_edge < 0);
+  if (use_hadamard && !need_border_pad && !is_cur_buf_hbd(xd) &&
+      txsize_to_bsize[tx_size] == plane_bsize) {
+    const struct macroblock_plane *const p = &x->plane[plane];
+    const struct macroblockd_plane *const pd = &xd->plane[plane];
+    av1_predict_intra_block_facade(cm, xd, plane, 0, 0, tx_size);
+    return quick_sub_hadamard_satd_lowbd(p->src.buf, p->src.stride, pd->dst.buf,
+                                         pd->dst.stride, tx_size);
+  }
+  return av1_intra_model_rd_slow(cm, x, plane, plane_bsize, tx_size,
+                                 use_hadamard, need_border_pad);
+}
+#else
 // Makes a quick intra prediction and estimate the rdcost with a model without
 // going through the whole txfm/quantize/itxfm process.
 static int64_t intra_model_rd(const AV1_COMMON *cm, MACROBLOCK *const x,
@@ -716,6 +776,7 @@ static int64_t intra_model_rd(const AV1_COMMON *cm, MACROBLOCK *const x,
   }
   return satd_cost;
 }
+#endif  // HAVE_NEON
 /*!\endcond */
 
 /*!\brief Estimate the luma rdcost of a given intra mode and try to prune it.

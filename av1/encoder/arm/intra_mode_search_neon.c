@@ -11,12 +11,17 @@
 
 #include <arm_neon.h>
 #include <assert.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
 
+#include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/sum_neon.h"
+#include "aom_dsp/arm/transpose_neon.h"
+#include "aom_ports/mem.h"
 #include "av1/encoder/intra_mode_search_utils.h"
 
 #if AOM_ARCH_AARCH64
@@ -504,3 +509,393 @@ void av1_highbd_compute_gradient_info_sb_neon(MACROBLOCK *const x,
 }
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 #endif  // AOM_ARCH_AARCH64
+
+int av1_hadamard_satd_4x4_sub_neon(const uint8_t *src, ptrdiff_t src_stride,
+                                   const uint8_t *pred, ptrdiff_t pred_stride) {
+  const uint8x8_t s02 = load_unaligned_u8_4x2(src, 2 * src_stride);
+  const uint8x8_t s13 = load_unaligned_u8_4x2(src + src_stride, 2 * src_stride);
+  const uint8x8_t d02 = load_unaligned_u8_4x2(pred, 2 * pred_stride);
+  const uint8x8_t d13 =
+      load_unaligned_u8_4x2(pred + pred_stride, 2 * pred_stride);
+  const int16x8_t diff02 = vreinterpretq_s16_u16(vsubl_u8(s02, d02));
+  const int16x8_t diff13 = vreinterpretq_s16_u16(vsubl_u8(s13, d13));
+
+  // Pass 1 (columns): residuals in [-255, 255]; t02/t13 in [-255, 255];
+  // y01/y23 in [-510, 510] with no 16-bit overflow.
+  const int16x8_t t02 = vhaddq_s16(diff02, diff13);
+  const int16x8_t t13 = vhsubq_s16(diff02, diff13);
+  const int16x8_t p01 = vreinterpretq_s16_s64(
+      aom_vtrn1q_s64(vreinterpretq_s64_s16(t02), vreinterpretq_s64_s16(t13)));
+  const int16x8_t p23 = vreinterpretq_s16_s64(
+      aom_vtrn2q_s64(vreinterpretq_s64_s16(t02), vreinterpretq_s64_s16(t13)));
+  const int16x8_t y01 = vaddq_s16(p01, p23);
+  const int16x8_t y23 = vsubq_s16(p01, p23);
+
+  // Pass 2 (rows): deinterleave even/odd columns and fold the final butterfly
+  // via |u + v| + |u - v| = 2 * max(|u|, |v|) on [-510, 510] pairs.
+  const int16x8x2_t y_uzp = vuzpq_s16(y01, y23);
+  const int16x8_t b02 = vhaddq_s16(y_uzp.val[0], y_uzp.val[1]);
+  const int16x8_t b13 = vhsubq_s16(y_uzp.val[0], y_uzp.val[1]);
+  const int16x8_t abs02 = vabsq_s16(b02);
+  const int16x8_t abs13 = vabsq_s16(b13);
+#if AOM_ARCH_AARCH64
+  const int16x8_t m = vpmaxq_s16(abs02, abs13);
+  return (int)(horizontal_add_u16x8(vreinterpretq_u16_s16(m)) << 1);
+#else
+  const int16x4_t m0 = vpmax_s16(vget_low_s16(abs02), vget_high_s16(abs02));
+  const int16x4_t m1 = vpmax_s16(vget_low_s16(abs13), vget_high_s16(abs13));
+  const uint16x4_t m =
+      vadd_u16(vreinterpret_u16_s16(m0), vreinterpret_u16_s16(m1));
+  return (int)(horizontal_add_u16x4(m) << 1);
+#endif  // AOM_ARCH_AARCH64
+}
+
+static inline void load_u8_sub_s16_8x8(
+    const uint8_t *src, ptrdiff_t src_stride, const uint8_t *pred,
+    ptrdiff_t pred_stride, int16x8_t *a0, int16x8_t *a1, int16x8_t *a2,
+    int16x8_t *a3, int16x8_t *a4, int16x8_t *a5, int16x8_t *a6, int16x8_t *a7) {
+  uint8x8_t s0, s1, s2, s3, s4, s5, s6, s7;
+  uint8x8_t d0, d1, d2, d3, d4, d5, d6, d7;
+  load_u8_8x8(src, src_stride, &s0, &s1, &s2, &s3, &s4, &s5, &s6, &s7);
+  load_u8_8x8(pred, pred_stride, &d0, &d1, &d2, &d3, &d4, &d5, &d6, &d7);
+  *a0 = vreinterpretq_s16_u16(vsubl_u8(s0, d0));
+  *a1 = vreinterpretq_s16_u16(vsubl_u8(s1, d1));
+  *a2 = vreinterpretq_s16_u16(vsubl_u8(s2, d2));
+  *a3 = vreinterpretq_s16_u16(vsubl_u8(s3, d3));
+  *a4 = vreinterpretq_s16_u16(vsubl_u8(s4, d4));
+  *a5 = vreinterpretq_s16_u16(vsubl_u8(s5, d5));
+  *a6 = vreinterpretq_s16_u16(vsubl_u8(s6, d6));
+  *a7 = vreinterpretq_s16_u16(vsubl_u8(s7, d7));
+}
+
+static inline void hadamard_8x8_stage1_2_neon(
+    int16x8_t a0, int16x8_t a1, int16x8_t a2, int16x8_t a3, int16x8_t a4,
+    int16x8_t a5, int16x8_t a6, int16x8_t a7, int16x8_t *c0, int16x8_t *c1,
+    int16x8_t *c2, int16x8_t *c3, int16x8_t *c4, int16x8_t *c5, int16x8_t *c6,
+    int16x8_t *c7) {
+  const int16x8_t b0 = vaddq_s16(a0, a1);
+  const int16x8_t b1 = vsubq_s16(a0, a1);
+  const int16x8_t b2 = vaddq_s16(a2, a3);
+  const int16x8_t b3 = vsubq_s16(a2, a3);
+  const int16x8_t b4 = vaddq_s16(a4, a5);
+  const int16x8_t b5 = vsubq_s16(a4, a5);
+  const int16x8_t b6 = vaddq_s16(a6, a7);
+  const int16x8_t b7 = vsubq_s16(a6, a7);
+
+  *c0 = vaddq_s16(b0, b2);
+  *c1 = vaddq_s16(b1, b3);
+  *c2 = vsubq_s16(b0, b2);
+  *c3 = vsubq_s16(b1, b3);
+  *c4 = vaddq_s16(b4, b6);
+  *c5 = vaddq_s16(b5, b7);
+  *c6 = vsubq_s16(b4, b6);
+  *c7 = vsubq_s16(b5, b7);
+}
+
+static inline void hadamard_8x8_one_pass_neon(int16x8_t *a0, int16x8_t *a1,
+                                              int16x8_t *a2, int16x8_t *a3,
+                                              int16x8_t *a4, int16x8_t *a5,
+                                              int16x8_t *a6, int16x8_t *a7) {
+  int16x8_t c0, c1, c2, c3, c4, c5, c6, c7;
+  hadamard_8x8_stage1_2_neon(*a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, &c0, &c1,
+                             &c2, &c3, &c4, &c5, &c6, &c7);
+  *a0 = vaddq_s16(c0, c4);
+  *a1 = vsubq_s16(c2, c6);
+  *a2 = vsubq_s16(c0, c4);
+  *a3 = vaddq_s16(c2, c6);
+  *a4 = vaddq_s16(c3, c7);
+  *a5 = vsubq_s16(c3, c7);
+  *a6 = vsubq_s16(c1, c5);
+  *a7 = vaddq_s16(c1, c5);
+}
+
+int av1_hadamard_satd_8x8_sub_neon(const uint8_t *src, ptrdiff_t src_stride,
+                                   const uint8_t *pred, ptrdiff_t pred_stride) {
+  int16x8_t a0, a1, a2, a3, a4, a5, a6, a7;
+  load_u8_sub_s16_8x8(src, src_stride, pred, pred_stride, &a0, &a1, &a2, &a3,
+                      &a4, &a5, &a6, &a7);
+
+  hadamard_8x8_one_pass_neon(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
+  transpose_elems_inplace_s16_8x8(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
+
+  // Pass 2 reaches c0..c7 in [-8160, 8160] (sum of 32 terms in [-255, 255]).
+  // Folding the final add/sub via |u + v| + |u - v| = 2 * max(|u|, |v|) gives
+  // m0..m3 <= 8160 and sum <= 32640 <= UINT16_MAX without signed 16-bit
+  // overflow.
+  int16x8_t c0, c1, c2, c3, c4, c5, c6, c7;
+  hadamard_8x8_stage1_2_neon(a0, a1, a2, a3, a4, a5, a6, a7, &c0, &c1, &c2, &c3,
+                             &c4, &c5, &c6, &c7);
+
+  const uint16x8_t m0 =
+      vreinterpretq_u16_s16(vmaxq_s16(vabsq_s16(c0), vabsq_s16(c4)));
+  const uint16x8_t m1 =
+      vreinterpretq_u16_s16(vmaxq_s16(vabsq_s16(c2), vabsq_s16(c6)));
+  const uint16x8_t m2 =
+      vreinterpretq_u16_s16(vmaxq_s16(vabsq_s16(c3), vabsq_s16(c7)));
+  const uint16x8_t m3 =
+      vreinterpretq_u16_s16(vmaxq_s16(vabsq_s16(c1), vabsq_s16(c5)));
+  const uint16x8_t sum = vaddq_u16(vaddq_u16(m0, m1), vaddq_u16(m2, m3));
+  return (int)(horizontal_add_u16x8(sum) << 1);
+}
+
+static inline void hadamard_lp_8x8_sub_neon(const uint8_t *src,
+                                            ptrdiff_t src_stride,
+                                            const uint8_t *pred,
+                                            ptrdiff_t pred_stride,
+                                            int16_t *coeff) {
+  int16x8_t a0, a1, a2, a3, a4, a5, a6, a7;
+  load_u8_sub_s16_8x8(src, src_stride, pred, pred_stride, &a0, &a1, &a2, &a3,
+                      &a4, &a5, &a6, &a7);
+
+  hadamard_8x8_one_pass_neon(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
+  transpose_elems_inplace_s16_8x8(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
+  hadamard_8x8_one_pass_neon(&a0, &a1, &a2, &a3, &a4, &a5, &a6, &a7);
+
+  vst1q_s16(coeff + 0, a0);
+  vst1q_s16(coeff + 8, a1);
+  vst1q_s16(coeff + 16, a2);
+  vst1q_s16(coeff + 24, a3);
+  vst1q_s16(coeff + 32, a4);
+  vst1q_s16(coeff + 40, a5);
+  vst1q_s16(coeff + 48, a6);
+  vst1q_s16(coeff + 56, a7);
+}
+
+static inline void hadamard_lp_16x16_quadrants_sub_neon(const uint8_t *src,
+                                                        ptrdiff_t src_stride,
+                                                        const uint8_t *pred,
+                                                        ptrdiff_t pred_stride,
+                                                        int16_t *lp_coeff) {
+  for (int row = 0; row < 2; ++row) {
+    const uint8_t *const s_row = src + row * 8 * src_stride;
+    const uint8_t *const p_row = pred + row * 8 * pred_stride;
+    for (int col = 0; col < 2; ++col) {
+      hadamard_lp_8x8_sub_neon(s_row + col * 8, src_stride, p_row + col * 8,
+                               pred_stride, lp_coeff + (row * 2 + col) * 64);
+    }
+  }
+}
+
+static inline uint16x8_t hadamard_satd_16x16_pair_max_neon(
+    const int16_t *lp_coeff) {
+  // 8x8 LP coefficients fit in [-16320, 16320]; vhaddq/vhsubq halves into
+  // [-16320, 16320], so |u + v| + |u - v| = 2 * max(|u|, |v|) avoids [-32640,
+  // 32640] abs hazards and yields m0 + m1 <= 32640 (2 slices <= 65280 <= u16).
+  const int16x8_t a0 = vld1q_s16(lp_coeff + 0);
+  const int16x8_t a1 = vld1q_s16(lp_coeff + 64);
+  const int16x8_t a2 = vld1q_s16(lp_coeff + 128);
+  const int16x8_t a3 = vld1q_s16(lp_coeff + 192);
+  const int16x8_t b0 = vhaddq_s16(a0, a1);
+  const int16x8_t b1 = vhsubq_s16(a0, a1);
+  const int16x8_t b2 = vhaddq_s16(a2, a3);
+  const int16x8_t b3 = vhsubq_s16(a2, a3);
+  const uint16x8_t m0 =
+      vreinterpretq_u16_s16(vmaxq_s16(vabsq_s16(b0), vabsq_s16(b2)));
+  const uint16x8_t m1 =
+      vreinterpretq_u16_s16(vmaxq_s16(vabsq_s16(b1), vabsq_s16(b3)));
+  return vaddq_u16(m0, m1);
+}
+
+int av1_hadamard_satd_16x16_sub_neon(const uint8_t *src, ptrdiff_t src_stride,
+                                     const uint8_t *pred,
+                                     ptrdiff_t pred_stride) {
+  DECLARE_ALIGNED(16, int16_t, lp_coeff[256]);
+  hadamard_lp_16x16_quadrants_sub_neon(src, src_stride, pred, pred_stride,
+                                       lp_coeff);
+  uint32x4_t acc =
+      vpaddlq_u16(vaddq_u16(hadamard_satd_16x16_pair_max_neon(lp_coeff + 0),
+                            hadamard_satd_16x16_pair_max_neon(lp_coeff + 8)));
+  const int16_t *lp = lp_coeff + 16;
+  const int16_t *const lp_end = lp_coeff + 64;
+// Disabling unrolling on this 3-iteration loop avoids ARMv7 Q-register spills
+// and keeps the AArch64 loop compact.
+#if defined(__clang__)
+#pragma clang loop unroll(disable)
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC unroll 1
+#endif
+  do {
+    acc =
+        vpadalq_u16(acc, vaddq_u16(hadamard_satd_16x16_pair_max_neon(lp + 0),
+                                   hadamard_satd_16x16_pair_max_neon(lp + 8)));
+    lp += 16;
+  } while (lp != lp_end);
+  return (int)(horizontal_add_u32x4(acc) << 1);
+}
+
+static inline uint16x8_t hadamard_satd_32x32_stage3_pair_max_neon(
+    int16x8_t a0, int16x8_t a1, int16x8_t a2, int16x8_t a3) {
+  // Stage 2 outputs fit in [-32640, 32640]; >> 2 keeps b0..b3 in
+  // [-16320, 16320], so m0 + m1 <= 32640 and two slices sum to <= 65280.
+  const int16x8_t b0 = vshrq_n_s16(vhaddq_s16(a0, a1), 1);
+  const int16x8_t b1 = vshrq_n_s16(vhsubq_s16(a0, a1), 1);
+  const int16x8_t b2 = vshrq_n_s16(vhaddq_s16(a2, a3), 1);
+  const int16x8_t b3 = vshrq_n_s16(vhsubq_s16(a2, a3), 1);
+  const uint16x8_t m0 =
+      vreinterpretq_u16_s16(vmaxq_s16(vabsq_s16(b0), vabsq_s16(b2)));
+  const uint16x8_t m1 =
+      vreinterpretq_u16_s16(vmaxq_s16(vabsq_s16(b1), vabsq_s16(b3)));
+  return vaddq_u16(m0, m1);
+}
+
+#if AOM_ARCH_AARCH64
+static inline void hadamard_lp_16x16_stage2_col_neon(const int16_t *lp_coeff,
+                                                     int16x8_t *c0,
+                                                     int16x8_t *c1,
+                                                     int16x8_t *c2,
+                                                     int16x8_t *c3) {
+  const int16x8_t a0 = vld1q_s16(lp_coeff + 0);
+  const int16x8_t a1 = vld1q_s16(lp_coeff + 64);
+  const int16x8_t a2 = vld1q_s16(lp_coeff + 128);
+  const int16x8_t a3 = vld1q_s16(lp_coeff + 192);
+  const int16x8_t b0 = vhaddq_s16(a0, a1);
+  const int16x8_t b1 = vhsubq_s16(a0, a1);
+  const int16x8_t b2 = vhaddq_s16(a2, a3);
+  const int16x8_t b3 = vhsubq_s16(a2, a3);
+  *c0 = vaddq_s16(b0, b2);
+  *c1 = vaddq_s16(b1, b3);
+  *c2 = vsubq_s16(b0, b2);
+  *c3 = vsubq_s16(b1, b3);
+}
+
+static inline void hadamard_satd_32x32_stage3_block_neon(const int16_t *lp,
+                                                         uint16x8_t *sum01,
+                                                         uint16x8_t *sum23) {
+  int16x8_t q0_0, q0_1, q0_2, q0_3;
+  int16x8_t q1_0, q1_1, q1_2, q1_3;
+  int16x8_t q2_0, q2_1, q2_2, q2_3;
+  int16x8_t q3_0, q3_1, q3_2, q3_3;
+  hadamard_lp_16x16_stage2_col_neon(lp + 0, &q0_0, &q0_1, &q0_2, &q0_3);
+  hadamard_lp_16x16_stage2_col_neon(lp + 256, &q1_0, &q1_1, &q1_2, &q1_3);
+  hadamard_lp_16x16_stage2_col_neon(lp + 512, &q2_0, &q2_1, &q2_2, &q2_3);
+  hadamard_lp_16x16_stage2_col_neon(lp + 768, &q3_0, &q3_1, &q3_2, &q3_3);
+  const uint16x8_t p0 =
+      hadamard_satd_32x32_stage3_pair_max_neon(q0_0, q1_0, q2_0, q3_0);
+  const uint16x8_t p1 =
+      hadamard_satd_32x32_stage3_pair_max_neon(q0_1, q1_1, q2_1, q3_1);
+  const uint16x8_t p2 =
+      hadamard_satd_32x32_stage3_pair_max_neon(q0_2, q1_2, q2_2, q3_2);
+  const uint16x8_t p3 =
+      hadamard_satd_32x32_stage3_pair_max_neon(q0_3, q1_3, q2_3, q3_3);
+  *sum01 = vaddq_u16(p0, p1);
+  *sum23 = vaddq_u16(p2, p3);
+}
+#else
+static inline void hadamard_lp_16x16_stage2_col_even_neon(
+    const int16_t *lp_coeff, int16x8_t *c0, int16x8_t *c2) {
+  const int16x8_t a0 = vld1q_s16(lp_coeff + 0);
+  const int16x8_t a1 = vld1q_s16(lp_coeff + 64);
+  const int16x8_t a2 = vld1q_s16(lp_coeff + 128);
+  const int16x8_t a3 = vld1q_s16(lp_coeff + 192);
+  const int16x8_t b0 = vhaddq_s16(a0, a1);
+  const int16x8_t b2 = vhaddq_s16(a2, a3);
+  *c0 = vaddq_s16(b0, b2);
+  *c2 = vsubq_s16(b0, b2);
+}
+
+static inline void hadamard_lp_16x16_stage2_col_odd_neon(
+    const int16_t *lp_coeff, int16x8_t *c1, int16x8_t *c3) {
+  const int16x8_t a0 = vld1q_s16(lp_coeff + 0);
+  const int16x8_t a1 = vld1q_s16(lp_coeff + 64);
+  const int16x8_t a2 = vld1q_s16(lp_coeff + 128);
+  const int16x8_t a3 = vld1q_s16(lp_coeff + 192);
+  const int16x8_t b1 = vhsubq_s16(a0, a1);
+  const int16x8_t b3 = vhsubq_s16(a2, a3);
+  *c1 = vaddq_s16(b1, b3);
+  *c3 = vsubq_s16(b1, b3);
+}
+
+static inline uint16x8_t hadamard_satd_32x32_stage3_half_even_neon(
+    const int16_t *lp) {
+  int16x8_t q0_0, q0_2, q1_0, q1_2, q2_0, q2_2, q3_0, q3_2;
+  hadamard_lp_16x16_stage2_col_even_neon(lp + 0, &q0_0, &q0_2);
+  hadamard_lp_16x16_stage2_col_even_neon(lp + 256, &q1_0, &q1_2);
+  hadamard_lp_16x16_stage2_col_even_neon(lp + 512, &q2_0, &q2_2);
+  hadamard_lp_16x16_stage2_col_even_neon(lp + 768, &q3_0, &q3_2);
+  const uint16x8_t p0 =
+      hadamard_satd_32x32_stage3_pair_max_neon(q0_0, q1_0, q2_0, q3_0);
+  const uint16x8_t p2 =
+      hadamard_satd_32x32_stage3_pair_max_neon(q0_2, q1_2, q2_2, q3_2);
+  return vaddq_u16(p0, p2);
+}
+
+static inline uint16x8_t hadamard_satd_32x32_stage3_half_odd_neon(
+    const int16_t *lp) {
+  int16x8_t q0_1, q0_3, q1_1, q1_3, q2_1, q2_3, q3_1, q3_3;
+  hadamard_lp_16x16_stage2_col_odd_neon(lp + 0, &q0_1, &q0_3);
+  hadamard_lp_16x16_stage2_col_odd_neon(lp + 256, &q1_1, &q1_3);
+  hadamard_lp_16x16_stage2_col_odd_neon(lp + 512, &q2_1, &q2_3);
+  hadamard_lp_16x16_stage2_col_odd_neon(lp + 768, &q3_1, &q3_3);
+  const uint16x8_t p1 =
+      hadamard_satd_32x32_stage3_pair_max_neon(q0_1, q1_1, q2_1, q3_1);
+  const uint16x8_t p3 =
+      hadamard_satd_32x32_stage3_pair_max_neon(q0_3, q1_3, q2_3, q3_3);
+  return vaddq_u16(p1, p3);
+}
+#endif  // AOM_ARCH_AARCH64
+
+int av1_hadamard_satd_32x32_sub_neon(const uint8_t *src, ptrdiff_t src_stride,
+                                     const uint8_t *pred,
+                                     ptrdiff_t pred_stride) {
+  DECLARE_ALIGNED(16, int16_t, lp_coeff[1024]);
+  for (int q = 0; q < 4; ++q) {
+    const ptrdiff_t row_off = (q >> 1) * 16;
+    const ptrdiff_t col_off = (q & 1) * 16;
+    hadamard_lp_16x16_quadrants_sub_neon(src + row_off * src_stride + col_off,
+                                         src_stride,
+                                         pred + row_off * pred_stride + col_off,
+                                         pred_stride, lp_coeff + q * 256);
+  }
+#if AOM_ARCH_AARCH64
+  uint16x8_t sum01, sum23;
+  hadamard_satd_32x32_stage3_block_neon(lp_coeff, &sum01, &sum23);
+  uint32x4_t acc0 = vpaddlq_u16(sum01);
+  uint32x4_t acc1 = vpaddlq_u16(sum23);
+  const int16_t *lp = lp_coeff + 8;
+  const int16_t *const lp_end = lp_coeff + 64;
+#if defined(__clang__)
+#pragma clang loop unroll(disable)
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC unroll 1
+#endif
+  do {
+    hadamard_satd_32x32_stage3_block_neon(lp, &sum01, &sum23);
+    acc0 = vpadalq_u16(acc0, sum01);
+    acc1 = vpadalq_u16(acc1, sum23);
+    lp += 8;
+  } while (lp != lp_end);
+#else
+  // Split Stage 2+3 into even (c0, c2) and odd (c1, c3) passes on ARMv7 so
+  // live vectors stay within the 16 Q-register budget without stack spills.
+  // Peel the final slice (lp_coeff + 56) for acc1 so the compiler does not CSE
+  // lp_coeff's 16 loads across the even loop.
+  uint32x4_t acc0 =
+      vpaddlq_u16(hadamard_satd_32x32_stage3_half_even_neon(lp_coeff));
+  const int16_t *const lp_end = lp_coeff + 64;
+  const int16_t *lp = lp_coeff + 8;
+#if defined(__clang__)
+#pragma clang loop unroll(disable)
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC unroll 1
+#endif
+  do {
+    acc0 = vpadalq_u16(acc0, hadamard_satd_32x32_stage3_half_even_neon(lp));
+    lp += 8;
+  } while (lp != lp_end);
+
+  const int16_t *const lp_odd_end = lp_coeff + 56;
+  uint32x4_t acc1 =
+      vpaddlq_u16(hadamard_satd_32x32_stage3_half_odd_neon(lp_odd_end));
+  lp = lp_coeff;
+#if defined(__clang__)
+#pragma clang loop unroll(disable)
+#elif defined(__GNUC__) && __GNUC__ >= 8
+#pragma GCC unroll 1
+#endif
+  do {
+    acc1 = vpadalq_u16(acc1, hadamard_satd_32x32_stage3_half_odd_neon(lp));
+    lp += 8;
+  } while (lp != lp_odd_end);
+#endif  // AOM_ARCH_AARCH64
+  return (int)(horizontal_add_u32x4(vaddq_u32(acc0, acc1)) << 1);
+}

@@ -10,11 +10,20 @@
  */
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <ostream>
 
 #include "gtest/gtest.h"
 
+#include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
+#include "config/av1_rtcd.h"
+
+#include "aom_ports/mem.h"
 
 #include "test/acm_random.h"
 #include "test/register_state_check.h"
@@ -565,6 +574,238 @@ INSTANTIATE_TEST_SUITE_P(AVX2, HadamardLowbdLP8x8DualTest,
 INSTANTIATE_TEST_SUITE_P(NEON, HadamardLowbdLP8x8DualTest,
                          ::testing::Values(HadamardLP8x8DualFuncWithSize(
                              &aom_hadamard_lp_8x8_dual_neon, 8, 16)));
+#endif  // HAVE_NEON
+
+using HadamardSatdSubFunc = int (*)(const uint8_t *src, ptrdiff_t src_stride,
+                                    const uint8_t *pred, ptrdiff_t pred_stride);
+using HadamardSatdSubFuncWithSize = FuncWithSize<HadamardSatdSubFunc>;
+
+int ReferenceHadamardSatdSub(const uint8_t *src, ptrdiff_t src_stride,
+                             const uint8_t *pred, ptrdiff_t pred_stride, int bw,
+                             int bh) {
+  const int block_size = bw * bh;
+  int16_t diff[32 * 32] = {};
+  for (int r = 0; r < bh; ++r) {
+    for (int c = 0; c < bw; ++c) {
+      diff[r * bw + c] = static_cast<int16_t>(src[r * src_stride + c] -
+                                              pred[r * pred_stride + c]);
+    }
+  }
+  tran_low_t coeff[32 * 32] = {};
+  ReferenceHadamard(diff, bw, coeff, bw, bh, /*shift=*/true);
+  int satd = 0;
+  for (int i = 0; i < block_size; ++i) {
+    satd += std::abs(static_cast<int>(coeff[i]));
+  }
+  return satd;
+}
+
+class HadamardSatdSubTest
+    : public ::testing::TestWithParam<HadamardSatdSubFuncWithSize> {
+ public:
+  void SetUp() override {
+    func_ = GetParam().func;
+    bw_ = GetParam().block_width;
+    bh_ = GetParam().block_height;
+    rnd_.Reset(ACMRandom::DeterministicSeed());
+  }
+
+ protected:
+  void CompareReferenceRandom() {
+    constexpr int kMaxBlockSize = 32 * 32;
+    DECLARE_ALIGNED(16, uint8_t, src[kMaxBlockSize]);
+    DECLARE_ALIGNED(16, uint8_t, dst[kMaxBlockSize]);
+    memset(src, 0, sizeof(src));
+    memset(dst, 0, sizeof(dst));
+    for (int iter = 0; iter < 20; ++iter) {
+      for (int i = 0; i < bw_ * bh_; ++i) {
+        src[i] = rnd_.Rand8();
+        dst[i] = rnd_.Rand8();
+      }
+      const int expected =
+          ReferenceHadamardSatdSub(src, bw_, dst, bw_, bw_, bh_);
+      int actual = 0;
+      API_REGISTER_STATE_CHECK(actual = func_(src, bw_, dst, bw_));
+      EXPECT_EQ(actual, expected) << "iter=" << iter;
+    }
+  }
+
+  void CompareReferenceExtreme() {
+    constexpr int kMaxBlockSize = 32 * 32;
+    DECLARE_ALIGNED(16, uint8_t, src[kMaxBlockSize]);
+    DECLARE_ALIGNED(16, uint8_t, dst[kMaxBlockSize]);
+    memset(src, 0, sizeof(src));
+    memset(dst, 0, sizeof(dst));
+    const int block_size = bw_ * bh_;
+    for (int pattern = 0; pattern < 13; ++pattern) {
+      for (int i = 0; i < block_size; ++i) {
+        const int row = i / bw_;
+        const int col = i % bw_;
+        switch (pattern) {
+          case 0:
+            src[i] = 255;
+            dst[i] = 0;
+            break;
+          case 1:
+            src[i] = 0;
+            dst[i] = 255;
+            break;
+          case 2:
+            src[i] = 0;
+            dst[i] = 0;
+            break;
+          case 3:
+            src[i] = 255;
+            dst[i] = 255;
+            break;
+          case 4:
+            src[i] = (col & 1) ? 255 : 0;
+            dst[i] = (col & 1) ? 0 : 255;
+            break;
+          case 5:
+            src[i] = ((row + col) & 1) ? 255 : 0;
+            dst[i] = ((row + col) & 1) ? 0 : 255;
+            break;
+          case 6:  // Horizontal quadrant sign flip (stresses a0 - a1).
+            src[i] = (col >= bw_ / 2) ? 255 : 0;
+            dst[i] = (col >= bw_ / 2) ? 0 : 255;
+            break;
+          case 7:  // 2x2 quadrant checkerboard (stresses b0 - b2 and b1 - b3).
+            src[i] = ((row >= bh_ / 2) ^ (col >= bw_ / 2)) ? 255 : 0;
+            dst[i] = ((row >= bh_ / 2) ^ (col >= bw_ / 2)) ? 0 : 255;
+            break;
+          case 8:  // 3-quadrant +255 / 1-quadrant -255 (32640 in uint16_t
+                   // pair-sum lane, 65280 after << 1).
+            src[i] = (row >= bh_ / 2 && col >= bw_ / 2) ? 0 : 255;
+            dst[i] = (row >= bh_ / 2 && col >= bw_ / 2) ? 255 : 0;
+            break;
+          case 9:
+            src[i] = (row >= bh_ / 2 && col >= bw_ / 2) ? 255 : 0;
+            dst[i] = (row >= bh_ / 2 && col >= bw_ / 2) ? 0 : 255;
+            break;
+          case 10: {  // Hits 40800 (> INT16_MAX) in 32x32 AArch64 u16 pair-sum.
+            const bool neg = !(row >= bh_ / 2 && col >= bw_ / 2) &&
+                             (col % (bw_ / 2)) < bw_ / 4;
+            src[i] = neg ? 0 : 255;
+            dst[i] = neg ? 255 : 0;
+            break;
+          }
+          case 11: {  // Hits 40800 (> INT16_MAX) in 32x32 ARMv7 u16 pair-sum.
+            const bool neg = !(row >= bh_ / 2 && col >= bw_ / 2) &&
+                             (row % (bh_ / 2)) < bh_ / 4;
+            src[i] = neg ? 0 : 255;
+            dst[i] = neg ? 255 : 0;
+            break;
+          }
+          case 12:
+          default: {  // Hits 40800 (> INT16_MAX) in 16x16 u16 pair-sum lane.
+            const bool neg =
+                !(row >= bh_ / 2 && col >= bw_ / 2) && ((col + 2) & 4) != 0;
+            src[i] = neg ? 0 : 255;
+            dst[i] = neg ? 255 : 0;
+            break;
+          }
+        }
+      }
+      const int expected =
+          ReferenceHadamardSatdSub(src, bw_, dst, bw_, bw_, bh_);
+      int actual = 0;
+      API_REGISTER_STATE_CHECK(actual = func_(src, bw_, dst, bw_));
+      EXPECT_EQ(actual, expected) << "pattern=" << pattern;
+    }
+  }
+
+  void VaryStrideAndAlignment() {
+    constexpr int kMaxStride = 128;
+    constexpr int kMaxAlignOffset = 15;
+    constexpr int kBufSize = 32 * kMaxStride + kMaxAlignOffset + 32;
+    DECLARE_ALIGNED(16, uint8_t, src_buf[kBufSize]);
+    DECLARE_ALIGNED(16, uint8_t, dst_buf[kBufSize]);
+    for (int i = 0; i < kBufSize; ++i) {
+      src_buf[i] = rnd_.Rand8();
+      dst_buf[i] = rnd_.Rand8();
+    }
+    const int offsets[] = { 0, 1, 3, 7, 15 };
+    const int extras[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 17, 26, 32, 35 };
+    for (int src_off : offsets) {
+      for (int dst_off : offsets) {
+        for (int extra : extras) {
+          const ptrdiff_t src_stride = bw_ + extra;
+          const ptrdiff_t pred_stride = bw_ + ((extra + 5) % 40);
+          const uint8_t *const src = src_buf + src_off;
+          const uint8_t *const pred = dst_buf + dst_off;
+          const int expected = ReferenceHadamardSatdSub(src, src_stride, pred,
+                                                        pred_stride, bw_, bh_);
+          int actual = 0;
+          API_REGISTER_STATE_CHECK(
+              actual = func_(src, src_stride, pred, pred_stride));
+          EXPECT_EQ(actual, expected)
+              << "src_off=" << src_off << " dst_off=" << dst_off
+              << " src_stride=" << src_stride << " pred_stride=" << pred_stride;
+        }
+      }
+    }
+  }
+
+  void SpeedTest(int times) {
+    constexpr int kMaxBlockSize = 32 * 32;
+    DECLARE_ALIGNED(16, uint8_t, src[kMaxBlockSize]);
+    DECLARE_ALIGNED(16, uint8_t, dst[kMaxBlockSize]);
+    for (int i = 0; i < kMaxBlockSize; ++i) {
+      src[i] = static_cast<uint8_t>((i * 7 + 13) & 255);
+      dst[i] = static_cast<uint8_t>((i * 5 + 3) & 255);
+    }
+
+    uint64_t sum = 0;
+    aom_usec_timer timer;
+    aom_usec_timer_start(&timer);
+    for (int i = 0; i < times; ++i) {
+      sum += static_cast<uint32_t>(func_(src, bw_, dst, bw_));
+    }
+    aom_usec_timer_mark(&timer);
+
+    const int elapsed_time = static_cast<int>(aom_usec_timer_elapsed(&timer));
+    printf("HadamardSatdSub%dx%d[%12d runs]: %d us (sum=%llu)\n", bw_, bh_,
+           times, elapsed_time, static_cast<unsigned long long>(sum));
+  }
+
+  HadamardSatdSubFunc func_ = nullptr;
+  int bw_ = 0;
+  int bh_ = 0;
+  ACMRandom rnd_;
+};
+
+TEST_P(HadamardSatdSubTest, CompareReferenceRandom) {
+  CompareReferenceRandom();
+}
+
+TEST_P(HadamardSatdSubTest, CompareReferenceExtreme) {
+  CompareReferenceExtreme();
+}
+
+TEST_P(HadamardSatdSubTest, VaryStrideAndAlignment) {
+  VaryStrideAndAlignment();
+}
+
+TEST_P(HadamardSatdSubTest, DISABLED_SpeedTest) { SpeedTest(1000000); }
+
+INSTANTIATE_TEST_SUITE_P(
+    C, HadamardSatdSubTest,
+    ::testing::Values(
+        HadamardSatdSubFuncWithSize(&av1_hadamard_satd_4x4_sub_c, 4, 4),
+        HadamardSatdSubFuncWithSize(&av1_hadamard_satd_8x8_sub_c, 8, 8),
+        HadamardSatdSubFuncWithSize(&av1_hadamard_satd_16x16_sub_c, 16, 16),
+        HadamardSatdSubFuncWithSize(&av1_hadamard_satd_32x32_sub_c, 32, 32)));
+
+#if HAVE_NEON
+INSTANTIATE_TEST_SUITE_P(
+    NEON, HadamardSatdSubTest,
+    ::testing::Values(
+        HadamardSatdSubFuncWithSize(&av1_hadamard_satd_4x4_sub_neon, 4, 4),
+        HadamardSatdSubFuncWithSize(&av1_hadamard_satd_8x8_sub_neon, 8, 8),
+        HadamardSatdSubFuncWithSize(&av1_hadamard_satd_16x16_sub_neon, 16, 16),
+        HadamardSatdSubFuncWithSize(&av1_hadamard_satd_32x32_sub_neon, 32,
+                                    32)));
 #endif  // HAVE_NEON
 
 }  // namespace
