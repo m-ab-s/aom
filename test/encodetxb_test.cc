@@ -58,12 +58,22 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
     aom_free(coeff_contexts_);
   }
 
-  void GetNzMapContextsRun() {
-    const int kNumTests = 10;
+  void GetNzMapContextsRun(bool sparse = false) {
+    const int kNumTests = sparse ? 4 : 10;
     int result = 0;
 
-    for (int is_inter = 0; is_inter < 2; ++is_inter) {
-      for (int tx_type = DCT_DCT; tx_type < TX_TYPES; ++tx_type) {
+    static constexpr TX_TYPE kSparseTxTypes[] = { DCT_DCT, V_DCT, H_DCT };
+    const int num_inter = sparse ? 1 : 2;
+    const int num_tx_types = sparse
+                                 ? static_cast<int>(sizeof(kSparseTxTypes) /
+                                                    sizeof(kSparseTxTypes[0]))
+                                 : static_cast<int>(TX_TYPES);
+
+    for (int is_inter = 0; is_inter < num_inter; ++is_inter) {
+      for (int tx_type_idx = 0; tx_type_idx < num_tx_types; ++tx_type_idx) {
+        const int tx_type = sparse
+                                ? static_cast<int>(kSparseTxTypes[tx_type_idx])
+                                : tx_type_idx;
         const TX_CLASS tx_class = tx_type_to_class[tx_type];
         for (int tx_size = TX_4X4; tx_size < TX_SIZES_ALL; ++tx_size) {
           const int bhl = get_txb_bhl((TX_SIZE)tx_size);
@@ -76,12 +86,19 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
           levels_ = set_levels(levels_buf_, height);
           for (int i = 0; i < kNumTests && !result; ++i) {
             for (int eob = 1; eob <= width * height && !result; ++eob) {
-              InitDataWithEob(scan, bhl, eob);
+              InitDataWithEob(scan, bhl, eob, sparse);
 
               av1_get_nz_map_contexts_c(levels_, scan, eob, (TX_SIZE)tx_size,
                                         tx_class, coeff_contexts_ref_);
-              get_nz_map_contexts_func_(levels_, scan, eob, (TX_SIZE)tx_size,
-                                        tx_class, coeff_contexts_);
+              if (is_inter == 0 && i == 0 &&
+                  (eob <= 4 || eob == width * height || (eob & 63) == 0)) {
+                API_REGISTER_STATE_CHECK(get_nz_map_contexts_func_(
+                    levels_, scan, eob, (TX_SIZE)tx_size, tx_class,
+                    coeff_contexts_));
+              } else {
+                get_nz_map_contexts_func_(levels_, scan, eob, (TX_SIZE)tx_size,
+                                          tx_class, coeff_contexts_);
+              }
 
               result = Compare(scan, eob);
 
@@ -145,14 +162,15 @@ class EncodeTxbTest : public ::testing::TestWithParam<GetNzMapContextsFunc> {
   }
 
  private:
-  void InitDataWithEob(const int16_t *const scan, const int bhl,
-                       const int eob) {
+  void InitDataWithEob(const int16_t *const scan, const int bhl, const int eob,
+                       bool sparse = false) {
     memset(levels_buf_, 0, sizeof(levels_buf_));
     memset(coeff_contexts_, 0, sizeof(*coeff_contexts_) * MAX_TX_SQUARE);
 
     for (int c = 0; c < eob; ++c) {
       levels_[get_padded_idx(scan[c], bhl)] =
-          static_cast<uint8_t>(clamp(rnd_.Rand8(), 0, INT8_MAX));
+          sparse ? static_cast<uint8_t>(rnd_.Rand8() & 3)
+                 : static_cast<uint8_t>(clamp(rnd_.Rand8(), 0, INT8_MAX));
       coeff_contexts_[scan[c]] = static_cast<int8_t>(rnd_.Rand16() >> 1);
     }
 
@@ -188,6 +206,8 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EncodeTxbTest);
 
 TEST_P(EncodeTxbTest, GetNzMapContexts) { GetNzMapContextsRun(); }
 
+TEST_P(EncodeTxbTest, GetNzMapContextsSparse) { GetNzMapContextsRun(true); }
+
 TEST_P(EncodeTxbTest, DISABLED_SpeedTestGetNzMapContexts) {
   SpeedTestGetNzMapContextsRun();
 }
@@ -218,6 +238,7 @@ class EncodeTxbInitLevelTest
  public:
   ~EncodeTxbInitLevelTest() override = default;
   void RunTest(av1_txb_init_levels_func test_func, int tx_size, int is_speed);
+  void RunHighBdTest(av1_txb_init_levels_func test_func, int tx_size);
 };
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EncodeTxbInitLevelTest);
 
@@ -288,8 +309,116 @@ void EncodeTxbInitLevelTest::RunTest(av1_txb_init_levels_func test_func,
   }
 }
 
+void EncodeTxbInitLevelTest::RunHighBdTest(av1_txb_init_levels_func test_func,
+                                           int tx_size) {
+  const int width = get_txb_wide((TX_SIZE)tx_size);
+  const int height = get_txb_high((TX_SIZE)tx_size);
+  tran_low_t coeff[MAX_TX_SQUARE];
+
+  uint8_t levels_buf[2][TX_PAD_2D];
+  alignas(4) uint8_t levels_unaligned_buf[TX_PAD_2D + 2];
+  uint8_t *const levels0 = set_levels(levels_buf[0], height);
+  uint8_t *const levels1 = set_levels(levels_buf[1], height);
+  uint8_t *const levels_unaligned =
+      set_levels(levels_unaligned_buf + 1, height);
+
+  constexpr int kMaxHighBdCoeff = (1 << 18) - 1;
+  constexpr tran_low_t kExtremeCoeffs[16] = { 0,
+                                              127,
+                                              -127,
+                                              128,
+                                              -128,
+                                              INT16_MAX,
+                                              -INT16_MAX,
+                                              32768,
+                                              65535,
+                                              65536,
+                                              kMaxHighBdCoeff,
+                                              INT32_MAX,
+                                              -1,
+                                              -255,
+                                              -16384,
+                                              -32767 };
+#if HAVE_NEON
+  // Modes 2-3 exercise negative coeffs <= INT16_MIN. Gate on NEON because x86
+  // av1_txb_init_levels_{sse4_1,avx2} pass _mm_abs_epi16(INT16_MIN) into signed
+  // _mm_packs_epi16, saturating to -128 instead of 127.
+  constexpr tran_low_t kNegExtremeCoeffs[16] = {
+    -1,     -127,   -128,      -255,           -INT16_MAX,       INT16_MIN,
+    -32769, -65535, -65536,    -131072,        -kMaxHighBdCoeff, -INT32_MAX,
+    32768,  65536,  INT32_MAX, kMaxHighBdCoeff
+  };
+  const int num_modes = (test_func == &av1_txb_init_levels_neon) ? 4 : 2;
+#else
+  const int num_modes = 2;
+#endif
+
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  for (int mode = 0; mode < num_modes; ++mode) {
+    for (int i = 0; i < width * height; ++i) {
+      if (mode == 0) {
+        coeff[i] = kExtremeCoeffs[i % 16];
+      } else if (mode == 1) {
+        const uint32_t hi = rnd.Rand16() & 7;
+        const uint32_t lo = rnd.Rand16();
+        const uint32_t mag = (hi << 16) | lo;
+        const uint32_t span =
+            static_cast<uint32_t>(kMaxHighBdCoeff) + INT16_MAX + 1u;
+        coeff[i] = static_cast<tran_low_t>(mag % span) - INT16_MAX;
+#if HAVE_NEON
+      } else if (mode == 2) {
+        coeff[i] = kNegExtremeCoeffs[i % 16];
+      } else {
+        const uint32_t hi = rnd.Rand16() & 7;
+        const uint32_t lo = rnd.Rand16();
+        const uint32_t mag = (hi << 16) | lo;
+        coeff[i] = static_cast<tran_low_t>(mag) - kMaxHighBdCoeff;
+#endif
+      }
+    }
+    const uint8_t canary = rnd.Rand8();
+    levels_unaligned_buf[0] = canary;
+    levels_unaligned_buf[TX_PAD_2D + 1] = canary;
+    for (int i = 0; i < TX_PAD_2D; ++i) {
+      const uint8_t init_byte = rnd.Rand8();
+      levels_buf[0][i] = init_byte;
+      levels_buf[1][i] = init_byte;
+      levels_unaligned_buf[i + 1] = init_byte;
+    }
+    av1_txb_init_levels_c(coeff, width, height, levels0);
+    API_REGISTER_STATE_CHECK(test_func(coeff, width, height, levels1));
+    API_REGISTER_STATE_CHECK(test_func(coeff, width, height, levels_unaligned));
+    ASSERT_EQ(canary, levels_unaligned_buf[0]);
+    ASSERT_EQ(canary, levels_unaligned_buf[TX_PAD_2D + 1]);
+    const int stride = height + TX_PAD_HOR;
+    for (int c = 0; c < width + TX_PAD_VER; ++c) {
+      for (int r = 0; r < stride; ++r) {
+        ASSERT_EQ(levels_buf[0][c * stride + r], levels_buf[1][c * stride + r])
+            << "mode " << mode << " [" << c << "," << r << "] " << width << "x"
+            << height;
+        ASSERT_EQ(levels_buf[0][c * stride + r],
+                  levels_unaligned_buf[1 + c * stride + r])
+            << "unaligned mode " << mode << " [" << c << "," << r << "] "
+            << width << "x" << height;
+      }
+    }
+    int tail_start = (width + TX_PAD_VER) * stride + TX_PAD_END;
+#if HAVE_NEON
+    if (test_func == &av1_txb_init_levels_neon) tail_start -= TX_PAD_END;
+#endif
+    for (int i = tail_start; i < TX_PAD_2D; ++i) {
+      ASSERT_EQ(levels_buf[0][i], levels_buf[1][i]) << "tail " << i;
+      ASSERT_EQ(levels_buf[0][i], levels_unaligned_buf[1 + i]) << "tail " << i;
+    }
+  }
+}
+
 TEST_P(EncodeTxbInitLevelTest, match) {
   RunTest(GET_PARAM(0), GET_PARAM(1), 0);
+}
+
+TEST_P(EncodeTxbInitLevelTest, MatchHighBitdepth) {
+  RunHighBdTest(GET_PARAM(0), GET_PARAM(1));
 }
 
 TEST_P(EncodeTxbInitLevelTest, DISABLED_Speed) {
