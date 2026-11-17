@@ -198,7 +198,7 @@ TEST(AV1, TestWriteSymbolState) {
   const int kNumCdfs = kMaxSymbs - 1;
   const int kBufferSize = 3 * kSymbols;
   for (int n = 0; n < num_tests; ++n) {
-    aom_cdf_prob cdf_a[kNumCdfs][CDF_SIZE(kMaxSymbs)];
+    aom_cdf_prob cdf_a[kNumCdfs][CDF_SIZE(kMaxSymbs)] = {};
     aom_cdf_prob cdf_b[kNumCdfs][CDF_SIZE(kMaxSymbs)];
     aom_cdf_prob cdf_r[kNumCdfs][CDF_SIZE(kMaxSymbs)];
     for (int k = 0; k < kNumCdfs; ++k) RandomCdf(&rnd, k + 2, cdf_a[k]);
