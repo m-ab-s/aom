@@ -15,6 +15,7 @@
 #include "config/aom_config.h"
 #include "config/aom_dsp_rtcd.h"
 
+#include "aom_dsp/aom_dsp_common.h"
 #include "av1/common/av1_common_int.h"
 #include "av1/common/idct.h"
 #include "av1/common/scan.h"
@@ -148,8 +149,10 @@ static inline void av1_xform(MACROBLOCK *x, int plane, int block, int blk_row,
   av1_fwd_txfm(src_diff, coeff, diff_stride, txfm_param);
 }
 
-static inline void av1_quant(MACROBLOCK *x, int plane, int block,
-                             TxfmParam *txfm_param, const QUANT_PARAM *qparam) {
+static AOM_FORCE_INLINE void av1_quant_impl(MACROBLOCK *x, int plane, int block,
+                                            const TxfmParam *txfm_param,
+                                            const QUANT_PARAM *qparam,
+                                            int update_txb_ctx) {
   const struct macroblock_plane *const p = &x->plane[plane];
   const SCAN_ORDER *const scan_order =
       get_scan(txfm_param->tx_size, txfm_param->tx_type);
@@ -202,12 +205,27 @@ static inline void av1_quant(MACROBLOCK *x, int plane, int block,
       av1_quantize_skip(n_coeffs, qcoeff, dqcoeff, eob);
     }
   }
-  if (qparam->use_optimize_b) {
-    p->txb_entropy_ctx[block] = 0;
-  } else {
-    p->txb_entropy_ctx[block] =
-        av1_get_txb_entropy_context(qcoeff, scan_order, *eob);
+  if (update_txb_ctx) {
+    if (qparam->use_optimize_b) {
+      p->txb_entropy_ctx[block] = 0;
+    } else {
+      p->txb_entropy_ctx[block] =
+          av1_get_txb_entropy_context(qcoeff, scan_order, *eob);
+    }
   }
+}
+
+// Quantizes coefficients without updating p->txb_entropy_ctx[block].
+static inline void av1_quant_coeffs(MACROBLOCK *x, int plane, int block,
+                                    const TxfmParam *txfm_param,
+                                    const QUANT_PARAM *qparam) {
+  av1_quant_impl(x, plane, block, txfm_param, qparam, /*update_txb_ctx=*/0);
+}
+
+static inline void av1_quant(MACROBLOCK *x, int plane, int block,
+                             const TxfmParam *txfm_param,
+                             const QUANT_PARAM *qparam) {
+  av1_quant_impl(x, plane, block, txfm_param, qparam, /*update_txb_ctx=*/1);
 }
 
 static inline void av1_xform_quant(MACROBLOCK *x, int plane, int block,
