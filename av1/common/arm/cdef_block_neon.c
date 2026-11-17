@@ -478,32 +478,27 @@ static inline void primary_filter(uint16x8_t s, uint16x8_t tap[4],
   *sum = vmlaq_n_s16(*sum, f0, pri_taps[1]);
 }
 
-static inline void secondary_filter(uint16x8_t s, uint16x8_t tap[8],
+static inline int16x8_t constrain_sum4(uint16x8_t s, const uint16x8_t tap[4],
+                                       int strength, int damping) {
+  int16x8_t s0 = constrain16(tap[0], s, strength, damping);
+  const int16x8_t s1 = constrain16(tap[1], s, strength, damping);
+  int16x8_t s2 = constrain16(tap[2], s, strength, damping);
+  const int16x8_t s3 = constrain16(tap[3], s, strength, damping);
+  s0 = vaddq_s16(s0, s1);
+  s2 = vaddq_s16(s2, s3);
+  return vaddq_s16(s0, s2);
+}
+
+static inline void secondary_filter(uint16x8_t s, const uint16x8_t tap[8],
                                     const int *sec_taps, int sec_strength,
                                     int sec_damping, int16x8_t *sum) {
-  // Near taps
-  int16x8_t s0 = constrain16(tap[0], s, sec_strength, sec_damping);
-  int16x8_t s1 = constrain16(tap[1], s, sec_strength, sec_damping);
-  int16x8_t s2 = constrain16(tap[2], s, sec_strength, sec_damping);
-  int16x8_t s3 = constrain16(tap[3], s, sec_strength, sec_damping);
+  // Near taps: sum += sec_taps[0] * (p0 + p1 + p2 + p3)
+  const int16x8_t near = constrain_sum4(s, tap, sec_strength, sec_damping);
+  *sum = vmlaq_n_s16(*sum, near, sec_taps[0]);
 
-  // sum += sec_taps[0] * (p0 + p1 + p2 + p3)
-  s0 = vaddq_s16(s0, s1);
-  s2 = vaddq_s16(s2, s3);
-  s0 = vaddq_s16(s0, s2);
-  *sum = vmlaq_n_s16(*sum, s0, sec_taps[0]);
-
-  // Far taps
-  s0 = constrain16(tap[4], s, sec_strength, sec_damping);
-  s1 = constrain16(tap[5], s, sec_strength, sec_damping);
-  s2 = constrain16(tap[6], s, sec_strength, sec_damping);
-  s3 = constrain16(tap[7], s, sec_strength, sec_damping);
-
-  // sum += sec_taps[1] * (p0 + p1 + p2 + p3)
-  s0 = vaddq_s16(s0, s1);
-  s2 = vaddq_s16(s2, s3);
-  s0 = vaddq_s16(s0, s2);
-  *sum = vmlaq_n_s16(*sum, s0, sec_taps[1]);
+  // Far taps: sum += sec_taps[1] * (p0 + p1 + p2 + p3)
+  const int16x8_t far = constrain_sum4(s, tap + 4, sec_strength, sec_damping);
+  *sum = vmlaq_n_s16(*sum, far, sec_taps[1]);
 }
 
 void cdef_filter_8_0_neon(void *dest, int dstride, const uint16_t *in,
@@ -830,13 +825,13 @@ void cdef_filter_8_2_neon(void *dest, int dstride, const uint16_t *in,
   const int s1o2 = cdef_directions[dir + 2][1];
   const int s2o1 = cdef_directions[dir - 2][0];
   const int s2o2 = cdef_directions[dir - 2][1];
-  const int *sec_taps = cdef_sec_taps;
 
   if (sec_strength) {
     sec_damping = AOMMAX(0, sec_damping - get_msb(sec_strength));
   }
 
   if (block_width == 8) {
+    const int *sec_taps = cdef_sec_taps;
     uint8_t *dst8 = (uint8_t *)dest;
 
     int h = block_height;
@@ -872,18 +867,17 @@ void cdef_filter_8_2_neon(void *dest, int dstride, const uint16_t *in,
       dst8 += dstride;
     } while (--h != 0);
   } else {
+    assert(cdef_sec_taps[0] == 2 && cdef_sec_taps[1] == 1);
     uint8_t *dst8 = (uint8_t *)dest;
 
     int h = block_height;
     do {
-      int16x8_t sum0 = vdupq_n_s16(0);
-      int16x8_t sum1 = vdupq_n_s16(0);
       uint16x8_t s0, s1;
       load_unaligned_u16_4x4(in, CDEF_BSTRIDE, &s0, &s1);
 
-      uint16x8_t sec_src0[8], sec_src1[8];
+      uint16x8_t sec_src0[4], sec_src1[4];
 
-      // Secondary near taps
+      // Secondary near taps (cdef_sec_taps[0] == 2)
       load_unaligned_u16_4x4(in + s1o1, CDEF_BSTRIDE, &sec_src0[0],
                              &sec_src1[0]);
       load_unaligned_u16_4x4(in - s1o1, CDEF_BSTRIDE, &sec_src0[1],
@@ -893,20 +887,27 @@ void cdef_filter_8_2_neon(void *dest, int dstride, const uint16_t *in,
       load_unaligned_u16_4x4(in - s2o1, CDEF_BSTRIDE, &sec_src0[3],
                              &sec_src1[3]);
 
-      // Secondary far taps
-      load_unaligned_u16_4x4(in + s1o2, CDEF_BSTRIDE, &sec_src0[4],
-                             &sec_src1[4]);
-      load_unaligned_u16_4x4(in - s1o2, CDEF_BSTRIDE, &sec_src0[5],
-                             &sec_src1[5]);
-      load_unaligned_u16_4x4(in + s2o2, CDEF_BSTRIDE, &sec_src0[6],
-                             &sec_src1[6]);
-      load_unaligned_u16_4x4(in - s2o2, CDEF_BSTRIDE, &sec_src0[7],
-                             &sec_src1[7]);
+      const int16x8_t near0 =
+          constrain_sum4(s0, sec_src0, sec_strength, sec_damping);
+      const int16x8_t near1 =
+          constrain_sum4(s1, sec_src1, sec_strength, sec_damping);
+      int16x8_t sum0 = vaddq_s16(near0, near0);
+      int16x8_t sum1 = vaddq_s16(near1, near1);
 
-      secondary_filter(s0, sec_src0, sec_taps, sec_strength, sec_damping,
-                       &sum0);
-      secondary_filter(s1, sec_src1, sec_taps, sec_strength, sec_damping,
-                       &sum1);
+      // Secondary far taps (cdef_sec_taps[1] == 1)
+      load_unaligned_u16_4x4(in + s1o2, CDEF_BSTRIDE, &sec_src0[0],
+                             &sec_src1[0]);
+      load_unaligned_u16_4x4(in - s1o2, CDEF_BSTRIDE, &sec_src0[1],
+                             &sec_src1[1]);
+      load_unaligned_u16_4x4(in + s2o2, CDEF_BSTRIDE, &sec_src0[2],
+                             &sec_src1[2]);
+      load_unaligned_u16_4x4(in - s2o2, CDEF_BSTRIDE, &sec_src0[3],
+                             &sec_src1[3]);
+
+      sum0 = vaddq_s16(sum0,
+                       constrain_sum4(s0, sec_src0, sec_strength, sec_damping));
+      sum1 = vaddq_s16(sum1,
+                       constrain_sum4(s1, sec_src1, sec_strength, sec_damping));
 
       // res = s + ((sum - (sum < 0) + 8) >> 4)
       sum0 = vaddq_s16(sum0,
