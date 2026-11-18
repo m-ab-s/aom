@@ -143,7 +143,7 @@ void AV1CompMaskPredTest::RunCheckOutput(comp_mask_pred_func test_impl,
           << " wedge " << wedge_index << " inv " << inv;
     }
   } else {
-    DECLARE_ALIGNED(16, uint8_t, mask[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(16, uint8_t, mask[MAX_SB_SQUARE]) = {};
     for (int i = 0; i < w * h; ++i) {
       mask[i] = rnd_(AOM_BLEND_A64_MAX_ALPHA + 1);
     }
@@ -160,7 +160,7 @@ void AV1CompMaskPredTest::RunSpeedTest(comp_mask_pred_func test_impl,
   const int w = block_size_wide[bsize];
   const int h = block_size_high[bsize];
   const int wedge_types = get_wedge_types_lookup(bsize);
-  DECLARE_ALIGNED(16, uint8_t, rand_mask[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(16, uint8_t, rand_mask[MAX_SB_SQUARE]) = {};
   const uint8_t *mask = nullptr;
   if (wedge_types > 0) {
     mask = av1_get_contiguous_soft_mask(wedge_types / 2, 1, bsize);
@@ -572,7 +572,7 @@ void AV1HighbdCompMaskPredTest::RunCheckOutput(
           << " wedge " << wedge_index << " inv " << inv;
     }
   } else {
-    DECLARE_ALIGNED(16, uint8_t, mask[MAX_SB_SQUARE]);
+    DECLARE_ALIGNED(16, uint8_t, mask[MAX_SB_SQUARE]) = {};
     for (int i = 0; i < w * h; ++i) {
       mask[i] = rnd_(AOM_BLEND_A64_MAX_ALPHA + 1);
     }
@@ -602,7 +602,7 @@ void AV1HighbdCompMaskPredTest::RunSpeedTest(
     ref_buffer_[i] = rnd_.Rand16() & ((1 << bd_) - 1);
   }
 
-  DECLARE_ALIGNED(16, uint8_t, rand_mask[MAX_SB_SQUARE]);
+  DECLARE_ALIGNED(16, uint8_t, rand_mask[MAX_SB_SQUARE]) = {};
   const uint8_t *mask = nullptr;
   if (wedge_types > 0) {
     mask = av1_get_contiguous_soft_mask(wedge_types / 2, 1, bsize);
