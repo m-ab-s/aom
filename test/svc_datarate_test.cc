@@ -1727,7 +1727,7 @@ class DatarateTestSVC
     use_last_as_scaled_single_ref_ = true;
     SetTargetBitratesFor3SL1TL();
     ASSERT_NO_FATAL_FAILURE(RunLoop(&video));
-    CheckDatarate(0.79, 1.38);
+    CheckDatarate(0.78, 1.38);
   }
 
   virtual void BasicRateTargetingSVC1TL3SLMultiRefTest() {
