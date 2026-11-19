@@ -177,9 +177,8 @@ HWY_ATTR HWY_INLINE hn::VFromD<D> BoxSumFromII(D int32_tag,
 }
 
 template <typename D>
-HWY_ATTR HWY_INLINE hn::VFromD<D> RoundForShift(D int32_tag,
-                                                unsigned int shift) {
-  return hn::Set(int32_tag, (1 << shift) >> 1);
+HWY_ATTR HWY_INLINE hn::VFromD<D> RoundForShift(D tag, unsigned int shift) {
+  return hn::Set(tag, static_cast<hn::TFromD<D>>((1U << shift) >> 1));
 }
 
 template <typename D>
@@ -301,13 +300,14 @@ HWY_ATTR HWY_INLINE void CalcAB(DL int32_tag, int32_t *HWY_RESTRICT A,
       &av1_sgr_params[sgr_params_idx];
   const int r = params->r[radius_idx];
   const int n = (2 * r + 1) * (2 * r + 1);
-  const auto s = hn::Set(int32_tag, params->s[radius_idx]);
+  const auto s =
+      hn::Set(uint32_tag, static_cast<uint32_t>(params->s[radius_idx]));
   // one_over_n[n-1] is 2^12/n, so easily fits in an int16
   const auto one_over_n =
       hn::BitCast(int16_tag, hn::Set(int32_tag, av1_one_by_x[n - 1]));
 
-  const auto rnd_z = RoundForShift(int32_tag, SGRPROJ_MTABLE_BITS);
-  const auto rnd_res = RoundForShift(int32_tag, SGRPROJ_RECIP_BITS);
+  const auto rnd_z = RoundForShift(uint32_tag, SGRPROJ_MTABLE_BITS);
+  const auto rnd_res = RoundForShift(uint32_tag, SGRPROJ_RECIP_BITS);
 
   // Set up masks
   const int max_lanes = static_cast<int>(hn::MaxLanes(int32_tag));
@@ -335,12 +335,13 @@ HWY_ATTR HWY_INLINE void CalcAB(DL int32_tag, int32_t *HWY_RESTRICT A,
         sum2 = hn::IfThenElseZero(mask[idx], sum2);
       }
 
-      const auto p = ComputeP(int32_tag, sum1, sum2, bit_depth, n);
+      const auto p = hn::BitCast(uint32_tag,
+                                 ComputeP(int32_tag, sum1, sum2, bit_depth, n));
 
       const auto z = hn::BitCast(
-          int32_tag, hn::Min(hn::ShiftRight<SGRPROJ_MTABLE_BITS>(hn::BitCast(
-                                 uint32_tag, hn::MulAdd(p, s, rnd_z))),
-                             hn::Set(uint32_tag, 255)));
+          int32_tag,
+          hn::Min(hn::ShiftRight<SGRPROJ_MTABLE_BITS>(hn::MulAdd(p, s, rnd_z)),
+                  hn::Set(uint32_tag, 255)));
 
       const auto a_res = hn::GatherIndex(int32_tag, av1_x_by_xplus1, z);
 
@@ -350,12 +351,17 @@ HWY_ATTR HWY_INLINE void CalcAB(DL int32_tag, int32_t *HWY_RESTRICT A,
 
       // sum1 might have lanes greater than 2^15, so we can't use madd to do
       // multiplication involving sum1. However, a_complement and one_over_n
-      // are both less than 256, so we can multiply them first.
+      // are both non-negative and less than 2^15, so we can multiply them
+      // first.
       const auto a_comp_over_n = hn::WidenMulPairwiseAdd(
           int32_tag, hn::BitCast(int16_tag, a_complement), one_over_n);
-      const auto b_int = hn::Mul(a_comp_over_n, sum1);
-      const auto b_res =
-          hn::ShiftRight<SGRPROJ_RECIP_BITS>(hn::Add(b_int, rnd_res));
+      // Perform b_int and the right shift in unsigned 32-bit lanes because the
+      // intermediate product can exceed INT32_MAX (up to ~4.28e9 for 12-bit).
+      const auto b_int = hn::Mul(hn::BitCast(uint32_tag, a_comp_over_n),
+                                 hn::BitCast(uint32_tag, sum1));
+      const auto b_res = hn::BitCast(
+          int32_tag,
+          hn::ShiftRight<SGRPROJ_RECIP_BITS>(hn::Add(b_int, rnd_res)));
 
       hn::StoreU(b_res, int32_tag, B + i * buf_stride + j);
     }

@@ -5639,6 +5639,63 @@ TEST(EncodeAPI, VarBasedPart12BitVarianceOverflow) {
   aom_img_free(img0);
   ASSERT_EQ(aom_codec_destroy(&enc), AOM_CODEC_OK);
 }
+
+#if !CONFIG_REALTIME_ONLY
+// Regression test for b/585314885: Signed 32-bit arithmetic right shift in
+// selfguided CalcAB() for 12-bit bright flat regions corrupted flt0/flt1 and
+// caused a 64-bit signed integer overflow in get_proj_subspace().
+TEST(EncodeAPI, Highbd12BitSelfguidedOverflow) {
+  aom_codec_iface_t *const iface = aom_codec_av1_cx();
+  aom_codec_enc_cfg_t cfg;
+  ASSERT_EQ(aom_codec_enc_config_default(iface, &cfg, AOM_USAGE_GOOD_QUALITY),
+            AOM_CODEC_OK);
+  cfg.g_profile = 2;
+  cfg.g_w = 247;
+  cfg.g_h = 1;
+  cfg.g_bit_depth = AOM_BITS_12;
+  cfg.g_input_bit_depth = 12;
+  cfg.g_lag_in_frames = 0;
+  cfg.rc_end_usage = AOM_Q;
+
+  aom_codec_ctx_t enc_ctx;
+  ASSERT_EQ(
+      aom_codec_enc_init(&enc_ctx, iface, &cfg, AOM_CODEC_USE_HIGHBITDEPTH),
+      AOM_CODEC_OK);
+  struct CodecDeleter {
+    void operator()(aom_codec_ctx_t *c) const { aom_codec_destroy(c); }
+  };
+  std::unique_ptr<aom_codec_ctx_t, CodecDeleter> enc(&enc_ctx);
+  ASSERT_EQ(aom_codec_control(enc.get(), AOME_SET_CPUUSED, 4), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(enc.get(), AOME_SET_CQ_LEVEL, 32), AOM_CODEC_OK);
+  ASSERT_EQ(aom_codec_control(enc.get(), AV1E_SET_ENABLE_RESTORATION, 1),
+            AOM_CODEC_OK);
+
+  std::unique_ptr<aom_image_t, decltype(&aom_img_free)> image(
+      aom_img_alloc(nullptr, AOM_IMG_FMT_I44416, cfg.g_w, cfg.g_h, 1),
+      &aom_img_free);
+  ASSERT_NE(image.get(), nullptr);
+  for (int plane = 0; plane < 3; ++plane) {
+    const int w = aom_img_plane_width(image.get(), plane);
+    const int h = aom_img_plane_height(image.get(), plane);
+    for (int i = 0; i < h; ++i) {
+      Memset16(image->planes[plane] + i * image->stride[plane], 2313,
+               static_cast<size_t>(w));
+    }
+  }
+  Memset16(image->planes[AOM_PLANE_Y], 1086, 1);
+  Memset16(image->planes[AOM_PLANE_Y] + sizeof(uint16_t), 0, 1);
+
+  ASSERT_NO_FATAL_FAILURE(EncodeOne(enc.get(), image.get(), 0));
+  image.reset();
+
+  ASSERT_EQ(aom_codec_encode(enc.get(), nullptr, 0, 0, 0), AOM_CODEC_OK);
+  aom_codec_iter_t iter = nullptr;
+  while (aom_codec_get_cx_data(enc.get(), &iter) != nullptr) {
+  }
+
+  ASSERT_EQ(aom_codec_destroy(enc.release()), AOM_CODEC_OK);
+}
+#endif  // !CONFIG_REALTIME_ONLY
 #endif  // CONFIG_AV1_HIGHBITDEPTH
 
 #if CONFIG_AV1_DECODER
