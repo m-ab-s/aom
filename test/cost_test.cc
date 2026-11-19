@@ -10,6 +10,7 @@
  */
 
 #include <algorithm>
+#include <tuple>
 #include <vector>
 
 #include "config/aom_config.h"
@@ -20,17 +21,26 @@
 #include "av1/common/entropy.h"
 #include "av1/encoder/cost.h"
 #include "test/acm_random.h"
+#include "test/register_state_check.h"
+#include "test/util.h"
 #include "gtest/gtest.h"
 
 namespace {
 
 using libaom_test::ACMRandom;
 
-using Cdf4BatchFn = void (*)(int *costs, int costs_stride, const uint16_t *cdf,
-                             int cdf_stride, int n);
+using CdfBatchFn = void (*)(int *costs, int costs_stride, const uint16_t *cdf,
+                            int cdf_stride, int n);
+using CdfBatchTestParams = std::tuple<CdfBatchFn, CdfBatchFn>;
 
 // Fixture that fills av1_cost_lut_low once before exercising the cost helpers.
 class CostTokensFromCdf4Test : public ::testing::Test {
+ protected:
+  void SetUp() override { av1_init_cost_luts(); }
+};
+
+class CostTokensFromCdfBatchTest
+    : public ::testing::TestWithParam<CdfBatchTestParams> {
  protected:
   void SetUp() override { av1_init_cost_luts(); }
 };
@@ -101,7 +111,7 @@ TEST_F(CostTokensFromCdf4Test, MatchesGenericEdge) {
 // filled entry against the generic scalar path. Exercises the SIMD main loop
 // plus every tail length (n % 8) and both output strides (8 = base_cost,
 // 4 = br_rate).
-void CheckBatchAgainstGeneric(Cdf4BatchFn fn) {
+void CheckBatchAgainstGeneric(CdfBatchFn fn) {
   ACMRandom rnd(ACMRandom::DeterministicSeed());
   const int kCdfStride = CDF_SIZE(4);  // 5
   for (const int costs_stride : { 4, 8 }) {
@@ -114,7 +124,8 @@ void CheckBatchAgainstGeneric(Cdf4BatchFn fn) {
       for (int k = 0; k < n; ++k)
         av1_cost_tokens_from_cdf(&ref[k * 4], &cdf[k * kCdfStride], nullptr);
 
-      fn(out.data(), costs_stride, cdf.data(), kCdfStride, n);
+      API_REGISTER_STATE_CHECK(
+          fn(out.data(), costs_stride, cdf.data(), kCdfStride, n));
 
       for (int k = 0; k < n; ++k)
         for (int i = 0; i < 4; ++i)
@@ -125,18 +136,8 @@ void CheckBatchAgainstGeneric(Cdf4BatchFn fn) {
   }
 }
 
-TEST_F(CostTokensFromCdf4Test, BatchCMatchesGeneric) {
-  CheckBatchAgainstGeneric(av1_cost_tokens_from_cdf_4_batch_c);
-}
-
-#if HAVE_AVX2
-TEST_F(CostTokensFromCdf4Test, BatchAVX2MatchesGeneric) {
-  CheckBatchAgainstGeneric(av1_cost_tokens_from_cdf_4_batch_avx2);
-}
-#endif  // HAVE_AVX2
-
 // Same as CheckBatchAgainstGeneric but for the N=2 batch primitive.
-void CheckBatch2AgainstGeneric(Cdf4BatchFn fn) {
+void CheckBatch2AgainstGeneric(CdfBatchFn fn) {
   ACMRandom rnd(ACMRandom::DeterministicSeed());
   const int kCdfStride = CDF_SIZE(2);  // 3
   for (const int costs_stride : { 2, 4 }) {
@@ -149,7 +150,8 @@ void CheckBatch2AgainstGeneric(Cdf4BatchFn fn) {
       for (int k = 0; k < n; ++k)
         av1_cost_tokens_from_cdf(&ref[k * 2], &cdf[k * kCdfStride], nullptr);
 
-      fn(out.data(), costs_stride, cdf.data(), kCdfStride, n);
+      API_REGISTER_STATE_CHECK(
+          fn(out.data(), costs_stride, cdf.data(), kCdfStride, n));
 
       for (int k = 0; k < n; ++k)
         for (int i = 0; i < 2; ++i)
@@ -160,21 +162,10 @@ void CheckBatch2AgainstGeneric(Cdf4BatchFn fn) {
   }
 }
 
-TEST_F(CostTokensFromCdf4Test, Batch2CMatchesGeneric) {
-  CheckBatch2AgainstGeneric(av1_cost_tokens_from_cdf_2_batch_c);
-}
-
-#if HAVE_AVX2
-TEST_F(CostTokensFromCdf4Test, Batch2AVX2MatchesGeneric) {
-  CheckBatch2AgainstGeneric(av1_cost_tokens_from_cdf_2_batch_avx2);
-}
-#endif  // HAVE_AVX2
-
-#if HAVE_AVX2
-// Times the C vs AVX2 batch primitive on the real av1_fill_coeff_costs call
+// Times the C vs target batch primitive on the real av1_fill_coeff_costs call
 // shapes and prints ns/call and the speedup. DISABLED_ so it runs only on
 // request (--gtest_also_run_disabled_tests).
-void RunBatchSpeed(const char *name, Cdf4BatchFn c_fn, Cdf4BatchFn simd_fn,
+void RunBatchSpeed(const char *name, CdfBatchFn c_fn, CdfBatchFn simd_fn,
                    int cdf_stride, int syms, const char *label, int n,
                    int costs_stride) {
   ACMRandom rnd(ACMRandom::DeterministicSeed());
@@ -187,7 +178,7 @@ void RunBatchSpeed(const char *name, Cdf4BatchFn c_fn, Cdf4BatchFn simd_fn,
   }
   std::vector<int> out(n * costs_stride);
 
-  const Cdf4BatchFn funcs[2] = { c_fn, simd_fn };
+  const CdfBatchFn funcs[2] = { c_fn, simd_fn };
   const int kLoops = 1000000;
   double ns[2];
   for (int i = 0; i < 2; ++i) {
@@ -199,27 +190,42 @@ void RunBatchSpeed(const char *name, Cdf4BatchFn c_fn, Cdf4BatchFn simd_fn,
     ns[i] =
         1000.0 * static_cast<double>(aom_usec_timer_elapsed(&timer)) / kLoops;
   }
-  printf("%s %-9s n=%2d stride=%d: c %7.1f ns  avx2 %7.1f ns  (%4.2fx)\n", name,
+  printf("%s %-9s n=%2d stride=%d: c %7.1f ns  tst %7.1f ns  (%4.2fx)\n", name,
          label, n, costs_stride, ns[0], ns[1], ns[0] / ns[1]);
 }
 
-TEST_F(CostTokensFromCdf4Test, DISABLED_Batch4Speed) {
-  RunBatchSpeed("cdf_4_batch", av1_cost_tokens_from_cdf_4_batch_c,
-                av1_cost_tokens_from_cdf_4_batch_avx2, CDF_SIZE(4), 4,
-                "base_cost", SIG_COEF_CONTEXTS, 8);
-  RunBatchSpeed("cdf_4_batch", av1_cost_tokens_from_cdf_4_batch_c,
-                av1_cost_tokens_from_cdf_4_batch_avx2, CDF_SIZE(4), 4,
-                "br_rate", LEVEL_CONTEXTS, BR_CDF_SIZE);
+TEST_P(CostTokensFromCdfBatchTest, Batch4MatchesGeneric) {
+  CheckBatchAgainstGeneric(GET_PARAM(0));
 }
 
-TEST_F(CostTokensFromCdf4Test, DISABLED_Batch2Speed) {
-  RunBatchSpeed("cdf_2_batch", av1_cost_tokens_from_cdf_2_batch_c,
-                av1_cost_tokens_from_cdf_2_batch_avx2, CDF_SIZE(2), 2,
-                "txb_skip", TXB_SKIP_CONTEXTS, 2);
-  RunBatchSpeed("cdf_2_batch", av1_cost_tokens_from_cdf_2_batch_c,
-                av1_cost_tokens_from_cdf_2_batch_avx2, CDF_SIZE(2), 2,
-                "eob_extra", EOB_COEF_CONTEXTS, 2);
+TEST_P(CostTokensFromCdfBatchTest, Batch2MatchesGeneric) {
+  CheckBatch2AgainstGeneric(GET_PARAM(1));
 }
+
+TEST_P(CostTokensFromCdfBatchTest, DISABLED_Batch4Speed) {
+  RunBatchSpeed("cdf_4_batch", av1_cost_tokens_from_cdf_4_batch_c, GET_PARAM(0),
+                CDF_SIZE(4), 4, "base_cost", SIG_COEF_CONTEXTS, 8);
+  RunBatchSpeed("cdf_4_batch", av1_cost_tokens_from_cdf_4_batch_c, GET_PARAM(0),
+                CDF_SIZE(4), 4, "br_rate", LEVEL_CONTEXTS, BR_CDF_SIZE);
+}
+
+TEST_P(CostTokensFromCdfBatchTest, DISABLED_Batch2Speed) {
+  RunBatchSpeed("cdf_2_batch", av1_cost_tokens_from_cdf_2_batch_c, GET_PARAM(1),
+                CDF_SIZE(2), 2, "txb_skip", TXB_SKIP_CONTEXTS, 2);
+  RunBatchSpeed("cdf_2_batch", av1_cost_tokens_from_cdf_2_batch_c, GET_PARAM(1),
+                CDF_SIZE(2), 2, "eob_extra", EOB_COEF_CONTEXTS, 2);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    C, CostTokensFromCdfBatchTest,
+    ::testing::Values(CdfBatchTestParams(av1_cost_tokens_from_cdf_4_batch_c,
+                                         av1_cost_tokens_from_cdf_2_batch_c)));
+
+#if HAVE_AVX2
+INSTANTIATE_TEST_SUITE_P(AVX2, CostTokensFromCdfBatchTest,
+                         ::testing::Values(CdfBatchTestParams(
+                             av1_cost_tokens_from_cdf_4_batch_avx2,
+                             av1_cost_tokens_from_cdf_2_batch_avx2)));
 #endif  // HAVE_AVX2
 
 }  // namespace
