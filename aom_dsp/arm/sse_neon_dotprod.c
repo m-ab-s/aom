@@ -90,24 +90,26 @@ static inline uint32_t sse_128xh_neon_dotprod(const uint8_t *src,
                                               int src_stride,
                                               const uint8_t *ref,
                                               int ref_stride, int height) {
-  uint32x4_t sse[2] = { vdupq_n_u32(0), vdupq_n_u32(0) };
+  uint32x4_t sse[4] = { vdupq_n_u32(0), vdupq_n_u32(0), vdupq_n_u32(0),
+                        vdupq_n_u32(0) };
 
   int i = height;
   do {
     sse_16x1_neon_dotprod(src, ref, &sse[0]);
     sse_16x1_neon_dotprod(src + 16, ref + 16, &sse[1]);
-    sse_16x1_neon_dotprod(src + 32, ref + 32, &sse[0]);
-    sse_16x1_neon_dotprod(src + 48, ref + 48, &sse[1]);
+    sse_16x1_neon_dotprod(src + 32, ref + 32, &sse[2]);
+    sse_16x1_neon_dotprod(src + 48, ref + 48, &sse[3]);
     sse_16x1_neon_dotprod(src + 64, ref + 64, &sse[0]);
     sse_16x1_neon_dotprod(src + 80, ref + 80, &sse[1]);
-    sse_16x1_neon_dotprod(src + 96, ref + 96, &sse[0]);
-    sse_16x1_neon_dotprod(src + 112, ref + 112, &sse[1]);
+    sse_16x1_neon_dotprod(src + 96, ref + 96, &sse[2]);
+    sse_16x1_neon_dotprod(src + 112, ref + 112, &sse[3]);
 
     src += src_stride;
     ref += ref_stride;
   } while (--i != 0);
 
-  return horizontal_add_u32x4(vaddq_u32(sse[0], sse[1]));
+  return horizontal_add_u32x4(
+      vaddq_u32(vaddq_u32(sse[0], sse[1]), vaddq_u32(sse[2], sse[3])));
 }
 
 static inline uint32_t sse_64xh_neon_dotprod(const uint8_t *src, int src_stride,
