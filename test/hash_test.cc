@@ -9,6 +9,8 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <new>
 #include <tuple>
@@ -41,6 +43,7 @@ class AV1Crc32cHashTest : public ::testing::TestWithParam<HashParam> {
 
  protected:
   void RunCheckOutput(get_crc32c_value_func test_impl);
+  void RunUnalignedAndTailTest(get_crc32c_value_func test_impl);
   void RunSpeedTest(get_crc32c_value_func test_impl);
 
   void RunZeroTest(get_crc32c_value_func test_impl);
@@ -85,6 +88,24 @@ void AV1Crc32cHashTest::RunCheckOutput(get_crc32c_value_func test_impl) {
   ASSERT_EQ(crc3, crc4);
 }
 
+void AV1Crc32cHashTest::RunUnalignedAndTailTest(
+    get_crc32c_value_func test_impl) {
+  constexpr size_t kMaxOff = 8;
+  constexpr size_t kMaxLen = 72;
+  uint8_t buf[kMaxOff + kMaxLen];
+  static_assert(sizeof(buf) >= (kMaxOff - 1) + kMaxLen, "");
+  for (size_t i = 0; i < sizeof(buf); ++i) {
+    buf[i] = rnd_.Rand8();
+  }
+  for (size_t off = 0; off < kMaxOff; ++off) {
+    for (size_t len = 0; len <= kMaxLen; ++len) {
+      ASSERT_EQ(test_impl(&calc_, buf + off, len),
+                av1_get_crc32c_value_c(&calc_, buf + off, len))
+          << "off=" << off << " len=" << len;
+    }
+  }
+}
+
 void AV1Crc32cHashTest::RunSpeedTest(get_crc32c_value_func test_impl) {
   get_crc32c_value_func impls[] = { av1_get_crc32c_value_c, test_impl };
   const int repeat = 10000000 / (bsize_ + bsize_);
@@ -115,6 +136,10 @@ void AV1Crc32cHashTest::RunZeroTest(get_crc32c_value_func test_impl) {
 }
 
 TEST_P(AV1Crc32cHashTest, CheckOutput) { RunCheckOutput(GET_PARAM(0)); }
+
+TEST_P(AV1Crc32cHashTest, UnalignedAndTailLengths) {
+  RunUnalignedAndTailTest(GET_PARAM(0));
+}
 
 TEST_P(AV1Crc32cHashTest, CheckZero) { RunZeroTest(GET_PARAM(0)); }
 
@@ -185,8 +210,8 @@ class AV1CombineBlockHashesTest
 };
 
 TEST_P(AV1CombineBlockHashesTest, CheckOutput) {
-  const int kSubSizes[] = { 2, 4, 8, 16, 32, 64 };
-  const int kWidths[] = { 0, 1, 7, 64, 129 };
+  constexpr int kSubSizes[] = { 1, 2, 4, 8, 16, 32, 64 };
+  constexpr int kWidths[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 64, 129 };
   for (int sub_size : kSubSizes) {
     for (int width : kWidths) {
       for (int i = 0; i < 5; ++i) {
