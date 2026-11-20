@@ -238,61 +238,66 @@ static inline void transpose_arrays_u8_8x8(const uint8x8_t *in,
 
 static AOM_FORCE_INLINE void transpose_arrays_u8_8x16(const uint8x8_t *x,
                                                       uint8x16_t *d) {
-  uint8x8x2_t w0 = vzip_u8(x[0], x[1]);
-  uint8x8x2_t w1 = vzip_u8(x[2], x[3]);
-  uint8x8x2_t w2 = vzip_u8(x[4], x[5]);
-  uint8x8x2_t w3 = vzip_u8(x[6], x[7]);
+  // Pair rows r and r+8 (r = 0..7) so each 128-bit vector holds two 8-byte
+  // rows:
+  // q0: 00 01 02 03 04 05 06 07  80 81 82 83 84 85 86 87
+  // ...
+  // q7: 70 71 72 73 74 75 76 77  f0 f1 f2 f3 f4 f5 f6 f7
+  const uint32x4_t q0 = vreinterpretq_u32_u8(vcombine_u8(x[0], x[8]));
+  const uint32x4_t q1 = vreinterpretq_u32_u8(vcombine_u8(x[1], x[9]));
+  const uint32x4_t q2 = vreinterpretq_u32_u8(vcombine_u8(x[2], x[10]));
+  const uint32x4_t q3 = vreinterpretq_u32_u8(vcombine_u8(x[3], x[11]));
+  const uint32x4_t q4 = vreinterpretq_u32_u8(vcombine_u8(x[4], x[12]));
+  const uint32x4_t q5 = vreinterpretq_u32_u8(vcombine_u8(x[5], x[13]));
+  const uint32x4_t q6 = vreinterpretq_u32_u8(vcombine_u8(x[6], x[14]));
+  const uint32x4_t q7 = vreinterpretq_u32_u8(vcombine_u8(x[7], x[15]));
 
-  uint8x8x2_t w8 = vzip_u8(x[8], x[9]);
-  uint8x8x2_t w9 = vzip_u8(x[10], x[11]);
-  uint8x8x2_t w10 = vzip_u8(x[12], x[13]);
-  uint8x8x2_t w11 = vzip_u8(x[14], x[15]);
+  // Swap 32-bit elements first to split columns 0..3 (val[0] -> d[0..3]) from
+  // columns 4..7 (val[1] -> d[4..7]), allowing callers that only consume
+  // d[0..3] (e.g. 16x4) to dead-code-eliminate the upper half:
+  // a0.val[0]: 00 01 02 03 40 41 42 43  80 81 82 83 c0 c1 c2 c3
+  // a0.val[1]: 04 05 06 07 44 45 46 47  84 85 86 87 c4 c5 c6 c7
+  const uint32x4x2_t a0 = vtrnq_u32(q0, q4);
+  const uint32x4x2_t a1 = vtrnq_u32(q1, q5);
+  const uint32x4x2_t a2 = vtrnq_u32(q2, q6);
+  const uint32x4x2_t a3 = vtrnq_u32(q3, q7);
 
-  uint16x4x2_t w4 =
-      vzip_u16(vreinterpret_u16_u8(w0.val[0]), vreinterpret_u16_u8(w1.val[0]));
-  uint16x4x2_t w5 =
-      vzip_u16(vreinterpret_u16_u8(w2.val[0]), vreinterpret_u16_u8(w3.val[0]));
-  uint16x4x2_t w12 =
-      vzip_u16(vreinterpret_u16_u8(w8.val[0]), vreinterpret_u16_u8(w9.val[0]));
-  uint16x4x2_t w13 = vzip_u16(vreinterpret_u16_u8(w10.val[0]),
-                              vreinterpret_u16_u8(w11.val[0]));
+  // Swap 8-bit elements within each 4-column half:
+  // b0.val[0]: 00 10 02 12 40 50 42 52  80 90 82 92 c0 d0 c2 d2
+  // b0.val[1]: 01 11 03 13 41 51 43 53  81 91 83 93 c1 d1 c3 d3
+  // b1.val[0]: 20 30 22 32 60 70 62 72  a0 b0 a2 b2 e0 f0 e2 f2
+  // b1.val[1]: 21 31 23 33 61 71 63 73  a1 b1 a3 b3 e1 f1 e3 f3
+  const uint8x16x2_t b0 = vtrnq_u8(vreinterpretq_u8_u32(a0.val[0]),
+                                   vreinterpretq_u8_u32(a1.val[0]));
+  const uint8x16x2_t b1 = vtrnq_u8(vreinterpretq_u8_u32(a2.val[0]),
+                                   vreinterpretq_u8_u32(a3.val[0]));
+  const uint8x16x2_t b2 = vtrnq_u8(vreinterpretq_u8_u32(a0.val[1]),
+                                   vreinterpretq_u8_u32(a1.val[1]));
+  const uint8x16x2_t b3 = vtrnq_u8(vreinterpretq_u8_u32(a2.val[1]),
+                                   vreinterpretq_u8_u32(a3.val[1]));
 
-  uint32x2x2_t w6 = vzip_u32(vreinterpret_u32_u16(w4.val[0]),
-                             vreinterpret_u32_u16(w5.val[0]));
-  uint32x2x2_t w7 = vzip_u32(vreinterpret_u32_u16(w4.val[1]),
-                             vreinterpret_u32_u16(w5.val[1]));
-  uint32x2x2_t w14 = vzip_u32(vreinterpret_u32_u16(w12.val[0]),
-                              vreinterpret_u32_u16(w13.val[0]));
-  uint32x2x2_t w15 = vzip_u32(vreinterpret_u32_u16(w12.val[1]),
-                              vreinterpret_u32_u16(w13.val[1]));
+  // Swap 16-bit elements to finish all 8 transposed columns:
+  // c0.val[0]: 00 10 20 30 40 50 60 70  80 90 a0 b0 c0 d0 e0 f0  -> d[0]
+  // c1.val[0]: 01 11 21 31 41 51 61 71  81 91 a1 b1 c1 d1 e1 f1  -> d[1]
+  // c0.val[1]: 02 12 22 32 42 52 62 72  82 92 a2 b2 c2 d2 e2 f2  -> d[2]
+  // c1.val[1]: 03 13 23 33 43 53 63 73  83 93 a3 b3 c3 d3 e3 f3  -> d[3]
+  const uint16x8x2_t c0 = vtrnq_u16(vreinterpretq_u16_u8(b0.val[0]),
+                                    vreinterpretq_u16_u8(b1.val[0]));
+  const uint16x8x2_t c1 = vtrnq_u16(vreinterpretq_u16_u8(b0.val[1]),
+                                    vreinterpretq_u16_u8(b1.val[1]));
+  const uint16x8x2_t c2 = vtrnq_u16(vreinterpretq_u16_u8(b2.val[0]),
+                                    vreinterpretq_u16_u8(b3.val[0]));
+  const uint16x8x2_t c3 = vtrnq_u16(vreinterpretq_u16_u8(b2.val[1]),
+                                    vreinterpretq_u16_u8(b3.val[1]));
 
-  // Store first 4-line result
-  d[0] = vreinterpretq_u8_u32(vcombine_u32(w6.val[0], w14.val[0]));
-  d[1] = vreinterpretq_u8_u32(vcombine_u32(w6.val[1], w14.val[1]));
-  d[2] = vreinterpretq_u8_u32(vcombine_u32(w7.val[0], w15.val[0]));
-  d[3] = vreinterpretq_u8_u32(vcombine_u32(w7.val[1], w15.val[1]));
-
-  w4 = vzip_u16(vreinterpret_u16_u8(w0.val[1]), vreinterpret_u16_u8(w1.val[1]));
-  w5 = vzip_u16(vreinterpret_u16_u8(w2.val[1]), vreinterpret_u16_u8(w3.val[1]));
-  w12 =
-      vzip_u16(vreinterpret_u16_u8(w8.val[1]), vreinterpret_u16_u8(w9.val[1]));
-  w13 = vzip_u16(vreinterpret_u16_u8(w10.val[1]),
-                 vreinterpret_u16_u8(w11.val[1]));
-
-  w6 = vzip_u32(vreinterpret_u32_u16(w4.val[0]),
-                vreinterpret_u32_u16(w5.val[0]));
-  w7 = vzip_u32(vreinterpret_u32_u16(w4.val[1]),
-                vreinterpret_u32_u16(w5.val[1]));
-  w14 = vzip_u32(vreinterpret_u32_u16(w12.val[0]),
-                 vreinterpret_u32_u16(w13.val[0]));
-  w15 = vzip_u32(vreinterpret_u32_u16(w12.val[1]),
-                 vreinterpret_u32_u16(w13.val[1]));
-
-  // Store second 4-line result
-  d[4] = vreinterpretq_u8_u32(vcombine_u32(w6.val[0], w14.val[0]));
-  d[5] = vreinterpretq_u8_u32(vcombine_u32(w6.val[1], w14.val[1]));
-  d[6] = vreinterpretq_u8_u32(vcombine_u32(w7.val[0], w15.val[0]));
-  d[7] = vreinterpretq_u8_u32(vcombine_u32(w7.val[1], w15.val[1]));
+  d[0] = vreinterpretq_u8_u16(c0.val[0]);
+  d[1] = vreinterpretq_u8_u16(c1.val[0]);
+  d[2] = vreinterpretq_u8_u16(c0.val[1]);
+  d[3] = vreinterpretq_u8_u16(c1.val[1]);
+  d[4] = vreinterpretq_u8_u16(c2.val[0]);
+  d[5] = vreinterpretq_u8_u16(c3.val[0]);
+  d[6] = vreinterpretq_u8_u16(c2.val[1]);
+  d[7] = vreinterpretq_u8_u16(c3.val[1]);
 }
 
 static AOM_FORCE_INLINE void transpose_arrays_u8_16x8(const uint8x16_t *x,
