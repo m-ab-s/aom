@@ -15,6 +15,7 @@
 #include "config/aom_config.h"
 
 #include "aom/aom_integer.h"
+#include "aom_dsp/aom_dsp_common.h"
 #include "aom_dsp/arm/mem_neon.h"
 #include "aom_dsp/arm/transpose_neon.h"
 
@@ -305,26 +306,26 @@ static inline void filter14(const uint8x8_t p0q0, const uint8x8_t p1q1,
   *p5q5_output = vshrn_n_u16(out_pq5, 4);
 }
 
-static inline void lpf_14_neon(uint8x8_t *p6q6, uint8x8_t *p5q5,
-                               uint8x8_t *p4q4, uint8x8_t *p3q3,
-                               uint8x8_t *p2q2, uint8x8_t *p1q1,
-                               uint8x8_t *p0q0, const uint8_t blimit,
-                               const uint8_t limit, const uint8_t thresh) {
+// Force-inline on AArch64 so callers avoid the 9-argument call overhead on
+// active edges while zero-mask edges remain shrink-wrapped; keep plain inline
+// on 32-bit ARM so its inlining heuristics are unchanged.
+#if AOM_ARCH_AARCH64
+#define LPF_14_INLINE AOM_FORCE_INLINE
+#else
+#define LPF_14_INLINE inline
+#endif
+static LPF_14_INLINE void lpf_14_neon(const uint8x8_t p6q6, uint8x8_t *p5q5,
+                                      uint8x8_t *p4q4, uint8x8_t *p3q3,
+                                      uint8x8_t *p2q2, uint8x8_t *p1q1,
+                                      uint8x8_t *p0q0, const uint8x8_t mask_8x8,
+                                      const uint8_t thresh) {
   uint8x8_t out_f14_pq0, out_f14_pq1, out_f14_pq2, out_f14_pq3, out_f14_pq4,
       out_f14_pq5;
   uint8x8_t out_f7_pq0, out_f7_pq1, out_f7_pq2;
   uint8x8_t out_f4_pq0, out_f4_pq1;
 
-  // Calculate filter masks.
-  uint8x8_t mask_8x8 = lpf_mask(*p3q3, *p2q2, *p1q1, *p0q0, blimit, limit);
-
-  // No filtering.
-  if (vget_lane_u64(vreinterpret_u64_u8(mask_8x8), 0) == 0) {
-    return;
-  }
-
   uint8x8_t flat_8x8 = lpf_flat_mask4(*p3q3, *p2q2, *p1q1, *p0q0);
-  uint8x8_t flat2_8x8 = lpf_flat_mask4(*p6q6, *p5q5, *p4q4, *p0q0);
+  uint8x8_t flat2_8x8 = lpf_flat_mask4(p6q6, *p5q5, *p4q4, *p0q0);
 
   uint8x8_t filter8_cond = vand_u8(flat_8x8, mask_8x8);
   uint8x8_t filter4_cond = vmvn_u8(filter8_cond);
@@ -332,7 +333,7 @@ static inline void lpf_14_neon(uint8x8_t *p6q6, uint8x8_t *p5q5,
 
   if (vget_lane_s64(vreinterpret_s64_u8(filter14_cond), 0) == -1) {
     // Only filter14() applies.
-    filter14(*p0q0, *p1q1, *p2q2, *p3q3, *p4q4, *p5q5, *p6q6, &out_f14_pq0,
+    filter14(*p0q0, *p1q1, *p2q2, *p3q3, *p4q4, *p5q5, p6q6, &out_f14_pq0,
              &out_f14_pq1, &out_f14_pq2, &out_f14_pq3, &out_f14_pq4,
              &out_f14_pq5);
 
@@ -375,7 +376,7 @@ static inline void lpf_14_neon(uint8x8_t *p6q6, uint8x8_t *p5q5,
         *p2q2 = vbsl_u8(filter8_cond, out_f7_pq2, *p2q2);
       } else {
         // All filters may contribute values to final outputs.
-        filter14(*p0q0, *p1q1, *p2q2, *p3q3, *p4q4, *p5q5, *p6q6, &out_f14_pq0,
+        filter14(*p0q0, *p1q1, *p2q2, *p3q3, *p4q4, *p5q5, p6q6, &out_f14_pq0,
                  &out_f14_pq1, &out_f14_pq2, &out_f14_pq3, &out_f14_pq4,
                  &out_f14_pq5);
 
@@ -399,6 +400,7 @@ static inline void lpf_14_neon(uint8x8_t *p6q6, uint8x8_t *p5q5,
     }
   }
 }
+#undef LPF_14_INLINE
 
 static inline void lpf_8_neon(uint8x8_t *p3q3, uint8x8_t *p2q2, uint8x8_t *p1q1,
                               uint8x8_t *p0q0, const uint8_t blimit,
@@ -543,7 +545,7 @@ void aom_lpf_vertical_14_neon(uint8_t *src, int stride, const uint8_t *blimit,
   uint8x8_t q0q4, q1q5, q2q6, q3qy;
   uint32x2x2_t p6q6_p2q2, p5q5_p1q1, p4q4_p0q0, pxqx_p3q3;
   uint32x2_t pq_rev;
-  uint8x8_t p0q0, p1q1, p2q2, p3q3, p4q4, p5q5, p6q6;
+  uint8x8_t p0q0, p1q1, p2q2, p3q3, p4q4, p5q5;
 
   // row0: x p6 p5 p4 p3 p2 p1 p0 | q0 q1 q2 q3 q4 q5 q6 y
   // row1: x p6 p5 p4 p3 p2 p1 p0 | q0 q1 q2 q3 q4 q5 q6 y
@@ -579,11 +581,17 @@ void aom_lpf_vertical_14_neon(uint8_t *src, int stride, const uint8_t *blimit,
   p1q1 = vreinterpret_u8_u32(p5q5_p1q1.val[1]);
   p2q2 = vreinterpret_u8_u32(p6q6_p2q2.val[1]);
   p3q3 = vreinterpret_u8_u32(pxqx_p3q3.val[1]);
+
+  const uint8x8_t mask_8x8 = lpf_mask(p3q3, p2q2, p1q1, p0q0, *blimit, *limit);
+  if (vget_lane_u64(vreinterpret_u64_u8(mask_8x8), 0) == 0) {
+    return;
+  }
+
   p4q4 = vreinterpret_u8_u32(p4q4_p0q0.val[0]);
   p5q5 = vreinterpret_u8_u32(p5q5_p1q1.val[0]);
-  p6q6 = vreinterpret_u8_u32(p6q6_p2q2.val[0]);
+  const uint8x8_t p6q6 = vreinterpret_u8_u32(p6q6_p2q2.val[0]);
 
-  lpf_14_neon(&p6q6, &p5q5, &p4q4, &p3q3, &p2q2, &p1q1, &p0q0, *blimit, *limit,
+  lpf_14_neon(p6q6, &p5q5, &p4q4, &p3q3, &p2q2, &p1q1, &p0q0, mask_8x8,
               *thresh);
 
   pxqx_p3q3 = vtrn_u32(pxqx_p3q3.val[0], vreinterpret_u32_u8(p3q3));
@@ -805,15 +813,21 @@ void aom_lpf_vertical_4_quad_neon(uint8_t *s, int pitch, const uint8_t *blimit,
 
 void aom_lpf_horizontal_14_neon(uint8_t *src, int stride, const uint8_t *blimit,
                                 const uint8_t *limit, const uint8_t *thresh) {
-  uint8x8_t p6q6 = load_u8_4x2(src - 7 * stride, 13 * stride);
-  uint8x8_t p5q5 = load_u8_4x2(src - 6 * stride, 11 * stride);
-  uint8x8_t p4q4 = load_u8_4x2(src - 5 * stride, 9 * stride);
   uint8x8_t p3q3 = load_u8_4x2(src - 4 * stride, 7 * stride);
   uint8x8_t p2q2 = load_u8_4x2(src - 3 * stride, 5 * stride);
   uint8x8_t p1q1 = load_u8_4x2(src - 2 * stride, 3 * stride);
   uint8x8_t p0q0 = load_u8_4x2(src - 1 * stride, 1 * stride);
 
-  lpf_14_neon(&p6q6, &p5q5, &p4q4, &p3q3, &p2q2, &p1q1, &p0q0, *blimit, *limit,
+  const uint8x8_t mask_8x8 = lpf_mask(p3q3, p2q2, p1q1, p0q0, *blimit, *limit);
+  if (vget_lane_u64(vreinterpret_u64_u8(mask_8x8), 0) == 0) {
+    return;
+  }
+
+  const uint8x8_t p6q6 = load_u8_4x2(src - 7 * stride, 13 * stride);
+  uint8x8_t p5q5 = load_u8_4x2(src - 6 * stride, 11 * stride);
+  uint8x8_t p4q4 = load_u8_4x2(src - 5 * stride, 9 * stride);
+
+  lpf_14_neon(p6q6, &p5q5, &p4q4, &p3q3, &p2q2, &p1q1, &p0q0, mask_8x8,
               *thresh);
 
   store_u8x4_strided_x2(src - 1 * stride, 1 * stride, p0q0);
