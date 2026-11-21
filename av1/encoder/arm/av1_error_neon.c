@@ -116,6 +116,28 @@ static AOM_FORCE_INLINE uint64x2_t sum_sq_qm_4_u64(int32x4_t v, int32x4_t wt) {
                       2 * AOM_QM_BITS);
 }
 
+static inline void acc_block_error_qm_8(int32x4_t c0, int32x4_t c1,
+                                        int32x4_t d0, int32x4_t d1,
+                                        int32x4_t d_or, uint8x8_t wt_u8,
+                                        uint64x2_t *sse0, uint64x2_t *sse1,
+                                        uint64x2_t *ssz0, uint64x2_t *ssz1) {
+  const uint16x8_t wt_u16 = vmovl_u8(wt_u8);
+  const int32x4_t wt0 = vreinterpretq_s32_u32(vmovl_u16(vget_low_u16(wt_u16)));
+  const int32x4_t wt1 = vreinterpretq_s32_u32(vmovl_u16(vget_high_u16(wt_u16)));
+  const uint64x2_t sq0 = sum_sq_qm_4_u64(c0, wt0);
+  const uint64x2_t sq1 = sum_sq_qm_4_u64(c1, wt1);
+  *ssz0 = vaddq_u64(*ssz0, sq0);
+  *ssz1 = vaddq_u64(*ssz1, sq1);
+
+  if (!any_nz_s32(d_or)) {
+    *sse0 = vaddq_u64(*sse0, sq0);
+    *sse1 = vaddq_u64(*sse1, sq1);
+  } else {
+    *sse0 = vaddq_u64(*sse0, sum_sq_qm_4_u64(vsubq_s32(c0, d0), wt0));
+    *sse1 = vaddq_u64(*sse1, sum_sq_qm_4_u64(vsubq_s32(c1, d1), wt1));
+  }
+}
+
 int64_t av1_block_error_qm_neon(const tran_low_t *coeff,
                                 const tran_low_t *dqcoeff, intptr_t block_size,
                                 const qm_val_t *qmatrix, const int16_t *scan,
@@ -126,7 +148,7 @@ int64_t av1_block_error_qm_neon(const tran_low_t *coeff,
   assert(scan != NULL);
   assert(ssz != NULL);
   assert(block_size >= 16);
-  assert((block_size % 16) == 0);
+  assert((block_size & (block_size - 1)) == 0);
   assert(bd == 8 || bd == 10 || bd == 12);
 
   uint64x2_t sse0 = vdupq_n_u64(0);
@@ -134,45 +156,107 @@ int64_t av1_block_error_qm_neon(const tran_low_t *coeff,
   uint64x2_t ssz0 = vdupq_n_u64(0);
   uint64x2_t ssz1 = vdupq_n_u64(0);
 
-  do {
-    const int32x4_t c0 = vld1q_s32(coeff);
-    const int32x4_t c1 = vld1q_s32(coeff + 4);
-    const int32x4_t d0 = vld1q_s32(dqcoeff);
-    const int32x4_t d1 = vld1q_s32(dqcoeff + 4);
-    const int32x4_t c_or = vorrq_s32(c0, c1);
-    const int32x4_t d_or = vorrq_s32(d0, d1);
-    if (any_nz_s32(vorrq_s32(c_or, d_or))) {
-      uint8x8_t wt_u8 = vld1_dup_u8(&qmatrix[scan[0]]);
-      wt_u8 = vld1_lane_u8(&qmatrix[scan[1]], wt_u8, 1);
-      wt_u8 = vld1_lane_u8(&qmatrix[scan[2]], wt_u8, 2);
-      wt_u8 = vld1_lane_u8(&qmatrix[scan[3]], wt_u8, 3);
-      wt_u8 = vld1_lane_u8(&qmatrix[scan[4]], wt_u8, 4);
-      wt_u8 = vld1_lane_u8(&qmatrix[scan[5]], wt_u8, 5);
-      wt_u8 = vld1_lane_u8(&qmatrix[scan[6]], wt_u8, 6);
-      wt_u8 = vld1_lane_u8(&qmatrix[scan[7]], wt_u8, 7);
-      const uint16x8_t wt_u16 = vmovl_u8(wt_u8);
-      const int32x4_t wt0 =
-          vreinterpretq_s32_u32(vmovl_u16(vget_low_u16(wt_u16)));
-      const int32x4_t wt1 =
-          vreinterpretq_s32_u32(vmovl_u16(vget_high_u16(wt_u16)));
-      const uint64x2_t sq0 = sum_sq_qm_4_u64(c0, wt0);
-      const uint64x2_t sq1 = sum_sq_qm_4_u64(c1, wt1);
-      ssz0 = vaddq_u64(ssz0, sq0);
-      ssz1 = vaddq_u64(ssz1, sq1);
-
-      if (!any_nz_s32(d_or)) {
-        sse0 = vaddq_u64(sse0, sq0);
-        sse1 = vaddq_u64(sse1, sq1);
-      } else {
-        sse0 = vaddq_u64(sse0, sum_sq_qm_4_u64(vsubq_s32(c0, d0), wt0));
-        sse1 = vaddq_u64(sse1, sum_sq_qm_4_u64(vsubq_s32(c1, d1), wt1));
-      }
+#if AOM_ARCH_AARCH64
+  // For block_size <= 64 (4x4, 4x8/8x4, 8x8, 4x16/16x4), block_size equals
+  // av1_get_max_eob(tx_size) == tx area, so qmatrix has block_size bytes and
+  // every scan[i] satisfies 0 <= scan[i] < block_size, allowing in-register
+  // vqtbl lookups instead of 8 scalar vld1_lane_u8 gathers.
+  if (block_size <= 64) {
+    if (block_size == 16) {
+      const uint8x16_t qm = vld1q_u8(qmatrix);
+      do {
+        const int32x4_t c0 = vld1q_s32(coeff);
+        const int32x4_t c1 = vld1q_s32(coeff + 4);
+        const int32x4_t d0 = vld1q_s32(dqcoeff);
+        const int32x4_t d1 = vld1q_s32(dqcoeff + 4);
+        const int32x4_t c_or = vorrq_s32(c0, c1);
+        const int32x4_t d_or = vorrq_s32(d0, d1);
+        if (any_nz_s32(vorrq_s32(c_or, d_or))) {
+          const uint16x8_t scan_u16 = vreinterpretq_u16_s16(vld1q_s16(scan));
+          assert(vmaxvq_u16(scan_u16) < 16);
+          const uint8x8_t wt_u8 = vqtbl1_u8(qm, vmovn_u16(scan_u16));
+          acc_block_error_qm_8(c0, c1, d0, d1, d_or, wt_u8, &sse0, &sse1, &ssz0,
+                               &ssz1);
+        }
+        coeff += 8;
+        dqcoeff += 8;
+        scan += 8;
+        block_size -= 8;
+      } while (block_size != 0);
+    } else if (block_size == 32) {
+      const uint8x16x2_t qm = { { vld1q_u8(qmatrix), vld1q_u8(qmatrix + 16) } };
+      do {
+        const int32x4_t c0 = vld1q_s32(coeff);
+        const int32x4_t c1 = vld1q_s32(coeff + 4);
+        const int32x4_t d0 = vld1q_s32(dqcoeff);
+        const int32x4_t d1 = vld1q_s32(dqcoeff + 4);
+        const int32x4_t c_or = vorrq_s32(c0, c1);
+        const int32x4_t d_or = vorrq_s32(d0, d1);
+        if (any_nz_s32(vorrq_s32(c_or, d_or))) {
+          const uint16x8_t scan_u16 = vreinterpretq_u16_s16(vld1q_s16(scan));
+          assert(vmaxvq_u16(scan_u16) < 32);
+          const uint8x8_t wt_u8 = vqtbl2_u8(qm, vmovn_u16(scan_u16));
+          acc_block_error_qm_8(c0, c1, d0, d1, d_or, wt_u8, &sse0, &sse1, &ssz0,
+                               &ssz1);
+        }
+        coeff += 8;
+        dqcoeff += 8;
+        scan += 8;
+        block_size -= 8;
+      } while (block_size != 0);
+    } else {
+      assert(block_size == 64);
+      const uint8x16x4_t qm = { { vld1q_u8(qmatrix), vld1q_u8(qmatrix + 16),
+                                  vld1q_u8(qmatrix + 32),
+                                  vld1q_u8(qmatrix + 48) } };
+      do {
+        const int32x4_t c0 = vld1q_s32(coeff);
+        const int32x4_t c1 = vld1q_s32(coeff + 4);
+        const int32x4_t d0 = vld1q_s32(dqcoeff);
+        const int32x4_t d1 = vld1q_s32(dqcoeff + 4);
+        const int32x4_t c_or = vorrq_s32(c0, c1);
+        const int32x4_t d_or = vorrq_s32(d0, d1);
+        if (any_nz_s32(vorrq_s32(c_or, d_or))) {
+          const uint16x8_t scan_u16 = vreinterpretq_u16_s16(vld1q_s16(scan));
+          assert(vmaxvq_u16(scan_u16) < 64);
+          const uint8x8_t wt_u8 = vqtbl4_u8(qm, vmovn_u16(scan_u16));
+          acc_block_error_qm_8(c0, c1, d0, d1, d_or, wt_u8, &sse0, &sse1, &ssz0,
+                               &ssz1);
+        }
+        coeff += 8;
+        dqcoeff += 8;
+        scan += 8;
+        block_size -= 8;
+      } while (block_size != 0);
     }
-    coeff += 8;
-    dqcoeff += 8;
-    scan += 8;
-    block_size -= 8;
-  } while (block_size != 0);
+  } else
+#endif  // AOM_ARCH_AARCH64
+  {
+    do {
+      const int32x4_t c0 = vld1q_s32(coeff);
+      const int32x4_t c1 = vld1q_s32(coeff + 4);
+      const int32x4_t d0 = vld1q_s32(dqcoeff);
+      const int32x4_t d1 = vld1q_s32(dqcoeff + 4);
+      const int32x4_t c_or = vorrq_s32(c0, c1);
+      const int32x4_t d_or = vorrq_s32(d0, d1);
+      if (any_nz_s32(vorrq_s32(c_or, d_or))) {
+        uint8x8_t wt_u8 = vld1_dup_u8(&qmatrix[scan[0]]);
+        wt_u8 = vld1_lane_u8(&qmatrix[scan[1]], wt_u8, 1);
+        wt_u8 = vld1_lane_u8(&qmatrix[scan[2]], wt_u8, 2);
+        wt_u8 = vld1_lane_u8(&qmatrix[scan[3]], wt_u8, 3);
+        wt_u8 = vld1_lane_u8(&qmatrix[scan[4]], wt_u8, 4);
+        wt_u8 = vld1_lane_u8(&qmatrix[scan[5]], wt_u8, 5);
+        wt_u8 = vld1_lane_u8(&qmatrix[scan[6]], wt_u8, 6);
+        wt_u8 = vld1_lane_u8(&qmatrix[scan[7]], wt_u8, 7);
+        acc_block_error_qm_8(c0, c1, d0, d1, d_or, wt_u8, &sse0, &sse1, &ssz0,
+                             &ssz1);
+      }
+      coeff += 8;
+      dqcoeff += 8;
+      scan += 8;
+      block_size -= 8;
+    } while (block_size != 0);
+  }
 
   const int shift = 2 * (bd - 8);
   const int64_t sse = ROUND_POWER_OF_TWO_64(

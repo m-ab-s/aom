@@ -74,18 +74,31 @@ int64_t BlockErrorQmWrapper(const tran_low_t *coeff, const tran_low_t *dqcoeff,
                             intptr_t block_size, int64_t *ssz, int bps) {
   static qm_val_t qmatrix[4096];
   static int16_t scan[4096];
+  static int16_t scan32[32];
+  static int16_t scan64[64];
   static const bool initialized = [&]() {
     // Exercise full qm_val_t range [16, 242] (up to iwt_matrix_ref max) and a
     // non-contiguous bijection within each 16-coefficient slice so every
-    // block_size prefix gathers permuted weights via scan_ptr[0..7].
+    // block_size prefix gathers permuted weights via scan_ptr[0..7]. Also use
+    // cross-slice bijections for 32/64 so multi-register vqtbl2/vqtbl4 lookups
+    // span all table registers.
     for (int i = 0; i < 4096; ++i) {
       qmatrix[i] = static_cast<qm_val_t>(16 + ((i * 37) % 227));
       scan[i] = static_cast<int16_t>((i & ~15) | ((i * 5 + 3) & 15));
     }
+    for (int i = 0; i < 32; ++i) {
+      scan32[i] = static_cast<int16_t>((i * 13 + 7) & 31);
+    }
+    for (int i = 0; i < 64; ++i) {
+      scan64[i] = static_cast<int16_t>((i * 21 + 11) & 63);
+    }
     return true;
   }();
   (void)initialized;
-  return fn(coeff, dqcoeff, block_size, qmatrix, scan, ssz, bps);
+  const int16_t *scan_ptr = (block_size == 32)   ? scan32
+                            : (block_size == 64) ? scan64
+                                                 : scan;
+  return fn(coeff, dqcoeff, block_size, qmatrix, scan_ptr, ssz, bps);
 }
 
 class ErrorBlockTest : public ::testing::TestWithParam<ErrorBlockParam> {
