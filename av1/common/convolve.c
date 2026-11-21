@@ -1264,18 +1264,18 @@ void av1_highbd_convolve_2d_facade(const uint8_t *src8, int src_stride,
     assert(filter_params_x->taps == 2 && filter_params_y->taps == 2);
     assert(!scaled);
     if (subpel_x_qn && subpel_y_qn) {
-      av1_highbd_convolve_2d_sr_intrabc_c(
+      av1_highbd_convolve_2d_sr_intrabc(
           src, src_stride, dst, dst_stride, w, h, filter_params_x,
           filter_params_y, subpel_x_qn, subpel_y_qn, conv_params, bd);
       return;
     } else if (subpel_x_qn) {
-      av1_highbd_convolve_x_sr_intrabc_c(src, src_stride, dst, dst_stride, w, h,
-                                         filter_params_x, subpel_x_qn,
-                                         conv_params, bd);
+      av1_highbd_convolve_x_sr_intrabc(src, src_stride, dst, dst_stride, w, h,
+                                       filter_params_x, subpel_x_qn,
+                                       conv_params, bd);
       return;
     } else if (subpel_y_qn) {
-      av1_highbd_convolve_y_sr_intrabc_c(src, src_stride, dst, dst_stride, w, h,
-                                         filter_params_y, subpel_y_qn, bd);
+      av1_highbd_convolve_y_sr_intrabc(src, src_stride, dst, dst_stride, w, h,
+                                       filter_params_y, subpel_y_qn, bd);
       return;
     }
   }
