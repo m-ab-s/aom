@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <arm_neon.h>
+#include <stddef.h>
 
 #include "config/aom_config.h"
 #include "config/av1_rtcd.h"
@@ -1872,6 +1873,8 @@ void av1_highbd_convolve_x_sr_intrabc_neon(
   assert(subpel_x_qn == 8);
   assert(filter_params_x->taps == 2);
   assert((conv_params->round_0 + conv_params->round_1) == 2 * FILTER_BITS);
+  assert(h >= 2 && (h & 1) == 0);
+  assert(w == 2 || w == 4 || w == 8 || (w >= 16 && (w & 15) == 0));
   (void)filter_params_x;
   (void)subpel_x_qn;
   (void)conv_params;
@@ -1893,27 +1896,58 @@ void av1_highbd_convolve_x_sr_intrabc_neon(
       src += src_stride;
       dst += dst_stride;
     } while (--h != 0);
-  } else {
+  } else if (w == 8) {
+    int r = 0;
     do {
-      const uint16_t *src_ptr = src;
-      uint16_t *dst_ptr = dst;
+      const uint16_t *s = src + (ptrdiff_t)r * src_stride;
+      uint16_t *d = dst + (ptrdiff_t)r * dst_stride;
+      const uint16x8_t s0_0 = vld1q_u16(s);
+      const uint16x8_t s0_1 = vld1q_u16(s + 1);
+      const uint16x8_t s1_0 = vld1q_u16(s + src_stride);
+      const uint16x8_t s1_1 = vld1q_u16(s + src_stride + 1);
+
+      const uint16x8_t d0 = vrhaddq_u16(s0_0, s0_1);
+      const uint16x8_t d1 = vrhaddq_u16(s1_0, s1_1);
+
+      vst1q_u16(d, d0);
+      vst1q_u16(d + dst_stride, d1);
+
+      r += 2;
+    } while (r != h);
+  } else {
+    int r = 0;
+    do {
+      const uint16_t *src_ptr = src + (ptrdiff_t)r * src_stride;
+      uint16_t *dst_ptr = dst + (ptrdiff_t)r * dst_stride;
       int width = w;
 
       do {
-        uint16x8_t s0 = vld1q_u16(src_ptr);
-        uint16x8_t s1 = vld1q_u16(src_ptr + 1);
+        const uint16x8_t s0_lo = vld1q_u16(src_ptr);
+        const uint16x8_t s0_hi = vld1q_u16(src_ptr + 8);
+        const uint16x8_t s0_hi1 = vld1q_u16(src_ptr + 9);
+        const uint16x8_t s0_lo1 = vextq_u16(s0_lo, s0_hi, 1);
 
-        uint16x8_t d0 = vrhaddq_u16(s0, s1);
+        const uint16x8_t s1_lo = vld1q_u16(src_ptr + src_stride);
+        const uint16x8_t s1_hi = vld1q_u16(src_ptr + src_stride + 8);
+        const uint16x8_t s1_hi1 = vld1q_u16(src_ptr + src_stride + 9);
+        const uint16x8_t s1_lo1 = vextq_u16(s1_lo, s1_hi, 1);
 
-        vst1q_u16(dst_ptr, d0);
+        const uint16x8_t d0_lo = vrhaddq_u16(s0_lo, s0_lo1);
+        const uint16x8_t d0_hi = vrhaddq_u16(s0_hi, s0_hi1);
+        const uint16x8_t d1_lo = vrhaddq_u16(s1_lo, s1_lo1);
+        const uint16x8_t d1_hi = vrhaddq_u16(s1_hi, s1_hi1);
 
-        src_ptr += 8;
-        dst_ptr += 8;
-        width -= 8;
+        vst1q_u16(dst_ptr, d0_lo);
+        vst1q_u16(dst_ptr + 8, d0_hi);
+        vst1q_u16(dst_ptr + dst_stride, d1_lo);
+        vst1q_u16(dst_ptr + dst_stride + 8, d1_hi);
+
+        src_ptr += 16;
+        dst_ptr += 16;
+        width -= 16;
       } while (width != 0);
-      src += src_stride;
-      dst += dst_stride;
-    } while (--h != 0);
+      r += 2;
+    } while (r != h);
   }
 }
 
@@ -1924,6 +1958,8 @@ void av1_highbd_convolve_y_sr_intrabc_neon(
     int bd) {
   assert(subpel_y_qn == 8);
   assert(filter_params_y->taps == 2);
+  assert(h >= 2 && (h & 1) == 0);
+  assert(w == 2 || w == 4 || w == 8 || (w >= 16 && (w & 15) == 0));
   (void)filter_params_y;
   (void)subpel_y_qn;
   (void)bd;
@@ -1944,26 +1980,54 @@ void av1_highbd_convolve_y_sr_intrabc_neon(
       src += src_stride;
       dst += dst_stride;
     } while (--h != 0);
+  } else if (w == 8) {
+    uint16x8_t s0 = vld1q_u16(src);
+    int r = 0;
+    do {
+      const uint16_t *s = src + (ptrdiff_t)(r + 1) * src_stride;
+      uint16_t *d = dst + (ptrdiff_t)r * dst_stride;
+      const uint16x8_t s1 = vld1q_u16(s);
+      const uint16x8_t s2 = vld1q_u16(s + src_stride);
+
+      const uint16x8_t d0 = vrhaddq_u16(s0, s1);
+      const uint16x8_t d1 = vrhaddq_u16(s1, s2);
+
+      vst1q_u16(d, d0);
+      vst1q_u16(d + dst_stride, d1);
+
+      s0 = s2;
+      r += 2;
+    } while (r != h);
   } else {
     do {
-      const uint16_t *src_ptr = src;
-      uint16_t *dst_ptr = dst;
-      int height = h;
-
+      uint16x8_t s0_lo = vld1q_u16(src);
+      uint16x8_t s0_hi = vld1q_u16(src + 8);
+      int r = 0;
       do {
-        uint16x8_t s0 = vld1q_u16(src_ptr);
-        uint16x8_t s1 = vld1q_u16(src_ptr + src_stride);
+        const uint16_t *s = src + (ptrdiff_t)(r + 1) * src_stride;
+        uint16_t *d = dst + (ptrdiff_t)r * dst_stride;
+        const uint16x8_t s1_lo = vld1q_u16(s);
+        const uint16x8_t s1_hi = vld1q_u16(s + 8);
+        const uint16x8_t s2_lo = vld1q_u16(s + src_stride);
+        const uint16x8_t s2_hi = vld1q_u16(s + src_stride + 8);
 
-        uint16x8_t d0 = vrhaddq_u16(s0, s1);
+        const uint16x8_t d0_lo = vrhaddq_u16(s0_lo, s1_lo);
+        const uint16x8_t d0_hi = vrhaddq_u16(s0_hi, s1_hi);
+        const uint16x8_t d1_lo = vrhaddq_u16(s1_lo, s2_lo);
+        const uint16x8_t d1_hi = vrhaddq_u16(s1_hi, s2_hi);
 
-        vst1q_u16(dst_ptr, d0);
+        vst1q_u16(d, d0_lo);
+        vst1q_u16(d + 8, d0_hi);
+        vst1q_u16(d + dst_stride, d1_lo);
+        vst1q_u16(d + dst_stride + 8, d1_hi);
 
-        src_ptr += src_stride;
-        dst_ptr += dst_stride;
-      } while (--height != 0);
-      src += 8;
-      dst += 8;
-      w -= 8;
+        s0_lo = s2_lo;
+        s0_hi = s2_hi;
+        r += 2;
+      } while (r != h);
+      src += 16;
+      dst += 16;
+      w -= 16;
     } while (w != 0);
   }
 }
