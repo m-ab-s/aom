@@ -230,11 +230,11 @@ TEST(IntraHogRefTest, HighbdGenerateHogMatchesTextbookOracle) {
     }
   }
 
-  // Explicitly probe every threshold boundary kHogThresholds[0..30] on both C
-  // and SSE2 using 12-bit 3x3 patches where dx = +/-128 (via p12=64 or p10=64,
-  // which leaves dy=0) and dy sweeps across the exact boundary value (via
-  // p21/p01 and p20=p22, keeping dx unchanged when even, or shifting 1 from
-  // p12=63 + p02=1 + p8=1 for even/odd dy).
+  // Explicitly probe every threshold boundary kHogThresholds[0..30] on C and
+  // available SIMD implementations using 12-bit 3x3 patches where dx = +/-128
+  // (via patch[5]=64 or patch[3]=64, leaving dy=0) and even dy values sweep
+  // across each boundary (via patch[7]=dy/2 or patch[1]=-dy/2, leaving dx
+  // unchanged).
   for (int t = 0; t < kHogBins - 1; ++t) {
     for (int sign_dx : { 1, -1 }) {
       const int dx = sign_dx * 128;
