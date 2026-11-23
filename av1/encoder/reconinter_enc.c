@@ -112,6 +112,15 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
                                    int mi_row, int mi_col,
                                    const BUFFER_SET *ctx, BLOCK_SIZE bsize,
                                    int plane_from, int plane_to) {
+  const int is_interintra = is_interintra_pred(xd->mi[0]);
+  BUFFER_SET default_ctx;
+  if (is_interintra && !ctx) {
+    for (int i = 0; i < MAX_MB_PLANE; ++i) {
+      default_ctx.plane[i] = xd->plane[i].dst.buf;
+      default_ctx.stride[i] = xd->plane[i].dst.stride;
+    }
+    ctx = &default_ctx;
+  }
   for (int plane = plane_from; plane <= plane_to; ++plane) {
     if (plane && !xd->is_chroma_ref) break;
     const int mi_x = mi_col * MI_SIZE;
@@ -119,15 +128,7 @@ void av1_enc_build_inter_predictor(const AV1_COMMON *cm, MACROBLOCKD *xd,
     enc_build_inter_predictors(cm, xd, plane, xd->mi[0], xd->plane[plane].width,
                                xd->plane[plane].height, mi_x, mi_y);
 
-    if (is_interintra_pred(xd->mi[0])) {
-      BUFFER_SET default_ctx = {
-        { xd->plane[0].dst.buf, xd->plane[1].dst.buf, xd->plane[2].dst.buf },
-        { xd->plane[0].dst.stride, xd->plane[1].dst.stride,
-          xd->plane[2].dst.stride }
-      };
-      if (!ctx) {
-        ctx = &default_ctx;
-      }
+    if (is_interintra) {
       av1_build_interintra_predictor(cm, xd, xd->plane[plane].dst.buf,
                                      xd->plane[plane].dst.stride, ctx, plane,
                                      bsize);
