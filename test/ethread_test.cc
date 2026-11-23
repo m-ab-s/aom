@@ -9,13 +9,16 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include <cstdint>
 #include <string>
 #include <vector>
+#include "aom/aom_image.h"
 #include "gtest/gtest.h"
 #include "test/codec_factory.h"
 #include "test/encode_test_driver.h"
 #include "test/md5_helper.h"
 #include "test/util.h"
+#include "test/video_source.h"
 #include "test/y4m_video_source.h"
 #include "test/yuv_video_source.h"
 #include "av1/encoder/enc_enums.h"
@@ -672,6 +675,114 @@ AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadAllIntraTestLarge,
                            ::testing::Values(0, 2, 4, 8),
                            ::testing::Values(1, 6), ::testing::Values(1, 6),
                            ::testing::Values(0, 1));
+
+// Synthetic video source with spatially non-uniform complexity across tiles
+// and superblocks (first two frames identical, followed by distinct frames) to
+// verify all-intra deltaq-mode=3 does not leak stale per-MB state across
+// frames.
+class AllIntraDeltaq3VideoSource : public ::libaom_test::DummyVideoSource {
+ protected:
+  void FillFrame() override {
+    ASSERT_NE(img_, nullptr);
+    const int seed = (frame_ < 2) ? 0 : static_cast<int>(frame_) - 1;
+    for (int plane = 0; plane < 3; ++plane) {
+      const int w = aom_img_plane_width(img_, plane);
+      const int h = aom_img_plane_height(img_, plane);
+      const int stride = img_->stride[plane];
+      uint8_t *buf = img_->planes[plane];
+      for (int r = 0; r < h; ++r) {
+        for (int c = 0; c < w; ++c) {
+          const int grad = (r * 5 + c * 9 + seed * 29) & 0xff;
+          const bool textured = (r >= h / 2) || (c >= w / 2 && r >= h / 4);
+          const int tex =
+              textured ? (((r ^ (c * 3)) * (13 + seed * 7)) & 0xff) : 0;
+          buf[r * stride + c] = static_cast<uint8_t>((grad + tex) >> 1);
+        }
+      }
+    }
+  }
+};
+
+// Regression test for aomedia:589732275: multi-frame all-intra encoding with
+// deltaq-mode=3, multiple tile columns, and row-mt must produce deterministic
+// output without leaking stale tile bounds across frames.
+class AVxEncoderThreadAllIntraDeltaq3Test
+    : public ::libaom_test::CodecTestWithParam<libaom_test::TestMode>,
+      public ::libaom_test::EncoderTest {
+ protected:
+  static constexpr int kWidth = 386;
+  static constexpr int kHeight = 258;
+  static constexpr int kFrames = 5;
+
+  AVxEncoderThreadAllIntraDeltaq3Test()
+      : EncoderTest(GET_PARAM(0)), row_mt_(1) {}
+  ~AVxEncoderThreadAllIntraDeltaq3Test() override = default;
+
+  void SetUp() override {
+    InitializeConfig(GET_PARAM(1));
+    cfg_.rc_end_usage = AOM_Q;
+    cfg_.g_lag_in_frames = 0;
+  }
+
+  void PreEncodeFrameHook(::libaom_test::VideoSource *video,
+                          ::libaom_test::Encoder *encoder) override {
+    if (video->frame() != 0) return;
+    encoder->Control(AOME_SET_CPUUSED, 7);
+    encoder->Control(AOME_SET_CQ_LEVEL, 29);
+    encoder->Control(AV1E_SET_DELTAQ_MODE, 3);
+    encoder->Control(AV1E_SET_TILE_COLUMNS, 2);
+    encoder->Control(AV1E_SET_ROW_MT, row_mt_);
+  }
+
+  void FramePktHook(const aom_codec_cx_pkt_t *pkt) override {
+    ::libaom_test::MD5 md5;
+    md5.Add(static_cast<const uint8_t *>(pkt->data.frame.buf),
+            pkt->data.frame.sz);
+    md5_.push_back(md5.Get());
+  }
+
+  std::vector<std::string> Encode(int threads) {
+    cfg_.g_threads = threads;
+    md5_.clear();
+    AllIntraDeltaq3VideoSource video;
+    video.SetSize(kWidth, kHeight);
+    video.set_limit(kFrames);
+    EXPECT_NO_FATAL_FAILURE(RunLoop(&video));
+    return md5_;
+  }
+
+  int row_mt_;
+  std::vector<std::string> md5_;
+};
+
+TEST_P(AVxEncoderThreadAllIntraDeltaq3Test, SameOutputAcrossThreads) {
+  row_mt_ = 0;
+  const std::vector<std::string> ref = Encode(1);
+  ASSERT_EQ(ref.size(), static_cast<size_t>(kFrames));
+  // Every all-intra frame is an independent keyframe, so identical input
+  // frames 0 and 1 must produce byte-identical packets.
+  EXPECT_EQ(ref[0], ref[1]);
+  EXPECT_EQ(ref, Encode(2));
+  EXPECT_EQ(ref, Encode(4));
+}
+
+TEST_P(AVxEncoderThreadAllIntraDeltaq3Test, DeterministicRowMT) {
+  row_mt_ = 1;
+  const std::vector<std::string> ref1 = Encode(1);
+  ASSERT_EQ(ref1.size(), static_cast<size_t>(kFrames));
+  EXPECT_EQ(ref1[0], ref1[1]);
+
+  const std::vector<std::string> ref2 = Encode(2);
+  ASSERT_EQ(ref2.size(), static_cast<size_t>(kFrames));
+  EXPECT_EQ(ref2[0], ref2[1]);
+  EXPECT_EQ(ref2, Encode(4));
+  for (int run = 0; run < 2; ++run) {
+    EXPECT_EQ(ref2, Encode(2));
+  }
+}
+
+AV1_INSTANTIATE_TEST_SUITE(AVxEncoderThreadAllIntraDeltaq3Test,
+                           ::testing::Values(::libaom_test::kAllIntra));
 #endif  // !CONFIG_REALTIME_ONLY
 
 class AVxEncoderThreadLSTest : public AVxEncoderThreadTest {

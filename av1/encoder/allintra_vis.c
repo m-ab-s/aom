@@ -339,8 +339,12 @@ void av1_calc_mb_wiener_var_row(AV1_COMP *const cpi, MACROBLOCK *x,
                    AOMMIN(mi_col + mi_width, cm->mi_params.mi_cols));
     set_plane_n4(xd, mi_size_wide[bsize], mi_size_high[bsize],
                  av1_num_planes(cm));
-    xd->mi[0]->bsize = bsize;
-    xd->mi[0]->motion_mode = SIMPLE_TRANSLATION;
+    // Point xd->mi back at the thread-local zeroed mbmi so subsequent calls
+    // do not write into shared mi_grid_base entries or read stale fields from
+    // a previous frame.
+    mbmi.bsize = bsize;
+    mbmi.motion_mode = SIMPLE_TRANSLATION;
+    xd->mi = &mbmi_ptr;
     // Set above and left mbmi to NULL as they are not available in the
     // preprocessing stage.
     // They are used to detemine intra edge filter types in intra prediction.
@@ -619,11 +623,23 @@ void av1_set_mb_wiener_variance(AV1_COMP *cpi) {
 
   MACROBLOCK *x = &cpi->td.mb;
   MACROBLOCKD *xd = &x->e_mbd;
+  // Reset tile bounds to the full frame so stale tile bounds left in
+  // cpi->td.mb.e_mbd.tile by a previous frame do not affect availability in
+  // av1_calc_mb_wiener_var_row().
+  xd->tile.mi_row_start = 0;
+  xd->tile.mi_row_end = cm->mi_params.mi_rows;
+  xd->tile.mi_col_start = 0;
+  xd->tile.mi_col_end = cm->mi_params.mi_cols;
+  xd->tile.tile_row = 0;
+  xd->tile.tile_col = 0;
   // xd->mi needs to be setup since it is used in av1_frame_init_quantizer.
   MB_MODE_INFO mbmi;
   memset(&mbmi, 0, sizeof(mbmi));
   MB_MODE_INFO *mbmi_ptr = &mbmi;
   xd->mi = &mbmi_ptr;
+  x->delta_qindex = 0;
+  x->rdmult_delta_qindex = 0;
+  memset(xd->lossless, 0, sizeof(xd->lossless));
   cm->quant_params.base_qindex = cpi->oxcf.rc_cfg.cq_level;
   av1_frame_init_quantizer(cpi);
 
