@@ -78,6 +78,19 @@ void av1_setup_in_frame_q_adj(AV1_COMP *cpi) {
 
   if (is_frame_aq_enabled(cpi)) {
     int segment;
+
+    // Disable segmentation when SB-level AQ is disabled or base_qindex is 0.
+    // A qindex of 0 with zero DC/AC deltas is lossless (4x4 WHT only), and AQ
+    // mode 2 reassigns segment IDs after mode selection without re-running RD,
+    // so lossless and lossy segments must not be mixed.
+    if (!is_sb_aq_enabled(cpi) || base_qindex == 0) {
+      memset(cpi->enc_seg.map, 0,
+             cm->mi_params.mi_rows * cm->mi_params.mi_cols);
+      av1_clearall_segfeatures(seg);
+      av1_disable_segmentation(seg);
+      return;
+    }
+
     const int aq_strength =
         get_aq_c_strength(base_qindex, cm->seq_params->bit_depth);
 
@@ -86,11 +99,6 @@ void av1_setup_in_frame_q_adj(AV1_COMP *cpi) {
            cm->mi_params.mi_rows * cm->mi_params.mi_cols);
 
     av1_clearall_segfeatures(seg);
-
-    if (!is_sb_aq_enabled(cpi)) {
-      av1_disable_segmentation(seg);
-      return;
-    }
 
     av1_enable_segmentation(seg);
 
@@ -129,8 +137,10 @@ void av1_setup_in_frame_q_adj(AV1_COMP *cpi) {
 // bits for the block vs a target average and its spatial complexity.
 void av1_caq_select_segment(const AV1_COMP *cpi, MACROBLOCK *mb, BLOCK_SIZE bs,
                             int mi_row, int mi_col, int projected_rate) {
-  if ((!is_frame_aq_enabled(cpi)) || (!is_sb_aq_enabled(cpi))) return;
   const AV1_COMMON *const cm = &cpi->common;
+  if (!is_frame_aq_enabled(cpi) || !is_sb_aq_enabled(cpi) || !cm->seg.enabled) {
+    return;
+  }
   const int num_planes = av1_num_planes(cm);
 
   const int mi_offset = mi_row * cm->mi_params.mi_cols + mi_col;
