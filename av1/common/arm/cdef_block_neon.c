@@ -493,12 +493,13 @@ static inline void secondary_filter(uint16x8_t s, const uint16x8_t tap[8],
                                     const int *sec_taps, int sec_strength,
                                     int sec_damping, int16x8_t *sum) {
   // Near taps: sum += sec_taps[0] * (p0 + p1 + p2 + p3)
-  const int16x8_t near = constrain_sum4(s, tap, sec_strength, sec_damping);
-  *sum = vmlaq_n_s16(*sum, near, sec_taps[0]);
+  const int16x8_t near_sum = constrain_sum4(s, tap, sec_strength, sec_damping);
+  *sum = vmlaq_n_s16(*sum, near_sum, sec_taps[0]);
 
   // Far taps: sum += sec_taps[1] * (p0 + p1 + p2 + p3)
-  const int16x8_t far = constrain_sum4(s, tap + 4, sec_strength, sec_damping);
-  *sum = vmlaq_n_s16(*sum, far, sec_taps[1]);
+  const int16x8_t far_sum =
+      constrain_sum4(s, tap + 4, sec_strength, sec_damping);
+  *sum = vmlaq_n_s16(*sum, far_sum, sec_taps[1]);
 }
 
 void cdef_filter_8_0_neon(void *dest, int dstride, const uint16_t *in,
