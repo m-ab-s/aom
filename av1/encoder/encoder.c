@@ -5544,6 +5544,7 @@ int av1_get_compressed_data(AV1_COMP *cpi, AV1_COMP_DATA *const cpi_data) {
   // before it returns.
   if (setjmp(cm->error->jmp)) {
     cm->error->setjmp = 0;
+    av1_free_pc_tree_root(&cpi->td, av1_num_planes(cm), SEARCH_PARTITION);
     // Drop the source frame that failed to encode. Left in the lookahead, it
     // would be retried on every later call and block the frames behind it.
     // This is only safe in one pass mode without lag, where no other state

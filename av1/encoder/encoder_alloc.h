@@ -13,6 +13,7 @@
 #define AOM_AV1_ENCODER_ENCODER_ALLOC_H_
 
 #include "av1/encoder/block.h"
+#include "av1/encoder/context_tree.h"
 #include "av1/encoder/encodeframe_utils.h"
 #include "av1/encoder/encoder.h"
 #include "av1/encoder/encoder_utils.h"
@@ -355,9 +356,7 @@ static inline void dealloc_compressor_data(AV1_COMP *cpi) {
   cpi->td.mb.rdcost = NULL;
 #endif
 
-  av1_free_pc_tree_recursive(cpi->td.pc_root, num_planes, 0, 0,
-                             cpi->sf.part_sf.partition_search_type);
-  cpi->td.pc_root = NULL;
+  av1_free_pc_tree_root(&cpi->td, num_planes, SEARCH_PARTITION);
 
   for (int i = 0; i < 2; i++) {
     aom_free(cpi->td.mb.intrabc_hash_info.hash_value_buffer[i]);
@@ -634,8 +633,7 @@ static inline void free_thread_data(AV1_PRIMARY *ppi) {
     aom_free(td->mb.rdcost);
     td->mb.rdcost = NULL;
 #endif
-    av1_free_pc_tree_recursive(td->pc_root, num_planes, 0, 0, SEARCH_PARTITION);
-    td->pc_root = NULL;
+    av1_free_pc_tree_root(td, num_planes, SEARCH_PARTITION);
     av1_dealloc_mb_wiener_var_pred_buf(td);
     aom_free(td);
     thread_data->td = NULL;

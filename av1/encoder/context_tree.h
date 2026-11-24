@@ -109,6 +109,11 @@ PC_TREE *av1_alloc_pc_tree_node(BLOCK_SIZE bsize);
 void av1_free_pc_tree_recursive(PC_TREE *tree, int num_planes, int keep_best,
                                 int keep_none,
                                 PARTITION_SEARCH_TYPE partition_search_type);
+// Frees td->pc_root recursively if non-NULL and clears td->pc_root to NULL.
+void av1_free_pc_tree_root(struct ThreadData *td, int num_planes,
+                           PARTITION_SEARCH_TYPE partition_search_type);
+// Frees any leftover td->pc_root and allocates a fresh root node for cm.
+void av1_init_pc_tree_root(const struct AV1Common *cm, struct ThreadData *td);
 
 PICK_MODE_CONTEXT *av1_alloc_pmc(const struct AV1_COMP *const cpi,
                                  BLOCK_SIZE bsize,

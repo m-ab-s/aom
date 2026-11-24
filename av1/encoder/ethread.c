@@ -19,6 +19,7 @@
 
 #include "av1/encoder/allintra_vis.h"
 #include "av1/encoder/bitstream.h"
+#include "av1/encoder/context_tree.h"
 #include "av1/encoder/enc_enums.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodeframe_utils.h"
@@ -632,22 +633,22 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
       av1_set_vert_loop_filter_done(&cpi->common, lf_sync,
                                     cpi->common.seq_params->mib_size_log2);
     }
+    av1_free_pc_tree_root(thread_data->td, av1_num_planes(&cpi->common),
+                          SEARCH_PARTITION);
     return 0;
   }
   error_info->setjmp = 1;
 
   const int mib_size_log2 = cm->seq_params->mib_size_log2;
+  const int num_planes = av1_num_planes(cm);
   int cur_tile_id = enc_row_mt->thread_id_to_tile_id[thread_id];
 
   // Preallocate the pc_tree for realtime coding to reduce the cost of memory
   // allocation.
   if (cpi->sf.rt_sf.use_nonrd_pick_mode) {
-    thread_data->td->pc_root = av1_alloc_pc_tree_node(cm->seq_params->sb_size);
-    if (!thread_data->td->pc_root)
-      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
-                         "Failed to allocate PC_TREE");
+    av1_init_pc_tree_root(cm, thread_data->td);
   } else {
-    thread_data->td->pc_root = NULL;
+    av1_free_pc_tree_root(thread_data->td, num_planes, SEARCH_PARTITION);
   }
 
   assert(cur_tile_id != -1);
@@ -686,6 +687,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     // When row_mt_exit is set to true, other workers need not pursue any
     // further jobs.
     if (row_mt_exit) {
+      av1_free_pc_tree_root(thread_data->td, num_planes, SEARCH_PARTITION);
       error_info->setjmp = 0;
       return 1;
     }
@@ -714,7 +716,7 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
       *td->mb.e_mbd.tile_ctx = this_tile->tctx;
     }
 
-    av1_init_above_context(&cm->above_contexts, av1_num_planes(cm), tile_row,
+    av1_init_above_context(&cm->above_contexts, num_planes, tile_row,
                            &td->mb.e_mbd);
 #if !CONFIG_REALTIME_ONLY
     cfl_init(&td->mb.e_mbd.cfl, cm->seq_params);
@@ -743,9 +745,8 @@ static int enc_row_mt_worker_hook(void *arg1, void *unused) {
     // encoding and loop filter stage.
     launch_loop_filter_rows(cm, thread_data, enc_row_mt, mib_size_log2);
   }
-  av1_free_pc_tree_recursive(thread_data->td->pc_root, av1_num_planes(cm), 0, 0,
-                             cpi->sf.part_sf.partition_search_type);
-  thread_data->td->pc_root = NULL;
+  av1_free_pc_tree_root(thread_data->td, num_planes,
+                        cpi->sf.part_sf.partition_search_type);
   error_info->setjmp = 0;
   return 1;
 }
@@ -768,19 +769,19 @@ static int enc_worker_hook(void *arg1, void *arg2) {
   // before it returns.
   if (setjmp(error_info->jmp)) {
     error_info->setjmp = 0;
+    av1_free_pc_tree_root(thread_data->td, av1_num_planes(&cpi->common),
+                          SEARCH_PARTITION);
     return 0;
   }
   error_info->setjmp = 1;
 
+  const int num_planes = av1_num_planes(cm);
   // Preallocate the pc_tree for realtime coding to reduce the cost of memory
   // allocation.
   if (cpi->sf.rt_sf.use_nonrd_pick_mode) {
-    thread_data->td->pc_root = av1_alloc_pc_tree_node(cm->seq_params->sb_size);
-    if (!thread_data->td->pc_root)
-      aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
-                         "Failed to allocate PC_TREE");
+    av1_init_pc_tree_root(cm, thread_data->td);
   } else {
-    thread_data->td->pc_root = NULL;
+    av1_free_pc_tree_root(thread_data->td, num_planes, SEARCH_PARTITION);
   }
 
   for (t = thread_data->start; t < tile_rows * tile_cols; t += num_workers) {
@@ -794,9 +795,8 @@ static int enc_worker_hook(void *arg1, void *arg2) {
     av1_encode_tile(cpi, thread_data->td, tile_row, tile_col);
   }
 
-  av1_free_pc_tree_recursive(thread_data->td->pc_root, av1_num_planes(cm), 0, 0,
-                             cpi->sf.part_sf.partition_search_type);
-  thread_data->td->pc_root = NULL;
+  av1_free_pc_tree_root(thread_data->td, num_planes,
+                        cpi->sf.part_sf.partition_search_type);
   error_info->setjmp = 0;
   return 1;
 }

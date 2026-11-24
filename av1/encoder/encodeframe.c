@@ -50,6 +50,7 @@
 #include "av1/encoder/aq_cyclicrefresh.h"
 #include "av1/encoder/aq_variance.h"
 #include "av1/encoder/av1_quantize.h"
+#include "av1/encoder/context_tree.h"
 #include "av1/encoder/global_motion_facade.h"
 #include "av1/encoder/encodeframe.h"
 #include "av1/encoder/encodeframe_utils.h"
@@ -2726,22 +2727,19 @@ static inline void encode_frame_internal(AV1_COMP *cpi) {
     if (num_workers > 1) {
       av1_encode_tiles_mt(cpi);
     } else {
+      const int num_planes = av1_num_planes(cm);
       // Preallocate the pc_tree for realtime coding to reduce the cost of
       // memory allocation.
       const int use_nonrd_mode = cpi->sf.rt_sf.use_nonrd_pick_mode;
       if (use_nonrd_mode) {
-        td->pc_root = av1_alloc_pc_tree_node(cm->seq_params->sb_size);
-        if (!td->pc_root)
-          aom_internal_error(xd->error_info, AOM_CODEC_MEM_ERROR,
-                             "Failed to allocate PC_TREE");
+        av1_init_pc_tree_root(cm, td);
       } else {
-        td->pc_root = NULL;
+        av1_free_pc_tree_root(td, num_planes, SEARCH_PARTITION);
       }
 
       encode_tiles(cpi);
-      av1_free_pc_tree_recursive(td->pc_root, av1_num_planes(cm), 0, 0,
-                                 cpi->sf.part_sf.partition_search_type);
-      td->pc_root = NULL;
+      av1_free_pc_tree_root(td, num_planes,
+                            cpi->sf.part_sf.partition_search_type);
     }
   }
 

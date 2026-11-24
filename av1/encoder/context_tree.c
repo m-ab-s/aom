@@ -231,6 +231,30 @@ void av1_free_pc_tree_recursive(PC_TREE *pc_tree, int num_planes, int keep_best,
   if (!keep_best && !keep_none) aom_free(pc_tree);
 }
 
+// Normal end-of-frame callers pass partition_search_type to keep
+// VAR_BASED_PARTITION debug asserts; error/teardown paths pass
+// SEARCH_PARTITION.
+void av1_free_pc_tree_root(struct ThreadData *td, int num_planes,
+                           PARTITION_SEARCH_TYPE partition_search_type) {
+  assert(td != NULL);
+  if (td->pc_root != NULL) {
+    av1_free_pc_tree_recursive(td->pc_root, num_planes, 0, 0,
+                               partition_search_type);
+    td->pc_root = NULL;
+  }
+}
+
+void av1_init_pc_tree_root(const struct AV1Common *cm, struct ThreadData *td) {
+  assert(cm != NULL && td != NULL);
+  // Defensively free any leftover td->pc_root using SEARCH_PARTITION.
+  av1_free_pc_tree_root(td, av1_num_planes(cm), SEARCH_PARTITION);
+  td->pc_root = av1_alloc_pc_tree_node(cm->seq_params->sb_size);
+  if (td->pc_root == NULL) {
+    aom_internal_error(td->mb.e_mbd.error_info, AOM_CODEC_MEM_ERROR,
+                       "Failed to allocate PC_TREE");
+  }
+}
+
 int av1_setup_sms_tree(AV1_COMP *const cpi, ThreadData *td) {
   // The structure 'sms_tree' is used to store the simple motion search data for
   // partition pruning in inter frames. Hence, the memory allocations and
