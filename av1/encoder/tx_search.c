@@ -1228,7 +1228,7 @@ static uint16_t prune_txk_type_separ(
 
   // evaluate vertical with the best horizontal chosen
   rds_v[0] = rds_h[0];
-  int start_v = 1, end_v = 4;
+  const int start_v = 1, end_v = 4;
   const int *idx_map_v = idx_map + idx_h[0];
 
   for (idx = start_v; idx < end_v; ++idx) {
@@ -1261,13 +1261,12 @@ static uint16_t prune_txk_type_separ(
   }
 
   // combine rd_h and rd_v to prune tx candidates
-  int i_v, i_h;
   int64_t rds[16];
   int num_cand = 0, last = TX_TYPES - 1;
 
   for (int i = 0; i < 16; i++) {
-    i_v = sel_pattern_v[i];
-    i_h = sel_pattern_h[i];
+    const int i_v = sel_pattern_v[i];
+    const int i_h = sel_pattern_h[i];
     tx_type = idx_map[idx_v[i_v] * 4 + idx_h[i_h]];
     if (!(allowed_tx_mask & (1 << tx_type)) || skip_h[idx_h[i_h]] ||
         skip_v[idx_v[i_v]]) {
